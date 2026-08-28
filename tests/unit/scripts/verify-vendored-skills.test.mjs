@@ -3,8 +3,10 @@ import { createHash } from 'node:crypto';
 import {
   access,
   chmod,
+  link,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   stat,
@@ -212,6 +214,134 @@ describe('vendored skill lock verification', () => {
 
     expect(result.errors).toContain('skills-lock.json changed while the update was running');
     expect(await readFile(lockPath, 'utf8')).toBe(replacement);
+  });
+
+  it('reclaims a stale dead-PID update lease', async () => {
+    const { root } = await createFixture();
+    const leasePath = path.join(root, '.skills-lock.json.update.lock');
+    await writeFile(leasePath, '2147483647\n', 'utf8');
+
+    const update = verify(root, '--write');
+
+    expect(update.status, update.stderr).toBe(0);
+    await expect(access(leasePath)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('cleans a dead reclaim marker before acquiring the update lease', async () => {
+    const { root } = await createFixture();
+    const markerPath = path.join(
+      root,
+      '.skills-lock.json.update.lock.reclaim.2147483647.aaaaaaaaaaaaaaaa.claim'
+    );
+    await writeFile(markerPath, '2147483647\n', 'utf8');
+
+    const update = verify(root, '--write');
+
+    expect(update.status, update.stderr).toBe(0);
+    await expect(access(markerPath)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it.each([
+    [
+      'live',
+      `.skills-lock.json.update.lock.reclaim.${process.pid}.bbbbbbbbbbbbbbbb.claim`,
+      '2147483647\n',
+    ],
+    ['malformed', '.skills-lock.json.update.lock.reclaim.invalid.claim', 'not-a-pid\n'],
+  ])('refuses a %s reclaim marker without changing it', async (_kind, markerName, contents) => {
+    const { root } = await createFixture();
+    const markerPath = path.join(root, markerName);
+    await writeFile(markerPath, contents, 'utf8');
+
+    const update = verify(root, '--write');
+
+    expect(update.status).not.toBe(0);
+    expect(update.stderr).toContain('skills-lock.json update already in progress');
+    expect(await readFile(markerPath, 'utf8')).toBe(contents);
+  });
+
+  it('withdraws a provisional writer raced by stale reclaimers before entering the critical section', async () => {
+    const { root } = await createFixture();
+    const leasePath = path.join(root, '.skills-lock.json.update.lock');
+    const firstMarkerPath = path.join(
+      root,
+      `.skills-lock.json.update.lock.reclaim.${process.pid}.cccccccccccccccc.claim`
+    );
+    const secondMarkerPath = path.join(
+      root,
+      `.skills-lock.json.update.lock.reclaim.${process.pid}.dddddddddddddddd.claim`
+    );
+    await writeFile(leasePath, '2147483647\n', 'utf8');
+    const { verifyVendoredSkills } = await import(verifier);
+
+    const raced = await verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async afterLeaseOwnerRecordSynced() {
+        await link(leasePath, firstMarkerPath);
+        await link(leasePath, secondMarkerPath);
+        await rm(leasePath);
+      },
+      async afterCanonicalLeasePublished() {
+        await rm(leasePath);
+      },
+    });
+
+    expect(raced.errors).toContain('skills-lock.json update already in progress');
+    await expect(access(leasePath)).rejects.toMatchObject({ code: 'ENOENT' });
+    await rm(firstMarkerPath);
+    await rm(secondMarkerPath);
+
+    const eventual = await verifyVendoredSkills({ repoRoot: root, write: true });
+
+    expect(eventual.errors).toEqual([]);
+  });
+
+  it('refuses to steal a live-PID update lease', async () => {
+    const { root } = await createFixture();
+    const leasePath = path.join(root, '.skills-lock.json.update.lock');
+    await writeFile(leasePath, `${process.pid}\n`, 'utf8');
+
+    const update = verify(root, '--write');
+
+    expect(update.status).not.toBe(0);
+    expect(update.stderr).toContain('skills-lock.json update already in progress');
+    expect(await readFile(leasePath, 'utf8')).toBe(`${process.pid}\n`);
+  });
+
+  it('refuses malformed update-lease ownership without changing its bytes', async () => {
+    const { root } = await createFixture();
+    const leasePath = path.join(root, '.skills-lock.json.update.lock');
+    const malformed = 'not-a-pid\n';
+    await writeFile(leasePath, malformed, 'utf8');
+
+    const update = verify(root, '--write');
+
+    expect(update.status).not.toBe(0);
+    expect(update.stderr).toContain('skills-lock.json update already in progress');
+    expect(await readFile(leasePath, 'utf8')).toBe(malformed);
+  });
+
+  it('publishes no canonical lease before a complete owner record is synced', async () => {
+    const { root } = await createFixture();
+    const leasePath = path.join(root, '.skills-lock.json.update.lock');
+    const { verifyVendoredSkills } = await import(verifier);
+
+    await expect(
+      verifyVendoredSkills({
+        repoRoot: root,
+        write: true,
+        async afterLeaseOwnerRecordSynced() {
+          await expect(access(leasePath)).rejects.toMatchObject({ code: 'ENOENT' });
+          throw new Error('interrupted after lease record sync');
+        },
+      })
+    ).rejects.toThrow('interrupted after lease record sync');
+
+    await expect(access(leasePath)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(
+      (await readdir(root)).filter((name) => name.startsWith('.skills-lock.json.update.lock.'))
+    ).toEqual([]);
   });
 
   it('serializes canonical writers across final verification and replacement', async () => {

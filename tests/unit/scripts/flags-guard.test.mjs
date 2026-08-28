@@ -328,6 +328,161 @@ describe('feature flags approval guard', () => {
     expect(result.stdout).not.toContain('is being enabled/exposed');
   });
 
+  it('requires product signoff for canonical TypeScript default aliases', async () => {
+    for (const field of ['default', 'enabledByDefault']) {
+      const repository = await makeRepository(
+        [
+          'export const FLAG_DEFINITIONS = {',
+          `  '${field}.flag': { ${field}: false },`,
+          '};',
+          '',
+        ].join('\n'),
+        [
+          'export const FLAG_DEFINITIONS = {',
+          `  '${field}.flag': { ${field}: true },`,
+          '};',
+          '',
+        ].join('\n'),
+        'shared/generated/flag-defaults.ts'
+      );
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const result = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['product-signoff']),
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+      expect(approved.status).toBe(0);
+    }
+  });
+
+  it('analyzes defaultFlags without treating nested flags variables as registries', async () => {
+    const repository = await makeRepository(
+      [
+        'const defaultFlags: Record<string, unknown> = {',
+        "  'wizard.v1': { enabled: false },",
+        '};',
+        'function local() {',
+        "  const flags = { preview: { enabled: false } };",
+        '  return flags;',
+        '}',
+        'void local;',
+        '',
+      ].join('\n'),
+      [
+        'const defaultFlags: Record<string, unknown> = {',
+        "  'wizard.v1': { enabled: true },",
+        '};',
+        'function local() {',
+        "  const flags = { preview: { enabled: true } };",
+        '  return flags;',
+        '}',
+        'void local;',
+        '',
+      ].join('\n'),
+      'server/lib/flags.ts'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'wizard.v1'");
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain("Flag 'preview'");
+    expect(approved.status).toBe(0);
+  });
+
+  it('ignores generated FLAG_DEFAULTS primitives and governs FLAG_DEFINITIONS', async () => {
+    const base = [
+      'type FlagRecord = Record<string, boolean>;',
+      'export const FLAG_DEFAULTS: FlagRecord = {',
+      '  enable_generated_flag: false,',
+      '};',
+      'export const FLAG_DEFINITIONS = {',
+      "  enable_generated_flag: { default: false },",
+      '};',
+      '',
+    ].join('\n');
+    const head = base.replace('default: false', 'default: true');
+    const repository = await makeRepository(base, head, 'shared/generated/flag-defaults.ts');
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'enable_generated_flag'");
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+    expect(approved.status).toBe(0);
+  });
+
+  it('requires product signoff for generated-registry environment activation', async () => {
+    const repository = await makeRepository(
+      [
+        'export const FLAG_DEFINITIONS = {',
+        "  'environment.flag': { default: false, environments: { production: false } },",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'export const FLAG_DEFINITIONS = {',
+        "  'environment.flag': { default: false, environments: { production: true } },",
+        '};',
+        '',
+      ].join('\n'),
+      'shared/generated/flag-defaults.ts'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+    expect(approved.status).toBe(0);
+  });
+
+  it('parses .flags.json additions, activation, and high risk', async () => {
+    const repository = await makeRepository(
+      '{"flags":{}}\n',
+      '{"flags":{"auth.new":{"default":true,"risk":"high"}}}\n',
+      'config/app.flags.json'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change', 'product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'auth.new'");
+    expect(`${result.stdout}\n${result.stderr}`).toContain('approved:flags-change');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+    expect(approved.status).toBe(0);
+  });
+
+  it('fails closed for malformed .flags.json', async () => {
+    const repository = await makeRepository(
+      '{"flags":{}}\n',
+      '{"flags":{"beta.broken":{"default":true}}\n',
+      'config/app.flags.json'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/malformed JSON flag file|failed closed/i);
+  });
+
   it('requires product signoff for canonical registry default activation', async () => {
     const repository = await makeRepository(
       [

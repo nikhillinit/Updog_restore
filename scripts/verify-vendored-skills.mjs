@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 import console from 'node:console';
 import { createHash, randomBytes } from 'node:crypto';
 import { constants as fsConstants } from 'node:fs';
-import { lstat, open, readdir, realpath, rename, rm } from 'node:fs/promises';
+import { link, lstat, open, readdir, realpath, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { TextDecoder } from 'node:util';
@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 export const HASH_CONTRACT = 'sha256-folder-framed-v2';
 const LOCK_FILE = 'skills-lock.json';
 const UPDATE_LEASE_FILE = '.skills-lock.json.update.lock';
+const UPDATE_LEASE_RECLAIM_PREFIX = `${UPDATE_LEASE_FILE}.reclaim.`;
 const VENDORED_ROOT = '.agents/skills';
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -615,23 +616,219 @@ async function restoreLockAtomically({ contents, lockPath, mode }) {
   }
 }
 
-async function acquireUpdateLease(repoRoot) {
+async function acquireUpdateLease(repoRoot, options) {
   const leasePath = path.join(repoRoot, UPDATE_LEASE_FILE);
-  let handle;
-  try {
-    handle = await open(leasePath, WRITE_EXCLUSIVE_NO_FOLLOW, 0o600);
-    await handle.writeFile(`${process.pid}\n`, 'utf8');
-    await handle.sync();
-  } catch (error) {
-    await handle?.close();
-    if (error.code === 'EEXIST' || error.code === 'ELOOP') return null;
-    throw error;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!(await scanReclaimMarkers(repoRoot))) return null;
+    const temporaryPath = path.join(
+      repoRoot,
+      `${UPDATE_LEASE_FILE}.${process.pid}.${randomBytes(8).toString('hex')}.tmp`
+    );
+    let handle;
+    let published = false;
+    let ownerSnapshot;
+    try {
+      handle = await open(temporaryPath, WRITE_EXCLUSIVE_NO_FOLLOW, 0o600);
+      await handle.writeFile(`${process.pid}\n`, 'utf8');
+      await handle.sync();
+      await options.afterLeaseOwnerRecordSynced?.();
+      ownerSnapshot = await readLeaseSnapshot(temporaryPath);
+      await link(temporaryPath, leasePath);
+      published = true;
+      let directoryHandle;
+      try {
+        directoryHandle = await open(
+          repoRoot,
+          fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0)
+        );
+        await directoryHandle.sync();
+      } finally {
+        await directoryHandle?.close();
+      }
+      await options.afterCanonicalLeasePublished?.();
+      const markersClear = await scanReclaimMarkers(repoRoot);
+      const canonicalStillOwned = await leaseMatchesSnapshot(leasePath, ownerSnapshot);
+      if (!markersClear || !canonicalStillOwned) {
+        await removeLeaseIfStillSame(leasePath, ownerSnapshot);
+        return null;
+      }
+      await handle.close();
+      handle = undefined;
+
+      return async () => {
+        await removeLeaseIfStillSame(leasePath, ownerSnapshot);
+      };
+    } catch (error) {
+      await handle?.close();
+      handle = undefined;
+      if (!published && error.code === 'EEXIST' && (await reclaimStaleUpdateLease(repoRoot, leasePath, options))) {
+        continue;
+      }
+      if (!published && error.code === 'EEXIST') return null;
+      if (published && ownerSnapshot) {
+        await removeLeaseIfStillSame(leasePath, ownerSnapshot);
+      }
+      throw error;
+    } finally {
+      await handle?.close();
+      await rm(temporaryPath, { force: true });
+    }
+  }
+  return null;
+}
+
+function immutableLeaseFingerprint(stat) {
+  return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs].map(String).join(':');
+}
+
+function updateLeaseContentsHash(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+async function readLeaseSnapshot(leasePath) {
+  const before = await lstat(leasePath, { bigint: true });
+  if (before.isSymbolicLink() || !before.isFile()) {
+    throw new Error('lease is not a regular file');
   }
 
-  return async () => {
-    await handle.close();
-    await rm(leasePath, { force: true });
-  };
+  let handle;
+  try {
+    handle = await open(leasePath, READ_NO_FOLLOW);
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() || !sameIdentity(before, opened)) {
+      throw new Error('lease changed while opening');
+    }
+    const bytes = await handle.readFile();
+    const afterRead = await handle.stat({ bigint: true });
+    if (immutableLeaseFingerprint(opened) !== immutableLeaseFingerprint(afterRead)) {
+      throw new Error('lease changed while reading');
+    }
+    const afterPath = await lstat(leasePath, { bigint: true });
+    if (
+      afterPath.isSymbolicLink() ||
+      !afterPath.isFile() ||
+      !sameIdentity(afterRead, afterPath) ||
+      immutableLeaseFingerprint(afterRead) !== immutableLeaseFingerprint(afterPath)
+    ) {
+      throw new Error('lease path changed while reading');
+    }
+    return {
+      bytes,
+      contentsHash: updateLeaseContentsHash(bytes),
+      immutableFingerprint: immutableLeaseFingerprint(afterRead),
+      stat: afterRead,
+    };
+  } finally {
+    await handle?.close();
+  }
+}
+
+async function leaseMatchesSnapshot(leasePath, expected) {
+  try {
+    const current = await readLeaseSnapshot(leasePath);
+    return (
+      sameIdentity(expected.stat, current.stat) &&
+      expected.immutableFingerprint === current.immutableFingerprint &&
+      expected.contentsHash === current.contentsHash
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function removeLeaseIfStillSame(leasePath, expected) {
+  if (!(await leaseMatchesSnapshot(leasePath, expected))) return false;
+  try {
+    await rm(leasePath);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+function parseUpdateLeasePid(contents) {
+  if (!/^[1-9]\d*\n$/.test(contents)) return null;
+  const pid = Number(contents.slice(0, -1));
+  return Number.isSafeInteger(pid) ? pid : null;
+}
+
+function parseReclaimMarkerName(name) {
+  const pattern = /^\.skills-lock\.json\.update\.lock\.reclaim\.([1-9]\d*)\.([a-f0-9]{16})\.claim$/;
+  const match = pattern.exec(name);
+  if (!match) return null;
+  const reclaimerPid = Number(match[1]);
+  return Number.isSafeInteger(reclaimerPid) ? reclaimerPid : null;
+}
+
+function isLiveProcess(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code !== 'ESRCH';
+  }
+}
+
+async function scanReclaimMarkers(repoRoot) {
+  let markerNames;
+  try {
+    markerNames = (await readdir(repoRoot)).filter((name) => name.startsWith(UPDATE_LEASE_RECLAIM_PREFIX));
+  } catch (error) {
+    return false;
+  }
+
+  for (const markerName of markerNames) {
+    const reclaimerPid = parseReclaimMarkerName(markerName);
+    if (reclaimerPid === null || isLiveProcess(reclaimerPid)) return false;
+    const markerPath = path.join(repoRoot, markerName);
+    let markerSnapshot;
+    try {
+      markerSnapshot = await readLeaseSnapshot(markerPath);
+    } catch {
+      return false;
+    }
+    if (parseUpdateLeasePid(markerSnapshot.bytes.toString('utf8')) === null) return false;
+    if (!(await removeLeaseIfStillSame(markerPath, markerSnapshot))) return false;
+  }
+  return true;
+}
+
+async function reclaimStaleUpdateLease(repoRoot, leasePath, options) {
+  if (!(await scanReclaimMarkers(repoRoot))) return false;
+  let staleSnapshot;
+  try {
+    staleSnapshot = await readLeaseSnapshot(leasePath);
+  } catch (error) {
+    return error.code === 'ENOENT';
+  }
+  const pid = parseUpdateLeasePid(staleSnapshot.bytes.toString('utf8'));
+  if (pid === null || isLiveProcess(pid)) return false;
+
+  const markerPath = path.join(
+    repoRoot,
+    `${UPDATE_LEASE_RECLAIM_PREFIX}${process.pid}.${randomBytes(8).toString('hex')}.claim`
+  );
+  let markerCreated = false;
+  try {
+    await link(leasePath, markerPath);
+    markerCreated = true;
+    const markerSnapshot = await readLeaseSnapshot(markerPath);
+    if (
+      !sameIdentity(staleSnapshot.stat, markerSnapshot.stat) ||
+      staleSnapshot.immutableFingerprint !== markerSnapshot.immutableFingerprint ||
+      staleSnapshot.contentsHash !== markerSnapshot.contentsHash
+    ) {
+      return false;
+    }
+    if (!(await leaseMatchesSnapshot(leasePath, staleSnapshot))) return false;
+    return removeLeaseIfStillSame(leasePath, staleSnapshot);
+  } catch (error) {
+    if (error.code === 'ENOENT') return true;
+    return false;
+  } finally {
+    if (markerCreated) await rm(markerPath, { force: true });
+  }
 }
 
 async function verifyVendoredSkillsWithRoot(options, repoRoot, write) {
@@ -719,7 +916,7 @@ export async function verifyVendoredSkills(options) {
   const repoRoot = await canonicalDirectory(options.repoRoot, 'repository root');
   if (!write) return verifyVendoredSkillsWithRoot(options, repoRoot, false);
 
-  const releaseLease = await acquireUpdateLease(repoRoot);
+  const releaseLease = await acquireUpdateLease(repoRoot, options);
   if (!releaseLease) {
     return {
       errors: [`${LOCK_FILE} update already in progress`],

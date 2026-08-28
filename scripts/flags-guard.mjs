@@ -441,6 +441,51 @@ function parseYamlFlagChanges(beforeContents, afterContents, file) {
   return compareFlagMaps(parseYamlFlags(beforeContents, file), parseYamlFlags(afterContents, file));
 }
 
+function parseJsonFlags(contents, file) {
+  if (contents === null) return new Map();
+
+  let document;
+  try {
+    document = JSON.parse(contents);
+  } catch (error) {
+    throw new Error(
+      `Malformed JSON flag file ${file}: ${error instanceof Error ? error.message : error}`
+    );
+  }
+  if (!isObject(document)) {
+    throw new Error(`Malformed JSON flag file ${file}: root must be a mapping`);
+  }
+
+  const hasCanonicalRoot = Object.hasOwn(document, 'flags');
+  const hasFlatRoot = Object.hasOwn(document, 'key');
+  if (hasCanonicalRoot === hasFlatRoot) {
+    throw new Error(
+      `Malformed JSON flag file ${file}: expected exactly one flags or key root; ambiguous roots are forbidden`
+    );
+  }
+
+  const flags = new Map();
+  if (hasCanonicalRoot) {
+    if (!isObject(document.flags)) {
+      throw new Error(`Malformed JSON flag file ${file}: flags must be a mapping`);
+    }
+    for (const [flagName, config] of Object.entries(document.flags)) {
+      flags.set(flagName, collectYamlFlagSemantics(flagName, config));
+    }
+    return flags;
+  }
+
+  if (typeof document.key !== 'string' || document.key.trim().length === 0) {
+    throw new Error(`Malformed JSON flag file ${file}: key must be a non-empty string`);
+  }
+  flags.set(document.key, collectYamlFlagSemantics(document.key, document));
+  return flags;
+}
+
+function parseJsonFlagChanges(beforeContents, afterContents, file) {
+  return compareFlagMaps(parseJsonFlags(beforeContents, file), parseJsonFlags(afterContents, file));
+}
+
 function propertyName(node) {
   if (
     ts.isIdentifier(node) ||
@@ -560,8 +605,38 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
     if (!ts.isPropertyAssignment(property)) continue;
     const field = propertyName(property.name);
     if (field === undefined) continue;
-    if (field === 'enabled' || field === 'exposure') {
+    if (
+      field === 'default' ||
+      field === 'enabled' ||
+      field === 'enabledByDefault' ||
+      field === 'exposure'
+    ) {
       semantics.activation.set(field, booleanLiteral(flagName, field, property.initializer, file));
+    } else if (field === 'environments') {
+      const environments = unwrapJavaScriptExpression(property.initializer);
+      if (!ts.isObjectLiteralExpression(environments)) {
+        throw new Error(
+          `Malformed JavaScript flag '${flagName}' in ${file}: environments must be an object literal`
+        );
+      }
+      for (const environmentProperty of environments.properties) {
+        if (!ts.isPropertyAssignment(environmentProperty)) {
+          throw new Error(
+            `Malformed JavaScript flag '${flagName}' in ${file}: environments must contain static boolean entries`
+          );
+        }
+        const environment = propertyName(environmentProperty.name);
+        if (environment === undefined) {
+          throw new Error(
+            `Malformed JavaScript flag '${flagName}' in ${file}: environments must contain static boolean entries`
+          );
+        }
+        const path = `environments.${environment}`;
+        semantics.activation.set(
+          path,
+          booleanLiteral(flagName, path, environmentProperty.initializer, file)
+        );
+      }
     } else if (field === 'exposeToClient' || field === 'killSwitch' || field === 'emergency') {
       semantics[field] = booleanLiteral(flagName, field, property.initializer, file);
     } else if (field === 'rolloutPercentage' || field === 'percentage') {
@@ -635,6 +710,7 @@ function isJavaScriptFlagRegistry(object) {
 }
 
 function isJavaScriptFlagRegistryName(name) {
+  if (name === 'defaultFlags') return true;
   const registryName = name.replaceAll('_', '').toLowerCase();
   return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
 }
@@ -808,6 +884,12 @@ function parseChangesForFile(file, base, head) {
   if (/\.ya?ml$/i.test(file)) {
     return {
       changes: parseYamlFlagChanges(snapshots.before, snapshots.after, file),
+      hasRegistry: true,
+    };
+  }
+  if (/\.flags\.json$/i.test(file)) {
+    return {
+      changes: parseJsonFlagChanges(snapshots.before, snapshots.after, file),
       hasRegistry: true,
     };
   }
