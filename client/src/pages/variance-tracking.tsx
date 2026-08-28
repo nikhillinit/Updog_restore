@@ -280,9 +280,9 @@ export default function VarianceTrackingPage() {
     headVersion: currentPlanHead,
     isLoading: currentPlanLoading,
     error: currentPlanError,
-  } = useCurrentPlanVersions(currentFund?.id);
+  } = useCurrentPlanVersions(activeTab === 'overview' ? currentFund?.id : undefined);
   const { latest: reconciliationLatest, run: reconciliationRun } = useConstructionReconciliation(
-    currentFund?.id
+    activeTab === 'overview' ? currentFund?.id : undefined
   );
 
   // Mutations
