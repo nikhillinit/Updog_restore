@@ -525,7 +525,7 @@
     "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
     "server/queues/report-generation-queue.ts": "0e48ee156db7373d86cb3c9d612ddda1e51c6561fc1dd83e10f82f9502be668c",
-    "server/queues/simulation-queue.ts": "d7df903d9fe41a000f2f22c8c6ddf738bcc71ee5a49d805480145d6df49815e5",
+    "server/queues/simulation-queue.ts": "251caa4c7519ff63e073656b72340437bde5c0553a95626e777f19beed5f7689",
     "server/route-policy/api-route-policy-registry.ts": "a20acaf9e489aa77fde5f56674cf2c1f644bb7b924253865d497ec9410b3b496",
     "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
