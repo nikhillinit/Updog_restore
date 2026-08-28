@@ -4538,6 +4538,26 @@ describe('required CI fails closed', () => {
     expect(normalizedNeeds).toContain('secret-scan');
   });
 
+  it('scopes pull-request secret scans to immutable PR base and head SHAs', async () => {
+    const workflow = await readWorkflow('secret-scan.yml');
+    const scanStep = workflow.jobs?.scan?.steps?.find(
+      (step) => step.name === 'Scan repository history'
+    );
+    const scanScript = typeof scanStep?.run === 'string' ? scanStep.run : '';
+
+    expect(scanStep?.env).toMatchObject({
+      EVENT_NAME: '${{ github.event_name }}',
+      PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
+      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
+    });
+    expect(scanScript).toContain('if [[ "$EVENT_NAME" == "pull_request" ]]');
+    expect(scanScript).toContain('test -n "$PR_BASE_SHA"');
+    expect(scanScript).toContain('test -n "$PR_HEAD_SHA"');
+    expect(scanScript).toContain('--log-opts="${PR_BASE_SHA}..${PR_HEAD_SHA}"');
+    expect(scanScript).toContain('"${log_opts[@]}"');
+    expect(scanScript).not.toContain('origin/main..HEAD');
+  });
+
   it('reuses generic CI gates only in the upstream-gated static release diagnostic', async () => {
     const ciWorkflow = await readWorkflow('ci-unified.yml');
     const staticJob = ciWorkflow.jobs?.['release-static'];
