@@ -11,18 +11,18 @@ last_updated: 2026-08-28
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 756 |
-| Stale Documents | 486 |
-| Missing Frontmatter | 95 |
+| Total Documents | 757 |
+| Stale Documents | 478 |
+| Missing Frontmatter | 87 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 461 |
-| UNKNOWN | 189 |
-| DRAFT | 34 |
-| HISTORICAL | 26 |
+| ACTIVE | 462 |
+| UNKNOWN | 181 |
+| DRAFT | 35 |
+| HISTORICAL | 33 |
 | VERIFIED | 13 |
 | REFERENCE | 9 |
 | INDEXED | 6 |
@@ -60,8 +60,6 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_1.2.5_g3-closeout-reconciled.plan.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.6_g3-critical-merge-unblock.plan.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/1-plans/F_1.2.7_governance-singular-policy-consolidation.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.8_pr1385-unblock.plan.md` | Never | 999 | No | Unassigned |
@@ -70,12 +68,6 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.3.1_governance-right-sizing.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.1_v2-post-merge-repair-and-f2-entry.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w5_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.2.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.3.md` | Never | 999 | No | Unassigned |
@@ -96,8 +88,16 @@ Documents that need review (older than their cadence threshold):
 | `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-034-fund-scope-target-enforcement-matrix.md` | Never | 999 | No | Unassigned |
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
+| `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
+| `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
+| `docs/audits/F_1.2.4-transaction-reachability-audit.md` | Never | 999 | No | Unassigned |
+| `docs/design/implementation/action-scope-grammar.md` | Never | 999 | No | Unassigned |
+| `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
+| `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
+| `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
+| `docs/runbooks/capital-call-outbox-redelivery.md` | Never | 999 | No | Unassigned |
 
-*...and 436 more stale documents.*
+*...and 428 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -137,7 +137,6 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **cheatsheets/emoji-free-documentation.md** (221 days old)
 - [ ] **cheatsheets/pr-merge-verification.md** (144 days old)
 - [ ] **cheatsheets/schema-alignment.md** (221 days old)
-- [ ] **docs/1-plans/F_1.2.5_g3-closeout-reconciled.plan.md** (999 days old)
 - [ ] **docs/1-plans/F_1.2.6_g3-critical-merge-unblock.plan.md** (999 days old)
 - [ ] **docs/2-changelog/w6_v2.0.4.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w5_v1.6.0.md** (999 days old)
@@ -214,8 +213,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md`
 - [ ] `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md`
 - [ ] `docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md`
-- [ ] `docs/1-plans/F_1.2.5_g3-closeout-reconciled.plan.md`
-- [ ] `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md`
 - [ ] `docs/1-plans/F_1.2.6_g3-critical-merge-unblock.plan.md`
 - [ ] `docs/1-plans/F_1.2.7_governance-singular-policy-consolidation.plan.md`
 - [ ] `docs/1-plans/F_1.2.8_pr1385-unblock.plan.md`
@@ -224,12 +221,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.3.1_governance-right-sizing.plan.md`
 - [ ] `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md`
 - [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
-- [ ] `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`
-- [ ] `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`
-- [ ] `docs/1-plans/F_2.0.1_v2-post-merge-repair-and-f2-entry.plan.md`
-- [ ] `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`
-- [ ] `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`
-- [ ] `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`
 - [ ] `docs/2-changelog/w5_v1.6.0.md`
 - [ ] `docs/2-changelog/w6_v2.0.2.md`
 - [ ] `docs/2-changelog/w6_v2.0.3.md`
