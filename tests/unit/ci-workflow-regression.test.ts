@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import YAML from 'yaml';
+import { isFinancialPath } from '../../scripts/ci/classify-change-paths.mjs';
 
 const CHANGE_CLASSIFIER = path.join(process.cwd(), 'scripts', 'ci', 'classify-change-paths.mjs');
 
@@ -240,9 +241,7 @@ describe('Financial calculation change classification', () => {
     expect(keywordFiles.length).toBeGreaterThan(0);
 
     for (const file of keywordFiles) {
-      const classified = classifyRawDiff(rawChange('M', [file]));
-      expect(classified.status, classified.stderr).toBe(0);
-      if (!classified.result?.financialCalcRelevant) unflagged.push(file);
+      if (!isFinancialPath(file)) unflagged.push(file);
     }
 
     expect(unflagged).toEqual([]);

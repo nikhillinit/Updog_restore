@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const EXACT_LIGHT_ALLOWLIST = [
   'docs/_generated/router-index.json',
@@ -42,7 +43,7 @@ function matchesPath(changedPath, candidate) {
     changedPath.startsWith(candidate.endsWith('/') ? candidate : `${candidate}/`);
 }
 
-function isFinancialPath(changedPath) {
+export function isFinancialPath(changedPath) {
   if (FINANCIAL_PATHS.inclusionRoots.some((root) => matchesPath(changedPath, root))) {
     return true;
   }
@@ -240,14 +241,16 @@ function writeGitHubOutputs(outputPath, classification) {
   );
 }
 
-try {
-  const options = parseArgs(process.argv.slice(2));
-  const allowlist = loadLightAllowlist(options.filters);
-  const classification = classify(readChangedPaths(options), allowlist);
-  writeGitHubOutputs(options.githubOutput, classification);
-  process.stdout.write(`${JSON.stringify(classification)}\n`);
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`Change classification failed: ${message}\n`);
-  process.exitCode = 1;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const options = parseArgs(process.argv.slice(2));
+    const allowlist = loadLightAllowlist(options.filters);
+    const classification = classify(readChangedPaths(options), allowlist);
+    writeGitHubOutputs(options.githubOutput, classification);
+    process.stdout.write(`${JSON.stringify(classification)}\n`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`Change classification failed: ${message}\n`);
+    process.exitCode = 1;
+  }
 }
