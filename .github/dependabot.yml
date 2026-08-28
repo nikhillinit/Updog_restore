@@ -34,6 +34,12 @@ updates:
       # conflicting with root ajv-formats ^3.0.1 (npm ci ERESOLVE)
       - dependency-name: '@hookform/resolvers'
         versions: ['>=5.5.0']
+      # Keep ml-levenberg-marquardt on 5.0.1: 5.1.0 changes optimizer
+      # convergence and shifts NAV curve-fit outputs by last-ULP, breaking the
+      # byte-identical legacy-composer contract (PLAN_61 Task 13.2). Upgrading
+      # requires a deliberate precision review, not a dependency ride-along.
+      - dependency-name: 'ml-levenberg-marquardt'
+        versions: ['>5.0.1']
       # Keep vite on v5.x for stability (v6+ is major breaking)
       - dependency-name: 'vite'
         versions: ['>=6.0.0']
