@@ -65,6 +65,24 @@ async function repositoryFileExists(relativePath: string): Promise<boolean> {
 }
 
 describe('production governance documentation routing', () => {
+  it('separates source admission, immutable certification, and production authority', async () => {
+    const policy = await readRepositoryFile(policyPath);
+    const canonicalGuide = await readRepositoryFile(canonicalGuidePath);
+    const decisions = await readRepositoryFile('DECISIONS.md');
+
+    expect(policy).toMatch(/conditional and independently applicable/i);
+    expect(policy).toMatch(/immutable evidence.*historically valid/i);
+    expect(policy).toMatch(/current-action eligibility/i);
+    expect(policy).toMatch(/production-coupled merge/i);
+    expect(canonicalGuide).toMatch(
+      /one final.*currentness.*immediately before.*first production mutation/i
+    );
+    expect(canonicalGuide).toMatch(/retry once.*BLOCKED/i);
+    expect(canonicalGuide).toMatch(/historical receipts/i);
+    expect(decisions).toContain('## ADR-083: Proportional Release Governance');
+    expect(decisions).toMatch(/no authority/i);
+  });
+
   it('ratifies policy and ADR for repository governance without production authority', async () => {
     const policy = await readRepositoryFile(policyPath);
     const decisions = await readRepositoryFile('DECISIONS.md');
@@ -92,6 +110,10 @@ describe('production governance documentation routing', () => {
     );
     expect(policy).not.toContain('## Observed provider facts and limits');
     expect(policy).toContain('## Consequence-specific proof');
+    expect(policy).toContain('scripts/ci/classify-change-paths.mjs');
+    expect(policy).toContain('financial-truth');
+    expect(policy).toContain('npm run phoenix:truth');
+    expect(policy).toMatch(/missing or malformed\s+classification\s+fails the aggregate/i);
     expect(policy).toContain('named expected-output/truth assertion');
     expect(policy).toContain('Denial test plus zero mutation/zero leak assertion');
     expect(policy).toContain('Retry/duplicate-harm control, concurrency control');
@@ -279,7 +301,11 @@ const legacyPlanDocs = new Set([
   'F_1.2.0_v1.4-release-proof-activation.plan.md',
   'F_1.2.4_ws2-transaction-audit-repair.plan.md',
   'F_1.2.5_g3-foundations-landing.plan.md',
+  'F_1.2.5_g3-closeout-reconciled.plan.md',
+  'F_1.2.6_g3-critical-merge-unblock.plan.md',
+  'F_1.2.8_pr1385-unblock.plan.md',
   'F_1.3.0_fee-economics-convergence.plan.md',
+  'F_1.3.1_governance-right-sizing.plan.md',
   'F_1.4.0_post-activation-epics.plan.md',
 ]);
 
@@ -334,21 +360,28 @@ describe('governance document hierarchy', () => {
     }
   });
 
-  it('keeps the capture-release-baseline workflow program-scoped', async () => {
+  it('keeps the capture-release-baseline workflow generic and non-authorizing', async () => {
     const workflow = await readRepositoryFile('.github/workflows/capture-release-baseline.yml');
 
-    expect(workflow).toContain('one-time');
-    expect(workflow).toContain('PR #1385');
-    expect(workflow).toContain('Owner: repository owner');
-    expect(workflow).toContain('Terminal condition');
-    expect(workflow).toContain('confers no authorization');
+    expect(workflow).toContain('bounded pre-merge provider baseline');
+    expect(workflow).toContain('pr_number');
+    expect(workflow).toContain('plan_path');
+    expect(workflow).toContain('Execution confers no');
+    expect(workflow).toContain('authorization; output remains evidence');
+    expect(workflow).not.toContain('PR #1385');
   });
 
   it('requires new plan documents to route to the governing policy', async () => {
-    const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
-    const planDir = join(repositoryRoot, 'docs/1-plans');
-    const planDocs = actualFs
-      .readdirSync(planDir)
+    const { execFileSync } =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const tracked = execFileSync('git', ['ls-files', 'docs/1-plans/'], {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    });
+    const planDocs = tracked
+      .trim()
+      .split('\n')
+      .map((p) => p.replace('docs/1-plans/', ''))
       .filter((name) => name.endsWith('.plan.md'))
       .sort();
 

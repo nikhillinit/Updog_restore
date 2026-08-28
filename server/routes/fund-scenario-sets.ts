@@ -5,6 +5,7 @@ import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
+  CreateFundScenarioSetV2Schema,
   CreateReserveOptimizationScenarioSetV1Schema,
   FundScenarioReserveCalculationRequestV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
@@ -14,6 +15,7 @@ import { firstString } from '../lib/request-values.js';
 import { sendBodyValidationError } from '../lib/validation-response.js';
 import {
   archiveFundScenarioSet,
+  getFundScenarioSourceConfig,
   getFundScenarioSet,
   listFundScenarioSets,
 } from '../services/fund-scenario-set-service.js';
@@ -125,6 +127,14 @@ function getIdempotencyKey(req: Request): string | null {
   return trimmed ? trimmed : null;
 }
 
+function isV2ScenarioSetPayload(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as Record<string, unknown>)['contractVersion'] === 'fund-scenario-set-create/2.0.0'
+  );
+}
+
 function statusForError(statusCode?: number, code?: string) {
   if (code === 'idempotency_key_reused' || code === 'idempotency_request_in_progress') {
     return code;
@@ -162,6 +172,22 @@ router.get(
 );
 
 router.get(
+  '/funds/:fundId/scenario-sets/source-config',
+  scenarioSetReadLimiter,
+  requireAuth(),
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    const sourceConfig = await getFundScenarioSourceConfig(fundId);
+    return res.status(200).json(sourceConfig);
+  })
+);
+
+router.get(
   '/funds/:fundId/scenario-sets/:scenarioSetId',
   scenarioSetReadLimiter,
   requireAuth(),
@@ -190,16 +216,36 @@ router.post(
       return;
     }
 
-    const parsed = CreateFundScenarioSetV1Schema.safeParse(req.body);
-    if (!parsed.success) {
-      sendBodyValidationError(res, parsed.error, 'Invalid fund scenario set payload');
-      return;
+    const parsedV1 = CreateFundScenarioSetV1Schema.safeParse(req.body);
+    if (parsedV1.success) {
+      const scenarioSet = await createFundScenarioSet(fundId, parsedV1.data, parseActor(req), {
+        idempotencyKey: getIdempotencyKey(req),
+      });
+      return res.status(201).json(scenarioSet);
     }
 
-    const scenarioSet = await createFundScenarioSet(fundId, parsed.data, parseActor(req), {
-      idempotencyKey: getIdempotencyKey(req),
-    });
-    return res.status(201).json(scenarioSet);
+    const parsedV2 = CreateFundScenarioSetV2Schema.safeParse(req.body);
+    if (parsedV2.success) {
+      const scenarioSet = await createFundScenarioSet(fundId, parsedV2.data, parseActor(req), {
+        idempotencyKey: getIdempotencyKey(req),
+      });
+      return res.status(201).json(scenarioSet);
+    }
+
+    if (isV2ScenarioSetPayload(req.body)) {
+      return res.status(422).json({
+        error: 'unprocessable_entity',
+        code: 'invalid_scenario_set_v2_payload',
+        message: 'Invalid V2 fund scenario set payload',
+        details: parsedV2.error.format(),
+      });
+    }
+
+    // Non-V2 bodies report the V1 issues (V2 parse additionally complains
+    // about the missing contractVersion literal, which is noise for V1
+    // callers).
+    sendBodyValidationError(res, parsedV1.error, 'Invalid fund scenario set payload');
+    return;
   })
 );
 

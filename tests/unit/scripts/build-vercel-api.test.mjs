@@ -9,6 +9,26 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 describe('build-vercel-api', () => {
+  it('excludes test helpers from the deployed API function', () => {
+    const inspect = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
+          import { readFileSync } from 'node:fs';
+          const config = JSON.parse(readFileSync(process.argv[1], 'utf8'));
+          console.log(config.functions?.['api/[...slug].ts']?.excludeFiles ?? '');
+        `,
+        resolve(root, 'vercel.json'),
+      ],
+      { cwd: root, encoding: 'utf8', timeout: 5000 }
+    );
+
+    expect(inspect.status, inspect.stderr || inspect.stdout).toBe(0);
+    expect(inspect.stdout.trim()).toBe('tests/**');
+  });
+
   it('bundles the Vercel Neon HTTP driver instead of leaving a traced runtime require', () => {
     const result = spawnSync(process.execPath, [resolve(root, 'scripts/build-vercel-api.mjs')], {
       cwd: root,

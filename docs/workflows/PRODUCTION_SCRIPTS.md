@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-14
+last_updated: 2026-08-21
 ---
 
 # Canonical Production-Action Procedure
@@ -57,6 +57,11 @@ entrypoint whose current targeted order proof or action evidence is absent,
 stale, or mismatched remains blocked. Repository activation does not make an
 entrypoint production-ready.
 
+## Immutable certification and action-time eligibility
+
+Preserve historical receipts and immutable candidate certification for their exact SHA. Do not age out valid CI evidence merely because time passed or `main` advanced; a new `main` head changes current-action eligibility, not historical truth.
+
+The canonical route performs one final source/currentness fence immediately before the first production mutation. It evaluates only controls applicable to the requested action. Automated drift recovery may re-fence and retry once. If currentness drifts again, return `BLOCKED` for owner disposition; do not loop, reuse a stale fence, or dispatch a mutation.
 ## Provider observations, dated and revalidated
 
 Observed on 2026-08-14 for this project only: a Vercel `main` push creates a

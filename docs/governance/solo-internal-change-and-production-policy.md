@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-18
+last_updated: 2026-08-21
 ---
 
 # Solo Internal Change and Production Policy
@@ -57,6 +57,12 @@ for an unreviewed target, provider, or mutation.
 
 ## Consequence-specific proof
 
+Financial-change enforcement is classifier-driven.
+`scripts/ci/classify-change-paths.mjs` sets financial relevance; a true result
+or manual full-suite request requires `financial-truth`
+(`npm run phoenix:truth`) as a `CI Gate Status` feeder. Missing or malformed
+classification fails the aggregate instead of skipping truth validation.
+
 | Material-risk domain                            | Minimum direct proof                                                                                                                                                                                                                                                   |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Financial calculation or fund output            | Current `phoenix:truth` requirement plus a named expected-output/truth assertion affected by the change; `calc-gate` only when deliberately adopted or already appropriate to the touched path.                                                                        |
@@ -70,6 +76,21 @@ These outcome rules supplement and do not supersede the current `AGENTS.md` and
 durable-write rule requires a separate ADR/PR with complete affected-surface,
 retry/duplicate/concurrency, executable-invariant, independent-verification, and
 rollback evidence.
+
+## Proportional release-governance applicability
+
+Release governance separates source admission, immutable candidate
+certification, and production action. `CI Gate Status` remains the sole
+aggregate merge gate; Release Proof is never generic merge authority. Controls
+are conditional and independently applicable; every entered risk domain applies:
+provider, schema, recovery, canary, and residue controls activate when an action
+enters their material-risk domain.
+
+Immutable evidence remains historically valid for its exact SHA. A later `main`
+advance expires current-action eligibility only; it does not invalidate a prior
+receipt or certification. A production-coupled merge must take the canonical
+production-action route before the coupled action, even when the merge itself
+has completed source admission.
 
 ## Production-action rule
 
@@ -104,6 +125,10 @@ but this policy prevails on any conflict. Roles, without ordinal authority:
 | `docs/workflows/PRODUCTION_SCRIPTS.md` + production workflows      | Only action-specific production procedure and enforcement.                                                           |
 | Surface matrix artifacts, G1 records, reviews, receipts, plans     | Evidence and diagnostics; they satisfy only explicitly named predicates and never grant approval or merge authority. |
 | ADRs and architecture reviews                                      | Durable rationale only; never live workflow authority.                                                               |
+
+For classifier roles, `.github/path-filters.yml` supplies general path groups;
+`scripts/ci/classify-change-paths.mjs` supplies financial and CI relevance. Both
+are enforcement inputs, never authority.
 
 Precedence rules:
 

@@ -149,6 +149,54 @@ export const CreateFundScenarioSetV1Schema = z
     path: ['variants'],
   });
 
+const FundScenarioSourceConfigAllocationFieldsV1Schema = FundDraftWriteV1Schema.pick({
+  allocations: true,
+  capitalPlanAllocations: true,
+})
+  .required()
+  .strict();
+
+export const FundScenarioSourceConfigResponseV1Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-source-config/1.0.0'),
+    sourceConfigId: z.number().int().positive(),
+    sourceConfigVersion: z.number().int().positive(),
+    publishedAt: DateTimeStringSchema,
+    allocations: FundScenarioSourceConfigAllocationFieldsV1Schema.shape.allocations.nullable(),
+    capitalPlanAllocations:
+      FundScenarioSourceConfigAllocationFieldsV1Schema.shape.capitalPlanAllocations.nullable(),
+  })
+  .strict();
+
+const CreateFundScenarioSetV2VariantsSchema = z.tuple([
+  CreateFundScenarioVariantV1Schema,
+  CreateFundScenarioVariantV1Schema,
+  CreateFundScenarioVariantV1Schema,
+]);
+
+export const CreateFundScenarioSetV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-set-create/2.0.0'),
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(4000).nullable().optional(),
+    variants: CreateFundScenarioSetV2VariantsSchema,
+    expectedSourceConfigId: z.number().int().positive(),
+    expectedSourceConfigVersion: z.number().int().positive(),
+  })
+  .strict()
+  .refine(
+    (value) => value.variants.every((variant) => variant.override.overrideType === 'allocation'),
+    {
+      message: 'V2 scenario set requires allocation overrides for all variants',
+      path: ['variants'],
+    }
+  );
+
+export const CreateFundScenarioSetV1OrV2Schema = z.union([
+  CreateFundScenarioSetV1Schema,
+  CreateFundScenarioSetV2Schema,
+]);
+
 export const CreateReserveOptimizationScenarioSetV1Schema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
@@ -543,6 +591,11 @@ export type ReserveScenarioAllocationOverrideItemV1 = z.infer<
 >;
 export type CreateFundScenarioVariantV1 = z.infer<typeof CreateFundScenarioVariantV1Schema>;
 export type CreateFundScenarioSetV1 = z.infer<typeof CreateFundScenarioSetV1Schema>;
+export type FundScenarioSourceConfigResponseV1 = z.infer<
+  typeof FundScenarioSourceConfigResponseV1Schema
+>;
+export type CreateFundScenarioSetV2 = z.infer<typeof CreateFundScenarioSetV2Schema>;
+export type CreateFundScenarioSetV1OrV2 = z.infer<typeof CreateFundScenarioSetV1OrV2Schema>;
 export type CreateReserveOptimizationScenarioSetV1 = z.infer<
   typeof CreateReserveOptimizationScenarioSetV1Schema
 >;

@@ -41,6 +41,9 @@ param(
     [ValidatePattern('^[a-f0-9]{40}$')]
     [string] $SchemaPrecursorSha,
 
+    [Parameter(Mandatory = $false)]
+    [string] $PrNumber,
+
     [Parameter(Mandatory = $true)]
     [ValidateSet('primary', 'rollback')]
     [string] $ReleaseMode,
@@ -73,6 +76,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($ReleaseMode -eq 'primary') {
+  if ($PrNumber -notmatch '^[1-9][0-9]{0,8}$') {
+    Write-Error 'PrNumber is required and must be a positive integer in primary mode.'
+    exit 1
+  }
+} elseif (-not [string]::IsNullOrEmpty($PrNumber) -and $PrNumber -notmatch '^[1-9][0-9]{0,8}$') {
+  Write-Error 'PrNumber must be a positive integer when supplied for rollback mode.'
+  exit 1
+}
 
 # Cross-mode fence: rollback identity is forbidden in primary mode and both
 # values are required in rollback mode.
@@ -137,7 +150,7 @@ if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.
     exit 1
 }
 
-# The workflow_dispatch surface allows at most ten inputs, so the exact
+# The workflow_dispatch UI shows at most ten inputs, so the exact
 # baseline identity travels as one compact base64 JSON input; the
 # baseline-policy-preflight job decodes and validates every field.
 $baselineBinding = [ordered]@{
@@ -167,6 +180,7 @@ $inputs = [ordered]@{
     schema_apply_artifact_digest = $SchemaApplyArtifactDigest
     schema_apply_receipt_file_sha256 = $SchemaApplyReceiptFileSha256
     schema_precursor_sha = $SchemaPrecursorSha
+    pr_number = $PrNumber
 }
 $inputsJson = $inputs | ConvertTo-Json -Compress
 if ($inputsJson.Length -gt 65535) {

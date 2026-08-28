@@ -19,6 +19,10 @@ describe('fund scenario set route contract', () => {
         handlerMarker: 'listFundScenarioSets',
       },
       {
+        literal: "'/funds/:fundId/scenario-sets/source-config'",
+        handlerMarker: 'getFundScenarioSourceConfig',
+      },
+      {
         literal: "'/funds/:fundId/scenario-sets/:scenarioSetId'",
         handlerMarker: 'getFundScenarioSet',
       },
@@ -77,8 +81,23 @@ describe('fund scenario set route contract', () => {
     expect(source).toContain('getIdempotencyKey(req)');
     expect(source).toContain('CreateReserveOptimizationScenarioSetV1Schema.safeParse');
     expect(source).toContain('FundScenarioReserveCalculationRequestV1Schema.safeParse');
-    expect(source).toContain("parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key'])");
+    expect(source).toContain(
+      "parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key'])"
+    );
     expect(source).toContain("'idempotency_key_required'");
+  });
+
+  it('registers the literal source-config route before /:scenarioSetId', async () => {
+    const source = await readRepoFile('server/routes/fund-scenario-sets.ts');
+
+    const literalIndex = source.indexOf("'/funds/:fundId/scenario-sets/source-config'");
+    const paramIndex = source.indexOf("'/funds/:fundId/scenario-sets/:scenarioSetId'");
+
+    expect(literalIndex).toBeGreaterThanOrEqual(0);
+    expect(paramIndex).toBeGreaterThanOrEqual(0);
+    // Express matches in registration order: the literal must win over the
+    // UUID param route or 'source-config' would be parsed as a scenarioSetId.
+    expect(literalIndex).toBeLessThan(paramIndex);
   });
 
   it('keeps calculation-status scoped to reserve scenario calculations', async () => {

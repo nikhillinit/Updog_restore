@@ -16,6 +16,7 @@ const SCAN_GLOBS = [
   'shared/core/cohorts/**/*.{ts,tsx}',
   'server/services/investment-ledger/**/*.{ts,tsx}',
   'server/services/internal-economics/**/*.{ts,tsx}',
+  'shared/lib/internal-economics/**/*.{ts,tsx}',
 ];
 const NUMBER_CALL = String.raw`\bNumber\s*\([^()\r\n]*\)`;
 const TO_NUMBER_CALL = String.raw`\b[A-Za-z_$][\w$]*(?:\s*(?:\.|\?\.)\s*[A-Za-z_$][\w$]*|\s*\[[^\]\r\n]+\])*\s*(?:\.|\?\.)\s*toNumber\s*\(\s*\)`;

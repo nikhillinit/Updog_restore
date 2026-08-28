@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-import {
-  RELEASE_CANARY_RESIDUE_GROUP_KEYS,
-} from './release-canary-residue-characterization-v1.contract';
+import { RELEASE_CANARY_RESIDUE_GROUP_KEYS } from './release-canary-residue-characterization-v1.contract';
 import {
   OperatorEvidenceFragmentPayloadSchema,
   PolicyRatificationFragmentPayloadSchema,
@@ -342,9 +340,9 @@ const SourceSchema = z
     releaseMode: z.enum(['primary', 'rollback']),
     pullRequest: PullRequestNumberSchema,
     pullRequestHeadSha: SourceShaSchema,
-    planApprovalPullRequest: PullRequestNumberSchema,
-    planPath: RepoRelativePathSchema,
-    planSha256: Sha256HexSchema,
+    planApprovalPullRequest: PullRequestNumberSchema.nullable(),
+    planPath: RepoRelativePathSchema.nullable(),
+    planSha256: Sha256HexSchema.nullable(),
   })
   .strict();
 
@@ -354,7 +352,7 @@ export const ReleaseEvidenceManifestV1Schema = z
     designation: z.enum(['infrastructure_only', 'activation_candidate']),
     candidate: z.boolean(),
     source: SourceSchema,
-    approval: ApprovalSchema,
+    approval: ApprovalSchema.nullable(),
     certification: CertificationSchema,
     workflow: WorkflowSchema,
     schema: SchemaSectionSchema.nullable(),
@@ -373,41 +371,61 @@ export const ReleaseEvidenceManifestV1Schema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
     };
     const { source, approval, certification, workflow, policy } = manifest;
+    const sourcePlanFields = [source.planApprovalPullRequest, source.planPath, source.planSha256];
+    const hasAllSourcePlanFields = sourcePlanFields.every((value) => value !== null);
+    const hasNoSourcePlanFields = sourcePlanFields.every((value) => value === null);
+    if (!hasAllSourcePlanFields && !hasNoSourcePlanFields) {
+      issue(['source'], 'source plan provenance fields must be all-null or all-non-null');
+    }
+    if ((approval !== null) !== hasAllSourcePlanFields) {
+      issue(['approval'], 'approval must be non-null iff source plan provenance is complete');
+    }
 
     if (manifest.candidate !== (manifest.designation === 'activation_candidate')) {
       issue(['candidate'], 'candidate must be true iff designation is activation_candidate');
     }
 
-    if (approval.repository !== source.repository) {
-      issue(['approval', 'repository'], 'approval.repository must equal source.repository');
-    }
-    if (approval.pullRequest !== source.planApprovalPullRequest) {
-      issue(['approval', 'pullRequest'], 'approval.pullRequest must equal source.planApprovalPullRequest');
-    }
-    if (approval.planPath !== source.planPath) {
-      issue(['approval', 'planPath'], 'approval.planPath must equal source.planPath');
-    }
-    if (approval.planSha256 !== source.planSha256) {
-      issue(['approval', 'planSha256'], 'approval.planSha256 must equal source.planSha256');
-    }
-    if (approval.finalHeadCiGate.headSha !== approval.verifiedPrHeadSha) {
-      issue(
-        ['approval', 'finalHeadCiGate', 'headSha'],
-        'finalHeadCiGate.headSha must equal approval.verifiedPrHeadSha'
-      );
-    }
-    if (source.releaseMode === 'primary') {
-      if (approval.verifiedPrHeadSha !== source.pullRequestHeadSha) {
+    if (approval !== null) {
+      if (approval.repository !== source.repository) {
+        issue(['approval', 'repository'], 'approval.repository must equal source.repository');
+      }
+      if (
+        source.planApprovalPullRequest != null &&
+        approval.pullRequest !== source.planApprovalPullRequest
+      ) {
         issue(
-          ['approval', 'verifiedPrHeadSha'],
-          'In primary mode approval.verifiedPrHeadSha must equal source.pullRequestHeadSha'
+          ['approval', 'pullRequest'],
+          'approval.pullRequest must equal source.planApprovalPullRequest'
         );
       }
-      if (source.pullRequest !== source.planApprovalPullRequest) {
+      if (source.planPath != null && approval.planPath !== source.planPath) {
+        issue(['approval', 'planPath'], 'approval.planPath must equal source.planPath');
+      }
+      if (source.planSha256 != null && approval.planSha256 !== source.planSha256) {
+        issue(['approval', 'planSha256'], 'approval.planSha256 must equal source.planSha256');
+      }
+      if (approval.finalHeadCiGate.headSha !== approval.verifiedPrHeadSha) {
         issue(
-          ['source', 'pullRequest'],
-          'In primary mode source.pullRequest must equal source.planApprovalPullRequest'
+          ['approval', 'finalHeadCiGate', 'headSha'],
+          'finalHeadCiGate.headSha must equal approval.verifiedPrHeadSha'
         );
+      }
+      if (source.releaseMode === 'primary') {
+        if (approval.verifiedPrHeadSha !== source.pullRequestHeadSha) {
+          issue(
+            ['approval', 'verifiedPrHeadSha'],
+            'In primary mode approval.verifiedPrHeadSha must equal source.pullRequestHeadSha'
+          );
+        }
+        if (
+          source.planApprovalPullRequest != null &&
+          source.pullRequest !== source.planApprovalPullRequest
+        ) {
+          issue(
+            ['source', 'pullRequest'],
+            'In primary mode source.pullRequest must equal source.planApprovalPullRequest'
+          );
+        }
       }
     }
 
@@ -418,7 +436,10 @@ export const ReleaseEvidenceManifestV1Schema = z
       issue(['certification', 'runId'], 'certification.runId must equal workflow.runId');
     }
     if (certification.runAttempt !== workflow.runAttempt) {
-      issue(['certification', 'runAttempt'], 'certification.runAttempt must equal workflow.runAttempt');
+      issue(
+        ['certification', 'runAttempt'],
+        'certification.runAttempt must equal workflow.runAttempt'
+      );
     }
     const expectedProofRef = `${source.repository}/.github/workflows/release-proof.yml@${source.sha}`;
     if (certification.proofWorkflowRef !== expectedProofRef) {
@@ -438,7 +459,8 @@ export const ReleaseEvidenceManifestV1Schema = z
       );
     }
     if (
-      certification.lineageArtifact.artifactName !== `release-proof-lineage-v1-${certificationSuffix}`
+      certification.lineageArtifact.artifactName !==
+      `release-proof-lineage-v1-${certificationSuffix}`
     ) {
       issue(
         ['certification', 'lineageArtifact', 'artifactName'],
@@ -466,7 +488,10 @@ export const ReleaseEvidenceManifestV1Schema = z
     if (manifest.schema !== null) {
       const { schema } = manifest;
       if (schema.apply.sourceSha !== schema.precursorSha) {
-        issue(['schema', 'apply', 'sourceSha'], 'schema.apply.sourceSha must equal schema.precursorSha');
+        issue(
+          ['schema', 'apply', 'sourceSha'],
+          'schema.apply.sourceSha must equal schema.precursorSha'
+        );
       }
       const expectedApplyName = `prod-schema-reconcile-${schema.apply.runId}-1-apply-${schema.precursorSha}`;
       if (schema.apply.artifactName !== expectedApplyName) {
@@ -475,8 +500,14 @@ export const ReleaseEvidenceManifestV1Schema = z
           'schema.apply.artifactName must be prod-schema-reconcile-<runId>-1-apply-<precursorSha>'
         );
       }
-      if (schema.audit.runId !== workflow.runId || schema.audit.runAttempt !== workflow.runAttempt) {
-        issue(['schema', 'audit'], 'schema.audit must record the current release run id and attempt');
+      if (
+        schema.audit.runId !== workflow.runId ||
+        schema.audit.runAttempt !== workflow.runAttempt
+      ) {
+        issue(
+          ['schema', 'audit'],
+          'schema.audit must record the current release run id and attempt'
+        );
       }
       if (schema.audit.sourceSha !== source.sha) {
         issue(['schema', 'audit', 'sourceSha'], 'schema.audit.sourceSha must equal source.sha');
@@ -484,7 +515,10 @@ export const ReleaseEvidenceManifestV1Schema = z
     }
 
     if (!vectorEqualsReserved(policy.reservedPerRun)) {
-      issue(['policy', 'reservedPerRun'], 'reservedPerRun must exactly equal the frozen reserved vector');
+      issue(
+        ['policy', 'reservedPerRun'],
+        'reservedPerRun must exactly equal the frozen reserved vector'
+      );
     }
     const capsAreTripleReserved =
       policy.configuredCaps.total === 120 &&
@@ -523,7 +557,10 @@ export const ReleaseEvidenceManifestV1Schema = z
           'ratification.characterizationFileSha256 must equal characterizationEvidence.fileSha256'
         );
       }
-      if (ratification.policyConfigPayloadSha256 !== manifest.fragmentLineage.policyConfig.payloadSha256) {
+      if (
+        ratification.policyConfigPayloadSha256 !==
+        manifest.fragmentLineage.policyConfig.payloadSha256
+      ) {
         issue(
           ['policy', 'ratification', 'policyConfigPayloadSha256'],
           'ratification.policyConfigPayloadSha256 must equal fragmentLineage.policyConfig.payloadSha256'
@@ -541,7 +578,8 @@ export const ReleaseEvidenceManifestV1Schema = z
       }
       if (
         manifest.fragmentLineage.canaryResult !== null &&
-        ratification.canaryResultPayloadSha256 !== manifest.fragmentLineage.canaryResult.payloadSha256
+        ratification.canaryResultPayloadSha256 !==
+          manifest.fragmentLineage.canaryResult.payloadSha256
       ) {
         issue(
           ['policy', 'ratification', 'canaryResultPayloadSha256'],
@@ -588,7 +626,10 @@ export const ReleaseEvidenceManifestV1Schema = z
 
     if (manifest.canary !== null) {
       if (manifest.canary.execution.releaseSha !== source.sha) {
-        issue(['canary', 'execution', 'releaseSha'], 'canary.execution.releaseSha must equal source.sha');
+        issue(
+          ['canary', 'execution', 'releaseSha'],
+          'canary.execution.releaseSha must equal source.sha'
+        );
       }
       if (
         manifest.canary.execution.githubRunId !== workflow.runId ||
@@ -620,7 +661,10 @@ export const ReleaseEvidenceManifestV1Schema = z
         );
       }
       if (lineage.sourceSha !== source.sha) {
-        issue(['fragmentLineage', key, 'sourceSha'], `fragmentLineage.${key}.sourceSha must equal source.sha`);
+        issue(
+          ['fragmentLineage', key, 'sourceSha'],
+          `fragmentLineage.${key}.sourceSha must equal source.sha`
+        );
       }
       const expectedFragmentName = `release-evidence-fragment-v1-${kind}-${workflow.runId}-${workflow.runAttempt}-${source.sha}`;
       if (lineage.artifactName !== expectedFragmentName) {
@@ -640,10 +684,8 @@ export const ReleaseEvidenceManifestV1Schema = z
         [['h9Artifact'], manifest.h9Artifact],
         [['policy', 'stagedMeasuredResidue'], policy.stagedMeasuredResidue],
         [['policy', 'characterizationEvidence'], policy.characterizationEvidence],
-        [['policy', 'ratification'], policy.ratification],
         [['fragmentLineage', 'schema'], manifest.fragmentLineage.schema],
         [['fragmentLineage', 'policyMeasurement'], manifest.fragmentLineage.policyMeasurement],
-        [['fragmentLineage', 'policyRatification'], manifest.fragmentLineage.policyRatification],
         [['fragmentLineage', 'operatorEvidence'], manifest.fragmentLineage.operatorEvidence],
         [['fragmentLineage', 'releaseProvider'], manifest.fragmentLineage.releaseProvider],
         [['fragmentLineage', 'canaryResult'], manifest.fragmentLineage.canaryResult],
@@ -653,7 +695,10 @@ export const ReleaseEvidenceManifestV1Schema = z
           issue(path, `${path.join('.')} must be nonnull when preManifestOutcome is success`);
         }
       }
-      if (policy.stagedMeasuredResidue !== null && !vectorEqualsReserved(policy.stagedMeasuredResidue)) {
+      if (
+        policy.stagedMeasuredResidue !== null &&
+        !vectorEqualsReserved(policy.stagedMeasuredResidue)
+      ) {
         issue(
           ['policy', 'stagedMeasuredResidue'],
           'Successful releases require stagedMeasuredResidue to exactly equal the reserved vector'

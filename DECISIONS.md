@@ -56,6 +56,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
 - [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
 - [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
+- [ADR-084: Ceremony Retirement and Canary-Hardening Slice](#adr-084-ceremony-retirement-and-canary-hardening-slice)
 
 ---
 
@@ -10777,20 +10778,21 @@ schema, data, deployment, or production action.
 **Date:** 2026-08-10 **Status:** Accepted **Tags:** #release #operator-evidence
 #railway #vercel #g4
 
-**Related:** ADR-075 (provider topology and G4 hard-stop consequence),
-F_1.2.0 WS6 (Child F definition,
+**Related:** ADR-075 (provider topology and G4 hard-stop consequence), F_1.2.0
+WS6 (Child F definition,
 `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`), F_1.2.6 Step 6
 (successor contract)
 
 ### Context
 
-ADR-075 made promotion stop at G4 until trusted attested operator `/health`
-and `/ready` evidence could be ingested and verified. The hard-stop job proved
-only that this evidence had not yet been integrated; it could never authorize a
+ADR-075 made promotion stop at G4 until trusted attested operator `/health` and
+`/ready` evidence could be ingested and verified. The hard-stop job proved only
+that this evidence had not yet been integrated; it could never authorize a
 promotion. This ADR supersedes that hard-stop consequence while preserving the
-fail-closed G4 gate. Railway worker probes are available through the operator's local
-`railway ssh` data-plane session, while the release workflow can independently
-retrieve staged Vercel evidence and live Railway control-plane topology.
+fail-closed G4 gate. Railway worker probes are available through the operator's
+local `railway ssh` data-plane session, while the release workflow can
+independently retrieve staged Vercel evidence and live Railway control-plane
+topology.
 
 ### Decision
 
@@ -10816,9 +10818,400 @@ retrieve staged Vercel evidence and live Railway control-plane topology.
 
 ### Consequences
 
-G4 can complete when an operator supplies attested, redacted worker evidence
-for the exact release SHA and the independent provider checks pass. Invalid,
-missing, stale, or mismatched evidence still blocks promotion. The operator
-must retain custody of the local Railway SSH session and provide the resulting
-bundle at dispatch time; the workflow retains only temporary files and the
-sanitized verification result for the job run.
+G4 can complete when an operator supplies attested, redacted worker evidence for
+the exact release SHA and the independent provider checks pass. Invalid,
+missing, stale, or mismatched evidence still blocks promotion. The operator must
+retain custody of the local Railway SSH session and provide the resulting bundle
+at dispatch time; the workflow retains only temporary files and the sanitized
+verification result for the job run.
+
+## ADR-083: Proportional Release Governance
+
+**Date:** 2026-08-21 **Status:** Accepted **Tags:** #release #governance
+
+### Decision
+
+Release Proof has two explicit modes. `diagnostic` produces local, SHA-bound
+candidate evidence without production secrets, environments, provider access, or
+a certification claim. `certifying` is the only mode permitted to run the
+protected boot, provider-identity, and G3 exact-SHA steps; those jobs execute in
+the `Production` environment and require their production-scoped inputs.
+
+Certification is immutable evidence for its exact candidate SHA. It is not
+production-dispatch authority. Before a production action, the canonical
+production procedure must refresh the source identity and validate every
+applicable action-time prerequisite. A changed current head therefore blocks
+that action until refreshed; it does not revoke historical certification.
+
+One bounded retry may refresh a transient prerequisite. A second failure, any
+mismatch, or an unknown prerequisite is `BLOCKED`; no fallback token, inferred
+authority, or diagnostic artifact can bypass it.
+
+CI separately classifies financial-calculation paths through
+`scripts/ci/classify-change-paths.mjs`. Relevant changes require the
+`financial-truth` job (`npm run phoenix:truth`) as an input to `CI Gate Status`;
+missing or malformed classification fails the aggregate instead of skipping
+truth validation.
+
+### Alternatives
+
+- Keep all Release Proof runs production-scoped: rejected because routine
+  diagnostics would unnecessarily access production authority surfaces.
+- Treat certification as dispatch approval: rejected because certification
+  cannot establish target scope or current action-time conditions.
+
+### Consequences
+
+Routine merge and scheduled diagnostics remain evidence-only. Production-bound
+certification is narrower and auditable, while production dispatch remains a
+separate, owner-issued, action-scoped decision.
+
+Shared financial library and contract roots are classified wholesale. This
+accepts extra truth-case runs to avoid path-list false negatives.
+
+### Rollback
+
+Revert this change only through current-head CI. Never use a workflow retry,
+artifact reuse, token fallback, or provider mutation to bypass the current
+production procedure.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.
+
+## ADR-084: Ceremony Retirement and Canary-Hardening Slice
+
+**Date:** 2026-08-22 **Status:** Accepted **Tags:** #release #governance
+#ceremony
+
+### Decision
+
+Plan-approval and policy-ratification ceremonies are retired from the release
+pipeline. Their manifest fields become nullable (backward-compatible schema),
+their CI jobs and workflow steps are deleted, and their verifier scripts are
+removed.
+
+Source provenance shifts from approval-derived PR identity to an explicit
+`pr_number` dispatch input on `release-production.yml`. The
+`verifyBaselineConsumption` function accepts `prNumber` as a parameter instead
+of reading a hardcoded constant.
+
+The evidence manifest contract's `superRefine` no longer requires non-null
+`policy.ratification` or `fragmentLineage.policyRatification` on success
+manifests. The backward-compatible cross-validation block (if ratification is
+non-null, validate its hashes) remains.
+
+Schema-route retirement is not implemented by this slice. It remains gated on
+separately owner-authorized clean current-main audit evidence; production
+authority remains none.
+
+This remains single repository owner/operator internal Press On Ventures
+tooling; it creates no delegated, multi-tenant, or external-customer authority.
+
+### Alternatives
+
+- Keep ceremonies but make them no-ops: rejected because dead code with
+  protected-environment gates wastes CI minutes and confuses future readers.
+- Remove the schema fields entirely: rejected because existing archived
+  manifests reference them; nullable preserves backward compatibility.
+
+### Consequences
+
+Release pipeline is simpler: fewer jobs, fewer environment gates, fewer failure
+modes. Dispatch-based provenance is explicit and auditable without relying on
+approval event payloads.
+
+`pr_number` is an explicit dispatch provenance input. The compact baseline
+binding remains the existing interface; this ADR makes no GitHub platform
+input-cap assertion.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.
+
+## ADR-085: V2 Internal Economics Core Methodology Lock
+
+**Date:** 2026-08-23 **Status:** Accepted **Tags:** #internal-economics #v2
+#methodology #waterfall #preferred-return #fee-recycling
+
+### Decision
+
+This ADR is the single superseding methodology lock for the V2
+internal-economics derivation core (F_2.0.0). It reconciles ADR-066
+(deal-by-deal-only activation, `:9587-9594`), ADR-068 (whole-fund vocabulary
+restored; live whole-fund calculator removed in PR #339 for zero usage,
+`:9690-9693`), ADR-069 (monthly canonical grain, no day-count proration,
+`:9979-9986`), and ADR-070 (GP cashless commitments and fee waivers,
+`docs/adr/ADR-070-cashless-gp-commitments-and-fee-waivers.md`).
+
+The following 11 items are locked for V2.0.0 implementation. Engine code,
+contracts, and tests downstream are governed by these decisions. Modification
+requires a new ADR; silent deviation is a governance violation.
+
+1. **Single rounding authority.** `ROUND_HALF_UP` everywhere, via the
+   repo-global Decimal config (`shared/lib/decimal-config.ts:4-14`). No
+   `HALF_EVEN` exists in `shared/` today; introducing it would either break the
+   V1 freeze (global flip) or split the numeric authority (per-operation
+   override). The global config is never mutated at runtime.
+
+2. **Selected-lane-only ordinary runtime.** Ordinary derivation
+   (`deriveInternalEconomicsCompositeV2`) executes only the caller-selected
+   waterfall lane (`deal_by_deal` or `whole_fund`) and returns no data from the
+   unselected lane. Dual-lane execution is available only through the explicit
+   certification entry point (`certifyInternalEconomicsDualLaneV2`), consumed by
+   CI and the truth harness. This respects ADR-066/068: whole-fund vocabulary is
+   restored without becoming shadow accounting through an always-on runtime
+   field.
+
+3. **Strict V2 tier grammar.** Four tier kinds only: `return_of_capital`,
+   `preferred_return`, `gp_catch_up`, `carry`. Priorities are one-indexed,
+   unique, contiguous; each kind appears at most once; `carry` appears exactly
+   once and last; `gp_catch_up` requires `preferred_return`, sits immediately
+   before `carry`, targets the terminal carry share, and its GP allocation rate
+   exceeds the terminal carry share and is at most 1.0. Clawback, escrow, hybrid
+   scope, and alternative preferred-return bases (anything other than
+   `unreturned_settled_cash_capital`) refuse.
+
+4. **LP-class-to-FeeProfile binding model and GP account taxonomy.** Every LP
+   partner belongs to exactly one LP class; each class binds exactly one fee
+   profile supplied as `FeeProfileV2WireSchema`. GP accounts follow the ADR-070
+   taxonomy: contractual GP commitment, settled GP cash, GP deemed contribution,
+   remaining callable commitment tracked separately. GP deemed contribution
+   never enters cash, fee, ROC, preferred-return, paid-in, or IRR bases.
+
+5. **Settled-contribution-only cash basis.** Only settled contributions enter
+   fund cash, paid-in capital, ROC-eligible capital, preference base, and XIRR
+   flows. Call notices, schedules, receivables, and unsettled contributions are
+   out of scope for F_2.0.0. Authenticity of settlement evidence is deferred to
+   F_2.1.0; F_2.0.0 validates internal consistency only. The contract shape
+   carries `settlementSourceRef` presence-validated.
+
+6. **Explicit cash-source-lot and investment-lot relief provenance.** Cash uses
+   carry explicit allocations whose amounts exactly equal the use. No FIFO or
+   inferred attribution; missing, ambiguous, or over-consumed allocations
+   refuse. The contract shape is fully specified; existence proofs of referenced
+   lots are deferred to F_2.1.0.
+
+7. **Monthly preferred-return accrual semantics.**
+   - Posting rule: accrues monthly on unreturned settled cash capital.
+   - `simple` mode: `annualRate * months / 12`; accrued preference excluded from
+     base.
+   - `effective_annual_compounded` mode: monthly rate
+     `(1 + annualRate)^(1/12) - 1`; unpaid preference joins the following
+     month's base.
+   - Mid-month distribution treatment: posts when
+     `periodEnd <= distributionDate`; month-end distributions see that month's
+     posting; mid-month distributions see only the prior month-end posting.
+     Daily piecewise accrual is rejected for V2.0.0 as unanchored to any
+     verified LPA term and contrary to ADR-069.
+   - Stub months: the establishment month accrues from `fundEstablishmentDate`
+     to end-of-month as a full first period. The final month (term expiry month
+     or last calculation month) accrues through end-of-month as a full final
+     period. Partial-month proration is rejected.
+   - `currentMonth` epoch: months elapsed since the `fundEstablishmentDate`
+     month (zero-indexed: establishment month is month 0).
+   - Post-term wind-down: `calculationDate` may exceed `fundTermDate`; accrual
+     continues through the terminal stub per this rule.
+
+8. **Equalization: refused by default.** Any equalization event
+   (`equalization_principal`, `equalization_interest`) refuses
+   `UNSUPPORTED_V2_EQUALIZATION`. The reserved mechanics (`canonical_lrm_v1`:
+   principal balanced payer contribution vs recipient ROC, net-zero to fund
+   cash; interest as direct LP-to-LP non-capital flow) may be enabled only with
+   a new ADR plus truth cases that exercise the enabled semantics.
+
+9. **Cross-period negative deployment-call corrections.** A correction that
+   would drive a period fee basis negative refuses `NEGATIVE_PERIOD_BASIS`. No
+   silent floor-at-zero clamp. Refuse-don't-clamp is the V2 doctrine for
+   negative intermediate values in recycling and fee paths:
+   `Decimal.max(0, ...)` is prohibited; `RECYCLING_CAPACITY_EXCEEDED` is the
+   appropriate refusal when lifetime capacity goes negative.
+
+10. **Reserved raw-byte sealing specification for F_2.1.0.** The preimage format
+    is: strict UTF-8 encoding, SHA-256 over exact raw bytes, lowercase
+    64-character hexadecimal digest, versioned `hashAlgorithm` field
+    (`canonical-json-sha256/1`). F_2.0.0 code ships no raw-byte (`Uint8Array`)
+    sealed fields; JSON-safe canonical hashing (`shared/lib/decimal-string.ts`
+    `canonicalizeDecimalLeaves`) with the versioned algorithm label is the
+    F_2.0.0 implementation. This pins the specification without committing to
+    the persistence-boundary implementation until F_2.1.0.
+
+11. **Whole-fund sunset criterion.** If no committed consumer of whole-fund
+    calculation results exists by F_2.2.0 completion, whole-fund is demoted to
+    test-only/unsupported. The implementation is built and tested in F_2.0.0
+    (per ADR-068), but its production activation is conditional on demonstrated
+    demand.
+
+**Truth corpus.** The hand-computed truth corpus
+(`docs/internal-economics-v2.truth-cases.json`) is the external golden anchor
+for V2 validation. Engine-generated expected values are prohibited. Owner
+ratification of this internal methodology is the explicit substitute for
+unavailable LPA terms (the fund's legal documents are not in the repository).
+The corpus and this ADR together constitute the methodology baseline; the corpus
+Corpus SHA-256:
+`39793b3b40e63acbf7892fcf40af978fb3191b3337aca670c185b531af00360d`. Source HEAD
+at Phase 0 commit: `317d93538`.
+
+### Alternatives
+
+- Lock items across multiple smaller ADRs (one per topic): rejected because the
+  11 items are interdependent (tier grammar governs pref-return accrual governs
+  recycling governs whole-fund sunset) and splitting creates fragmented,
+  hard-to-audit methodology authority.
+- Defer methodology lock until LPA terms are digitized: rejected because F_2.0.0
+  is an internal modeling tool; owner ratification plus a hand-computed truth
+  corpus provides sufficient methodology authority for internal use, and
+  deferral blocks all V2 progress indefinitely.
+- Allow `HALF_EVEN` alongside `HALF_UP` on a per-operation basis: rejected
+  because dual rounding authority creates a class of bugs invisible to any
+  single test case and the repo has zero `HALF_EVEN` usage today.
+- Enable equalization by default: rejected because the equalization semantics
+  require truth cases that exercise the full principal/interest/ROC interaction,
+  and no such cases can be hand-computed without verified LPA equalization
+  terms.
+
+### Consequences
+
+All V2 engine code, contracts, and tests are governed by these 11 locked items.
+The truth corpus validates the methodology end-to-end. Any semantic change to
+these items requires a new ADR; code reviews must verify consistency against
+this lock.
+
+The refused-by-default stance for equalization and the whole-fund sunset
+criterion create clear future decision points (new ADR + truth cases to enable
+equalization; F_2.2.0 demand assessment for whole-fund) rather than silent
+accumulation of untested code paths.
+
+Fee recycling is constrained to cumulative bases only; per-period and dynamic
+(FMV/unrealized) bases are explicitly out of scope, closing the
+dimensional-mismatch bug class identified in the plan review.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch. Plans are evidence only;
+they grant no merge, deployment, provider, schema, or production authority.
+
+## ADR-086: F1 Strict Wire and Refusal-Only Boundary
+
+**Date:** 2026-08-24 **Status:** Accepted **Tags:** #internal-economics #v2
+#conformance #refusal #proof
+
+### Decision
+
+F1 accepts only strict `internal-economics-composite/2.0.1`. Legacy `2.0.0`
+truth inputs enter only through a deterministic test-only adapter that completes
+the strict wire. The adapter is byte-migration evidence, not an economic
+proposition or public compatibility promise. V1 and ADR-085 remain unchanged.
+
+F1 is an opening trust boundary: normalized public input refuses without a
+receipt, result, certification, or input mutation. Public success is outside
+this ADR.
+
+Any nonzero management-fee schedule entry refuses with
+`UNSUPPORTED_V2_MANAGEMENT_FEE` at `accrual`, including a future entry. Empty or
+all-zero schedules continue to the F1 public refusal boundary.
+
+`V2-TC-001` through `V2-TC-008` normalize then refuse with
+`UNSUPPORTED_V2_BASE_EVENT` at `admission`. `V2-TC-R01` refuses with
+`UNSUPPORTED_V2_EQUALIZATION` at `equalization`; `V2-TC-R02` with
+`INVALID_TIER_POLICY` at `normalization`; `V2-TC-R03` with
+`UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION` at `normalization`.
+
+The proof authority is the raw corpus SHA-256
+`39793b3b40e63acbf7892fcf40af978fb3191b3337aca670c185b531af00360d` and strict
+adapted-input digest
+`f1ea691d5e7e59fa1c7259e50c2f898ae3a9283d3daaf24123adda7c728282f7`.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, production dispatch, or production activation.
+Tests and ADRs are evidence only.
+
+## ADR-087: F2 Opening-Position Balance-Forward Receipt 2.1.0
+
+**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2 #opening-position #receipt
+
+### Decision
+
+F2 uses one closed `internal-economics-receipt/2.1.0` field set. Every top-level field is required; `sourceRefs` and `upstreamReceiptIds` are required arrays and emit `[]` when empty. Money fields are base-10 strings with exactly six fractional digits. The closed nested fields are:
+
+- `OpeningOwnerV2`: LP `{kind, partnerId, lpClassId}`, GP `{kind, partnerId}`, cash-only entitlement-pool `{kind, entitlementPoolId}`, or fund `{kind}`.
+- `CashFlowEntryV2`: `instant`, `amountUsd`, `direction` (`inflow` or `outflow`), `eventId`.
+- `OpeningCashLotReceiptV2`: `lotId`, `sourceRef`, `owner`, `classification` (`paid_in`, `recycling`, or `unclassified`), `originalAmount`, `remainingBalance`.
+- `OpeningInvestmentSliceReceiptV2`: `investmentLotId`, `sourceRef`, `entitlementPoolId`, `dealId`, `securityId`, `owner`, `costBasis`, `relievedAmount`, `remainingBasis`, `entitlementAmount`; F2 requires `relievedAmount` to equal `0.000000`.
+- `OpeningEntitlementPoolReceiptV2`: `entitlementPoolId`, `sourceRef`, `dealId`, `securityId`, `entitlementTotal`.
+- `OpeningPositionsReceiptV2`: `cashLots`, `investmentSlices`, `entitlementPools`.
+- `JournalPostingV2`: `account` (`cash`, `invested_basis`, or `opening_unreturned_capital`), `rowRef`, `owner`, signed `amountUsd`.
+- `JournalEntryV2`: `entryId`, `instant`, `kind` (`opening_cash_lot` or `opening_investment_slice`), `sourceRef`, `postings`; every F2 entry has exactly two postings whose signed amounts sum to zero.
+- `FundCashEquationV2`: `openingCash`, `contributions`, `deployments`, `realizations`, `fees`, `expenses`, `distributions`, `endingCash`.
+- `TierAllocationV2`: `kind`, `priority`, `totalAllocated`, `gpShare`, `lpShare`.
+- `PartnerLedgerV2`: `partnerId`, `committedCapital`, `calledCapital`, `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`, `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`, `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`, `carryPaid`, `cashFlowVector`.
+- `ClassLedgerV2`: `lpClassId`, `committedCapital`, `calledCapital`, `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`, `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`, `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`, `carryPaid`, `cashFlowVector`.
+
+The exact top-level `InternalEconomicsReceiptV2` fields, in field-set order, are `receiptVersion`, `componentVersions`, `selectedLane`, `hashAlgorithm`, `normalizedInputHash`, `fundCashEquation`, `openingPositions`, `journal`, `tierAllocations`, `partnerLedgers`, `classLedgers`, `sourceRefs`, `upstreamReceiptIds`, and `resultHash`. Opening balance-forward entries never appear in `CashFlowEntryV2` or any partner/class `cashFlowVector`. Receipt arrays use normative deterministic ordering: cash lots by `lotId`, investment slices by `investmentLotId`, entitlement pools by `entitlementPoolId`, journal by `entryId`, postings by `account` then `rowRef`, tier allocations by `priority` then `kind`, partner ledgers by `partnerId`, class ledgers by `lpClassId`, cash-flow entries by `instant` then `eventId` then `direction`, and lineage arrays lexicographically.
+
+Opening cash lots and investment slices are positions at `cutoverInstant`. They are disclosed in `openingPositions` and represented by balance-forward journal entries, not period cash flows. `CashFlowEntryV2` remains reserved for actual events. F2 admits zero events, so every partner and class `cashFlowVector` is `[]`; opening journal entries are excluded from IRR, XIRR, event-flow, contribution, deployment, realization, fee, expense, and distribution vectors.
+
+F2 has exactly three closed balance-forward journal accounts: `cash`, `invested_basis`, and `opening_unreturned_capital`. An opening cash lot posts positive `remainingBalance` to `cash` and negative `remainingBalance` to `opening_unreturned_capital`. An opening investment slice posts positive `remainingBasis` to `invested_basis` and negative `remainingBasis` to `opening_unreturned_capital`. Entitlement pools are disclosure rows only and create no journal entries.
+
+The only result-hash preimage is `InternalEconomicsReceiptV2` with `resultHash` omitted. `resultHash` is exactly `sha256CanonicalJson(receipt without resultHash)`, including `receiptVersion`, the closed component manifest, `selectedLane`, `hashAlgorithm`, `normalizedInputHash`, and every immutable receipt payload field. There is no second wrapper, domain tag, summary-only payload, or implementation-identity side object. Canonicalization sorts plain-object keys, preserves normative array order, rejects `undefined` and other non-JSON-safe values, and hashes the resulting canonical JSON bytes.
+
+The closed `ComponentVersionsV2` manifest is exactly:
+
+```json
+{"normalizer":"internal-economics-normalizer/2.0.1","composite":"internal-economics-composite/2.0.1","eventEngine":"internal-economics-event-engine/2.0.1","selectedWaterfall":"internal-economics-waterfall-deal-by-deal/2.0.1","receiptSerializer":"internal-economics-receipt-serializer/2.1.0"}
+```
+
+The V2-S-0100 literal input fixture is:
+
+```json
+{"contractVersion":"internal-economics-composite/2.0.1","currency":"USD","calculationDate":"2025-06-30T00:00:00Z","cutoverInstant":"2025-01-01T00:00:00Z","roundingMode":"half_up","fundEstablishmentDate":"2024-01-01T00:00:00Z","investmentPeriodEndDate":"2028-01-01T00:00:00Z","fundTermDate":"2034-01-01T00:00:00Z","lpClasses":[{"lpClassId":"class-a","feeProfile":{"managementFeeSchedule":[],"feeRecyclingEnabled":false,"exitRecyclingEnabled":false}}],"partners":[{"partnerId":"lp-1","name":"LP One","isGp":false,"lpClassId":"class-a","committedCapital":"500000.000000","settledCash":"500000.000000","remainingCallableCommitment":"0.000000"},{"partnerId":"gp-1","name":"GP One","isGp":true,"committedCapital":"50000.000000","settledCash":"50000.000000","remainingCallableCommitment":"0.000000"}],"waterfallPolicy":[{"kind":"carry","priority":1,"gpShare":"0.200000000000"}],"selectedLane":"deal_by_deal","gpCashPreferredReturnTreatment":"pari_passu","openingState":{"openingCash":"0.000000","openingCashClassification":{"paidIn":"0.000000","recycling":"0.000000","unclassified":"0.000000"},"openingProvenance":{"cashLots":[],"investmentLots":[{"investmentLotId":"opening-investment:0001","sourceRef":"opening-investment-source:0001","entitlementPoolId":"opening-pool:0001","dealId":"deal-1","securityId":"security-1","owner":{"kind":"lp","partnerId":"lp-1","lpClassId":"class-a"},"costBasis":"500000.000000","relievedAmount":"0.000000","entitlementAmount":"60.000000"},{"investmentLotId":"opening-investment:0002","sourceRef":"opening-investment-source:0002","entitlementPoolId":"opening-pool:0001","dealId":"deal-1","securityId":"security-1","owner":{"kind":"gp","partnerId":"gp-1"},"costBasis":"50000.000000","relievedAmount":"0.000000","entitlementAmount":"40.000000"}],"entitlementPools":[{"entitlementPoolId":"opening-pool:0001","sourceRef":"opening-pool-source:0001","dealId":"deal-1","securityId":"security-1"}]},"openingCommitments":"550000.000000","investorLedgers":[{"partnerId":"lp-1","committedCapital":"500000.000000","calledCapital":"500000.000000","settledCapital":"500000.000000","paidInCapital":"500000.000000","unreturnedSettledCashCapital":"500000.000000","cumulativeDistributions":"0.000000","cumulativeFees":"0.000000","accruedPreference":"0.000000"},{"partnerId":"gp-1","committedCapital":"50000.000000","calledCapital":"50000.000000","settledCapital":"50000.000000","paidInCapital":"50000.000000","unreturnedSettledCashCapital":"50000.000000","cumulativeDistributions":"0.000000","cumulativeFees":"0.000000","accruedPreference":"0.000000"}],"accruedPreferenceTotal":"0.000000","cumulativeDistributionsTotal":"0.000000","cumulativeFeesTotal":"0.000000","consumedFeeRecyclingCapacity":"0.000000","consumedExitRecyclingCapacity":"0.000000","profitDecomposition":{"openingCumulativePreferredPaid":"0.000000","openingCumulativeGpProfitDistributions":"0.000000","openingCumulativeLpProfitDistributions":"0.000000"}},"events":[]}
+```
+
+The fixture's expected `normalizedInputHash` is `273367406da6294a58cc2ed6ebfc0d0ec2d67a1356f81fb59f51782e1a351d98`, and its complete 2.1.0 receipt's expected `resultHash` is `ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f`. `V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES` is exactly `16 * 1024 * 1024` bytes (16 MiB), measured on the complete final receipt after `resultHash` is attached, never on the preimage.
+
+F2 remains zero-event and makes no `processEvents` change. `processEvents`, whole-stream event semantics, explicit `sourceCashLotId` lineage, and event-derived journal cash-flow semantics move to F3. F2 does not infer `sourceCashLotId` from `sourceRef`, `investmentLotId`, owner, deal, or security. In F2, `entitlementAmount` is opaque: it is disclosed unchanged and summed only into its pool's `entitlementTotal`; it is excluded from cash, basis, unreturned-capital, ownership-percentage, waterfall-allocation, and conservation equations. No equality or ratio involving `entitlementAmount` is asserted; F3 requires a successor invariant before using it for allocations.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.
+
+## ADR-088: F3a Validation-First Repair Before Source Lineage (Cumulative Allocation Validation)
+
+**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2 #event-stream #refusal
+
+### Decision
+
+F3a repairs validation order, repeated-row aggregation, exact totals, and refusal propagation through the existing chronology switch before source lineage, receipts, persistence, or queues. Concretely, in `shared/lib/internal-economics/v2/event-stream-engine-v2.ts` and `derive-composite-v2.ts` only:
+
+- `validateCashSourceAllocations` and `validateReliefRows` validate all references first, reject negative allocation/relief/proceeds rows at row level, then aggregate per lot and compare each aggregate against remaining balance / remaining cost basis. Deterministic precedence: missing reference, then negative row, then cumulative overdraw, then total mismatch, then mutation.
+- `processDeployment` and `processFundExpense` compare the cash-source allocation sum against event `amountUsd`; `processRealization` compares the allocated-proceeds sum. Mismatches refuse after validation and before any apply with literal six-place messages and byte-exact `contextDetails` JSON. The refusal families (`CASH_SOURCE_ALLOCATION_VIOLATION`, `INVESTMENT_LOT_RELIEF_VIOLATION`) and the provenance stage are reused; no new family, code, or diagnostic contract field is introduced.
+- The chronology loop is exposed as `processEventsV2ForTest` and returns the first refusal-capable processor refusal; `runLane` calls it. No dispatcher or generic transition framework is introduced.
+
+F2 public event admission remains refused. Contract stays `internal-economics-composite/2.0.1`; receipt stays `internal-economics-receipt/2.1.0`; no `sourceCashLotId`; zero-event opening input keeps the unchanged F2 receipt/hash.
+
+### Drivers
+
+Financial safety (silently overdrawing repeated rows and silently dropped refusals are balance-corruption paths); smallest root-cause patch (repair shared validators and the existing chronology loop, not callers); exact-SHA isolation (implementation in a fresh linked worktree from `origin/main`); independent consumer/evidence seams (capability admission only with versioned consumer-backed proof; evidence never grants merge or production authority).
+
+### Alternatives considered
+
+- A new dispatcher/transition framework: duplicates the existing switch and broadens scope.
+- Landing `sourceCashLotId`/eventful receipt/persistence/queue now: needs a named consumer and durable-state decisions; deferred to later gates.
+- Per-caller guards: miss shared behavior.
+
+### Consequences
+
+No public event result changes; only inputs that were silently corrupting state (negative rows, cumulative overdraw, total mismatch) or silently ignored (dropped refusals) change outcome, and they become refusals. Future execution remains isolated from dirty main via the linked-worktree discipline. A post-write refusal need would require new design.
+
+### Follow-ups
+
+Reopen source-lineage work (`sourceCashLotId`, eventful receipt) only after F3a exact-SHA green plus a named consumer and approved versioned semantics; source lineage is explicit and never inferred from `sourceRef`, `investmentLotId`, owner, deal, or security. Evaluate correction/write-off/conversion and persistence/BullMQ independently, each with its own consumer-backed and durable-state proof.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.

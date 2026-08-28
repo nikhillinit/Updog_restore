@@ -1,9 +1,5 @@
-# Lifecycle contract (2026-08-18): one-time workflow for the PR #1385 release
-# program only. Owner: repository owner. Terminal condition: PR #1385 merged,
-# closed, or abandoned. Execution confers no authorization; outputs are
-# evidence under docs/governance/solo-internal-change-and-production-policy.md.
-# After the terminal condition, archive this workflow via the Archive Gate
-# (evidence-cited PR); do not generalize it without a second proven use case.
+# Captures a bounded pre-merge provider baseline. Execution confers no
+# authorization; output remains evidence under the governing policy.
 name: Capture Release Baseline
 
 on:
@@ -14,11 +10,19 @@ on:
         required: true
         type: string
       planned_pr_head_sha:
-        description: Exact frozen PR #1385 head SHA planned for merge
+        description: Exact frozen planned PR head SHA
+        required: true
+        type: string
+      pr_number:
+        description: Planned pull request number
+        required: true
+        type: string
+      plan_path:
+        description: Repository-relative approved plan path at planned PR head
         required: true
         type: string
       plan_sha256:
-        description: SHA-256 of approved release hardening plan at planned PR head
+        description: SHA-256 of approved plan at planned PR head
         required: true
         type: string
 
@@ -49,12 +53,16 @@ jobs:
         env:
           BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
           PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PLAN_PATH: ${{ inputs.plan_path }}
           PLAN_SHA256: ${{ inputs.plan_sha256 }}
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release/capture-release-recovery-context.mjs validate-baseline \
             --baseline-main-sha "$BASELINE_MAIN_SHA" \
             --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --pr-number "$PR_NUMBER" \
+            --plan-path "$PLAN_PATH" \
             --plan-sha256 "$PLAN_SHA256"
 
       - name: Capture and validate provider baseline
@@ -63,6 +71,8 @@ jobs:
         env:
           BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
           PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PLAN_PATH: ${{ inputs.plan_path }}
           PLAN_SHA256: ${{ inputs.plan_sha256 }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -77,6 +87,8 @@ jobs:
           node scripts/release/capture-release-recovery-context.mjs capture-provider \
             --baseline-main-sha "$BASELINE_MAIN_SHA" \
             --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --pr-number "$PR_NUMBER" \
+            --plan-path "$PLAN_PATH" \
             --plan-sha256 "$PLAN_SHA256" \
             --output "$RUNNER_TEMP/release-recovery-context-v1.json"
 
@@ -92,12 +104,16 @@ jobs:
         env:
           BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
           PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PLAN_PATH: ${{ inputs.plan_path }}
           PLAN_SHA256: ${{ inputs.plan_sha256 }}
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/release/capture-release-recovery-context.mjs validate-baseline \
             --baseline-main-sha "$BASELINE_MAIN_SHA" \
             --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --pr-number "$PR_NUMBER" \
+            --plan-path "$PLAN_PATH" \
             --plan-sha256 "$PLAN_SHA256"
 
       - name: Upload immutable release baseline

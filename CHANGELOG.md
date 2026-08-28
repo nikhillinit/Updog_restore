@@ -21,10 +21,90 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-26)
+
+- **Source-pinned allocation scenario templates (F_1.7.0 S1).** A narrowed
+  `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
+  contract (`fund-scenario-set-create/2.0.0`) carrying an expected source-config
+  ID/version pair. The server — not the UI — is the pinning authority: it
+  rejects stale pins (409 `scenario_source_config_stale`) and variant
+  row-identity drift (422 `scenario_variant_row_identity_drift`) before any
+  write, with typed `{arrayKind, id}` row identity, order-sensitive per-array
+  id-sequence checks, frozen non-numeric fields on Upside/Downside, and deep
+  structural equality for Base. V2 requires exactly three positional variants
+  (Base/Upside/Downside), each with exactly one allocation override; V1 create
+  semantics are unchanged. New `CreateAllocationScenarioModal` in
+  `client/src/components/scenarios/` always submits V2. Plan:
+  `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
+
+### Fixed (2026-08-26)
+
+- **V2 catch-up allocation parity (F_2.0.4).** Both V2 waterfall engines now
+  compute GP catch-up through one pure leaf
+  (`shared/lib/internal-economics/v2/catch-up-allocation-v2.ts`) implementing
+  the locked F_2.0.0 stopping rule `(c(G+L)-G)/(g-c)` — replacing the divergent
+  `(c(openingPrefPaid+remaining)-G)/g` both engines executed. Each catch-up and
+  carry tier allocation is quantized exactly once and split GP/LP with a single
+  joint largest-remainder pass (no micro-unit over-distribution); cumulative
+  GP/LP profit accumulators (fund-level in whole-fund, per-entitlement-pool in
+  deal-by-deal) let later tiers see profit granted by earlier tiers, replacing
+  per-pool re-grants from unchanged opening scalars. Positive catch-up/carry
+  buckets with an empty eligible cohort now raise internal defensive errors.
+  Engine-internal conformance only: the catch-up tier remains unreachable on the
+  public derivation path; frozen V2-S-0100/0101 hashes and receipt bytes
+  unchanged.
+
+### Added (2026-08-25)
+
+- **V2 F2 completion — opening state, balance-forward journal, receipt 2.1.0
+  (F_2.0.2).** The V2 core admits a zero-event, deal-by-deal opening state with
+  explicit investment provenance. Normalized input is recursively sealed after
+  hashing; hydration builds explicit runtime opening cash-lot, investment-slice,
+  and entitlement-pool types plus a balance-forward journal over three closed
+  accounts (`cash`, `invested_basis`, `opening_unreturned_capital`) beside the
+  untouched event-lane state. The receipt is the closed
+  `internal-economics-receipt/2.1.0` field set with a five-component manifest,
+  one typed result-hash preimage (the receipt without `resultHash`), and
+  enforced output-row (100,000) and serialized-output-byte (16 MiB) limits.
+  V2-S-0100 lands as a frozen literal input+receipt truth fixture; V2-S-0101 is
+  regenerated under 2.1.0 with a consumed changed-case manifest. `processEvents`
+  semantics, event-stream atomicity, and `sourceCashLotId` lineage remain F3
+  scope. ADR-087. Plan:
+  `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
+
+### Added (2026-08-23)
+
+- **V2 Core Financial Model (F_2.0.0).** Pure internal-economics derivation core
+  under `shared/lib/internal-economics/v2/`: versioned input contract,
+  refusal-first validation, event-stream engine with lot provenance and callable
+  tracking, deal-by-deal and whole-fund waterfall engines, reserve funding
+  classifier, receipt builder with canonical-json-sha256 hashing. V1 byte-frozen
+  (15-file SHA-256 certification). No routes, persistence, jobs, migrations, or
+  activation. 129 V2 tests, property tests (fast-check), benchmark under 5s at
+  admission limits. ADR-085. Plan:
+  `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`.
+
+### Changed (2026-08-22)
+
+- **Ceremony retirement and canary recovery hardening (narrow F_1.3.1 PR2
+  scope).** Source provenance now binds generic baseline PR/plan evidence and
+  rollback remains historical-context compatible. Schema-route retirement
+  remains gated on separately owner-authorized current-main audit evidence.
+  Production authority remains none. ADR-084.
+
 ### Changed (2026-08-20)
 
-- **Infrastructure-only interim release hardening.** Governed release evidence now records exact-execution canary results and refreshed surface-contract-matrix proof. This does not designate an activation candidate or create a release freeze.
-- **Task 11 G1 closure (F_1.2.9).** Owner-approved G1 successor review closed the surface-contract matrix: rejected candidate superseded via deterministic transplant with a 13-row defect ledger (5 cashflow mutation rows, 8 partner-only persona rows) plus 24 source-verified fan-out corrections; contaminated fresh-review prose removed; four residual risks accepted and enumerated in the review manifest. Funds endpoint 404 investigated to a bounded no-repro dossier.
+- **Infrastructure-only interim release hardening.** Governed release evidence
+  now records exact-execution canary results and refreshed
+  surface-contract-matrix proof. This does not designate an activation candidate
+  or create a release freeze.
+- **Task 11 G1 closure (F_1.2.9).** Owner-approved G1 successor review closed
+  the surface-contract matrix: rejected candidate superseded via deterministic
+  transplant with a 13-row defect ledger (5 cashflow mutation rows, 8
+  partner-only persona rows) plus 24 source-verified fan-out corrections;
+  contaminated fresh-review prose removed; four residual risks accepted and
+  enumerated in the review manifest. Funds endpoint 404 investigated to a
+  bounded no-repro dossier.
 
 ### Changed (2026-08-18)
 

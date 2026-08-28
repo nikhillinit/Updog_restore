@@ -4,12 +4,10 @@
 
 Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
 
-This guide routes production-action authority to the canonical route and
-confers no authority by itself to mutate source, branch, environment, provider,
-production, schema, data, deployment, promotion, or rollback. The canonical
-route is active for repository governance only; it confers no production
-readiness or authorization, and action-specific UNKNOWN prerequisites remain
-blocking.
+<!-- prettier-ignore-start -->
+This guide routes production-action authority to the canonical route and confers no authority by itself to mutate source, branch, environment, provider, production, schema, data, deployment, promotion, or rollback.
+The canonical route is active for repository governance only; it confers no production readiness or authorization, and action-specific UNKNOWN prerequisites remain blocking.
+<!-- prettier-ignore-end -->
 
 Complete automation for deploying CODEX fixes to staging and production with
 comprehensive smoke tests and security monitoring.
@@ -42,6 +40,7 @@ These PowerShell scripts automate the entire deployment pipeline:
 # 4. Dispatch governed production release (after verification)
 .\scripts\deploy-production.ps1 `
   -ReleaseMode primary `
+  -PrNumber <number> `
   -FundHealthPath .\evidence\fund-health.json `
   -FundReadyPath .\evidence\fund-ready.json `
   -CapitalHealthPath .\evidence\capital-health.json `
@@ -235,9 +234,8 @@ release with that SHA. Workflow owns release proof, schema audit, staged
 production-target creation, identity validation, smoke, promotion, and
 post-promotion smoke.
 
-The staged-smoke job requires two credential pairs as GitHub Production
-secrets before any mutation canary starts, and fails closed when either pair
-is missing:
+The staged-smoke job requires two credential pairs as GitHub Production secrets
+before any mutation canary starts, and fails closed when either pair is missing:
 
 - `CANARY_USERNAME` / `CANARY_PASSWORD` -- the partner-role release-canary
   principal that drives the mutation canaries.
@@ -247,14 +245,15 @@ is missing:
   human accounts, with `role='admin'` and `is_release_canary_principal=false`.
   The canary uses it only around planning-FMV creation/replay and MOIC
   reconciliation; the secrets are exposed only to the credential guard and the
-  release-canary step, never to provider scripts, logs, summaries, artifacts,
-  or post-promotion smoke.
+  release-canary step, never to provider scripts, logs, summaries, artifacts, or
+  post-promotion smoke.
 
 #### Usage
 
 ```powershell
 .\scripts\deploy-production.ps1 `
   -ReleaseMode primary `
+  -PrNumber <number> `
   -FundHealthPath .\evidence\fund-health.json `
   -FundReadyPath .\evidence\fund-ready.json `
   -CapitalHealthPath .\evidence\capital-health.json `
@@ -271,6 +270,9 @@ is missing:
   -BaselineArtifactDigest sha256:<64-lowercase-hex> `
   -BaselineFileSha256 <64-lowercase-hex>
 ```
+
+`-PrNumber` (mandatory in primary mode) identifies the merged pull request whose
+head commit is the release SHA.
 
 The five mandatory `-Baseline*` parameters name the exact
 `Capture Release Baseline` execution: its run ID and attempt, the uploaded
@@ -302,9 +304,9 @@ identity. After every Vercel promote attempt, it polls the Vercel API with the
 protected organization scope and verifies the exact staged deployment ID,
 protected project ID, `READY` state, production target, expected commit SHA, and
 exact canonical alias. The resolver has a five-minute deadline, four-second
-request timeout, and 60-attempt cap. A failed Vercel CLI command is accepted only
-when this API proof establishes that the exact staged deployment already serves
-the canonical hostname.
+request timeout, and 60-attempt cap. A failed Vercel CLI command is accepted
+only when this API proof establishes that the exact staged deployment already
+serves the canonical hostname.
 
 Post-promotion smoke and runtime log checks consume the URL emitted by the
 proved promotion step. `PRODUCTION_URL` is not used to establish deployment

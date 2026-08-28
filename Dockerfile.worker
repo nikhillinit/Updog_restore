@@ -38,6 +38,8 @@ WORKDIR /app
 # Security hardening
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S worker -u 1001 && \
+    # CVE-2026-14456: pinned base digest ships libcrypto3/libssl3 3.5.7-r0
+    apk upgrade --no-cache libcrypto3 libssl3 && \
     apk add --no-cache dumb-init curl
 
 # Environment

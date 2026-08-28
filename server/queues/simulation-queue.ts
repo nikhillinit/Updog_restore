@@ -254,9 +254,12 @@ export async function initializeSimulationQueue(
       // Set up queue events for monitoring
       queueEvents = new QueueEvents(QUEUE_NAME, { connection });
 
-      queueEvents.on('completed', ({ jobId, returnvalue }) => {
-        logger.info('[queue] Job completed', { jobId, returnvalue });
-      });
+      queueEvents.on(
+        'completed',
+        ({ jobId, returnvalue }: { jobId: string; returnvalue: string }) => {
+          logger.info('[queue] Job completed', { jobId, returnvalue });
+        }
+      );
 
       queueEvents.on('failed', ({ jobId, failedReason }) => {
         console.error(`[queue] Job ${jobId} failed:`, sanitizeQueueError(failedReason));

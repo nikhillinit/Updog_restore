@@ -224,6 +224,19 @@ export async function recordReserveCalculationQueuedEventOnce(params: {
   const { run, identity, jobId } = context;
 
   return transaction(async (client) => {
+    // Acquire a KEY SHARE lock on fund_scenario_sets before touching the run
+    // row to ensure a consistent lock-acquisition order with the BullMQ worker.
+    // The worker's claimReserveScenarioRun transaction takes a FOR UPDATE lock
+    // on fund_scenario_sets first, then updates fund_scenario_calculation_runs.
+    // Without this pre-lock the two transactions can deadlock: HTTP holds the
+    // run row lock and waits for the FK-check KEY SHARE on fund_scenario_sets,
+    // while the worker holds fund_scenario_sets FOR UPDATE and waits for the
+    // run row lock.
+    await client.query(
+      `SELECT 1 FROM fund_scenario_sets WHERE id = $1 AND fund_id = $2 FOR KEY SHARE`,
+      [identity.scenarioSetId, identity.fundId]
+    );
+
     const marked = await client.query(
       `UPDATE fund_scenario_calculation_runs
           SET queued_event_recorded_at = clock_timestamp(),
