@@ -1,11 +1,22 @@
 import crypto from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import type {
+  CreateFundScenarioSetV1OrV2,
   CreateFundScenarioSetV1,
+  CreateFundScenarioSetV2,
+  FundScenarioSourceConfigResponseV1,
   FundScenarioSetDetailV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
-import { CreateFundScenarioSetV1Schema } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  CreateFundScenarioSetV1Schema,
+  CreateFundScenarioSetV2Schema,
+} from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FundDraftWriteV1Schema,
+  type FundDraftWriteV1,
+} from '@shared/contracts/fund-draft-write-v1.contract';
 import {
   createHttpError,
   fetchScenarioSetDetail,
@@ -18,6 +29,7 @@ import {
   type FundScenarioSetRow,
   type FundScenarioVariantRow,
 } from './fund-scenario-set-service.js';
+import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 
 const MAX_ACTIVE_SCENARIO_SETS_PER_FUND = 10;
 const FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT =
@@ -31,6 +43,7 @@ interface CreateFundScenarioSetOptions {
 interface PublishedConfigRow {
   id: number;
   version: number;
+  config: unknown;
 }
 
 interface ActiveScenarioSetCountRow {
@@ -50,7 +63,7 @@ interface IdempotencyResolution {
 
 export async function createFundScenarioSet(
   fundId: number,
-  input: CreateFundScenarioSetV1,
+  input: CreateFundScenarioSetV1OrV2,
   actorInput: FundScenarioMutationActor = {},
   options: CreateFundScenarioSetOptions = {}
 ): Promise<FundScenarioSetDetailV1> {
@@ -60,16 +73,29 @@ export async function createFundScenarioSet(
   );
 }
 
-function parseCreateFundScenarioSetInput(input: CreateFundScenarioSetV1): CreateFundScenarioSetV1 {
-  const parsed = CreateFundScenarioSetV1Schema.safeParse(input);
-  if (parsed.success) {
-    return parsed.data;
+type CreateFundScenarioSetInput = CreateFundScenarioSetV1 | CreateFundScenarioSetV2;
+
+function parseCreateFundScenarioSetInput(input: unknown): CreateFundScenarioSetInput {
+  const parsedV1 = CreateFundScenarioSetV1Schema.safeParse(input);
+  if (parsedV1.success) {
+    return parsedV1.data;
   }
 
-  throw createHttpError(400, 'Invalid fund scenario set payload', {
-    code: 'invalid_scenario_set_payload',
+  const parsedV2 = CreateFundScenarioSetV2Schema.safeParse(input);
+  if (parsedV2.success) {
+    return parsedV2.data;
+  }
+
+  const isV2Payload =
+    input !== null &&
+    typeof input === 'object' &&
+    (input as Record<string, unknown>)['contractVersion'] === 'fund-scenario-set-create/2.0.0';
+  const validationError = isV2Payload ? parsedV2.error : parsedV1.error;
+
+  throw createHttpError(isV2Payload ? 422 : 400, 'Invalid fund scenario set payload', {
+    code: isV2Payload ? 'invalid_scenario_set_v2_payload' : 'invalid_scenario_set_payload',
     details: {
-      issues: parsed.error.issues.map((issue) => ({
+      issues: validationError.issues.map((issue) => ({
         path: issue.path.join('.'),
         message: issue.message,
         code: issue.code,
@@ -81,7 +107,7 @@ function parseCreateFundScenarioSetInput(input: CreateFundScenarioSetV1): Create
 async function createFundScenarioSetInTransaction(
   client: PoolClient,
   fundId: number,
-  input: CreateFundScenarioSetV1,
+  input: CreateFundScenarioSetInput,
   actorInput: FundScenarioMutationActor,
   options: CreateFundScenarioSetOptions
 ): Promise<FundScenarioSetDetailV1> {
@@ -92,6 +118,11 @@ async function createFundScenarioSetInTransaction(
   }
 
   const publishedConfig = await getCurrentPublishedConfig(client, fundId);
+  if (isCreateFundScenarioSetV2(input)) {
+    assertExpectedSourceConfig(input, publishedConfig);
+    assertSourcePinnedScenarioVariants(input, parsePublishedConfig(fundId, publishedConfig));
+  }
+
   await assertActiveScenarioSetCapacity(client, fundId);
   const actor = normalizeActor(actorInput);
   const scenarioSetId = await insertScenarioSet(client, {
@@ -111,7 +142,7 @@ async function createFundScenarioSetInTransaction(
 async function resolveIdempotency(
   client: PoolClient,
   fundId: number,
-  input: CreateFundScenarioSetV1,
+  input: CreateFundScenarioSetInput,
   idempotencyKeyInput: string | null | undefined
 ): Promise<IdempotencyResolution> {
   const idempotencyKey = normalizeIdempotencyKey(idempotencyKeyInput);
@@ -145,7 +176,7 @@ function normalizeIdempotencyKey(value: string | null | undefined): string | nul
   return trimmed;
 }
 
-function createIdempotencyRequestHash(fundId: number, input: CreateFundScenarioSetV1): string {
+function createIdempotencyRequestHash(fundId: number, input: CreateFundScenarioSetInput): string {
   return crypto.createHash('sha256').update(JSON.stringify({ fundId, input })).digest('hex');
 }
 
@@ -168,13 +199,20 @@ async function getCurrentPublishedConfig(
   client: PoolClient,
   fundId: number
 ): Promise<PublishedConfigRow> {
+  // FOR UPDATE is required: the publish path flips is_published on the
+  // current row without taking the funds-row lock, so an unlocked read could
+  // validate a pin against config A while a concurrent publish commits
+  // config B — the new set would be born stale. Locking the selected row
+  // serializes create against publish in both orders (a publish that
+  // commits first makes our read see B and fail the pin with 409).
   const result = await client.query<PublishedConfigRow>(
-    `SELECT id, version
+    `SELECT id, version, config
        FROM fundconfigs
       WHERE fund_id = $1
         AND is_published = TRUE
       ORDER BY version DESC
-      LIMIT 1`,
+      LIMIT 1
+      FOR UPDATE`,
     [fundId]
   );
 
@@ -186,6 +224,202 @@ async function getCurrentPublishedConfig(
   }
 
   return publishedConfig;
+}
+
+function isCreateFundScenarioSetV2(
+  input: CreateFundScenarioSetInput
+): input is CreateFundScenarioSetV2 {
+  return 'contractVersion' in input;
+}
+
+function parsePublishedConfig(
+  fundId: number,
+  publishedConfig: PublishedConfigRow
+): FundDraftWriteV1 {
+  const parsed = FundDraftWriteV1Schema.safeParse(
+    normalizeLegacyScenarioSourceConfig(publishedConfig.config)
+  );
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  throw createHttpError(409, `Scenario source config for fund ${fundId} is invalid`, {
+    code: 'scenario_source_config_invalid',
+    details: {
+      sourceConfigId: publishedConfig.id,
+      sourceConfigVersion: publishedConfig.version,
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.map(String),
+        message: issue.message,
+      })),
+    },
+  });
+}
+
+function assertExpectedSourceConfig(
+  input: CreateFundScenarioSetV2,
+  publishedConfig: PublishedConfigRow
+): void {
+  if (
+    input.expectedSourceConfigId === publishedConfig.id &&
+    input.expectedSourceConfigVersion === publishedConfig.version
+  ) {
+    return;
+  }
+
+  throw createHttpError(409, 'Scenario source config changed since it was loaded', {
+    code: 'scenario_source_config_stale',
+    details: {
+      suppliedSourceConfigId: input.expectedSourceConfigId,
+      suppliedSourceConfigVersion: input.expectedSourceConfigVersion,
+      currentSourceConfigId: publishedConfig.id,
+      currentSourceConfigVersion: publishedConfig.version,
+    },
+  });
+}
+
+type SourceConfigArrayKind = 'allocation' | 'capital-plan-allocation';
+
+type SourceConfigArrays =
+  | Pick<FundDraftWriteV1, 'allocations' | 'capitalPlanAllocations'>
+  | Pick<FundScenarioSourceConfigResponseV1, 'allocations' | 'capitalPlanAllocations'>;
+
+interface RowIdentityDriftDetails {
+  arrayKind?: SourceConfigArrayKind;
+  variantIndex?: number;
+  rowIndex?: number;
+  rowIdentity?: {
+    arrayKind: SourceConfigArrayKind;
+    id: string;
+  };
+  field?: string;
+  reason: string;
+  expected?: unknown;
+  actual?: unknown;
+}
+
+function throwSourcePinnedRowIdentityDrift(details: RowIdentityDriftDetails): never {
+  throw createHttpError(422, 'Scenario variant rows do not match the pinned source config', {
+    code: 'scenario_variant_row_identity_drift',
+    details,
+  });
+}
+
+export function assertSourcePinnedScenarioVariants(
+  input: CreateFundScenarioSetV2,
+  sourceConfig: SourceConfigArrays
+): void {
+  if (input.variants.length !== 3) {
+    throwSourcePinnedRowIdentityDrift({
+      reason: 'variant_count',
+      expected: 3,
+      actual: input.variants.length,
+    });
+  }
+
+  const allocationPayloads = input.variants.map((variant, variantIndex) => {
+    if (variant.override.overrideType !== 'allocation') {
+      throwSourcePinnedRowIdentityDrift({
+        variantIndex,
+        reason: 'allocation_override_required',
+        actual: variant.override.overrideType,
+      });
+    }
+
+    return variant.override.payload;
+  });
+
+  assertSourcePinnedArray(
+    'allocation',
+    sourceConfig.allocations ?? undefined,
+    allocationPayloads.map((payload) => payload.allocations),
+    ['id']
+  );
+  assertSourcePinnedArray(
+    'capital-plan-allocation',
+    sourceConfig.capitalPlanAllocations ?? undefined,
+    allocationPayloads.map((payload) => payload.capitalPlanAllocations),
+    ['id', 'sectorProfileId', 'entryRound', 'initialCheckStrategy', 'followOnStrategy']
+  );
+}
+
+function assertSourcePinnedArray<T extends { id: string }>(
+  arrayKind: SourceConfigArrayKind,
+  pinnedRows: T[] | undefined,
+  variantRows: Array<T[] | undefined>,
+  frozenFields: ReadonlyArray<keyof T>
+): void {
+  const pinnedIsPresent = pinnedRows !== undefined;
+
+  for (const [variantIndex, candidateRows] of variantRows.entries()) {
+    if ((candidateRows !== undefined) !== pinnedIsPresent) {
+      throwSourcePinnedRowIdentityDrift({
+        arrayKind,
+        variantIndex,
+        reason: 'array_presence',
+        expected: pinnedIsPresent,
+        actual: candidateRows !== undefined,
+      });
+    }
+
+    if (candidateRows === undefined || pinnedRows === undefined) {
+      continue;
+    }
+
+    if (candidateRows.length !== pinnedRows.length) {
+      throwSourcePinnedRowIdentityDrift({
+        arrayKind,
+        variantIndex,
+        reason: 'array_length',
+        expected: pinnedRows.length,
+        actual: candidateRows.length,
+      });
+    }
+
+    for (const [rowIndex, pinnedRow] of pinnedRows.entries()) {
+      const candidateRow = candidateRows[rowIndex];
+      if (!candidateRow || candidateRow.id !== pinnedRow.id) {
+        throwSourcePinnedRowIdentityDrift({
+          arrayKind,
+          variantIndex,
+          rowIndex,
+          rowIdentity: { arrayKind, id: pinnedRow.id },
+          reason: 'row_id_sequence',
+          expected: pinnedRow.id,
+          actual: candidateRow?.id,
+        });
+      }
+
+      if (variantIndex === 0) {
+        continue;
+      }
+
+      for (const field of frozenFields) {
+        if (!isDeepStrictEqual(candidateRow[field], pinnedRow[field])) {
+          throwSourcePinnedRowIdentityDrift({
+            arrayKind,
+            variantIndex,
+            rowIndex,
+            rowIdentity: { arrayKind, id: pinnedRow.id },
+            field: String(field),
+            reason: 'frozen_field',
+            expected: pinnedRow[field],
+            actual: candidateRow[field],
+          });
+        }
+      }
+    }
+
+    if (variantIndex === 0 && !isDeepStrictEqual(candidateRows, pinnedRows)) {
+      throwSourcePinnedRowIdentityDrift({
+        arrayKind,
+        variantIndex,
+        reason: 'base_array_mismatch',
+        expected: pinnedRows,
+        actual: candidateRows,
+      });
+    }
+  }
 }
 
 async function assertActiveScenarioSetCapacity(client: PoolClient, fundId: number): Promise<void> {

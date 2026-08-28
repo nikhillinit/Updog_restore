@@ -442,12 +442,15 @@ plain `ls` will show more if untracked files are present) includes:
   `context-rail-view-model.ts`; `F_1.0.0` plan item `#1284`/`#1288` build on
   this), `wizard/`, `modeling-wizard/`, `reserves/`, `moic/`, `monte-carlo/`,
   `lp/`, `lp-reporting/`, `internal-analysis/`, `presson-v2/`, `ui/` (shadcn),
-  `admin/`. **Correction**: waterfall UI is NOT under `investment/` — that dir
-  contains only one file (`fund-liquidation-warnings.tsx`, no waterfall code).
-  Real location: `modeling-wizard/steps/waterfall/` (`WaterfallConfig.tsx`,
-  `WaterfallSummaryCard.tsx`) + `modeling-wizard/steps/WaterfallStep.tsx` +
-  `lps/WaterfallEditor.tsx`; also `client/src/pages/WaterfallStep.tsx` and calc
-  code in `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
+  `admin/`, `scenarios/` (incl. `CreateAllocationScenarioModal.tsx` — the
+  F_1.7.0 S1 source-pinned Base/Upside/Downside flow; always submits the V2
+  create contract). **Correction**: waterfall UI is NOT under `investment/` —
+  that dir contains only one file (`fund-liquidation-warnings.tsx`, no waterfall
+  code). Real location: `modeling-wizard/steps/waterfall/`
+  (`WaterfallConfig.tsx`, `WaterfallSummaryCard.tsx`) +
+  `modeling-wizard/steps/WaterfallStep.tsx` + `lps/WaterfallEditor.tsx`; also
+  `client/src/pages/WaterfallStep.tsx` and calc code in
+  `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
 - **Hooks** (`client/src/hooks/`, 69 entries, `git ls-tree HEAD`): domain hooks
   (`use-fund-data.ts`, `use-capital-allocation.ts`, `use-engine-data.ts`,
   `use-graduation.ts`, `use-liquidity.ts`, `use-moic.ts`,
@@ -620,6 +623,16 @@ review, `#1287` target naming, `#1299` activation flip.
    `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`,
    `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`,
    `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`.
+
+7. **Daily Decision Workspace** (F_1.7.0) — S1 lands the source-pinned
+   Base/Upside/Downside allocation-scenario flow: a narrowed
+   `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
+   contract (`fund-scenario-set-create/2.0.0`) whose server-enforced pinning
+   rejects stale expected-config pairs (409) and variant row-identity drift
+   (422) before any write; UI modal lives beside the methodology modal in
+   `client/src/components/scenarios/`. C1A (persisted deployable-capital
+   reconciliation into `fund_snapshots`) follows as a separate PR. Plan:
+   `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
