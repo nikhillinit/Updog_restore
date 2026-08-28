@@ -94,7 +94,6 @@ if (!process.env.CLAUDE_HOOKS_DISABLE) {
 }
 
 const changed = output('git', ['diff', '--no-renames', '--name-only', '-z', `${baseBranch}...HEAD`], {
-  allowFailure: true,
   raw: true,
 });
 

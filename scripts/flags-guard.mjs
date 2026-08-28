@@ -15,6 +15,7 @@ import {
   assertValidGitRef,
   safeGitDiffFile,
   safeGitDiffFiles,
+  safeGitMergeBase,
   safeGitReadFileAtCommit,
 } from './lib/git-security.mjs';
 
@@ -146,7 +147,12 @@ function resolveDiffRefs(options, env = process.env) {
     }
   }
 
-  return { base: baseSha, head: headSha, labels: refs.labels };
+  return {
+    base: baseSha,
+    head: headSha,
+    mergeBase: safeGitMergeBase(baseSha, headSha),
+    labels: refs.labels,
+  };
 }
 
 function getDiff(base, head) {
@@ -507,6 +513,47 @@ function collectJavaScriptAudience(flagName, node, path, audience, file) {
   }
 }
 
+function unsupportedJavaScriptAudienceMember(node) {
+  node = unwrapJavaScriptExpression(node);
+  if (ts.isArrayLiteralExpression(node)) {
+    for (const element of node.elements) {
+      if (ts.isSpreadElement(element)) return 'spread';
+      const entry = unwrapJavaScriptExpression(element);
+      if (ts.isArrayLiteralExpression(entry) || ts.isObjectLiteralExpression(entry)) {
+        const nested = unsupportedJavaScriptAudienceMember(entry);
+        if (nested) return nested;
+      } else if (
+        !ts.isLiteralExpression(entry) &&
+        entry.kind !== ts.SyntaxKind.TrueKeyword &&
+        entry.kind !== ts.SyntaxKind.FalseKeyword &&
+        entry.kind !== ts.SyntaxKind.NullKeyword
+      ) {
+        return 'indirect';
+      }
+    }
+    return undefined;
+  }
+  if (!ts.isObjectLiteralExpression(node)) return 'indirect';
+  for (const property of node.properties) {
+    if (ts.isSpreadAssignment(property)) return 'spread';
+    if (!ts.isPropertyAssignment(property)) return 'indirect';
+    if (ts.isComputedPropertyName(property.name)) return 'computed';
+    const initializer = unwrapJavaScriptExpression(property.initializer);
+    if (ts.isArrayLiteralExpression(initializer) || ts.isObjectLiteralExpression(initializer)) {
+      const nested = unsupportedJavaScriptAudienceMember(initializer);
+      if (nested) return nested;
+    } else if (
+      !ts.isLiteralExpression(initializer) &&
+      initializer.kind !== ts.SyntaxKind.TrueKeyword &&
+      initializer.kind !== ts.SyntaxKind.FalseKeyword &&
+      initializer.kind !== ts.SyntaxKind.NullKeyword
+    ) {
+      return 'indirect';
+    }
+  }
+  return undefined;
+}
+
 function collectJavaScriptFlagSemantics(flagName, object, file) {
   const semantics = makeFlagSemantics();
   for (const property of object.properties) {
@@ -532,6 +579,12 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
       if (!ts.isObjectLiteralExpression(targeting)) {
         throw new Error(
           `Malformed JavaScript flag '${flagName}' in ${file}: targeting must be an object literal`
+        );
+      }
+      const unsupportedMember = unsupportedJavaScriptAudienceMember(targeting);
+      if (unsupportedMember) {
+        throw new Error(
+          `Malformed JavaScript flag '${flagName}' in ${file}: ${unsupportedMember} audience/targeting configuration is unsupported and failed closed`
         );
       }
       for (const targetingProperty of targeting.properties) {
@@ -571,7 +624,10 @@ function isJavaScriptFlagRegistry(object) {
   if (
     ts.isVariableDeclaration(parent) &&
     parent.initializer === expression &&
-    ts.isIdentifier(parent.name)
+    ts.isIdentifier(parent.name) &&
+    ts.isVariableDeclarationList(parent.parent) &&
+    ts.isVariableStatement(parent.parent.parent) &&
+    ts.isSourceFile(parent.parent.parent.parent)
   ) {
     return isJavaScriptFlagRegistryName(parent.name.text);
   }
@@ -661,6 +717,9 @@ function parseJavaScriptFlags(contents, file) {
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
       isJavaScriptFlagRegistryName(node.name.text) &&
+      ts.isVariableDeclarationList(node.parent) &&
+      ts.isVariableStatement(node.parent.parent) &&
+      ts.isSourceFile(node.parent.parent.parent) &&
       !ts.isObjectLiteralExpression(unwrapJavaScriptExpression(node.initializer))
     ) {
       throw new Error(
@@ -882,12 +941,12 @@ async function guardFlags() {
   console.log('='.repeat(50));
 
   const options = parseOptions();
-  const { base, head, labels: eventLabels } = resolveDiffRefs(options);
-  const changedFiles = getDiff(base, head);
+  const { head, mergeBase, labels: eventLabels } = resolveDiffRefs(options);
+  const changedFiles = getDiff(mergeBase, head);
   const candidateFiles = changedFiles.filter(isFlagFile);
   const analyzedFiles = candidateFiles.map((file) => {
-    getFileChanges(file, base, head);
-    return { file, ...parseChangesForFile(file, base, head) };
+    getFileChanges(file, mergeBase, head);
+    return { file, ...parseChangesForFile(file, mergeBase, head) };
   });
   const flagFiles = analyzedFiles.filter((analysis) => analysis.hasRegistry);
 
@@ -944,13 +1003,25 @@ async function guardFlags() {
     console.error('FLAG CHANGES BLOCKED');
     for (const detail of report.details) console.error(`  ${detail}`);
     console.error('Required labels:');
-    if (!labels.hasProductSignoff) console.error('  - product-signoff');
-    if (!labels.hasFlagsApproval) console.error('  - approved:flags-change');
-    if (
-      !labels.hasEmergencyOverride &&
-      report.details.some((detail) => detail.includes('CRITICAL'))
-    ) {
-      console.error('  - emergency-override');
+    const requiredLabels = [
+      [
+        report.details.some((detail) => detail.includes('CRITICAL')),
+        'emergency-override',
+        labels.hasEmergencyOverride,
+      ],
+      [
+        report.details.some((detail) => detail.includes('HIGH')),
+        'approved:flags-change',
+        labels.hasFlagsApproval,
+      ],
+      [
+        report.details.some((detail) => detail.includes('MEDIUM')),
+        'product-signoff',
+        labels.hasProductSignoff,
+      ],
+    ];
+    for (const [required, label, present] of requiredLabels) {
+      if (required && !present) console.error(`  - ${label}`);
     }
     return 1;
   }

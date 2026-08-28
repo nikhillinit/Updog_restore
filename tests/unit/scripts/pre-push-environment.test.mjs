@@ -37,6 +37,31 @@ async function write(root, relativePath, contents, options) {
   await writeFile(target, contents, options);
 }
 
+async function makeFailingDiffGit(root) {
+  const directory = path.join(root, 'failing-git');
+  const wrapper = path.join(directory, 'git');
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    wrapper,
+    [
+      '#!/usr/bin/env node',
+      "import { spawnSync } from 'node:child_process';",
+      'const args = process.argv.slice(2);',
+      "if (args[0] === 'diff' && args.includes('--no-renames')) {",
+      "  process.stderr.write('simulated changed-file diff failure\\n');",
+      '  process.exit(73);',
+      '}',
+      "const result = spawnSync('git', args, { env: { ...process.env, PATH: process.env.REAL_GIT_PATH }, stdio: 'inherit' });",
+      'if (result.error) throw result.error;',
+      'process.exit(result.status ?? 1);',
+      '',
+    ].join('\n'),
+    'utf8'
+  );
+  await chmod(wrapper, 0o755);
+  return directory;
+}
+
 async function createFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'updog-pre-push-env-'));
   tempRoots.push(root);
@@ -182,6 +207,24 @@ afterEach(async () => {
 });
 
 describe('pre-push hook child environment', () => {
+  it('fails closed when the primary changed-file diff fails', async () => {
+    const fixture = await createFixture();
+    const failingGitPath = await makeFailingDiffGit(fixture.root);
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: fixture.primary,
+      env: {
+        ...hostileHookEnvironment(fixture.primary, fixture.environmentLog, 'targeted'),
+        PATH: `${failingGitPath}${path.delimiter}${process.env.PATH}`,
+        REAL_GIT_PATH: process.env.PATH,
+      },
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(73);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('simulated changed-file diff failure');
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain('No changes detected');
+  });
+
   it('runs vendored skill lock check when a locked skill file is renamed out', async () => {
     const fixture = await createFixture();
     const primary = fixture.primary;

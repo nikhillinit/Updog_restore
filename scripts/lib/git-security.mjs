@@ -144,11 +144,8 @@ export function safeGitLog(baseRef, headRef = 'HEAD', extraArgs = []) {
  * @returns {string[]} Array of changed file paths
  */
 export function safeGitDiffFiles(baseRef, headRef = 'HEAD') {
-  const output = safeGitDiff(baseRef, headRef, ['--name-only']);
-  return output
-    .split('\n')
-    .map((f) => f.trim())
-    .filter(Boolean);
+  const output = safeGitDiff(baseRef, headRef, ['--no-renames', '--name-only', '-z']);
+  return output.split('\0').filter(Boolean);
 }
 
 /**

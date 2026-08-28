@@ -298,6 +298,36 @@ describe('vendored skill lock verification', () => {
     expect(await readFile(lockPath, 'utf8')).toBe(before);
   });
 
+  it('restores the prior lock if vendored inputs drift after publication', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const lockPath = path.join(root, 'skills-lock.json');
+    await chmod(lockPath, 0o640);
+    const before = await readFile(lockPath);
+    const { verifyVendoredSkills } = await import(verifier);
+
+    const result = await verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async afterAtomicReplace() {
+        await writeFile(
+          path.join(root, '.agents/skills/neon/SKILL.md'),
+          '# drifted after publish\n'
+        );
+      },
+    });
+
+    expect(result.errors).toContain('vendored skill tree changed while publishing lock');
+    expect(await readFile(lockPath)).toEqual(before);
+    expect((await stat(lockPath)).mode & 0o777).toBe(0o640);
+    await expect(access(path.join(root, '.skills-lock.json.update.lock'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
   it('preserves lock file permissions across atomic replacement', async () => {
     const { root } = await createFixture({
       lockTransform(lock) {

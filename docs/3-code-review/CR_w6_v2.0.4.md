@@ -130,12 +130,12 @@ gate. Dispositions, validated through an adversarial Codex pass:
   Dockerfile CVE mitigation, vendored skills, and historical plan documents
   imported by the branch's base commits. The financial evidence above approves
   only the F_2.0.4 surfaces; each ride-along receives its own decision below.
-- **`git ls-files` buffer increase (GOV-001A) — Decision: ACCEPT**: each
-  affected enumerator still invokes NUL-delimited `git ls-files -z`; the change
-  only sets a bounded 64 MiB `maxBuffer`. This prevents the observed
-  default-buffer `ENOBUFS` failure without broadening the tracked-file universe,
-  changing its delimiter, or suppressing Git failures. The knowledge-graph and
-  surface-contract-matrix suites exercise the affected enumeration paths.
+- **`git ls-files` buffer increase (GOV-001A) — Decision: ACCEPT**:
+  `rebuild-knowledge-graph` uses `git ls-files -z`; the client guard and docs
+  regression retain newline-delimited `git ls-files`; the surface-contract test
+  uses `git show`. The bounded 64 MiB buffer changes do not alter any
+  enumerator's existing delimiter or input universe, and do not suppress Git
+  failures.
 - **Secret-scan allowlist additions (SECURITY-002) — Decision: ACCEPT for the
   exact historical blobs described below**: the `.mimosa` entry is conjunctively
   scoped to the exact historical commit and content-addressed source-snapshot
@@ -152,13 +152,11 @@ gate. Dispositions, validated through an adversarial Codex pass:
   bytes; complete historical removal would require ref rewriting plus GitHub
   support and is disproportionate for non-credential identifiers — owner-gated
   if ever desired.
-- **Vendored Neon skill auto-update instruction (SECURITY-004)**: remediated at
-  HEAD — the instruction now requires explicit, source-reviewed dependency
-  changes with a lock refresh instead of per-session auto-updates. Note: no
-  repository consumer currently enforces `skills-lock.json` hashes, and the
-  recorded hashes do not match the vendored file bytes (hashing scheme of the
-  upstream installer is not reproduced here); lock tooling is an open owner
-  item.
+- **Vendored Neon skill update workflow (SECURITY-004, 2026-08-27)**:
+  updates are explicit and pinned. Folder hashes are enforced by
+  `scripts/verify-vendored-skills.mjs`; pre-push invokes it for vendored-skill
+  or lock changes, with unit coverage for verification and atomic writer
+  behavior.
 - **Dockerfile targeted `apk upgrade` (GOV-003)**: recorded as a trigger-bound
   reproducibility exception. Verified at review time that no patched
   `node:22.23.2-alpine` digest exists (fresh pull resolves the same digest

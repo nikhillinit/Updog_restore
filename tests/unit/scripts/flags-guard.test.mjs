@@ -44,6 +44,41 @@ async function makeRepository(baseContents, headContents, relativePath = 'flags/
   return { baseSha, directory, headSha };
 }
 
+async function makeDivergedRepository() {
+  const directory = await makeTemporaryDirectory();
+  execFileSync('git', ['init', '--quiet'], { cwd: directory });
+  execFileSync('git', ['config', 'user.email', 'flags-guard-test@example.invalid'], {
+    cwd: directory,
+  });
+  execFileSync('git', ['config', 'user.name', 'Flags Guard Test'], { cwd: directory });
+  const flagPath = path.join(directory, 'flags', 'test.yaml');
+  await mkdir(path.dirname(flagPath), { recursive: true });
+  await writeFile(flagPath, 'key: beta.merge-base\ntargeting:\n enabled: false\n', 'utf8');
+  execFileSync('git', ['add', '.'], { cwd: directory });
+  execFileSync('git', ['commit', '--quiet', '-m', 'merge base'], { cwd: directory });
+  const mergeBase = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: directory,
+    encoding: 'utf8',
+  }).trim();
+
+  execFileSync('git', ['checkout', '--quiet', '-b', 'base-tip'], { cwd: directory });
+  await writeFile(flagPath, 'key: beta.merge-base\ntargeting:\n enabled: true\n', 'utf8');
+  execFileSync('git', ['commit', '--quiet', '-am', 'base activates flag'], { cwd: directory });
+  const baseSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: directory,
+    encoding: 'utf8',
+  }).trim();
+
+  execFileSync('git', ['checkout', '--quiet', '-b', 'head-tip', mergeBase], { cwd: directory });
+  await writeFile(flagPath, 'key: beta.merge-base\ntargeting:\n enabled: true\n', 'utf8');
+  execFileSync('git', ['commit', '--quiet', '-am', 'head activates flag'], { cwd: directory });
+  const headSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: directory,
+    encoding: 'utf8',
+  }).trim();
+  return { baseSha, directory, headSha };
+}
+
 function findGitExecutable() {
   const pathDirectories = (process.env.PATH ?? '').split(path.delimiter);
   for (const directory of pathDirectories) {
@@ -1189,31 +1224,31 @@ describe('feature flags approval guard', () => {
         '',
       ].join('\n'),
     ],
-  ])('analyzes a nested export-default flags registry through %s', async (_shape, file, base, head) => {
-    const repository = await makeRepository(base, head, file);
-    const args = ['--base', repository.baseSha, '--head', repository.headSha];
-    const withoutApprovals = runGuard(repository.directory, args);
-    const approved = runGuard(repository.directory, args, {
-      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
-    });
+  ])(
+    'analyzes a nested export-default flags registry through %s',
+    async (_shape, file, base, head) => {
+      const repository = await makeRepository(base, head, file);
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const withoutApprovals = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+      });
 
-    expect(withoutApprovals.status).toBe(1);
-    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain('product-signoff');
-    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain(
-      'approved:flags-change'
-    );
-    expect(approved.status).toBe(0);
-  });
+      expect(withoutApprovals.status).toBe(1);
+      expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain('product-signoff');
+      expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain(
+        'approved:flags-change'
+      );
+      expect(approved.status).toBe(0);
+    }
+  );
 
   it('fails closed on a computed nested export-default flags root', async () => {
     const repository = await makeRepository(
       ['export default ({ flags: {} });', ''].join('\n'),
-      [
-        'export default ({',
-        "  ['flags']: { 'auth.new': { enabled: true } },",
-        '});',
-        '',
-      ].join('\n'),
+      ['export default ({', "  ['flags']: { 'auth.new': { enabled: true } },", '});', ''].join(
+        '\n'
+      ),
       'src/feature-flags.js'
     );
     const result = runGuard(repository.directory, [
@@ -1334,7 +1369,7 @@ describe('feature flags approval guard', () => {
   it('allows unrelated spread syntax outside candidate JavaScript flag registries', async () => {
     const repository = await makeRepository(
       [
-        'const defaults = { description: \'metadata\' };',
+        "const defaults = { description: 'metadata' };",
         'const flagMetadata = { ...defaults };',
         'export const flags = {',
         "  'beta.safe': { enabled: false },",
@@ -1343,7 +1378,7 @@ describe('feature flags approval guard', () => {
         '',
       ].join('\n'),
       [
-        'const defaults = { description: \'metadata\' };',
+        "const defaults = { description: 'metadata' };",
         "const flagMetadata = { ...defaults, owner: 'team' };",
         'export const flags = {',
         "  'beta.safe': { enabled: false },",
@@ -1367,7 +1402,7 @@ describe('feature flags approval guard', () => {
   it('ignores unrelated governed-looking objects and nested flags properties', async () => {
     for (const head of [
       [
-        "const defaults = { enabled: true };",
+        'const defaults = { enabled: true };',
         'const metadata = { flags: { preview: { ...defaults } } };',
         'export const flags = {',
         "  'beta.safe': { enabled: false },",
@@ -1385,12 +1420,7 @@ describe('feature flags approval guard', () => {
       ].join('\n'),
     ]) {
       const repository = await makeRepository(
-        [
-          'export const flags = {',
-          "  'beta.safe': { enabled: false },",
-          '};',
-          '',
-        ].join('\n'),
+        ['export const flags = {', "  'beta.safe': { enabled: false },", '};', ''].join('\n'),
         head,
         'src/feature-flags.js'
       );
@@ -1414,12 +1444,8 @@ describe('feature flags approval guard', () => {
       'src/registry.js',
     ]) {
       const repository = await makeRepository(
-        ['export const flags = {', "  'beta.routed': { enabled: false },", '};', ''].join(
-          '\n'
-        ),
-        ['export const flags = {', "  'beta.routed': { enabled: true },", '};', ''].join(
-          '\n'
-        ),
+        ['export const flags = {', "  'beta.routed': { enabled: false },", '};', ''].join('\n'),
+        ['export const flags = {', "  'beta.routed': { enabled: true },", '};', ''].join('\n'),
         file
       );
       const args = ['--base', repository.baseSha, '--head', repository.headSha];
@@ -1649,7 +1675,9 @@ describe('feature flags approval guard', () => {
     ]);
 
     expect(result.status).toBe(1);
-    expect(`${result.stdout}\n${result.stderr}`).toMatch(/audience.*number|audience.*numeric|failed closed/i);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(
+      /audience.*number|audience.*numeric|failed closed/i
+    );
   });
 
   it('requires flags approval for new active and inactive high-risk flags', async () => {
@@ -1677,9 +1705,7 @@ describe('feature flags approval guard', () => {
       });
 
       expect(insufficient.status).toBe(1);
-      expect(`${insufficient.stdout}\n${insufficient.stderr}`).toContain(
-        'approved:flags-change'
-      );
+      expect(`${insufficient.stdout}\n${insufficient.stderr}`).toContain('approved:flags-change');
       expect(approved.status).toBe(0);
     }
   });
@@ -1698,5 +1724,140 @@ describe('feature flags approval guard', () => {
     expect(result.status).toBe(1);
     expect(`${result.stdout}\n${result.stderr}`).toContain('approved:flags-change');
     expect(approved.status).toBe(0);
+  });
+
+  it('ignores local flags identifiers outside a canonical registry', async () => {
+    const repository = await makeRepository(
+      ['export const flags = {', "  'beta.safe': { enabled: false },", '};', ''].join('\n'),
+      [
+        'export const flags = {',
+        "  'beta.safe': { enabled: false },",
+        '};',
+        'function inspect() {',
+        '  const flags = loadFlags();',
+        '  return flags;',
+        '}',
+        'void inspect;',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/indirect registry initializer/i);
+  });
+
+  it('uses the one merge base for selection and before snapshots', async () => {
+    const repository = await makeDivergedRepository();
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+  });
+
+  it('analyzes governed source removals even when renamed to an unrelated path', async () => {
+    const repository = await makeRepository(
+      'key: beta.rename\nkillSwitch: true\n',
+      'key: beta.rename\nkillSwitch: true\n',
+      'flags/locked.yaml'
+    );
+    const target = path.join(repository.directory, 'config', 'renamed.yaml');
+    await mkdir(path.dirname(target), { recursive: true });
+    execFileSync('git', ['mv', 'flags/locked.yaml', 'config/renamed.yaml'], {
+      cwd: repository.directory,
+    });
+    execFileSync('git', ['commit', '--quiet', '-m', 'rename governed file'], {
+      cwd: repository.directory,
+    });
+    const renamedHead = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: repository.directory,
+      encoding: 'utf8',
+    }).trim();
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      renamedHead,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('emergency-override');
+  });
+
+  it.each([
+    [
+      'indirect audience array member',
+      [
+        'const rules = [{ audience: 6 }];',
+        'export const flags = {',
+        "  'beta.audience': { targeting: { rules } },",
+        '};',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'spread audience array member',
+      [
+        'const rules = [{ audience: 6 }];',
+        'export const flags = {',
+        "  'beta.audience': { targeting: { rules: [...rules] } },",
+        '};',
+        '',
+      ].join('\n'),
+    ],
+  ])('fails closed on %s', async (_name, head) => {
+    const repository = await makeRepository(
+      [
+        'export const flags = {',
+        "  'beta.audience': { targeting: { rules: [{ audience: 0 }] } },",
+        '};',
+        '',
+      ].join('\n'),
+      head,
+      'src/feature-flags.js'
+    );
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/indirect|spread|failed closed/i);
+  });
+
+  it('prints only labels required for the detected severity', async () => {
+    const repository = await makeRepository(
+      'key: auth.labels\nrisk: low\n',
+      'key: auth.labels\nrisk: high\n'
+    );
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain('approved:flags-change');
+    expect(output).not.toContain('product-signoff');
+    expect(output).not.toContain('emergency-override');
   });
 });

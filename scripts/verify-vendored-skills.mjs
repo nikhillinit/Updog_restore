@@ -483,6 +483,10 @@ async function assertInputsUnchanged({ computed, lockSnapshot, repoRoot, skillNa
     return [`${LOCK_FILE} changed while the update was running`];
   }
 
+  return assertVendoredInputsUnchanged({ computed, repoRoot, skillNames });
+}
+
+async function assertVendoredInputsUnchanged({ computed, repoRoot, skillNames }) {
   const errors = [];
   const directories = await inspectVendoredDirectories(repoRoot, errors);
   const expectedDirectories = skillNames.map((name) => `${VENDORED_ROOT}/${name}`).sort();
@@ -507,7 +511,15 @@ async function assertInputsUnchanged({ computed, lockSnapshot, repoRoot, skillNa
   return errors;
 }
 
-async function writeLockAtomically({ contents, lockPath, mode, options, verifyUnchanged }) {
+async function writeLockAtomically({
+  contents,
+  lockPath,
+  mode,
+  options,
+  restoreContents,
+  verifyPublished,
+  verifyUnchanged,
+}) {
   const directory = path.dirname(lockPath);
   const temporaryPath = path.join(
     directory,
@@ -544,7 +556,59 @@ async function writeLockAtomically({ contents, lockPath, mode, options, verifyUn
     } finally {
       await directoryHandle?.close();
     }
+
+    await options.afterAtomicReplace?.();
+    const postPublicationErrors = await verifyPublished();
+    if (postPublicationErrors.length > 0) {
+      const restoreErrors = await restoreLockAtomically({
+        contents: restoreContents,
+        lockPath,
+        mode,
+      });
+      return [
+        ...postPublicationErrors.map((error) =>
+          error.includes('vendored skill tree changed')
+            ? 'vendored skill tree changed while publishing lock'
+            : error
+        ),
+        ...restoreErrors,
+      ];
+    }
     return [];
+  } finally {
+    await handle?.close();
+    await rm(temporaryPath, { force: true });
+  }
+}
+
+async function restoreLockAtomically({ contents, lockPath, mode }) {
+  const directory = path.dirname(lockPath);
+  const temporaryPath = path.join(
+    directory,
+    `.${path.basename(lockPath)}.${process.pid}.${randomBytes(8).toString('hex')}.restore.tmp`
+  );
+  let handle;
+  try {
+    handle = await open(temporaryPath, WRITE_EXCLUSIVE_NO_FOLLOW, 0o600);
+    await handle.chmod(mode);
+    await handle.writeFile(contents);
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await rename(temporaryPath, lockPath);
+    let directoryHandle;
+    try {
+      directoryHandle = await open(
+        directory,
+        fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0)
+      );
+      await directoryHandle.sync();
+    } finally {
+      await directoryHandle?.close();
+    }
+    return [];
+  } catch (error) {
+    return [`failed to restore ${LOCK_FILE}: ${error.message}`];
   } finally {
     await handle?.close();
     await rm(temporaryPath, { force: true });
@@ -629,6 +693,7 @@ async function verifyVendoredSkillsWithRoot(options, repoRoot, write) {
   await options.beforeCommit?.();
   const verifyUnchanged = () =>
     assertInputsUnchanged({ computed, lockSnapshot, repoRoot, skillNames });
+  const verifyPublished = () => assertVendoredInputsUnchanged({ computed, repoRoot, skillNames });
   const stabilityErrors = await verifyUnchanged();
   if (stabilityErrors.length > 0) {
     return { errors: stabilityErrors, updated: 0, verified: computed.size };
@@ -639,6 +704,8 @@ async function verifyVendoredSkillsWithRoot(options, repoRoot, write) {
     lockPath: lockSnapshot.lockPath,
     mode: lockSnapshot.mode,
     options,
+    restoreContents: lockSnapshot.contents,
+    verifyPublished,
     verifyUnchanged,
   });
   if (writeErrors.length > 0) {
