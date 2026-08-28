@@ -2,67 +2,71 @@ version: 2
 updates:
   # npm dependencies - weekly updates with security prioritization
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
       day: monday
-      time: "09:00"
+      time: '09:00'
       timezone: America/New_York
     # Security updates get priority
     open-pull-requests-limit: 10
     # Group non-security updates to reduce PR noise
     groups:
       production-dependencies:
-        dependency-type: "production"
+        dependency-type: 'production'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       development-dependencies:
-        dependency-type: "development"
+        dependency-type: 'development'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
     # Ignore specific packages with breaking changes
     ignore:
-      - dependency-name: "@slack/*"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "husky"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@types/node"
-        versions: [">=19"]
+      - dependency-name: '@slack/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'husky'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/node'
+        versions: ['>=19']
+      # Keep @hookform/resolvers on 5.4.x: >=5.5.0 pins peer ajv-formats ^2.1.1,
+      # conflicting with root ajv-formats ^3.0.1 (npm ci ERESOLVE)
+      - dependency-name: '@hookform/resolvers'
+        versions: ['>=5.5.0']
       # Keep vite on v5.x for stability (v6+ is major breaking)
-      - dependency-name: "vite"
-        versions: [">=6.0.0"]
+      - dependency-name: 'vite'
+        versions: ['>=6.0.0']
       # Keep React on v18.x (v19 is major breaking)
-      - dependency-name: "react"
-        versions: [">=19.0.0"]
-      - dependency-name: "react-dom"
-        versions: [">=19.0.0"]
+      - dependency-name: 'react'
+        versions: ['>=19.0.0']
+      - dependency-name: 'react-dom'
+        versions: ['>=19.0.0']
       # Keep Zod on v3.x (v4 is major breaking)
-      - dependency-name: "zod"
-        versions: [">=4.0.0"]
+      - dependency-name: 'zod'
+        versions: ['>=4.0.0']
     # Assign reviewers for security updates
     reviewers:
-      - "nikhillinit"
+      - 'nikhillinit'
     # Add labels for easy filtering
     labels:
-      - "dependencies"
-      - "automated"
+      - 'dependencies'
+      - 'automated'
     commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
-      include: "scope"
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: 'scope'
 
   # GitHub Actions - daily security updates
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: daily
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "github-actions"
-      - "automated"
+      - 'dependencies'
+      - 'github-actions'
+      - 'automated'
     commit-message:
-      prefix: "ci"
-      include: "scope"
+      prefix: 'ci'
+      include: 'scope'
