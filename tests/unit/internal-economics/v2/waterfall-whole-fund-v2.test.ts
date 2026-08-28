@@ -372,4 +372,30 @@ describe('runWholeFundWaterfall gp_catch_up tier (F_2.0.4)', () => {
 
     expect(() => runWholeFundWaterfall(input, state)).toThrow(/no eligible LP partners/);
   });
+
+  it('throws for pari-passu resume with nonzero opening preferred paid and gp_catch_up', () => {
+    const wire = buildMinimalV2Input({
+      selectedLane: 'whole_fund',
+      waterfallPolicy: CATCH_UP_POLICY,
+      gpCashPreferredReturnTreatment: 'pari_passu',
+    });
+    const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(wire);
+    if (!normalizeResult.ok) throw new Error(`normalization failed: ${normalizeResult.code}`);
+
+    const input = {
+      ...normalizeResult.input,
+      openingState: {
+        ...normalizeResult.input.openingState,
+        profitDecomposition: {
+          ...normalizeResult.input.openingState.profitDecomposition,
+          openingCumulativePreferredPaid: '1.000000',
+        },
+      },
+    };
+    const state = initializeEventStreamState(input);
+
+    expect(() => runWholeFundWaterfall(input, state)).toThrow(
+      /pari-passu resume with nonzero opening preferred paid/
+    );
+  });
 });

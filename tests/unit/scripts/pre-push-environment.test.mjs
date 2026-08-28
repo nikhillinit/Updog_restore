@@ -37,6 +37,31 @@ async function write(root, relativePath, contents, options) {
   await writeFile(target, contents, options);
 }
 
+async function makeFailingDiffGit(root) {
+  const directory = path.join(root, 'failing-git');
+  const wrapper = path.join(directory, 'git');
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    wrapper,
+    [
+      '#!/usr/bin/env node',
+      "import { spawnSync } from 'node:child_process';",
+      'const args = process.argv.slice(2);',
+      "if (args[0] === 'diff' && args.includes('--no-renames')) {",
+      "  process.stderr.write('simulated changed-file diff failure\\n');",
+      '  process.exit(73);',
+      '}',
+      "const result = spawnSync('git', args, { env: { ...process.env, PATH: process.env.REAL_GIT_PATH }, stdio: 'inherit' });",
+      'if (result.error) throw result.error;',
+      'process.exit(result.status ?? 1);',
+      '',
+    ].join('\n'),
+    'utf8'
+  );
+  await chmod(wrapper, 0o755);
+  return directory;
+}
+
 async function createFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'updog-pre-push-env-'));
   tempRoots.push(root);
@@ -92,6 +117,19 @@ appendFileSync(
   JSON.stringify({ label: 'classification', gitEnvironment }) + '\\n'
 );
 process.stdout.write(process.env.PRE_PUSH_FIXTURE_CLASSIFICATION);
+
+export function requiresVendoredSkillLockCheck(changedFiles) {
+  return changedFiles.some(
+    (file) => file.startsWith('.agents/skills/') || file === 'skills-lock.json'
+  );
+}
+`
+  );
+  await write(
+    primary,
+    'scripts/verify-vendored-skills.mjs',
+    `process.stderr.write('simulated vendored skill lock failure\\n');
+process.exitCode = 81;
 `
   );
   await write(
@@ -105,6 +143,12 @@ process.stdout.write(process.env.PRE_PUSH_FIXTURE_CLASSIFICATION);
     "import './capture-child-environment.mjs';\n"
   );
   await write(primary, 'server/changed.ts', 'export const changed = false;\n');
+  await write(primary, '.agents/skills/neon/SKILL.md', '# Locked fixture\n');
+  await write(
+    primary,
+    'skills-lock.json',
+    `${JSON.stringify({ version: 1, hashContract: 'sha256-folder-framed-v2', skills: {} }, null, 2)}\n`
+  );
   await write(
     primary,
     'node_modules/.bin/vitest',
@@ -163,34 +207,99 @@ afterEach(async () => {
 });
 
 describe('pre-push hook child environment', () => {
+  it('fails closed when the primary changed-file diff fails', async () => {
+    const fixture = await createFixture();
+    const failingGitPath = await makeFailingDiffGit(fixture.root);
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: fixture.primary,
+      env: {
+        ...hostileHookEnvironment(fixture.primary, fixture.environmentLog, 'targeted'),
+        PATH: `${failingGitPath}${path.delimiter}${process.env.PATH}`,
+        REAL_GIT_PATH: process.env.PATH,
+      },
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(73);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('simulated changed-file diff failure');
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain('No changes detected');
+  });
+
+  it('runs vendored skill lock check when a locked skill file is renamed out', async () => {
+    const fixture = await createFixture();
+    const primary = fixture.primary;
+    await mkdir(path.join(primary, 'vendor/neon'), { recursive: true });
+    git(primary, ['mv', '.agents/skills/neon/SKILL.md', 'vendor/neon/SKILL.md']);
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'rename locked skill out']);
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: primary,
+      env: hostileHookEnvironment(primary, fixture.environmentLog, 'targeted'),
+      encoding: 'utf8',
+    });
+    expect(result.status).toBe(81);
+    expect(result.stderr + result.stdout).toContain('simulated vendored skill lock failure');
+  });
+
+  it('runs vendored skill lock check for a renamed skill path containing a newline', async () => {
+    const fixture = await createFixture();
+    const primary = fixture.primary;
+    const hostileSource = '.agents/skills/neon/line\nbreak.md';
+    const hostileTarget = 'vendor/neon/line\nbreak.md';
+    await write(primary, hostileSource, 'hostile path\n');
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'add hostile skill path']);
+    git(primary, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+    await mkdir(path.join(primary, 'vendor/neon'), { recursive: true });
+    git(primary, ['mv', hostileSource, hostileTarget]);
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'rename hostile skill path out']);
+
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: primary,
+      env: hostileHookEnvironment(primary, fixture.environmentLog, 'targeted'),
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(81);
+    expect(result.stderr + result.stdout).toContain('simulated vendored skill lock failure');
+  });
+
   it.each([
     ['primary worktree full-run', 'primary', 'full-run', 'full-test'],
     ['primary worktree targeted', 'primary', 'targeted', 'targeted-test'],
     ['linked worktree full-run', 'linked', 'full-run', 'full-test'],
     ['linked worktree targeted', 'linked', 'targeted', 'targeted-test'],
-  ])('removes hook-local Git variables for %s validation', async (_name, worktreeType, classification, targetLabel) => {
-    const fixture = await createFixture();
-    const worktree = fixture[worktreeType];
-    const result = spawnSync(process.execPath, [prePushScript], {
-      cwd: worktree,
-      env: hostileHookEnvironment(worktree, fixture.environmentLog, classification),
-      encoding: 'utf8',
-    });
+  ])(
+    'removes hook-local Git variables for %s validation',
+    async (_name, worktreeType, classification, targetLabel) => {
+      const fixture = await createFixture();
+      const worktree = fixture[worktreeType];
+      const result = spawnSync(process.execPath, [prePushScript], {
+        cwd: worktree,
+        env: hostileHookEnvironment(worktree, fixture.environmentLog, classification),
+        encoding: 'utf8',
+      });
 
-    expect(result.error).toBeUndefined();
+      expect(result.error).toBeUndefined();
 
-    const childEnvironments = await capturedEnvironments(fixture.environmentLog);
-    const target = childEnvironments.find((entry) => entry.label === targetLabel);
-    expect(target).toMatchObject({
-      gitEnvironment: {
-        GIT_DIR: null,
-        GIT_WORK_TREE: null,
-        GIT_INDEX_FILE: null,
-      },
-    });
-    expect(childEnvironments).not.toHaveLength(0);
-    expect(childEnvironments.every((entry) => Object.values(entry.gitEnvironment).every((value) => value === null))).toBe(true);
-    expect(result.status).toBe(0);
-    expect(git(fixture.primary, ['config', '--bool', 'core.bare'])).toBe('false');
-  });
+      const childEnvironments = await capturedEnvironments(fixture.environmentLog);
+      const target = childEnvironments.find((entry) => entry.label === targetLabel);
+      expect(target).toMatchObject({
+        gitEnvironment: {
+          GIT_DIR: null,
+          GIT_WORK_TREE: null,
+          GIT_INDEX_FILE: null,
+        },
+      });
+      expect(childEnvironments).not.toHaveLength(0);
+      expect(
+        childEnvironments.every((entry) =>
+          Object.values(entry.gitEnvironment).every((value) => value === null)
+        )
+      ).toBe(true);
+      expect(result.status).toBe(0);
+      expect(git(fixture.primary, ['config', '--bool', 'core.bare'])).toBe('false');
+    }
+  );
 });
