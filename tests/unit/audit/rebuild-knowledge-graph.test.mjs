@@ -62,7 +62,10 @@ async function currentHead(root = repoRoot) {
 }
 
 async function trackedTestFiles(root = repoRoot) {
-  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], { cwd: root });
+  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  });
   return stdout
     .split('\0')
     .filter((file) => file && (

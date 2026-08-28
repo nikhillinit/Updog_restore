@@ -114,10 +114,12 @@ function allocateReturnOfCapital(
   const perPartner = new Map<string, Decimal>();
   let gpTotal = ZERO;
   let lpTotal = ZERO;
+  let allocatedCents = 0n;
 
   for (let i = 0; i < partners.length; i++) {
     const amount = new Decimal(centsToDecimalString(allocCents[i]!));
     perPartner.set(partners[i]!.partnerId, amount);
+    allocatedCents += allocCents[i]!;
     if (partners[i]!.isGp) {
       gpTotal = gpTotal.plus(amount);
     } else {
@@ -125,7 +127,12 @@ function allocateReturnOfCapital(
     }
   }
 
-  return { allocated: rocTarget, gpShare: gpTotal, lpShare: lpTotal, perPartner };
+  return {
+    allocated: new Decimal(centsToDecimalString(allocatedCents)),
+    gpShare: gpTotal,
+    lpShare: lpTotal,
+    perPartner,
+  };
 }
 
 function allocatePreferredReturn(

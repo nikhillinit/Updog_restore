@@ -174,13 +174,21 @@ skills and fetch them manually.
 
 ### Updating Skills
 
-Keep the skills up to date: for every new session, update them so you are
-working with the latest best practices.
+Do NOT auto-update these skills per session. This repository pins every folder
+under `.agents/skills/` in `skills-lock.json`; update vendored content only
+through an explicit, source-reviewed dependency change. After editing or
+replacing a complete skill folder, run
+`node scripts/verify-vendored-skills.mjs --write`, inspect the vendored-content
+and lockfile diff together, then run `node scripts/verify-vendored-skills.mjs`.
 
-Use the same method that was used to install them. With the `skills` CLI, run
-the install command above with `update` in place of `add`, or run
-`npx skills update` to update all Neon skills. If the skills were installed via
-a plugin, they are updated automatically.
+The lock uses the local-folder `sha256-folder-framed-v2` contract. For each
+skill, relative POSIX file paths are normalized and sorted by their UTF-8 bytes.
+The SHA-256 input is a domain-separation label, an unsigned 64-bit file count,
+and one record per file; each record length-prefixes its relative path bytes and
+raw file bytes. Symlinks, escaping paths, non-regular files, duplicate JSON
+keys, malformed lock/hash state, and outside-root targets are rejected.
+Validation is offline and fails for missing, extra, or changed files, unlocked
+skill folders, and malformed lock data.
 
 ## Getting Started with Neon
 

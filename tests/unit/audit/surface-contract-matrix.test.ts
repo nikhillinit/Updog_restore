@@ -336,6 +336,7 @@ describe('surface contract matrix CI gate', () => {
         prior = JSON.parse(
           execFileSync('git', ['show', `${priorRef}:audit/surface-contract-matrix/matrix.json`], {
             cwd: root,
+            maxBuffer: 64 * 1024 * 1024,
           }).toString()
         ) as { phase: string };
       } catch (error) {
