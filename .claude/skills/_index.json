@@ -1,6 +1,6 @@
 {
-  "generated": "2026-05-21T05:59:46.504Z",
-  "count": 41,
+  "generated": "2026-08-25T21:31:57.673Z",
+  "count": 42,
   "skills": [
     {
       "name": "api-design-principles",
@@ -281,6 +281,13 @@
       "format": "subdirectory",
       "status": "ACTIVE",
       "description": "Professional toolkit for creating and maintaining scalable design systems."
+    },
+    {
+      "name": "vc-deal-evaluation",
+      "path": ".claude/skills/vc-deal-evaluation/SKILL.md",
+      "format": "subdirectory",
+      "status": "ACTIVE",
+      "description": "Explicit-only VC review; no fund math, legal advice, execution."
     },
     {
       "name": "xlsx",

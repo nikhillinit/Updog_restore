@@ -1,14 +1,18 @@
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
+  FundScenarioSourceConfigResponseV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioSetSummaryV1Schema,
   FundScenarioVariantOverrideV1Schema,
   type ArchiveFundScenarioSetV1,
   type FundScenarioSetDetailV1,
   type FundScenarioSetSummaryV1,
+  type FundScenarioSourceConfigResponseV1,
   type FundScenarioVariantV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 
 export interface HttpError extends Error {
   statusCode: number;
@@ -52,6 +56,13 @@ export interface FundScenarioVariantRow {
   override_payload: unknown;
   created_at: Date | string;
   updated_at: Date | string;
+}
+
+interface PublishedScenarioSourceConfigRow {
+  id: number;
+  version: number;
+  published_at: Date | string;
+  config: unknown;
 }
 
 export function createHttpError(
@@ -166,6 +177,57 @@ export async function verifyFundExists(
   if (result.rows.length === 0) {
     throw createHttpError(404, `Fund ${fundId} not found`, { code: 'fund_not_found' });
   }
+}
+
+export async function getFundScenarioSourceConfig(
+  fundId: number
+): Promise<FundScenarioSourceConfigResponseV1> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+
+    const result = await client.query<PublishedScenarioSourceConfigRow>(
+      `SELECT id, version, published_at, config
+         FROM fundconfigs
+        WHERE fund_id = $1
+          AND is_published = TRUE
+        ORDER BY version DESC
+        LIMIT 1`,
+      [fundId]
+    );
+
+    const publishedConfig = result.rows[0];
+    if (!publishedConfig) {
+      throw createHttpError(409, `Fund ${fundId} does not have a published config`, {
+        code: 'no_published_config',
+      });
+    }
+
+    const parsedConfig = FundDraftWriteV1Schema.safeParse(
+      normalizeLegacyScenarioSourceConfig(publishedConfig.config)
+    );
+    if (!parsedConfig.success) {
+      throw createHttpError(409, `Scenario source config for fund ${fundId} is invalid`, {
+        code: 'scenario_source_config_invalid',
+        details: {
+          sourceConfigId: publishedConfig.id,
+          sourceConfigVersion: publishedConfig.version,
+          issues: parsedConfig.error.issues.map((issue) => ({
+            path: issue.path.map(String),
+            message: issue.message,
+          })),
+        },
+      });
+    }
+
+    return FundScenarioSourceConfigResponseV1Schema.parse({
+      contractVersion: 'fund-scenario-source-config/1.0.0',
+      sourceConfigId: publishedConfig.id,
+      sourceConfigVersion: publishedConfig.version,
+      publishedAt: toIsoString(publishedConfig.published_at),
+      allocations: parsedConfig.data.allocations ?? null,
+      capitalPlanAllocations: parsedConfig.data.capitalPlanAllocations ?? null,
+    });
+  });
 }
 
 function scenarioSetSelectSql(lockClause = ''): string {

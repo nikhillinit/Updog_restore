@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hashContract": "sha256-folder-framed-v2",
+  "skills": {
+    "neon": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon",
+      "localPath": ".agents/skills/neon",
+      "computedHash": "0f6bc5873fa81912dbccc63e3367391aa648150d67b83c9615ed7e688c73ad20"
+    },
+    "neon-postgres": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-postgres",
+      "localPath": ".agents/skills/neon-postgres",
+      "computedHash": "88f03c1c3f204589caaee042323823234332f38dae1e0c56e74480d1aaf94821"
+    }
+  }
+}

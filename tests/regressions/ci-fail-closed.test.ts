@@ -4300,7 +4300,10 @@ describe('required CI fails closed', () => {
       'scripts/normalize-stages.ts',
       'scripts/normalize-stages-batched.ts',
     ];
-    const { stdout } = await execFileAsync('git', ['ls-files', 'docs']);
+    const { stdout } = await execFileAsync('git', ['ls-files', 'docs'], {
+      cwd: process.cwd(),
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const markdownPaths = stdout.split(/\r?\n/).filter((filePath) => filePath.endsWith('.md'));
     const violations: string[] = [];
 
@@ -4433,6 +4436,12 @@ describe('required CI fails closed', () => {
 
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
+    expect(flagsGuard?.env).toBeUndefined();
+    expect(flagsGuard?.run).toContain('set -euo pipefail');
+    expect(flagsGuard?.run).toContain('node scripts/flags-guard.mjs');
+    expect(flagsGuard?.run).not.toMatch(/PR_BASE_SHA|PR_HEAD_SHA|PR_LABELS|PR_NUMBER/);
+    expect(flagsGuard?.run).not.toMatch(/--base|--head/);
+    expect(flagsGuard?.run).not.toMatch(/\bHEAD\b|\bmain\b|gh\s+pr\s+list/);
   });
 
   it('does not let advisory PR comments override the validated gate result', async () => {
@@ -4536,6 +4545,26 @@ describe('required CI fails closed', () => {
     const gateNeeds = workflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
     expect(normalizedNeeds).toContain('secret-scan');
+  });
+
+  it('scopes pull-request secret scans to immutable PR base and head SHAs', async () => {
+    const workflow = await readWorkflow('secret-scan.yml');
+    const scanStep = workflow.jobs?.scan?.steps?.find(
+      (step) => step.name === 'Scan repository history'
+    );
+    const scanScript = typeof scanStep?.run === 'string' ? scanStep.run : '';
+
+    expect(scanStep?.env).toMatchObject({
+      EVENT_NAME: '${{ github.event_name }}',
+      PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
+      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
+    });
+    expect(scanScript).toContain('if [[ "$EVENT_NAME" == "pull_request" ]]');
+    expect(scanScript).toContain('test -n "$PR_BASE_SHA"');
+    expect(scanScript).toContain('test -n "$PR_HEAD_SHA"');
+    expect(scanScript).toContain('--log-opts="${PR_BASE_SHA}..${PR_HEAD_SHA}"');
+    expect(scanScript).toContain('"${log_opts[@]}"');
+    expect(scanScript).not.toContain('origin/main..HEAD');
   });
 
   it('reuses generic CI gates only in the upstream-gated static release diagnostic', async () => {

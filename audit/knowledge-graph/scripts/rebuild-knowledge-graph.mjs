@@ -540,7 +540,10 @@ function isTrackedTestPath(relativePath) {
 }
 
 async function trackedTestPaths(repoRoot) {
-  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], { cwd: repoRoot });
+  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], {
+    cwd: repoRoot,
+    maxBuffer: 64 * 1024 * 1024,
+  });
   return stdout
     .split('\0')
     .filter((relativePath) => relativePath && isTrackedTestPath(relativePath))

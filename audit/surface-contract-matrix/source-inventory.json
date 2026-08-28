@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:2397543e18fd68e1b688149830977419289c67a01db86c7a62fa1e6bf58e1ca8",
+  "snapshot_id": "snapshot:121c1b2916df969371c7d23d840555566dbc9ffa3c893103df737dbdfe31ee73",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -112,6 +112,7 @@
     "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
     "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
     "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+    "api:GET:/api/funds/:fundId/scenario-sets/source-config",
     "api:GET:/api/funds/:fundId/tasks",
     "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
     "api:GET:/api/funds/:id",
@@ -480,15 +481,15 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "cfdbdce0d6faf07ffa5119fa69dd6f6ff28447247fe93236bbfe663e8a930860",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "269f2c4ac14f0b17d3f2918995742e872262f9e00fe8ddafa0de613a7197f126",
+    "audit/surface-contract-matrix/boot-proofs.json": "84e492c70fa2aba00f43375eacb1289fa1671dd2a08557128a90a5d5207e9a56",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "e4d52648354bf59bf397c3dc8201d8b71e700a7a5e34410367aeba86336fc2c6",
-    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "5133aeb7d54f6471337729ab6bf8da05f43e340baa7ca3fe273470aaa56aeb1f",
+    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "9bc0ac0cb7832dd74a1b86f657ccd2d4827aa7bf550bf51787bceb6947718dde",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
     "client/src/app/app-router.tsx": "365f5db9d9c824a7531351047ace1c56c70656b97e635498c90ea67c880dcf11",
@@ -501,10 +502,10 @@
     "client/src/pages/v2/portfolio.tsx": "442e18560a3ad25c8c461ef37cf748b05d494c7f2f302f170852957240b8d4c2",
     "client/src/pages/v2/scenarios.tsx": "f783378ab9ef3b1783eca2ff30087788ddeca81ea558433098c7f6ad7063c187",
     "client/src/pages/v2/today.tsx": "fb08a56d3bce71348145f524507d6ab1e9df84adefae7ac5e8feb2ecb8393116",
-    "Dockerfile": "9004bb305913a16f010d8afd41967667b87854ca891a2bca032d45f2fc61df09",
-    "Dockerfile.railway": "ac8f6d58a0ced64e68b89e867014e749645970abbd2ac7bf56628db617592138",
+    "Dockerfile": "a2d0e99cc95c7983e1eabed42af6f2b122ecb83341d65835b1f6de715240cdff",
+    "Dockerfile.railway": "76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b",
     "Dockerfile.simple": "bfcbd376504c160cac0e5200b46db48579d65e857eba61a558fdc196919c34b7",
-    "Dockerfile.worker": "a87fc5fc2229de5e04611ab951510932a9df09e0f83b64d16f7ad288a75fce9e",
+    "Dockerfile.worker": "97dde98f194d12f1a9b523a90e395ab214946ba9ca6ca2f6dc674c3e10c15463",
     "ml-service/app.py": "b5a0dc8e89f2c0faa68dd3b2489bb122608fac733412bcd095a1fc4f21e808b8",
     "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
     "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
@@ -525,7 +526,7 @@
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
     "server/queues/report-generation-queue.ts": "0e48ee156db7373d86cb3c9d612ddda1e51c6561fc1dd83e10f82f9502be668c",
     "server/queues/simulation-queue.ts": "d7df903d9fe41a000f2f22c8c6ddf738bcc71ee5a49d805480145d6df49815e5",
-    "server/route-policy/api-route-policy-registry.ts": "1469b00a107b651cbe8a44d6e65a2790b499c763792cb5cac3eecf8420b1b612",
+    "server/route-policy/api-route-policy-registry.ts": "a20acaf9e489aa77fde5f56674cf2c1f644bb7b924253865d497ec9410b3b496",
     "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
@@ -556,7 +557,7 @@
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba",
-    "server/routes/fund-scenario-sets.ts": "5735b0ade4e192fb5c866ea2ef5a7fd8a1d49c507420b65babe4bd850222e106",
+    "server/routes/fund-scenario-sets.ts": "efa164d51499fa72b0da1332bf04d61feb0e3732926ae1b092df943b33d9ff27",
     "server/routes/funds.ts": "6d712d6b211eda9ee05fde7cbfff7bca162c8d59ecb3e6ccad416b1889571393",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
     "server/routes/health.ts": "008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
@@ -638,7 +639,7 @@
     "package.json#scripts": "b5bb3ca77a11463c699d8cdc550e9c6ecb5dc49bd1a410aea22bb5fb09d1402c",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "eba14203d83dff52e5c820a9ab8219319db86e895c54f720d41b8227ee02160e",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
-    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "9dc556cc80687ec08919874cc10a059a85cd6b0d0d5d2dfcb7efbeb74ef23885",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "c6fa39f082099fee320fe77804f49942e355080e5d9927ea932ddea63c0f690f",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b",
     "client/src/app/app-routes.tsx": "d89f82ec32b5530508c0685ac38e2cb0c586900aa3b9bb6ae0b162314424e4d3",
     "server/queues/registry.ts": "1c62fc2dfb7bce4ec7101c0f66039f40953d2d9a477fae5c3bcf222e2fa01bf4"
@@ -753,6 +754,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -1074,6 +1076,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -1446,6 +1449,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -1818,6 +1822,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -2195,6 +2200,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -2598,6 +2604,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:GET:/api/funds/:fundId/tasks",
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
       "api:GET:/api/funds/:id",
@@ -3455,6 +3462,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:POST:/api/funds/:fundId/scenario-sets",
       "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/archive",
       "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate",
@@ -3475,6 +3483,9 @@
     ],
     "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results": [
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results"
+    ],
+    "api:GET:/api/funds/:fundId/scenario-sets/source-config": [
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config"
     ],
     "server/routes/operating-object-tasks.ts": [
       "api:GET:/api/funds/:fundId/tasks",
@@ -4992,6 +5003,7 @@
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
       "api:POST:/api/funds/:fundId/scenario-sets",
       "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/archive",
       "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate",
@@ -5631,6 +5643,9 @@
     ],
     "policy:api:get:/api/funds/:fundId/current-plan-versions": [
       "api:GET:/api/funds/:fundId/current-plan-versions"
+    ],
+    "policy:api:get:/api/funds/:fundId/scenario-sets/source-config": [
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config"
     ],
     "policy:api:post:/api/funds/:fundId/current-plan-versions": [
       "api:POST:/api/funds/:fundId/current-plan-versions"
@@ -7244,6 +7259,18 @@
     "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results": [
       "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
       "manifest:fund-scenario-sets",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/fund-scenario-sets.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/scenario-sets/source-config": [
+      "api:GET:/api/funds/:fundId/scenario-sets/source-config",
+      "manifest:fund-scenario-sets",
+      "policy:api:get:/api/funds/:fundId/scenario-sets/source-config",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
       "server/lib/auth/revocation.ts",
@@ -10905,11 +10932,11 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:2397543e18fd68e1b688149830977419289c67a01db86c7a62fa1e6bf58e1ca8"
+      "snapshot:121c1b2916df969371c7d23d840555566dbc9ffa3c893103df737dbdfe31ee73"
     ]
   },
   "kg_counts": {
-    "APIEndpoint": 391,
+    "APIEndpoint": 392,
     "ClientRoute": 43,
     "WorkerJob": 10
   },

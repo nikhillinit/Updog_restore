@@ -13,13 +13,12 @@ import { execFileSync, spawnSync } from 'child_process';
  * @param {string} ref - The Git ref to validate
  * @param {object} options - Validation options
  * @param {boolean} options.allowBranch - Allow branch refs (default: true)
- * @param {boolean} options.allowTag - Allow tag refs (default: true)
  * @param {boolean} options.normalize - Normalize the ref (default: false)
  * @throws {Error} if ref is invalid
  * @returns {string} The validated (and optionally normalized) ref
  */
 export function assertValidGitRef(ref, options = {}) {
-  const { allowBranch = true, allowTag = true, normalize = false } = options;
+  const { allowBranch = true, normalize = false } = options;
 
   if (!ref || typeof ref !== 'string') {
     throw new Error('Git ref must be a non-empty string');
@@ -41,12 +40,13 @@ export function assertValidGitRef(ref, options = {}) {
   // Use Git's check-ref-format for validation
   const result = spawnSync(
     'git',
-    allowBranch
-      ? ['check-ref-format', '--branch', trimmed]
-      : ['check-ref-format', trimmed],
+    allowBranch ? ['check-ref-format', '--branch', trimmed] : ['check-ref-format', trimmed],
     { stdio: 'pipe' }
   );
 
+  if (result.error) {
+    throw new Error(`Git ref validation failed: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     throw new Error(
       `Invalid Git ref: ${trimmed}\n${result.stderr?.toString() || result.stdout?.toString()}`
@@ -56,11 +56,9 @@ export function assertValidGitRef(ref, options = {}) {
   // Optionally normalize the ref
   if (normalize) {
     try {
-      const normalized = execFileSync(
-        'git',
-        ['rev-parse', '--abbrev-ref', trimmed],
-        { encoding: 'utf8' }
-      ).trim();
+      const normalized = execFileSync('git', ['rev-parse', '--abbrev-ref', trimmed], {
+        encoding: 'utf8',
+      }).trim();
       return normalized;
     } catch (error) {
       // If normalize fails, return original validated ref
@@ -69,6 +67,24 @@ export function assertValidGitRef(ref, options = {}) {
   }
 
   return trimmed;
+}
+
+/**
+ * Verifies that a validated ref resolves to an existing commit object.
+ *
+ * @param {string} ref - Git ref to resolve
+ * @returns {string} Exact resolved commit SHA
+ */
+export function assertGitCommit(ref) {
+  const validRef = assertValidGitRef(ref);
+
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', `${validRef}^{commit}`], {
+      encoding: 'utf8',
+    }).trim();
+  } catch (error) {
+    throw new Error(`Git ref does not resolve to a commit: ${validRef}\n${error.message}`);
+  }
 }
 
 /**
@@ -128,11 +144,8 @@ export function safeGitLog(baseRef, headRef = 'HEAD', extraArgs = []) {
  * @returns {string[]} Array of changed file paths
  */
 export function safeGitDiffFiles(baseRef, headRef = 'HEAD') {
-  const output = safeGitDiff(baseRef, headRef, ['--name-only']);
-  return output
-    .split('\n')
-    .map(f => f.trim())
-    .filter(Boolean);
+  const output = safeGitDiff(baseRef, headRef, ['--no-renames', '--name-only', '-z']);
+  return output.split('\0').filter(Boolean);
 }
 
 /**
@@ -147,12 +160,12 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
   const validBase = assertValidGitRef(baseRef);
   const validHead = assertValidGitRef(headRef);
 
-  // Validate file path doesn't contain dangerous characters
-  if (/[;&|`$(){}[\]<>\\]/.test(filePath)) {
-    throw new Error(`File path contains dangerous characters: ${filePath}`);
-  }
+  assertSafeGitPath(filePath);
 
-  const args = ['diff', `${validBase}...${validHead}`, '--', filePath];
+  // Flag metadata (for example a YAML `key:`) can sit more than Git's default
+  // three context lines above a changed exposure field. Keep enough context for
+  // callers to bind each changed field to its owning flag deterministically.
+  const args = ['diff', '--unified=1000', `${validBase}...${validHead}`, '--', filePath];
 
   try {
     return execFileSync('git', args, {
@@ -160,7 +173,81 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch (error) {
-    return ''; // File might not exist or have changes
+    throw new Error(`Git diff failed for ${filePath}: ${error.message}`);
+  }
+}
+
+function assertSafeGitPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') {
+    throw new Error('File path must be a non-empty string');
+  }
+  if (/[;&|`$(){}[\]<>\\:\n\r]/.test(filePath)) {
+    throw new Error(`File path contains dangerous characters: ${filePath}`);
+  }
+  return filePath;
+}
+
+/**
+ * Resolve the merge base used by a three-dot diff.
+ *
+ * @param {string} baseRef - Exact base commit
+ * @param {string} headRef - Exact head commit
+ * @returns {string} Exact merge-base commit SHA
+ */
+export function safeGitMergeBase(baseRef, headRef) {
+  const validBase = assertValidGitRef(baseRef);
+  const validHead = assertValidGitRef(headRef);
+
+  try {
+    const mergeBase = execFileSync('git', ['merge-base', validBase, validHead], {
+      encoding: 'utf8',
+    }).trim();
+    if (!/^[0-9a-f]{40}$/i.test(mergeBase)) {
+      throw new Error(`Git returned a malformed merge-base SHA: ${mergeBase || '<empty>'}`);
+    }
+    return mergeBase;
+  } catch (error) {
+    throw new Error(`Git merge-base failed: ${error.message}`);
+  }
+}
+
+/**
+ * Read one tracked file from an already-resolved commit without a working-tree fallback.
+ *
+ * @param {string} commitRef - Exact commit containing the file
+ * @param {string} filePath - Repository-relative file path
+ * @returns {string} File contents at the exact commit
+ */
+export function safeGitReadFileAtCommit(commitRef, filePath, options = {}) {
+  const { allowMissing = false } = options;
+  const commit = assertGitCommit(commitRef);
+  const safePath = assertSafeGitPath(filePath);
+  const objectSpec = `${commit}:${safePath}`;
+
+  if (allowMissing) {
+    try {
+      const entries = execFileSync(
+        'git',
+        ['ls-tree', '-z', '--name-only', commit, '--', safePath],
+        {
+          encoding: 'utf8',
+        }
+      )
+        .split('\0')
+        .filter(Boolean);
+      if (!entries.includes(safePath)) return null;
+    } catch (error) {
+      throw new Error(`Git file existence check failed for ${safePath}: ${error.message}`);
+    }
+  }
+
+  try {
+    return execFileSync('git', ['show', objectSpec], {
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(`Git file read failed for ${safePath} at ${commit}: ${error.message}`);
   }
 }
 
