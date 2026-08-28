@@ -12112,7 +12112,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/allocations.ts=b1f583f262536e468f884747d70091307113325c7ad801f62cf745e6f745b51a",
+        "server/routes/allocations.ts=01d03288bb12cfda198f98518e9015027f43cceaae9b61d2ce3fed5f2b32dc65",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -12686,7 +12686,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/allocations.ts=b1f583f262536e468f884747d70091307113325c7ad801f62cf745e6f745b51a",
+        "server/routes/allocations.ts=01d03288bb12cfda198f98518e9015027f43cceaae9b61d2ce3fed5f2b32dc65",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -64940,7 +64940,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/allocations.ts=b1f583f262536e468f884747d70091307113325c7ad801f62cf745e6f745b51a",
+        "server/routes/allocations.ts=01d03288bb12cfda198f98518e9015027f43cceaae9b61d2ce3fed5f2b32dc65",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -107732,7 +107732,7 @@
       "server/routes/admin/engine.ts": "b5874846963439d288492513ceca4f2540024e33574a2817b525dc691d815058",
       "server/routes/ai.ts": "cc0dee1c08a1fee2d7df9e1b25dde6d57f8e5987f7e7a1e7e07e38ef30664fbf",
       "server/routes/allocation-scenarios.ts": "5f40d27dfb0ae8002c7574e0e465e7845003d9aeb9994165ea5da224f0b6e588",
-      "server/routes/allocations.ts": "b1f583f262536e468f884747d70091307113325c7ad801f62cf745e6f745b51a",
+      "server/routes/allocations.ts": "01d03288bb12cfda198f98518e9015027f43cceaae9b61d2ce3fed5f2b32dc65",
       "server/routes/auth.ts": "4f38036fc9cf2c689f4490c816dea79f66625876c07e48524b2161b377c88605",
       "server/routes/backtesting.ts": "152df9e7bff73572cd44a1a477890074e5908a34ee0c8f14754e20d82e468e78",
       "server/routes/cache.ts": "66904f669bd02f17f72074357044d65346693e8f7e5af64fcc2df3bef248787d",
