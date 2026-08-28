@@ -4247,26 +4247,32 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": true,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_1.2.5_g3-closeout-reconciled.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -4355,6 +4361,21 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "DRAFT"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
+      "owner": null,
+      "path": "docs/1-plans/F_1.3.3_planning-document-lineage-corrections.plan.md",
+      "staleDays": 0,
+      "status": "DRAFT"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -4367,74 +4388,92 @@
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "ACTIVE"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_2.0.1_v2-post-merge-repair-and-f2-entry.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
-      "frontmatter": {},
+      "frontmatter": {
+        "last_updated": "2026-08-28",
+        "status": "HISTORICAL"
+      },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
+      "isStale": false,
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -14593,14 +14632,14 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 461,
+      "ACTIVE": 462,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
-      "DRAFT": 34,
+      "DRAFT": 35,
       "DRAFT (red-team hardened 2026-06-21)": 1,
-      "HISTORICAL": 26,
+      "HISTORICAL": 33,
       "HISTORICAL-SNAPSHOT": 1,
       "INDEXED": 6,
       "Implemented": 1,
@@ -14608,14 +14647,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 189,
+      "UNKNOWN": 181,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 95,
-    "stale_docs": 486,
-    "total_docs": 756
+    "missing_frontmatter": 87,
+    "stale_docs": 478,
+    "total_docs": 757
   },
   "version": "2.0"
 }
