@@ -7,6 +7,17 @@ on:
         description: Exact current main SHA to release
         type: string
         required: true
+      mode:
+        description: >-
+          Phase A (railway-workers-only) deploys Railway workers at the exact
+          SHA so the owner can capture operator evidence; phase B (full) runs
+          the complete release and reuses those exact-SHA deployments.
+        type: choice
+        options:
+          - full
+          - railway-workers-only
+        default: full
+        required: false
       operator_evidence_b64:
         description: Base64-encoded redacted fund and capital worker health/readiness evidence
         type: string
@@ -61,18 +72,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  production-mutation-block:
-    name: Production Mutation Blocked
-    runs-on: ubuntu-latest
-    steps:
-      - name: Fail closed while production mutation is unauthorized
-        run: |
-          echo "::error::Production release mutation is mechanically blocked."
-          exit 1
-
   validate-target:
     name: Validate Production Target
-    needs: production-mutation-block
     runs-on: ubuntu-latest
     outputs:
       log_window_start: ${{ steps.target.outputs.log_window_start }}
@@ -376,7 +377,7 @@ jobs:
 
   stage-production:
     name: Create Staged Production Deployment
-    if: ${{ false }}
+    if: ${{ inputs.mode != 'railway-workers-only' }}
     needs: [release-proof, schema-audit, baseline-policy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -588,10 +589,118 @@ jobs:
           console.log('Staged deployment identity verified.');
           NODE
 
+  railway-workers-deploy:
+    name: Deploy Railway Workers
+    needs:
+      - validate-target
+      - baseline-policy-preflight
+      - release-proof
+      - schema-audit
+      - validate-deployment
+    if: ${{ !cancelled() && github.run_attempt == 1 && needs.validate-target.result == 'success' && needs.baseline-policy-preflight.result == 'success' && needs.release-proof.result == 'success' && needs.schema-audit.result == 'success' && ((inputs.mode == 'railway-workers-only' && needs.validate-deployment.result == 'skipped') || (inputs.mode != 'railway-workers-only' && needs.validate-deployment.result == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: Production
+    outputs:
+      fund_scenario_calc_deployment_id: ${{ steps.deploy.outputs.fund_scenario_calc_deployment_id }}
+      capital_call_status_deployment_id: ${{ steps.deploy.outputs.capital_call_status_deployment_id }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.23.2'
+
+      - name: Deploy exact Railway worker SHA
+        id: deploy
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
+          : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
+          : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
+          : "${RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:?RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID is required}"
+          : "${RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID:?RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID is required}"
+
+          set +e
+          DEPLOY_RESULT="$(node scripts/release/deploy-railway-workers.mjs --expected-sha "$EXPECTED_SHA")"
+          DEPLOY_EXIT=$?
+          set -e
+          DEPLOY_RESULT="$DEPLOY_RESULT" DEPLOY_EXIT="$DEPLOY_EXIT" node <<'NODE'
+          const fs = require('node:fs');
+
+          const raw = process.env.DEPLOY_RESULT ?? '';
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const fail = (message) => {
+            console.error(message);
+            console.error(raw);
+            if (summaryPath) {
+              fs.appendFileSync(
+                summaryPath,
+                `### Railway worker deployment result\n\`\`\`json\n${raw}\n\`\`\`\n`
+              );
+            }
+            process.exit(1);
+          };
+
+          if (raw.includes('\n') || raw.includes('\r')) {
+            fail('Railway worker deploy helper must emit one JSON result line.');
+          }
+
+          let result;
+          try {
+            result = JSON.parse(raw);
+          } catch {
+            fail('Railway worker deploy helper emitted invalid JSON.');
+          }
+
+          if (!result || typeof result !== 'object' || Array.isArray(result)) {
+            fail('Railway worker deploy helper emitted an invalid result object.');
+          }
+
+          if (Number(process.env.DEPLOY_EXIT) !== 0 || result.overall !== 'OK') {
+            fail('Railway worker deployment did not complete with overall OK.');
+          }
+
+          const deploymentIds = new Map(
+            (Array.isArray(result.services) ? result.services : []).map((service) => [
+              service.serviceName,
+              service.deploymentId,
+            ])
+          );
+          const fundScenarioCalcDeploymentId = deploymentIds.get('fund-scenario-calc');
+          const capitalCallStatusDeploymentId = deploymentIds.get('capital-call-status');
+          if (
+            typeof fundScenarioCalcDeploymentId !== 'string' ||
+            fundScenarioCalcDeploymentId.length === 0 ||
+            typeof capitalCallStatusDeploymentId !== 'string' ||
+            capitalCallStatusDeploymentId.length === 0
+          ) {
+            fail('Railway worker deployment result omitted a required deployment ID.');
+          }
+
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `fund_scenario_calc_deployment_id=${fundScenarioCalcDeploymentId}\n` +
+              `capital_call_status_deployment_id=${capitalCallStatusDeploymentId}\n`
+          );
+          NODE
+
   railway-workers-verify:
     name: Verify Railway Worker Topology
-    needs: validate-deployment
-    if: ${{ success() && github.run_attempt == 1 }}
+    needs: railway-workers-deploy
+    if: ${{ !cancelled() && needs.railway-workers-deploy.result == 'success' && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     environment: Production
@@ -609,6 +718,8 @@ jobs:
       - name: Wait for exact Railway worker topology
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          FUND_SCENARIO_CALC_DEPLOYMENT_ID: ${{ needs.railway-workers-deploy.outputs.fund_scenario_calc_deployment_id }}
+          CAPITAL_CALL_STATUS_DEPLOYMENT_ID: ${{ needs.railway-workers-deploy.outputs.capital_call_status_deployment_id }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
@@ -617,6 +728,8 @@ jobs:
         run: |
           set -euo pipefail
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          : "${FUND_SCENARIO_CALC_DEPLOYMENT_ID:?FUND_SCENARIO_CALC_DEPLOYMENT_ID is required}"
+          : "${CAPITAL_CALL_STATUS_DEPLOYMENT_ID:?CAPITAL_CALL_STATUS_DEPLOYMENT_ID is required}"
           : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
           : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
           : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
@@ -627,7 +740,9 @@ jobs:
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
-            --expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID"
+            --expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID" \
+            --expected-fund-scenario-deployment-id "$FUND_SCENARIO_CALC_DEPLOYMENT_ID" \
+            --expected-capital-call-deployment-id "$CAPITAL_CALL_STATUS_DEPLOYMENT_ID"
 
   staged-smoke:
     name: Authenticated Staged Production Smoke
@@ -1064,7 +1179,7 @@ jobs:
     name: Reverify Staged Provider Identity
     # Waiter dependency: the one-shot topology recheck must not race a worker
     # rollout that railway-workers-verify would have converged on.
-    needs: [validate-deployment, railway-workers-verify]
+    needs: [validate-deployment, railway-workers-deploy, railway-workers-verify]
     if: ${{ success() && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1090,6 +1205,8 @@ jobs:
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
           RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
+          FUND_SCENARIO_CALC_DEPLOYMENT_ID: ${{ needs.railway-workers-deploy.outputs.fund_scenario_calc_deployment_id }}
+          CAPITAL_CALL_STATUS_DEPLOYMENT_ID: ${{ needs.railway-workers-deploy.outputs.capital_call_status_deployment_id }}
         run: |
           set -euo pipefail
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
@@ -1101,6 +1218,8 @@ jobs:
           : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
           : "${RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:?RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID is required}"
           : "${RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID:?RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID is required}"
+          : "${FUND_SCENARIO_CALC_DEPLOYMENT_ID:?FUND_SCENARIO_CALC_DEPLOYMENT_ID is required}"
+          : "${CAPITAL_CALL_STATUS_DEPLOYMENT_ID:?CAPITAL_CALL_STATUS_DEPLOYMENT_ID is required}"
           provider_evidence_dir="$RUNNER_TEMP/provider-evidence-staged-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$provider_evidence_dir"
           node scripts/release/collect-provider-evidence.mjs \
@@ -1115,7 +1234,9 @@ jobs:
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
-            --expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID"
+            --expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID" \
+            --expected-fund-scenario-deployment-id "$FUND_SCENARIO_CALC_DEPLOYMENT_ID" \
+            --expected-capital-call-deployment-id "$CAPITAL_CALL_STATUS_DEPLOYMENT_ID"
 
       - name: Remove staged provider evidence
         if: always()
@@ -1301,7 +1422,6 @@ jobs:
 
   promote:
     name: Promote Staged Vercel Deployment
-    if: ${{ false }}
     needs: [staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1666,6 +1786,7 @@ jobs:
       - schema-audit
       - stage-production
       - validate-deployment
+      - railway-workers-deploy
       - railway-workers-verify
       - staged-smoke
       - staged-provider-identity
@@ -1701,12 +1822,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          MODE: ${{ inputs.mode }}
           VALIDATE_TARGET_RESULT: ${{ needs.validate-target.result }}
           BASELINE_POLICY_PREFLIGHT_RESULT: ${{ needs.baseline-policy-preflight.result }}
           RELEASE_PROOF_RESULT: ${{ needs.release-proof.result }}
           SCHEMA_AUDIT_RESULT: ${{ needs.schema-audit.result }}
           STAGE_PRODUCTION_RESULT: ${{ needs.stage-production.result }}
           VALIDATE_DEPLOYMENT_RESULT: ${{ needs.validate-deployment.result }}
+          RAILWAY_WORKERS_DEPLOY_RESULT: ${{ needs.railway-workers-deploy.result }}
           RAILWAY_WORKERS_VERIFY_RESULT: ${{ needs.railway-workers-verify.result }}
           STAGED_SMOKE_RESULT: ${{ needs.staged-smoke.result }}
           STAGED_PROVIDER_IDENTITY_RESULT: ${{ needs.staged-provider-identity.result }}
@@ -1717,8 +1840,8 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const fs = require('node:fs');
-          // Fixed DAG order; a failed or skipped producer is never converted
-          // into success. The earliest non-success stage wins.
+          // Fixed DAG order; failed producers remain failures. Expected Vercel-lane
+          // skips are allowed only during the Railway-workers-only phase.
           const stages = [
             ['validate-target', process.env.VALIDATE_TARGET_RESULT],
             ['baseline-policy-preflight', process.env.BASELINE_POLICY_PREFLIGHT_RESULT],
@@ -1726,6 +1849,7 @@ jobs:
             ['schema-audit', process.env.SCHEMA_AUDIT_RESULT],
             ['stage-production', process.env.STAGE_PRODUCTION_RESULT],
             ['validate-deployment', process.env.VALIDATE_DEPLOYMENT_RESULT],
+            ['railway-workers-deploy', process.env.RAILWAY_WORKERS_DEPLOY_RESULT],
             ['railway-workers-verify', process.env.RAILWAY_WORKERS_VERIFY_RESULT],
             ['staged-smoke', process.env.STAGED_SMOKE_RESULT],
             ['staged-provider-identity', process.env.STAGED_PROVIDER_IDENTITY_RESULT],
@@ -1740,7 +1864,22 @@ jobs:
               process.exit(1);
             }
           }
-          const firstFailure = stages.find(([, result]) => result !== 'success');
+          const expectedSkippedInWorkersOnly = new Set([
+            'stage-production',
+            'validate-deployment',
+            'staged-smoke',
+            'staged-provider-identity',
+            'g4-operator-evidence',
+            'promote',
+            'post-promotion-smoke',
+          ]);
+          const isExpectedSkip = (stage, result) =>
+            process.env.MODE === 'railway-workers-only' &&
+            result === 'skipped' &&
+            expectedSkippedInWorkersOnly.has(stage);
+          const firstFailure = stages.find(
+            ([stage, result]) => result !== 'success' && !isExpectedSkip(stage, result)
+          );
           const outcome = firstFailure ? 'failure' : 'success';
           const failureStage = firstFailure ? firstFailure[0] : '';
           const results = Object.fromEntries(stages);
@@ -1755,7 +1894,20 @@ jobs:
           fi
           echo "run_started_at=$RUN_STARTED_AT" >> "$GITHUB_OUTPUT"
 
+      - name: Record Railway-workers-only phase finalization
+        if: inputs.mode == 'railway-workers-only'
+        run: |
+          set -euo pipefail
+          note='railway-workers-only phase: full release-evidence manifest not constructed; no promotion occurred'
+          echo "$note"
+          {
+            echo '### Release evidence finalization'
+            echo
+            echo "$note"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Download certification and lineage by exact artifact IDs
+        if: inputs.mode != 'railway-workers-only'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -1822,6 +1974,7 @@ jobs:
           fetch_by_exact_id lineage "$LINEAGE_ARTIFACT_ID" "$LINEAGE_ARTIFACT_NAME" "$LINEAGE_ARTIFACT_DIGEST" "$LINEAGE_FILE_SHA256"
 
       - name: Download produced evidence fragments by exact artifact IDs
+        if: inputs.mode != 'railway-workers-only'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -1924,7 +2077,7 @@ jobs:
 
       - name: Independently verify primary PR provenance
         id: resolve_pr_head
-        if: inputs.release_mode == 'primary'
+        if: inputs.mode != 'railway-workers-only' && inputs.release_mode == 'primary'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -1943,6 +2096,7 @@ jobs:
           echo "pr_head_sha=${PR_HEAD}" >> "$GITHUB_OUTPUT"
 
       - name: Build and validate release evidence manifest
+        if: inputs.mode != 'railway-workers-only'
         id: build_manifest
         env:
           RELEASE_EVIDENCE_INPUTS_PATH: ${{ runner.temp }}/finalizer-evidence/manifest-inputs.json
@@ -2109,6 +2263,7 @@ jobs:
             --output "$RUNNER_TEMP/release-evidence-manifest-v1.json"
 
       - name: Name attempt-qualified manifest artifact
+        if: inputs.mode != 'railway-workers-only'
         id: manifest_meta
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
@@ -2117,6 +2272,7 @@ jobs:
           echo "artifact_name=release-evidence-manifest-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Upload sanitized release evidence manifest
+        if: inputs.mode != 'railway-workers-only'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.manifest_meta.outputs.artifact_name }}

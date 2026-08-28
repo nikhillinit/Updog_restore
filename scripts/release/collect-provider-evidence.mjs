@@ -9,9 +9,9 @@ import {
   normalizeRailwayResponse,
   normalizeVercelEvidence,
 } from './provider-evidence-contract.mjs';
+import { postRailwayGraphql } from './railway-graphql-transport.mjs';
 
 const VERCEL_API_URL = 'https://api.vercel.com';
-const RAILWAY_GRAPHQL_URL = 'https://backboard.railway.com/graphql/v2';
 const PROJECT_SCOPE_QUERY =
   'query { projectToken { project { id } environment { id } } }';
 const SERVICE_INSTANCES_QUERY =
@@ -92,22 +92,6 @@ async function getJson(fetchImpl, url, options, label) {
   }
 }
 
-async function postRailway(fetchImpl, token, payload, label) {
-  return getJson(
-    fetchImpl,
-    RAILWAY_GRAPHQL_URL,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Project-Access-Token': token,
-      },
-      body: JSON.stringify(payload),
-    },
-    label
-  );
-}
-
 async function writeEvidence(writeFileImpl, outputDirectory, filename, value, secrets) {
   assertNoSecret(value, secrets);
   try {
@@ -152,21 +136,34 @@ export async function collectProviderEvidence({
     vercelProjectId
   );
 
-  const scope = await postRailway(fetchImpl, railwayToken, { query: PROJECT_SCOPE_QUERY }, 'Railway scope');
+  let scope;
+  try {
+    scope = await postRailwayGraphql({
+      fetchImpl,
+      token: railwayToken,
+      query: PROJECT_SCOPE_QUERY,
+      operation: 'Railway scope',
+    });
+  } catch {
+    fail('Railway scope request failed');
+  }
   const projectId = scope.data?.projectToken?.project?.id;
   const environmentId = scope.data?.projectToken?.environment?.id;
   if (scope.errors?.length || typeof projectId !== 'string' || typeof environmentId !== 'string') {
     fail('Railway project or environment scope is unavailable');
   }
-  const control = await postRailway(
-    fetchImpl,
-    railwayToken,
-    {
+  let control;
+  try {
+    control = await postRailwayGraphql({
+      fetchImpl,
+      token: railwayToken,
       query: SERVICE_INSTANCES_QUERY,
       variables: { projectId, environmentId },
-    },
-    'Railway topology'
-  );
+      operation: 'Railway topology',
+    });
+  } catch {
+    fail('Railway topology request failed');
+  }
   const railwayEvidence = normalizeRailwayResponse({
     data: { projectId, environmentId, environment: control.data?.environment },
     errors: control.errors,

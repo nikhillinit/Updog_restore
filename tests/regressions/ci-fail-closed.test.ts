@@ -4979,6 +4979,7 @@ describe('required CI fails closed', () => {
       }).join('\n');
       expect(normalizeNeeds(releaseWorkflow.jobs?.['staged-provider-identity']?.needs)).toEqual([
         'validate-deployment',
+        'railway-workers-deploy',
         'railway-workers-verify',
       ]);
       expect(releaseWorkflow.jobs?.['staged-provider-identity']?.outputs?.deployment_url).toBe(
@@ -4994,6 +4995,8 @@ describe('required CI fails closed', () => {
       expect(stagedProviderScripts).toContain('--expected-railway-environment-id');
       expect(stagedProviderScripts).toContain('--expected-fund-scenario-service-id');
       expect(stagedProviderScripts).toContain('--expected-capital-call-service-id');
+      expect(stagedProviderScripts).toContain('--expected-fund-scenario-deployment-id');
+      expect(stagedProviderScripts).toContain('--expected-capital-call-deployment-id');
       expect(stagedProviderScripts).not.toContain('https://backboard.railway.com/graphql/v2');
       const g4OperatorEvidence = releaseWorkflow.jobs?.['g4-operator-evidence'];
       expect(g4OperatorEvidence).toBeDefined();
@@ -5239,13 +5242,13 @@ describe('required CI fails closed', () => {
       }
 
       expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
-        'production-mutation-block',
         'validate-target',
         'baseline-policy-preflight',
         'release-proof',
         'schema-audit',
         'stage-production',
         'validate-deployment',
+        'railway-workers-deploy',
         'railway-workers-verify',
         'staged-smoke',
         'staged-provider-identity',
@@ -5255,7 +5258,7 @@ describe('required CI fails closed', () => {
         'evidence-finalizer',
       ]);
       const validateTarget = releaseWorkflow.jobs?.['validate-target'];
-      expect(normalizeNeeds(validateTarget?.needs)).toEqual(['production-mutation-block']);
+      expect(normalizeNeeds(validateTarget?.needs)).toEqual([]);
       expect(validateTarget?.outputs?.log_window_start).toBe(
         '${{ steps.target.outputs.log_window_start }}'
       );
@@ -5289,7 +5292,13 @@ describe('required CI fails closed', () => {
       // The legacy deployment_url input was retired; pr_number added for
       // dispatch-based source provenance after ceremony retirement.
       expect(dispatchInputs?.deployment_url).toBeUndefined();
-      expect(Object.keys(dispatchInputs ?? {})).toHaveLength(11);
+      expect(Object.keys(dispatchInputs ?? {})).toHaveLength(12);
+      expect(dispatchInputs?.mode?.type).toBe('choice');
+      expect(dispatchInputs?.mode?.options).toEqual(['full', 'railway-workers-only']);
+      expect(dispatchInputs?.mode?.default).toBe('full');
+      expect(dispatchInputs?.mode?.required).toBe(false);
+      expect(dispatchInputs?.mode?.description).toMatch(/full.*complete release/i);
+      expect(dispatchInputs?.mode?.description).toMatch(/railway-workers-only.*exact SHA/i);
       expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
       expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
       expect(dispatchInputs?.baseline_evidence_b64?.required).toBe(true);
@@ -5477,11 +5486,36 @@ describe('required CI fails closed', () => {
       expect(identityStep?.run).toContain('deployment_id=${deployment.id}');
       expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toContain('inputs.deployment_url');
 
+      const railwayWorkersDeploy = releaseWorkflow.jobs?.['railway-workers-deploy'];
+      expect(railwayWorkersDeploy).toBeDefined();
+      expect(normalizeNeeds(railwayWorkersDeploy?.needs)).toEqual([
+        'validate-target',
+        'baseline-policy-preflight',
+        'release-proof',
+        'schema-audit',
+        'validate-deployment',
+      ]);
+      expect(railwayWorkersDeploy?.environment).toBe('Production');
+      expect(railwayWorkersDeploy?.['timeout-minutes']).toBe(45);
+      expect(railwayWorkersDeploy?.if).toBe(
+        "${{ !cancelled() && github.run_attempt == 1 && needs.validate-target.result == 'success' && needs.baseline-policy-preflight.result == 'success' && needs.release-proof.result == 'success' && needs.schema-audit.result == 'success' && ((inputs.mode == 'railway-workers-only' && needs.validate-deployment.result == 'skipped') || (inputs.mode != 'railway-workers-only' && needs.validate-deployment.result == 'success')) }}"
+      );
+      const railwayWorkerDeployScripts = allRunScripts({
+        jobs: { deploy: railwayWorkersDeploy ?? {} },
+      }).join('\n');
+      expect(railwayWorkerDeployScripts).toContain(
+        'scripts/release/deploy-railway-workers.mjs --expected-sha "$EXPECTED_SHA"'
+      );
+      expect(railwayWorkerDeployScripts).toContain("result.overall !== 'OK'");
+      expect(railwayWorkerDeployScripts).not.toContain('https://backboard.railway.com/graphql/v2');
+
       const railwayWorkersVerify = releaseWorkflow.jobs?.['railway-workers-verify'];
-      expect(normalizeNeeds(railwayWorkersVerify?.needs)).toEqual(['validate-deployment']);
+      expect(normalizeNeeds(railwayWorkersVerify?.needs)).toEqual(['railway-workers-deploy']);
       expect(railwayWorkersVerify?.environment).toBe('Production');
       expect(railwayWorkersVerify?.['continue-on-error']).toBeUndefined();
-      expect(railwayWorkersVerify?.if).toBe('${{ success() && github.run_attempt == 1 }}');
+      expect(railwayWorkersVerify?.if).toBe(
+        "${{ !cancelled() && needs.railway-workers-deploy.result == 'success' && github.run_attempt == 1 }}"
+      );
       const railwayWorkerCheckout = railwayWorkersVerify?.steps?.find((step) =>
         step.uses?.startsWith('actions/checkout@')
       );
@@ -5510,6 +5544,12 @@ describe('required CI fails closed', () => {
       );
       expect(railwayWorkerScripts).toContain(
         '--expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID"'
+      );
+      expect(railwayWorkerScripts).toContain(
+        '--expected-fund-scenario-deployment-id "$FUND_SCENARIO_CALC_DEPLOYMENT_ID"'
+      );
+      expect(railwayWorkerScripts).toContain(
+        '--expected-capital-call-deployment-id "$CAPITAL_CALL_STATUS_DEPLOYMENT_ID"'
       );
       expect(railwayWorkerScripts).toContain('RAILWAY_TOKEN is required');
       expect(
@@ -5817,8 +5857,38 @@ describe('required CI fails closed', () => {
           'continue-on-error': undefined,
         },
         {
+          name: 'Record Railway-workers-only phase finalization',
+          if: "inputs.mode == 'railway-workers-only'",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Download certification and lineage by exact artifact IDs',
+          if: "inputs.mode != 'railway-workers-only'",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Download produced evidence fragments by exact artifact IDs',
+          if: "inputs.mode != 'railway-workers-only'",
+          'continue-on-error': undefined,
+        },
+        {
           name: 'Independently verify primary PR provenance',
-          if: "inputs.release_mode == 'primary'",
+          if: "inputs.mode != 'railway-workers-only' && inputs.release_mode == 'primary'",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Build and validate release evidence manifest',
+          if: "inputs.mode != 'railway-workers-only'",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Name attempt-qualified manifest artifact',
+          if: "inputs.mode != 'railway-workers-only'",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Upload sanitized release evidence manifest',
+          if: "inputs.mode != 'railway-workers-only'",
           'continue-on-error': undefined,
         },
         { name: 'Remove local manifest evidence', if: 'always()', 'continue-on-error': undefined },
@@ -6179,7 +6249,10 @@ describe('required CI fails closed', () => {
     );
     const attemptGuardedJobs = {
       'validate-deployment': '${{ success() && github.run_attempt == 1 }}',
-      'railway-workers-verify': '${{ success() && github.run_attempt == 1 }}',
+      'railway-workers-deploy':
+        "${{ !cancelled() && github.run_attempt == 1 && needs.validate-target.result == 'success' && needs.baseline-policy-preflight.result == 'success' && needs.release-proof.result == 'success' && needs.schema-audit.result == 'success' && ((inputs.mode == 'railway-workers-only' && needs.validate-deployment.result == 'skipped') || (inputs.mode != 'railway-workers-only' && needs.validate-deployment.result == 'success')) }}",
+      'railway-workers-verify':
+        "${{ !cancelled() && needs.railway-workers-deploy.result == 'success' && github.run_attempt == 1 }}",
       'staged-provider-identity': '${{ success() && github.run_attempt == 1 }}',
       'g4-operator-evidence': '${{ success() && github.run_attempt == 1 }}',
       'post-promotion-smoke': '${{ success() && github.run_attempt == 1 }}',
@@ -6218,7 +6291,7 @@ describe('required CI fails closed', () => {
       expect(promoteGuardRun).toContain(`"$${resultEnv}" != "success"`);
     }
 
-    // The evidence finalizer owns the exact 13-entry needs list, always runs,
+    // The evidence finalizer owns the exact 14-entry needs list, always runs,
     // downloads only by exact current-run artifact IDs, and builds the pinned
     // infrastructure-only manifest. No activation-candidate path exists in
     // this workflow.
@@ -6231,6 +6304,7 @@ describe('required CI fails closed', () => {
       'schema-audit',
       'stage-production',
       'validate-deployment',
+      'railway-workers-deploy',
       'railway-workers-verify',
       'staged-smoke',
       'staged-provider-identity',
@@ -6238,6 +6312,30 @@ describe('required CI fails closed', () => {
       'promote',
       'post-promotion-smoke',
     ]);
+    const finalizerFailureStageStep = finalizer?.steps?.find(
+      (step) => step.name === 'Compute earliest failure stage from the fixed DAG'
+    );
+    expect(finalizerFailureStageStep?.env?.RAILWAY_WORKERS_DEPLOY_RESULT).toBe(
+      '${{ needs.railway-workers-deploy.result }}'
+    );
+    expect(finalizerFailureStageStep?.env?.MODE).toBe('${{ inputs.mode }}');
+    const railwayOnlyFinalizationStep = finalizer?.steps?.find(
+      (step) => step.name === 'Record Railway-workers-only phase finalization'
+    );
+    expect(railwayOnlyFinalizationStep?.if).toBe("inputs.mode == 'railway-workers-only'");
+    expect(railwayOnlyFinalizationStep?.run).toContain(
+      'railway-workers-only phase: full release-evidence manifest not constructed; no promotion occurred'
+    );
+    for (const stepName of [
+      'Download certification and lineage by exact artifact IDs',
+      'Download produced evidence fragments by exact artifact IDs',
+      'Build and validate release evidence manifest',
+      'Name attempt-qualified manifest artifact',
+      'Upload sanitized release evidence manifest',
+    ]) {
+      const step = finalizer?.steps?.find((candidate) => candidate.name === stepName);
+      expect(step?.if, `${stepName} phase guard`).toBe("inputs.mode != 'railway-workers-only'");
+    }
     const finalizerScripts = allRunScripts({ jobs: { finalizer } } as never).join('\n');
     expect(finalizerScripts).toContain('/^[0-9a-f]{40}$/.test(head)');
     expect(finalizerScripts).toContain('pr?.merged !== true');
@@ -6260,10 +6358,18 @@ describe('required CI fails closed', () => {
     // finalizer; a failed or skipped producer records null instead.
     expect(finalizerScripts).toContain('successful producer exposed no artifact ID');
     expect(finalizerScripts).toContain('producer concluded ${producer_result}; recording null');
-    // The finalizer never converts a failed producer into success.
+    // The finalizer never converts a failed producer into success; only
+    // documented phase-A Vercel skips are exempted.
+    expect(finalizerScripts).toContain('const firstFailure = stages.find(');
+    expect(finalizerScripts).toContain("result !== 'success' && !isExpectedSkip(stage, result)");
     expect(finalizerScripts).toContain(
-      "const firstFailure = stages.find(([, result]) => result !== 'success')"
+      "['railway-workers-deploy', process.env.RAILWAY_WORKERS_DEPLOY_RESULT]"
     );
+    expect(finalizerScripts.indexOf("['railway-workers-deploy'")).toBeLessThan(
+      finalizerScripts.indexOf("['railway-workers-verify'")
+    );
+    expect(finalizerScripts).toContain('expectedSkippedInWorkersOnly');
+    expect(finalizerScripts).toContain("process.env.MODE === 'railway-workers-only'");
 
     // Every fragment producer exposes the five disjoint identity outputs per
     // kind; no output name is overloaded across kinds.
@@ -6721,6 +6827,7 @@ describe('required CI fails closed', () => {
       expect(dispatcher).toContain('gh api "repos/$repository/commits/main" --jq ".sha"');
       expect(dispatcher).toContain('operator-evidence-bundle.mjs encode');
       expect(dispatcher).toContain('expected_sha = $expectedSha');
+      expect(dispatcher).toContain('mode = $Mode');
       expect(dispatcher).toContain('operator_evidence_b64 = $operatorEvidenceB64');
       expect(dispatcher).toContain('release_mode = $ReleaseMode');
       expect(dispatcher).toContain('baseline_evidence_b64 = $baselineEvidenceB64');
@@ -6774,6 +6881,7 @@ describe('required CI fails closed', () => {
         'SchemaApplyReceiptFileSha256',
         'SchemaPrecursorSha',
         'ReleaseMode',
+        'Mode',
         'BaselineRunId',
         'BaselineRunAttempt',
         'BaselineArtifactId',
@@ -6785,6 +6893,8 @@ describe('required CI fails closed', () => {
         expect(dispatcher).toContain(`[string] $${parameter}`);
       }
       expect(dispatcher).toContain("[ValidateSet('primary', 'rollback')]");
+      expect(dispatcher).toContain("[ValidateSet('full', 'railway-workers-only')]");
+      expect(dispatcher).toContain("[string] $Mode = 'full'");
       expect(dispatcher).toContain("[ValidatePattern('^sha256:[a-f0-9]{64}$')]");
       expect(containsProductionVercelCommand(dispatcher)).toBe(false);
     }

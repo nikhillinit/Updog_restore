@@ -355,6 +355,12 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
   });
 
+  it('accepts railway worker deployment failure stage', () => {
+    const manifest = validFailureManifest();
+    (manifest.workflow as { failureStage: string | null }).failureStage = 'railway-workers-deploy';
+    expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
+  });
+
   it('rejects rollback hashes that mismatch the prechange baseline', () => {
     rejects(withMutation((m) => void (m.rollback.recoveryContextSha256 = '0'.repeat(64))));
     rejects(withMutation((m) => void (m.rollback.targetMainSha = 'f'.repeat(40))));

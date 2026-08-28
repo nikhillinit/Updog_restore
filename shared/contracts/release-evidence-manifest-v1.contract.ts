@@ -20,6 +20,7 @@ export const RELEASE_EVIDENCE_FAILURE_STAGES = [
   'schema-audit',
   'stage-production',
   'validate-deployment',
+  'railway-workers-deploy',
   'railway-workers-verify',
   'staged-smoke',
   'staged-provider-identity',

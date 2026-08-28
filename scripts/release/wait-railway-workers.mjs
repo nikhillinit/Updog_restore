@@ -8,9 +8,9 @@ import {
   normalizeRailwayResponse,
   verifyRailwayTopology,
 } from './provider-evidence-contract.mjs';
+import { postRailwayGraphql } from './railway-graphql-transport.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
-const RAILWAY_GRAPHQL_URL = 'https://backboard.railway.com/graphql/v2';
 const PROJECT_SCOPE_QUERY = 'query { projectToken { project { id } environment { id } } }';
 const SERVICE_INSTANCES_QUERY =
   'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }';
@@ -63,6 +63,29 @@ function requireTopologyValue(value, label) {
   return value;
 }
 
+function normalizeExpectedDeploymentIds(value) {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('expectedDeploymentIds must be an object');
+  }
+  const allowedNames = new Set(['fund-scenario-calc', 'capital-call-status']);
+  for (const name of Object.keys(value)) {
+    if (!allowedNames.has(name)) {
+      throw new Error(`unexpected expected deployment ID for ${name}`);
+    }
+  }
+  const expectedDeploymentIds = {};
+  for (const name of allowedNames) {
+    if (value[name] !== undefined) {
+      expectedDeploymentIds[name] = requireTopologyValue(
+        value[name],
+        `expected deployment ID for ${name}`
+      );
+    }
+  }
+  return Object.keys(expectedDeploymentIds).length > 0 ? expectedDeploymentIds : undefined;
+}
+
 function assertNoToken(value, token) {
   if (JSON.stringify(value).includes(token)) {
     throw new Error('Railway evidence contained a protected value');
@@ -75,6 +98,8 @@ export function parseWaitArgs(args) {
   let environmentId;
   let fundScenarioCalcServiceId;
   let capitalCallStatusServiceId;
+  let fundScenarioCalcDeploymentId;
+  let capitalCallStatusDeploymentId;
   let intervalMs = DEFAULT_INTERVAL_MS;
   let timeoutMs = DEFAULT_TIMEOUT_MS;
 
@@ -95,6 +120,10 @@ export function parseWaitArgs(args) {
       fundScenarioCalcServiceId = value;
     } else if (flag === '--expected-capital-call-service-id') {
       capitalCallStatusServiceId = value;
+    } else if (flag === '--expected-fund-scenario-deployment-id') {
+      fundScenarioCalcDeploymentId = value;
+    } else if (flag === '--expected-capital-call-deployment-id') {
+      capitalCallStatusDeploymentId = value;
     } else if (flag === '--interval-ms') {
       intervalMs = parseDuration(value, '--interval-ms', MAX_INTERVAL_MS);
     } else if (flag === '--timeout-ms') {
@@ -104,7 +133,7 @@ export function parseWaitArgs(args) {
     }
   }
 
-  return {
+  const parsed = {
     expectedSha: requireExpectedSha(expectedSha),
     protectedTopology: {
       projectId: requireTopologyValue(projectId, '--expected-railway-project-id'),
@@ -123,6 +152,12 @@ export function parseWaitArgs(args) {
     intervalMs,
     timeoutMs,
   };
+  const expectedDeploymentIds = normalizeExpectedDeploymentIds({
+    'fund-scenario-calc': fundScenarioCalcDeploymentId,
+    'capital-call-status': capitalCallStatusDeploymentId,
+  });
+  if (expectedDeploymentIds) parsed.expectedDeploymentIds = expectedDeploymentIds;
+  return parsed;
 }
 
 function isSuccessfulCommitSkew(railway, expectedSha, protectedTopology) {
@@ -146,7 +181,31 @@ function isSuccessfulCommitSkew(railway, expectedSha, protectedTopology) {
   });
 }
 
-export function evaluateRailwayEvidence(evidence, expectedSha, protectedTopology) {
+function verifyExpectedDeploymentIds(railway, expectedDeploymentIds) {
+  if (!expectedDeploymentIds) return;
+  for (const [serviceName, expectedId] of Object.entries(expectedDeploymentIds)) {
+    const service = railway.services.find((candidate) => candidate.serviceName === serviceName);
+    const latestId = service?.latestDeployment?.id;
+    const activeId = Array.isArray(service?.activeDeployments)
+      ? service.activeDeployments[0]?.id
+      : undefined;
+    if (latestId !== expectedId || activeId !== expectedId) {
+      const observed = `latest=${latestId ?? 'missing'}, active=${activeId ?? 'missing'}`;
+      const error = new Error(
+        `Railway ${serviceName} deployment ID mismatch: expected ${expectedId}; observed ${observed}`
+      );
+      error.code = 'RAILWAY_WORKER_DEPLOYMENT_ID_MISMATCH';
+      throw error;
+    }
+  }
+}
+
+export function evaluateRailwayEvidence(
+  evidence,
+  expectedSha,
+  protectedTopology,
+  expectedDeploymentIds
+) {
   let railway;
   try {
     railway = normalizeRailwayResponse(evidence);
@@ -156,6 +215,7 @@ export function evaluateRailwayEvidence(evidence, expectedSha, protectedTopology
 
   const skew = isSuccessfulCommitSkew(railway, expectedSha, protectedTopology);
   try {
+    verifyExpectedDeploymentIds(railway, normalizeExpectedDeploymentIds(expectedDeploymentIds));
     return {
       status: 'ready',
       railway,
@@ -170,6 +230,7 @@ export function evaluateRailwayEvidence(evidence, expectedSha, protectedTopology
 export async function pollRailwayWorkers({
   expectedSha,
   protectedTopology,
+  expectedDeploymentIds,
   fetchEvidence,
   intervalMs = DEFAULT_INTERVAL_MS,
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -177,6 +238,7 @@ export async function pollRailwayWorkers({
   sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)),
 }) {
   const sha = requireExpectedSha(expectedSha);
+  const deploymentIds = normalizeExpectedDeploymentIds(expectedDeploymentIds);
   if (typeof fetchEvidence !== 'function') {
     throw new Error('fetchEvidence must be a function');
   }
@@ -199,7 +261,8 @@ export async function pollRailwayWorkers({
       const evaluation = evaluateRailwayEvidence(
         await fetchEvidence(),
         sha,
-        protectedTopology
+        protectedTopology,
+        deploymentIds
       );
       observedSkew ||= evaluation.skew;
       lastError = evaluation.error;
@@ -222,29 +285,18 @@ export async function pollRailwayWorkers({
       { attempts, cause: lastError }
     );
   }
+  if (lastError?.code === 'RAILWAY_WORKER_DEPLOYMENT_ID_MISMATCH') {
+    throw new RailwayWorkersWaitError(
+      'timeout',
+      `Railway worker deployment ID verification failed before timeout: ${lastError.message}`,
+      { attempts, cause: lastError }
+    );
+  }
   throw new RailwayWorkersWaitError(
     'timeout',
     `Railway worker topology did not match expected SHA ${sha} before timeout`,
     { attempts, cause: lastError }
   );
-}
-
-async function postGraphql(fetchImpl, token, payload) {
-  let response;
-  try {
-    response = await fetchImpl(RAILWAY_GRAPHQL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Project-Access-Token': token,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!response?.ok) throw new Error('request failed');
-    return await response.json();
-  } catch {
-    throw new Error('Railway GraphQL request failed');
-  }
 }
 
 export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch } = {}) {
@@ -255,7 +307,12 @@ export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch
     throw new Error('fetch is unavailable');
   }
 
-  const scope = await postGraphql(fetchImpl, token, { query: PROJECT_SCOPE_QUERY });
+  const scope = await postRailwayGraphql({
+    fetchImpl,
+    token,
+    query: PROJECT_SCOPE_QUERY,
+    operation: 'Railway scope',
+  });
   const projectToken = scope.data?.projectToken;
   if (
     scope.errors?.length ||
@@ -265,12 +322,15 @@ export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch
     throw new Error('Railway project or environment scope is unavailable');
   }
 
-  const control = await postGraphql(fetchImpl, token, {
+  const control = await postRailwayGraphql({
+    fetchImpl,
+    token,
     query: SERVICE_INSTANCES_QUERY,
     variables: {
       projectId: projectToken.project.id,
       environmentId: projectToken.environment.id,
     },
+    operation: 'Railway topology',
   });
   const evidence = normalizeRailwayResponse({
     data: {

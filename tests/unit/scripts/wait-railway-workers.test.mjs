@@ -33,6 +33,7 @@ function railwayEvidence({
   status = 'SUCCESS',
   projectId = TOPOLOGY.projectId,
   environmentId = TOPOLOGY.environmentId,
+  deploymentIds,
   services,
 } = {}) {
   const deployment = {
@@ -45,14 +46,20 @@ function railwayEvidence({
   return {
     projectId,
     environmentId,
-    services: services ?? ['fund-scenario-calc', 'capital-call-status'].map((serviceName) => ({
-      serviceId: `${serviceName}-id`,
-      serviceName,
-      numReplicas: 1,
-      domains: [],
-      latestDeployment: { ...deployment },
-      activeDeployments: [{ ...deployment }],
-    })),
+    services: services ?? ['fund-scenario-calc', 'capital-call-status'].map((serviceName) => {
+      const serviceDeployment = {
+        ...deployment,
+        id: deploymentIds?.[serviceName] ?? deployment.id,
+      };
+      return {
+        serviceId: `${serviceName}-id`,
+        serviceName,
+        numReplicas: 1,
+        domains: [],
+        latestDeployment: { ...serviceDeployment },
+        activeDeployments: [{ ...serviceDeployment }],
+      };
+    }),
   };
 }
 
@@ -83,6 +90,17 @@ describe('wait-railway-workers', () => {
     expect(() => parseWaitArgs(['--expected-sha', SHA, ...TOPOLOGY_ARGS, '--timeout-ms', '0'])).toThrow(
       /between 1 and/
     );
+    expect(parseWaitArgs([
+      '--expected-sha', SHA,
+      ...TOPOLOGY_ARGS,
+      '--expected-fund-scenario-deployment-id', 'deployment-fund',
+      '--expected-capital-call-deployment-id', 'deployment-capital',
+    ])).toMatchObject({
+      expectedDeploymentIds: {
+        'fund-scenario-calc': 'deployment-fund',
+        'capital-call-status': 'deployment-capital',
+      },
+    });
   });
 
   it('evaluates valid topology through the shared verifier', { retry: 0 }, () => {
@@ -113,6 +131,52 @@ describe('wait-railway-workers', () => {
     ).resolves.toMatchObject({ status: 'ready', attempts: 2 });
     expect(fetchEvidence).toHaveBeenCalledTimes(2);
     expect(clock.sleep).toHaveBeenCalledWith(10);
+  });
+
+  it('requires expected deployment IDs for latest and active workers', { retry: 0 }, async () => {
+    const clock = advancingClock();
+    const expectedDeploymentIds = {
+      'fund-scenario-calc': 'deployment-fund',
+      'capital-call-status': 'deployment-capital',
+    };
+
+    await expect(
+      pollRailwayWorkers({
+        expectedSha: SHA,
+        protectedTopology: TOPOLOGY,
+        expectedDeploymentIds,
+        fetchEvidence: vi.fn().mockResolvedValue(railwayEvidence({ deploymentIds: expectedDeploymentIds })),
+        intervalMs: 10,
+        timeoutMs: 25,
+        now: clock.now,
+        sleep: clock.sleep,
+      })
+    ).resolves.toMatchObject({ status: 'ready', attempts: 1 });
+  });
+
+  it.each(['latest', 'active'])('fails clearly when expected %s deployment ID mismatches', { retry: 0 }, async (kind) => {
+    const clock = advancingClock();
+    const expectedDeploymentIds = {
+      'fund-scenario-calc': 'deployment-fund',
+      'capital-call-status': 'deployment-capital',
+    };
+    const evidence = railwayEvidence({ deploymentIds: expectedDeploymentIds });
+    const fund = evidence.services[0];
+    if (kind === 'latest') fund.latestDeployment.id = 'wrong-latest';
+    else fund.activeDeployments[0].id = 'wrong-active';
+
+    await expect(
+      pollRailwayWorkers({
+        expectedSha: SHA,
+        protectedTopology: TOPOLOGY,
+        expectedDeploymentIds,
+        fetchEvidence: vi.fn().mockResolvedValue(evidence),
+        intervalMs: 10,
+        timeoutMs: 25,
+        now: clock.now,
+        sleep: clock.sleep,
+      })
+    ).rejects.toThrow(/deployment ID verification failed|deployment ID mismatch/);
   });
 
   it('classifies a successful different-commit deployment as skew at timeout', { retry: 0 }, async () => {

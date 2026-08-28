@@ -123,6 +123,41 @@ describe('verify-provider-identity', () => {
     })).toThrow(/protected|Railway/i);
   });
 
+  it('optionally requires Railway active deployment IDs from the deploy job', { retry: 0 }, () => {
+    const expectedDeploymentIds = {
+      'fund-scenario-calc': 'service-fund-deployment',
+      'capital-call-status': 'service-capital-deployment',
+    };
+    const options = {
+      mode: 'workflow',
+      expectedSha: SHA,
+      expectedVercelProjectId: 'vercel-project',
+      vercel: vercelEvidence(),
+      railway: railwayEvidence(),
+      protectedTopology: TOPOLOGY,
+      expectedDeploymentIds,
+    };
+
+    const result = verifyProviderIdentity(options);
+    expect(result.controlPlane.railway.services).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        serviceName: 'fund-scenario-calc',
+        deploymentId: expectedDeploymentIds['fund-scenario-calc'],
+      }),
+      expect.objectContaining({
+        serviceName: 'capital-call-status',
+        deploymentId: expectedDeploymentIds['capital-call-status'],
+      }),
+    ]));
+    expect(() => verifyProviderIdentity({
+      ...options,
+      expectedDeploymentIds: {
+        ...expectedDeploymentIds,
+        'fund-scenario-calc': 'wrong-deployment',
+      },
+    })).toThrow(/active deployment ID does not match expected deployment ID/);
+  });
+
   it('allows unrelated services only after full topology scan', { retry: 0 }, () => {
     const railway = railwayEvidence();
     railway.services.push({ serviceName: 'unrelated-api', serviceId: 'service-api', domains: [] });

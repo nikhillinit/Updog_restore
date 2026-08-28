@@ -72,7 +72,11 @@ param(
     [string] $RollbackPrNumber,
 
     [Parameter(Mandatory = $false)]
-    [string] $RollbackPrHeadSha
+    [string] $RollbackPrHeadSha,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('full', 'railway-workers-only')]
+    [string] $Mode = 'full'
 )
 
 $ErrorActionPreference = "Stop"
@@ -150,8 +154,7 @@ if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.
     exit 1
 }
 
-# The workflow_dispatch UI shows at most ten inputs, so the exact
-# baseline identity travels as one compact base64 JSON input; the
+# Exact baseline identity travels as one compact base64 JSON input; the
 # baseline-policy-preflight job decodes and validates every field.
 $baselineBinding = [ordered]@{
     schemaVersion = 'release-baseline-binding-v1'
@@ -171,6 +174,7 @@ $baselineEvidenceB64 = [Convert]::ToBase64String(
 
 $inputs = [ordered]@{
     expected_sha = $expectedSha
+    mode = $Mode
     operator_evidence_b64 = $operatorEvidenceB64
     release_mode = $ReleaseMode
     baseline_evidence_b64 = $baselineEvidenceB64

@@ -147,6 +147,19 @@ export function verifyWorkerPrivateProof({
   return { reference, identities };
 }
 
+function verifyExpectedRailwayDeploymentIds(railwaySummary, expectedDeploymentIds) {
+  if (!expectedDeploymentIds || Object.keys(expectedDeploymentIds).length === 0) return;
+  if (typeof expectedDeploymentIds !== 'object' || Array.isArray(expectedDeploymentIds)) {
+    fail('expected Railway deployment IDs are malformed');
+  }
+  for (const [workerType, expectedDeploymentId] of Object.entries(expectedDeploymentIds)) {
+    requiredText(expectedDeploymentId, `Railway expected ${workerType} deployment ID`);
+    if (railwaySummary.deploymentIds?.[workerType] !== expectedDeploymentId) {
+      fail(`${workerType} active deployment ID does not match expected deployment ID`);
+    }
+  }
+}
+
 export function verifyProviderIdentity({
   mode,
   expectedSha,
@@ -155,6 +168,9 @@ export function verifyProviderIdentity({
   protectedTopology,
   expectedVercelProjectId,
   privateProof,
+  expectedDeploymentIds,
+  expectedFundScenarioDeploymentId,
+  expectedCapitalCallDeploymentId,
   maxProbeAgeMinutes = DEFAULT_MAX_PROBE_AGE_MINUTES,
   now = Date.now(),
 }) {
@@ -171,6 +187,15 @@ export function verifyProviderIdentity({
     { kind: 'staged_candidate', expectedSha: sha }
   );
   const railwaySummary = verifyRailwayTopology(railway, sha, protectedTopology);
+  verifyExpectedRailwayDeploymentIds(railwaySummary, {
+    ...(expectedDeploymentIds ?? {}),
+    ...(expectedFundScenarioDeploymentId === undefined
+      ? {}
+      : { 'fund-scenario-calc': expectedFundScenarioDeploymentId }),
+    ...(expectedCapitalCallDeploymentId === undefined
+      ? {}
+      : { 'capital-call-status': expectedCapitalCallDeploymentId }),
+  });
   const controlPlane = {
     vercel: { projectId: vercelSummary.projectId, deploymentId: vercelSummary.deploymentId },
     railway: {
@@ -233,6 +258,13 @@ async function main() {
         capitalReady: await jsonFile(args['capital-ready'], 'capital ready'),
       }
     : { endpointClaim: false };
+  const expectedDeploymentIds = {};
+  if (args['expected-fund-scenario-deployment-id'] !== undefined) {
+    expectedDeploymentIds['fund-scenario-calc'] = args['expected-fund-scenario-deployment-id'];
+  }
+  if (args['expected-capital-call-deployment-id'] !== undefined) {
+    expectedDeploymentIds['capital-call-status'] = args['expected-capital-call-deployment-id'];
+  }
   const result = verifyProviderIdentity({
     mode,
     expectedSha,
@@ -248,6 +280,7 @@ async function main() {
     },
     expectedVercelProjectId: args['expected-vercel-project-id'],
     privateProof,
+    expectedDeploymentIds,
     maxProbeAgeMinutes,
   });
   console.log(JSON.stringify(result));
