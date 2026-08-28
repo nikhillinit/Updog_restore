@@ -23,6 +23,30 @@ and this project adheres to
 
 ### Added (2026-08-28)
 
+- **Exact-SHA Railway deployment control — governed production release path
+  (F_1.3.2).** `release-production.yml` is unblocked: the
+  `production-mutation-block` job and the `if: ${{ false }}` guards on
+  `stage-production` and `promote` are removed, and a new
+  `railway-workers-deploy` job deploys the two Railway worker services
+  (`fund-scenario-calc` then `capital-call-status`) serially at the exact
+  candidate SHA via `scripts/release/deploy-railway-workers.mjs`. The helper
+  re-fences live `main` before each service, gates on the
+  `serviceInstanceAutoDeployStatus` readback (`enabled === false` for both
+  workers, else fail closed), reuses or creates the deployment and waits on the
+  exact returned deployment ID for terminal `SUCCESS` with matching
+  `meta.commitHash`, recovers the first service by rollback or redeploy on a
+  second-service failure, and otherwise returns `BLOCKED` with every deployment
+  handle. Returned deployment IDs flow into `railway-workers-verify` for
+  expected-ID verification; reruns are rejected and recovery continuation is a
+  fresh, separately authorized dispatch. The dispatch surface gains a `mode`
+  input (`full` | `railway-workers-only`) for the two-phase route: phase A
+  deploys workers only so the owner can capture G4 operator evidence against the
+  current fleet; phase B is the full release, whose deploy job takes the
+  exact-SHA reuse path. Merge establishes eligibility only; production dispatch
+  remains a separate owner-authorized action under the governing policy.
+  Decision: ADR-089; evidence:
+  `docs/workflows/railway-provider-contract-evidence-f132.md`.
+
 - **Persisted deployable-capital reconciliation (F_1.7.0 C1A).** New
   `construction-reconciliation` router module:
   `POST /api/funds/:fundId/construction-reconciliation/runs` computes one

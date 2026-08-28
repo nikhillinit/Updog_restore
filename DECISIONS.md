@@ -11133,85 +11133,452 @@ Tests and ADRs are evidence only.
 
 ## ADR-087: F2 Opening-Position Balance-Forward Receipt 2.1.0
 
-**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2 #opening-position #receipt
+**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2
+#opening-position #receipt
 
 ### Decision
 
-F2 uses one closed `internal-economics-receipt/2.1.0` field set. Every top-level field is required; `sourceRefs` and `upstreamReceiptIds` are required arrays and emit `[]` when empty. Money fields are base-10 strings with exactly six fractional digits. The closed nested fields are:
+F2 uses one closed `internal-economics-receipt/2.1.0` field set. Every top-level
+field is required; `sourceRefs` and `upstreamReceiptIds` are required arrays and
+emit `[]` when empty. Money fields are base-10 strings with exactly six
+fractional digits. The closed nested fields are:
 
-- `OpeningOwnerV2`: LP `{kind, partnerId, lpClassId}`, GP `{kind, partnerId}`, cash-only entitlement-pool `{kind, entitlementPoolId}`, or fund `{kind}`.
-- `CashFlowEntryV2`: `instant`, `amountUsd`, `direction` (`inflow` or `outflow`), `eventId`.
-- `OpeningCashLotReceiptV2`: `lotId`, `sourceRef`, `owner`, `classification` (`paid_in`, `recycling`, or `unclassified`), `originalAmount`, `remainingBalance`.
-- `OpeningInvestmentSliceReceiptV2`: `investmentLotId`, `sourceRef`, `entitlementPoolId`, `dealId`, `securityId`, `owner`, `costBasis`, `relievedAmount`, `remainingBasis`, `entitlementAmount`; F2 requires `relievedAmount` to equal `0.000000`.
-- `OpeningEntitlementPoolReceiptV2`: `entitlementPoolId`, `sourceRef`, `dealId`, `securityId`, `entitlementTotal`.
-- `OpeningPositionsReceiptV2`: `cashLots`, `investmentSlices`, `entitlementPools`.
-- `JournalPostingV2`: `account` (`cash`, `invested_basis`, or `opening_unreturned_capital`), `rowRef`, `owner`, signed `amountUsd`.
-- `JournalEntryV2`: `entryId`, `instant`, `kind` (`opening_cash_lot` or `opening_investment_slice`), `sourceRef`, `postings`; every F2 entry has exactly two postings whose signed amounts sum to zero.
-- `FundCashEquationV2`: `openingCash`, `contributions`, `deployments`, `realizations`, `fees`, `expenses`, `distributions`, `endingCash`.
-- `TierAllocationV2`: `kind`, `priority`, `totalAllocated`, `gpShare`, `lpShare`.
-- `PartnerLedgerV2`: `partnerId`, `committedCapital`, `calledCapital`, `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`, `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`, `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`, `carryPaid`, `cashFlowVector`.
-- `ClassLedgerV2`: `lpClassId`, `committedCapital`, `calledCapital`, `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`, `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`, `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`, `carryPaid`, `cashFlowVector`.
+- `OpeningOwnerV2`: LP `{kind, partnerId, lpClassId}`, GP `{kind, partnerId}`,
+  cash-only entitlement-pool `{kind, entitlementPoolId}`, or fund `{kind}`.
+- `CashFlowEntryV2`: `instant`, `amountUsd`, `direction` (`inflow` or
+  `outflow`), `eventId`.
+- `OpeningCashLotReceiptV2`: `lotId`, `sourceRef`, `owner`, `classification`
+  (`paid_in`, `recycling`, or `unclassified`), `originalAmount`,
+  `remainingBalance`.
+- `OpeningInvestmentSliceReceiptV2`: `investmentLotId`, `sourceRef`,
+  `entitlementPoolId`, `dealId`, `securityId`, `owner`, `costBasis`,
+  `relievedAmount`, `remainingBasis`, `entitlementAmount`; F2 requires
+  `relievedAmount` to equal `0.000000`.
+- `OpeningEntitlementPoolReceiptV2`: `entitlementPoolId`, `sourceRef`, `dealId`,
+  `securityId`, `entitlementTotal`.
+- `OpeningPositionsReceiptV2`: `cashLots`, `investmentSlices`,
+  `entitlementPools`.
+- `JournalPostingV2`: `account` (`cash`, `invested_basis`, or
+  `opening_unreturned_capital`), `rowRef`, `owner`, signed `amountUsd`.
+- `JournalEntryV2`: `entryId`, `instant`, `kind` (`opening_cash_lot` or
+  `opening_investment_slice`), `sourceRef`, `postings`; every F2 entry has
+  exactly two postings whose signed amounts sum to zero.
+- `FundCashEquationV2`: `openingCash`, `contributions`, `deployments`,
+  `realizations`, `fees`, `expenses`, `distributions`, `endingCash`.
+- `TierAllocationV2`: `kind`, `priority`, `totalAllocated`, `gpShare`,
+  `lpShare`.
+- `PartnerLedgerV2`: `partnerId`, `committedCapital`, `calledCapital`,
+  `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`,
+  `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`,
+  `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`,
+  `carryPaid`, `cashFlowVector`.
+- `ClassLedgerV2`: `lpClassId`, `committedCapital`, `calledCapital`,
+  `settledCapital`, `paidInCapital`, `unreturnedSettledCashCapital`,
+  `cumulativeDistributions`, `cumulativeFees`, `cumulativeExpenses`,
+  `accruedPreference`, `returnOfCapital`, `preferredReturnPaid`, `catchUpPaid`,
+  `carryPaid`, `cashFlowVector`.
 
-The exact top-level `InternalEconomicsReceiptV2` fields, in field-set order, are `receiptVersion`, `componentVersions`, `selectedLane`, `hashAlgorithm`, `normalizedInputHash`, `fundCashEquation`, `openingPositions`, `journal`, `tierAllocations`, `partnerLedgers`, `classLedgers`, `sourceRefs`, `upstreamReceiptIds`, and `resultHash`. Opening balance-forward entries never appear in `CashFlowEntryV2` or any partner/class `cashFlowVector`. Receipt arrays use normative deterministic ordering: cash lots by `lotId`, investment slices by `investmentLotId`, entitlement pools by `entitlementPoolId`, journal by `entryId`, postings by `account` then `rowRef`, tier allocations by `priority` then `kind`, partner ledgers by `partnerId`, class ledgers by `lpClassId`, cash-flow entries by `instant` then `eventId` then `direction`, and lineage arrays lexicographically.
+The exact top-level `InternalEconomicsReceiptV2` fields, in field-set order, are
+`receiptVersion`, `componentVersions`, `selectedLane`, `hashAlgorithm`,
+`normalizedInputHash`, `fundCashEquation`, `openingPositions`, `journal`,
+`tierAllocations`, `partnerLedgers`, `classLedgers`, `sourceRefs`,
+`upstreamReceiptIds`, and `resultHash`. Opening balance-forward entries never
+appear in `CashFlowEntryV2` or any partner/class `cashFlowVector`. Receipt
+arrays use normative deterministic ordering: cash lots by `lotId`, investment
+slices by `investmentLotId`, entitlement pools by `entitlementPoolId`, journal
+by `entryId`, postings by `account` then `rowRef`, tier allocations by
+`priority` then `kind`, partner ledgers by `partnerId`, class ledgers by
+`lpClassId`, cash-flow entries by `instant` then `eventId` then `direction`, and
+lineage arrays lexicographically.
 
-Opening cash lots and investment slices are positions at `cutoverInstant`. They are disclosed in `openingPositions` and represented by balance-forward journal entries, not period cash flows. `CashFlowEntryV2` remains reserved for actual events. F2 admits zero events, so every partner and class `cashFlowVector` is `[]`; opening journal entries are excluded from IRR, XIRR, event-flow, contribution, deployment, realization, fee, expense, and distribution vectors.
+Opening cash lots and investment slices are positions at `cutoverInstant`. They
+are disclosed in `openingPositions` and represented by balance-forward journal
+entries, not period cash flows. `CashFlowEntryV2` remains reserved for actual
+events. F2 admits zero events, so every partner and class `cashFlowVector` is
+`[]`; opening journal entries are excluded from IRR, XIRR, event-flow,
+contribution, deployment, realization, fee, expense, and distribution vectors.
 
-F2 has exactly three closed balance-forward journal accounts: `cash`, `invested_basis`, and `opening_unreturned_capital`. An opening cash lot posts positive `remainingBalance` to `cash` and negative `remainingBalance` to `opening_unreturned_capital`. An opening investment slice posts positive `remainingBasis` to `invested_basis` and negative `remainingBasis` to `opening_unreturned_capital`. Entitlement pools are disclosure rows only and create no journal entries.
+F2 has exactly three closed balance-forward journal accounts: `cash`,
+`invested_basis`, and `opening_unreturned_capital`. An opening cash lot posts
+positive `remainingBalance` to `cash` and negative `remainingBalance` to
+`opening_unreturned_capital`. An opening investment slice posts positive
+`remainingBasis` to `invested_basis` and negative `remainingBasis` to
+`opening_unreturned_capital`. Entitlement pools are disclosure rows only and
+create no journal entries.
 
-The only result-hash preimage is `InternalEconomicsReceiptV2` with `resultHash` omitted. `resultHash` is exactly `sha256CanonicalJson(receipt without resultHash)`, including `receiptVersion`, the closed component manifest, `selectedLane`, `hashAlgorithm`, `normalizedInputHash`, and every immutable receipt payload field. There is no second wrapper, domain tag, summary-only payload, or implementation-identity side object. Canonicalization sorts plain-object keys, preserves normative array order, rejects `undefined` and other non-JSON-safe values, and hashes the resulting canonical JSON bytes.
+The only result-hash preimage is `InternalEconomicsReceiptV2` with `resultHash`
+omitted. `resultHash` is exactly
+`sha256CanonicalJson(receipt without resultHash)`, including `receiptVersion`,
+the closed component manifest, `selectedLane`, `hashAlgorithm`,
+`normalizedInputHash`, and every immutable receipt payload field. There is no
+second wrapper, domain tag, summary-only payload, or implementation-identity
+side object. Canonicalization sorts plain-object keys, preserves normative array
+order, rejects `undefined` and other non-JSON-safe values, and hashes the
+resulting canonical JSON bytes.
 
 The closed `ComponentVersionsV2` manifest is exactly:
 
 ```json
-{"normalizer":"internal-economics-normalizer/2.0.1","composite":"internal-economics-composite/2.0.1","eventEngine":"internal-economics-event-engine/2.0.1","selectedWaterfall":"internal-economics-waterfall-deal-by-deal/2.0.1","receiptSerializer":"internal-economics-receipt-serializer/2.1.0"}
+{
+  "normalizer": "internal-economics-normalizer/2.0.1",
+  "composite": "internal-economics-composite/2.0.1",
+  "eventEngine": "internal-economics-event-engine/2.0.1",
+  "selectedWaterfall": "internal-economics-waterfall-deal-by-deal/2.0.1",
+  "receiptSerializer": "internal-economics-receipt-serializer/2.1.0"
+}
 ```
 
 The V2-S-0100 literal input fixture is:
 
 ```json
-{"contractVersion":"internal-economics-composite/2.0.1","currency":"USD","calculationDate":"2025-06-30T00:00:00Z","cutoverInstant":"2025-01-01T00:00:00Z","roundingMode":"half_up","fundEstablishmentDate":"2024-01-01T00:00:00Z","investmentPeriodEndDate":"2028-01-01T00:00:00Z","fundTermDate":"2034-01-01T00:00:00Z","lpClasses":[{"lpClassId":"class-a","feeProfile":{"managementFeeSchedule":[],"feeRecyclingEnabled":false,"exitRecyclingEnabled":false}}],"partners":[{"partnerId":"lp-1","name":"LP One","isGp":false,"lpClassId":"class-a","committedCapital":"500000.000000","settledCash":"500000.000000","remainingCallableCommitment":"0.000000"},{"partnerId":"gp-1","name":"GP One","isGp":true,"committedCapital":"50000.000000","settledCash":"50000.000000","remainingCallableCommitment":"0.000000"}],"waterfallPolicy":[{"kind":"carry","priority":1,"gpShare":"0.200000000000"}],"selectedLane":"deal_by_deal","gpCashPreferredReturnTreatment":"pari_passu","openingState":{"openingCash":"0.000000","openingCashClassification":{"paidIn":"0.000000","recycling":"0.000000","unclassified":"0.000000"},"openingProvenance":{"cashLots":[],"investmentLots":[{"investmentLotId":"opening-investment:0001","sourceRef":"opening-investment-source:0001","entitlementPoolId":"opening-pool:0001","dealId":"deal-1","securityId":"security-1","owner":{"kind":"lp","partnerId":"lp-1","lpClassId":"class-a"},"costBasis":"500000.000000","relievedAmount":"0.000000","entitlementAmount":"60.000000"},{"investmentLotId":"opening-investment:0002","sourceRef":"opening-investment-source:0002","entitlementPoolId":"opening-pool:0001","dealId":"deal-1","securityId":"security-1","owner":{"kind":"gp","partnerId":"gp-1"},"costBasis":"50000.000000","relievedAmount":"0.000000","entitlementAmount":"40.000000"}],"entitlementPools":[{"entitlementPoolId":"opening-pool:0001","sourceRef":"opening-pool-source:0001","dealId":"deal-1","securityId":"security-1"}]},"openingCommitments":"550000.000000","investorLedgers":[{"partnerId":"lp-1","committedCapital":"500000.000000","calledCapital":"500000.000000","settledCapital":"500000.000000","paidInCapital":"500000.000000","unreturnedSettledCashCapital":"500000.000000","cumulativeDistributions":"0.000000","cumulativeFees":"0.000000","accruedPreference":"0.000000"},{"partnerId":"gp-1","committedCapital":"50000.000000","calledCapital":"50000.000000","settledCapital":"50000.000000","paidInCapital":"50000.000000","unreturnedSettledCashCapital":"50000.000000","cumulativeDistributions":"0.000000","cumulativeFees":"0.000000","accruedPreference":"0.000000"}],"accruedPreferenceTotal":"0.000000","cumulativeDistributionsTotal":"0.000000","cumulativeFeesTotal":"0.000000","consumedFeeRecyclingCapacity":"0.000000","consumedExitRecyclingCapacity":"0.000000","profitDecomposition":{"openingCumulativePreferredPaid":"0.000000","openingCumulativeGpProfitDistributions":"0.000000","openingCumulativeLpProfitDistributions":"0.000000"}},"events":[]}
+{
+  "contractVersion": "internal-economics-composite/2.0.1",
+  "currency": "USD",
+  "calculationDate": "2025-06-30T00:00:00Z",
+  "cutoverInstant": "2025-01-01T00:00:00Z",
+  "roundingMode": "half_up",
+  "fundEstablishmentDate": "2024-01-01T00:00:00Z",
+  "investmentPeriodEndDate": "2028-01-01T00:00:00Z",
+  "fundTermDate": "2034-01-01T00:00:00Z",
+  "lpClasses": [
+    {
+      "lpClassId": "class-a",
+      "feeProfile": {
+        "managementFeeSchedule": [],
+        "feeRecyclingEnabled": false,
+        "exitRecyclingEnabled": false
+      }
+    }
+  ],
+  "partners": [
+    {
+      "partnerId": "lp-1",
+      "name": "LP One",
+      "isGp": false,
+      "lpClassId": "class-a",
+      "committedCapital": "500000.000000",
+      "settledCash": "500000.000000",
+      "remainingCallableCommitment": "0.000000"
+    },
+    {
+      "partnerId": "gp-1",
+      "name": "GP One",
+      "isGp": true,
+      "committedCapital": "50000.000000",
+      "settledCash": "50000.000000",
+      "remainingCallableCommitment": "0.000000"
+    }
+  ],
+  "waterfallPolicy": [
+    { "kind": "carry", "priority": 1, "gpShare": "0.200000000000" }
+  ],
+  "selectedLane": "deal_by_deal",
+  "gpCashPreferredReturnTreatment": "pari_passu",
+  "openingState": {
+    "openingCash": "0.000000",
+    "openingCashClassification": {
+      "paidIn": "0.000000",
+      "recycling": "0.000000",
+      "unclassified": "0.000000"
+    },
+    "openingProvenance": {
+      "cashLots": [],
+      "investmentLots": [
+        {
+          "investmentLotId": "opening-investment:0001",
+          "sourceRef": "opening-investment-source:0001",
+          "entitlementPoolId": "opening-pool:0001",
+          "dealId": "deal-1",
+          "securityId": "security-1",
+          "owner": {
+            "kind": "lp",
+            "partnerId": "lp-1",
+            "lpClassId": "class-a"
+          },
+          "costBasis": "500000.000000",
+          "relievedAmount": "0.000000",
+          "entitlementAmount": "60.000000"
+        },
+        {
+          "investmentLotId": "opening-investment:0002",
+          "sourceRef": "opening-investment-source:0002",
+          "entitlementPoolId": "opening-pool:0001",
+          "dealId": "deal-1",
+          "securityId": "security-1",
+          "owner": { "kind": "gp", "partnerId": "gp-1" },
+          "costBasis": "50000.000000",
+          "relievedAmount": "0.000000",
+          "entitlementAmount": "40.000000"
+        }
+      ],
+      "entitlementPools": [
+        {
+          "entitlementPoolId": "opening-pool:0001",
+          "sourceRef": "opening-pool-source:0001",
+          "dealId": "deal-1",
+          "securityId": "security-1"
+        }
+      ]
+    },
+    "openingCommitments": "550000.000000",
+    "investorLedgers": [
+      {
+        "partnerId": "lp-1",
+        "committedCapital": "500000.000000",
+        "calledCapital": "500000.000000",
+        "settledCapital": "500000.000000",
+        "paidInCapital": "500000.000000",
+        "unreturnedSettledCashCapital": "500000.000000",
+        "cumulativeDistributions": "0.000000",
+        "cumulativeFees": "0.000000",
+        "accruedPreference": "0.000000"
+      },
+      {
+        "partnerId": "gp-1",
+        "committedCapital": "50000.000000",
+        "calledCapital": "50000.000000",
+        "settledCapital": "50000.000000",
+        "paidInCapital": "50000.000000",
+        "unreturnedSettledCashCapital": "50000.000000",
+        "cumulativeDistributions": "0.000000",
+        "cumulativeFees": "0.000000",
+        "accruedPreference": "0.000000"
+      }
+    ],
+    "accruedPreferenceTotal": "0.000000",
+    "cumulativeDistributionsTotal": "0.000000",
+    "cumulativeFeesTotal": "0.000000",
+    "consumedFeeRecyclingCapacity": "0.000000",
+    "consumedExitRecyclingCapacity": "0.000000",
+    "profitDecomposition": {
+      "openingCumulativePreferredPaid": "0.000000",
+      "openingCumulativeGpProfitDistributions": "0.000000",
+      "openingCumulativeLpProfitDistributions": "0.000000"
+    }
+  },
+  "events": []
+}
 ```
 
-The fixture's expected `normalizedInputHash` is `273367406da6294a58cc2ed6ebfc0d0ec2d67a1356f81fb59f51782e1a351d98`, and its complete 2.1.0 receipt's expected `resultHash` is `ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f`. `V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES` is exactly `16 * 1024 * 1024` bytes (16 MiB), measured on the complete final receipt after `resultHash` is attached, never on the preimage.
+The fixture's expected `normalizedInputHash` is
+`273367406da6294a58cc2ed6ebfc0d0ec2d67a1356f81fb59f51782e1a351d98`, and its
+complete 2.1.0 receipt's expected `resultHash` is
+`ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f`.
+`V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES` is exactly `16 * 1024 * 1024`
+bytes (16 MiB), measured on the complete final receipt after `resultHash` is
+attached, never on the preimage.
 
-F2 remains zero-event and makes no `processEvents` change. `processEvents`, whole-stream event semantics, explicit `sourceCashLotId` lineage, and event-derived journal cash-flow semantics move to F3. F2 does not infer `sourceCashLotId` from `sourceRef`, `investmentLotId`, owner, deal, or security. In F2, `entitlementAmount` is opaque: it is disclosed unchanged and summed only into its pool's `entitlementTotal`; it is excluded from cash, basis, unreturned-capital, ownership-percentage, waterfall-allocation, and conservation equations. No equality or ratio involving `entitlementAmount` is asserted; F3 requires a successor invariant before using it for allocations.
+F2 remains zero-event and makes no `processEvents` change. `processEvents`,
+whole-stream event semantics, explicit `sourceCashLotId` lineage, and
+event-derived journal cash-flow semantics move to F3. F2 does not infer
+`sourceCashLotId` from `sourceRef`, `investmentLotId`, owner, deal, or security.
+In F2, `entitlementAmount` is opaque: it is disclosed unchanged and summed only
+into its pool's `entitlementTotal`; it is excluded from cash, basis,
+unreturned-capital, ownership-percentage, waterfall-allocation, and conservation
+equations. No equality or ratio involving `entitlementAmount` is asserted; F3
+requires a successor invariant before using it for allocations.
 
 ### No authority boundary
 
-This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, production dispatch. Plans and tests are evidence
+only; they grant no merge, deployment, provider, schema, or production
+authority.
 
 ## ADR-088: F3a Validation-First Repair Before Source Lineage (Cumulative Allocation Validation)
 
-**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2 #event-stream #refusal
+**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2
+#event-stream #refusal
 
 ### Decision
 
-F3a repairs validation order, repeated-row aggregation, exact totals, and refusal propagation through the existing chronology switch before source lineage, receipts, persistence, or queues. Concretely, in `shared/lib/internal-economics/v2/event-stream-engine-v2.ts` and `derive-composite-v2.ts` only:
+F3a repairs validation order, repeated-row aggregation, exact totals, and
+refusal propagation through the existing chronology switch before source
+lineage, receipts, persistence, or queues. Concretely, in
+`shared/lib/internal-economics/v2/event-stream-engine-v2.ts` and
+`derive-composite-v2.ts` only:
 
-- `validateCashSourceAllocations` and `validateReliefRows` validate all references first, reject negative allocation/relief/proceeds rows at row level, then aggregate per lot and compare each aggregate against remaining balance / remaining cost basis. Deterministic precedence: missing reference, then negative row, then cumulative overdraw, then total mismatch, then mutation.
-- `processDeployment` and `processFundExpense` compare the cash-source allocation sum against event `amountUsd`; `processRealization` compares the allocated-proceeds sum. Mismatches refuse after validation and before any apply with literal six-place messages and byte-exact `contextDetails` JSON. The refusal families (`CASH_SOURCE_ALLOCATION_VIOLATION`, `INVESTMENT_LOT_RELIEF_VIOLATION`) and the provenance stage are reused; no new family, code, or diagnostic contract field is introduced.
-- The chronology loop is exposed as `processEventsV2ForTest` and returns the first refusal-capable processor refusal; `runLane` calls it. No dispatcher or generic transition framework is introduced.
+- `validateCashSourceAllocations` and `validateReliefRows` validate all
+  references first, reject negative allocation/relief/proceeds rows at row
+  level, then aggregate per lot and compare each aggregate against remaining
+  balance / remaining cost basis. Deterministic precedence: missing reference,
+  then negative row, then cumulative overdraw, then total mismatch, then
+  mutation.
+- `processDeployment` and `processFundExpense` compare the cash-source
+  allocation sum against event `amountUsd`; `processRealization` compares the
+  allocated-proceeds sum. Mismatches refuse after validation and before any
+  apply with literal six-place messages and byte-exact `contextDetails` JSON.
+  The refusal families (`CASH_SOURCE_ALLOCATION_VIOLATION`,
+  `INVESTMENT_LOT_RELIEF_VIOLATION`) and the provenance stage are reused; no new
+  family, code, or diagnostic contract field is introduced.
+- The chronology loop is exposed as `processEventsV2ForTest` and returns the
+  first refusal-capable processor refusal; `runLane` calls it. No dispatcher or
+  generic transition framework is introduced.
 
-F2 public event admission remains refused. Contract stays `internal-economics-composite/2.0.1`; receipt stays `internal-economics-receipt/2.1.0`; no `sourceCashLotId`; zero-event opening input keeps the unchanged F2 receipt/hash.
+F2 public event admission remains refused. Contract stays
+`internal-economics-composite/2.0.1`; receipt stays
+`internal-economics-receipt/2.1.0`; no `sourceCashLotId`; zero-event opening
+input keeps the unchanged F2 receipt/hash.
 
 ### Drivers
 
-Financial safety (silently overdrawing repeated rows and silently dropped refusals are balance-corruption paths); smallest root-cause patch (repair shared validators and the existing chronology loop, not callers); exact-SHA isolation (implementation in a fresh linked worktree from `origin/main`); independent consumer/evidence seams (capability admission only with versioned consumer-backed proof; evidence never grants merge or production authority).
+Financial safety (silently overdrawing repeated rows and silently dropped
+refusals are balance-corruption paths); smallest root-cause patch (repair shared
+validators and the existing chronology loop, not callers); exact-SHA isolation
+(implementation in a fresh linked worktree from `origin/main`); independent
+consumer/evidence seams (capability admission only with versioned
+consumer-backed proof; evidence never grants merge or production authority).
 
 ### Alternatives considered
 
-- A new dispatcher/transition framework: duplicates the existing switch and broadens scope.
-- Landing `sourceCashLotId`/eventful receipt/persistence/queue now: needs a named consumer and durable-state decisions; deferred to later gates.
+- A new dispatcher/transition framework: duplicates the existing switch and
+  broadens scope.
+- Landing `sourceCashLotId`/eventful receipt/persistence/queue now: needs a
+  named consumer and durable-state decisions; deferred to later gates.
 - Per-caller guards: miss shared behavior.
 
 ### Consequences
 
-No public event result changes; only inputs that were silently corrupting state (negative rows, cumulative overdraw, total mismatch) or silently ignored (dropped refusals) change outcome, and they become refusals. Future execution remains isolated from dirty main via the linked-worktree discipline. A post-write refusal need would require new design.
+No public event result changes; only inputs that were silently corrupting state
+(negative rows, cumulative overdraw, total mismatch) or silently ignored
+(dropped refusals) change outcome, and they become refusals. Future execution
+remains isolated from dirty main via the linked-worktree discipline. A
+post-write refusal need would require new design.
 
 ### Follow-ups
 
-Reopen source-lineage work (`sourceCashLotId`, eventful receipt) only after F3a exact-SHA green plus a named consumer and approved versioned semantics; source lineage is explicit and never inferred from `sourceRef`, `investmentLotId`, owner, deal, or security. Evaluate correction/write-off/conversion and persistence/BullMQ independently, each with its own consumer-backed and durable-state proof.
+Reopen source-lineage work (`sourceCashLotId`, eventful receipt) only after F3a
+exact-SHA green plus a named consumer and approved versioned semantics; source
+lineage is explicit and never inferred from `sourceRef`, `investmentLotId`,
+owner, deal, or security. Evaluate correction/write-off/conversion and
+persistence/BullMQ independently, each with its own consumer-backed and
+durable-state proof.
 
 ### No authority boundary
 
-This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, production dispatch. Plans and tests are evidence
+only; they grant no merge, deployment, provider, schema, or production
+authority.
+
+## ADR-089: Governed Provider Release Path with Layered Autodeploy Gate
+
+**Date:** 2026-08-28 **Status:** Proposed **Tags:** #release #railway
+#provider-identity #governance
+
+### Decision
+
+`release-production.yml` remains the only tracked provider-mutating caller. Its
+mechanical blocks (the `production-mutation-block` job and the
+`if: ${{ false }}` guards on `stage-production` and `promote`) are removed. A
+new `railway-workers-deploy` job deploys exactly the two Railway worker services
+(`fund-scenario-calc` then `capital-call-status`, per ADR-075 topology) serially
+at the exact candidate SHA via the fixed-purpose helper
+`scripts/release/deploy-railway-workers.mjs`. Before each service the helper
+re-fences live `refs/heads/main` against the expected SHA (`git ls-remote`) and
+runs an authenticated preflight: project/environment scope, tolerant topology in
+which each protected worker must resolve exactly once by name and by ID, and the
+autodeploy readback gate `serviceInstanceAutoDeployStatus`, which must report
+`enabled === false` for both services or the run fails closed before any
+mutation.
+
+The autodeploy gate is layered and the readback branch is selected:
+introspection recorded in
+`docs/workflows/railway-provider-contract-evidence-f132.md` proves the public
+API exposes the autodeploy-state field, so the workflow reads it directly. The
+alternative per-dispatch operator attestation input would have been
+policy-consistent — ADR-082's `operator_evidence_b64` establishes the
+attested-dispatch-input precedent, and the governing policy's
+evidence-never-authorizes rule applies identically to attestation and readback —
+but it is not wired: the official readback exists and is preferred permanently.
+No `railway_autodeploy_attestation` input exists and the dispatch surface stays
+at 11 inputs.
+
+Per service the helper reuses an active successful deployment already at the
+exact candidate SHA when one exists; otherwise it calls
+`serviceInstanceDeployV2(serviceId, environmentId, commitSha)` and waits on the
+exact returned deployment ID for terminal `SUCCESS` and a matching
+`meta.commitHash`, inside the helper's own timeout budget. If the second service
+fails after the first has mutated, the helper recovers the first via
+`deploymentRollback` (a `Boolean!` result — the new active deployment is
+re-resolved by query and its commit verified) or `deploymentRedeploy`, as
+`canRollback`/`canRedeploy` allow; when neither capability holds or recovery
+verification fails it returns `BLOCKED` with every deployment handle. Returned
+deployment IDs flow as job outputs into `railway-workers-verify`
+(`wait-railway-workers.mjs`), which now also verifies the expected deployment
+IDs. `GITHUB_RUN_ATTEMPT` must be 1; recovery continuation is always a fresh,
+separately authorized dispatch. Evidence is carried by the existing
+`release-provider` fragment — no new fragment kind.
+
+Residual risks — Railway runtime semantics, `meta.commitHash` stability, and
+live rollback behavior at first dispatch — remain owner-accepted external
+prerequisites per the "External prerequisites" list in
+`docs/1-plans/F_1.3.2_governed-production-release-path.plan.md`.
+
+**Two-phase dispatch (owner decision, 2026-08-28).** G4 operator evidence
+(ADR-082) is fixed at dispatch time and must show worker health/readiness probes
+carrying both the candidate SHA and the currently active Railway deployment IDs.
+That binding was satisfiable in the autodeploy era (workers reached the SHA on
+merge, before evidence capture) but is structurally unsatisfiable for a single
+run that itself deploys new worker code. The release workflow therefore gains a
+`mode` dispatch input (`full` | `railway-workers-only`, default `full`, dispatch
+surface 12 inputs): phase A (`railway-workers-only`) runs the source-admission
+fences and only the Railway deploy/verify lane, deploying both workers at the
+exact candidate SHA while the Vercel lane is skipped and the evidence finalizer
+treats those expected skips as non-failures; the owner then captures operator
+evidence against the now-current fleet; phase B (`full`) is the unchanged full
+release, whose deploy job takes the exact-SHA reuse path, so G4 verifies
+legitimately. Both phases are separately owner-authorized dispatches; a `main`
+advance between phases changes the candidate and fails closed by re-fencing.
+
+### Drivers
+
+Exact returned-target-identity verification after every provider action (the
+policy's consequence-proof floor); fail closed on absent, stale, or mismatched
+prerequisites; one tracked provider-mutating caller with a fixed-purpose
+two-service helper (no provider framework or service registry); removal of an
+indefinite mechanical self-block that was stricter than the governing policy
+requires.
+
+### Alternatives considered
+
+- The superseded PR #1411 relaxed-protection approach: rejected. Its relaxed
+  protection behavior must not be merged, cherry-picked, or transplanted; the
+  repository owner closes it separately.
+- The superseded proposal's indefinite machine-readback blocker: self-blocking
+  on a field the documentation did not then show, and stricter than the
+  governing policy, which requires exact post-mutation identity verification but
+  nowhere requires machine-readable pre-mutation readback.
+- Per-dispatch operator attestation input (`railway_autodeploy_attestation`):
+  policy-consistent under the ADR-082 precedent, but unnecessary given the
+  official readback; not wired.
+
+### Consequences
+
+Merging this path establishes merge eligibility only; production dispatch
+remains a separate owner-authorized action under
+`docs/governance/solo-internal-change-and-production-policy.md`. The one-time
+owner precondition — autodeploy disabled for both worker services — is enforced
+by the readback: an enabled setting fails the run closed. A stuck deploy holds
+the non-canceling release lane until the deploy job's own timeout. The readback
+field is present in the live public schema but not yet on the documentation
+pages; schema drift removes the gate's success path and fails closed rather than
+open. Live provider runtime semantics stay unproven until the first authorized
+dispatch.
+
+### Follow-ups
+
+Owner disables autodeploy for both worker services in the Railway UI before
+first dispatch (the readback proves the setting per run). Owner closes PR #1411
+separately. Characterize live rollback/redeploy behavior at the first authorized
+dispatch and revalidate the dated provider observations in
+`docs/workflows/PRODUCTION_SCRIPTS.md` at the exact candidate.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, production dispatch. The release path it records
+is capability, not authority: every production dispatch remains a separate
+owner-authorized action under the governing policy. Plans, tests, readbacks, and
+evidence are evidence only; they grant no merge, deployment, provider, schema,
+or production authority.

@@ -13373,15 +13373,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-08-21",
+        "last_updated": "2026-08-28",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-08-21",
+      "lastUpdated": "2026-08-28",
       "owner": null,
       "path": "docs/workflows/PRODUCTION_SCRIPTS.md",
-      "staleDays": 7,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -13398,6 +13398,18 @@
       "path": "docs/workflows/README.md",
       "staleDays": 14,
       "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/workflows/railway-provider-contract-evidence-f132.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
     },
     {
       "docType": "doc",
@@ -14659,14 +14671,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 182,
+      "UNKNOWN": 183,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 88,
-    "stale_docs": 479,
-    "total_docs": 758
+    "missing_frontmatter": 89,
+    "stale_docs": 480,
+    "total_docs": 759
   },
   "version": "2.0"
 }

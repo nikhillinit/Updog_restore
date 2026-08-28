@@ -11,16 +11,16 @@ last_updated: 2026-08-28
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 758 |
-| Stale Documents | 479 |
-| Missing Frontmatter | 88 |
+| Total Documents | 759 |
+| Stale Documents | 480 |
+| Missing Frontmatter | 89 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 182 |
+| UNKNOWN | 183 |
 | DRAFT | 35 |
 | HISTORICAL | 33 |
 | VERIFIED | 13 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
 | `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
 
-*...and 429 more stale documents.*
+*...and 430 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -287,6 +287,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`
 - [ ] `docs/superpowers/specs/2026-07-30-task163-go-readiness-briefs.md`
 - [ ] `docs/tooling-catalog.md`
+- [ ] `docs/workflows/railway-provider-contract-evidence-f132.md`
 
 ---
 
