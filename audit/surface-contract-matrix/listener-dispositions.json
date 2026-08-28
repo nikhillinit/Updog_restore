@@ -4,8 +4,8 @@
     "listener_id": "dockerfile-root",
     "fingerprint": "f557f7dd689a505a7c989723effe860d24d1fcd39f9e7a143d135bcd057a7dc8",
     "evidence": [
-      "Dockerfile:56",
-      "Dockerfile:65"
+      "Dockerfile:58",
+      "Dockerfile:67"
     ],
     "disposition": "product-surface",
     "row_namespace": "api",
@@ -13,12 +13,12 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 56,
+        "line": 58,
         "text": "CMD [\"node\", \"-e\", \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\"]"
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 65,
+        "line": 67,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
@@ -28,22 +28,22 @@
   {
     "candidate_path": "Dockerfile.railway",
     "listener_id": "legacy-dockerfile-railway",
-    "fingerprint": "6edadba040ee4f143ebfb4aaeecf78147f5ac8bbbee7bc33fa0c92f97b6ea913",
+    "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4",
     "evidence": [
-      "Dockerfile.railway:41",
-      "Dockerfile.railway:45"
+      "Dockerfile.railway:43",
+      "Dockerfile.railway:47"
     ],
     "disposition": "non-product-tooling",
     "rationale": "Legacy undeployed Railway API container evidence; inventory-gated and excluded from production topology.",
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 41,
+        "line": 43,
         "text": "CMD node -e \"require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 45,
+        "line": 47,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
@@ -81,8 +81,8 @@
     "listener_id": "dockerfile-worker",
     "fingerprint": "d34c0c0a79520e193bd7e392a398208f5d2bb825a8af98823e49741dfe5fa6a5",
     "evidence": [
-      "Dockerfile.worker:163",
-      "Dockerfile.worker:175"
+      "Dockerfile.worker:165",
+      "Dockerfile.worker:177"
     ],
     "disposition": "product-surface",
     "row_namespace": "api",
@@ -90,12 +90,12 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 163,
+        "line": 165,
         "text": "CMD node /app/healthcheck.js"
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 175,
+        "line": 177,
         "text": "CMD [\"sh\", \"-c\", \"case \\\"$WORKER_TYPE\\\" in fund-scenario-calc|capital-call-status) exec node \\\"dist/workers/$WORKER_TYPE-worker.js\\\" ;; *) echo 'WORKER_TYPE must be fund-scenario-calc or capital-call-status' >&2; exit 1 ;; esac\"]"
       }
     ],
