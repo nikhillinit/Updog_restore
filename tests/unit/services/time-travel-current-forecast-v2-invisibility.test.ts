@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as schema from '@shared/schema';
 import { fundConfigs, fundSnapshots } from '@shared/schema';
+import { NON_TIMELINE_SNAPSHOT_TYPES } from '@shared/schema/fund';
 import type { SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -96,6 +97,19 @@ const reserveIntelligenceSnapshot: SnapshotSeed = {
   scenarioSetId: null,
 };
 
+const constructionReconciliationSnapshot: SnapshotSeed = {
+  id: 104,
+  fundId: 1,
+  type: 'CONSTRUCTION_RECONCILIATION',
+  snapshotTime: new Date('2026-07-22T12:00:00.000Z'),
+  createdAt: new Date('2026-07-22T12:00:00.000Z'),
+  eventCount: 0,
+  stateHash: 'construction-reconciliation-payload-hash',
+  state: null,
+  configVersion: null,
+  scenarioSetId: null,
+};
+
 let seededSnapshots: SnapshotSeed[] = [];
 
 function executeQuery(state: QueryState): unknown[] {
@@ -158,6 +172,7 @@ function expectNonTimelineDenylist(queryCount: number): void {
     expect(query.sql).toContain('"fund_snapshots"."type" not in');
     expect(query.params).toContain('CURRENT_FORECAST_V2');
     expect(query.params).toContain('RESERVE_INTELLIGENCE');
+    expect(query.params).toContain('CONSTRUCTION_RECONCILIATION');
   }
 }
 
@@ -176,7 +191,12 @@ describe('non-timeline snapshot invisibility', () => {
     const targetTime = new Date('2026-07-22T12:00:00.000Z');
 
     const reserveOnly = await service.getStateAtTime(1, targetTime);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    seededSnapshots = [
+      reserveSnapshot,
+      currentForecastSnapshot,
+      reserveIntelligenceSnapshot,
+      constructionReconciliationSnapshot,
+    ];
     const withCurrentForecast = await service.getStateAtTime(1, targetTime);
 
     expect(JSON.stringify(withCurrentForecast)).toBe(JSON.stringify(reserveOnly));
@@ -209,7 +229,12 @@ describe('non-timeline snapshot invisibility', () => {
     });
 
     const reserveOnly = await fundStateReadService.getState(1);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    seededSnapshots = [
+      reserveSnapshot,
+      currentForecastSnapshot,
+      reserveIntelligenceSnapshot,
+      constructionReconciliationSnapshot,
+    ];
     const withCurrentForecast = await fundStateReadService.getState(1);
 
     expect(JSON.stringify(withCurrentForecast)).toBe(JSON.stringify(reserveOnly));
@@ -222,7 +247,12 @@ describe('non-timeline snapshot invisibility', () => {
       mockDb as unknown as NodePgDatabase<typeof schema>
     );
     const reserveOnly = await service.getTimelineEvents(1);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    seededSnapshots = [
+      reserveSnapshot,
+      currentForecastSnapshot,
+      reserveIntelligenceSnapshot,
+      constructionReconciliationSnapshot,
+    ];
     const withAnalyticalSnapshots = await service.getTimelineEvents(1);
 
     expect(JSON.stringify(withAnalyticalSnapshots)).toBe(JSON.stringify(reserveOnly));
@@ -239,7 +269,12 @@ describe('non-timeline snapshot invisibility', () => {
     const firstTime = new Date('2026-07-22T12:00:00.000Z');
     const secondTime = new Date('2026-07-23T12:00:00.000Z');
     const reserveOnly = await service.compareStates(1, firstTime, secondTime);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    seededSnapshots = [
+      reserveSnapshot,
+      currentForecastSnapshot,
+      reserveIntelligenceSnapshot,
+      constructionReconciliationSnapshot,
+    ];
     const withAnalyticalSnapshots = await service.compareStates(1, firstTime, secondTime);
 
     expect(JSON.stringify(withAnalyticalSnapshots)).toBe(JSON.stringify(reserveOnly));
@@ -249,6 +284,7 @@ describe('non-timeline snapshot invisibility', () => {
   });
 
   it('does not promote reserve intelligence into authoritative readiness types', () => {
+    expect(NON_TIMELINE_SNAPSHOT_TYPES).toContain('CONSTRUCTION_RECONCILIATION');
     expect(AUTHORITATIVE_SNAPSHOT_TYPES).not.toContain('RESERVE_INTELLIGENCE');
     expect(EXPECTED_SNAPSHOT_TYPES).not.toContain('RESERVE_INTELLIGENCE');
   });

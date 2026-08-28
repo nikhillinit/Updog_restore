@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
+import {
+  ConstructionReconciliationLatestResponseSchema,
+  ConstructionReconciliationPresentationEnvelopeSchema,
+  type ConstructionReconciliationLatestResponse,
+  type ConstructionReconciliationPresentationEnvelope,
+} from '@shared/contracts/construction-reconciliation-v1.contract';
 import type {
   AlertMetricName,
   BaselineResponse as Baseline,
@@ -10,6 +16,60 @@ import type {
 } from '@shared/variance-validation';
 
 export type { Alert, Baseline, VarianceDashboard, VarianceReport };
+
+export const constructionReconciliationLatestQueryKey = (fundId: number | undefined) =>
+  ['/api/funds', fundId ?? null, 'construction-reconciliation', 'latest'] as const;
+
+export interface ConstructionReconciliationRunVariables {
+  currentPlanVersionId: number;
+}
+
+export function useConstructionReconciliation(fundId: number | undefined) {
+  const latest = useQuery<ConstructionReconciliationLatestResponse, Error>({
+    queryKey: constructionReconciliationLatestQueryKey(fundId),
+    queryFn: async () => {
+      const response = await apiRequest<unknown>(
+        'GET',
+        `/api/funds/${fundId}/construction-reconciliation/latest`
+      );
+      return ConstructionReconciliationLatestResponseSchema.parse(response);
+    },
+    enabled: fundId != null,
+    staleTime: 60000,
+  });
+
+  const run = useMutation<
+    ConstructionReconciliationPresentationEnvelope,
+    Error,
+    ConstructionReconciliationRunVariables
+  >({
+    mutationFn: async (variables) => {
+      if (fundId == null) {
+        throw new Error('No fund ID available');
+      }
+
+      // The server resolves the current facts snapshot head; the client never
+      // supplies financialFactsSnapshotId (a pinned-plan id would go stale).
+      const response = await apiRequest<unknown>(
+        'POST',
+        `/api/funds/${fundId}/construction-reconciliation/runs`,
+        {
+          contractVersion: 'construction-reconciliation/1.0.0',
+          fundId,
+          ...variables,
+        },
+        {
+          headers: {
+            'Idempotency-Key': crypto.randomUUID(),
+          },
+        }
+      );
+      return ConstructionReconciliationPresentationEnvelopeSchema.parse(response);
+    },
+  });
+
+  return { latest, run };
+}
 
 export interface AlertRule {
   id: string;

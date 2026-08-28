@@ -17,10 +17,16 @@ import {
   useResolveAlert,
   usePerformVarianceAnalysis,
   useGenerateVarianceReport,
+  useConstructionReconciliation,
   type Alert,
   type Baseline,
   type VarianceReport,
 } from '@/hooks/useVarianceData';
+import { useCurrentPlanVersions } from '@/hooks/useCurrentPlanVersions';
+import type {
+  ConstructionReconciliationLatestResponse,
+  ConstructionReconciliationPresentationEnvelope,
+} from '@shared/contracts/construction-reconciliation-v1.contract';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +82,7 @@ import {
   FileText,
   Loader2,
   Zap,
+  RefreshCw,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -106,6 +113,30 @@ const persistedVarianceSettingsSchema = z.object({
 
 type VarianceSettings = z.infer<typeof varianceSettingsSchema>;
 type PersistedVarianceSettings = z.infer<typeof persistedVarianceSettingsSchema>;
+
+type ReconciliationAttempt =
+  | {
+      kind: 'pending';
+      currentPlanVersionId: number;
+    }
+  | {
+      kind: 'response';
+      currentPlanVersionId: number;
+      response: ConstructionReconciliationPresentationEnvelope;
+    }
+  | {
+      kind: 'error';
+      currentPlanVersionId: number;
+      message: string;
+    }
+  | {
+      // The POST persisted a snapshot, but reloading GET-latest failed; any
+      // card values on screen may be stale and must say so.
+      kind: 'readback_error';
+      currentPlanVersionId: number;
+      message: string;
+    }
+  | null;
 
 const DEFAULT_VARIANCE_SETTINGS: VarianceSettings = {
   emailNotifications: true,
@@ -181,6 +212,10 @@ export default function VarianceTrackingPage() {
     loadVarianceSettings(currentFund?.id)
   );
   const [settingsSaveMessage, setSettingsSaveMessage] = useState<string | null>(null);
+  const [reconciliationAttempt, setReconciliationAttempt] = useState<ReconciliationAttempt>(null);
+  // Busy from click through the awaited GET-latest readback — mutation pending
+  // alone re-enables the button mid-readback, allowing a duplicate-key POST.
+  const [reconciliationBusy, setReconciliationBusy] = useState(false);
   const settingsDraftsByFundId = useRef<Record<string, VarianceSettings>>({});
 
   // Form states
@@ -241,6 +276,14 @@ export default function VarianceTrackingPage() {
     enabled: activeTab === 'overview' && !!currentFund?.id,
     skipProjections: true,
   });
+  const {
+    headVersion: currentPlanHead,
+    isLoading: currentPlanLoading,
+    error: currentPlanError,
+  } = useCurrentPlanVersions(currentFund?.id);
+  const { latest: reconciliationLatest, run: reconciliationRun } = useConstructionReconciliation(
+    currentFund?.id
+  );
 
   // Mutations
   const createBaselineMutation = useCreateBaseline();
@@ -257,6 +300,7 @@ export default function VarianceTrackingPage() {
     const draft = fundKey == null ? undefined : settingsDraftsByFundId.current[fundKey];
     setVarianceSettings(draft ?? loadVarianceSettings(currentFund?.id));
     setSettingsSaveMessage(draft ? 'Unsaved changes.' : null);
+    setReconciliationAttempt(null);
   }, [currentFund?.id]);
 
   // Report detail query (only fires when a report is selected)
@@ -349,8 +393,7 @@ export default function VarianceTrackingPage() {
       ? {
           text: `${alertCounts?.critical || 0} Critical`,
           variant: ((alertCounts?.critical || 0) > 0 ? 'destructive' : 'secondary') as
-            | 'destructive'
-            | 'secondary',
+            'destructive' | 'secondary',
         }
       : alertSummary.state === 'FAILED'
         ? { text: 'Unavailable', variant: 'destructive' as const }
@@ -665,6 +708,14 @@ export default function VarianceTrackingPage() {
     }).format(numeric);
   };
 
+  const formatSignedCurrency = (value: string | number | null | undefined) => {
+    if (value == null) return '-';
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return String(value);
+    const prefix = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+    return `${prefix}${formatCurrency(Math.abs(numeric))}`;
+  };
+
   const formatSignedNumber = (value: number | null | undefined, digits = 0) => {
     if (value == null) return '-';
     const prefix = value > 0 ? '+' : '';
@@ -699,6 +750,64 @@ export default function VarianceTrackingPage() {
   const deploymentPlanStatus =
     unifiedMetrics?._status?.engines?.target === 'success' &&
     unifiedMetrics?._status?.engines?.variance === 'success';
+  const currentPlanVersionId = currentPlanHead ? Number(currentPlanHead.id) : null;
+  const reconciliationInputsReady =
+    currentPlanVersionId != null &&
+    Number.isSafeInteger(currentPlanVersionId) &&
+    currentPlanVersionId > 0;
+  const latestReconciliation = reconciliationLatest.data as
+    ConstructionReconciliationLatestResponse | undefined;
+  const persistedReconciliation =
+    latestReconciliation?.state === 'persisted' ? latestReconciliation : null;
+  const persistedResult = persistedReconciliation?.result;
+  const persistedValue =
+    persistedResult?.state === 'available' || persistedResult?.state === 'indicative'
+      ? persistedResult.value
+      : null;
+  const hasPersistedReconciliation = persistedValue != null;
+  const displayedRemainingDeployable =
+    persistedValue?.remainingDeployableUsd ?? remainingDeployableCapital;
+  const displayedPlanRemaining =
+    persistedValue?.plannedRemainingUsd ?? plannedRemainingDeployableCapital;
+  const displayedGap = persistedValue?.remainingDeployableGapUsd ?? remainingDeployableGap;
+  const reconciliationButtonLabel = hasPersistedReconciliation
+    ? 'Refresh'
+    : 'Generate reconciliation';
+
+  const handleRunConstructionReconciliation = async () => {
+    if (!currentFund || !reconciliationInputsReady || currentPlanVersionId == null) {
+      return;
+    }
+
+    const variables = { currentPlanVersionId };
+    setReconciliationBusy(true);
+    setReconciliationAttempt({ kind: 'pending', ...variables });
+
+    try {
+      const response = await reconciliationRun.mutateAsync(variables);
+      setReconciliationAttempt({ kind: 'response', response, ...variables });
+      if (response.result.state === 'available' || response.result.state === 'indicative') {
+        // Read the persisted snapshot back so labels come from the stored row;
+        // a failed readback must be surfaced, never silently masked by cache.
+        const readback = await reconciliationLatest.refetch();
+        if (readback.error) {
+          setReconciliationAttempt({
+            kind: 'readback_error',
+            message: readback.error.message,
+            ...variables,
+          });
+        }
+      }
+    } catch (error) {
+      setReconciliationAttempt({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Reconciliation request failed.',
+        ...variables,
+      });
+    } finally {
+      setReconciliationBusy(false);
+    }
+  };
 
   const varianceOverviewMetrics = (
     <>
@@ -877,78 +986,267 @@ export default function VarianceTrackingPage() {
             </Card>
           )}
 
-          <Card>
+          <Card className="border-presson-borderSubtle bg-presson-surface shadow-card">
             <CardHeader>
-              <CardTitle>Deployable Capital vs Plan</CardTitle>
-              <CardDescription>
-                Remaining deployable capital compared with the current deployment plan. Uncalled
-                capital is shown separately because it measures callable, not deployable, capacity.
-              </CardDescription>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="text-presson-text">Deployable Capital vs Plan</CardTitle>
+                  <CardDescription className="text-presson-textMuted">
+                    Remaining deployable capital compared with the current deployment plan. Uncalled
+                    capital is shown separately because it measures callable, not deployable,
+                    capacity.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleRunConstructionReconciliation}
+                  disabled={reconciliationBusy || currentPlanLoading || !reconciliationInputsReady}
+                  className="shrink-0 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
+                >
+                  {reconciliationBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span>
+                    {reconciliationBusy
+                      ? hasPersistedReconciliation
+                        ? 'Refreshing...'
+                        : 'Generating...'
+                      : reconciliationButtonLabel}
+                  </span>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {metricsLoading ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="rounded-lg border p-4">
-                      <div className="h-4 w-32 animate-pulse rounded bg-pov-gray" />
-                      <div className="mt-3 h-7 w-40 animate-pulse rounded bg-pov-gray" />
+              {reconciliationLatest.isLoading ? (
+                <div className="mb-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4 text-sm text-presson-textMuted">
+                  Loading persisted reconciliation...
+                </div>
+              ) : persistedReconciliation ? (
+                <div className="mb-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="text-sm font-semibold text-presson-text">
+                      Persisted reconciliation
+                    </div>
+                    <div className="font-mono text-xs uppercase tracking-wide text-presson-textMuted">
+                      {persistedResult?.state} · {persistedReconciliation.trustState}
+                    </div>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-1 gap-2 text-xs text-presson-textMuted sm:grid-cols-3">
+                    <div>
+                      <dt>Current plan version ID</dt>
+                      <dd className="font-mono font-semibold text-presson-text">
+                        {persistedReconciliation.currentPlanVersionId}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Financial facts snapshot ID</dt>
+                      <dd className="font-mono font-semibold text-presson-text">
+                        {persistedReconciliation.financialFactsSnapshotId}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>As-of date</dt>
+                      <dd className="font-mono font-semibold text-presson-text">
+                        {persistedReconciliation.asOfDate}
+                      </dd>
+                    </div>
+                  </dl>
+                  {persistedReconciliation.structuredWarnings.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-xs text-presson-warning">
+                      {persistedReconciliation.structuredWarnings.map((warning) => (
+                        <li key={`${warning.code}-${warning.message}`}>
+                          {warning.code}: {warning.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {reconciliationLatest.error != null && (
+                    <div className="mt-3 rounded-lg border border-presson-warning/40 bg-presson-warning/10 p-3 text-xs text-presson-warning">
+                      Reloading the latest persisted reconciliation failed; the snapshot shown above
+                      may be stale. Its plan/facts IDs and as-of date identify exactly what it
+                      reflects.
+                    </div>
+                  )}
+                </div>
+              ) : reconciliationLatest.error ? (
+                <div className="mb-4 rounded-lg border border-presson-negative/40 bg-presson-negative/10 p-4 text-sm text-presson-negative">
+                  Could not load persisted reconciliation. Existing client-derived values remain
+                  visible until a persisted reconciliation is available.
+                </div>
+              ) : latestReconciliation?.state === 'no_persisted_reconciliation' ? (
+                <div className="mb-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4 text-sm text-presson-textMuted">
+                  <div className="font-semibold text-presson-text">
+                    No persisted reconciliation yet
+                  </div>
+                  <div className="mt-1 font-mono text-xs">State: no_persisted_reconciliation</div>
+                  <p className="mt-1">
+                    Generate reconciliation to create a persisted snapshot. Existing client-derived
+                    values remain visible until then.
+                  </p>
+                  {currentPlanLoading ? (
+                    <p className="mt-2 text-xs">Loading current plan and facts snapshot...</p>
+                  ) : currentPlanError ? (
+                    <p className="mt-2 text-xs text-presson-negative">
+                      Current plan and facts snapshot IDs are unavailable.
+                    </p>
+                  ) : reconciliationInputsReady ? (
+                    <p className="mt-2 font-mono text-xs">
+                      Ready: plan version {currentPlanVersionId}; the server resolves the current
+                      facts snapshot.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs">A current plan head is required.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="mb-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4 text-sm text-presson-textMuted">
+                  Persisted reconciliation status is not available yet. Existing client-derived
+                  values remain visible.
+                </div>
+              )}
+
+              {reconciliationAttempt?.kind === 'pending' && (
+                <div className="mb-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4 text-sm text-presson-textMuted">
+                  Reconciliation request in progress for plan version{' '}
+                  {reconciliationAttempt.currentPlanVersionId} against the current facts snapshot.
+                </div>
+              )}
+
+              {reconciliationAttempt?.kind === 'response' &&
+                (reconciliationAttempt.response.result.state === 'unavailable' ||
+                  reconciliationAttempt.response.result.state === 'failed') && (
+                  <div className="mb-4 rounded-lg border border-presson-warning/40 bg-presson-warning/10 p-4 text-sm text-presson-warning">
+                    <div className="font-semibold">
+                      Current refresh {reconciliationAttempt.response.result.state}
+                    </div>
+                    <p className="mt-1">
+                      No new snapshot was persisted. Reason codes:{' '}
+                      {reconciliationAttempt.response.result.reasonCodes.join(', ')}.
+                    </p>
+                    <p className="mt-2 text-xs">
+                      Attempted plan version {reconciliationAttempt.currentPlanVersionId} against
+                      the current facts snapshot; as-of date was not produced.
+                      {persistedReconciliation
+                        ? ' The persisted snapshot below remains the older labeled snapshot.'
+                        : ' No persisted snapshot is available; client-derived values remain visible.'}
+                    </p>
+                  </div>
+                )}
+
+              {reconciliationAttempt?.kind === 'readback_error' && (
+                <div className="mb-4 rounded-lg border border-presson-warning/40 bg-presson-warning/10 p-4 text-sm text-presson-warning">
+                  <div className="font-semibold">
+                    Reconciliation persisted, but reloading it failed
+                  </div>
+                  <p className="mt-1">{reconciliationAttempt.message}</p>
+                  <p className="mt-2 text-xs">
+                    The refresh for plan version {reconciliationAttempt.currentPlanVersionId} was
+                    saved on the server, but the card could not read the persisted snapshot back.
+                    Values shown may be stale until the page reloads it.
+                  </p>
+                </div>
+              )}
+
+              {reconciliationAttempt?.kind === 'error' && (
+                <div className="mb-4 rounded-lg border border-presson-negative/40 bg-presson-negative/10 p-4 text-sm text-presson-negative">
+                  <div className="font-semibold">Current refresh failed</div>
+                  <p className="mt-1">{reconciliationAttempt.message}</p>
+                  <p className="mt-2 text-xs">
+                    Attempted plan version {reconciliationAttempt.currentPlanVersionId} against the
+                    current facts snapshot.
+                    {persistedReconciliation
+                      ? ' The persisted snapshot below remains the older labeled snapshot.'
+                      : ' No persisted snapshot is available; client-derived values remain visible.'}
+                  </p>
+                </div>
+              )}
+
+              {metricsLoading && !hasPersistedReconciliation ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="rounded-lg border border-presson-borderSubtle p-4">
+                      <div className="h-4 w-32 animate-pulse rounded bg-presson-surfaceSubtle" />
+                      <div className="mt-3 h-7 w-40 animate-pulse rounded bg-presson-surfaceSubtle" />
                     </div>
                   ))}
                 </div>
-              ) : !deploymentPlanStatus ? (
-                <div className="rounded-lg border border-warning/50 bg-warning/10 p-4 text-sm text-warning-dark">
+              ) : !deploymentPlanStatus && !hasPersistedReconciliation ? (
+                <div className="rounded-lg border border-presson-warning/40 bg-presson-warning/10 p-4 text-sm text-presson-warning">
                   Deployment-plan context is not available from the unified metrics response right
-                  now, so this card is intentionally withheld instead of showing fallback values.
+                  now, so client-derived values are withheld until that context is available.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-charcoal-600">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                  <div className="rounded-lg border border-presson-borderSubtle p-4">
+                    <div className="text-sm font-medium text-presson-textMuted">
                       Remaining deployable
                     </div>
-                    <div className="mt-1 text-2xl font-semibold text-pov-charcoal">
-                      {formatCurrency(remainingDeployableCapital)}
+                    <div className="mt-1 text-2xl font-semibold text-presson-text">
+                      {formatCurrency(displayedRemainingDeployable)}
                     </div>
-                    <div className="mt-2 text-xs text-charcoal-500">
-                      Actual committed capital minus capital already deployed.
-                    </div>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-charcoal-600">Plan remaining</div>
-                    <div className="mt-1 text-2xl font-semibold text-pov-charcoal">
-                      {formatCurrency(plannedRemainingDeployableCapital)}
-                    </div>
-                    <div className="mt-2 text-xs text-charcoal-500">
-                      Current deployment plan implied by target deployed capital for this fund age.
+                    <div className="mt-2 text-xs text-presson-textMuted">
+                      {hasPersistedReconciliation
+                        ? 'Persisted reconciliation value.'
+                        : 'Client-derived committed capital less deployed capital.'}
                     </div>
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="text-sm font-medium text-charcoal-600">Gap vs plan</div>
+                  <div className="rounded-lg border border-presson-borderSubtle p-4">
+                    <div className="text-sm font-medium text-presson-textMuted">Plan remaining</div>
+                    <div className="mt-1 text-2xl font-semibold text-presson-text">
+                      {formatCurrency(displayedPlanRemaining)}
+                    </div>
+                    <div className="mt-2 text-xs text-presson-textMuted">
+                      {hasPersistedReconciliation
+                        ? 'Persisted reconciliation value.'
+                        : 'Client-derived deployment plan for this fund age.'}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-presson-borderSubtle p-4">
+                    <div className="text-sm font-medium text-presson-textMuted">Gap vs plan</div>
                     <div
                       className={cn(
                         'mt-1 text-2xl font-semibold',
-                        (remainingDeployableGap ?? 0) > 0
-                          ? 'text-presson-info'
-                          : 'text-warning-dark'
+                        displayedGap == null
+                          ? 'text-presson-text'
+                          : Number(displayedGap) > 0
+                            ? 'text-presson-positive'
+                            : Number(displayedGap) < 0
+                              ? 'text-presson-warning'
+                              : 'text-presson-text'
                       )}
                     >
-                      {remainingDeployableGap == null
-                        ? '-'
-                        : `${remainingDeployableGap > 0 ? '+' : ''}${formatCurrency(remainingDeployableGap)}`}
+                      {formatSignedCurrency(displayedGap)}
                     </div>
-                    <div className="mt-2 text-xs text-charcoal-500">
+                    <div className="mt-2 text-xs text-presson-textMuted">
                       Positive means more undeployed capital remains than the plan expects today.
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-presson-warning/40 bg-presson-warning/10 p-4">
+                    <div className="text-sm font-medium text-presson-warning">
+                      Planned capital over deployable
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold text-presson-warning">
+                      {hasPersistedReconciliation
+                        ? formatCurrency(persistedValue.plannedCapitalOverDeployableUsd)
+                        : '—'}
+                    </div>
+                    <div className="mt-2 text-xs text-presson-warning">
+                      {hasPersistedReconciliation
+                        ? `${formatCurrency(persistedValue.plannedCapitalOverDeployableUsd)} over deployable capacity.`
+                        : 'Generated reconciliation will disclose this persisted value.'}
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg border border-beige-200 bg-pov-gray p-4">
-                <div className="text-sm font-medium text-charcoal-700">Uncalled capital</div>
-                <div className="mt-1 text-xl font-semibold text-pov-charcoal">
+              <div className="mt-4 rounded-lg border border-presson-borderSubtle bg-presson-surfaceSubtle p-4">
+                <div className="text-sm font-medium text-presson-text">Uncalled capital</div>
+                <div className="mt-1 text-xl font-semibold text-presson-text">
                   {formatCurrency(unifiedMetrics?.actual?.totalUncalled)}
                 </div>
-                <div className="mt-2 text-xs text-charcoal-600">
+                <div className="mt-2 text-xs text-presson-textMuted">
                   Capital that has been committed but not yet called from LPs. This is not the same
                   as remaining deployable capital.
                 </div>

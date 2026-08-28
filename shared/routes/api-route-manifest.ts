@@ -450,6 +450,23 @@ export const COMMON_API_ROUTE_MANIFEST = [
     },
   },
   {
+    id: 'construction-reconciliation',
+    sourceModule: './routes/construction-reconciliation.js',
+    mountPath: '/api',
+    authBoundary: 'router_local',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: { kind: 'other-table' },
+    schemaTables: ['funds', 'current_plan_versions', 'financial_facts_snapshots', 'fund_snapshots'],
+    owner: 'gp-team',
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/construction-reconciliation/latest',
+      expectedStatus: 400,
+      authenticated: true,
+    },
+  },
+  {
     id: 'fund-moic',
     sourceModule: './routes/fund-moic.js',
     mountPath: '/api',

@@ -21,6 +21,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-28)
+
+- **Persisted deployable-capital reconciliation (F_1.7.0 C1A).** New
+  `construction-reconciliation` router module:
+  `POST /api/funds/:fundId/construction-reconciliation/runs` computes one
+  deterministic current-plan/current-facts reconciliation (calc-substrate
+  `CalcResult`, `engineVersion construction-rec-v1`) and persists it to
+  `fund_snapshots` as a new non-timeline `CONSTRUCTION_RECONCILIATION` type
+  under a fund-scoped advisory lock with key-first idempotent replay;
+  `GET .../construction-reconciliation/latest` serves only the most recently
+  persisted snapshot (deterministic `snapshotTime/createdAt/id DESC` ordering,
+  explicit `no_persisted_reconciliation` none-state, fail-closed hash and
+  contract re-validation on read). The request's `financialFactsSnapshotId` is
+  optional — the server resolves the fund's current non-superseded facts head
+  inside the locked transaction; provenance warnings (e.g.
+  `NON_EQUITY_AMOUNT_ONLY`) persist in snapshot metadata so replays and reads
+  keep serving the original disclosures. The "Deployable Capital vs Plan" card
+  on variance-tracking loads via GET only, refreshes via explicit POST, awaits a
+  labeled readback, and discloses `plannedCapitalOverDeployableUsd`.
+
 ### Added (2026-08-26)
 
 - **Source-pinned allocation scenario templates (F_1.7.0 S1).** A narrowed

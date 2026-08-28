@@ -355,6 +355,27 @@ async function installSmokeApiStubs(page: Page) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/current-plan-versions') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/construction-reconciliation/latest'
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ state: 'no_persisted_reconciliation' }),
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/funds/1/metrics') {
       await route.fulfill({
         status: 200,

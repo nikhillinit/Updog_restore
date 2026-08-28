@@ -44,38 +44,42 @@ const h9FinancialActionabilityValuesSql = sql.raw(
 // FUNDS TABLE
 // ============================================================================
 
-export const funds = pgTable('funds', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  size: decimal('size', { precision: 15, scale: 2 }).notNull(),
-  deployedCapital: decimal('deployed_capital', { precision: 15, scale: 2 }).default('0'),
-  managementFee: decimal('management_fee', { precision: 5, scale: 4 }).notNull(),
-  carryPercentage: decimal('carry_percentage', { precision: 5, scale: 4 }).notNull(),
-  vintageYear: integer('vintage_year').notNull(),
-  establishmentDate: date('establishment_date'),
-  status: text('status').notNull().default('active'),
-  isActive: boolean('is_active').default(true),
-  baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('USD'),
-  dataOrigin: varchar('data_origin', { length: 20 })
-    .notNull()
-    .default('production')
-    .$type<FundDataOrigin>(),
-  canaryRunId: uuid('canary_run_id').references(() => releaseCanaryRuns.id, {
-    onDelete: 'restrict',
-  }),
-  engineResults: jsonb('engine_results').$type<EngineResults>(),
-  createdAt: timestamp('created_at').defaultNow(),
-}, (table) => ({
-  dataOriginCheck: check(
-    'funds_data_origin_check',
-    sql`${table.dataOrigin} IN ('production', 'release_canary')`
-  ),
-  canaryRunUnique: unique('funds_canary_run_id_unique').on(table.canaryRunId),
-  canaryOriginCouplingCheck: check(
-    'funds_canary_origin_coupling_check',
-    sql`(${table.dataOrigin} = 'production' AND ${table.canaryRunId} IS NULL) OR (${table.dataOrigin} = 'release_canary' AND ${table.canaryRunId} IS NOT NULL)`
-  ),
-}));
+export const funds = pgTable(
+  'funds',
+  {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    size: decimal('size', { precision: 15, scale: 2 }).notNull(),
+    deployedCapital: decimal('deployed_capital', { precision: 15, scale: 2 }).default('0'),
+    managementFee: decimal('management_fee', { precision: 5, scale: 4 }).notNull(),
+    carryPercentage: decimal('carry_percentage', { precision: 5, scale: 4 }).notNull(),
+    vintageYear: integer('vintage_year').notNull(),
+    establishmentDate: date('establishment_date'),
+    status: text('status').notNull().default('active'),
+    isActive: boolean('is_active').default(true),
+    baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('USD'),
+    dataOrigin: varchar('data_origin', { length: 20 })
+      .notNull()
+      .default('production')
+      .$type<FundDataOrigin>(),
+    canaryRunId: uuid('canary_run_id').references(() => releaseCanaryRuns.id, {
+      onDelete: 'restrict',
+    }),
+    engineResults: jsonb('engine_results').$type<EngineResults>(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    dataOriginCheck: check(
+      'funds_data_origin_check',
+      sql`${table.dataOrigin} IN ('production', 'release_canary')`
+    ),
+    canaryRunUnique: unique('funds_canary_run_id_unique').on(table.canaryRunId),
+    canaryOriginCouplingCheck: check(
+      'funds_canary_origin_coupling_check',
+      sql`(${table.dataOrigin} = 'production' AND ${table.canaryRunId} IS NULL) OR (${table.dataOrigin} = 'release_canary' AND ${table.canaryRunId} IS NOT NULL)`
+    ),
+  })
+);
 
 // ============================================================================
 // FUND CONFIGS TABLE
@@ -170,6 +174,7 @@ export const NON_TIMELINE_SNAPSHOT_TYPES = [
   'CURRENT_FORECAST_V2',
   'RESERVE_INTELLIGENCE',
   'INTERNAL_LP_ECONOMICS',
+  'CONSTRUCTION_RECONCILIATION',
 ] as const;
 
 export const fundSnapshots = pgTable(
