@@ -31,6 +31,19 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow F_1.7.0 S1 source-config route-surface test fixtures: synthetic JWT secret and deterministic idempotency keys"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''process\.env\.JWT_SECRET\s*=\s*'route-surface-test-secret-32-chars-min';''',
+  '''\.set\('Idempotency-Key',\s*'route-v2-(?:happy|stale)'\)''',
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Allow deterministic current-forecast shadow idempotency fixture"
 targetRules = ["generic-api-key"]
 condition = "AND"
