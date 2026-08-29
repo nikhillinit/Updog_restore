@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import globals from 'globals';
 import tsParser from '@typescript-eslint/parser';
 import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
@@ -125,6 +126,12 @@ export default [
     ],
   },
   js.configs.recommended,
+  {
+    files: ['scripts/release/*.mjs'],
+    languageOptions: {
+      globals: globals.nodeBuiltin,
+    },
+  },
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
