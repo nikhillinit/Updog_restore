@@ -1,6 +1,7 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-03
+audience: both
+last_updated: 2026-08-29
 owner: Core Team
 review_cadence: P7D
 ---

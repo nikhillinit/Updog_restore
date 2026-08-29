@@ -1,3 +1,10 @@
+---
+status: REFERENCE
+audience: both
+last_updated: 2026-08-29
+owner: '@nikhillinit'
+---
+
 # Railway Provider-Contract Evidence (F_1.3.2)
 
 Recorded 2026-08-28 during the F_1.3.2 provider-contract validation phase
@@ -51,12 +58,26 @@ action (UI or owner-run mutation).
 | `deployment`                      | `(id: String!) -> Deployment!`                                                                         | `Deployment` fields include `id: ID!`, `status: DeploymentStatus!`, `meta: DeploymentMeta` (JSON scalar), `canRedeploy: Boolean!`, `canRollback: Boolean!`, `statusUpdatedAt`, `environmentId!`, `serviceId`.                                                                                                                                                                                                                     |
 | `deploymentRollback`              | `(id: String!) -> Boolean!`                                                                            | **Docs drift**: the docs example selects `{ id status }`, but the live schema returns `Boolean!`. Consequence: after a rollback the new active deployment ID must be re-resolved via the `deployments` query (filter `status: { successfulOnly: true }`, first: 1) and its `meta.commitHash` verified — the mutation result cannot carry the ID. Docs banner: rollback is only valid when the target reports `canRollback: true`. |
 | `deploymentRedeploy`              | `(id: String!, usePreviousImageTag: Boolean) -> Deployment!`                                           | Returns the new `Deployment` object directly (`{ id status }` selectable).                                                                                                                                                                                                                                                                                                                                                        |
-| `deployments`                     | `(input: DeploymentListInput!, first: Int) -> connection`                                              | Documented reuse/preflight query: filter by `projectId`, `serviceId`, `environmentId`, `status: { successfulOnly: true }`.                                                                                                                                                                                                                                                                                                        |
+| `deployments`                     | `(after: String, before: String, first: Int, input: DeploymentListInput!, last: Int) -> connection`    | Refreshed by unauthenticated live introspection on 2026-08-29. The original 2026-08-28 row omitted connection pagination arguments. Documented reuse/preflight query filters by `projectId`, `serviceId`, `environmentId`, `status: { successfulOnly: true }`.                                                                                                                                                                    |
 | `serviceInstanceAutoDeployStatus` | `(projectId: String!, environmentId: String!, serviceId: String!) -> ServiceInstanceAutoDeployStatus!` | Readback used by the preflight gate (above). Not yet on the docs pages; present in the live public schema.                                                                                                                                                                                                                                                                                                                        |
 
 `serviceInstanceRedeploy(serviceId!, environmentId!) -> Boolean!` and
 `environmentTriggersDeploy` also exist; the helper does not use them (exact-SHA
 control requires `serviceInstanceDeployV2`).
+
+## Pagination evidence refresh (2026-08-29)
+
+Unauthenticated live introspection of `Query.deployments` returned arguments
+`after`, `before`, `first`, `input`, and `last`. Railway's current official
+GraphQL pagination guide independently shows the same
+`deployments(input: $input, first: $first, after: $after)` shape with
+`pageInfo.hasNextPage` and `pageInfo.endCursor`.
+
+This supersedes only the truncated `deployments` signature recorded on
+2026-08-28. PR #1452's P1 review comment treating `after` as unsupported is
+disposed as stale/incomplete evidence; no runtime query change is required.
+Production dispatch remains HOLD and must still re-prove authenticated preflight
+behavior against its exact target before mutation.
 
 ## DeploymentStatus enum (13 values, introspected)
 
@@ -84,6 +105,8 @@ prerequisites" item 1) verified at each dispatch by exact-SHA matching.
 
 ## Documentation sources
 
+- https://docs.railway.com/integrations/api/graphql-overview (Relay-style
+  pagination; `deployments` example with `first`, `after`, and `pageInfo`)
 - https://docs.railway.com/integrations/api/manage-services (deploy a service,
   `serviceInstanceDeployV2` with `commitSha`, redeploy)
 - https://docs.railway.com/integrations/api/manage-deployments (deployment
