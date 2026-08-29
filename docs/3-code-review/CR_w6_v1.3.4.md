@@ -117,15 +117,15 @@ None.
 ### Suggestions
 
 - **WATCH #1: ambiguous staged Vercel deployment discovery** —
-  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:138`,
-  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:145`.
+  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:141`,
+  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:148`.
   Remains intentionally open because `--skip-domain` contains canonical traffic
   impact. **Disposition: accepted open observation.**
 
 - **WATCH #4: confirmed-true rollback discovery reads the first successful
   deployment** —
-  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:141`,
-  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:181`.
+  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:144`,
+  `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:184`.
   Remains intentionally open as a fail-closed false-negative risk, not
   demonstrated unsafe success. **Disposition: accepted open observation.**
 
@@ -149,9 +149,9 @@ None.
 All PR #1452 implementation findings requiring remediation are addressed. PR
 #1453 documentation admission remains pending a fresh external final-head
 review. WATCH #1 and WATCH #4 remain explicitly open by accepted plan decision
-at `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:229`;
+at `.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:234`;
 production dispatch remains HOLD and separately authorized at
-`.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:235`.
+`.agents/research/2026-08-29-bug-echo-release-mutation-containment.md:261`.
 
 ---
 
