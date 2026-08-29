@@ -11,20 +11,20 @@ last_updated: 2026-08-29
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 761 |
-| Stale Documents | 482 |
-| Missing Frontmatter | 91 |
+| Total Documents | 764 |
+| Stale Documents | 480 |
+| Missing Frontmatter | 90 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 185 |
+| UNKNOWN | 184 |
+| HISTORICAL | 36 |
 | DRAFT | 35 |
-| HISTORICAL | 33 |
 | VERIFIED | 13 |
-| REFERENCE | 9 |
+| REFERENCE | 10 |
 | INDEXED | 6 |
 | ready | 3 |
 | COMPLETE | 3 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/design/implementation/action-scope-grammar.md` | Never | 999 | No | Unassigned |
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 
-*...and 432 more stale documents.*
+*...and 430 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -127,7 +127,6 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (222 days old)
 - [ ] **.claude/testing/seed-script-remaining-fixes.md** (222 days old)
 - [ ] **ANTI_PATTERNS.md** (222 days old)
-- [ ] **CHANGELOG.md** (26 days old)
 - [ ] **COMPREHENSIVE-WORKFLOW-GUIDE.md** (222 days old)
 - [ ] **ITERATION-A-QUICKSTART.md** (222 days old)
 - [ ] **MIGRATION-NATIVE-MEMORY.md** (222 days old)
@@ -289,7 +288,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`
 - [ ] `docs/superpowers/specs/2026-07-30-task163-go-readiness-briefs.md`
 - [ ] `docs/tooling-catalog.md`
-- [ ] `docs/workflows/railway-provider-contract-evidence-f132.md`
 
 ---
 

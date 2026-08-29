@@ -1,6 +1,7 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-03
+audience: both
+last_updated: 2026-08-29
 owner: Core Team
 review_cadence: P7D
 ---
@@ -20,6 +21,25 @@ and this project adheres to
 > governance/infrastructure changes only.
 
 ## [Unreleased]
+
+### Fixed (2026-08-29)
+
+- **Release mutation containment remediation (F_1.3.4, PR #1452).** The F_1.3.2
+  Railway release helpers gain one absolute run deadline (default 35 minutes,
+  threaded through the live-main fence, every GraphQL request, every poll, and
+  recovery) and fail-closed deployment-identity reconciliation: pre-mutation
+  deployment-ID snapshots with bounded discovery, novel-identity resolution to
+  exactly one fully verified deployment ID (never by SHA, ordering, or
+  timestamp), rollback ambiguity resolved only by same-prior transition or
+  single novel prior-commit proof with the attempted deployment read back
+  terminally inactive, and first-service recovery blocked until the failed
+  service's attempted deployment is proven terminally inactive. Pagination state
+  is validated before mutation, causal reconciliation errors are preserved
+  sanitized, `validate-target` is pinned to a 15-minute timeout, and the
+  exact-candidate evidence report is committed and digest-bound. ADR-089
+  addendum (2026-08-29) in `DECISIONS.md`; release record
+  `docs/2-changelog/w6_v1.3.4.md`; review `docs/3-code-review/CR_w6_v1.3.4.md`.
+  Production dispatch remains HOLD.
 
 ### Added (2026-08-28)
 
