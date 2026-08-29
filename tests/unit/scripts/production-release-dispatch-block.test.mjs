@@ -107,10 +107,11 @@ describe('production release dispatch block', () => {
   });
 
   it('pins the PowerShell dispatcher to exact live main before invoking GitHub CLI', async () => {
-    const script = await readFile(
-      path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
-      'utf8'
-    );
+    // .gitattributes materializes this file with CRLF on checkout; normalize
+    // so multi-line substring pins hold on both LF and CRLF working copies.
+    const script = (
+      await readFile(path.join(process.cwd(), 'scripts', 'deploy-production.ps1'), 'utf8')
+    ).replaceAll('\r\n', '\n');
 
     // The former mechanical block is superseded by the governed exact-SHA
     // dispatcher (Child F G4 hardening); its full contract is asserted in
