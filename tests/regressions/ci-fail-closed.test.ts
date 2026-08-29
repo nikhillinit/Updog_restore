@@ -5013,6 +5013,8 @@ describe('required CI fails closed', () => {
       }).join('\n');
       expect(g4OperatorScripts).toContain('operator-evidence-bundle.mjs decode');
       expect(g4OperatorScripts).toContain('operator-evidence');
+      expect(g4OperatorScripts).toContain('operator_evidence_b64 is required in full mode.');
+      expect(g4OperatorScripts).toContain('MODE');
       expect(g4OperatorScripts).not.toContain('not valid base64');
       expect(g4OperatorScripts).not.toContain('not decode to valid JSON');
       expect(g4OperatorScripts).toContain('--mode operator');
@@ -5299,7 +5301,7 @@ describe('required CI fails closed', () => {
       expect(dispatchInputs?.mode?.required).toBe(false);
       expect(dispatchInputs?.mode?.description).toMatch(/full.*complete release/i);
       expect(dispatchInputs?.mode?.description).toMatch(/railway-workers-only.*exact SHA/i);
-      expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
+      expect(dispatchInputs?.operator_evidence_b64?.required).toBe(false);
       expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
       expect(dispatchInputs?.baseline_evidence_b64?.required).toBe(true);
       expect(dispatchInputs?.baseline_evidence_b64?.type).toBe('string');

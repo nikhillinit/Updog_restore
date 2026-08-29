@@ -1,8 +1,7 @@
 # Code Review: Governed Production Release Path
 
-**Review Date**: 2026-08-28  
-**Version**: 1.3.2 (plan F_1.3.2; package version remains 1.6.0)  
-**Files Reviewed**:
+**Review Date**: 2026-08-28 **Version**: 1.3.2 (plan F_1.3.2; package version
+remains 1.6.0) **Files Reviewed**:
 
 - `.github/workflows/release-production.yml`
 - `CHANGELOG.md`

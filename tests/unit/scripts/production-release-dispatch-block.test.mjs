@@ -122,7 +122,12 @@ describe('production release dispatch block', () => {
     );
     expect(script).toContain("[ValidateSet('full', 'railway-workers-only')]");
     expect(script).toContain("[string] $Mode = 'full'");
+    expect(script).toContain('[Parameter(Mandatory = $false)]\n    [string] $FundHealthPath');
+    expect(script).toContain("$operatorEvidenceB64 = ''");
+    expect(script).toContain("if ($Mode -eq 'full')");
+    expect(script).toContain('All four operator evidence files are required in full mode.');
     expect(script).toContain('mode = $Mode');
+    expect(script).toContain('operator_evidence_b64 = $operatorEvidenceB64');
     expect(script).not.toMatch(/\bSkipSmokeTest\b|\bForce\b/);
   });
 });

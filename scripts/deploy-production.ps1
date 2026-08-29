@@ -1,20 +1,16 @@
 # Dispatch governed production release for exact live main.
 
 param(
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
+    [Parameter(Mandatory = $false)]
     [string] $FundHealthPath,
 
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
+    [Parameter(Mandatory = $false)]
     [string] $FundReadyPath,
 
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
+    [Parameter(Mandatory = $false)]
     [string] $CapitalHealthPath,
 
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
+    [Parameter(Mandatory = $false)]
     [string] $CapitalReadyPath,
 
     [Parameter(Mandatory = $true)]
@@ -137,21 +133,31 @@ if ($expectedSha -notmatch "^[0-9a-f]{40}$") {
     exit 1
 }
 
-$operatorEvidenceLines = @(
-    node scripts/release/operator-evidence-bundle.mjs encode `
-        --fund-health $FundHealthPath `
-        --fund-ready $FundReadyPath `
-        --capital-health $CapitalHealthPath `
-        --capital-ready $CapitalReadyPath
-)
-if ($LASTEXITCODE -ne 0 -or $operatorEvidenceLines.Count -ne 1) {
-    Write-Error "Operator evidence codec must emit exactly one base64 line."
-    exit 1
-}
-$operatorEvidenceB64 = ([string] $operatorEvidenceLines[0]).Trim()
-if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.Contains("`n") -or $operatorEvidenceB64.Contains("`r")) {
-    Write-Error "Operator evidence codec returned empty or multiline output."
-    exit 1
+$operatorEvidenceB64 = ''
+if ($Mode -eq 'full') {
+    foreach ($evidencePath in @($FundHealthPath, $FundReadyPath, $CapitalHealthPath, $CapitalReadyPath)) {
+        if ([string]::IsNullOrWhiteSpace($evidencePath) -or -not (Test-Path -LiteralPath $evidencePath -PathType Leaf)) {
+            Write-Error "All four operator evidence files are required in full mode."
+            exit 1
+        }
+    }
+
+    $operatorEvidenceLines = @(
+        node scripts/release/operator-evidence-bundle.mjs encode `
+            --fund-health $FundHealthPath `
+            --fund-ready $FundReadyPath `
+            --capital-health $CapitalHealthPath `
+            --capital-ready $CapitalReadyPath
+    )
+    if ($LASTEXITCODE -ne 0 -or $operatorEvidenceLines.Count -ne 1) {
+        Write-Error "Operator evidence codec must emit exactly one base64 line."
+        exit 1
+    }
+    $operatorEvidenceB64 = ([string] $operatorEvidenceLines[0]).Trim()
+    if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.Contains("`n") -or $operatorEvidenceB64.Contains("`r")) {
+        Write-Error "Operator evidence codec returned empty or multiline output."
+        exit 1
+    }
 }
 
 # Exact baseline identity travels as one compact base64 JSON input; the

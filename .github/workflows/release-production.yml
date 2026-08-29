@@ -21,7 +21,7 @@ on:
       operator_evidence_b64:
         description: Base64-encoded redacted fund and capital worker health/readiness evidence
         type: string
-        required: true
+        required: false
       baseline_evidence_b64:
         description: Base64-encoded exact pre-merge baseline identity (run, attempt, artifact, digests; rollback PR pair in rollback mode)
         type: string
@@ -1268,8 +1268,13 @@ jobs:
         id: decode_operator_evidence
         env:
           OPERATOR_EVIDENCE_B64: ${{ inputs.operator_evidence_b64 }}
+          MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
+          if [[ "$MODE" != "railway-workers-only" && -z "${OPERATOR_EVIDENCE_B64//[[:space:]]/}" ]]; then
+            echo "::error::operator_evidence_b64 is required in full mode."
+            exit 1
+          fi
           CAPTURED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           OPERATOR_EVIDENCE_B64="$OPERATOR_EVIDENCE_B64" \
             node scripts/release/operator-evidence-bundle.mjs decode \

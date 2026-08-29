@@ -88,6 +88,7 @@ function deploymentResponse({
   serviceId = serviceIdForDeployment(id),
   environmentId = 'environment-1',
   deploymentStopped = false,
+  instances = [{ id: `instance-${id}`, status: 'RUNNING' }],
 } = {}) {
   return {
     data: {
@@ -100,6 +101,7 @@ function deploymentResponse({
         serviceId,
         environmentId,
         deploymentStopped,
+        instances,
       },
     },
   };
@@ -282,7 +284,21 @@ describe('deploy-railway-workers', () => {
       environmentId: 'environment-1',
       commitSha: SHA,
     });
-    const reuseRequest = requests.find(({ body }) => requestKind(body.query) === 'deployments');
+    const inFlightRequest = requests.find(
+      ({ body }) => requestKind(body.query) === 'deployments' &&
+        body.variables.input.status === undefined
+    );
+    expect(inFlightRequest.body.variables).toEqual({
+      input: {
+        projectId: 'project-1',
+        serviceId: 'service-fund',
+        environmentId: 'environment-1',
+      },
+    });
+    const reuseRequest = requests.find(
+      ({ body }) => requestKind(body.query) === 'deployments' &&
+        body.variables.input.status?.successfulOnly === true
+    );
     expect(reuseRequest.body.variables).toEqual({
       input: {
         projectId: 'project-1',
@@ -295,6 +311,7 @@ describe('deploy-railway-workers', () => {
     expect(deploymentRequest.body.query).toContain('serviceId');
     expect(deploymentRequest.body.query).toContain('environmentId');
     expect(deploymentRequest.body.query).toContain('deploymentStopped');
+    expect(deploymentRequest.body.query).toContain('instances');
   });
 
   it.each([
@@ -571,6 +588,7 @@ describe('deploy-railway-workers', () => {
       serviceName: 'fund-scenario-calc',
       role: 'unconfirmed',
       deploymentId: 'unconfirmed-fund',
+      status: 'SUCCESS',
     });
     const reconciliation = serviceCalls(calls, 'deployments').find((call) =>
       call.operation.includes('reconcile deploy')
@@ -583,6 +601,74 @@ describe('deploy-railway-workers', () => {
         serviceId: env.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID,
         environmentId: env.RAILWAY_ENVIRONMENT_ID,
       },
+    });
+  });
+
+  it('records reconciliation failure while preserving the original mutation error', async () => {
+    const env = environment();
+    const { transport } = makeTransport(env, SHA, {
+      deploy: () => ({ errors: [{ message: 'mutation resolver failed' }] }),
+      deployments: (request) => request.operation.includes('reconcile deploy')
+        ? { errors: [{ message: 'reconciliation unavailable' }] }
+        : { data: { deployments: { edges: [] } } },
+    });
+
+    const result = await deployRailwayWorkers(deployOptions(env, transport));
+
+    expect(result).toMatchObject({
+      overall: 'BLOCKED',
+      error: { code: 'GRAPHQL_ERROR' },
+      reconciliation: {
+        reconciliation: 'FAILED',
+        error: { code: 'GRAPHQL_ERROR' },
+      },
+    });
+  });
+
+  it('fails closed on an in-flight deployment before mutation', async () => {
+    const env = environment();
+    const { transport, calls } = makeTransport(env, SHA, {
+      deployments: (request) => request.operation.includes('in-flight')
+        ? {
+            data: {
+              deployments: {
+                edges: [{ node: { id: 'in-flight-fund', status: 'DEPLOYING' } }],
+              },
+            },
+          }
+        : { data: { deployments: { edges: [] } } },
+    });
+
+    const result = await deployRailwayWorkers(deployOptions(env, transport));
+
+    expect(result).toMatchObject({
+      overall: 'BLOCKED',
+      error: { code: 'DEPLOYMENT_IN_FLIGHT' },
+    });
+    expect(serviceCalls(calls, 'deploy')).toHaveLength(0);
+  });
+
+  it('waits for a running instance and fails distinctly when none becomes ready', async () => {
+    const env = environment();
+    const { transport } = makeTransport(env, SHA, {
+      deployment: (request) => deploymentResponse({
+        id: request.variables.id,
+        instances: [],
+      }),
+    });
+    let currentTime = 0;
+
+    const result = await deployRailwayWorkers(deployOptions(env, transport, {
+      timeoutMs: 25,
+      now: () => currentTime,
+      sleep: vi.fn(async (milliseconds) => {
+        currentTime += milliseconds;
+      }),
+    }));
+
+    expect(result).toMatchObject({
+      overall: 'BLOCKED',
+      error: { code: 'DEPLOYMENT_INSTANCE_NOT_READY' },
     });
   });
 
@@ -680,7 +766,9 @@ describe('deploy-railway-workers', () => {
       },
       deployment: (request) => request.variables.id === 'old-fund'
         ? deploymentResponse({ id: 'old-fund', commitHash: OLD_SHA, canRollback: true })
-        : deploymentResponse({ id: request.variables.id, commitHash: SHA }),
+        : request.variables.id === 'rollback-fund'
+          ? deploymentResponse({ id: 'rollback-fund', commitHash: OLD_SHA })
+          : deploymentResponse({ id: request.variables.id, commitHash: SHA }),
     });
 
     const result = await deployRailwayWorkers(
@@ -772,7 +860,9 @@ describe('deploy-railway-workers', () => {
         : { data: { serviceInstanceDeployV2: 'new-fund' } },
       deployment: (request) => request.variables.id === 'old-fund'
         ? deploymentResponse({ id: 'old-fund', commitHash: OLD_SHA, canRollback: true })
-        : deploymentResponse({ id: request.variables.id, commitHash: SHA }),
+        : request.variables.id === 'rollback-fund'
+          ? deploymentResponse({ id: 'rollback-fund', commitHash: OLD_SHA })
+          : deploymentResponse({ id: request.variables.id, commitHash: SHA }),
     });
 
     const result = await deployRailwayWorkers(deployOptions(env, transport));
