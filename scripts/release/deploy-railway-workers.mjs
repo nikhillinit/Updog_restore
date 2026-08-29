@@ -11,6 +11,13 @@ const SHA = /^[a-f0-9]{40}$/;
 const DRY_RUN_TOKEN = 'dry-run-token';
 const execFileAsync = promisify(execFile);
 const TERMINAL_FAILURE_STATUSES = new Set(['FAILED', 'CRASHED', 'REMOVED', 'SKIPPED']);
+const TERMINAL_INACTIVE_INSTANCE_STATUSES = new Set([
+  'CRASHED',
+  'EXITED',
+  'REMOVED',
+  'SKIPPED',
+  'STOPPED',
+]);
 const IN_PROGRESS_STATUSES = new Set([
   'BUILDING',
   'DEPLOYING',
@@ -18,12 +25,15 @@ const IN_PROGRESS_STATUSES = new Set([
   'NEEDS_APPROVAL',
   'QUEUED',
   'REMOVING',
+  'RESTARTING',
   'WAITING',
 ]);
-const TERMINAL_STATUSES = new Set(['SUCCESS', ...TERMINAL_FAILURE_STATUSES]);
+// ponytail: cap discovery at 100 pages/500 deployments; raise only with a provider paging contract and matching bounded-scan tests.
+const MAX_DEPLOYMENT_DISCOVERY_PAGES = 100;
+const MAX_DEPLOYMENT_DISCOVERY_RESULTS = 500;
 
 export const DEFAULT_DEPLOYMENT_INTERVAL_MS = 15_000;
-export const DEFAULT_DEPLOYMENT_TIMEOUT_MS = 10 * 60_000;
+export const DEFAULT_DEPLOYMENT_TIMEOUT_MS = 35 * 60_000;
 export const DEPLOYMENT_EXIT_CODES = Object.freeze({
   SUCCESS: 0,
   BLOCKED: 1,
@@ -62,9 +72,10 @@ const DEPLOYMENTS_QUERY = `query railwayDeployments($input: DeploymentListInput!
     edges { node { id status meta canRedeploy canRollback } }
   }
 }`;
-const RECENT_DEPLOYMENTS_QUERY = `query railwayRecentDeployments($input: DeploymentListInput!) {
-  deployments(input: $input, first: 5) {
+const RECENT_DEPLOYMENTS_QUERY = `query railwayRecentDeployments($input: DeploymentListInput!, $after: String) {
+  deployments(input: $input, first: 5, after: $after) {
     edges { node { id status meta canRedeploy canRollback } }
+    pageInfo { hasNextPage endCursor }
   }
 }`;
 const DEPLOYMENT_QUERY = `query railwayDeployment($id: String!) {
@@ -99,19 +110,65 @@ class DeployFailure extends Error {
   }
 }
 
-export async function fetchLiveMainSha({ execFileImpl = execFileAsync } = {}) {
+export async function fetchLiveMainSha({
+  execFileImpl = execFileAsync,
+  deadlineAt,
+  now = Date.now,
+} = {}) {
   if (typeof execFileImpl !== 'function') {
     throw new Error('execFile must be a function');
   }
-  const result = await execFileImpl(
-    'git',
-    ['ls-remote', 'origin', 'refs/heads/main'],
-    { encoding: 'utf8' }
-  );
+  const options = { encoding: 'utf8' };
+  let timeoutMs;
+  if (deadlineAt !== undefined) {
+    if (!Number.isFinite(deadlineAt)) {
+      throw new DeployFailure('INVALID_ARGUMENT', 'git ls-remote deadline must be finite');
+    }
+    timeoutMs = Math.ceil(deadlineAt - now());
+    if (timeoutMs <= 0) {
+      throw new DeployFailure(
+        'MAIN_REFENCE_UNAVAILABLE',
+        'git ls-remote deadline exceeded before spawn'
+      );
+    }
+    options.timeout = timeoutMs;
+  }
+
+  let result;
+  try {
+    result = await execFileImpl(
+      'git',
+      ['ls-remote', 'origin', 'refs/heads/main'],
+      options
+    );
+  } catch (error) {
+    let outcome = 'failed before completion';
+    if (error?.code === 'ETIMEDOUT' || error?.killed) {
+      outcome = timeoutMs === undefined ? 'timed out' : `timed out after ${timeoutMs}ms`;
+    } else if (Number.isInteger(error?.code)) {
+      outcome = `exited with code ${error.code}`;
+    } else if (typeof error?.signal === 'string') {
+      outcome = `terminated by signal ${error.signal}`;
+    }
+    throw new DeployFailure('MAIN_REFENCE_UNAVAILABLE', `git ls-remote ${outcome}`);
+  }
+
+  if (deadlineAt !== undefined && now() >= deadlineAt) {
+    throw new DeployFailure(
+      'MAIN_REFENCE_UNAVAILABLE',
+      timeoutMs === undefined
+        ? 'git ls-remote deadline exceeded'
+        : `git ls-remote timed out after ${timeoutMs}ms`
+    );
+  }
+
   const stdout = typeof result === 'string' ? result : result?.stdout;
   const match = String(stdout ?? '').trim().match(/^([a-f0-9]{40})\s+refs\/heads\/main$/);
   if (!match) {
-    throw new Error('git ls-remote did not return a valid refs/heads/main SHA');
+    throw new DeployFailure(
+      'MAIN_REFENCE_UNAVAILABLE',
+      'git ls-remote returned invalid refs/heads/main output'
+    );
   }
   return match[1];
 }
@@ -148,7 +205,10 @@ function assertPayload(payload, operation, token) {
   return payload;
 }
 
-async function request(config, { operation, query, variables }) {
+async function request(config, { operation, query, variables, deadlineAt }) {
+  if (!Number.isFinite(deadlineAt)) {
+    throw new DeployFailure('INVALID_ARGUMENT', `${operation} requires an absolute deadline`);
+  }
   try {
     const payload = await config.transport({
       token: config.token,
@@ -156,6 +216,8 @@ async function request(config, { operation, query, variables }) {
       variables,
       fetchImpl: config.fetchImpl,
       operation,
+      deadlineAt,
+      now: config.now,
     });
     return assertPayload(payload, operation, config.token);
   } catch (error) {
@@ -218,7 +280,14 @@ function createDryRunTransport(expectedSha, config) {
       };
     }
     if (query.includes('deployments(')) {
-      return { data: { deployments: { edges: [] } } };
+      return {
+        data: {
+          deployments: {
+            edges: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      };
     }
     if (query.includes('serviceInstanceDeployV2')) {
       return { data: { serviceInstanceDeployV2: `dry-run-${variables.serviceId}` } };
@@ -299,16 +368,10 @@ function serviceEntries(config) {
   }));
 }
 
-async function assertNoInFlightDeployments(config, service) {
+async function assertNoInFlightDeployments(config, service, deadlineAt) {
   const operation = `Railway in-flight fence ${service.name}`;
-  const payload = await request(config, {
-    operation,
-    query: RECENT_DEPLOYMENTS_QUERY,
-    variables: { input: recentDeploymentInput(config, service) },
-  });
-  const inFlight = deploymentNodes(payload, operation).find((deployment) =>
-    IN_PROGRESS_STATUSES.has(deployment.status)
-  );
+  const deployments = await listRecentDeployments(config, service, operation, deadlineAt);
+  const inFlight = deployments.find((deployment) => IN_PROGRESS_STATUSES.has(deployment.status));
   if (inFlight) {
     throw new DeployFailure(
       'DEPLOYMENT_IN_FLIGHT',
@@ -318,7 +381,7 @@ async function assertNoInFlightDeployments(config, service) {
   }
 }
 
-async function checkMainReference(config, service, state) {
+async function checkMainReference(config, service, state, deadlineAt) {
   const check = { serviceName: service.name, status: 'PENDING' };
   state.mainReferenceCheck = check;
   if (config.dryRun) {
@@ -331,6 +394,8 @@ async function checkMainReference(config, service, state) {
       expectedSha: config.expectedSha,
       serviceName: service.name,
       execFileImpl: config.execFileImpl,
+      deadlineAt,
+      now: config.now,
     });
     if (typeof liveMainSha !== 'string' || !SHA.test(liveMainSha)) {
       throw new DeployFailure(
@@ -358,11 +423,12 @@ async function checkMainReference(config, service, state) {
   }
 }
 
-async function preflight(config, service) {
+async function preflight(config, service, deadlineAt) {
   const scope = await request(config, {
     operation: 'Railway scope',
     query: PROJECT_SCOPE_QUERY,
     variables: {},
+    deadlineAt,
   });
   const projectToken = scope.data?.projectToken;
   if (
@@ -376,6 +442,7 @@ async function preflight(config, service) {
     operation: 'Railway topology',
     query: TOPOLOGY_QUERY,
     variables: { projectId: config.projectId, environmentId: config.environmentId },
+    deadlineAt,
   });
   const instances = topology.data?.environment?.serviceInstances;
   if (
@@ -409,6 +476,7 @@ async function preflight(config, service) {
         environmentId: config.environmentId,
         serviceId: service.serviceId,
       },
+      deadlineAt,
     });
     const status = autodeploy.data?.serviceInstanceAutoDeployStatus;
     if (status?.enabled !== false) {
@@ -419,7 +487,7 @@ async function preflight(config, service) {
     }
   }
 
-  await assertNoInFlightDeployments(config, service);
+  await assertNoInFlightDeployments(config, service, deadlineAt);
 }
 
 function deploymentInput(config, service) {
@@ -455,11 +523,110 @@ function deploymentNodes(payload, operation) {
   });
 }
 
-async function findSuccessfulDeployment(config, service, operation) {
+function deploymentPage(payload, operation, observeDeployment) {
+  const connection = payload.data?.deployments;
+  const nodes = deploymentNodes(payload, operation);
+  for (const deployment of nodes) observeDeployment?.(deployment);
+  const pageInfo = connection?.pageInfo;
+  if (!pageInfo || typeof pageInfo.hasNextPage !== 'boolean') {
+    throw new DeployFailure('INVALID_RESPONSE', `${operation} deployment pageInfo is malformed`);
+  }
+  if (
+    pageInfo.hasNextPage &&
+    (typeof pageInfo.endCursor !== 'string' || pageInfo.endCursor === '')
+  ) {
+    throw new DeployFailure('INVALID_RESPONSE', `${operation} deployment endCursor is missing`);
+  }
+  return { nodes, pageInfo };
+}
+
+async function listRecentDeployments(
+  config,
+  service,
+  operation,
+  deadlineAt,
+  observeDeployment
+) {
+  const deployments = [];
+  const cursors = new Set();
+  let after;
+  let pageCount = 0;
+
+  while (true) {
+    if (config.now() >= deadlineAt) {
+      throw new DeployFailure(
+        'DEPLOYMENT_DEADLINE_EXCEEDED',
+        `${operation} deployment discovery exceeded the run deadline`
+      );
+    }
+    const payload = await request(config, {
+      operation,
+      query: RECENT_DEPLOYMENTS_QUERY,
+      variables: {
+        input: recentDeploymentInput(config, service),
+        ...(after ? { after } : {}),
+      },
+      deadlineAt,
+    });
+    pageCount += 1;
+    const { nodes, pageInfo } = deploymentPage(payload, operation, observeDeployment);
+    deployments.push(...nodes);
+    if (deployments.length > MAX_DEPLOYMENT_DISCOVERY_RESULTS) {
+      throw new DeployFailure(
+        'DEPLOYMENT_DISCOVERY_LIMIT',
+        `${operation} deployment discovery exceeded ${MAX_DEPLOYMENT_DISCOVERY_RESULTS} deployments`
+      );
+    }
+    if (config.now() >= deadlineAt) {
+      throw new DeployFailure(
+        'DEPLOYMENT_DEADLINE_EXCEEDED',
+        `${operation} deployment discovery exceeded the run deadline`
+      );
+    }
+    if (!pageInfo.hasNextPage) return deployments;
+    if (cursors.has(pageInfo.endCursor)) {
+      throw new DeployFailure('INVALID_RESPONSE', `${operation} deployment cursor repeated`);
+    }
+    if (
+      pageCount >= MAX_DEPLOYMENT_DISCOVERY_PAGES ||
+      deployments.length >= MAX_DEPLOYMENT_DISCOVERY_RESULTS
+    ) {
+      throw new DeployFailure(
+        'DEPLOYMENT_DISCOVERY_LIMIT',
+        `${operation} deployment discovery exceeded ${MAX_DEPLOYMENT_DISCOVERY_PAGES} pages or ${MAX_DEPLOYMENT_DISCOVERY_RESULTS} deployments`
+      );
+    }
+    cursors.add(pageInfo.endCursor);
+    after = pageInfo.endCursor;
+  }
+}
+
+async function snapshotDeploymentIds(config, service, deadlineAt) {
+  const deployments = await listRecentDeployments(
+    config,
+    service,
+    `Railway pre-mutation snapshot ${service.name}`,
+    deadlineAt
+  );
+  const ids = new Set();
+  for (const deployment of deployments) {
+    if (typeof deployment?.id !== 'string' || deployment.id.trim() === '') {
+      throw new DeployFailure(
+        'INVALID_RESPONSE',
+        `Railway pre-mutation snapshot for ${service.name} contains a deployment without an ID`
+      );
+    }
+    ids.add(deployment.id);
+  }
+  return ids;
+}
+
+async function findSuccessfulDeployment(config, service, operation, deadlineAt) {
   const payload = await request(config, {
     operation,
     query: DEPLOYMENTS_QUERY,
     variables: { input: deploymentInput(config, service) },
+    deadlineAt,
   });
   const [deployment] = deploymentNodes(payload, operation);
   if (deployment === undefined) return undefined;
@@ -477,92 +644,152 @@ function isExactActiveDeployment(deployment, expectedSha) {
   );
 }
 
-async function reconcileAmbiguousDeployment(config, service, handles) {
+async function reconcileAmbiguousDeployment(
+  config,
+  service,
+  handles,
+  preMutationDeploymentIds,
+  deadlineAt
+) {
   const operation = `Railway reconcile deploy ${service.name}`;
-  const payload = await request(config, {
-    operation,
-    query: RECENT_DEPLOYMENTS_QUERY,
-    variables: { input: recentDeploymentInput(config, service) },
-  });
-  for (const deployment of deploymentNodes(payload, operation)) {
-    if (deployment.meta?.commitHash === config.expectedSha) {
-      const handle = rememberHandle(handles, service.name, 'unconfirmed', deployment.id);
-      if (!handle) {
-        throw new DeployFailure(
-          'INVALID_RESPONSE',
-          `${operation} found an exact-SHA deployment without an ID`
-        );
-      }
-      const finalDeployment = await waitForTerminalDeployment(
-        config,
-        service,
-        deployment.id,
-        `${operation} ${deployment.id}`
-      );
-      handle.status = finalDeployment.status;
-    }
-  }
-}
+  const maxAttempts = Math.max(
+    1,
+    Math.ceil(Math.max(0, deadlineAt - config.now()) / config.intervalMs) + 1
+  );
+  let attempts = 0;
+  // Novelty accumulates across attempts: a candidate that later disappears from
+  // the listing still counts against the exactly-one requirement.
+  const observedNovelIds = new Set();
 
-async function waitForTerminalDeployment(config, service, deploymentId, operation) {
-  const startedAt = config.now();
-  const deadline = startedAt + config.timeoutMs;
-  let lastStatus;
+  const unresolvedFailure = (message) =>
+    new DeployFailure('RECONCILIATION_IDENTITY_UNRESOLVED', message, {
+      deploymentIds: [...observedNovelIds],
+    });
 
   while (true) {
-    const deployment = await readDeployment(config, service, deploymentId, operation);
-    lastStatus = deployment.status;
-    if (TERMINAL_STATUSES.has(deployment.status)) return deployment;
-    if (!IN_PROGRESS_STATUSES.has(deployment.status)) {
-      throw new DeployFailure(
-        'RECONCILIATION_UNEXPECTED_STATUS',
-        `${operation} returned unexpected status ${deployment.status}`,
-        { deploymentId, deploymentStatus: deployment.status }
+    if (config.now() >= deadlineAt) {
+      throw unresolvedFailure(
+        `${operation} did not prove exactly one novel ready deployment before timeout`
       );
+    }
+    attempts += 1;
+    const deployments = await listRecentDeployments(
+      config,
+      service,
+      operation,
+      deadlineAt,
+      (deployment) =>
+        rememberObservedNovelDeployment(
+          deployment,
+          preMutationDeploymentIds,
+          observedNovelIds,
+          handles,
+          service,
+          'unconfirmed'
+        )
+    );
+    const listedNovelDeployments = new Map();
+
+    for (const deployment of deployments) {
+      if (typeof deployment?.id !== 'string' || deployment.id.trim() === '') {
+        throw unresolvedFailure(
+          `${operation} observed a novel deployment with an invalid identity`
+        );
+      }
+      if (preMutationDeploymentIds.has(deployment.id)) continue;
+      if (!listedNovelDeployments.has(deployment.id)) {
+        listedNovelDeployments.set(deployment.id, deployment);
+      }
+    }
+
+    if (observedNovelIds.size > 1) {
+      throw unresolvedFailure(`${operation} observed multiple novel deployment identities`);
+    }
+
+    if (observedNovelIds.size === 1) {
+      const [novelId] = observedNovelIds;
+      const listed = listedNovelDeployments.get(novelId);
+      if (listed === undefined) {
+        throw unresolvedFailure(
+          `${operation} novel deployment ${novelId} disappeared from discovery`
+        );
+      }
+      if (listed.meta?.commitHash !== config.expectedSha) {
+        throw unresolvedFailure(
+          `${operation} candidate ${novelId} does not match the expected SHA`
+        );
+      }
+      let readback;
+      try {
+        readback = await readDeployment(
+          config,
+          service,
+          novelId,
+          `${operation} ${novelId}`,
+          deadlineAt
+        );
+      } catch (error) {
+        throw new DeployFailure(
+          'RECONCILIATION_IDENTITY_UNRESOLVED',
+          `${operation} candidate ${novelId} identity could not be verified`,
+          {
+            deploymentId: novelId,
+            reconciliationError: failureSummary(error, config.token),
+          }
+        );
+      }
+      const handle = rememberHandle(handles, service.name, 'unconfirmed', novelId);
+      if (handle) handle.status = readback.status;
+      if (isReadyDeployment(readback, config.expectedSha)) return readback;
+      const stillConverging =
+        IN_PROGRESS_STATUSES.has(readback.status) ||
+        (readback.status === 'SUCCESS' &&
+          readback.deploymentStopped === false &&
+          !hasRunningInstance(readback));
+      if (!stillConverging) {
+        throw unresolvedFailure(`${operation} candidate ${novelId} did not fully verify`);
+      }
     }
 
     const currentTime = config.now();
-    if (currentTime >= deadline) {
-      throw new DeployFailure(
-        'RECONCILIATION_TIMEOUT',
-        `${operation} did not reach a terminal status before timeout`,
-        { deploymentId, deploymentStatus: lastStatus }
+    if (currentTime >= deadlineAt || attempts >= maxAttempts) {
+      throw unresolvedFailure(
+        `${operation} did not prove exactly one novel ready deployment before timeout`
       );
     }
-    await config.sleep(Math.min(config.intervalMs, deadline - currentTime));
+    await config.sleep(Math.min(config.intervalMs, deadlineAt - currentTime));
   }
 }
 
-async function waitForRollbackRecovery(config, service, expectedCommitHash, handles) {
+async function waitForRollbackRecovery(config, service, expectedCommitHash, handles, deadlineAt) {
   const operation = `Railway rollback resolution ${service.name}`;
-  const startedAt = config.now();
-  const deadline = startedAt + config.timeoutMs;
 
   while (true) {
-    const resolved = await findSuccessfulDeployment(config, service, operation);
+    const resolved = await findSuccessfulDeployment(config, service, operation, deadlineAt);
     if (resolved && resolved.meta?.commitHash === expectedCommitHash) {
       rememberHandle(handles, service.name, 'recovery', resolved.id);
-      const readback = await readDeployment(config, service, resolved.id, operation);
+      const readback = await readDeployment(config, service, resolved.id, operation, deadlineAt);
       if (isReadyDeployment(readback, expectedCommitHash)) return readback;
     }
 
     const currentTime = config.now();
-    if (currentTime >= deadline) {
+    if (currentTime >= deadlineAt) {
       throw new DeployFailure(
         'RECOVERY_BLOCKED',
         `Railway rollback for ${service.name} did not resolve a ready prior deployment before timeout`,
         { deploymentStatus: resolved?.status }
       );
     }
-    await config.sleep(Math.min(config.intervalMs, deadline - currentTime));
+    await config.sleep(Math.min(config.intervalMs, deadlineAt - currentTime));
   }
 }
 
-async function readDeployment(config, service, deploymentId, operation) {
+async function readDeployment(config, service, deploymentId, operation, deadlineAt) {
   const payload = await request(config, {
     operation,
     query: DEPLOYMENT_QUERY,
     variables: { id: deploymentId },
+    deadlineAt,
   });
   const deployment = payload.data?.deployment;
   if (!deployment || typeof deployment !== 'object' || deployment.id !== deploymentId) {
@@ -581,9 +808,12 @@ async function readDeployment(config, service, deploymentId, operation) {
   return deployment;
 }
 
-async function waitForDeployment(config, service, deploymentId, expectedSha) {
+async function waitForDeployment(config, service, deploymentId, expectedSha, deadlineAt) {
   const startedAt = config.now();
-  const deadline = startedAt + config.timeoutMs;
+  if (!Number.isFinite(deadlineAt)) {
+    throw new DeployFailure('INVALID_ARGUMENT', 'Railway deployment requires an absolute deadline');
+  }
+  const deadline = deadlineAt;
   let attempts = 0;
   let successWithoutRunningInstance = false;
 
@@ -593,7 +823,8 @@ async function waitForDeployment(config, service, deploymentId, expectedSha) {
       config,
       service,
       deploymentId,
-      `Railway deployment ${service.name}`
+      `Railway deployment ${service.name}`,
+      deadline
     );
     if (deployment.status === 'SUCCESS') {
       if (deployment.deploymentStopped !== false) {
@@ -662,6 +893,30 @@ function isReadyDeployment(deployment, expectedSha) {
   );
 }
 
+function isTerminallyInactiveDeployment(deployment) {
+  return (
+    Array.isArray(deployment.instances) &&
+    deployment.instances.every(
+      (instance) =>
+        typeof instance?.id === 'string' &&
+        instance.id.trim() !== '' &&
+        TERMINAL_INACTIVE_INSTANCE_STATUSES.has(instance.status)
+    ) &&
+    !hasRunningInstance(deployment) &&
+    ((deployment.status === 'SUCCESS' && deployment.deploymentStopped === true) ||
+      TERMINAL_FAILURE_STATUSES.has(deployment.status))
+  );
+}
+
+function shouldPollRecoveryDeployment(deployment) {
+  return (
+    IN_PROGRESS_STATUSES.has(deployment.status) ||
+    (deployment.status === 'SUCCESS' &&
+      deployment.deploymentStopped === false &&
+      !hasRunningInstance(deployment))
+  );
+}
+
 function rememberHandle(handles, serviceName, role, deploymentId) {
   if (typeof deploymentId !== 'string' || deploymentId.trim() === '') return;
   const existing = handles.find(
@@ -678,11 +933,27 @@ function rememberHandle(handles, serviceName, role, deploymentId) {
   return handle;
 }
 
-async function deployService(config, service, state, handles) {
+function rememberObservedNovelDeployment(
+  deployment,
+  preMutationDeploymentIds,
+  observedNovelIds,
+  handles,
+  service,
+  role
+) {
+  if (typeof deployment?.id !== 'string' || deployment.id.trim() === '') return;
+  if (preMutationDeploymentIds.has(deployment.id)) return;
+  observedNovelIds.add(deployment.id);
+  const handle = rememberHandle(handles, service.name, role, deployment.id);
+  if (handle && typeof deployment.status === 'string') handle.status = deployment.status;
+}
+
+async function deployService(config, service, state, handles, deadlineAt) {
   const prior = await findSuccessfulDeployment(
     config,
     service,
-    `Railway reuse ${service.name}`
+    `Railway reuse ${service.name}`,
+    deadlineAt
   );
   if (prior) {
     state.priorDeploymentId = prior.id;
@@ -694,16 +965,46 @@ async function deployService(config, service, state, handles) {
       config,
       service,
       prior.id,
-      `Railway reuse verification ${service.name}`
+      `Railway reuse verification ${service.name}`,
+      deadlineAt
     );
     if (candidate && isExactActiveDeployment(candidate, config.expectedSha)) {
-      await waitForDeployment(config, service, candidate.id, config.expectedSha);
+      await waitForDeployment(config, service, candidate.id, config.expectedSha, deadlineAt);
       state.deploymentId = candidate.id;
       state.reused = true;
       state.status = 'SUCCESS';
       return;
     }
   }
+
+  const reconcile = async (originalFailure) => {
+    try {
+      const deployment = await reconcileAmbiguousDeployment(
+        config,
+        service,
+        handles,
+        preMutationDeploymentIds,
+        deadlineAt
+      );
+      state.reconciliation = {
+        reconciliation: 'RESOLVED',
+        deploymentId: deployment.id,
+        originalError: failureSummary(originalFailure, config.token),
+      };
+      state.newDeploymentId = deployment.id;
+      state.deploymentId = deployment.id;
+      state.status = 'SUCCESS';
+    } catch (reconciliationError) {
+      state.reconciliation = {
+        reconciliation: 'UNRESOLVED',
+        originalError: failureSummary(originalFailure, config.token),
+        error: failureSummary(reconciliationError, config.token),
+      };
+      throw reconciliationError;
+    }
+  };
+
+  const preMutationDeploymentIds = await snapshotDeploymentIds(config, service, deadlineAt);
 
   let payload;
   try {
@@ -715,42 +1016,373 @@ async function deployService(config, service, state, handles) {
         environmentId: config.environmentId,
         commitSha: config.expectedSha,
       },
+      deadlineAt,
     });
   } catch (error) {
-    try {
-      await reconcileAmbiguousDeployment(config, service, handles);
-    } catch (reconciliationError) {
-      state.reconciliation = {
-        reconciliation: 'FAILED',
-        error: failureSummary(reconciliationError, config.token),
-      };
-    }
-    throw error;
+    await reconcile(error);
+    return;
   }
+
   const deploymentId = payload.data?.serviceInstanceDeployV2;
   if (typeof deploymentId !== 'string' || deploymentId.trim() === '') {
-    const originalFailure = new DeployFailure(
-      'DEPLOYMENT_ID_MISSING',
-      `Railway deploy ${service.name} did not return a deployment ID`
+    await reconcile(
+      new DeployFailure(
+        'DEPLOYMENT_ID_MISSING',
+        `Railway deploy ${service.name} did not return a deployment ID`
+      )
     );
-    try {
-      await reconcileAmbiguousDeployment(config, service, handles);
-    } catch (reconciliationError) {
-      state.reconciliation = {
-        reconciliation: 'FAILED',
-        error: failureSummary(reconciliationError, config.token),
-      };
-    }
-    throw originalFailure;
+    return;
+  }
+  if (preMutationDeploymentIds.has(deploymentId)) {
+    throw new DeployFailure(
+      'DEPLOYMENT_ID_NOT_NOVEL',
+      `Railway deploy ${service.name} returned a deployment ID from the pre-mutation snapshot`,
+      { deploymentId }
+    );
   }
   state.newDeploymentId = deploymentId;
   state.deploymentId = deploymentId;
   rememberHandle(handles, service.name, 'new', deploymentId);
-  await waitForDeployment(config, service, deploymentId, config.expectedSha);
+  await waitForDeployment(config, service, deploymentId, config.expectedSha, deadlineAt);
   state.status = 'SUCCESS';
 }
 
-async function recoverService(config, service, state, handles) {
+async function snapshotRollbackState(config, service, priorDeploymentId, expectedCommitHash, deadlineAt) {
+  const deploymentIds = await snapshotDeploymentIds(
+    config,
+    service,
+    deadlineAt
+  );
+  const prior = await readDeployment(
+    config,
+    service,
+    priorDeploymentId,
+    `Railway rollback pre-mutation ${service.name}`,
+    deadlineAt
+  );
+  return {
+    deploymentIds,
+    prior,
+    priorReady: isReadyDeployment(prior, expectedCommitHash),
+  };
+}
+
+async function reconcileNovelRecoveryDeployment(
+  config,
+  service,
+  handles,
+  preMutationDeploymentIds,
+  expectedCommitHash,
+  deadlineAt
+) {
+  const operation = `Railway recovery resolution ${service.name}`;
+  const maxAttempts = Math.max(
+    1,
+    Math.ceil(Math.max(0, deadlineAt - config.now()) / config.intervalMs) + 1
+  );
+  const observedNovelIds = new Set();
+  let attempts = 0;
+
+  const unresolvedFailure = (message, details = {}) =>
+    new DeployFailure('RECOVERY_RECONCILIATION_UNRESOLVED', message, {
+      ...details,
+      deploymentIds: [...observedNovelIds],
+    });
+
+  while (true) {
+    if (config.now() >= deadlineAt) {
+      throw unresolvedFailure(
+        `${operation} did not prove exactly one novel ready recovery deployment before timeout`
+      );
+    }
+    attempts += 1;
+
+    let deployments;
+    try {
+      deployments = await listRecentDeployments(
+        config,
+        service,
+        operation,
+        deadlineAt,
+        (deployment) =>
+          rememberObservedNovelDeployment(
+            deployment,
+            preMutationDeploymentIds,
+            observedNovelIds,
+            handles,
+            service,
+            'recovery'
+          )
+      );
+    } catch (error) {
+      throw unresolvedFailure(`${operation} deployment discovery failed`, {
+        reconciliationError: failureSummary(error, config.token),
+      });
+    }
+
+    const listedNovelDeployments = new Map();
+    for (const deployment of deployments) {
+      if (typeof deployment?.id !== 'string' || deployment.id.trim() === '') {
+        throw unresolvedFailure(`${operation} observed a recovery deployment with an invalid identity`);
+      }
+      if (preMutationDeploymentIds.has(deployment.id)) continue;
+      if (!listedNovelDeployments.has(deployment.id)) {
+        listedNovelDeployments.set(deployment.id, deployment);
+      }
+    }
+
+    if (observedNovelIds.size > 1) {
+      throw unresolvedFailure(`${operation} observed multiple novel recovery deployment identities`);
+    }
+    if (observedNovelIds.size === 0) {
+      const currentTime = config.now();
+      if (currentTime >= deadlineAt || attempts >= maxAttempts) {
+        throw unresolvedFailure(
+          `${operation} did not observe a novel recovery deployment before timeout`
+        );
+      }
+      await config.sleep(Math.min(config.intervalMs, deadlineAt - currentTime));
+      continue;
+    }
+
+    const [recoveryDeploymentId] = observedNovelIds;
+    const listed = listedNovelDeployments.get(recoveryDeploymentId);
+    if (listed === undefined) {
+      throw unresolvedFailure(
+        `${operation} novel recovery deployment ${recoveryDeploymentId} disappeared from discovery`
+      );
+    }
+    if (listed.meta?.commitHash !== expectedCommitHash) {
+      throw unresolvedFailure(
+        `${operation} candidate ${recoveryDeploymentId} does not match the prior commit SHA`
+      );
+    }
+
+    let readback;
+    try {
+      readback = await readDeployment(
+        config,
+        service,
+        recoveryDeploymentId,
+        `${operation} ${recoveryDeploymentId}`,
+        deadlineAt
+      );
+    } catch (error) {
+      throw unresolvedFailure(
+        `${operation} candidate ${recoveryDeploymentId} identity could not be verified`,
+        {
+          deploymentId: recoveryDeploymentId,
+          reconciliationError: failureSummary(error, config.token),
+        }
+      );
+    }
+    const handle = rememberHandle(handles, service.name, 'recovery', recoveryDeploymentId);
+    if (handle) handle.status = readback.status;
+    if (isReadyDeployment(readback, expectedCommitHash)) return readback;
+    if (!shouldPollRecoveryDeployment(readback)) {
+      throw unresolvedFailure(
+        `${operation} candidate ${recoveryDeploymentId} did not fully verify`,
+        { deploymentId: recoveryDeploymentId, deploymentStatus: readback.status }
+      );
+    }
+
+    const currentTime = config.now();
+    if (currentTime >= deadlineAt || attempts >= maxAttempts) {
+      throw unresolvedFailure(
+        `${operation} candidate ${recoveryDeploymentId} did not become ready before timeout`,
+        { deploymentId: recoveryDeploymentId, deploymentStatus: readback.status }
+      );
+    }
+    await config.sleep(Math.min(config.intervalMs, deadlineAt - currentTime));
+  }
+}
+
+async function reconcileAmbiguousRollback(
+  config,
+  service,
+  state,
+  handles,
+  preMutationState,
+  expectedCommitHash,
+  deadlineAt
+) {
+  const operation = `Railway rollback resolution ${service.name}`;
+  const maxAttempts = Math.max(
+    1,
+    Math.ceil(Math.max(0, deadlineAt - config.now()) / config.intervalMs) + 1
+  );
+  const observedNovelIds = new Set();
+  let attempts = 0;
+
+  const unresolvedFailure = (message, details = {}) =>
+    new DeployFailure('RECOVERY_RECONCILIATION_UNRESOLVED', message, {
+      ...details,
+      deploymentIds: [...observedNovelIds],
+    });
+
+  while (true) {
+    if (config.now() >= deadlineAt) {
+      throw unresolvedFailure(
+        `${operation} did not prove one valid rollback recovery before timeout`
+      );
+    }
+    attempts += 1;
+
+    let deployments;
+    try {
+      deployments = await listRecentDeployments(
+        config,
+        service,
+        operation,
+        deadlineAt,
+        (deployment) =>
+          rememberObservedNovelDeployment(
+            deployment,
+            preMutationState.deploymentIds,
+            observedNovelIds,
+            handles,
+            service,
+            'recovery'
+          )
+      );
+    } catch (error) {
+      throw unresolvedFailure(`${operation} deployment discovery failed`, {
+        reconciliationError: failureSummary(error, config.token),
+      });
+    }
+
+    const listedNovelDeployments = new Map();
+    for (const deployment of deployments) {
+      if (typeof deployment?.id !== 'string' || deployment.id.trim() === '') {
+        throw unresolvedFailure(`${operation} observed a recovery deployment with an invalid identity`);
+      }
+      if (preMutationState.deploymentIds.has(deployment.id)) continue;
+      if (!listedNovelDeployments.has(deployment.id)) {
+        listedNovelDeployments.set(deployment.id, deployment);
+      }
+    }
+
+    if (observedNovelIds.size > 1) {
+      throw unresolvedFailure(`${operation} observed multiple novel recovery deployment identities`);
+    }
+
+    let recoveryDeployment;
+    if (observedNovelIds.size === 1) {
+      const [recoveryDeploymentId] = observedNovelIds;
+      const listed = listedNovelDeployments.get(recoveryDeploymentId);
+      if (listed === undefined) {
+        throw unresolvedFailure(
+          `${operation} novel recovery deployment ${recoveryDeploymentId} disappeared from discovery`
+        );
+      }
+      if (listed.meta?.commitHash !== expectedCommitHash) {
+        throw unresolvedFailure(
+          `${operation} candidate ${recoveryDeploymentId} does not match the prior commit SHA`
+        );
+      }
+      let readback;
+      try {
+        readback = await readDeployment(
+          config,
+          service,
+          recoveryDeploymentId,
+          `${operation} ${recoveryDeploymentId}`,
+          deadlineAt
+        );
+      } catch (error) {
+        throw unresolvedFailure(
+          `${operation} candidate ${recoveryDeploymentId} identity could not be verified`,
+          {
+            deploymentId: recoveryDeploymentId,
+            reconciliationError: failureSummary(error, config.token),
+          }
+        );
+      }
+      const handle = rememberHandle(handles, service.name, 'recovery', recoveryDeploymentId);
+      if (handle) handle.status = readback.status;
+      if (isReadyDeployment(readback, expectedCommitHash)) {
+        recoveryDeployment = readback;
+      } else if (!shouldPollRecoveryDeployment(readback)) {
+        throw unresolvedFailure(
+          `${operation} candidate ${recoveryDeploymentId} did not fully verify`,
+          { deploymentId: recoveryDeploymentId, deploymentStatus: readback.status }
+        );
+      }
+    } else if (!preMutationState.priorReady) {
+      let priorReadback;
+      try {
+        priorReadback = await readDeployment(
+          config,
+          service,
+          state.priorDeploymentId,
+          `${operation} prior ${state.priorDeploymentId}`,
+          deadlineAt
+        );
+      } catch (error) {
+        throw unresolvedFailure(`${operation} prior deployment identity could not be verified`, {
+          deploymentId: state.priorDeploymentId,
+          reconciliationError: failureSummary(error, config.token),
+        });
+      }
+      const handle = rememberHandle(handles, service.name, 'recovery', state.priorDeploymentId);
+      if (handle) handle.status = priorReadback.status;
+      if (isReadyDeployment(priorReadback, expectedCommitHash)) {
+        recoveryDeployment = priorReadback;
+      } else if (!shouldPollRecoveryDeployment(priorReadback)) {
+        throw unresolvedFailure(
+          `${operation} intended prior deployment did not fully verify`,
+          { deploymentId: state.priorDeploymentId, deploymentStatus: priorReadback.status }
+        );
+      }
+    } else {
+      throw unresolvedFailure(
+        `${operation} intended prior deployment was already ready before rollback`
+      );
+    }
+
+    if (recoveryDeployment) {
+      if (typeof state.newDeploymentId !== 'string' || state.newDeploymentId.trim() === '') {
+        throw unresolvedFailure(`${operation} has no attempted deployment identity`);
+      }
+      let attemptedReadback;
+      try {
+        attemptedReadback = await readDeployment(
+          config,
+          service,
+          state.newDeploymentId,
+          `${operation} attempted ${state.newDeploymentId}`,
+          deadlineAt
+        );
+      } catch (error) {
+        throw unresolvedFailure(`${operation} attempted deployment identity could not be verified`, {
+          deploymentId: state.newDeploymentId,
+          reconciliationError: failureSummary(error, config.token),
+        });
+      }
+      const attemptedHandle = rememberHandle(handles, service.name, 'new', state.newDeploymentId);
+      if (attemptedHandle) attemptedHandle.status = attemptedReadback.status;
+      if (isTerminallyInactiveDeployment(attemptedReadback)) {
+        return recoveryDeployment;
+      }
+      if (!shouldPollRecoveryDeployment(attemptedReadback)) {
+        throw unresolvedFailure(
+          `${operation} attempted deployment remained active or lacked terminal inactivity proof`,
+          { deploymentId: state.newDeploymentId, deploymentStatus: attemptedReadback.status }
+        );
+      }
+    }
+
+    const currentTime = config.now();
+    if (currentTime >= deadlineAt || attempts >= maxAttempts) {
+      throw unresolvedFailure(
+        `${operation} did not prove one valid rollback recovery before timeout`
+      );
+    }
+    await config.sleep(Math.min(config.intervalMs, deadlineAt - currentTime));
+  }
+}
+
+async function recoverService(config, service, state, handles, deadlineAt) {
   if (!state.priorDeploymentId) {
     throw new DeployFailure(
       'RECOVERY_BLOCKED',
@@ -761,7 +1393,8 @@ async function recoverService(config, service, state, handles) {
     config,
     service,
     state.priorDeploymentId,
-    `Railway recovery prior ${service.name}`
+    `Railway recovery prior ${service.name}`,
+    deadlineAt
   );
   // No status requirement: Railway marks superseded deployments REMOVED once
   // a newer deployment succeeds; canRollback/canRedeploy are the recovery
@@ -775,24 +1408,76 @@ async function recoverService(config, service, state, handles) {
   }
 
   if (prior.canRollback === true) {
-    const rollback = await request(config, {
-      operation: `Railway rollback ${service.name}`,
-      query: ROLLBACK_MUTATION,
-      variables: { id: state.priorDeploymentId },
-    });
+    const preMutationState = await snapshotRollbackState(
+      config,
+      service,
+      state.priorDeploymentId,
+      priorCommitHash,
+      deadlineAt
+    );
+    const reconcileRollback = async (originalError) => {
+      try {
+        const resolved = await reconcileAmbiguousRollback(
+          config,
+          service,
+          state,
+          handles,
+          preMutationState,
+          priorCommitHash,
+          deadlineAt
+        );
+        state.recovery = {
+          method: 'rollback',
+          priorDeploymentId: state.priorDeploymentId,
+          recoveryDeploymentId: resolved.id,
+          terminalStatus: resolved.status,
+          status: 'SUCCESS',
+          originalError: failureSummary(originalError, config.token),
+        };
+        state.status = 'RECOVERED';
+      } catch (reconciliationError) {
+        state.recovery = {
+          status: 'BLOCKED',
+          reconciliation: 'UNRESOLVED',
+          error: failureSummary(reconciliationError, config.token),
+          originalError: failureSummary(originalError, config.token),
+          priorDeploymentId: state.priorDeploymentId,
+          attemptedDeploymentId: state.newDeploymentId,
+        };
+        throw reconciliationError;
+      }
+    };
+
+    let rollback;
+    try {
+      rollback = await request(config, {
+        operation: `Railway rollback ${service.name}`,
+        query: ROLLBACK_MUTATION,
+        variables: { id: state.priorDeploymentId },
+        deadlineAt,
+      });
+    } catch (error) {
+      await reconcileRollback(error);
+      return;
+    }
     if (rollback.data?.deploymentRollback !== true) {
-      throw new DeployFailure('RECOVERY_BLOCKED', `Railway rollback for ${service.name} was not confirmed`);
+      await reconcileRollback(
+        new DeployFailure('RECOVERY_BLOCKED', `Railway rollback for ${service.name} was not confirmed`)
+      );
+      return;
     }
     const resolved = await waitForRollbackRecovery(
       config,
       service,
       priorCommitHash,
-      handles
+      handles,
+      deadlineAt
     );
     state.recovery = {
       method: 'rollback',
       priorDeploymentId: state.priorDeploymentId,
       recoveryDeploymentId: resolved.id,
+      terminalStatus: resolved.status,
       status: 'SUCCESS',
     };
     state.status = 'RECOVERED';
@@ -800,21 +1485,85 @@ async function recoverService(config, service, state, handles) {
   }
 
   if (prior.canRedeploy === true) {
-    const redeploy = await request(config, {
-      operation: `Railway redeploy ${service.name}`,
-      query: REDEPLOY_MUTATION,
-      variables: { id: state.priorDeploymentId },
-    });
+    const preMutationDeploymentIds = await snapshotDeploymentIds(
+      config,
+      service,
+      deadlineAt
+    );
+    const reconcileRedeploy = async (originalError) => {
+      try {
+        const resolved = await reconcileNovelRecoveryDeployment(
+          config,
+          service,
+          handles,
+          preMutationDeploymentIds,
+          priorCommitHash,
+          deadlineAt
+        );
+        state.recovery = {
+          method: 'redeploy',
+          priorDeploymentId: state.priorDeploymentId,
+          recoveryDeploymentId: resolved.id,
+          terminalStatus: resolved.status,
+          status: 'SUCCESS',
+          originalError: failureSummary(originalError, config.token),
+        };
+        state.status = 'RECOVERED';
+      } catch (reconciliationError) {
+        state.recovery = {
+          status: 'BLOCKED',
+          reconciliation: 'UNRESOLVED',
+          error: failureSummary(reconciliationError, config.token),
+          originalError: failureSummary(originalError, config.token),
+          priorDeploymentId: state.priorDeploymentId,
+          attemptedDeploymentId: state.newDeploymentId,
+        };
+        throw reconciliationError;
+      }
+    };
+
+    let redeploy;
+    try {
+      redeploy = await request(config, {
+        operation: `Railway redeploy ${service.name}`,
+        query: REDEPLOY_MUTATION,
+        variables: { id: state.priorDeploymentId },
+        deadlineAt,
+      });
+    } catch (error) {
+      await reconcileRedeploy(error);
+      return;
+    }
     const recoveryDeploymentId = redeploy.data?.deploymentRedeploy?.id;
     if (typeof recoveryDeploymentId !== 'string' || recoveryDeploymentId.trim() === '') {
-      throw new DeployFailure('RECOVERY_BLOCKED', `Railway redeploy for ${service.name} did not return a deployment ID`);
+      await reconcileRedeploy(
+        new DeployFailure(
+          'DEPLOYMENT_ID_MISSING',
+          `Railway redeploy for ${service.name} did not return a deployment ID`
+        )
+      );
+      return;
+    }
+    if (preMutationDeploymentIds.has(recoveryDeploymentId)) {
+      throw new DeployFailure(
+        'DEPLOYMENT_ID_NOT_NOVEL',
+        `Railway redeploy for ${service.name} returned a deployment ID from the pre-mutation snapshot`,
+        { deploymentId: recoveryDeploymentId }
+      );
     }
     rememberHandle(handles, service.name, 'recovery', recoveryDeploymentId);
-    await waitForDeployment(config, service, recoveryDeploymentId, priorCommitHash);
+    const resolved = await waitForDeployment(
+      config,
+      service,
+      recoveryDeploymentId,
+      priorCommitHash,
+      deadlineAt
+    );
     state.recovery = {
       method: 'redeploy',
       priorDeploymentId: state.priorDeploymentId,
       recoveryDeploymentId,
+      terminalStatus: resolved.status,
       status: 'SUCCESS',
     };
     state.status = 'RECOVERED';
@@ -874,10 +1623,18 @@ function makeResult({ overall, expectedSha, dryRun, states, handles, error, reco
 }
 
 function failureSummary(error, token) {
-  return {
+  const summary = {
     code: error?.code ?? 'RAILWAY_DEPLOY_BLOCKED',
     message: safeErrorMessage(error, token),
   };
+  if (typeof error?.deploymentId === 'string') summary.deploymentId = error.deploymentId;
+  if (typeof error?.deploymentStatus === 'string') {
+    summary.deploymentStatus = error.deploymentStatus;
+  }
+  if (error?.reconciliationError && typeof error.reconciliationError === 'object') {
+    summary.reconciliationError = error.reconciliationError;
+  }
+  return summary;
 }
 
 export function parseDeployArgs(args) {
@@ -903,6 +1660,60 @@ export function parseDeployArgs(args) {
   return { expectedSha: requireSha(expectedSha), dryRun };
 }
 
+async function assertFailedServiceInactive(config, service, state, handles, deadlineAt) {
+  if (!state.newDeploymentId) return;
+  let readback;
+  try {
+    readback = await readDeployment(
+      config,
+      service,
+      state.newDeploymentId,
+      `Railway failed-service readback ${service.name}`,
+      deadlineAt
+    );
+  } catch (error) {
+    throw new DeployFailure(
+      'RECOVERY_BLOCKED',
+      `Railway recovery withheld because the ${service.name} attempted deployment could not be read back`,
+      {
+        deploymentId: state.newDeploymentId,
+        readbackError: failureSummary(error, config.token),
+      }
+    );
+  }
+  const handle = rememberHandle(handles, service.name, 'new', state.newDeploymentId);
+  if (handle) handle.status = readback.status;
+  if (!isTerminallyInactiveDeployment(readback)) {
+    throw new DeployFailure(
+      'RECOVERY_BLOCKED',
+      `Railway recovery withheld because the ${service.name} attempted deployment is not terminally inactive`,
+      { deploymentId: state.newDeploymentId, deploymentStatus: readback.status }
+    );
+  }
+}
+
+function canRecoverPreviousService(failedState, error) {
+  if (!failedState) return false;
+  if (
+    failedState.reconciliation?.reconciliation === 'UNRESOLVED' ||
+    failedState.recovery?.reconciliation === 'UNRESOLVED' ||
+    error?.code === 'RECONCILIATION_IDENTITY_UNRESOLVED' ||
+    error?.code === 'RECOVERY_RECONCILIATION_UNRESOLVED' ||
+    error?.code === 'DEPLOYMENT_ID_NOT_NOVEL' ||
+    IN_PROGRESS_STATUSES.has(error?.deploymentStatus)
+  ) {
+    return false;
+  }
+  if (!failedState.newDeploymentId) return failedState.reconciliation === null;
+  if (
+    error?.code === 'DEPLOYMENT_STOPPED' &&
+    error?.deploymentId === failedState.newDeploymentId
+  ) {
+    return true;
+  }
+  return TERMINAL_FAILURE_STATUSES.has(error?.deploymentStatus);
+}
+
 export async function deployRailwayWorkers({
   expectedSha,
   environment = process.env,
@@ -923,6 +1734,7 @@ export async function deployRailwayWorkers({
   let originalFailure;
   let recovery;
   let normalizedExpectedSha;
+  let runDeadlineAt;
 
   try {
     normalizedExpectedSha = requireSha(expectedSha);
@@ -939,12 +1751,13 @@ export async function deployRailwayWorkers({
       now,
       sleep,
     });
+    runDeadlineAt = config.now() + config.timeoutMs;
     for (const [index, service] of serviceEntries(config).entries()) {
       currentIndex = index;
       states[index].serviceId = service.serviceId;
-      await checkMainReference(config, service, states[index]);
-      await preflight(config, service);
-      await deployService(config, service, states[index], handles);
+      await checkMainReference(config, service, states[index], runDeadlineAt);
+      await preflight(config, service, runDeadlineAt);
+      await deployService(config, service, states[index], handles, runDeadlineAt);
     }
     return makeResult({
       overall: 'OK',
@@ -966,21 +1779,48 @@ export async function deployRailwayWorkers({
 
     const firstState = states[0];
     if (config && currentIndex === 1 && firstState.newDeploymentId && !firstState.reused) {
-      try {
-        await recoverService(config, serviceEntries(config)[0], firstState, handles);
-        recovery = firstState.recovery;
-      } catch (recoveryError) {
-        firstState.status = 'BLOCKED';
+      const failedState = states[currentIndex];
+      if (!canRecoverPreviousService(failedState, originalFailure)) {
+        const recoveryError = new DeployFailure(
+          'RECOVERY_BLOCKED',
+          `Railway recovery for ${firstState.serviceName} withheld because ${failedState.serviceName} mutation remains unresolved`
+        );
         recovery = {
           status: 'BLOCKED',
           error: failureSummary(recoveryError, config.token),
           priorDeploymentId: firstState.priorDeploymentId,
           attemptedDeploymentId: firstState.newDeploymentId,
         };
-        originalFailure = new DeployFailure(
-          'RECOVERY_BLOCKED',
-          `${safeErrorMessage(error, config.token)}; recovery failed: ${safeErrorMessage(recoveryError, config.token)}`
-        );
+      } else {
+        try {
+          await assertFailedServiceInactive(
+            config,
+            serviceEntries(config)[currentIndex],
+            failedState,
+            handles,
+            runDeadlineAt
+          );
+          await recoverService(
+            config,
+            serviceEntries(config)[0],
+            firstState,
+            handles,
+            runDeadlineAt
+          );
+          recovery = firstState.recovery;
+        } catch (recoveryError) {
+          firstState.status = 'BLOCKED';
+          recovery = firstState.recovery ?? {
+            status: 'BLOCKED',
+            error: failureSummary(recoveryError, config.token),
+            priorDeploymentId: firstState.priorDeploymentId,
+            attemptedDeploymentId: firstState.newDeploymentId,
+          };
+          originalFailure = new DeployFailure(
+            'RECOVERY_BLOCKED',
+            `${safeErrorMessage(originalFailure, config.token)}; recovery failed: ${safeErrorMessage(recoveryError, config.token)}`
+          );
+        }
       }
     }
 

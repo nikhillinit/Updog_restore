@@ -1,3 +1,5 @@
+import { clearTimeout, setTimeout } from 'node:timers';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -322,5 +324,103 @@ describe('wait-railway-workers', () => {
     expect(fetchImpl.mock.calls[1][1].body).toContain('projectId');
     expect(JSON.stringify(evidence)).not.toContain(token);
     expect(JSON.stringify(evidence)).not.toContain('raw-graphql-sentinel-value');
+  });
+
+  it('passes one absolute poll deadline into each evidence fetch', { retry: 0 }, async () => {
+    const clock = advancingClock();
+    const fetchEvidence = vi.fn().mockResolvedValue(railwayEvidence());
+
+    await expect(
+      pollRailwayWorkers({
+        expectedSha: SHA,
+        protectedTopology: TOPOLOGY,
+        fetchEvidence,
+        intervalMs: 10,
+        timeoutMs: 100,
+        now: clock.now,
+        sleep: clock.sleep,
+      })
+    ).resolves.toMatchObject({ status: 'ready', attempts: 1 });
+
+    expect(fetchEvidence.mock.calls[0]?.[0]).toBe(100);
+  });
+
+  it('forwards one absolute deadline into both Railway GraphQL requests', { retry: 0 }, async () => {
+    const token = 'RAILWAY_TOKEN-secret-value';
+    const fetchImpl = vi.fn(async (_url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.query.includes('projectToken')) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: {
+              projectToken: {
+                project: { id: TOPOLOGY.projectId },
+                environment: { id: TOPOLOGY.environmentId },
+              },
+            },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: { environment: { serviceInstances: { edges: [], pageInfo: { hasNextPage: false } } } },
+        }),
+      };
+    });
+    const deadlineAt = Date.now() + 10_000;
+
+    await expect(fetchRailwayEvidence({ token, fetchImpl, deadlineAt })).resolves.toBeDefined();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.every(([, options]) => options.signal instanceof globalThis.AbortSignal)).toBe(
+      true
+    );
+  });
+
+  it('aborts a never-resolving response body at the poll deadline', { retry: 0 }, async () => {
+    const token = 'RAILWAY_TOKEN-secret-value';
+    let bodyAbortObserved = false;
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            projectToken: {
+              project: { id: TOPOLOGY.projectId },
+              environment: { id: TOPOLOGY.environmentId },
+            },
+          },
+        }),
+      })
+      .mockImplementationOnce(async (_url, options) => ({
+        ok: true,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('body read sentinel')), 50);
+            options.signal?.addEventListener(
+              'abort',
+              () => {
+                bodyAbortObserved = true;
+                clearTimeout(timer);
+                reject(options.signal.reason);
+              },
+              { once: true }
+            );
+          }),
+      }));
+
+    await expect(
+      pollRailwayWorkers({
+        expectedSha: SHA,
+        protectedTopology: TOPOLOGY,
+        fetchEvidence: (deadlineAt) => fetchRailwayEvidence({ token, fetchImpl, deadlineAt }),
+        intervalMs: 1,
+        timeoutMs: 20,
+      })
+    ).rejects.toBeInstanceOf(RailwayWorkersWaitError);
+
+    expect(bodyAbortObserved).toBe(true);
   });
 });

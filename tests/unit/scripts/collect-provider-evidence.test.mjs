@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { lstat, mkdtemp, rm } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -285,5 +285,58 @@ describe('collect-provider-evidence', () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it('forwards one absolute collection deadline to Vercel and Railway requests', { retry: 0 }, async () => {
+    setEnvironment();
+    const fetchImpl = makeFetch();
+
+    await expect(collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: '/tmp/provider-evidence-run-123',
+      deadlineAt: Date.now() + 10_000,
+      fetchImpl,
+      writeFileImpl: vi.fn(),
+    })).resolves.toBeDefined();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl.mock.calls.every(([, options]) => options.signal instanceof globalThis.AbortSignal)).toBe(
+      true
+    );
+  });
+
+  it('rejects an expired collection deadline before the first fetch', { retry: 0 }, async () => {
+    setEnvironment();
+    const fetchImpl = vi.fn();
+
+    await expect(collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: '/tmp/provider-evidence-run-123',
+      deadlineAt: 0,
+      now: () => 1,
+      fetchImpl,
+      writeFileImpl: vi.fn(),
+    })).rejects.toThrow(/deadline/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('keeps the internal collection budget below the two-minute promotion shell timeout', { retry: 0 }, async () => {
+    const { DEFAULT_COLLECTION_TIMEOUT_MS } = await import(
+      '../../../scripts/release/collect-provider-evidence.mjs'
+    );
+    const workflow = await readFile(
+      path.join(process.cwd(), '.github', 'workflows', 'release-production.yml'),
+      'utf8'
+    );
+
+    const callerTimeoutMinutes = Number(
+      workflow.match(
+        /timeout --signal=TERM (\d+)m[\s\S]{0,400}?collect-provider-evidence\.mjs/
+      )?.[1]
+    );
+
+    expect(DEFAULT_COLLECTION_TIMEOUT_MS).toBe(90_000);
+    expect(callerTimeoutMinutes).toBe(2);
+    expect(DEFAULT_COLLECTION_TIMEOUT_MS).toBeLessThan(callerTimeoutMinutes * 60_000);
   });
 });

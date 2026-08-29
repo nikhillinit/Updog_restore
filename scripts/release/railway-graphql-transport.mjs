@@ -15,6 +15,8 @@ export async function postRailwayGraphql({
   variables = {},
   fetchImpl = globalThis.fetch,
   operation = 'Railway GraphQL request',
+  deadlineAt,
+  now = Date.now,
 } = {}) {
   if (typeof token !== 'string' || token.trim() === '') {
     throw new Error('Railway GraphQL token is required');
@@ -26,6 +28,18 @@ export async function postRailwayGraphql({
     throw new Error('fetch is unavailable');
   }
 
+  let signal;
+  if (deadlineAt !== undefined) {
+    if (!Number.isFinite(deadlineAt)) {
+      throw new Error(`${operation} deadline must be finite`);
+    }
+    const remainingMs = Math.ceil(deadlineAt - now());
+    if (remainingMs <= 0) {
+      throw new Error(`${operation} deadline exceeded before network request`);
+    }
+    signal = AbortSignal.timeout(remainingMs);
+  }
+
   let response;
   try {
     response = await fetchImpl(RAILWAY_GRAPHQL_URL, {
@@ -35,8 +49,12 @@ export async function postRailwayGraphql({
         'Project-Access-Token': token,
       },
       body: JSON.stringify({ query, variables }),
+      ...(signal ? { signal } : {}),
     });
   } catch (error) {
+    if (signal?.aborted) {
+      throw new Error(`${operation} deadline exceeded during network request`, { cause: error });
+    }
     throw new Error(`${operation} network request failed: ${safeErrorMessage(error, token)}`, {
       cause: error,
     });
@@ -52,6 +70,9 @@ export async function postRailwayGraphql({
   try {
     payload = await response.json();
   } catch (error) {
+    if (signal?.aborted) {
+      throw new Error(`${operation} deadline exceeded during network request`, { cause: error });
+    }
     throw new Error(`${operation} response was not valid JSON`, { cause: error });
   }
 

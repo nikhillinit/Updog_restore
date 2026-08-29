@@ -90,15 +90,39 @@ One-time owner precondition: disable autodeploy for both worker services in the
 Railway UI. The workflow never mutates the setting; if autodeploy is enabled,
 the readback fails the run closed.
 
+The entire helper run — preflight, both services, readbacks, reconciliation, and
+recovery — shares one absolute run deadline computed once from `timeoutMs`
+(default 35 minutes inside the job's 45-minute cap; the 10-minute difference is
+gross reserve shared by checkout/setup and evidence emission, not guaranteed
+finalization headroom). The live-main fence subprocess, every GraphQL request,
+and every poll and reconciliation loop are bounded by that same deadline; no
+phase mints its own budget.
+
 The helper reuses an active successful exact-SHA deployment when one exists,
 otherwise creates one and waits on the exact returned deployment ID for terminal
-`SUCCESS` with matching `meta.commitHash`. Returned deployment IDs flow as job
-outputs into `railway-workers-verify`, which verifies the expected IDs. On
-second-service failure after first-service mutation, the helper recovers the
-first service by rollback or redeploy as capabilities allow; if recovery cannot
-be verified it returns `BLOCKED` with every deployment handle and promotion
-stays blocked. Reruns are rejected (`GITHUB_RUN_ATTEMPT` must be 1); recovery
-continuation is always a fresh, separately authorized dispatch.
+`SUCCESS` with matching `meta.commitHash`. Immediately before every deploy,
+rollback, and redeploy mutation it snapshots the bounded deployment-ID set
+(100-page/500-deployment discovery ceiling; exhaustion is typed `BLOCKED`, never
+truncated success). A returned mutation ID already present in the snapshot is
+rejected (`DEPLOYMENT_ID_NOT_NOVEL`). A lost or ambiguous deploy or redeploy
+response is reconciled only against novel identity: resolution requires exactly
+one novel deployment ID, fully verified (service/environment, expected SHA, not
+stopped, terminal `SUCCESS`, running instance). An ambiguous rollback (lost
+response, GraphQL error, or unconfirmed Boolean) accepts exactly one of two
+proofs: the same intended prior deployment transitioning non-ready to fully
+ready, or exactly one novel fully verified prior-commit deployment — and in both
+cases the attempted deployment must read back terminally inactive before
+recovery counts as resolved. Anything else stays `UNRESOLVED`/`BLOCKED`
+(`RECONCILIATION_IDENTITY_UNRESOLVED` / `RECOVERY_RECONCILIATION_UNRESOLVED`)
+with every observed handle recorded, and no later provider mutation (including
+first-service recovery) starts while a preceding mutation's identity is
+unresolved or its attempted deployment is not terminally inactive. Returned
+deployment IDs flow as job outputs into `railway-workers-verify`, which verifies
+the expected IDs. On second-service failure after first-service mutation, the
+helper recovers the first service by rollback or redeploy as capabilities allow;
+if recovery cannot be verified it returns `BLOCKED` with every deployment handle
+and promotion stays blocked. Reruns are rejected (`GITHUB_RUN_ATTEMPT` must be
+1); recovery continuation is always a fresh, separately authorized dispatch.
 
 Two-phase operator route (required whenever the candidate SHA changes worker
 code): dispatch phase A with `mode=railway-workers-only` — source-admission

@@ -23,6 +23,8 @@ const REQUIRED_ENVIRONMENT = Object.freeze([
   'RAILWAY_TOKEN',
   'VERCEL_AUTOMATION_BYPASS_SECRET',
 ]);
+export const DEFAULT_COLLECTION_TIMEOUT_MS = 90_000;
+const COLLECTION_TIMEOUT_ENV = 'COLLECTION_TIMEOUT_MS';
 
 function fail(message) {
   throw new Error(`Provider evidence collection failed: ${message}`);
@@ -67,29 +69,67 @@ function assertNoSecret(value, secrets) {
   }
 }
 
-async function responseJson(response, label) {
+async function getJson(fetchImpl, url, options, label) {
+  const { deadlineAt, now } = options;
+  const signal = collectionSignal(deadlineAt, now, label);
+  const requestOptions = { ...options, signal };
+  delete requestOptions.deadlineAt;
+  delete requestOptions.now;
+  let response;
+  try {
+    response = await fetchImpl(url, requestOptions);
+  } catch {
+    if (signal.aborted || now() >= deadlineAt) {
+      fail(`${label} deadline exceeded during request`);
+    }
+    fail(`${label} request failed`);
+  }
   if (!response?.ok || typeof response.json !== 'function') {
     fail(`${label} request failed`);
   }
   try {
     return await response.json();
   } catch {
+    if (signal.aborted || now() >= deadlineAt) {
+      fail(`${label} deadline exceeded during response`);
+    }
     fail(`${label} response is malformed`);
   }
 }
 
-async function getJson(fetchImpl, url, options, label) {
-  let response;
-  try {
-    response = await fetchImpl(url, options);
-  } catch {
-    fail(`${label} request failed`);
+function positiveTimeout(value, label) {
+  const timeoutMs = Number(value);
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    fail(`${label} must be a positive finite number`);
   }
-  try {
-    return await responseJson(response, label);
-  } catch {
-    fail(`${label} request failed`);
+  return Math.ceil(timeoutMs);
+}
+
+function collectionDeadline({ deadlineAt, now, collectionTimeoutMs, environment }) {
+  if (typeof now !== 'function') fail('collection clock is unavailable');
+  if (deadlineAt !== undefined) {
+    if (!Number.isFinite(deadlineAt)) fail('collection deadline must be finite');
+    return deadlineAt;
   }
+  const configuredTimeout =
+    collectionTimeoutMs ?? environment?.[COLLECTION_TIMEOUT_ENV] ?? DEFAULT_COLLECTION_TIMEOUT_MS;
+  const startedAt = now();
+  if (!Number.isFinite(startedAt)) fail('collection clock is invalid');
+  return startedAt + positiveTimeout(configuredTimeout, 'collection timeout');
+}
+
+function remainingCollectionMs(deadlineAt, now, label) {
+  if (!Number.isFinite(deadlineAt)) fail(`${label} deadline must be finite`);
+  const currentTime = now();
+  if (!Number.isFinite(currentTime)) fail(`${label} clock is invalid`);
+  const remainingMs = Math.ceil(deadlineAt - currentTime);
+  if (remainingMs <= 0) fail(`${label} deadline exceeded before request`);
+  return remainingMs;
+}
+
+function collectionSignal(deadlineAt, now, label) {
+  const remainingMs = remainingCollectionMs(deadlineAt, now, label);
+  return globalThis.AbortSignal.timeout(remainingMs);
 }
 
 async function writeEvidence(writeFileImpl, outputDirectory, filename, value, secrets) {
@@ -106,6 +146,9 @@ export async function collectProviderEvidence({
   outputDirectory,
   fetchImpl = globalThis.fetch,
   writeFileImpl = writeFile,
+  deadlineAt,
+  now = Date.now,
+  collectionTimeoutMs,
 } = {}) {
   if (typeof fetchImpl !== 'function') fail('fetch is unavailable');
   if (typeof writeFileImpl !== 'function') fail('file writer is unavailable');
@@ -118,17 +161,32 @@ export async function collectProviderEvidence({
   const secrets = [vercelToken, railwayToken, bypassSecret];
   const { url, host } = parseDeploymentUrl(deploymentUrl);
   const safeOutputDirectory = assertSafePath(outputDirectory, secrets);
+  const collectionDeadlineAt = collectionDeadline({
+    deadlineAt,
+    now,
+    collectionTimeoutMs,
+    environment,
+  });
+  remainingCollectionMs(collectionDeadlineAt, now, 'Provider evidence collection');
 
   const deployment = await getJson(
     fetchImpl,
     `${VERCEL_API_URL}/v13/deployments/${host}?teamId=${encodeURIComponent(vercelOrgId)}`,
-    { headers: { Authorization: `Bearer ${vercelToken}` } },
+    {
+      headers: { Authorization: `Bearer ${vercelToken}` },
+      deadlineAt: collectionDeadlineAt,
+      now,
+    },
     'Vercel deployment'
   );
   const version = await getJson(
     fetchImpl,
     new URL('/api/version', url).toString(),
-    { headers: { 'x-vercel-protection-bypass': bypassSecret } },
+    {
+      headers: { 'x-vercel-protection-bypass': bypassSecret },
+      deadlineAt: collectionDeadlineAt,
+      now,
+    },
     'Vercel version'
   );
   const vercelEvidence = normalizeVercelEvidence(
@@ -143,8 +201,11 @@ export async function collectProviderEvidence({
       token: railwayToken,
       query: PROJECT_SCOPE_QUERY,
       operation: 'Railway scope',
+      deadlineAt: collectionDeadlineAt,
+      now,
     });
-  } catch {
+  } catch (error) {
+    if (/deadline/i.test(error?.message ?? '')) fail(error.message);
     fail('Railway scope request failed');
   }
   const projectId = scope.data?.projectToken?.project?.id;
@@ -160,8 +221,11 @@ export async function collectProviderEvidence({
       query: SERVICE_INSTANCES_QUERY,
       variables: { projectId, environmentId },
       operation: 'Railway topology',
+      deadlineAt: collectionDeadlineAt,
+      now,
     });
-  } catch {
+  } catch (error) {
+    if (/deadline/i.test(error?.message ?? '')) fail(error.message);
     fail('Railway topology request failed');
   }
   const railwayEvidence = normalizeRailwayResponse({

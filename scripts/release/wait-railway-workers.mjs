@@ -250,7 +250,7 @@ export async function pollRailwayWorkers({
   }
 
   const startedAt = now();
-  const deadline = startedAt + timeoutMs;
+  const deadlineAt = startedAt + timeoutMs;
   let attempts = 0;
   let observedSkew = false;
   let lastError;
@@ -259,7 +259,7 @@ export async function pollRailwayWorkers({
     attempts += 1;
     try {
       const evaluation = evaluateRailwayEvidence(
-        await fetchEvidence(),
+        await fetchEvidence(deadlineAt),
         sha,
         protectedTopology,
         deploymentIds
@@ -274,8 +274,8 @@ export async function pollRailwayWorkers({
     }
 
     const currentTime = now();
-    if (currentTime >= deadline) break;
-    await sleep(Math.min(intervalMs, deadline - currentTime));
+    if (currentTime >= deadlineAt) break;
+    await sleep(Math.min(intervalMs, deadlineAt - currentTime));
   }
 
   if (observedSkew) {
@@ -299,7 +299,11 @@ export async function pollRailwayWorkers({
   );
 }
 
-export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch } = {}) {
+export async function fetchRailwayEvidence({
+  token,
+  fetchImpl = globalThis.fetch,
+  deadlineAt,
+} = {}) {
   if (typeof token !== 'string' || token.trim() === '') {
     throw new Error('RAILWAY_TOKEN is required');
   }
@@ -312,6 +316,7 @@ export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch
     token,
     query: PROJECT_SCOPE_QUERY,
     operation: 'Railway scope',
+    deadlineAt,
   });
   const projectToken = scope.data?.projectToken;
   if (
@@ -331,6 +336,7 @@ export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch
       environmentId: projectToken.environment.id,
     },
     operation: 'Railway topology',
+    deadlineAt,
   });
   const evidence = normalizeRailwayResponse({
     data: {
@@ -353,7 +359,7 @@ async function main() {
   const token = process.env.RAILWAY_TOKEN;
   const result = await pollRailwayWorkers({
     ...options,
-    fetchEvidence: () => fetchRailwayEvidence({ token }),
+    fetchEvidence: (deadlineAt) => fetchRailwayEvidence({ token, deadlineAt }),
   });
   console.log(
     JSON.stringify({
