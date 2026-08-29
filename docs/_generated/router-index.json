@@ -4381,6 +4381,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/1-plans/F_1.3.4_release-mutation-containment-remediation.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/1-plans/F_1.4.0_post-activation-epics.plan.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -4507,6 +4519,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/2-changelog/w6_v1.3.4.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/2-changelog/w6_v2.0.2.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -4592,6 +4616,18 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/3-code-review/CR_w6_v1.3.2.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/3-code-review/CR_w6_v1.3.4.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -14695,14 +14731,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 185,
+      "UNKNOWN": 188,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 91,
-    "stale_docs": 482,
-    "total_docs": 761
+    "missing_frontmatter": 94,
+    "stale_docs": 485,
+    "total_docs": 764
   },
   "version": "2.0"
 }

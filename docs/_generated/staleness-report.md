@@ -11,16 +11,16 @@ last_updated: 2026-08-29
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 761 |
-| Stale Documents | 482 |
-| Missing Frontmatter | 91 |
+| Total Documents | 764 |
+| Stale Documents | 485 |
+| Missing Frontmatter | 94 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 185 |
+| UNKNOWN | 188 |
 | DRAFT | 35 |
 | HISTORICAL | 33 |
 | VERIFIED | 13 |
@@ -67,9 +67,11 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.3.1_governance-right-sizing.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.3.4_release-mutation-containment-remediation.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w5_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v1.3.2.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w6_v1.3.4.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.2.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.3.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.4.md` | Never | 999 | YES - verify! | Unassigned |
@@ -78,6 +80,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w5_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_F_1.7.0-C1A.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v1.3.2.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w6_v1.3.4.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.1.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.2.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.3.md` | Never | 999 | No | Unassigned |
@@ -93,11 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 | `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
 | `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
-| `docs/audits/F_1.2.4-transaction-reachability-audit.md` | Never | 999 | No | Unassigned |
-| `docs/design/implementation/action-scope-grammar.md` | Never | 999 | No | Unassigned |
-| `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 
-*...and 432 more stale documents.*
+*...and 435 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -140,6 +140,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/1-plans/F_1.2.6_g3-critical-merge-unblock.plan.md** (999 days old)
 - [ ] **docs/2-changelog/w6_v2.0.4.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w5_v1.6.0.md** (999 days old)
+- [ ] **docs/3-code-review/CR_w6_v1.3.4.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w6_v2.0.2.md** (999 days old)
 - [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (222 days old)
 - [ ] **docs/CA-SEMANTIC-LOCK.md** (222 days old)
@@ -220,9 +221,11 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md`
 - [ ] `docs/1-plans/F_1.3.1_governance-right-sizing.plan.md`
 - [ ] `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md`
+- [ ] `docs/1-plans/F_1.3.4_release-mutation-containment-remediation.plan.md`
 - [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
 - [ ] `docs/2-changelog/w5_v1.6.0.md`
 - [ ] `docs/2-changelog/w6_v1.3.2.md`
+- [ ] `docs/2-changelog/w6_v1.3.4.md`
 - [ ] `docs/2-changelog/w6_v2.0.2.md`
 - [ ] `docs/2-changelog/w6_v2.0.3.md`
 - [ ] `docs/2-changelog/w6_v2.0.4.md`
@@ -231,6 +234,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w5_v1.6.0.md`
 - [ ] `docs/3-code-review/CR_w6_F_1.7.0-C1A.md`
 - [ ] `docs/3-code-review/CR_w6_v1.3.2.md`
+- [ ] `docs/3-code-review/CR_w6_v1.3.4.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.1.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.2.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.3.md`
