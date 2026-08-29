@@ -5271,6 +5271,16 @@ describe('required CI fails closed', () => {
       expect(validateTargetStep?.run).toContain(
         "log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
       );
+      const operatorEvidenceValidation = validateTarget?.steps?.find(
+        (step) => step.name === 'Validate attested operator evidence before provider mutation'
+      );
+      expect(operatorEvidenceValidation?.if).toBe("${{ inputs.mode == 'full' }}");
+      expect(operatorEvidenceValidation?.env).toEqual({
+        OPERATOR_EVIDENCE_B64: '${{ inputs.operator_evidence_b64 }}',
+      });
+      expect(operatorEvidenceValidation?.run).toContain(
+        'node scripts/release/operator-evidence-bundle.mjs decode'
+      );
       expect(normalizeNeeds(releaseWorkflow.jobs?.['release-proof']?.needs)).toEqual([
         'validate-target',
       ]);
@@ -5829,6 +5839,21 @@ describe('required CI fails closed', () => {
           'continue-on-error': step['continue-on-error'],
         }))
       ).toEqual([
+        {
+          name: 'Checkout exact release validator',
+          if: "${{ inputs.mode == 'full' }}",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Setup Node environment',
+          if: "${{ inputs.mode == 'full' }}",
+          'continue-on-error': undefined,
+        },
+        {
+          name: 'Validate attested operator evidence before provider mutation',
+          if: "${{ inputs.mode == 'full' }}",
+          'continue-on-error': undefined,
+        },
         {
           name: 'Remove baseline context evidence',
           if: 'always()',
@@ -7497,5 +7522,19 @@ describe('required CI fails closed', () => {
     );
     expect(terminalStep?.run).toContain('[[ "$PROOF_CONCLUSION" == success ]]');
     expect(jobs['credential-provenance']).toBeUndefined();
+  });
+
+  it('keeps the 35-minute Railway helper default inside the 45-minute job with gross reserve', async () => {
+    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } = await import(
+      '../../scripts/release/deploy-railway-workers.mjs'
+    );
+    const workflow = await readWorkflow('release-production.yml');
+    const railwayDeploy = workflow.jobs?.['railway-workers-deploy'];
+    const helperBudgetMs = DEFAULT_DEPLOYMENT_TIMEOUT_MS;
+    const jobBudgetMs = Number(railwayDeploy?.['timeout-minutes']) * 60_000;
+
+    expect(helperBudgetMs).toBe(35 * 60_000);
+    expect(railwayDeploy?.['timeout-minutes']).toBe(45);
+    expect(jobBudgetMs - helperBudgetMs).toBe(10 * 60_000);
   });
 });

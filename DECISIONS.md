@@ -11574,6 +11574,30 @@ separately. Characterize live rollback/redeploy behavior at the first authorized
 dispatch and revalidate the dated provider observations in
 `docs/workflows/PRODUCTION_SCRIPTS.md` at the exact candidate.
 
+### Addendum (2026-08-29, F_1.3.4): run-level deadline and novel-identity reconciliation
+
+The per-phase budget model this ADR shipped (each of preflight, deploy, and
+recovery minting its own `timeoutMs` window) is superseded. The helper now
+computes one absolute run deadline from `timeoutMs` (default 35 minutes inside
+the unchanged 45-minute job cap; the difference is gross reserve, not guaranteed
+finalization headroom) and threads it through the live-main fence subprocess,
+every GraphQL request, every poll, and recovery. Mutation identity is proven by
+snapshot difference: immediately before each deploy, rollback, and redeploy the
+helper snapshots the bounded deployment-ID set (100-page/500-deployment
+discovery ceiling, exhaustion typed `BLOCKED`); a returned ID present in the
+snapshot is rejected. A lost or ambiguous deploy or redeploy response resolves
+only to exactly one fully verified novel deployment ID — never by SHA, ordering,
+or timestamp. An ambiguous rollback accepts exactly one of two proofs — the same
+intended prior deployment transitioning non-ready to fully ready, or exactly one
+novel fully verified prior-commit deployment — and in both cases requires the
+attempted deployment read back terminally inactive. Unresolved identity blocks
+every later provider mutation, and first-service recovery additionally requires
+the failed service's attempted deployment read back terminally inactive. The
+verification poll and the provider evidence/recovery-context collectors carry
+their own absolute deadlines (90-second collection default under the two-minute
+promotion shell timeout; two-minute network git-fetch budget under the capture
+job cap).
+
 ### No authority boundary
 
 This ADR authorizes no merge, deployment, provider action, environment access,

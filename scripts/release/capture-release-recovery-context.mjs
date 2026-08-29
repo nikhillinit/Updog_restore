@@ -25,6 +25,7 @@ const VERCEL_HOST = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/;
 const GITHUB_REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const RAILWAY_API_URL = 'https://backboard.railway.com/graphql/v2';
 const PROVIDER_TIMEOUT_MS = 15_000;
+export const DEFAULT_GIT_FETCH_TIMEOUT_MS = 2 * 60_000;
 const execFileAsync = promisify(execFile);
 
 function fail(message) {
@@ -332,7 +333,7 @@ function assertSafeVercelDeploymentUrl(value) {
   }
   let url;
   try {
-    url = new URL(value);
+    url = new globalThis.URL(value);
   } catch {
     fail('Vercel deployment URL is invalid');
   }
@@ -355,7 +356,7 @@ async function responseJson(fetchImpl, url, options, label) {
   try {
     response = await fetchImpl(url, {
       ...options,
-      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      signal: globalThis.AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
   } catch {
     fail(`${label} request failed`);
@@ -525,13 +526,57 @@ export async function captureProviderBaselineToFile({ outputPath, ...options } =
   return context;
 }
 
-async function gitOutput(execFileImpl, args) {
+function positiveTimeout(value, label) {
+  const timeoutMs = Number(value);
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) fail(`${label} is invalid`);
+  return Math.ceil(timeoutMs);
+}
+
+function gitFetchTimeout({ gitFetchTimeoutMs, deadlineAt, now }) {
+  const timeoutMs = positiveTimeout(gitFetchTimeoutMs, 'git fetch timeout');
+  if (deadlineAt === undefined) return timeoutMs;
+  if (!Number.isFinite(deadlineAt)) fail('git fetch deadline is invalid');
+  if (typeof now !== 'function') fail('git fetch clock is unavailable');
+  const remainingMs = Math.ceil(deadlineAt - now());
+  if (remainingMs <= 0) fail('git fetch deadline exceeded before spawn');
+  return Math.min(timeoutMs, remainingMs);
+}
+
+function failGitFetch(error, timeoutMs) {
+  if (error?.code === 'ETIMEDOUT' || error?.killed) {
+    fail(`git fetch timeout after ${timeoutMs}ms`);
+  }
+  if (Number.isInteger(error?.code)) {
+    fail(`git fetch exited with code ${error.code}`);
+  }
+  if (typeof error?.signal === 'string') {
+    fail(`git fetch terminated by signal ${error.signal}`);
+  }
+  fail('git fetch failed before completion');
+}
+
+async function gitOutput(
+  execFileImpl,
+  args,
+  { gitFetchTimeoutMs = DEFAULT_GIT_FETCH_TIMEOUT_MS, deadlineAt, now = Date.now } = {}
+) {
+  const isFetch = args[0] === 'fetch';
+  const options = { encoding: 'utf8' };
+  const timeoutMs = isFetch
+    ? gitFetchTimeout({ gitFetchTimeoutMs, deadlineAt, now })
+    : undefined;
+  if (isFetch) options.timeout = timeoutMs;
+  let result;
   try {
-    const result = await execFileImpl('git', args, { encoding: 'utf8' });
-    return String(result.stdout).trim();
-  } catch {
+    result = await execFileImpl('git', args, options);
+  } catch (error) {
+    if (isFetch) failGitFetch(error, timeoutMs);
     fail('Git evidence could not be read');
   }
+  if (isFetch && deadlineAt !== undefined && now() >= deadlineAt) {
+    fail(`git fetch deadline exceeded after ${timeoutMs}ms`);
+  }
+  return String(result.stdout).trim();
 }
 
 async function gitContents(execFileImpl, args) {
@@ -568,6 +613,9 @@ export async function verifyBaselineBinding({
   environment = process.env,
   fetchImpl = globalThis.fetch,
   execFileImpl = execFileAsync,
+  gitFetchTimeoutMs = DEFAULT_GIT_FETCH_TIMEOUT_MS,
+  deadlineAt,
+  now = Date.now,
 } = {}) {
   if (typeof fetchImpl !== 'function' || typeof execFileImpl !== 'function') {
     fail('baseline evidence dependencies are unavailable');
@@ -594,7 +642,11 @@ export async function verifyBaselineBinding({
   );
   if (prHead !== planned) fail('live PR head does not match planned PR head SHA');
   const remoteRef = `origin/pr-${plannedNumber}`;
-  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', `pull/${plannedNumber}/head:refs/remotes/origin/pr-${plannedNumber}`]);
+  await gitOutput(
+    execFileImpl,
+    ['fetch', '--no-tags', 'origin', `pull/${plannedNumber}/head:refs/remotes/origin/pr-${plannedNumber}`],
+    { gitFetchTimeoutMs, deadlineAt, now }
+  );
   if ((await gitOutput(execFileImpl, ['rev-parse', remoteRef])) !== planned) {
     fail('fetched PR head does not match planned PR head SHA');
   }
@@ -648,7 +700,9 @@ export function decodeBaselineEvidence(baselineEvidenceB64, mode) {
   }
   let decoded;
   try {
-    decoded = JSON.parse(Buffer.from(baselineEvidenceB64.trim(), 'base64').toString('utf8'));
+    decoded = JSON.parse(
+      globalThis.Buffer.from(baselineEvidenceB64.trim(), 'base64').toString('utf8')
+    );
   } catch {
     fail('baseline evidence is not valid base64 JSON');
   }
@@ -823,6 +877,9 @@ export async function verifyBaselineConsumption({
   fetchImpl = globalThis.fetch,
   execFileImpl = execFileAsync,
   readFileImpl = readFile,
+  gitFetchTimeoutMs = DEFAULT_GIT_FETCH_TIMEOUT_MS,
+  deadlineAt,
+  now = Date.now,
 } = {}) {
   if (
     typeof fetchImpl !== 'function' ||
@@ -886,8 +943,16 @@ export async function verifyBaselineConsumption({
   }
 
   // Never assume either SHA is present in a shallow checkout.
-  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', baselineMainSha]);
-  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', release]);
+  await gitOutput(
+    execFileImpl,
+    ['fetch', '--no-tags', 'origin', baselineMainSha],
+    { gitFetchTimeoutMs, deadlineAt, now }
+  );
+  await gitOutput(
+    execFileImpl,
+    ['fetch', '--no-tags', 'origin', release],
+    { gitFetchTimeoutMs, deadlineAt, now }
+  );
   if (!(await isAncestor(execFileImpl, baselineMainSha, release))) {
     fail('baseline main is not an ancestor of the release SHA');
   }

@@ -75,6 +75,7 @@ jobs:
   validate-target:
     name: Validate Production Target
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       log_window_start: ${{ steps.target.outputs.log_window_start }}
     steps:
@@ -105,6 +106,28 @@ jobs:
             exit 1
           fi
           echo "log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact release validator
+        if: ${{ inputs.mode == 'full' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node environment
+        if: ${{ inputs.mode == 'full' }}
+        uses: ./.github/actions/setup-node-env
+
+      - name: Validate attested operator evidence before provider mutation
+        if: ${{ inputs.mode == 'full' }}
+        env:
+          OPERATOR_EVIDENCE_B64: ${{ inputs.operator_evidence_b64 }}
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/operator-evidence-preflight-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'rm -rf -- "$output_dir"' EXIT
+          OPERATOR_EVIDENCE_B64="$OPERATOR_EVIDENCE_B64" \
+            node scripts/release/operator-evidence-bundle.mjs decode \
+            --output-dir "$output_dir"
 
   baseline-policy-preflight:
     name: Baseline Policy Preflight

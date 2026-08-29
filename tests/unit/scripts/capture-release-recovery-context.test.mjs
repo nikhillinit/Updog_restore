@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import { describe, expect, it } from 'vitest';
 
 import { BaselineFragmentPayloadSchema } from '../../../shared/contracts/release-evidence-fragment-v1.contract';
@@ -22,6 +23,8 @@ const PLANNED_PR_HEAD_SHA = 'b'.repeat(40);
 const PLANNED_PR_NUMBER = 1414;
 const PLAN_PATH = 'docs/1-plans/release-hardening.plan.md';
 const PLAN_SHA256 = 'c'.repeat(64);
+const APPROVED_PLAN_TEXT = 'approved hardening plan body\n';
+const APPROVED_PLAN_DIGEST = createHash('sha256').update(APPROVED_PLAN_TEXT).digest('hex');
 const VERCEL_SOURCE_SHA = 'd'.repeat(40);
 const RAILWAY_SOURCE_SHA = 'e'.repeat(40);
 
@@ -483,6 +486,167 @@ describe('capture-release-recovery-context', () => {
       }
     }
   );
+
+  it('passes bounded timeouts to network git fetches while leaving local git reads unchanged', { retry: 0 }, async () => {
+    const environment = providerEnvironment({
+      GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
+      GH_TOKEN: 'ghs_read_only_token',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_SHA: BASELINE_MAIN_SHA,
+    });
+    const calls = [];
+    const fetchImpl = async (url) => {
+      if (url.endsWith('/commits/main')) {
+        return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
+      }
+      if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
+        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+      }
+      throw new Error(`unexpected URL ${url}`);
+    };
+    const execFileImpl = async (_command, args, options) => {
+      calls.push({ args, options });
+      const key = args.join(' ');
+      if (key === 'rev-parse HEAD') return { stdout: `${BASELINE_MAIN_SHA}\n` };
+      if (key === `fetch --no-tags origin pull/${PLANNED_PR_NUMBER}/head:refs/remotes/origin/pr-${PLANNED_PR_NUMBER}`) {
+        return { stdout: '' };
+      }
+      if (key === `rev-parse origin/pr-${PLANNED_PR_NUMBER}`) {
+        return { stdout: `${PLANNED_PR_HEAD_SHA}\n` };
+      }
+      if (key.startsWith('show ')) return { stdout: APPROVED_PLAN_TEXT };
+      throw new Error(`unexpected git command ${key}`);
+    };
+
+    await expect(verifyBaselineBinding({
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      plannedPrNumber: PLANNED_PR_NUMBER,
+      planPath: PLAN_PATH,
+      planSha256: APPROVED_PLAN_DIGEST,
+      environment,
+      fetchImpl,
+      execFileImpl,
+      gitFetchTimeoutMs: 120_000,
+    })).resolves.toBeUndefined();
+
+    const fetchCall = calls.find(({ args }) => args[0] === 'fetch');
+    expect(fetchCall?.options).toMatchObject({ encoding: 'utf8', timeout: 120_000 });
+    expect(calls.filter(({ args }) => args[0] !== 'fetch').every(({ options }) => options.timeout === undefined)).toBe(
+      true
+    );
+  });
+
+  it('rejects an expired git-fetch deadline before spawning the network fetch', { retry: 0 }, async () => {
+    const environment = providerEnvironment({
+      GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
+      GH_TOKEN: 'ghs_read_only_token',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_SHA: BASELINE_MAIN_SHA,
+    });
+    const calls = [];
+    const fetchImpl = async (url) => {
+      if (url.endsWith('/commits/main')) {
+        return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
+      }
+      if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
+        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+      }
+      throw new Error(`unexpected URL ${url}`);
+    };
+    const execFileImpl = async (_command, args, options) => {
+      calls.push({ args, options });
+      if (args[0] === 'rev-parse') return { stdout: `${BASELINE_MAIN_SHA}\n` };
+      throw new Error(`network git fetch must not spawn: ${args.join(' ')}`);
+    };
+
+    await expect(verifyBaselineBinding({
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      plannedPrNumber: PLANNED_PR_NUMBER,
+      planPath: PLAN_PATH,
+      planSha256: APPROVED_PLAN_DIGEST,
+      environment,
+      fetchImpl,
+      execFileImpl,
+      deadlineAt: 0,
+      now: () => 1,
+    })).rejects.toThrow(/deadline/i);
+    expect(calls.some(({ args }) => args[0] === 'fetch')).toBe(false);
+  });
+
+  it('uses fixed git-fetch timeout messages without leaking stderr or credential URLs', { retry: 0 }, async () => {
+    const environment = providerEnvironment({
+      GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
+      GH_TOKEN: 'ghs_read_only_token',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_SHA: BASELINE_MAIN_SHA,
+    });
+    const leakedUrl = 'https://x-access-token:secret@github.com/nikhillinit/Updog_restore.git';
+    const fetchImpl = async (url) => {
+      if (url.endsWith('/commits/main')) {
+        return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
+      }
+      if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
+        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+      }
+      throw new Error(`unexpected URL ${url}`);
+    };
+    const execFileImpl = async (_command, args) => {
+      if (args[0] === 'rev-parse') return { stdout: `${BASELINE_MAIN_SHA}\n` };
+      throw Object.assign(new Error(`fatal: unable to access ${leakedUrl}`), {
+        code: 'ETIMEDOUT',
+        stderr: `fatal: unable to access ${leakedUrl}`,
+      });
+    };
+    let error;
+    try {
+      await verifyBaselineBinding({
+        baselineMainSha: BASELINE_MAIN_SHA,
+        plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+        plannedPrNumber: PLANNED_PR_NUMBER,
+        planPath: PLAN_PATH,
+        planSha256: APPROVED_PLAN_DIGEST,
+        environment,
+        fetchImpl,
+        execFileImpl,
+        gitFetchTimeoutMs: 120_000,
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error?.message).toMatch(/git fetch.*(?:timeout|deadline)/i);
+    const serialized = [
+      error?.message,
+      error?.stack,
+      error?.cause?.message,
+      error?.cause?.stack,
+      JSON.stringify(error),
+    ].join('\n');
+    expect(serialized).not.toContain(leakedUrl);
+  });
+
+  it('keeps two two-minute git budgets plus four-minute provider capture below the ten-minute job cap', { retry: 0 }, async () => {
+    const { DEFAULT_GIT_FETCH_TIMEOUT_MS } = await import(
+      '../../../scripts/release/capture-release-recovery-context.mjs'
+    );
+    const workflow = await readFile(
+      path.join(process.cwd(), '.github', 'workflows', 'capture-release-baseline.yml'),
+      'utf8'
+    );
+    const jobBudget = Number(workflow.match(/capture-baseline:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1]);
+    const providerCaptureBudget = Number(
+      workflow.match(/Capture and validate provider baseline[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1]
+    );
+    const validationRuns = (workflow.match(/capture-release-recovery-context\.mjs validate-baseline/g) ?? []).length;
+
+    expect(DEFAULT_GIT_FETCH_TIMEOUT_MS).toBe(2 * 60_000);
+    expect(validationRuns).toBe(2);
+    expect(2 * DEFAULT_GIT_FETCH_TIMEOUT_MS + providerCaptureBudget * 60_000).toBeLessThan(
+      jobBudget * 60_000
+    );
+  });
 });
 
 describe('baseline evidence decoding and exact consumption', () => {
@@ -613,10 +777,25 @@ describe('baseline evidence decoding and exact consumption', () => {
       environment: baselineEnvironment(),
       fetchImpl:
         overrides.fetchImpl ?? makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
-      execFileImpl: makeExecFile(overrides.git ?? {}),
+      execFileImpl: overrides.execFileImpl ?? makeExecFile(overrides.git ?? {}),
       readFileImpl: async () => contents,
     });
   }
+
+  it('passes bounded timeouts to both baseline-consumption git fetches', async () => {
+    const calls = [];
+    const baselineExecFile = makeExecFile();
+    const execFileImpl = async (command, args, options) => {
+      calls.push({ command, args, options });
+      return baselineExecFile(command, args);
+    };
+
+    await expect(consume('primary', { execFileImpl })).resolves.toMatchObject({ mode: 'primary' });
+
+    const fetchCalls = calls.filter(({ args }) => args[0] === 'fetch');
+    expect(fetchCalls).toHaveLength(2);
+    expect(fetchCalls.every(({ options }) => options.timeout === 120_000)).toBe(true);
+  });
 
   it('decodes an exact primary and rollback baseline binding', () => {
     expect(decodeBaselineEvidence(encodeBinding(bindingInput('primary')), 'primary')).toMatchObject(

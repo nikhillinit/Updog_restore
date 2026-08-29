@@ -25,6 +25,42 @@ describe('production release dispatch block', () => {
     expect(workflow.jobs.promote.if).toBeUndefined();
     expect(workflow.jobs['production-mutation-block']).toBeUndefined();
     expect(workflow.jobs['validate-target'].needs).toBeUndefined();
+    expect(workflow.jobs['validate-target']['timeout-minutes']).toBe(15);
+  });
+
+  it('validates nonempty full-mode operator evidence before provider mutation', async () => {
+    const workflow = await readWorkflow('release-production.yml');
+
+    const validateTargetSteps = workflow.jobs['validate-target'].steps;
+    const checkout = validateTargetSteps.find(
+      (step) => step.name === 'Checkout exact release validator'
+    );
+    const setup = validateTargetSteps.find((step) => step.name === 'Setup Node environment');
+    const evidenceValidation = validateTargetSteps.find(
+      (step) => step.name === 'Validate attested operator evidence before provider mutation'
+    );
+    expect(checkout.if).toBe("${{ inputs.mode == 'full' }}");
+    expect(checkout.with.ref).toBe('${{ inputs.expected_sha }}');
+    expect(setup.if).toBe("${{ inputs.mode == 'full' }}");
+    expect(evidenceValidation.if).toBe("${{ inputs.mode == 'full' }}");
+    expect(evidenceValidation.env).toEqual({
+      OPERATOR_EVIDENCE_B64: '${{ inputs.operator_evidence_b64 }}',
+    });
+    expect(evidenceValidation.run).toContain(
+      'node scripts/release/operator-evidence-bundle.mjs decode'
+    );
+    expect(validateTargetSteps.indexOf(checkout)).toBeLessThan(validateTargetSteps.indexOf(setup));
+    expect(validateTargetSteps.indexOf(setup)).toBeLessThan(
+      validateTargetSteps.indexOf(evidenceValidation)
+    );
+    expect(workflow.jobs['baseline-policy-preflight'].needs).toBe('validate-target');
+    expect(workflow.jobs['release-proof'].needs).toBe('validate-target');
+    expect(workflow.jobs['stage-production'].needs).toEqual([
+      'release-proof',
+      'schema-audit',
+      'baseline-policy-preflight',
+    ]);
+    expect(workflow.jobs['railway-workers-deploy'].needs).toContain('validate-target');
   });
 
   it('pins full and Railway-workers-only dispatch modes', async () => {

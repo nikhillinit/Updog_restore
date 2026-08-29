@@ -84,4 +84,64 @@ describe('railway-graphql-transport', () => {
       })
     ).resolves.toEqual(payload);
   });
+
+  it('aborts unresolved network requests at the absolute deadline', async () => {
+    const fetchImpl = vi.fn(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+            once: true,
+          });
+        })
+    );
+
+    await expect(
+      postRailwayGraphql({
+        token: TOKEN,
+        query: QUERY,
+        variables: VARIABLES,
+        fetchImpl,
+        operation: 'Railway reconciliation',
+        deadlineAt: Date.now() + 10,
+      })
+    ).rejects.toThrow('Railway reconciliation deadline exceeded during network request');
+    expect(fetchImpl.mock.calls[0][1].signal).toBeInstanceOf(globalThis.AbortSignal);
+  });
+
+  it('aborts unresolved response bodies at the absolute deadline', async () => {
+    const fetchImpl = vi.fn(async (_url, options) => ({
+      ok: true,
+      json: () =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+            once: true,
+          });
+        }),
+    }));
+
+    await expect(
+      postRailwayGraphql({
+        token: TOKEN,
+        query: QUERY,
+        fetchImpl,
+        operation: 'Railway reconciliation',
+        deadlineAt: Date.now() + 10,
+      })
+    ).rejects.toThrow('Railway reconciliation deadline exceeded during network request');
+  });
+
+  it('rejects expired deadlines before network mutation', async () => {
+    const fetchImpl = vi.fn();
+
+    await expect(
+      postRailwayGraphql({
+        token: TOKEN,
+        query: QUERY,
+        fetchImpl,
+        deadlineAt: 99,
+        now: () => 100,
+      })
+    ).rejects.toThrow('deadline exceeded before network request');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
