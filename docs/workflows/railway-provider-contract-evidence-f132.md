@@ -1,7 +1,7 @@
 ---
 status: REFERENCE
 audience: both
-last_updated: 2026-08-29
+last_updated: 2026-08-30
 owner: '@nikhillinit'
 ---
 
@@ -96,8 +96,8 @@ deployment to `SUCCESS` and treats `SLEEPING` before `SUCCESS` as unexpected
 `DeploymentMeta` is an untyped JSON scalar, so `commitHash` presence is not
 schema-provable. Corroboration: the repository's existing read-only observation
 tooling already parses it in production
-(`scripts/release/wait-railway-workers.mjs:143`,
-`scripts/release/capture-release-recovery-context.mjs:477`,
+(`scripts/release/wait-railway-workers.mjs:178`,
+`scripts/release/capture-release-recovery-context.mjs:478`,
 `scripts/release/provider-evidence-contract.mjs:335`), and the 2026-08-14
 observation recorded in `docs/workflows/PRODUCTION_SCRIPTS.md` read it live.
 Stability remains an accepted external prerequisite (plan, "External
