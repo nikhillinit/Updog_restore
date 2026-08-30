@@ -207,7 +207,9 @@ export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns,
     candidates.sort((left, right) => left.attemptStartedAt - right.attemptStartedAt || left.checkRunId - right.checkRunId || left.workflowJobId - right.workflowJobId || left.workflowRunId - right.workflowRunId);
     const chosen = candidates.at(-1);
     if (!chosen?.trustedSuccess) fail(`latest trusted check result for ${context} is not terminal success`);
-    const { attemptStartedAt: _attemptStartedAt, trustedSuccess: _trustedSuccess, ...identity } = chosen;
+    const identity = { ...chosen };
+    delete identity.attemptStartedAt;
+    delete identity.trustedSuccess;
     return identity;
   }).sort((left, right) => (left.context < right.context ? -1 : left.context > right.context ? 1 : 0));
   return {
