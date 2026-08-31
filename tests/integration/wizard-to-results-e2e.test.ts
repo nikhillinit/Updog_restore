@@ -6,6 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'wouter';
 import { createWouterWrapper } from '../utils/withWouter';
+import { TestQueryClientProvider } from '../utils/test-query-client';
 import { createSandbox } from '../setup/test-infrastructure';
 import ReviewStep from '@/pages/ReviewStep';
 import FundModelResultsPage from '@/pages/fund-model-results';
@@ -75,10 +76,9 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 // Plan 9 Wave 9B2: the readiness rollup's data-source hooks are react-query
-// hooks; this harness has no QueryClientProvider and its strict fetch mock
-// deliberately rejects unexpected URLs. Mock them at the module boundary
-// (same pattern as the release-owned page suite) so the rollup renders its
-// fail-closed rows while the wizard flow under test stays fetch-strict.
+// hooks. Mock them at the module boundary (same pattern as the release-owned
+// page suite) so the rollup renders its fail-closed rows while direct provider
+// queries run through the test QueryClient and strict fetch mock.
 vi.mock('@/hooks/useDualForecast', () => ({
   useDualForecast: () => ({
     isSuccess: false,
@@ -233,6 +233,10 @@ describe('wizard to results flow', () => {
         });
       }
 
+      if (url.endsWith('/api/funds/42/financial-facts/latest')) {
+        return new Response(null, { status: 404 });
+      }
+
       throw new Error(`Unexpected fetch: ${url} (${init?.method ?? 'GET'})`);
     });
 
@@ -307,7 +311,14 @@ function expectFetchCall(path: string, init?: Record<string, unknown>) {
 
 function renderFlow(initialPath: string) {
   const { Wrapper, location } = createWouterWrapper(initialPath);
-  const rendered = render(React.createElement(FlowHarness), { wrapper: Wrapper });
+  const rendered = render(
+    React.createElement(
+      TestQueryClientProvider,
+      null,
+      React.createElement(FlowHarness)
+    ),
+    { wrapper: Wrapper }
+  );
 
   return {
     ...rendered,
