@@ -309,7 +309,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         expect(legacyIndex.rows[0]?.definition).not.toContain('COALESCE(hash_kind');
 
         const audit = await auditManifest(isolatedPool, manifest);
-        expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+        expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
         expect(
           audit.objects
             .flatMap((object) => object.deltas)

@@ -391,6 +391,60 @@ function definitionAwareConstraintManifest(
   };
 }
 
+const operatingDecisionsManifest = JSON.parse(
+  fs.readFileSync('scripts/prod-schema-manifests/31-operating-decisions-spine.json', 'utf8')
+);
+const operatingDecisionsTable = operatingDecisionsManifest.expectedTables.find(
+  (table: { name: string }) => table.name === 'operating_decisions'
+);
+const pgColumnTypes = {
+  integer: ['integer', 'int4'],
+  varchar: ['character varying', 'varchar'],
+  text: ['text', 'text'],
+  timestamptz: ['timestamp with time zone', 'timestamptz'],
+  date: ['date', 'date'],
+} as const;
+
+function operatingDecisionsCatalog(
+  overrides: {
+    constraint?: { name: string; definition: string };
+    index?: { name: string; definition: string };
+  } = {}
+) {
+  return createMockClient({
+    presentTables: [operatingDecisionsTable.name],
+    columns: operatingDecisionsTable.columns.map(
+      (column: { name: string; type: keyof typeof pgColumnTypes; nullable: boolean }) => ({
+        table_name: operatingDecisionsTable.name,
+        column_name: column.name,
+        data_type: pgColumnTypes[column.type][0],
+        udt_name: pgColumnTypes[column.type][1],
+        is_nullable: column.nullable ? ('YES' as const) : ('NO' as const),
+      })
+    ),
+    constraints: operatingDecisionsTable.constraintDefinitions.map(
+      (definition: { name: string; expectedDefinition: { exactDefinition: string } }) => ({
+        table_name: operatingDecisionsTable.name,
+        conname: definition.name,
+        definition:
+          overrides.constraint?.name === definition.name
+            ? overrides.constraint.definition
+            : definition.expectedDefinition.exactDefinition,
+      })
+    ),
+    indexes: operatingDecisionsTable.indexDefinitions.map(
+      (definition: { name: string; expectedDefinition: { exactDefinition: string } }) => ({
+        tablename: operatingDecisionsTable.name,
+        indexname: definition.name,
+        indexdef:
+          overrides.index?.name === definition.name
+            ? overrides.index.definition
+            : definition.expectedDefinition.exactDefinition,
+      })
+    ),
+  });
+}
+
 describe('reconcile-prod-schema runner helpers', () => {
   it('pins 0053 capability to canonical manifest and raw migration bytes', async () => {
     await expect(prepare0053G3ReleaseGateHardeningCapability()).resolves.toMatchObject({
@@ -1252,6 +1306,44 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.objects[0]?.deltas).toEqual([]);
   });
 
+  it('SKIPs exact manifest 31 constraint and index definitions', async () => {
+    const audit = await auditManifest(operatingDecisionsCatalog(), {
+      ...operatingDecisionsManifest,
+      expectedTables: [operatingDecisionsTable],
+    });
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects[0]?.deltas).toEqual([]);
+  });
+
+  it.each([
+    {
+      kind: 'constraint',
+      name: 'operating_decisions_status_check',
+      definition:
+        "CHECK (((status)::text = ANY ((ARRAY['proposed'::character varying, 'accepted'::character varying, 'rejected'::character varying])::text[])))",
+      delta: 'constraint-definition-mismatch',
+    },
+    {
+      kind: 'index',
+      name: 'operating_decisions_supersedes_decision_unique',
+      definition:
+        'CREATE UNIQUE INDEX operating_decisions_supersedes_decision_unique ON public.operating_decisions USING btree (supersedes_decision_id, fund_id) WHERE (supersedes_decision_id IS NOT NULL)',
+      delta: 'index-definition-mismatch',
+    },
+  ])('REFUSES-FOR-HUMAN manifest 31 same-name $kind definition drift', async (drift) => {
+    const client = operatingDecisionsCatalog({
+      [drift.kind]: { name: drift.name, definition: drift.definition },
+    });
+    const audit = await auditManifest(client, {
+      ...operatingDecisionsManifest,
+      expectedTables: [operatingDecisionsTable],
+    });
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual([drift.delta]);
+  });
+
   it('finds indexes stored under PostgreSQL-truncated identifiers', async () => {
     const expectedIndexName = 'substrate_shadow_reconciliations_fund_key_input_null_hash_unique';
     const storedIndexName = expectedIndexName.slice(0, 63);
@@ -1324,7 +1416,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.objects[0]?.deltas).toEqual([]);
   });
 
-  it('refuses a populated table with the legacy same-name four-key index', async () => {
+  it('refuses a legacy same-name four-key index without population dependency', async () => {
     const legacyDefinition =
       "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, input_hash) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying])::text[]))";
     const client = createMockClient({
@@ -1351,7 +1443,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     const audit = await auditManifest(client, definitionAwareIndexManifest);
 
     expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
-    expect(audit.objects[0]?.populated).toBe(true);
+    expect(audit.objects[0]?.populated).toBe(false);
     expect(audit.objects[0]?.deltas).toEqual([
       {
         kind: 'index-definition-mismatch',
@@ -1359,6 +1451,7 @@ describe('reconcile-prod-schema shape decisions', () => {
         expected: activeDedupeExpectedDefinition,
         actual: legacyDefinition,
         additiveSafe: false,
+        humanReviewRequired: true,
       },
     ]);
   });
@@ -1559,12 +1652,14 @@ describe('reconcile-prod-schema shape decisions', () => {
     const audit = await auditManifest(
       createMockClient({
         presentTables: [table],
+        populatedTables: [table],
         constraints: [{ table_name: table, conname: name, definition: actualDefinition }],
       }),
       definitionAwareConstraintManifest(table, name, linkageForeignKeyExpectedDefinition)
     );
 
     expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(false);
     expect(audit.objects[0]?.deltas).toEqual([
       {
         kind: 'constraint-definition-mismatch',
@@ -2418,9 +2513,8 @@ describe('g3 catch-up 0050-0053 capability', () => {
   }
 
   it('ties the reconciler target pins to the receipt contract identities', async () => {
-    const { SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES } = await import(
-      '@shared/contracts/schema-reconcile-receipt-v1.contract'
-    );
+    const { SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES } =
+      await import('@shared/contracts/schema-reconcile-receipt-v1.contract');
     expect(SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES).toHaveLength(G3_CATCHUP_TARGETS.length);
     for (const [index, identity] of SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES.entries()) {
       const target = G3_CATCHUP_TARGETS[index]!;
@@ -2540,9 +2634,7 @@ describe('g3 catch-up 0050-0053 capability', () => {
       capability,
     });
     expect(marker.startsWith('PROD_SCHEMA_G3_CATCHUP_LOCK_TIME_VECTOR_V1=')).toBe(true);
-    const vector = JSON.parse(
-      marker.slice('PROD_SCHEMA_G3_CATCHUP_LOCK_TIME_VECTOR_V1='.length)
-    );
+    const vector = JSON.parse(marker.slice('PROD_SCHEMA_G3_CATCHUP_LOCK_TIME_VECTOR_V1='.length));
     expect(vector.targets).toHaveLength(4);
     expect(vector.decisions).toHaveLength(CANONICAL_MANIFEST_IDENTITIES.length);
     expect(marker).not.toMatch(/postgres:\/\//);

@@ -39,6 +39,14 @@ interface ManifestTable {
     };
   }>;
   indexes?: string[];
+  indexDefinitions?: Array<{
+    name: string;
+    expectedDefinition: {
+      exactDefinition: string;
+      orderedFragments: string[];
+      stringLiterals: string[];
+    };
+  }>;
 }
 
 interface DropObject {
@@ -247,6 +255,20 @@ describe('prod-schema manifest sentinels', () => {
       sql.indexOf('LOCK TABLE')
     );
     expect(sql).toContain('CREATE TRIGGER "task_evidence_links_forbid_update_trigger"');
+  });
+
+  it('pins manifest 31 to definition-aware operating-decision catalog sentinels', () => {
+    const decisions = manifests.find((entry) => entry.file === '31-operating-decisions-spine.json');
+    expect(decisions).toBeDefined();
+
+    for (const table of decisions!.manifest.expectedTables ?? []) {
+      expect(table.constraintDefinitions?.map(({ name }) => name).sort() ?? []).toEqual(
+        [...(table.constraints ?? [])].sort()
+      );
+      expect(table.indexDefinitions?.map(({ name }) => name).sort() ?? []).toEqual(
+        [...(table.indexes ?? [])].sort()
+      );
+    }
   });
 
   it('every referenced sqlFile exists in the repo', () => {

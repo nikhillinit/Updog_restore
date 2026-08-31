@@ -2283,6 +2283,7 @@ async function auditTable({
         expected: indexDefinition.expectedDefinition,
         actual: index.indexdef,
         additiveSafe: false,
+        humanReviewRequired: true,
       });
     }
   }

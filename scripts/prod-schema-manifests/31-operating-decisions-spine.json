@@ -14,9 +14,17 @@
         { "name": "title", "type": "varchar", "nullable": false },
         { "name": "recommendation", "type": "text", "nullable": false },
         { "name": "status", "type": "varchar", "nullable": false },
-        { "name": "supersedes_decision_id", "type": "integer", "nullable": true },
+        {
+          "name": "supersedes_decision_id",
+          "type": "integer",
+          "nullable": true
+        },
         { "name": "outcome", "type": "text", "nullable": true },
-        { "name": "outcome_recorded_at", "type": "timestamptz", "nullable": true },
+        {
+          "name": "outcome_recorded_at",
+          "type": "timestamptz",
+          "nullable": true
+        },
         { "name": "outcome_recorded_by", "type": "integer", "nullable": true },
         { "name": "follow_up_owner_id", "type": "integer", "nullable": true },
         { "name": "follow_up_date", "type": "date", "nullable": true },
@@ -41,7 +49,191 @@
         "operating_decisions_outcome_status_check",
         "operating_decisions_deferred_follow_up_check"
       ],
-      "indexes": ["operating_decisions_supersedes_decision_unique"]
+      "constraintDefinitions": [
+        {
+          "name": "operating_decisions_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_supersedes_decision_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (supersedes_decision_id, fund_id) REFERENCES operating_decisions(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(supersedes_decision_id, fund_id)",
+              "REFERENCES operating_decisions(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_outcome_recorded_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (outcome_recorded_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(outcome_recorded_by)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_follow_up_owner_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (follow_up_owner_id) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(follow_up_owner_id)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_created_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(created_by)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE", "(id, fund_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_fund_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE", "(fund_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_status_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((status)::text = ANY ((ARRAY['proposed'::character varying, 'accepted'::character varying, 'rejected'::character varying, 'deferred'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "(status)::text",
+              "ANY",
+              "'proposed'::character varying",
+              "'accepted'::character varying",
+              "'rejected'::character varying",
+              "'deferred'::character varying"
+            ],
+            "stringLiterals": ["proposed", "accepted", "rejected", "deferred"]
+          }
+        },
+        {
+          "name": "operating_decisions_title_nonempty_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((length(btrim((title)::text)) > 0))",
+            "orderedFragments": [
+              "CHECK",
+              "length",
+              "btrim",
+              "(title)::text",
+              "> 0"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_outcome_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((outcome IS NULL) AND (outcome_recorded_at IS NULL) AND (outcome_recorded_by IS NULL)) OR ((outcome IS NOT NULL) AND (outcome_recorded_at IS NOT NULL) AND (outcome_recorded_by IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "outcome IS NULL",
+              "outcome_recorded_at IS NULL",
+              "outcome_recorded_by IS NULL",
+              "OR",
+              "outcome IS NOT NULL",
+              "outcome_recorded_at IS NOT NULL",
+              "outcome_recorded_by IS NOT NULL"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "operating_decisions_outcome_status_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((outcome IS NULL) OR ((status)::text = ANY ((ARRAY['accepted'::character varying, 'rejected'::character varying])::text[]))))",
+            "orderedFragments": [
+              "CHECK",
+              "outcome IS NULL",
+              "OR",
+              "(status)::text",
+              "ANY",
+              "'accepted'::character varying",
+              "'rejected'::character varying"
+            ],
+            "stringLiterals": ["accepted", "rejected"]
+          }
+        },
+        {
+          "name": "operating_decisions_deferred_follow_up_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((status)::text <> 'deferred'::text) OR ((follow_up_owner_id IS NOT NULL) AND (follow_up_date IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "(status)::text",
+              "<> 'deferred'::text",
+              "OR",
+              "follow_up_owner_id IS NOT NULL",
+              "follow_up_date IS NOT NULL"
+            ],
+            "stringLiterals": ["deferred"]
+          }
+        }
+      ],
+      "indexes": ["operating_decisions_supersedes_decision_unique"],
+      "indexDefinitions": [
+        {
+          "name": "operating_decisions_supersedes_decision_unique",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX operating_decisions_supersedes_decision_unique ON public.operating_decisions USING btree (fund_id, supersedes_decision_id) WHERE (supersedes_decision_id IS NOT NULL)",
+            "orderedFragments": [
+              "CREATE UNIQUE INDEX",
+              "ON public.operating_decisions",
+              "USING btree",
+              "fund_id",
+              "supersedes_decision_id",
+              "WHERE",
+              "supersedes_decision_id IS NOT NULL"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
     },
     {
       "name": "decision_evidence_links",
@@ -50,7 +242,11 @@
         { "name": "fund_id", "type": "integer", "nullable": false },
         { "name": "decision_id", "type": "integer", "nullable": false },
         { "name": "target_kind", "type": "varchar", "nullable": false },
-        { "name": "analysis_reference_id", "type": "integer", "nullable": true },
+        {
+          "name": "analysis_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
         { "name": "economics_run_id", "type": "integer", "nullable": true },
         { "name": "idempotency_key", "type": "varchar", "nullable": false },
         { "name": "request_hash", "type": "varchar", "nullable": false },
@@ -68,7 +264,140 @@
         "decision_evidence_links_target_kind_check",
         "decision_evidence_links_target_coupling_check"
       ],
-      "indexes": ["idx_decision_evidence_links_fund_decision_id"]
+      "constraintDefinitions": [
+        {
+          "name": "decision_evidence_links_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_decision_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (decision_id, fund_id) REFERENCES operating_decisions(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(decision_id, fund_id)",
+              "REFERENCES operating_decisions(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_analysis_reference_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (analysis_reference_id, fund_id) REFERENCES internal_analysis_references(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(analysis_reference_id, fund_id)",
+              "REFERENCES internal_analysis_references(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_economics_run_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (economics_run_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(economics_run_id, fund_id)",
+              "REFERENCES internal_lp_economics_runs(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_created_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(created_by)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_fund_decision_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, decision_id, idempotency_key)",
+            "orderedFragments": [
+              "UNIQUE",
+              "(fund_id, decision_id, idempotency_key)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "decision_evidence_links_target_kind_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((target_kind)::text = ANY ((ARRAY['analysis_reference'::character varying, 'internal_economics_run'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "(target_kind)::text",
+              "ANY",
+              "'analysis_reference'::character varying",
+              "'internal_economics_run'::character varying"
+            ],
+            "stringLiterals": ["analysis_reference", "internal_economics_run"]
+          }
+        },
+        {
+          "name": "decision_evidence_links_target_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((target_kind)::text = 'analysis_reference'::text) AND (analysis_reference_id IS NOT NULL) AND (economics_run_id IS NULL)) OR (((target_kind)::text = 'internal_economics_run'::text) AND (economics_run_id IS NOT NULL) AND (analysis_reference_id IS NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "(target_kind)::text",
+              "'analysis_reference'::text",
+              "analysis_reference_id IS NOT NULL",
+              "economics_run_id IS NULL",
+              "'internal_economics_run'::text",
+              "economics_run_id IS NOT NULL",
+              "analysis_reference_id IS NULL"
+            ],
+            "stringLiterals": ["analysis_reference", "internal_economics_run"]
+          }
+        }
+      ],
+      "indexes": ["idx_decision_evidence_links_fund_decision_id"],
+      "indexDefinitions": [
+        {
+          "name": "idx_decision_evidence_links_fund_decision_id",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE INDEX idx_decision_evidence_links_fund_decision_id ON public.decision_evidence_links USING btree (fund_id, decision_id, id)",
+            "orderedFragments": [
+              "CREATE INDEX",
+              "ON public.decision_evidence_links",
+              "USING btree",
+              "fund_id",
+              "decision_id",
+              "id"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
     },
     {
       "name": "tasks",
@@ -77,7 +406,25 @@
         { "name": "idempotency_key", "type": "varchar", "nullable": true },
         { "name": "request_hash", "type": "varchar", "nullable": true }
       ],
-      "indexes": ["tasks_fund_idempotency_unique"]
+      "indexes": ["tasks_fund_idempotency_unique"],
+      "indexDefinitions": [
+        {
+          "name": "tasks_fund_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX tasks_fund_idempotency_unique ON public.tasks USING btree (fund_id, idempotency_key) WHERE (idempotency_key IS NOT NULL)",
+            "orderedFragments": [
+              "CREATE UNIQUE INDEX",
+              "ON public.tasks",
+              "USING btree",
+              "fund_id",
+              "idempotency_key",
+              "WHERE",
+              "idempotency_key IS NOT NULL"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
     }
   ]
 }
