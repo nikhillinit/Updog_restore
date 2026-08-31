@@ -11706,3 +11706,67 @@ shape and waterfall behavior unchanged). Changed-case manifest after-hashes were
 regenerated under the 2.2.1 identities; frozen before-hashes are untouched.
 Review: `docs/3-code-review/CR_w6_v2.0.6.md`; release record
 `docs/2-changelog/w6_v2.0.6.md`. The authority boundary above is unchanged.
+
+## ADR-091: F_1.8.0 Operating Decisions Spine — Lifecycle, Supersession, Idempotency, and Fund-Scope Posture
+
+**Date:** 2026-08-31 **Status:** Proposed (owner ratification at merge)
+**Tags:** #operating-objects #decisions #idempotency #migration
+
+### Decision
+
+F_1.8.0 lands the operating-decisions spine (issue #1289): the
+`operating_decisions` and `decision_evidence_links` tables (migration 0054),
+idempotent decision/link/task-create services, and the task-create idempotency
+column pair. Six rulings govern the landing:
+
+1. **Lifecycle semantics conform to ADR-067.** `proposed` transitions in place
+   to `accepted`, `rejected`, or `deferred`; `deferred` is re-openable to
+   `accepted` or `rejected` and is the only state in which the follow-up fields
+   (`follow_up_owner_id`, `follow_up_date` — both required while deferred, by
+   CHECK) may change. `accepted` and `rejected` are terminal: core fields (id,
+   fund, title, recommendation, supersession pointer, idempotency pair,
+   provenance) are immutable from creation, and terminal rows change only by
+   superseding-row creation. Enforced by the
+   `operating_decisions_enforce_lifecycle` BEFORE UPDATE trigger plus table
+   CHECKs; the service layer gives the typed 409/412-shaped errors and the
+   trigger is the backstop.
+2. **Terminal-row outcome model.** Outcome is text plus recorded-at plus
+   recording actor, coupled all-or-none by CHECK, recordable exactly once on a
+   terminal row — `accepted` or `rejected` both qualify (ADR-067 treats outcome
+   as a property of a decided row and does not restrict it to accepted) — and
+   immutable once recorded.
+3. **Supersession: service-layer guard, permissive schema.** The chain is a
+   same-fund composite FK (`supersedes_decision_id`, `fund_id`) with a
+   single-superseder partial unique; the schema carries no status predicate.
+   `supersedeDecision` rejects a `proposed` source row with a 409-shaped service
+   error (proposed rows transition in place; they are never supersession sources
+   per ADR-067).
+4. **Preimage definitions with actor and status exclusion.** Request hashes are
+   `canonicalSha256` over `{ commandKind, contractVersion, fundId }` plus the
+   validated create fields (plus `supersedesDecisionId` for supersede and
+   `decisionId`/`target` for links). The acting user is excluded from every
+   preimage (stored as `created_by`, never hashed — a retried create replayed by
+   a different resolved identity is the same command). Server-controlled
+   `status` is excluded from the task-create preimage.
+5. **Dual-surface idempotency parity.** Task create joins
+   `isDatabaseBackedIdempotencyRoute` (`TASK_CREATION_PATH`) so the
+   Railway/Docker surface's generic in-memory middleware never answers for it;
+   both surfaces converge on row-stored key + request-hash semantics (201
+   create, 200 replay, 409 `IDEMPOTENCY_KEY_REUSE`, 428 missing key).
+6. **Fund-scope (RLS) posture.** The new tables follow the operating-objects
+   family precedent (`tasks`, migration 0020; `task_evidence_links`, migration
+   0047): no table-level RLS. Fund scoping is enforced in the handler/service
+   layer (every statement is fund-scoped) and at the DB level by the composite
+   same-fund FKs, which make cross-fund supersession and cross-fund evidence
+   targets unrepresentable. Table-level RLS is not wired on the live serving
+   path for any operating-objects table (no request-scoped `app.current_*` GUCs
+   are set there), so enabling FORCE RLS on only these two tables would deny the
+   live path rather than defend it. Adopting RLS for the operating-objects
+   family is a family-wide owner decision, out of scope here.
+
+### Numbering note
+
+Authored in the `f188-decisions-spine` worktree against a DECISIONS.md tail of
+ADR-090 plus its 2026-08-30 addendum. A rebase over the F_2.0.7 merge may add
+entries at the tail; re-verify the next free number before merge and renumber
+this ADR if 091 is taken.

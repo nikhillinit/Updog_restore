@@ -71,6 +71,19 @@ router['post']('/api/funds/:fundId/tasks', async (req: Request, res: Response) =
     if (!(await enforceProvidedFundScope(req, res, fundId))) {
       return;
     }
+    const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
+    if (parsedKey.kind === 'missing') {
+      return res.status(428).json({
+        error: 'IDEMPOTENCY_KEY_REQUIRED',
+        message: 'Idempotency-Key header is required.',
+      });
+    }
+    if (parsedKey.kind === 'invalid') {
+      return res.status(400).json({
+        error: 'INVALID_IDEMPOTENCY_KEY',
+        message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+      });
+    }
     const parsed = TaskCreateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res
@@ -82,12 +95,21 @@ router['post']('/api/funds/:fundId/tasks', async (req: Request, res: Response) =
         .status(400)
         .json({ error: 'fundId mismatch', message: 'Body fundId must match the path fundId' });
     }
-    const created = await createTask({ ...parsed.data, createdBy: resolveActorId(req) });
+    const created = await createTask({
+      ...parsed.data,
+      createdBy: resolveActorId(req),
+      idempotencyKey: parsedKey.value,
+    });
     if (!created) {
       return res.status(500).json({ error: 'Failed to create task' });
     }
-    return res.status(201).json(toResponse(created.row, rowVersionETag(created.xmin)));
-  } catch {
+    return res
+      .status(created.replayed ? 200 : 201)
+      .json(toResponse(created.row, rowVersionETag(created.xmin)));
+  } catch (error) {
+    if (error instanceof IdempotentCommandError) {
+      return res.status(error.status).json({ error: error.code, message: error.message });
+    }
     return res.status(500).json({ error: 'Failed to create task' });
   }
 });

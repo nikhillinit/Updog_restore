@@ -1,8 +1,14 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 
-import { db } from '../../db';
-import type { TaskCreate, TaskPatch } from '@shared/contracts/operating-objects/task.contract';
+import {
+  TASK_CONTRACT_VERSION,
+  type TaskCreate,
+  type TaskCreateCommandPreimage,
+  type TaskPatch,
+} from '@shared/contracts/operating-objects/task.contract';
 import { tasks, type Task } from '@shared/schema/operating-objects';
+import { db } from '../../db';
+import { IdempotentCommandError, runIdempotentCommand } from '../../lib/idempotent-command';
 
 type TaskDatabase = typeof db;
 
@@ -14,6 +20,7 @@ export interface TaskRow {
   row: Task;
   /** Postgres xmin system column as text -- opaque per-row concurrency token. */
   xmin: string;
+  replayed?: boolean;
 }
 
 // Explicit column map + xmin::text (mirrors cash-flow-event-service). List the
@@ -27,12 +34,18 @@ const columnsWithXmin = {
   dueDate: tasks.dueDate,
   description: tasks.description,
   createdBy: tasks.createdBy,
+  idempotencyKey: tasks.idempotencyKey,
+  requestHash: tasks.requestHash,
   createdAt: tasks.createdAt,
   updatedAt: tasks.updatedAt,
   rowXmin: sql<string>`xmin::text`,
 } as const;
 
-function splitXmin(record: Task & { rowXmin: string }): TaskRow {
+type TaskRecordWithXmin = Task & {
+  rowXmin: string;
+};
+
+function splitXmin(record: TaskRecordWithXmin): TaskRow {
   const { rowXmin, ...row } = record;
   return { row: row as Task, xmin: rowXmin };
 }
@@ -40,6 +53,19 @@ function splitXmin(record: Task & { rowXmin: string }): TaskRow {
 interface CreateTaskArgs extends TaskCreate {
   /** Best-effort creator id (nullable users.id FK); NULL when identity is not numeric. */
   createdBy: number | null;
+  idempotencyKey: string;
+}
+
+function taskCreatePreimage(input: CreateTaskArgs): TaskCreateCommandPreimage {
+  return {
+    commandKind: 'create_task',
+    contractVersion: TASK_CONTRACT_VERSION,
+    fundId: input.fundId,
+    title: input.title,
+    ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
+    ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+    ...(input.description !== undefined ? { description: input.description } : {}),
+  };
 }
 
 export async function createTask(
@@ -47,20 +73,54 @@ export async function createTask(
   options: TaskServiceOptions = {}
 ): Promise<TaskRow | undefined> {
   const database = options.database ?? db;
-  const [record] = await database
-    .insert(tasks)
-    .values({
-      fundId: input.fundId,
-      title: input.title,
-      status: 'open',
-      ownerId: input.ownerId ?? null,
-      dueDate: input.dueDate ?? null,
-      description: input.description ?? null,
-      createdBy: input.createdBy,
-    })
-    .returning(columnsWithXmin);
+  const preimage = taskCreatePreimage(input);
 
-  return record ? splitXmin(record) : undefined;
+  const result = await runIdempotentCommand<TaskRow>({
+    db: database,
+    fundId: input.fundId,
+    idempotencyKey: input.idempotencyKey,
+    contractVersion: TASK_CONTRACT_VERSION,
+    request: preimage,
+    loadExisting: async () => {
+      const [existing] = await database
+        .select(columnsWithXmin)
+        .from(tasks)
+        .where(and(eq(tasks.fundId, input.fundId), eq(tasks.idempotencyKey, input.idempotencyKey)))
+        .limit(1);
+      if (!existing) return null;
+      if (existing.requestHash === null) {
+        throw new IdempotentCommandError(
+          500,
+          'TASK_IDEMPOTENCY_CORRUPT',
+          'Task idempotency row is missing its request hash.'
+        );
+      }
+      return { row: splitXmin(existing), requestHash: existing.requestHash };
+    },
+    insert: async (requestHash) => {
+      const [record] = await database
+        .insert(tasks)
+        .values({
+          fundId: input.fundId,
+          title: input.title,
+          status: 'open',
+          ownerId: input.ownerId ?? null,
+          dueDate: input.dueDate ?? null,
+          description: input.description ?? null,
+          createdBy: input.createdBy,
+          idempotencyKey: input.idempotencyKey,
+          requestHash,
+        })
+        // Drizzle's pg insert builder does not expose targetWhere for
+        // onConflictDoNothing; unqualified DO NOTHING handles the partial
+        // unique index and this table has no competing insert key.
+        .onConflictDoNothing()
+        .returning(columnsWithXmin);
+      return record ? splitXmin(record) : null;
+    },
+  });
+
+  return { ...result.row, replayed: result.replayed };
 }
 
 export async function listTasksForFund(

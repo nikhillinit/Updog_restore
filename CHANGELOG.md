@@ -22,6 +22,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-31)
+
+- **Operating decisions spine (F_1.8.0, issue #1289).** Migration 0054 adds
+  fund-scoped `operating_decisions` (proposed/accepted/rejected/deferred
+  lifecycle trigger, immutable terminal rows, one-shot outcomes, same-fund
+  single-superseder supersession) and decision-sourced `decision_evidence_links`
+  (exactly-one-target coupling, forbid-update trigger), plus
+  `tasks.idempotency_key`/`request_hash` making task create an idempotent
+  command on both serving surfaces (`isDatabaseBackedIdempotencyRoute` entry;
+  201 / 200-replay / 409 / 428). New idempotent decision and evidence-link
+  services with versioned request-hash preimages (actor excluded). Preflights
+  refuse unusable same-named indexes (pg_index validity flags) and non-canonical
+  `internal_economics_forbid_update` bodies. Testcontainers proof suite covers
+  replay convergence, drift refusal, lifecycle, supersession, and cross-fund
+  negatives. Release record `docs/2-changelog/w6_F_1.8.0.md`; ADR-091
+  (Proposed).
+
 ### Fixed (2026-08-30)
 
 - **V2 expense lot eligibility and partner expense attribution (F3b hotfix,

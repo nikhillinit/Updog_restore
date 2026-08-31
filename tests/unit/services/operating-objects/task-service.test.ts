@@ -12,7 +12,11 @@ const dbMock = vi.hoisted(() => ({
     insert: vi.fn(() => ({
       values: vi.fn((v: unknown) => {
         captured.insertedValues = v;
-        return { returning: vi.fn(async () => captured.selectRows) };
+        return {
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(async () => captured.selectRows),
+          })),
+        };
       }),
     })),
     update: vi.fn(() => ({
@@ -41,6 +45,8 @@ import {
   loadTask,
   updateTask,
 } from '../../../../server/services/operating-objects/task-service';
+import { TASK_CONTRACT_VERSION } from '../../../../shared/contracts/operating-objects/task.contract';
+import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
 
 const record = (o: Record<string, unknown> = {}) => ({
   id: 10,
@@ -51,11 +57,23 @@ const record = (o: Record<string, unknown> = {}) => ({
   dueDate: null,
   description: null,
   createdBy: null,
+  idempotencyKey: null,
+  requestHash: null,
   createdAt: new Date('2026-06-16T00:00:00.000Z'),
   updatedAt: new Date('2026-06-16T00:00:00.000Z'),
   rowXmin: '5',
   ...o,
 });
+
+// Mirrors taskCreatePreimage: no createdBy, no status -- actor and status are
+// excluded from the create hash by contract.
+const createHash = (fundId: number, title: string) =>
+  canonicalSha256({
+    commandKind: 'create_task',
+    contractVersion: TASK_CONTRACT_VERSION,
+    fundId,
+    title,
+  });
 
 describe('task-service', () => {
   beforeEach(() => {
@@ -69,28 +87,76 @@ describe('task-service', () => {
     dbMock.db.select.mockClear();
   });
 
-  it('createTask splits xmin from the inserted row and forces status open', async () => {
+  it('createTask splits xmin, forces status open, and persists key + hash', async () => {
     captured.selectRows = [record()];
-    const out = await createTask({ fundId: 1, title: 'Follow up', createdBy: 7 });
+    const out = await createTask({
+      fundId: 1,
+      title: 'Follow up',
+      createdBy: 7,
+      idempotencyKey: 'task-key-1',
+    });
     expect(out?.xmin).toBe('5');
     expect(out?.row).not.toHaveProperty('rowXmin');
     expect(out?.row.id).toBe(10);
-    expect(captured.insertedValues).toMatchObject({ status: 'open', createdBy: 7, fundId: 1 });
+    expect(out?.replayed).toBe(false);
+    expect(captured.insertedValues).toMatchObject({
+      status: 'open',
+      createdBy: 7,
+      fundId: 1,
+      idempotencyKey: 'task-key-1',
+      requestHash: createHash(1, 'Follow up'),
+    });
   });
 
   it('createTask coerces omitted optionals to NULL', async () => {
     captured.selectRows = [record()];
-    await createTask({ fundId: 1, title: 'x', createdBy: null });
+    await createTask({ fundId: 1, title: 'x', createdBy: null, idempotencyKey: 'task-key-1' });
     const v = captured.insertedValues as Record<string, unknown>;
     expect(v['ownerId']).toBeNull();
     expect(v['dueDate']).toBeNull();
     expect(v['description']).toBeNull();
   });
 
-  it('createTask returns undefined when the insert yields no row', async () => {
+  it('createTask replays the stored row on conflict, across actors (actor excluded from hash)', async () => {
+    captured.selectRows = []; // insert loses the race -> DO NOTHING -> no row
+    captured.loadQueue = [
+      [record({ idempotencyKey: 'task-key-1', requestHash: createHash(1, 'Follow up') })],
+    ];
+    const out = await createTask({
+      fundId: 1,
+      title: 'Follow up',
+      createdBy: 99, // different actor than the stored row; must still replay
+      idempotencyKey: 'task-key-1',
+    });
+    expect(out?.replayed).toBe(true);
+    expect(out?.row.id).toBe(10);
+    expect(out?.xmin).toBe('5');
+  });
+
+  it('createTask throws 409 IDEMPOTENCY_KEY_REUSE when the stored hash differs', async () => {
     captured.selectRows = [];
-    const out = await createTask({ fundId: 1, title: 'x', createdBy: null });
-    expect(out).toBeUndefined();
+    captured.loadQueue = [
+      [record({ idempotencyKey: 'task-key-1', requestHash: createHash(1, 'Other title') })],
+    ];
+    await expect(
+      createTask({ fundId: 1, title: 'Follow up', createdBy: null, idempotencyKey: 'task-key-1' })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+  });
+
+  it('createTask throws 500 TASK_IDEMPOTENCY_CORRUPT when the stored row has no hash', async () => {
+    captured.selectRows = [];
+    captured.loadQueue = [[record({ idempotencyKey: 'task-key-1', requestHash: null })]];
+    await expect(
+      createTask({ fundId: 1, title: 'Follow up', createdBy: null, idempotencyKey: 'task-key-1' })
+    ).rejects.toMatchObject({ status: 500, code: 'TASK_IDEMPOTENCY_CORRUPT' });
+  });
+
+  it('createTask throws 409 IDEMPOTENCY_RACE_UNRESOLVED when neither insert nor reload yields a row', async () => {
+    captured.selectRows = [];
+    captured.loadQueue = [[]];
+    await expect(
+      createTask({ fundId: 1, title: 'x', createdBy: null, idempotencyKey: 'task-key-1' })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_RACE_UNRESOLVED' });
   });
 
   it('listTasksForFund splits xmin for each row (newest-first pass-through)', async () => {
