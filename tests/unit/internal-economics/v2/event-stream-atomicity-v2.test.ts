@@ -304,6 +304,10 @@ describe('F3b event-stream atomicity', () => {
     for (const [key, lot] of state.investmentLots) {
       const cloned = clone.investmentLots.get(key)!;
       expect(cloned).not.toBe(lot);
+      expect(cloned.fundingAllocations).not.toBe(lot.fundingAllocations);
+      for (const [index, allocation] of lot.fundingAllocations.entries()) {
+        expect(cloned.fundingAllocations[index]).not.toBe(allocation);
+      }
       expect(cloned.costBasis).not.toBe(lot.costBasis);
       expect(cloned.relievedAmount).not.toBe(lot.relievedAmount);
     }
