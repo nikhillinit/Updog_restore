@@ -580,51 +580,54 @@ areas must not conflict with this DAG:
 Three human-in-the-loop gates sit on this critical path: `#1284` prototype
 review, `#1287` target naming, `#1299` activation flip.
 
-6. **V2 Core Financial Model** (F_2.0.0 + F_2.0.1 F1 + F_2.0.2 F2) — pure
-   internal-economics derivation core under `shared/lib/internal-economics/v2/`.
-   Stateless, side-effect-free computation: strict versioned input contract
+6. **V2 Core Financial Model** (F_2.0.0 + F_2.0.1 F1 + F_2.0.2 F2 + F_2.0.3
+   F3a + F_2.0.4 catch-up parity + F_2.0.5 F3b) — pure internal-economics
+   derivation core under `shared/lib/internal-economics/v2/`. Stateless,
+   side-effect-free computation: strict input contract
    (`internal-economics-composite/2.0.1`), refusal-first validation with 6-level
-   precedence, event-stream engine (lot provenance, callable tracking),
+   precedence, event-stream engine (lot provenance and callable tracking),
    deal-by-deal and whole-fund waterfall engines, reserve funding classifier,
-   and receipt builder with canonical-json-sha256 hashing. V1 byte-frozen
-   (15-file SHA-256 certification). F1 conformance adds: pre-schema version
-   check, admission guard blocking public derivation (refusal-only in
-   `deriveInternalEconomicsV2` and `certifyInternalEconomicsDualLaneV2`), legacy
-   corpus adapter (`tests/unit/internal-economics/v2/support/`), independent
-   test oracle, engine truth-case replay (11 cases, 205 tests total), and CI
-   classifier/workflow wiring. F2 completion (F_2.0.2) admits the zero-event
-   deal-by-deal opening state with explicit investment provenance: normalized
-   input is deeply sealed after hashing; hydration builds explicit runtime
-   opening cash-lot, investment-slice, and entitlement-pool types plus a closed
-   balance-forward journal (accounts `cash` / `invested_basis` /
-   `opening_unreturned_capital`) beside the untouched event-lane state; the
-   receipt is the closed `internal-economics-receipt/2.1.0` field set with a
-   five-component manifest, one typed result-hash preimage (the receipt without
-   `resultHash`), and enforced output-row (100,000) and serialized-output-byte
-   (16 MiB) limits. V2-S-0100 is a frozen literal input+receipt fixture;
-   V2-S-0101 is regenerated under 2.1.0 with a consumed changed-case manifest.
-   `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
-   lineage remain F3 scope. F3a (F_2.0.3) lands the `processEvents`
-   refusal-propagation portion: the chronology loop is exported as
-   `processEventsV2ForTest` and returns the first refusal-capable processor
-   refusal, and the engine now enforces cumulative per-lot allocation/relief
-   aggregates, row-level negative-amount rejection, and exact event-total
-   (`amountUsd`) equality with the existing refusal families at the provenance
-   stage. Remaining F3 scope narrows to `sourceCashLotId` lineage, eventful
-   receipt, and event-stream atomicity. F_2.0.4 (catch-up allocation parity)
-   unifies both waterfall engines' GP catch-up arithmetic behind one pure leaf
-   (`catch-up-allocation-v2.ts`) implementing the locked `(c(G+L)-G)/(g-c)`
-   stopping rule with a single jointly-quantized GP/LP split, cumulative profit
-   accumulators (fund-level in whole-fund, per-pool in deal-by-deal), and
-   defensive empty-cohort/opening-history errors — engine-internal conformance
-   only; public-path behavior byte-identical. No routes, persistence, jobs,
-   migrations, or activation. ADR-085, ADR-086, ADR-087, and ADR-088 in
-   `DECISIONS.md`. Plans:
+   and canonical-json-sha256 receipts. V1 remains byte-frozen (15-file SHA-256
+   certification). F1 adds pre-schema validation, the public admission fence,
+   legacy corpus adapter, independent oracle, truth-case replay, and CI
+   classifier wiring. F2 adds explicit opening cash-lot, investment-slice,
+   entitlement-pool hydration and the closed `internal-economics-receipt/2.1.0`
+   balance-forward receipt. Certified cases transition receipt versions through
+   the changed-case manifest; V2-S-0100's 2.1.0 literals stay byte-frozen as
+   historical certification while its live derivation (like V2-S-0101's) is
+   2.2.0 after F3b.
+
+   F3a (`F_2.0.3`) adds chronology-loop refusal propagation, cumulative per-lot
+   allocation/relief validation, row-level negative rejection, and exact
+   event-total checks. F3b (`F_2.0.5`) completes the residual F3 scope:
+   whole-stream staged-return atomicity with in-loop callable consumption, an
+   origin-discriminated unified cash-source-lot registry seeded from opening
+   provenance, retained consumption/partner-effect records and investment
+   funding vectors, and the eventful `internal-economics-receipt/2.2.0`
+   contract. The receipt discloses the seven-account event/distribution journal,
+   lineage, staged-derived partner figures, lane-correct waterfall manifest,
+   source-discriminated cash-flow entries, and bounded canonical preimage/hash.
+   Waterfalls select only event-origin realization-proceeds lots and distribute
+   `remainingBalance`. `certifyInternalEconomicsDualLaneV2` now runs both lanes
+   for conformant inputs; ordinary derivation remains selected-lane-only and
+   keeps the accepted input literal at `internal-economics-composite/2.0.1`
+   while its implementation manifest reports
+   `internal-economics-composite/2.2.0`.
+
+   F3b admissions are opening-lot-funded deployments, callable-overrun refusal,
+   conformant dual-lane certification, and origin-based/ remaining-balance
+   proceeds handling. Parked work remains correction, write-off, and conversion
+   semantics (2B), plus persistence, queues, and durable-state integration (2C).
+   No routes, migrations, workers, flags, persistence, or activation are part of
+   this landing. F_2.0.4 continues to use the shared catch-up leaf with its
+   locked stopping rule and quantized split; its public path remains
+   byte-identical. ADR-085 through ADR-088 and ADR-090 in `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,
    `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`,
    `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`,
    `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`,
-   `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`.
+   `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`,
+   `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md`.
 
 7. **Daily Decision Workspace** (F_1.7.0) — S1 lands the source-pinned
    Base/Upside/Downside allocation-scenario flow: a narrowed

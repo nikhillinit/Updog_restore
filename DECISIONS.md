@@ -11606,3 +11606,82 @@ is capability, not authority: every production dispatch remains a separate
 owner-authorized action under the governing policy. Plans, tests, readbacks, and
 evidence are evidence only; they grant no merge, deployment, provider, schema,
 or production authority.
+
+## ADR-090: F3b Eventful Receipt, Lineage, and Dual-Lane Certification
+
+**Date:** 2026-08-30 **Status:** Accepted **Tags:** #internal-economics #v2
+#event-stream #receipt #lineage #certification
+
+### Decision
+
+F3b completes the engine-internal residual F3 scope: whole-stream atomicity,
+source-lot lineage, eventful receipt construction, and callable consumption.
+Three ratified boundaries govern this landing:
+
+1. **Correction policy is deferred.** `contribution_correction`, `write_off`,
+   and `conversion` remain explicit capability refusals. Their semantics are
+   parked as 2B work and are not encoded speculatively in receipt 2.2.0.
+2. **Scope is the full residual trio.** Atomicity, lineage, eventful receipt,
+   and callable consumption land together as conformance-level engine work; no
+   routes, persistence, jobs, migrations, queues, flags, or activation are
+   implied.
+3. **Certification is the named consumer.** `certifyInternalEconomicsDualLaneV2`
+   consumes the event journal, lineage, and partner vectors by running both
+   lanes and returning both receipts for conformant inputs.
+
+Event processing uses staged-return atomicity: clone every mutable
+`EventStreamState` field by value, apply the chronology to the clone, and
+publish either the first refusal or the fully applied staged state. A refusal
+never mutates the caller-visible state; `runLane` consumes only the successful
+staged return. This is preferred over in-place rollback because non-mutation is
+directly provable and the receipt receives the exact state that was applied.
+
+The receipt manifest reports implementation identity separately from the
+accepted input contract literal. `internal-economics-composite/2.0.1` remains
+the input contract version; the implementation and receipt manifest disclose
+`internal-economics-composite/2.2.0`. The event engine, both waterfall
+implementations, receipt contract, and serializer use their F3b 2.2.0 versions.
+There is no legacy emission path: every derived receipt is 2.2.0. V2-S-0100's
+frozen 2.1.0 input and receipt literals are retained byte-frozen as historical
+certification, and its live derivation transitions to 2.2.0 with identical
+economics under a changed-case manifest entry; V2-S-0101 is regenerated under
+the 2.2.0 receipt contract and changed-case manifest.
+
+F3b records four deliberate behavioral admissions:
+
+- deployments may consume explicitly referenced opening cash lots;
+- callable-overrun streams refuse instead of silently proceeding;
+- conformant inputs may succeed through dual-lane certification;
+- waterfall proceeds selection requires an event-origin `realization_proceeds`
+  lot and distributes its `remainingBalance`, not its original amount.
+
+Waterfall return-of-capital apportionment remains unchanged and continues to use
+settled-capital shares. The receipt builder fails closed with
+`RECEIPT_CONSERVATION_VIOLATION` when the resulting ROC partner vector would
+overdraw a partner's remaining unreturned capital. Choosing a corrected ROC
+apportionment rule is a parked, consumer-backed follow-up; F3b does not invent
+priority or allocation semantics.
+
+### Consequences
+
+Receipt 2.2.0 contains event and derivation-stage distribution journal rows,
+source-discriminated cash-flow entries, staged-derived partner figures, and
+lot/slice lineage. Whole-fund certification is executable for conformant inputs,
+while ordinary derivation remains selected-lane-only and its public admission
+fence remains unchanged. Version transitions of certified cases are recorded in
+the changed-case manifest (V2-S-0101 from 2.0.0, V2-S-0100 from 2.1.0), with
+each case's frozen prior literal preserved as historical evidence.
+
+### Follow-ups
+
+2B: admit correction, write-off, and conversion semantics under a separate
+consumer-backed decision and receipt version if required. 2C: decide durable
+persistence and queue integration independently. Reopen ROC apportionment only
+with a ratified economic rule and truth cases covering unequal settled and
+unreturned-capital ratios.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch. Plans, tests, and
+certification output are evidence only.

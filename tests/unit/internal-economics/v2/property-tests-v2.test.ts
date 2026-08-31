@@ -56,12 +56,12 @@ describe('V2 F1 properties', () => {
     expect('certification' in certifyResult).toBe(false);
   });
 
-  it('keeps the exact fee-free dual-lane refusal', () => {
+  it('certifies fee-free inputs in both lanes', () => {
     const result = certifyInternalEconomicsDualLaneV2(buildMinimalV2Input());
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.refusal.code).toBe('UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION');
-    expect(result.refusal.stage).toBe('waterfall');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.certification.dealByDeal.selectedLane).toBe('deal_by_deal');
+    expect(result.certification.wholeFund.selectedLane).toBe('whole_fund');
   });
 });

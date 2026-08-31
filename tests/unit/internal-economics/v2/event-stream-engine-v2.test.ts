@@ -32,15 +32,18 @@ function snapshotMutableEventLaneState(state: EventStreamState): string {
     [...map.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
   return canonicalJson({
-    cashSourceLots: sortedEntries(state.cashSourceLots).map(([mapKey, lot]) => ({
-      mapKey,
-      lotId: lot.lotId,
-      sourceEventId: lot.sourceEventId,
-      partnerId: lot.partnerId,
-      ...(lot.dealId === undefined ? {} : { dealId: lot.dealId }),
-      originalAmount: lot.originalAmount.toFixed(6),
-      remainingBalance: lot.remainingBalance.toFixed(6),
-    })),
+    cashSourceLots: sortedEntries(state.cashSourceLots)
+      .filter(([, lot]) => lot.origin === 'event')
+      .map(([mapKey, lot]) => ({
+        mapKey,
+        lotId: lot.lotId,
+        sourceEventId: lot.sourceEventId,
+        ...(lot.sourceKind === 'contribution_settlement'
+          ? { partnerId: lot.partnerId }
+          : { dealId: lot.dealId }),
+        originalAmount: lot.originalAmount.toFixed(6),
+        remainingBalance: lot.remainingBalance.toFixed(6),
+      })),
     investmentLots: sortedEntries(state.investmentLots).map(([mapKey, lot]) => ({
       mapKey,
       lotId: lot.lotId,
@@ -445,9 +448,9 @@ describe('initializeEventStreamState', () => {
     expect(
       state.openingJournal.find((entry) => entry.kind === 'opening_investment_slice')!.sourceRef
     ).toBe('investment-source:1');
-    expect(state.cashSourceLots.size).toBe(0);
+    expect(state.cashSourceLots.size).toBe(2);
     expect(state.investmentLots.size).toBe(0);
-    expect(state.cashSourceLots.has('opening-cash:lp-1')).toBe(false);
+    expect(state.cashSourceLots.has('opening-cash:lp-1')).toBe(true);
     expect(state.investmentLots.has('opening-investment:1')).toBe(false);
   });
 });
@@ -935,7 +938,7 @@ describe('F3a expected-red validation cases', () => {
     expect(snapshotMutableEventLaneState(state)).toBe(before);
   });
 
-  it('returns first chronology refusal and retains earlier effects only', () => {
+  it('leaves caller state untouched after first chronology refusal', () => {
     const contribution = {
       eventId: 'red-chronology-contribution',
       instant: '2025-02-01T00:00:00Z',
@@ -979,21 +982,17 @@ describe('F3a expected-red validation cases', () => {
     );
     if (!normalizeResult.ok) throw new Error('normalization failed');
 
-    const expectedState = makeEventStreamState();
-    processSettledContribution(contribution, expectedState);
-    expect(processDeployment(earlierDeployment, expectedState)).toBeNull();
-    const expectedStateAfterEarlier = snapshotMutableEventLaneState(expectedState);
-
     const state = makeEventStreamState();
+    const before = snapshotMutableEventLaneState(state);
     const result = processEventsV2ForTest(normalizeResult.input, state);
 
-    expect(result?.code).toBe('CASH_SOURCE_ALLOCATION_VIOLATION');
-    expect(result?.stage).toBe('provenance');
-    expect(snapshotMutableEventLaneState(state)).toBe(expectedStateAfterEarlier);
-    expect(
-      state.cashSourceLots.get('csl:red-chronology-contribution')!.remainingBalance.toFixed(6)
-    ).toBe('60.000000');
-    expect(state.investmentLots.has('inv:d-1:s-1:red-chronology-deployment')).toBe(true);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.code).toBe('CASH_SOURCE_ALLOCATION_VIOLATION');
+    expect(result.refusal.stage).toBe('provenance');
+    expect(snapshotMutableEventLaneState(state)).toBe(before);
+    expect(state.cashSourceLots.has('csl:red-chronology-contribution')).toBe(false);
+    expect(state.investmentLots.has('inv:d-1:s-1:red-chronology-deployment')).toBe(false);
     expect(state.investmentLots.has('inv:d-1:s-2:red-chronology-total-mismatch')).toBe(false);
     // An implementation that continued after the first refusal would apply this event.
     expect(state.investmentLots.has('inv:d-1:s-3:red-chronology-trailing-valid')).toBe(false);

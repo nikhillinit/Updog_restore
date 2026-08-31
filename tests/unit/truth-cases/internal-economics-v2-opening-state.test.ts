@@ -3,6 +3,7 @@ import { canonicalJson } from '../../../shared/lib/canonical-json';
 import type { InternalEconomicsInputV2Wire } from '../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 import { deriveInternalEconomicsV2 } from '../../../shared/lib/internal-economics/v2/derive-composite-v2';
 import { oracleHash } from '../internal-economics/v2/support/canonical-receipt-oracle-v1';
+import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 } from '../internal-economics/v2/support/canonical-receipt-changed-case-manifest-v1';
 
 const INPUT_JSON = String.raw`{
   "contractVersion": "internal-economics-composite/2.0.1",
@@ -38,7 +39,11 @@ const INPUT_JSON = String.raw`{
   "events":[]
 }`;
 
-const EXPECTED_RECEIPT_JSON = String.raw`{
+// Byte-frozen 2.1.0 receipt captured at the F2 certification base. Retained as
+// historical certification evidence; the live engine now derives the 2.2.0
+// receipt for this input (identical economics — see the V2-S-0100 entry in the
+// changed-case manifest).
+const FROZEN_RECEIPT_2_1_0_JSON = String.raw`{
   "receiptVersion":"internal-economics-receipt/2.1.0",
   "componentVersions":{"normalizer":"internal-economics-normalizer/2.0.1","composite":"internal-economics-composite/2.0.1","eventEngine":"internal-economics-event-engine/2.0.1","selectedWaterfall":"internal-economics-waterfall-deal-by-deal/2.0.1","receiptSerializer":"internal-economics-receipt-serializer/2.1.0"},
   "selectedLane":"deal_by_deal",
@@ -84,24 +89,55 @@ function buildLiteralInput(): InternalEconomicsInputV2Wire {
 }
 
 describe('V2-S-0100 opening investment provenance truth case', () => {
-  it('matches literal receipt, independent oracle, deep freeze, and no inferred lineage', () => {
+  it('preserves the frozen 2.1.0 receipt literal as self-consistent historical certification', () => {
+    const frozenReceipt = JSON.parse(FROZEN_RECEIPT_2_1_0_JSON) as Record<string, unknown>;
+    const { resultHash, ...preimage } = frozenReceipt;
+
+    expect(resultHash).toBe('ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f');
+    expect(oracleHash(preimage)).toBe(resultHash);
+    expect(oracleCanonicalJson(preimage)).toBe(canonicalJson(preimage));
+  });
+
+  it('derives the 2.2.0 receipt with identical economics, oracle hash, deep freeze, and no inferred lineage', () => {
     const input = buildLiteralInput();
     const inputBefore = structuredClone(input);
-    const expectedReceipt = JSON.parse(EXPECTED_RECEIPT_JSON);
+    const frozenReceipt = JSON.parse(FROZEN_RECEIPT_2_1_0_JSON) as Record<string, unknown>;
+    const manifest = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1[1]!;
     const result = deriveInternalEconomicsV2(input);
 
-    expect(result.ok, result.ok ? undefined : `${result.refusal.code}/${result.refusal.stage}`).toBe(
-      true
-    );
+    expect(
+      result.ok,
+      result.ok ? undefined : `${result.refusal.code}/${result.refusal.stage}`
+    ).toBe(true);
     if (!result.ok) return;
 
-    expect(result.receipt).toEqual(expectedReceipt);
-    expect(result.receipt.normalizedInputHash).toBe(
-      '273367406da6294a58cc2ed6ebfc0d0ec2d67a1356f81fb59f51782e1a351d98'
-    );
-    expect(result.receipt.resultHash).toBe(
+    expect(manifest.caseId).toBe('V2-S-0100');
+    expect(manifest.beforeResultHash).toBe(
       'ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f'
     );
+    expect(manifest.beforeResultHash).not.toBe(manifest.afterResultHash);
+    expect(result.receipt.receiptVersion).toBe(manifest.afterReceiptVersion);
+    expect(result.receipt.componentVersions).toEqual({
+      normalizer: 'internal-economics-normalizer/2.0.1',
+      composite: 'internal-economics-composite/2.2.0',
+      eventEngine: 'internal-economics-event-engine/2.2.0',
+      selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.2.0',
+      receiptSerializer: 'internal-economics-receipt-serializer/2.2.0',
+    });
+    expect(result.receipt.lineage).toEqual({ cashLots: [], investmentSlices: [] });
+
+    // Economics are byte-identical to the frozen 2.1.0 receipt: only the
+    // version fields, lineage disclosure, and hash domain moved.
+    expect(result.receipt.fundCashEquation).toEqual(frozenReceipt['fundCashEquation']);
+    expect(result.receipt.openingPositions).toEqual(frozenReceipt['openingPositions']);
+    expect(result.receipt.journal).toEqual(frozenReceipt['journal']);
+    expect(result.receipt.tierAllocations).toEqual(frozenReceipt['tierAllocations']);
+    expect(result.receipt.partnerLedgers).toEqual(frozenReceipt['partnerLedgers']);
+    expect(result.receipt.classLedgers).toEqual(frozenReceipt['classLedgers']);
+    expect(result.receipt.sourceRefs).toEqual(frozenReceipt['sourceRefs']);
+    expect(result.receipt.upstreamReceiptIds).toEqual(frozenReceipt['upstreamReceiptIds']);
+    expect(result.receipt.normalizedInputHash).toBe(manifest.normalizedInputHash);
+    expect(result.receipt.resultHash).toBe(manifest.afterResultHash);
 
     const { resultHash, ...preimage } = result.receipt;
     expect(oracleHash(preimage)).toBe(resultHash);
@@ -114,8 +150,7 @@ describe('V2-S-0100 opening investment provenance truth case', () => {
   it('changes entitlement disclosure and hash without changing cash, basis, ledgers, tiers, or flows', () => {
     const baseResult = deriveInternalEconomicsV2(buildLiteralInput());
     const changedInput = buildLiteralInput();
-    changedInput.openingState.openingProvenance.investmentLots[0]!.entitlementAmount =
-      '61.000000';
+    changedInput.openingState.openingProvenance.investmentLots[0]!.entitlementAmount = '61.000000';
     const changedResult = deriveInternalEconomicsV2(changedInput);
 
     expect(baseResult.ok).toBe(true);
@@ -131,25 +166,33 @@ describe('V2-S-0100 opening investment provenance truth case', () => {
     );
     expect(changedResult.receipt.fundCashEquation).toEqual(baseResult.receipt.fundCashEquation);
     expect(changedResult.receipt.tierAllocations).toEqual(baseResult.receipt.tierAllocations);
-    expect(changedResult.receipt.partnerLedgers.map((ledger) => ({
-      partnerId: ledger.partnerId,
-      unreturnedSettledCashCapital: ledger.unreturnedSettledCashCapital,
-      cashFlowVector: ledger.cashFlowVector,
-    }))).toEqual(baseResult.receipt.partnerLedgers.map((ledger) => ({
-      partnerId: ledger.partnerId,
-      unreturnedSettledCashCapital: ledger.unreturnedSettledCashCapital,
-      cashFlowVector: ledger.cashFlowVector,
-    })));
-    expect(changedResult.receipt.openingPositions.investmentSlices.map((slice) => ({
-      investmentLotId: slice.investmentLotId,
-      costBasis: slice.costBasis,
-      relievedAmount: slice.relievedAmount,
-      remainingBasis: slice.remainingBasis,
-    }))).toEqual(baseResult.receipt.openingPositions.investmentSlices.map((slice) => ({
-      investmentLotId: slice.investmentLotId,
-      costBasis: slice.costBasis,
-      relievedAmount: slice.relievedAmount,
-      remainingBasis: slice.remainingBasis,
-    })));
+    expect(
+      changedResult.receipt.partnerLedgers.map((ledger) => ({
+        partnerId: ledger.partnerId,
+        unreturnedSettledCashCapital: ledger.unreturnedSettledCashCapital,
+        cashFlowVector: ledger.cashFlowVector,
+      }))
+    ).toEqual(
+      baseResult.receipt.partnerLedgers.map((ledger) => ({
+        partnerId: ledger.partnerId,
+        unreturnedSettledCashCapital: ledger.unreturnedSettledCashCapital,
+        cashFlowVector: ledger.cashFlowVector,
+      }))
+    );
+    expect(
+      changedResult.receipt.openingPositions.investmentSlices.map((slice) => ({
+        investmentLotId: slice.investmentLotId,
+        costBasis: slice.costBasis,
+        relievedAmount: slice.relievedAmount,
+        remainingBasis: slice.remainingBasis,
+      }))
+    ).toEqual(
+      baseResult.receipt.openingPositions.investmentSlices.map((slice) => ({
+        investmentLotId: slice.investmentLotId,
+        costBasis: slice.costBasis,
+        relievedAmount: slice.relievedAmount,
+        remainingBasis: slice.remainingBasis,
+      }))
+    );
   });
 });

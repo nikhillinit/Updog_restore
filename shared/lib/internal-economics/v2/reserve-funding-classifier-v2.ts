@@ -4,7 +4,7 @@ import type {
   ReserveFundingSourcesV2Result,
   V2ReserveRefusal,
 } from '../../../contracts/internal-economics/reserve-funding-sources-v2.contract';
-import type { EventStreamState } from './event-stream-engine-v2';
+import type { CashSourceLot, EventStreamState } from './event-stream-engine-v2';
 
 const ZERO = new Decimal(0);
 const FIX6 = 6;
@@ -21,16 +21,23 @@ export function classifyReserveFundingSources(
     remainingCallable = remainingCallable.plus(tracker.remainingCallable);
   }
 
-  let eligiblePaidIn = ZERO;
-  for (const [, lot] of state.cashSourceLots) {
-    if (lot.lotId.startsWith('proceeds:')) continue;
-    eligiblePaidIn = eligiblePaidIn.plus(lot.remainingBalance);
-  }
+  // Unclassified opening cash is eligible for NEITHER bucket (F_2.0.0 reserve
+  // funding contract) — classify explicitly, never by exclusion.
+  const bucketOf = (lot: CashSourceLot): 'paid_in' | 'recycling' | 'excluded' => {
+    if (lot.origin === 'event') {
+      return lot.sourceKind === 'realization_proceeds' ? 'recycling' : 'paid_in';
+    }
+    if (lot.classification === 'recycling') return 'recycling';
+    if (lot.classification === 'paid_in') return 'paid_in';
+    return 'excluded';
+  };
 
+  let eligiblePaidIn = ZERO;
   let eligibleRecycling = ZERO;
   for (const [, lot] of state.cashSourceLots) {
-    if (!lot.lotId.startsWith('proceeds:')) continue;
-    eligibleRecycling = eligibleRecycling.plus(lot.remainingBalance);
+    const bucket = bucketOf(lot);
+    if (bucket === 'paid_in') eligiblePaidIn = eligiblePaidIn.plus(lot.remainingBalance);
+    if (bucket === 'recycling') eligibleRecycling = eligibleRecycling.plus(lot.remainingBalance);
   }
 
   if (remainingCallable.lt(0) || eligiblePaidIn.lt(0) || eligibleRecycling.lt(0)) {

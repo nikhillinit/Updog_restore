@@ -34,18 +34,18 @@ function micros(value: string): bigint {
 }
 
 describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
-  it('returns the exact detached 2.1.0 opening-state receipt with changed-case evidence', () => {
+  it('returns the exact detached 2.2.0 opening-state receipt with changed-case evidence', () => {
     const input = buildV2S0101Input();
     const inputBefore = structuredClone(input);
     const manifest = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1[0]!;
     const expectedReceipt = {
-      receiptVersion: 'internal-economics-receipt/2.1.0' as const,
+      receiptVersion: 'internal-economics-receipt/2.2.0' as const,
       componentVersions: {
         normalizer: 'internal-economics-normalizer/2.0.1' as const,
-        composite: 'internal-economics-composite/2.0.1' as const,
-        eventEngine: 'internal-economics-event-engine/2.0.1' as const,
-        selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.0.1' as const,
-        receiptSerializer: 'internal-economics-receipt-serializer/2.1.0' as const,
+        composite: 'internal-economics-composite/2.2.0' as const,
+        eventEngine: 'internal-economics-event-engine/2.2.0' as const,
+        selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.2.0' as const,
+        receiptSerializer: 'internal-economics-receipt-serializer/2.2.0' as const,
       },
       selectedLane: 'deal_by_deal' as const,
       hashAlgorithm: 'canonical-json-sha256/1' as const,
@@ -81,6 +81,13 @@ describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
         ],
         investmentSlices: [],
         entitlementPools: [],
+      },
+      lineage: {
+        cashLots: [
+          { lotId: 'opening-cash:gp-1', consumingEventIds: [] },
+          { lotId: 'opening-cash:lp-1', consumingEventIds: [] },
+        ],
+        investmentSlices: [],
       },
       journal: [
         {
@@ -188,17 +195,16 @@ describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
     expect(manifest.beforeResultHash).toBe(
       'e0263b99740005feffcb89bb000d931b00b9232b6086b13056849a191eb07e28'
     );
-    expect(manifest.afterReceiptVersion).toBe('internal-economics-receipt/2.1.0');
+    expect(manifest.afterReceiptVersion).toBe('internal-economics-receipt/2.2.0');
     expect(manifest.beforeResultHash).not.toBe(manifest.afterResultHash);
-    expect(INTERNAL_ECONOMICS_TEST_ORACLE_VERSION).toBe(
-      'internal-economics-test-oracle/1.0.0'
-    );
+    expect(INTERNAL_ECONOMICS_TEST_ORACLE_VERSION).toBe('internal-economics-test-oracle/1.0.0');
 
     const result = deriveInternalEconomicsV2(input);
 
-    expect(result.ok, result.ok ? undefined : `${result.refusal.code}/${result.refusal.stage}`).toBe(
-      true
-    );
+    expect(
+      result.ok,
+      result.ok ? undefined : `${result.refusal.code}/${result.refusal.stage}`
+    ).toBe(true);
     if (!result.ok) return;
     expect(result.receipt).toEqual(expectedReceipt);
     expect(result.receipt.resultHash).toBe(manifest.afterResultHash);

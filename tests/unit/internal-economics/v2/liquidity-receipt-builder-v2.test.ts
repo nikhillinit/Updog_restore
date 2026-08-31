@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalJson, sha256CanonicalJson } from '../../../../shared/lib/canonical-json';
-import {
-  V2_ADMISSION_LIMITS,
-} from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
+import { V2_ADMISSION_LIMITS } from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 import { Decimal } from '../../../../shared/lib/decimal-config';
 import {
   buildReceipt,
@@ -101,14 +99,18 @@ function buildV2S0100Input() {
   return input;
 }
 
-function normalizedAndState(input: ReturnType<typeof buildMinimalV2Input> | ReturnType<typeof buildV2S0100Input>) {
+function normalizedAndState(
+  input: ReturnType<typeof buildMinimalV2Input> | ReturnType<typeof buildV2S0100Input>
+) {
   const normalized = verifyAndNormalizeInternalEconomicsInputV2(input);
   expect(normalized.ok).toBe(true);
   if (!normalized.ok) throw new Error(normalized.refusal.message);
   return { input: normalized.input, state: initializeEventStreamState(normalized.input) };
 }
 
-function receiptFor(input: ReturnType<typeof buildMinimalV2Input> | ReturnType<typeof buildV2S0100Input>) {
+function receiptFor(
+  input: ReturnType<typeof buildMinimalV2Input> | ReturnType<typeof buildV2S0100Input>
+) {
   const { input: normalized, state } = normalizedAndState(input);
   const result = buildReceipt(normalized, state, 'deal_by_deal', []);
   expect(result.ok).toBe(true);
@@ -191,7 +193,10 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
       openingInvestmentSliceCount: state.openingInvestmentSlices.size,
       openingEntitlementPoolCount: state.openingEntitlementPools.size,
       journalEntryCount: state.openingJournal.length,
-      journalPostingCount: state.openingJournal.reduce((sum, entry) => sum + entry.postings.length, 0),
+      journalPostingCount: state.openingJournal.reduce(
+        (sum, entry) => sum + entry.postings.length,
+        0
+      ),
       tierAllocationCount: 0,
       partnerLedgerCount: state.partnerLedgers.size,
       classLedgerCount: input.lpClasses.length,
@@ -199,6 +204,8 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
       classCashFlowEntryCount: 0,
       sourceRefCount: 0,
       upstreamReceiptIdCount: 0,
+      cashLotLineageCount: state.cashSourceLots.size,
+      investmentSliceLineageCount: state.investmentLots.size,
     };
     const exactRefs = Array.from(
       { length: V2_ADMISSION_LIMITS.MAX_OUTPUT_ROWS - countReceiptRows(fixedCounts) },
@@ -212,13 +219,16 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
       'deal_by_deal',
       []
     );
-    expect(over).toMatchObject({ ok: false, refusal: { code: 'ADMISSION_LIMIT_EXCEEDED', stage: 'receipt' } });
+    expect(over).toMatchObject({
+      ok: false,
+      refusal: { code: 'ADMISSION_LIMIT_EXCEEDED', stage: 'receipt' },
+    });
   });
 
   it('enforces complete serialized output bytes after attaching resultHash', () => {
     const { input, state, receipt: baseline } = receiptFor(buildV2S0100Input());
     const baselineBytes = countSerializedOutputBytes(baseline);
-    expect(baselineBytes).toBe(4206);
+    expect(baselineBytes).toBe(4254);
     const paddingLength = V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES - baselineBytes - 2;
     const exact = buildReceipt(
       { ...input, sourceRefs: ['x'.repeat(paddingLength)] },
@@ -235,7 +245,10 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
       'deal_by_deal',
       []
     );
-    expect(over).toMatchObject({ ok: false, refusal: { code: 'ADMISSION_LIMIT_EXCEEDED', stage: 'receipt' } });
+    expect(over).toMatchObject({
+      ok: false,
+      refusal: { code: 'ADMISSION_LIMIT_EXCEEDED', stage: 'receipt' },
+    });
   });
 
   it('refuses journal balance and partner unreturned-capital conservation violations', () => {
@@ -247,7 +260,7 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
         postings: [
           { ...entry.postings[0]!, amountUsd: entry.postings[0]!.amountUsd.plus(new Decimal(1)) },
           entry.postings[1]!,
-        ] as [typeof entry.postings[0], typeof entry.postings[1]],
+        ] as [(typeof entry.postings)[0], (typeof entry.postings)[1]],
       };
     }) as EventStreamState['openingJournal'];
     const journalResult = buildReceipt(

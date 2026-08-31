@@ -1,5 +1,6 @@
 import { Decimal } from '../../../lib/decimal-config';
 import type {
+  CashSourceAllocation,
   V2Event,
   NormalizedInternalEconomicsInputV2,
   OpeningCashOwnerV2,
@@ -7,6 +8,8 @@ import type {
   V2CoreRefusal,
   V2RefusalCode,
   V2Stage,
+  V2TierKind,
+  V2WaterfallLane,
 } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import { V2_EVENT_CLASSIFICATION } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import {
@@ -18,7 +21,34 @@ import {
 } from './preferred-return-accrual-v2';
 
 export const INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION =
-  'internal-economics-event-engine/2.0.1' as const;
+  'internal-economics-event-engine/2.2.0' as const;
+
+type CashSourceLotBase = {
+  readonly lotId: string;
+  readonly originalAmount: Decimal;
+  remainingBalance: Decimal;
+};
+
+type ContributionSettlementCashSourceLot = CashSourceLotBase & {
+  readonly origin: 'event';
+  readonly sourceKind: 'contribution_settlement';
+  readonly sourceEventId: string;
+  readonly partnerId: string;
+};
+
+type RealizationProceedsCashSourceLot = CashSourceLotBase & {
+  readonly origin: 'event';
+  readonly sourceKind: 'realization_proceeds';
+  readonly sourceEventId: string;
+  readonly dealId: string;
+};
+
+type OpeningCashSourceLot = CashSourceLotBase & {
+  readonly origin: 'opening';
+  readonly sourceRef: string;
+  readonly owner: OpeningCashOwnerV2;
+  readonly classification: 'paid_in' | 'recycling' | 'unclassified';
+};
 
 function refuse(
   code: V2RefusalCode,
@@ -29,19 +59,14 @@ function refuse(
   return { ok: false, code, stage, message, ...(diagnostics ? { diagnostics } : {}) };
 }
 
-export interface CashSourceLot {
-  readonly lotId: string;
-  readonly sourceEventId: string;
-  readonly partnerId: string;
-  readonly dealId?: string;
-  readonly originalAmount: Decimal;
-  remainingBalance: Decimal;
-}
+export type CashSourceLot =
+  ContributionSettlementCashSourceLot | RealizationProceedsCashSourceLot | OpeningCashSourceLot;
 
 export interface InvestmentLot {
   readonly lotId: string;
   readonly dealId: string;
   readonly securityId: string;
+  readonly fundingAllocations: readonly CashSourceAllocation[];
   readonly costBasis: Decimal;
   relievedAmount: Decimal;
 }
@@ -133,6 +158,53 @@ export interface DerivedEvent {
   readonly lpClassId?: string;
   readonly partnerId?: string;
 }
+
+export interface ConsumptionRecord {
+  readonly eventId: string;
+  readonly lotId: string;
+  readonly amountUsd: Decimal;
+}
+
+export type EventEffectKind =
+  'settled_contribution' | 'deployment' | 'realization' | 'fund_expense_payment';
+
+export interface EventEffectRecord {
+  readonly eventId: string;
+  readonly instant: string;
+  readonly kind: EventEffectKind;
+  readonly amountUsd: Decimal;
+  readonly reliefTotal?: Decimal;
+}
+
+export type PartnerEffectField =
+  | 'settledCapital'
+  | 'paidInCapital'
+  | 'unreturnedSettledCashCapital'
+  | 'cumulativeDistributions'
+  | 'cumulativeFees'
+  | 'accruedPreference'
+  | 'calledCapitalPeriodDeployment';
+
+export type EventPartnerEffectRecord = {
+  readonly origin: 'event';
+  readonly eventId: string;
+  readonly instant: string;
+  readonly partnerId: string;
+  readonly field: PartnerEffectField;
+  readonly amountUsd: Decimal;
+};
+
+export type DistributionPartnerEffectRecord = {
+  readonly origin: 'distribution';
+  readonly lane: V2WaterfallLane;
+  readonly tierKind: V2TierKind;
+  readonly tierOrdinal: number;
+  readonly partnerId: string;
+  readonly field: PartnerEffectField;
+  readonly amountUsd: Decimal;
+};
+
+export type PartnerEffectRecord = EventPartnerEffectRecord | DistributionPartnerEffectRecord;
 
 export interface ChronologyEntry {
   readonly instant: string;
@@ -321,7 +393,14 @@ export function processCallableCommitment(
   if (classification.callableEffect === 'consumes') {
     if (event.kind !== 'settled_contribution') return null;
     const tracker = trackers.get(event.partnerId);
-    if (!tracker) return null;
+    if (!tracker) {
+      return refuse(
+        'SCHEMA_VALIDATION_FAILED',
+        'settlement',
+        `Event ${event.eventId}: partner '${event.partnerId}' is not declared in partners.`,
+        { eventId: event.eventId, partnerId: event.partnerId }
+      );
+    }
 
     if (amount.gt(tracker.remainingCallable)) {
       return refuse(
@@ -349,12 +428,178 @@ export interface EventStreamState {
   readonly investmentLots: Map<string, InvestmentLot>;
   readonly callableTrackers: Map<string, CallableCommitmentTracker>;
   readonly partnerLedgers: Map<string, PartnerLedgerState>;
+  readonly consumptionRecords: ConsumptionRecord[];
+  readonly eventEffectRecords: EventEffectRecord[];
+  readonly partnerEffectRecords: PartnerEffectRecord[];
   readonly derivedEvents: DerivedEvent[];
   endingCash: Decimal;
   readonly openingCashLots: Map<string, HydratedOpeningCashLot>;
   readonly openingInvestmentSlices: Map<string, HydratedOpeningInvestmentSlice>;
   readonly openingEntitlementPools: Map<string, HydratedOpeningEntitlementPool>;
   readonly openingJournal: OpeningJournalEntry[];
+}
+
+function cashSourceLotCollisionRefusal(eventId: string, lotId: string): V2CoreRefusal {
+  return refuse(
+    'CASH_SOURCE_ALLOCATION_VIOLATION',
+    'provenance',
+    `Event ${eventId}: cash source lot '${lotId}' already exists.`,
+    { eventId }
+  );
+}
+
+function investmentLotCollisionRefusal(eventId: string, lotId: string): V2CoreRefusal {
+  return refuse(
+    'INVESTMENT_LOT_RELIEF_VIOLATION',
+    'provenance',
+    `Event ${eventId}: investment lot '${lotId}' already exists.`,
+    { eventId }
+  );
+}
+
+function appendEventPartnerEffect(
+  state: EventStreamState,
+  event: V2Event & { kind: 'settled_contribution' },
+  field: PartnerEffectField,
+  amountUsd: Decimal
+): void {
+  state.partnerEffectRecords.push({
+    origin: 'event',
+    eventId: event.eventId,
+    instant: event.instant,
+    partnerId: event.partnerId,
+    field,
+    amountUsd: new Decimal(amountUsd),
+  });
+}
+
+function cloneOpeningJournalEntry(entry: OpeningJournalEntry): OpeningJournalEntry {
+  if (entry.kind === 'opening_cash_lot') {
+    return {
+      ...entry,
+      postings: entry.postings.map((posting) => ({
+        ...posting,
+        owner: { ...posting.owner },
+        amountUsd: new Decimal(posting.amountUsd),
+      })) as [OpeningJournalPosting, OpeningJournalPosting],
+    };
+  }
+
+  return {
+    ...entry,
+    postings: entry.postings.map((posting) => ({
+      ...posting,
+      owner: { ...posting.owner },
+      amountUsd: new Decimal(posting.amountUsd),
+    })) as [OpeningInvestmentSliceJournalPosting, OpeningInvestmentSliceJournalPosting],
+  };
+}
+
+export function cloneEventStreamState(state: EventStreamState): EventStreamState {
+  const clonedState = {
+    cashSourceLots: new Map<string, CashSourceLot>(),
+    investmentLots: new Map<string, InvestmentLot>(),
+    callableTrackers: new Map<string, CallableCommitmentTracker>(),
+    partnerLedgers: new Map<string, PartnerLedgerState>(),
+    consumptionRecords: state.consumptionRecords.map((record) => ({
+      ...record,
+      amountUsd: new Decimal(record.amountUsd),
+    })),
+    eventEffectRecords: state.eventEffectRecords.map((record) => ({
+      ...record,
+      amountUsd: new Decimal(record.amountUsd),
+      ...(record.reliefTotal !== undefined ? { reliefTotal: new Decimal(record.reliefTotal) } : {}),
+    })),
+    partnerEffectRecords: state.partnerEffectRecords.map((record) => ({
+      ...record,
+      amountUsd: new Decimal(record.amountUsd),
+    })),
+    derivedEvents: state.derivedEvents.map((event) => ({
+      ...event,
+      amount: new Decimal(event.amount),
+    })),
+    endingCash: new Decimal(state.endingCash),
+    openingCashLots: new Map<string, HydratedOpeningCashLot>(),
+    openingInvestmentSlices: new Map<string, HydratedOpeningInvestmentSlice>(),
+    openingEntitlementPools: new Map<string, HydratedOpeningEntitlementPool>(),
+    openingJournal: state.openingJournal.map(cloneOpeningJournalEntry),
+  } satisfies EventStreamState;
+
+  for (const [key, lot] of state.cashSourceLots) {
+    clonedState.cashSourceLots.set(
+      key,
+      lot.origin === 'opening'
+        ? {
+            ...lot,
+            owner: { ...lot.owner },
+            originalAmount: new Decimal(lot.originalAmount),
+            remainingBalance: new Decimal(lot.remainingBalance),
+          }
+        : {
+            ...lot,
+            originalAmount: new Decimal(lot.originalAmount),
+            remainingBalance: new Decimal(lot.remainingBalance),
+          }
+    );
+  }
+
+  for (const [key, lot] of state.investmentLots) {
+    clonedState.investmentLots.set(key, {
+      ...lot,
+      fundingAllocations: lot.fundingAllocations.map((allocation) => ({ ...allocation })),
+      costBasis: new Decimal(lot.costBasis),
+      relievedAmount: new Decimal(lot.relievedAmount),
+    });
+  }
+
+  for (const [key, tracker] of state.callableTrackers) {
+    clonedState.callableTrackers.set(key, {
+      ...tracker,
+      remainingCallable: new Decimal(tracker.remainingCallable),
+    });
+  }
+
+  for (const [key, ledger] of state.partnerLedgers) {
+    clonedState.partnerLedgers.set(key, {
+      ...ledger,
+      settledCapital: new Decimal(ledger.settledCapital),
+      paidInCapital: new Decimal(ledger.paidInCapital),
+      unreturnedSettledCashCapital: new Decimal(ledger.unreturnedSettledCashCapital),
+      cumulativeDistributions: new Decimal(ledger.cumulativeDistributions),
+      cumulativeFees: new Decimal(ledger.cumulativeFees),
+      accruedPreference: new Decimal(ledger.accruedPreference),
+      calledCapitalPeriodDeployment: new Decimal(ledger.calledCapitalPeriodDeployment),
+    });
+  }
+
+  for (const [key, lot] of state.openingCashLots) {
+    clonedState.openingCashLots.set(key, {
+      ...lot,
+      owner: { ...lot.owner },
+      originalAmount: new Decimal(lot.originalAmount),
+      remainingBalance: new Decimal(lot.remainingBalance),
+    });
+  }
+
+  for (const [key, slice] of state.openingInvestmentSlices) {
+    clonedState.openingInvestmentSlices.set(key, {
+      ...slice,
+      owner: { ...slice.owner },
+      costBasis: new Decimal(slice.costBasis),
+      relievedAmount: new Decimal(slice.relievedAmount),
+      remainingBasis: new Decimal(slice.remainingBasis),
+      entitlementAmount: new Decimal(slice.entitlementAmount),
+    });
+  }
+
+  for (const [key, pool] of state.openingEntitlementPools) {
+    clonedState.openingEntitlementPools.set(key, {
+      ...pool,
+      entitlementTotal: new Decimal(pool.entitlementTotal),
+    });
+  }
+
+  return clonedState;
 }
 
 export function initializeEventStreamState(
@@ -391,10 +636,27 @@ export function initializeEventStreamState(
 
   const openingCashLots = new Map<string, HydratedOpeningCashLot>();
   for (const lot of input.openingState.openingProvenance.cashLots) {
+    if (openingCashLots.has(lot.lotId) || cashSourceLots.has(lot.lotId)) {
+      throw new Error(`Duplicate opening cash source lot ID ${lot.lotId}.`);
+    }
     openingCashLots.set(lot.lotId, {
       lotId: lot.lotId,
       sourceRef: lot.sourceRef,
       owner: lot.owner,
+      classification: lot.classification,
+      originalAmount: new Decimal(lot.originalAmount),
+      remainingBalance: new Decimal(lot.remainingBalance),
+    });
+  }
+  for (const lot of openingCashLots.values()) {
+    if (cashSourceLots.has(lot.lotId)) {
+      throw new Error(`Duplicate opening cash source lot ID ${lot.lotId}.`);
+    }
+    cashSourceLots.set(lot.lotId, {
+      origin: 'opening',
+      lotId: lot.lotId,
+      sourceRef: lot.sourceRef,
+      owner: { ...lot.owner },
       classification: lot.classification,
       originalAmount: new Decimal(lot.originalAmount),
       remainingBalance: new Decimal(lot.remainingBalance),
@@ -492,6 +754,9 @@ export function initializeEventStreamState(
     investmentLots,
     callableTrackers,
     partnerLedgers,
+    consumptionRecords: [],
+    eventEffectRecords: [],
+    partnerEffectRecords: [],
     derivedEvents: [],
     endingCash: new Decimal(input.openingState.openingCash),
     openingCashLots,
@@ -504,11 +769,27 @@ export function initializeEventStreamState(
 export function processSettledContribution(
   event: V2Event & { kind: 'settled_contribution' },
   state: EventStreamState
-): void {
+): V2CoreRefusal | null {
   const amount = new Decimal(event.amountUsd);
   const lotId = `csl:${event.eventId}`;
 
+  const ledger = state.partnerLedgers.get(event.partnerId);
+  if (!ledger) {
+    return refuse(
+      'SCHEMA_VALIDATION_FAILED',
+      'settlement',
+      `Event ${event.eventId}: partner '${event.partnerId}' is not declared in partners.`,
+      { eventId: event.eventId, partnerId: event.partnerId }
+    );
+  }
+
+  if (state.cashSourceLots.has(lotId)) {
+    return cashSourceLotCollisionRefusal(event.eventId, lotId);
+  }
+
   state.cashSourceLots.set(lotId, {
+    origin: 'event',
+    sourceKind: 'contribution_settlement',
     lotId,
     sourceEventId: event.eventId,
     partnerId: event.partnerId,
@@ -516,18 +797,28 @@ export function processSettledContribution(
     remainingBalance: amount,
   });
 
+  state.eventEffectRecords.push({
+    eventId: event.eventId,
+    instant: event.instant,
+    kind: 'settled_contribution',
+    amountUsd: new Decimal(amount),
+  });
+
   state.endingCash = state.endingCash.plus(amount);
 
-  const ledger = state.partnerLedgers.get(event.partnerId);
-  if (ledger) {
-    ledger.settledCapital = ledger.settledCapital.plus(amount);
-    ledger.paidInCapital = ledger.paidInCapital.plus(amount);
-    ledger.unreturnedSettledCashCapital = ledger.unreturnedSettledCashCapital.plus(amount);
+  ledger.settledCapital = ledger.settledCapital.plus(amount);
+  appendEventPartnerEffect(state, event, 'settledCapital', amount);
+  ledger.paidInCapital = ledger.paidInCapital.plus(amount);
+  appendEventPartnerEffect(state, event, 'paidInCapital', amount);
+  ledger.unreturnedSettledCashCapital = ledger.unreturnedSettledCashCapital.plus(amount);
+  appendEventPartnerEffect(state, event, 'unreturnedSettledCashCapital', amount);
 
-    if (event.purpose === 'deployment') {
-      ledger.calledCapitalPeriodDeployment = ledger.calledCapitalPeriodDeployment.plus(amount);
-    }
+  if (event.purpose === 'deployment') {
+    ledger.calledCapitalPeriodDeployment = ledger.calledCapitalPeriodDeployment.plus(amount);
+    appendEventPartnerEffect(state, event, 'calledCapitalPeriodDeployment', amount);
   }
+
+  return null;
 }
 
 export function processRealization(
@@ -538,6 +829,18 @@ export function processRealization(
 
   const reliefError = validateReliefRows(event.reliefRows, state.investmentLots, event.eventId);
   if (reliefError) return reliefError;
+
+  for (const row of event.reliefRows) {
+    const lotDealId = state.investmentLots.get(row.investmentLotId)!.dealId;
+    if (lotDealId !== event.dealId) {
+      return refuse(
+        'INVESTMENT_LOT_RELIEF_VIOLATION',
+        'provenance',
+        `Event ${event.eventId}: relief row lot '${row.investmentLotId}' belongs to deal '${lotDealId}', not event deal '${event.dealId}'.`,
+        { eventId: event.eventId }
+      );
+    }
+  }
 
   const allocatedProceedsTotal = event.reliefRows.reduce(
     (total, row) => total.plus(new Decimal(row.allocatedProceeds)),
@@ -557,16 +860,31 @@ export function processRealization(
     );
   }
 
-  applyReliefRows(event.reliefRows, state.investmentLots);
-
   const lotId = `proceeds:${event.eventId}`;
+  if (state.cashSourceLots.has(lotId)) {
+    return cashSourceLotCollisionRefusal(event.eventId, lotId);
+  }
+
+  applyReliefRows(event.reliefRows, state.investmentLots);
   state.cashSourceLots.set(lotId, {
+    origin: 'event',
+    sourceKind: 'realization_proceeds',
     lotId,
     sourceEventId: event.eventId,
-    partnerId: '',
     dealId: event.dealId,
     originalAmount: amount,
     remainingBalance: amount,
+  });
+
+  state.eventEffectRecords.push({
+    eventId: event.eventId,
+    instant: event.instant,
+    kind: 'realization',
+    amountUsd: new Decimal(amount),
+    reliefTotal: event.reliefRows.reduce(
+      (total, row) => total.plus(new Decimal(row.relievedCostBasis)),
+      new Decimal(0)
+    ),
   });
 
   state.endingCash = state.endingCash.plus(amount);
@@ -604,15 +922,33 @@ export function processDeployment(
     );
   }
 
-  applyCashSourceAllocations(event.cashSourceAllocations, state.cashSourceLots);
-
   const lotId = `inv:${event.dealId}:${event.securityId}:${event.eventId}`;
+  if (state.investmentLots.has(lotId) || state.openingInvestmentSlices.has(lotId)) {
+    return investmentLotCollisionRefusal(event.eventId, lotId);
+  }
+
+  applyCashSourceAllocations(event.cashSourceAllocations, state.cashSourceLots);
+  state.consumptionRecords.push(
+    ...event.cashSourceAllocations.map((allocation) => ({
+      eventId: event.eventId,
+      lotId: allocation.lotId,
+      amountUsd: new Decimal(allocation.amount),
+    }))
+  );
   state.investmentLots.set(lotId, {
     lotId,
     dealId: event.dealId,
     securityId: event.securityId,
+    fundingAllocations: event.cashSourceAllocations.map((allocation) => ({ ...allocation })),
     costBasis: amount,
     relievedAmount: new Decimal(0),
+  });
+
+  state.eventEffectRecords.push({
+    eventId: event.eventId,
+    instant: event.instant,
+    kind: 'deployment',
+    amountUsd: new Decimal(amount),
   });
 
   state.endingCash = state.endingCash.minus(amount);
@@ -651,6 +987,19 @@ export function processFundExpense(
   }
 
   applyCashSourceAllocations(event.cashSourceAllocations, state.cashSourceLots);
+  state.consumptionRecords.push(
+    ...event.cashSourceAllocations.map((allocation) => ({
+      eventId: event.eventId,
+      lotId: allocation.lotId,
+      amountUsd: new Decimal(allocation.amount),
+    }))
+  );
+  state.eventEffectRecords.push({
+    eventId: event.eventId,
+    instant: event.instant,
+    kind: 'fund_expense_payment',
+    amountUsd: new Decimal(amount),
+  });
   state.endingCash = state.endingCash.minus(amount);
   return null;
 }

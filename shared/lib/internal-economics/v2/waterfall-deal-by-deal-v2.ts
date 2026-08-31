@@ -3,6 +3,7 @@ import type {
   NormalizedInternalEconomicsInputV2,
   WaterfallTierV2,
   V2CoreRefusal,
+  V2TierKind,
 } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
@@ -15,7 +16,7 @@ import {
 } from './decimal-cents-v2';
 
 export const INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION =
-  'internal-economics-waterfall-deal-by-deal/2.0.1' as const;
+  'internal-economics-waterfall-deal-by-deal/2.2.0' as const;
 
 const ZERO = new Decimal(0);
 
@@ -42,7 +43,7 @@ export interface EntitlementPool {
 }
 
 export interface DealByDealTierResult {
-  readonly kind: string;
+  readonly kind: V2TierKind;
   readonly priority: number;
   totalAllocated: Decimal;
   gpShare: Decimal;
@@ -80,10 +81,12 @@ function buildEntitlementPools(state: EventStreamState): EntitlementPool[] {
   }
 
   for (const [, lot] of state.cashSourceLots) {
-    if (!lot.lotId.startsWith('proceeds:') || !lot.dealId) continue;
+    if (lot.origin !== 'event' || lot.sourceKind !== 'realization_proceeds') {
+      continue;
+    }
     for (const [key, pool] of poolMap) {
       if (key.startsWith(`${lot.dealId}:`)) {
-        pool.proceedsAvailable = pool.proceedsAvailable.plus(lot.originalAmount);
+        pool.proceedsAvailable = pool.proceedsAvailable.plus(lot.remainingBalance);
         break;
       }
     }

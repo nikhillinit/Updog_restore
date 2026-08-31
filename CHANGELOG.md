@@ -22,6 +22,32 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-30)
+
+- **V2 F3b: event-stream atomicity, source-lot lineage, eventful receipt 2.2.0
+  (F_2.0.5).** `processEventsV2ForTest` becomes whole-stream atomic via an
+  exhaustive value-deep staged clone (any refusal publishes nothing; success
+  hands the staged state to `runLane`), and the chronology loop now invokes
+  `processCallableCommitment` so callable-overrun streams refuse. The cash
+  source-lot registry becomes an origin-discriminated union seeded from opening
+  provenance (admitting opening-lot-funded deployments, with id-collision
+  refusals), and staged consumption/partner-effect records plus per-slice
+  funding vectors survive into the receipt. Receipt 2.2.0 discloses a
+  seven-account double-entry journal (event postings plus derivation-stage
+  distribution postings from a pre-conversion tier-partner vector), lot/slice
+  lineage, source-discriminated cash-flow entries, and staged-derived partner
+  capital figures; conservation extends across journal accounts and ROC overdraw
+  fails closed. Both waterfalls select proceeds by
+  event-origin/`realization_proceeds` and distribute `remainingBalance`.
+  `certifyInternalEconomicsDualLaneV2` runs both lanes behind a shared
+  capability guard. Code review hardened three more latent paths:
+  undeclared-partner contributions, cross-deal realization relief, and
+  unclassified opening cash in reserve eligibility all refuse or exclude.
+  V2-S-0100's frozen 2.1.0 literals remain historical certification; live
+  derivations are 2.2.0 via the changed-case manifest. Decision: ADR-090;
+  release record `docs/2-changelog/w6_v2.0.5.md`; review
+  `docs/3-code-review/CR_w6_v2.0.5.md`.
+
 ### Fixed (2026-08-29)
 
 - **Release mutation containment remediation (F_1.3.4, PR #1452).** The F_1.3.2

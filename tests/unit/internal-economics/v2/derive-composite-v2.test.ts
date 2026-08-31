@@ -164,8 +164,10 @@ describe('deriveInternalEconomicsV2', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.receipt.receiptVersion).toBe('internal-economics-receipt/2.1.0');
-    expect(result.receipt.journal.filter((entry) => entry.kind === 'opening_investment_slice')).toHaveLength(1);
+    expect(result.receipt.receiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(
+      result.receipt.journal.filter((entry) => entry.kind === 'opening_investment_slice')
+    ).toHaveLength(1);
     expect(result.receipt.openingPositions.investmentSlices).toMatchObject([
       {
         investmentLotId: 'investment-1',
@@ -659,14 +661,15 @@ describe('deriveInternalEconomicsV2', () => {
 });
 
 describe('certifyInternalEconomicsDualLaneV2', () => {
-  it('keeps the exact whole-fund certification refusal without partial output', () => {
+  it('returns both lane receipts without partial output', () => {
     const result = certifyInternalEconomicsDualLaneV2(buildV2S0101Input());
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.refusal.code).toBe('UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION');
-    expect(result.refusal.stage).toBe('waterfall');
-    expect('certification' in result).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.certification.dealByDeal.selectedLane).toBe('deal_by_deal');
+    expect(result.certification.wholeFund.selectedLane).toBe('whole_fund');
+    expect(result.certification.dealByDeal.receiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(result.certification.wholeFund.receiptVersion).toBe('internal-economics-receipt/2.2.0');
   });
 
   it('applies the management-fee fence before certification', () => {

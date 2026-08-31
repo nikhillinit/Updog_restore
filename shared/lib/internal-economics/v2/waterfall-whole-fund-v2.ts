@@ -3,6 +3,7 @@ import type {
   NormalizedInternalEconomicsInputV2,
   WaterfallTierV2,
   V2CoreRefusal,
+  V2TierKind,
 } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
@@ -16,12 +17,15 @@ import {
 
 const ZERO = new Decimal(0);
 
+export const INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION =
+  'internal-economics-waterfall-whole-fund/2.2.0' as const;
+
 function refuse(code: string, message: string): V2CoreRefusal {
   return { ok: false, code: code as V2CoreRefusal['code'], stage: 'waterfall', message };
 }
 
 export interface WholeFundTierResult {
-  readonly kind: string;
+  readonly kind: V2TierKind;
   readonly priority: number;
   totalAllocated: Decimal;
   gpShare: Decimal;
@@ -42,9 +46,8 @@ export type WholeFundResult =
 function computeTotalDistributable(state: EventStreamState): Decimal {
   let total = ZERO;
   for (const [, lot] of state.cashSourceLots) {
-    if (lot.lotId.startsWith('proceeds:')) {
-      total = total.plus(lot.remainingBalance);
-    }
+    if (lot.origin !== 'event' || lot.sourceKind !== 'realization_proceeds') continue;
+    total = total.plus(lot.remainingBalance);
   }
   return total;
 }

@@ -1,10 +1,8 @@
 import { Decimal } from '../../../lib/decimal-config';
-import {
-  canonicalJson,
-  sha256CanonicalJson,
-} from '../../canonical-json';
+import { canonicalJson, sha256CanonicalJson } from '../../canonical-json';
 import {
   V2_ADMISSION_LIMITS,
+  V2_EVENT_CLASSIFICATION,
   type NormalizedInternalEconomicsInputV2,
   type PartnerV2,
   type V2RefusalCode,
@@ -16,13 +14,18 @@ import {
   type CashFlowEntryV2,
   type ClassLedgerV2,
   type ComponentVersionsV2,
+  type DistributionJournalEntryV2,
+  type EventJournalEntryV2,
+  type EventJournalPostingV2,
   type FundCashEquationV2,
   type InternalEconomicsReceiptV2,
   type InternalEconomicsReceiptV2Result,
   type InternalEconomicsReceiptV2ResultHashPreimage,
   type InvestmentSliceJournalPostingV2,
+  type JournalAccountV2,
   type JournalEntryV2,
   type JournalPostingV2,
+  type LineageDisclosureV2,
   type OpeningOwnerV2,
   type OpeningPartnerOwnerV2,
   type OpeningPositionsReceiptV2,
@@ -30,15 +33,18 @@ import {
   type TierAllocationV2,
 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import { INTERNAL_ECONOMICS_COMPOSITE_IMPLEMENTATION_VERSION } from './derive-composite-v2';
+import type { TierPartnerAllocation } from './derive-composite-v2';
 import {
   INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION,
   type EventStreamState,
+  type PartnerEffectRecord,
 } from './event-stream-engine-v2';
 import { INTERNAL_ECONOMICS_NORMALIZER_V2_VERSION } from './normalize-input-v2';
 import { INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION } from './waterfall-deal-by-deal-v2';
+import { INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION } from './waterfall-whole-fund-v2';
 
 export const INTERNAL_ECONOMICS_RECEIPT_SERIALIZER_V2_VERSION =
-  'internal-economics-receipt-serializer/2.1.0' as const;
+  'internal-economics-receipt-serializer/2.2.0' as const;
 
 const ZERO = new Decimal(0);
 const FIX6 = 6;
@@ -88,6 +94,8 @@ export interface ReceiptRowCountInputs {
   readonly classCashFlowEntryCount: number;
   readonly sourceRefCount: number;
   readonly upstreamReceiptIdCount: number;
+  readonly cashLotLineageCount?: number;
+  readonly investmentSliceLineageCount?: number;
 }
 
 export function countReceiptRows(counts: ReceiptRowCountInputs): number {
@@ -106,13 +114,13 @@ export function countReceiptRows(counts: ReceiptRowCountInputs): number {
     counts.partnerCashFlowEntryCount +
     counts.classCashFlowEntryCount +
     counts.sourceRefCount +
-    counts.upstreamReceiptIdCount
+    counts.upstreamReceiptIdCount +
+    (counts.cashLotLineageCount ?? 0) +
+    (counts.investmentSliceLineageCount ?? 0)
   );
 }
 
-export function countSerializedOutputBytes(
-  receipt: InternalEconomicsReceiptV2,
-): number {
+export function countSerializedOutputBytes(receipt: InternalEconomicsReceiptV2): number {
   return Buffer.byteLength(canonicalJson(receipt), 'utf8');
 }
 
@@ -129,7 +137,7 @@ function compareStrings(left: string, right: string): number {
 function refusal(
   code: V2RefusalCode,
   stage: V2Stage,
-  message: string,
+  message: string
 ): InternalEconomicsReceiptV2Result {
   return {
     ok: false,
@@ -138,11 +146,7 @@ function refusal(
 }
 
 function conservationRefusal(message: string): InternalEconomicsReceiptV2Result {
-  return refusal(
-    'RECEIPT_CONSERVATION_VIOLATION',
-    'receipt',
-    message,
-  );
+  return refusal('RECEIPT_CONSERVATION_VIOLATION', 'receipt', message);
 }
 
 function admissionRefusal(message: string): InternalEconomicsReceiptV2Result {
@@ -193,25 +197,19 @@ function deepFreeze<T>(value: T): T {
 
 export function buildFundCashEquation(
   input: NormalizedInternalEconomicsInputV2,
-  _state: EventStreamState,
+  state: EventStreamState,
+  distributionTotal: Decimal = ZERO
 ): FundCashEquationV2 {
   let contributions = ZERO;
   let deployments = ZERO;
   let realizations = ZERO;
-  let fees = ZERO;
   let expenses = ZERO;
 
-  for (const event of input.events) {
+  for (const event of state.eventEffectRecords) {
     const amount = new Decimal(event.amountUsd);
     switch (event.kind) {
       case 'settled_contribution':
-        if ('purpose' in event && event.purpose === 'management_fee') {
-          fees = fees.plus(amount);
-        } else if ('purpose' in event && event.purpose === 'fund_expense') {
-          expenses = expenses.plus(amount);
-        } else {
-          contributions = contributions.plus(amount);
-        }
+        contributions = contributions.plus(amount);
         break;
       case 'deployment':
         deployments = deployments.plus(amount);
@@ -226,40 +224,176 @@ export function buildFundCashEquation(
   }
 
   const openingCash = new Decimal(input.openingState.openingCash);
-  const endingCash = openingCash
-    .plus(contributions)
-    .plus(realizations)
-    .minus(fees)
-    .minus(expenses)
-    .minus(deployments);
+  const endingCash = new Decimal(state.endingCash).minus(distributionTotal);
 
   return {
     openingCash: fix(openingCash),
     contributions: fix(contributions),
     deployments: fix(deployments),
     realizations: fix(realizations),
-    fees: fix(fees),
+    fees: fix(ZERO),
     expenses: fix(expenses),
-    distributions: fix(ZERO),
+    distributions: fix(distributionTotal),
     endingCash: fix(endingCash),
   };
+}
+
+function distributionAmountByPartnerAndTier(
+  allocations: readonly TierPartnerAllocation[]
+): Map<string, Map<string, Decimal>> {
+  const byPartner = new Map<string, Map<string, Decimal>>();
+  for (const allocation of allocations) {
+    const amount = new Decimal(allocation.amountUsd);
+    if (amount.isNegative()) continue;
+    const byTier = byPartner.get(allocation.partnerId) ?? new Map<string, Decimal>();
+    byTier.set(allocation.tierKind, (byTier.get(allocation.tierKind) ?? ZERO).plus(amount));
+    byPartner.set(allocation.partnerId, byTier);
+  }
+  return byPartner;
+}
+
+function applyDistributionEffects(
+  state: EventStreamState,
+  allocations: readonly TierPartnerAllocation[]
+): InternalEconomicsReceiptV2Result | null {
+  const byPartner = distributionAmountByPartnerAndTier(allocations);
+
+  for (const [partnerId, byTier] of byPartner) {
+    const ledger = state.partnerLedgers.get(partnerId);
+    if (!ledger) return conservationRefusal(`Missing partner ledger ${partnerId}.`);
+
+    const roc = byTier.get('return_of_capital') ?? ZERO;
+    const preference = byTier.get('preferred_return') ?? ZERO;
+    if (roc.gt(ledger.unreturnedSettledCashCapital)) {
+      return conservationRefusal(
+        `Partner ${partnerId} return-of-capital distribution exceeds unreturned settled cash capital.`
+      );
+    }
+    if (preference.gt(ledger.accruedPreference)) {
+      return conservationRefusal(
+        `Partner ${partnerId} preferred-return distribution exceeds accrued preference.`
+      );
+    }
+  }
+
+  for (const allocation of allocations) {
+    const amount = new Decimal(allocation.amountUsd);
+    if (amount.isZero()) continue;
+    state.partnerEffectRecords.push({
+      origin: 'distribution',
+      lane: allocation.lane,
+      tierKind: allocation.tierKind,
+      tierOrdinal: allocation.tierOrdinal,
+      partnerId: allocation.partnerId,
+      field: 'cumulativeDistributions',
+      amountUsd: new Decimal(amount),
+    });
+    if (allocation.tierKind === 'return_of_capital') {
+      state.partnerEffectRecords.push({
+        origin: 'distribution',
+        lane: allocation.lane,
+        tierKind: allocation.tierKind,
+        tierOrdinal: allocation.tierOrdinal,
+        partnerId: allocation.partnerId,
+        field: 'unreturnedSettledCashCapital',
+        amountUsd: new Decimal(amount).negated(),
+      });
+    }
+    if (allocation.tierKind === 'preferred_return') {
+      state.partnerEffectRecords.push({
+        origin: 'distribution',
+        lane: allocation.lane,
+        tierKind: allocation.tierKind,
+        tierOrdinal: allocation.tierOrdinal,
+        partnerId: allocation.partnerId,
+        field: 'accruedPreference',
+        amountUsd: new Decimal(amount).negated(),
+      });
+    }
+  }
+
+  return null;
 }
 
 export function buildPartnerLedgers(
   input: NormalizedInternalEconomicsInputV2,
   state: EventStreamState,
+  tierPartnerAllocations: readonly TierPartnerAllocation[] = [],
+  distributionInstant = input.cutoverInstant
 ): PartnerLedgerV2[] {
   const partnerMap = new Map(input.partners.map((partner) => [partner.partnerId, partner]));
+  const allocationsByPartner = distributionAmountByPartnerAndTier(tierPartnerAllocations);
+
+  function eventCashFlows(partnerId: string): CashFlowEntryV2[] {
+    const candidates = state.partnerEffectRecords
+      .filter(
+        (record): record is Extract<PartnerEffectRecord, { origin: 'event' }> =>
+          record.origin === 'event' &&
+          record.partnerId === partnerId &&
+          record.field === 'settledCapital'
+      )
+      .sort((left, right) => {
+        const instant = compareStrings(left.instant, right.instant);
+        return instant !== 0 ? instant : compareStrings(left.eventId, right.eventId);
+      });
+    const seen = new Set<string>();
+    return candidates.flatMap((record) => {
+      if (seen.has(record.eventId)) return [];
+      seen.add(record.eventId);
+      const cashFlow: CashFlowEntryV2 = {
+        source: 'event',
+        instant: record.instant,
+        amountUsd: fix(record.amountUsd),
+        direction: 'inflow',
+        eventId: record.eventId,
+      };
+      return [cashFlow];
+    });
+  }
+
+  function distributionCashFlows(partnerId: string): CashFlowEntryV2[] {
+    return state.partnerEffectRecords
+      .filter(
+        (record): record is Extract<PartnerEffectRecord, { origin: 'distribution' }> =>
+          record.origin === 'distribution' &&
+          record.partnerId === partnerId &&
+          record.field === 'cumulativeDistributions'
+      )
+      .map((record): Extract<CashFlowEntryV2, { source: 'distribution' }> => ({
+        source: 'distribution',
+        instant: distributionInstant,
+        amountUsd: fix(record.amountUsd),
+        direction: 'outflow',
+        lane: record.lane,
+        tierKind: record.tierKind,
+        tierOrdinal: record.tierOrdinal,
+        partnerId: record.partnerId,
+      }))
+      .sort((left, right) => {
+        if (left.tierOrdinal !== right.tierOrdinal) {
+          return left.tierOrdinal - right.tierOrdinal;
+        }
+        const tier = compareStrings(left.tierKind, right.tierKind);
+        return tier !== 0 ? tier : compareStrings(left.partnerId, right.partnerId);
+      });
+  }
 
   return Array.from(state.partnerLedgers.values())
     .map((ledger): PartnerLedgerV2 => {
       const partner = partnerMap.get(ledger.partnerId);
-      const committedCapital = partner
-        ? new Decimal(partner.committedCapital)
-        : ZERO;
+      const committedCapital = partner ? new Decimal(partner.committedCapital) : ZERO;
       const calledCapital = partner
-        ? committedCapital.minus(new Decimal(partner.remainingCallableCommitment))
+        ? committedCapital.minus(
+            state.callableTrackers.get(ledger.partnerId)?.remainingCallable ?? ZERO
+          )
         : ZERO;
+      const byTier = allocationsByPartner.get(ledger.partnerId) ?? new Map<string, Decimal>();
+      const returnOfCapital = byTier.get('return_of_capital') ?? ZERO;
+      const preferredReturn = byTier.get('preferred_return') ?? ZERO;
+      const cumulativeDistributions = Array.from(byTier.values()).reduce(
+        (total, amount) => total.plus(amount),
+        ZERO
+      );
 
       return {
         partnerId: ledger.partnerId,
@@ -267,16 +401,21 @@ export function buildPartnerLedgers(
         calledCapital: fix(calledCapital),
         settledCapital: fix(ledger.settledCapital),
         paidInCapital: fix(ledger.paidInCapital),
-        unreturnedSettledCashCapital: fix(ledger.unreturnedSettledCashCapital),
-        cumulativeDistributions: fix(ledger.cumulativeDistributions),
+        unreturnedSettledCashCapital: fix(
+          ledger.unreturnedSettledCashCapital.minus(returnOfCapital)
+        ),
+        cumulativeDistributions: fix(ledger.cumulativeDistributions.plus(cumulativeDistributions)),
         cumulativeFees: fix(ledger.cumulativeFees),
         cumulativeExpenses: fix(ZERO),
-        accruedPreference: fix(ledger.accruedPreference),
-        returnOfCapital: fix(ZERO),
-        preferredReturnPaid: fix(ZERO),
-        catchUpPaid: fix(ZERO),
-        carryPaid: fix(ZERO),
-        cashFlowVector: [],
+        accruedPreference: fix(ledger.accruedPreference.minus(preferredReturn)),
+        returnOfCapital: fix(returnOfCapital),
+        preferredReturnPaid: fix(preferredReturn),
+        catchUpPaid: fix(byTier.get('gp_catch_up') ?? ZERO),
+        carryPaid: fix(byTier.get('carry') ?? ZERO),
+        cashFlowVector: [
+          ...eventCashFlows(ledger.partnerId),
+          ...distributionCashFlows(ledger.partnerId),
+        ],
       };
     })
     .sort((left, right) => compareStrings(left.partnerId, right.partnerId));
@@ -285,42 +424,46 @@ export function buildPartnerLedgers(
 function sumClassField(
   members: readonly PartnerV2[],
   partnerLedgers: ReadonlyMap<string, PartnerLedgerV2>,
-  field: LedgerAmountField,
+  field: LedgerAmountField
 ): string {
   return fix(
     members.reduce((total, partner) => {
       const ledger = partnerLedgers.get(partner.partnerId);
       return ledger ? total.plus(new Decimal(ledger[field])) : total;
-    }, ZERO),
+    }, ZERO)
   );
 }
 
-function mergeCashFlowVectors(
-  vectors: readonly (readonly CashFlowEntryV2[])[],
-): CashFlowEntryV2[] {
+function mergeCashFlowVectors(vectors: readonly (readonly CashFlowEntryV2[])[]): CashFlowEntryV2[] {
   return vectors
     .flatMap((vector) => vector.map((entry) => ({ ...entry })))
     .sort((left, right) => {
+      if (left.source !== right.source) return left.source === 'event' ? -1 : 1;
       const instant = compareStrings(left.instant, right.instant);
       if (instant !== 0) return instant;
-      const eventId = compareStrings(left.eventId, right.eventId);
-      if (eventId !== 0) return eventId;
+      if (left.source === 'event' && right.source === 'event') {
+        return compareStrings(left.eventId, right.eventId);
+      }
+      if (left.source === 'distribution') {
+        if (right.source !== 'distribution') return 0;
+        if (left.tierOrdinal !== right.tierOrdinal) return left.tierOrdinal - right.tierOrdinal;
+        const tier = compareStrings(left.tierKind, right.tierKind);
+        return tier !== 0 ? tier : compareStrings(left.partnerId, right.partnerId);
+      }
       return compareStrings(left.direction, right.direction);
     });
 }
 
 export function buildClassLedgers(
   input: NormalizedInternalEconomicsInputV2,
-  partnerLedgers: readonly PartnerLedgerV2[],
+  partnerLedgers: readonly PartnerLedgerV2[]
 ): ClassLedgerV2[] {
-  const partnerLedgerMap = new Map(
-    partnerLedgers.map((ledger) => [ledger.partnerId, ledger]),
-  );
+  const partnerLedgerMap = new Map(partnerLedgers.map((ledger) => [ledger.partnerId, ledger]));
 
   return input.lpClasses
     .map((lpClass): ClassLedgerV2 => {
       const members = input.partners.filter(
-        (partner) => !partner.isGp && partner.lpClassId === lpClass.lpClassId,
+        (partner) => !partner.isGp && partner.lpClassId === lpClass.lpClassId
       );
 
       return {
@@ -332,30 +475,22 @@ export function buildClassLedgers(
         unreturnedSettledCashCapital: sumClassField(
           members,
           partnerLedgerMap,
-          'unreturnedSettledCashCapital',
+          'unreturnedSettledCashCapital'
         ),
         cumulativeDistributions: sumClassField(
           members,
           partnerLedgerMap,
-          'cumulativeDistributions',
+          'cumulativeDistributions'
         ),
         cumulativeFees: sumClassField(members, partnerLedgerMap, 'cumulativeFees'),
-        cumulativeExpenses: sumClassField(
-          members,
-          partnerLedgerMap,
-          'cumulativeExpenses',
-        ),
+        cumulativeExpenses: sumClassField(members, partnerLedgerMap, 'cumulativeExpenses'),
         accruedPreference: sumClassField(members, partnerLedgerMap, 'accruedPreference'),
         returnOfCapital: sumClassField(members, partnerLedgerMap, 'returnOfCapital'),
-        preferredReturnPaid: sumClassField(
-          members,
-          partnerLedgerMap,
-          'preferredReturnPaid',
-        ),
+        preferredReturnPaid: sumClassField(members, partnerLedgerMap, 'preferredReturnPaid'),
         catchUpPaid: sumClassField(members, partnerLedgerMap, 'catchUpPaid'),
         carryPaid: sumClassField(members, partnerLedgerMap, 'carryPaid'),
         cashFlowVector: mergeCashFlowVectors(
-          members.map((partner) => partnerLedgerMap.get(partner.partnerId)?.cashFlowVector ?? []),
+          members.map((partner) => partnerLedgerMap.get(partner.partnerId)?.cashFlowVector ?? [])
         ),
       };
     })
@@ -390,9 +525,7 @@ function buildOpeningPositions(state: EventStreamState): OpeningPositionsReceipt
     }));
 
   const entitlementPools = Array.from(state.openingEntitlementPools.values())
-    .sort((left, right) =>
-      compareStrings(left.entitlementPoolId, right.entitlementPoolId),
-    )
+    .sort((left, right) => compareStrings(left.entitlementPoolId, right.entitlementPoolId))
     .map((pool) => ({
       entitlementPoolId: pool.entitlementPoolId,
       sourceRef: pool.sourceRef,
@@ -404,26 +537,51 @@ function buildOpeningPositions(state: EventStreamState): OpeningPositionsReceipt
   return { cashLots, investmentSlices, entitlementPools };
 }
 
+function buildLineage(state: EventStreamState): LineageDisclosureV2 {
+  const consumingEventsByLot = new Map<string, string[]>();
+  for (const record of state.consumptionRecords) {
+    const events = consumingEventsByLot.get(record.lotId) ?? [];
+    if (!events.includes(record.eventId)) events.push(record.eventId);
+    consumingEventsByLot.set(record.lotId, events);
+  }
+
+  const cashLots = Array.from(state.cashSourceLots.values())
+    .sort((left, right) => compareStrings(left.lotId, right.lotId))
+    .map((lot) => ({
+      lotId: lot.lotId,
+      consumingEventIds: [...(consumingEventsByLot.get(lot.lotId) ?? [])],
+    }));
+
+  const investmentSlices = Array.from(state.investmentLots.values())
+    .sort((left, right) => compareStrings(left.lotId, right.lotId))
+    .map((lot) => ({
+      investmentLotId: lot.lotId,
+      fundingAllocations: lot.fundingAllocations.map((allocation) => ({ ...allocation })),
+    }));
+
+  return { cashLots, investmentSlices };
+}
+
 function comparePostings(
   left: { readonly account: string; readonly rowRef: string },
-  right: { readonly account: string; readonly rowRef: string },
+  right: { readonly account: string; readonly rowRef: string }
 ): number {
   const account = compareStrings(left.account, right.account);
   return account !== 0 ? account : compareStrings(left.rowRef, right.rowRef);
 }
 
-function buildJournal(state: EventStreamState): JournalEntryV2[] {
+function buildOpeningJournal(state: EventStreamState): JournalEntryV2[] {
   return state.openingJournal
     .map((entry): JournalEntryV2 => {
       if (entry.kind === 'opening_cash_lot') {
-        const postings = [...entry.postings].sort(comparePostings).map(
-          (posting): JournalPostingV2 => ({
+        const postings = [...entry.postings]
+          .sort(comparePostings)
+          .map((posting): JournalPostingV2 => ({
             account: posting.account,
             rowRef: posting.rowRef,
             owner: cloneOpeningOwner(posting.owner),
             amountUsd: fix(posting.amountUsd),
-          }),
-        );
+          }));
         return {
           entryId: entry.entryId,
           instant: entry.instant,
@@ -432,14 +590,14 @@ function buildJournal(state: EventStreamState): JournalEntryV2[] {
           postings: [postings[0]!, postings[1]!],
         };
       }
-      const postings = [...entry.postings].sort(comparePostings).map(
-        (posting): InvestmentSliceJournalPostingV2 => ({
+      const postings = [...entry.postings]
+        .sort(comparePostings)
+        .map((posting): InvestmentSliceJournalPostingV2 => ({
           account: posting.account,
           rowRef: posting.rowRef,
           owner: clonePartnerOwner(posting.owner),
           amountUsd: fix(posting.amountUsd),
-        }),
-      );
+        }));
       return {
         entryId: entry.entryId,
         instant: entry.instant,
@@ -451,9 +609,162 @@ function buildJournal(state: EventStreamState): JournalEntryV2[] {
     .sort((left, right) => compareStrings(left.entryId, right.entryId));
 }
 
-function buildTierAllocations(
-  tierAllocations: readonly TierAllocationV2[],
-): TierAllocationV2[] {
+function eventJournalPostings(
+  eventId: string,
+  postings: readonly [JournalAccountV2, Decimal, JournalAccountV2, Decimal]
+): readonly [EventJournalPostingV2, EventJournalPostingV2] {
+  return [
+    { account: postings[0], rowRef: eventId, amountUsd: fix(postings[1]) },
+    { account: postings[2], rowRef: eventId, amountUsd: fix(postings[3]) },
+  ];
+}
+
+function buildEventJournal(state: EventStreamState): EventJournalEntryV2[] {
+  const journal: EventJournalEntryV2[] = [];
+  const effects = [...state.eventEffectRecords].sort((left, right) => {
+    const instant = compareStrings(left.instant, right.instant);
+    if (instant !== 0) return instant;
+    const phase =
+      V2_EVENT_CLASSIFICATION[left.kind].phase - V2_EVENT_CLASSIFICATION[right.kind].phase;
+    if (phase !== 0) return phase;
+    return compareStrings(left.eventId, right.eventId);
+  });
+
+  for (const [index, event] of effects.entries()) {
+    const amount = new Decimal(event.amountUsd);
+    const chronologyOrdinal = index + 1;
+
+    switch (event.kind) {
+      case 'settled_contribution':
+        journal.push({
+          entryId: `event/${event.eventId}`,
+          instant: event.instant,
+          source: 'event',
+          eventId: event.eventId,
+          chronologyOrdinal,
+          postings: eventJournalPostings(event.eventId, [
+            'cash',
+            amount,
+            'contributed_capital',
+            amount.negated(),
+          ]),
+        });
+        break;
+      case 'deployment':
+        journal.push({
+          entryId: `event/${event.eventId}`,
+          instant: event.instant,
+          source: 'event',
+          eventId: event.eventId,
+          chronologyOrdinal,
+          postings: eventJournalPostings(event.eventId, [
+            'cash',
+            amount.negated(),
+            'invested_basis',
+            amount,
+          ]),
+        });
+        break;
+      case 'realization': {
+        const reliefTotal = new Decimal(event.reliefTotal ?? ZERO);
+        journal.push({
+          entryId: `event/${event.eventId}`,
+          instant: event.instant,
+          source: 'event',
+          eventId: event.eventId,
+          chronologyOrdinal,
+          postings: [
+            {
+              account: 'cash',
+              rowRef: event.eventId,
+              amountUsd: fix(amount),
+            },
+            {
+              account: 'invested_basis',
+              rowRef: event.eventId,
+              amountUsd: fix(reliefTotal.negated()),
+            },
+            {
+              account: 'realized_gain_loss',
+              rowRef: event.eventId,
+              amountUsd: fix(reliefTotal.minus(amount)),
+            },
+          ],
+        });
+        break;
+      }
+      case 'fund_expense_payment':
+        journal.push({
+          entryId: `event/${event.eventId}`,
+          instant: event.instant,
+          source: 'event',
+          eventId: event.eventId,
+          chronologyOrdinal,
+          postings: eventJournalPostings(event.eventId, [
+            'cash',
+            amount.negated(),
+            'fund_expenses',
+            amount,
+          ]),
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  return journal;
+}
+
+function buildDistributionJournal(
+  lane: V2WaterfallLane,
+  instant: string,
+  allocations: readonly TierPartnerAllocation[]
+): DistributionJournalEntryV2[] {
+  return allocations.flatMap((allocation, index) => {
+    const amount = new Decimal(allocation.amountUsd);
+    if (amount.isZero()) return [];
+    return [
+      {
+        entryId: `distribution/${lane}/${String(index + 1).padStart(6, '0')}`,
+        instant,
+        source: 'distribution',
+        lane,
+        tierKind: allocation.tierKind,
+        tierOrdinal: allocation.tierOrdinal,
+        partnerId: allocation.partnerId,
+        postings: [
+          {
+            account: 'cash',
+            rowRef: allocation.partnerId,
+            amountUsd: fix(amount.negated()),
+          },
+          {
+            account: 'distributions',
+            rowRef: allocation.partnerId,
+            amountUsd: fix(amount),
+          },
+        ],
+      },
+    ];
+  });
+}
+
+function buildJournal(
+  input: NormalizedInternalEconomicsInputV2,
+  state: EventStreamState,
+  lane: V2WaterfallLane,
+  tierPartnerAllocations: readonly TierPartnerAllocation[],
+  distributionInstant: string
+): JournalEntryV2[] {
+  return [
+    ...buildOpeningJournal(state),
+    ...buildEventJournal(state),
+    ...buildDistributionJournal(lane, distributionInstant, tierPartnerAllocations),
+  ];
+}
+
+function buildTierAllocations(tierAllocations: readonly TierAllocationV2[]): TierAllocationV2[] {
   return tierAllocations
     .map((tier) => ({
       kind: tier.kind,
@@ -468,12 +779,15 @@ function buildTierAllocations(
     });
 }
 
-function buildComponentVersions(): ComponentVersionsV2 {
+function buildComponentVersions(selectedLane: V2WaterfallLane): ComponentVersionsV2 {
   return {
     normalizer: INTERNAL_ECONOMICS_NORMALIZER_V2_VERSION,
     composite: INTERNAL_ECONOMICS_COMPOSITE_IMPLEMENTATION_VERSION,
     eventEngine: INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION,
-    selectedWaterfall: INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION,
+    selectedWaterfall:
+      selectedLane === 'deal_by_deal'
+        ? INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION
+        : INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION,
     receiptSerializer: INTERNAL_ECONOMICS_RECEIPT_SERIALIZER_V2_VERSION,
   };
 }
@@ -515,34 +829,38 @@ function sumJournalAssetsByPartner(state: EventStreamState): Map<string, Decimal
   return totals;
 }
 
-function sumJournalAccount(
-  state: EventStreamState,
-  account: 'cash' | 'invested_basis',
-): Decimal {
-  return Array.from(state.openingJournal.values()).reduce(
+function sumJournalAccount(journal: readonly JournalEntryV2[], account: JournalAccountV2): Decimal {
+  return journal.reduce(
     (total, entry) =>
       entry.postings.reduce(
         (entryTotal, posting) =>
           posting.account === account ? entryTotal.plus(posting.amountUsd) : entryTotal,
-        total,
+        total
       ),
-    ZERO,
+    ZERO
   );
 }
 
 function compareCashFlows(
   left: readonly CashFlowEntryV2[],
-  right: readonly CashFlowEntryV2[],
+  right: readonly CashFlowEntryV2[]
 ): boolean {
   if (left.length !== right.length) return false;
   return left.every((entry, index) => {
     const other = right[index];
     return (
       other !== undefined &&
+      entry.source === other.source &&
       entry.instant === other.instant &&
       entry.amountUsd === other.amountUsd &&
       entry.direction === other.direction &&
-      entry.eventId === other.eventId
+      (entry.source === 'event'
+        ? other.source === 'event' && entry.eventId === other.eventId
+        : other.source === 'distribution' &&
+          entry.lane === other.lane &&
+          entry.tierKind === other.tierKind &&
+          entry.tierOrdinal === other.tierOrdinal &&
+          entry.partnerId === other.partnerId)
     );
   });
 }
@@ -554,13 +872,16 @@ function validateConservation(
   openingPositions: OpeningPositionsReceiptV2,
   journal: readonly JournalEntryV2[],
   tierAllocations: readonly TierAllocationV2[],
+  tierPartnerAllocations: readonly TierPartnerAllocation[],
   partnerLedgers: readonly PartnerLedgerV2[],
   classLedgers: readonly ClassLedgerV2[],
+  waterfallTotalDistributed?: Decimal,
+  waterfallPartnerDistributions?: ReadonlyMap<string, Decimal>
 ): InternalEconomicsReceiptV2Result | null {
   for (const entry of journal) {
     const balance = entry.postings.reduce(
       (total, posting) => total.plus(new Decimal(posting.amountUsd)),
-      ZERO,
+      ZERO
     );
     if (!balance.isZero()) {
       return conservationRefusal(`Journal entry ${entry.entryId} does not balance.`);
@@ -568,9 +889,33 @@ function validateConservation(
   }
 
   const openingCash = new Decimal(input.openingState.openingCash);
+  const distributionTotal = tierPartnerAllocations.reduce(
+    (total, allocation) => total.plus(new Decimal(allocation.amountUsd)),
+    ZERO
+  );
+  if (waterfallTotalDistributed !== undefined && !waterfallTotalDistributed.eq(distributionTotal)) {
+    return conservationRefusal('Waterfall total distribution cross-check failed.');
+  }
+  if (waterfallPartnerDistributions) {
+    const byPartner = new Map<string, Decimal>();
+    for (const allocation of tierPartnerAllocations) {
+      byPartner.set(
+        allocation.partnerId,
+        (byPartner.get(allocation.partnerId) ?? ZERO).plus(new Decimal(allocation.amountUsd))
+      );
+    }
+    for (const [partnerId, amount] of waterfallPartnerDistributions) {
+      if (!(byPartner.get(partnerId) ?? ZERO).eq(amount)) {
+        return conservationRefusal(
+          `Waterfall partner distribution cross-check failed for ${partnerId}.`
+        );
+      }
+    }
+  }
+
   const openingCashLotsTotal = Array.from(state.openingCashLots.values()).reduce(
     (total, lot) => total.plus(lot.remainingBalance),
-    ZERO,
+    ZERO
   );
   const openingCashClassificationTotal = [
     input.openingState.openingCashClassification.paidIn,
@@ -580,9 +925,11 @@ function validateConservation(
   if (
     !openingCashLotsTotal.eq(openingCash) ||
     !openingCashClassificationTotal.eq(openingCash) ||
-    !sumJournalAccount(state, 'cash').eq(openingCash) ||
+    !sumJournalAccount(buildOpeningJournal(state), 'cash').eq(openingCash) ||
     !new Decimal(fundCashEquation.openingCash).eq(openingCash) ||
-    !new Decimal(fundCashEquation.endingCash).eq(openingCash)
+    !new Decimal(fundCashEquation.endingCash).eq(
+      new Decimal(state.endingCash).minus(distributionTotal)
+    )
   ) {
     return conservationRefusal('Opening cash conservation failed.');
   }
@@ -590,32 +937,68 @@ function validateConservation(
   for (const slice of state.openingInvestmentSlices.values()) {
     if (!slice.relievedAmount.isZero() || !slice.remainingBasis.eq(slice.costBasis)) {
       return conservationRefusal(
-        `Investment slice ${slice.investmentLotId} basis conservation failed.`,
+        `Investment slice ${slice.investmentLotId} basis conservation failed.`
       );
     }
   }
   const investedBasisTotal = Array.from(state.openingInvestmentSlices.values()).reduce(
     (total, slice) => total.plus(slice.remainingBasis),
-    ZERO,
+    ZERO
   );
-  if (!investedBasisTotal.eq(sumJournalAccount(state, 'invested_basis'))) {
+  if (!investedBasisTotal.eq(sumJournalAccount(buildOpeningJournal(state), 'invested_basis'))) {
     return conservationRefusal('Opening investment basis conservation failed.');
+  }
+
+  const journalCash = sumJournalAccount(journal, 'cash');
+  const journalInvestedBasis = sumJournalAccount(journal, 'invested_basis');
+  const deploymentBasis = state.eventEffectRecords
+    .filter((event) => event.kind === 'deployment')
+    .reduce((total, event) => total.plus(new Decimal(event.amountUsd)), ZERO);
+  const relievedBasis = state.eventEffectRecords
+    .filter((event) => event.kind === 'realization')
+    .reduce((total, event) => total.plus(new Decimal(event.reliefTotal ?? ZERO)), ZERO);
+  const expectedInvestedBasis = investedBasisTotal.plus(deploymentBasis).minus(relievedBasis);
+  if (!journalCash.eq(new Decimal(state.endingCash).minus(distributionTotal))) {
+    return conservationRefusal('Journal cash conservation failed.');
+  }
+  if (!journalInvestedBasis.eq(expectedInvestedBasis)) {
+    return conservationRefusal('Journal invested-basis conservation failed.');
+  }
+  if (!sumJournalAccount(journal, 'distributions').eq(distributionTotal)) {
+    return conservationRefusal('Journal distribution conservation failed.');
   }
 
   const openingAssetsByPartner = sumOpeningAssetsByPartner(state);
   const journalAssetsByPartner = sumJournalAssetsByPartner(state);
-  const partnerLedgerMap = new Map(
-    partnerLedgers.map((ledger) => [ledger.partnerId, ledger]),
-  );
+  const partnerLedgerMap = new Map(partnerLedgers.map((ledger) => [ledger.partnerId, ledger]));
   for (const partner of input.partners) {
     const ledger = partnerLedgerMap.get(partner.partnerId);
     if (!ledger) return conservationRefusal(`Missing partner ledger ${partner.partnerId}.`);
     const openingAssets = openingAssetsByPartner.get(partner.partnerId) ?? ZERO;
     const journalAssets = journalAssetsByPartner.get(partner.partnerId) ?? ZERO;
+    const openingLedger = input.openingState.investorLedgers.find(
+      (candidate) => candidate.partnerId === partner.partnerId
+    );
+    const stagedLedger = state.partnerLedgers.get(partner.partnerId);
+    const tracker = state.callableTrackers.get(partner.partnerId);
+    const byTier =
+      distributionAmountByPartnerAndTier(tierPartnerAllocations).get(partner.partnerId) ??
+      new Map<string, Decimal>();
+    const returnOfCapital = byTier.get('return_of_capital') ?? ZERO;
+    const preferredReturn = byTier.get('preferred_return') ?? ZERO;
+    const stagedUnreturned = stagedLedger?.unreturnedSettledCashCapital ?? ZERO;
+    const expectedUnreturned = stagedUnreturned.minus(returnOfCapital);
     const unreturned = new Decimal(ledger.unreturnedSettledCashCapital);
-    if (!openingAssets.eq(journalAssets) || !openingAssets.eq(unreturned)) {
+    if (
+      !openingLedger ||
+      !stagedLedger ||
+      !tracker ||
+      !openingAssets.eq(journalAssets) ||
+      !openingAssets.eq(new Decimal(openingLedger.unreturnedSettledCashCapital)) ||
+      !expectedUnreturned.eq(unreturned)
+    ) {
       return conservationRefusal(
-        `Partner ${partner.partnerId} unreturned capital conservation failed.`,
+        `Partner ${partner.partnerId} unreturned capital conservation failed.`
       );
     }
 
@@ -627,26 +1010,38 @@ function validateConservation(
     const called = new Decimal(ledger.calledCapital);
     const settled = new Decimal(ledger.settledCapital);
     const paidIn = new Decimal(ledger.paidInCapital);
-    const remainingCallable = new Decimal(partner.remainingCallableCommitment);
+    const remainingCallable = tracker.remainingCallable;
+    const expectedCalled = new Decimal(partner.committedCapital).minus(remainingCallable);
     if (
       unreturned.gt(paidIn) ||
       !paidIn.eq(settled) ||
       settled.gt(called) ||
       called.gt(committed) ||
-      !remainingCallable.eq(committed.minus(called))
+      !remainingCallable.eq(committed.minus(called)) ||
+      !called.eq(expectedCalled) ||
+      !new Decimal(ledger.settledCapital).eq(stagedLedger.settledCapital) ||
+      !new Decimal(ledger.paidInCapital).eq(stagedLedger.paidInCapital) ||
+      !new Decimal(ledger.cumulativeFees).eq(stagedLedger.cumulativeFees) ||
+      !new Decimal(ledger.cumulativeExpenses).isZero() ||
+      !new Decimal(ledger.accruedPreference).eq(
+        stagedLedger.accruedPreference.minus(preferredReturn)
+      ) ||
+      !new Decimal(ledger.cumulativeDistributions).eq(
+        stagedLedger.cumulativeDistributions.plus(
+          Array.from(byTier.values()).reduce((total, amount) => total.plus(amount), ZERO)
+        )
+      )
     ) {
       return conservationRefusal(`Partner ${partner.partnerId} ledger ordering failed.`);
     }
   }
 
-  const classLedgerMap = new Map(
-    classLedgers.map((ledger) => [ledger.lpClassId, ledger]),
-  );
+  const classLedgerMap = new Map(classLedgers.map((ledger) => [ledger.lpClassId, ledger]));
   for (const lpClass of input.lpClasses) {
     const classLedger = classLedgerMap.get(lpClass.lpClassId);
     if (!classLedger) return conservationRefusal(`Missing class ledger ${lpClass.lpClassId}.`);
     const members = input.partners.filter(
-      (partner) => !partner.isGp && partner.lpClassId === lpClass.lpClassId,
+      (partner) => !partner.isGp && partner.lpClassId === lpClass.lpClassId
     );
     for (const field of LEDGER_AMOUNT_FIELDS) {
       const expected = members.reduce((total, partner) => {
@@ -658,7 +1053,7 @@ function validateConservation(
       }
     }
     const expectedCashFlows = mergeCashFlowVectors(
-      members.map((partner) => partnerLedgerMap.get(partner.partnerId)?.cashFlowVector ?? []),
+      members.map((partner) => partnerLedgerMap.get(partner.partnerId)?.cashFlowVector ?? [])
     );
     if (!compareCashFlows(classLedger.cashFlowVector, expectedCashFlows)) {
       return conservationRefusal(`Class ${lpClass.lpClassId} cash-flow aggregation failed.`);
@@ -666,41 +1061,37 @@ function validateConservation(
   }
 
   const poolMap = new Map(
-    openingPositions.entitlementPools.map((pool) => [pool.entitlementPoolId, pool]),
+    openingPositions.entitlementPools.map((pool) => [pool.entitlementPoolId, pool])
   );
   for (const slice of openingPositions.investmentSlices) {
     const pool = poolMap.get(slice.entitlementPoolId);
     if (!pool || pool.dealId !== slice.dealId || pool.securityId !== slice.securityId) {
       return conservationRefusal(
-        `Investment slice ${slice.investmentLotId} has invalid entitlement pool identity.`,
+        `Investment slice ${slice.investmentLotId} has invalid entitlement pool identity.`
       );
     }
   }
   for (const pool of openingPositions.entitlementPools) {
     const members = openingPositions.investmentSlices.filter(
-      (slice) => slice.entitlementPoolId === pool.entitlementPoolId,
+      (slice) => slice.entitlementPoolId === pool.entitlementPoolId
     );
     for (const slice of members) {
       if (!new Decimal(slice.entitlementAmount).gt(0)) {
-        return conservationRefusal(
-          `Entitlement slice ${slice.investmentLotId} must be positive.`,
-        );
+        return conservationRefusal(`Entitlement slice ${slice.investmentLotId} must be positive.`);
       }
     }
     const memberTotal = members.reduce(
       (total, slice) => total.plus(new Decimal(slice.entitlementAmount)),
-      ZERO,
+      ZERO
     );
     if (!memberTotal.eq(new Decimal(pool.entitlementTotal))) {
-      return conservationRefusal(
-        `Entitlement pool ${pool.entitlementPoolId} arithmetic failed.`,
-      );
+      return conservationRefusal(`Entitlement pool ${pool.entitlementPoolId} arithmetic failed.`);
     }
   }
 
   const tierTotal = tierAllocations.reduce(
     (total, tier) => total.plus(new Decimal(tier.totalAllocated)),
-    ZERO,
+    ZERO
   );
   if (!tierTotal.eq(new Decimal(fundCashEquation.distributions))) {
     return conservationRefusal('Tier distribution conservation failed.');
@@ -708,19 +1099,24 @@ function validateConservation(
   for (const tier of tierAllocations) {
     if (
       !new Decimal(tier.totalAllocated).eq(
-        new Decimal(tier.gpShare).plus(new Decimal(tier.lpShare)),
+        new Decimal(tier.gpShare).plus(new Decimal(tier.lpShare))
       )
     ) {
       return conservationRefusal(`Tier ${tier.kind} conservation failed.`);
     }
   }
 
-  if (
-    input.events.length !== 0 ||
-    partnerLedgers.some((ledger) => ledger.cashFlowVector.length !== 0) ||
-    classLedgers.some((ledger) => ledger.cashFlowVector.length !== 0)
-  ) {
-    return conservationRefusal('Opening positions must not create cash-flow vectors.');
+  const tierTotalsByKind = new Map<string, Decimal>();
+  for (const allocation of tierPartnerAllocations) {
+    tierTotalsByKind.set(
+      allocation.tierKind,
+      (tierTotalsByKind.get(allocation.tierKind) ?? ZERO).plus(new Decimal(allocation.amountUsd))
+    );
+  }
+  for (const tier of tierAllocations) {
+    if (!(tierTotalsByKind.get(tier.kind) ?? ZERO).eq(new Decimal(tier.totalAllocated))) {
+      return conservationRefusal(`Tier ${tier.kind} partner vector failed.`);
+    }
   }
 
   return null;
@@ -731,43 +1127,83 @@ export function buildReceipt(
   state: EventStreamState,
   selectedLane: V2WaterfallLane,
   tierAllocations: readonly TierAllocationV2[],
+  tierPartnerAllocations: readonly TierPartnerAllocation[] = [],
+  waterfallTotalDistributed?: Decimal,
+  waterfallPartnerDistributions?: ReadonlyMap<string, Decimal>
 ): InternalEconomicsReceiptV2Result {
-  const fundCashEquation = buildFundCashEquation(input, state);
-  const componentVersions = buildComponentVersions();
-  const rowCount = countReceiptRows({
-    componentVersionCount: Object.keys(componentVersions).length,
-    openingCashLotCount: state.openingCashLots.size,
-    openingInvestmentSliceCount: state.openingInvestmentSlices.size,
-    openingEntitlementPoolCount: state.openingEntitlementPools.size,
-    journalEntryCount: state.openingJournal.length,
-    journalPostingCount: state.openingJournal.reduce(
-      (count, entry) => count + entry.postings.length,
-      0,
-    ),
-    tierAllocationCount: tierAllocations.length,
-    partnerLedgerCount: state.partnerLedgers.size,
-    classLedgerCount: input.lpClasses.length,
-    partnerCashFlowEntryCount: 0,
-    classCashFlowEntryCount: 0,
-    sourceRefCount: input.sourceRefs?.length ?? 0,
-    upstreamReceiptIdCount: input.upstreamReceiptIds?.length ?? 0,
-  });
-  if (rowCount > V2_ADMISSION_LIMITS.MAX_OUTPUT_ROWS) {
-    return admissionRefusal(
-      `Receipt row count ${rowCount} exceeds limit ${V2_ADMISSION_LIMITS.MAX_OUTPUT_ROWS}.`,
-    );
-  }
   if (state.openingJournal.some((entry) => entry.postings.length !== 2)) {
     return conservationRefusal('Opening journal entries must contain exactly two postings.');
   }
 
+  const distributionError = applyDistributionEffects(state, tierPartnerAllocations);
+  if (distributionError) return distributionError;
+
+  const distributionInstant = state.eventEffectRecords.reduce(
+    (latest, event) => (compareStrings(event.instant, latest) > 0 ? event.instant : latest),
+    input.cutoverInstant
+  );
+  const distributionTotal =
+    waterfallTotalDistributed ??
+    tierPartnerAllocations.reduce(
+      (total, allocation) => total.plus(new Decimal(allocation.amountUsd)),
+      ZERO
+    );
   const openingPositions = buildOpeningPositions(state);
-  const journal = buildJournal(state);
-  const partnerLedgers = buildPartnerLedgers(input, state);
+  const journal = buildJournal(
+    input,
+    state,
+    selectedLane,
+    tierPartnerAllocations,
+    distributionInstant
+  );
+  const partnerLedgers = buildPartnerLedgers(
+    input,
+    state,
+    tierPartnerAllocations,
+    distributionInstant
+  );
   const classLedgers = buildClassLedgers(input, partnerLedgers);
   const receiptTierAllocations = buildTierAllocations(tierAllocations);
+  const fundCashEquation = buildFundCashEquation(input, state, distributionTotal);
   const sourceRefs = [...(input.sourceRefs ?? [])].sort(compareStrings);
   const upstreamReceiptIds = [...(input.upstreamReceiptIds ?? [])].sort(compareStrings);
+  const lineage = buildLineage(state);
+  const componentVersions = buildComponentVersions(selectedLane);
+
+  const rowCount = countReceiptRows({
+    componentVersionCount: Object.keys(componentVersions).length,
+    openingCashLotCount: openingPositions.cashLots.length,
+    openingInvestmentSliceCount: openingPositions.investmentSlices.length,
+    openingEntitlementPoolCount: openingPositions.entitlementPools.length,
+    journalEntryCount: journal.length,
+    journalPostingCount: journal.reduce((count, entry) => count + entry.postings.length, 0),
+    tierAllocationCount: receiptTierAllocations.length,
+    partnerLedgerCount: partnerLedgers.length,
+    classLedgerCount: classLedgers.length,
+    partnerCashFlowEntryCount: partnerLedgers.reduce(
+      (count, ledger) => count + ledger.cashFlowVector.length,
+      0
+    ),
+    classCashFlowEntryCount: classLedgers.reduce(
+      (count, ledger) => count + ledger.cashFlowVector.length,
+      0
+    ),
+    sourceRefCount: sourceRefs.length,
+    upstreamReceiptIdCount: upstreamReceiptIds.length,
+    cashLotLineageCount: lineage.cashLots.reduce(
+      (count, lot) => count + 1 + lot.consumingEventIds.length,
+      0
+    ),
+    investmentSliceLineageCount: lineage.investmentSlices.reduce(
+      (count, slice) => count + 1 + slice.fundingAllocations.length,
+      0
+    ),
+  });
+  if (rowCount > V2_ADMISSION_LIMITS.MAX_OUTPUT_ROWS) {
+    return admissionRefusal(
+      `Receipt row count ${rowCount} exceeds limit ${V2_ADMISSION_LIMITS.MAX_OUTPUT_ROWS}.`
+    );
+  }
 
   const conservationError = validateConservation(
     input,
@@ -776,8 +1212,11 @@ export function buildReceipt(
     openingPositions,
     journal,
     receiptTierAllocations,
+    tierPartnerAllocations,
     partnerLedgers,
     classLedgers,
+    distributionTotal,
+    waterfallPartnerDistributions
   );
   if (conservationError) return conservationError;
 
@@ -789,6 +1228,7 @@ export function buildReceipt(
     normalizedInputHash: input._normalizedInputHash,
     fundCashEquation,
     openingPositions,
+    lineage,
     journal,
     tierAllocations: receiptTierAllocations,
     partnerLedgers,
@@ -803,7 +1243,7 @@ export function buildReceipt(
   const serializedBytes = countSerializedOutputBytes(receipt);
   if (serializedBytes > V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES) {
     return admissionRefusal(
-      `Serialized receipt size ${serializedBytes} bytes exceeds limit ${V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES}.`,
+      `Serialized receipt size ${serializedBytes} bytes exceeds limit ${V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES}.`
     );
   }
 

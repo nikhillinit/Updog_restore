@@ -55,11 +55,11 @@ describe('classifyReserveFundingSources', () => {
     expect(result.sources.remainingCallableCommitmentUsd).toBe('550000.000000');
   });
 
-  it('paid-in cash is zero with no contributions', () => {
+  it('includes opening paid-in cash with no stream contributions', () => {
     const state = buildState();
     const result = classifyReserveFundingSources(state);
     if (!result.ok) return;
-    expect(result.sources.eligiblePaidInCashUsd).toBe('0.000000');
+    expect(result.sources.eligiblePaidInCashUsd).toBe('550000.000000');
   });
 
   it('recycling cash is zero with no realizations', () => {
@@ -122,8 +122,27 @@ describe('classifyReserveFundingSources', () => {
 
     const result = classifyReserveFundingSources(state);
     if (!result.ok) return;
-    expect(result.sources.eligiblePaidInCashUsd).toBe('0.000000');
+    expect(result.sources.eligiblePaidInCashUsd).toBe('550000.000000');
     expect(result.sources.eligibleRecyclingCashUsd).toBe('150000.000000');
+  });
+
+  it('excludes unclassified opening cash from both eligibility buckets', () => {
+    const state = buildState();
+    state.cashSourceLots.set('opening-cash:fund', {
+      origin: 'opening',
+      lotId: 'opening-cash:fund',
+      sourceRef: 'opening-ledger:fund',
+      owner: { kind: 'fund' },
+      classification: 'unclassified',
+      originalAmount: new Decimal('1.000000'),
+      remainingBalance: new Decimal('1.000000'),
+    });
+
+    const result = classifyReserveFundingSources(state);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.sources.eligiblePaidInCashUsd).toBe('550000.000000');
+    expect(result.sources.eligibleRecyclingCashUsd).toBe('0.000000');
   });
 
   it('keeps reserve refusal independent from a valid economics receipt', () => {

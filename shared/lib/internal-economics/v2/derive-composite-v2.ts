@@ -1,6 +1,8 @@
 import type {
   V2CoreRefusal,
   NormalizedInternalEconomicsInputV2,
+  V2Event,
+  V2TierKind,
   V2WaterfallLane,
   V2RefusalCode,
   V2Stage,
@@ -12,7 +14,9 @@ import type {
 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import { verifyAndNormalizeInternalEconomicsInputV2 } from './normalize-input-v2';
 import {
+  cloneEventStreamState,
   initializeEventStreamState,
+  processCallableCommitment,
   sortEventsIntoChronology,
   processSettledContribution,
   processDeployment,
@@ -32,34 +36,41 @@ import { buildReceipt } from './liquidity-receipt-builder-v2';
 import { Decimal } from '../../decimal-config';
 
 export const INTERNAL_ECONOMICS_COMPOSITE_IMPLEMENTATION_VERSION =
-  'internal-economics-composite/2.0.1' as const;
+  'internal-economics-composite/2.2.0' as const;
 
 function admissionRefusal(code: V2RefusalCode, stage: V2Stage, message: string): V2CoreRefusal {
   return { ok: false, code, stage, message };
 }
 
-function checkEventCapabilityRefusal(
+export function checkEventCapabilityRefusalForEvent(event: V2Event): V2CoreRefusal | null {
+  if (event.kind === 'contribution_correction')
+    return admissionRefusal(
+      'UNSUPPORTED_V2_CONTRIBUTION_CORRECTION',
+      'admission',
+      `Event ${event.eventId}: contribution correction is not yet supported.`
+    );
+  if (event.kind === 'write_off')
+    return admissionRefusal(
+      'UNSUPPORTED_V2_WRITE_OFF',
+      'admission',
+      `Event ${event.eventId}: write-off is not yet supported.`
+    );
+  if (event.kind === 'conversion')
+    return admissionRefusal(
+      'UNSUPPORTED_V2_CONVERSION',
+      'admission',
+      `Event ${event.eventId}: conversion is not yet supported.`
+    );
+
+  return null;
+}
+
+export function checkEventCapabilityRefusal(
   input: NormalizedInternalEconomicsInputV2
 ): V2CoreRefusal | null {
   for (const event of input.events) {
-    if (event.kind === 'contribution_correction')
-      return admissionRefusal(
-        'UNSUPPORTED_V2_CONTRIBUTION_CORRECTION',
-        'admission',
-        `Event ${event.eventId}: contribution correction is not yet supported.`
-      );
-    if (event.kind === 'write_off')
-      return admissionRefusal(
-        'UNSUPPORTED_V2_WRITE_OFF',
-        'admission',
-        `Event ${event.eventId}: write-off is not yet supported.`
-      );
-    if (event.kind === 'conversion')
-      return admissionRefusal(
-        'UNSUPPORTED_V2_CONVERSION',
-        'admission',
-        `Event ${event.eventId}: conversion is not yet supported.`
-      );
+    const refusal = checkEventCapabilityRefusalForEvent(event);
+    if (refusal) return refusal;
   }
 
   return null;
@@ -128,66 +139,129 @@ function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreR
   );
 }
 
+export type ProcessEventsV2ForTestResult =
+  | { readonly ok: false; readonly refusal: V2CoreRefusal }
+  | { readonly ok: true; readonly state: EventStreamState };
+
+export interface TierPartnerAllocation {
+  readonly lane: V2WaterfallLane;
+  readonly tierKind: V2TierKind;
+  readonly tierOrdinal: number;
+  readonly partnerId: string;
+  readonly amountUsd: string;
+}
+
+function buildTierPartnerAllocations(
+  lane: V2WaterfallLane,
+  tierAllocations: readonly {
+    readonly kind: V2TierKind;
+    readonly priority: number;
+    readonly perPartner: ReadonlyMap<string, Decimal>;
+  }[]
+): TierPartnerAllocation[] {
+  const result: TierPartnerAllocation[] = [];
+
+  for (const tier of tierAllocations) {
+    const perPartner = Array.from(tier.perPartner.entries()).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0
+    );
+    for (const [partnerId, amount] of perPartner) {
+      if (amount.lte(0)) continue;
+      result.push({
+        lane,
+        tierKind: tier.kind,
+        tierOrdinal: tier.priority,
+        partnerId,
+        amountUsd: amount.toFixed(6),
+      });
+    }
+  }
+
+  return result;
+}
+
 export function processEventsV2ForTest(
   input: NormalizedInternalEconomicsInputV2,
   state: EventStreamState
-): V2CoreRefusal | null {
+): ProcessEventsV2ForTestResult {
+  const stagedState = cloneEventStreamState(state);
   const chronology = sortEventsIntoChronology(input.events);
 
   for (const entry of chronology) {
     if (!entry.event) continue;
     const event = entry.event;
 
+    const capabilityRefusal = checkEventCapabilityRefusalForEvent(event);
+    if (capabilityRefusal) return { ok: false, refusal: capabilityRefusal };
+
+    const callableRefusal = processCallableCommitment(event, stagedState.callableTrackers);
+    if (callableRefusal) return { ok: false, refusal: callableRefusal };
+
     switch (event.kind) {
       case 'settled_contribution':
-        processSettledContribution(event, state);
+        {
+          const refusal = processSettledContribution(event, stagedState);
+          if (refusal) return { ok: false, refusal };
+        }
         break;
       case 'deployment':
         {
-          const refusal = processDeployment(event, state);
-          if (refusal) return refusal;
+          const refusal = processDeployment(event, stagedState);
+          if (refusal) return { ok: false, refusal };
         }
         break;
       case 'realization':
         {
-          const refusal = processRealization(event, state);
-          if (refusal) return refusal;
+          const refusal = processRealization(event, stagedState);
+          if (refusal) return { ok: false, refusal };
         }
         break;
       case 'fund_expense_payment':
         {
-          const refusal = processFundExpense(event, state);
-          if (refusal) return refusal;
+          const refusal = processFundExpense(event, stagedState);
+          if (refusal) return { ok: false, refusal };
         }
         break;
     }
   }
 
-  return null;
+  return { ok: true, state: stagedState };
 }
 
 function runLane(
   input: NormalizedInternalEconomicsInputV2,
   lane: V2WaterfallLane
 ): InternalEconomicsReceiptV2Result {
-  const state = initializeEventStreamState(input);
-  const eventError = processEventsV2ForTest(input, state);
-  if (eventError) return { ok: false, refusal: eventError };
+  const initialState = initializeEventStreamState(input);
+  const eventResult = processEventsV2ForTest(input, initialState);
+  if (!eventResult.ok) return { ok: false, refusal: eventResult.refusal };
+  const state = eventResult.state;
 
-  let tierAllocations: TierAllocationV2[];
+  const waterfall =
+    lane === 'deal_by_deal'
+      ? runDealByDealWaterfall(input, state)
+      : runWholeFundWaterfall(input, state);
+  if (!waterfall.ok) return { ok: false, refusal: waterfall.refusal };
 
-  if (lane === 'deal_by_deal') {
-    const result = runDealByDealWaterfall(input, state);
-    if (!result.ok) return { ok: false, refusal: result.refusal };
-    tierAllocations = dealToTier(result.tierAllocations);
-  } else {
-    const result = runWholeFundWaterfall(input, state);
-    if (!result.ok) return { ok: false, refusal: result.refusal };
-    tierAllocations = wholeToTier(result.tierAllocations);
-  }
+  const tierAllocations: TierAllocationV2[] =
+    lane === 'deal_by_deal'
+      ? dealToTier(waterfall.tierAllocations)
+      : wholeToTier(waterfall.tierAllocations);
+  // Tier-partner vectors are built from raw waterfall results BEFORE tier
+  // conversion because dealToTier/wholeToTier discard perPartner. The
+  // aggregate totalDistributed/partnerDistributions returns are passed to
+  // buildReceipt as conservation cross-checks.
+  const tierPartnerAllocations = buildTierPartnerAllocations(lane, waterfall.tierAllocations);
 
-  const receipt = buildReceipt(input, state, lane, tierAllocations);
-  return receipt;
+  return buildReceipt(
+    input,
+    state,
+    lane,
+    tierAllocations,
+    tierPartnerAllocations,
+    waterfall.totalDistributed,
+    waterfall.partnerDistributions
+  );
 }
 
 export function deriveInternalEconomicsV2(rawInput: unknown): InternalEconomicsReceiptV2Result {
@@ -211,12 +285,20 @@ export function certifyInternalEconomicsDualLaneV2(
   const guard = checkManagementFeeRefusal(normalizeResult.input);
   if (guard) return { ok: false, refusal: guard };
 
+  const capabilityRefusal = checkEventCapabilityRefusal(normalizeResult.input);
+  if (capabilityRefusal) return { ok: false, refusal: capabilityRefusal };
+
+  const dealByDeal = runLane(normalizeResult.input, 'deal_by_deal');
+  if (!dealByDeal.ok) return { ok: false, refusal: dealByDeal.refusal };
+
+  const wholeFund = runLane(normalizeResult.input, 'whole_fund');
+  if (!wholeFund.ok) return { ok: false, refusal: wholeFund.refusal };
+
   return {
-    ok: false,
-    refusal: admissionRefusal(
-      'UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION',
-      'waterfall',
-      'Dual-lane certification is not yet enabled.'
-    ),
+    ok: true,
+    certification: {
+      dealByDeal: dealByDeal.receipt,
+      wholeFund: wholeFund.receipt,
+    },
   };
 }

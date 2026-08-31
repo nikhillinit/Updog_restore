@@ -161,7 +161,7 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
 }
 
 describe('V2 benchmark at admission limits', () => {
-  it('dual-lane certification refuses with UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION', () => {
+  it('dual-lane certification fails closed on callable overrun without partial output', () => {
     const input = {
       ...buildWorstCaseInput(100, 500),
       selectedLane: 'whole_fund' as const,
@@ -173,7 +173,8 @@ describe('V2 benchmark at admission limits', () => {
     const result = certifyInternalEconomicsDualLaneV2(input);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.refusal.code).toBe('UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION');
-    expect(result.refusal.stage).toBe('waterfall');
+    expect(result.refusal.code).toBe('COMMITMENT_OVERRUN');
+    expect(result.refusal.stage).toBe('settlement');
+    expect('certification' in result).toBe(false);
   });
 });
