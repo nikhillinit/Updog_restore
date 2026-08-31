@@ -11,16 +11,16 @@ last_updated: 2026-08-31
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 767 |
-| Stale Documents | 483 |
-| Missing Frontmatter | 93 |
+| Total Documents | 769 |
+| Stale Documents | 485 |
+| Missing Frontmatter | 95 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 187 |
+| UNKNOWN | 189 |
 | HISTORICAL | 36 |
 | DRAFT | 35 |
 | VERIFIED | 13 |
@@ -75,6 +75,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/2-changelog/w6_v2.0.3.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.4.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/2-changelog/w6_v2.0.5.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w6_v2.0.6.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w4_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w5_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
@@ -86,6 +87,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w6_v2.0.3_independent-review.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.4.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.5.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/3-code-review/CR_w6_v2.0.6.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
@@ -94,10 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-034-fund-scope-target-enforcement-matrix.md` | Never | 999 | No | Unassigned |
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
-| `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
-| `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
 
-*...and 433 more stale documents.*
+*...and 435 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -228,6 +228,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/2-changelog/w6_v2.0.3.md`
 - [ ] `docs/2-changelog/w6_v2.0.4.md`
 - [ ] `docs/2-changelog/w6_v2.0.5.md`
+- [ ] `docs/2-changelog/w6_v2.0.6.md`
 - [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
 - [ ] `docs/3-code-review/CR_w4_v1.5.0.md`
 - [ ] `docs/3-code-review/CR_w5_v1.6.0.md`
@@ -239,6 +240,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w6_v2.0.3_independent-review.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.4.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.5.md`
+- [ ] `docs/3-code-review/CR_w6_v2.0.6.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`

@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-08-30)
+
+- **V2 expense lot eligibility and partner expense attribution (F3b hotfix,
+  2.0.6).** `processFundExpense` refuses `SCHEMA_VALIDATION_FAILED` when an
+  allocation references anything but an event-origin contribution-settlement lot
+  (opening and proceeds lots were accepted), and fund expenses now attribute per
+  partner by contribution-lot ownership into staged `cumulativeExpenses`,
+  projected into receipt partner/class ledgers with extended conservation
+  (previously hardcoded zero). Implementation identities (event engine,
+  composite implementation, serializer) bump to 2.2.1; receipt contract and
+  waterfalls stay 2.2.0; changed-case manifest hashes regenerated. Release
+  record `docs/2-changelog/w6_v2.0.6.md`; review
+  `docs/3-code-review/CR_w6_v2.0.6.md`; ADR-090 addendum.
+
 ### Added (2026-08-30)
 
 - **V2 F3b: event-stream atomicity, source-lot lineage, eventful receipt 2.2.0

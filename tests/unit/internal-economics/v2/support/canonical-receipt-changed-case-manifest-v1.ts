@@ -25,9 +25,9 @@ export const CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 = [
     afterReceiptVersion: 'internal-economics-receipt/2.2.0',
     normalizedInputHash: '8542190fbde01380510687ce1648cd0b18451e3da5a557934c26b470ca0f70ab',
     beforeResultHash: 'e0263b99740005feffcb89bb000d931b00b9232b6086b13056849a191eb07e28',
-    afterResultHash: '1245dc90f4fa71ad11769a74ffc4cd2c599240261d2759a346f6c405202d5187',
+    afterResultHash: '78e001fb1c76ffc96da48d886a545d9bff9ce69cc9f5c25a22dc557026d230e4',
     reason:
-      'Receipt 2.2.0 replaces the 2.0.0 summary-payload hash domain with the single full-receipt preimage (receipt without resultHash), discloses lineage, and updates implementation component versions; the normalized input and normalizedInputHash are unchanged.',
+      'Receipt 2.2.0 replaces the 2.0.0 summary-payload hash domain with the single full-receipt preimage (receipt without resultHash), discloses lineage, and updates implementation component versions; the normalized input and normalizedInputHash are unchanged. afterResultHash reflects the 2.2.1 implementation identities (expense eligibility/attribution hotfix).',
   },
   {
     caseId: 'V2-S-0100',
@@ -35,8 +35,8 @@ export const CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 = [
     afterReceiptVersion: 'internal-economics-receipt/2.2.0',
     normalizedInputHash: '273367406da6294a58cc2ed6ebfc0d0ec2d67a1356f81fb59f51782e1a351d98',
     beforeResultHash: 'ea74f8d284ba0625568f89e9b3ffe1dad32abb9d37bb0c0b05bdc2735a48916f',
-    afterResultHash: '152d4b0daf24b6a75139532dbdad1b27284ee0b64371c823f9e814efe93c1535',
+    afterResultHash: '63a0826d2ad848eae361ce5a97f32513257ac8eb9af1f95c1f079dd9fda8cc94',
     reason:
-      'Receipt 2.2.0 adds the lineage disclosure and updates the receipt, composite-implementation, event-engine, waterfall, and serializer version literals; the derived economics (fund cash equation, opening positions, journal, ledgers, tiers) and normalizedInputHash are byte-identical to the frozen 2.1.0 receipt.',
+      'Receipt 2.2.0 adds the lineage disclosure and updates the receipt, composite-implementation, event-engine, waterfall, and serializer version literals; the derived economics (fund cash equation, opening positions, journal, ledgers, tiers) and normalizedInputHash are byte-identical to the frozen 2.1.0 receipt. afterResultHash reflects the 2.2.1 implementation identities (expense eligibility/attribution hotfix).',
   },
 ] as const;

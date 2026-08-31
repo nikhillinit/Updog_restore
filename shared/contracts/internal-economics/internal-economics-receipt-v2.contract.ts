@@ -239,12 +239,12 @@ export interface FundCashEquationV2 {
 
 export interface ComponentVersionsV2 {
   readonly normalizer: 'internal-economics-normalizer/2.0.1';
-  readonly composite: 'internal-economics-composite/2.2.0';
-  readonly eventEngine: 'internal-economics-event-engine/2.2.0';
+  readonly composite: 'internal-economics-composite/2.2.1';
+  readonly eventEngine: 'internal-economics-event-engine/2.2.1';
   readonly selectedWaterfall:
     | 'internal-economics-waterfall-deal-by-deal/2.2.0'
     | 'internal-economics-waterfall-whole-fund/2.2.0';
-  readonly receiptSerializer: 'internal-economics-receipt-serializer/2.2.0';
+  readonly receiptSerializer: 'internal-economics-receipt-serializer/2.2.1';
 }
 
 export interface CashLotLineageV2 {

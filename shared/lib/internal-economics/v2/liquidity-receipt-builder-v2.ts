@@ -44,7 +44,7 @@ import { INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION } from './waterfal
 import { INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION } from './waterfall-whole-fund-v2';
 
 export const INTERNAL_ECONOMICS_RECEIPT_SERIALIZER_V2_VERSION =
-  'internal-economics-receipt-serializer/2.2.0' as const;
+  'internal-economics-receipt-serializer/2.2.1' as const;
 
 const ZERO = new Decimal(0);
 const FIX6 = 6;
@@ -406,7 +406,7 @@ export function buildPartnerLedgers(
         ),
         cumulativeDistributions: fix(ledger.cumulativeDistributions.plus(cumulativeDistributions)),
         cumulativeFees: fix(ledger.cumulativeFees),
-        cumulativeExpenses: fix(ZERO),
+        cumulativeExpenses: fix(ledger.cumulativeExpenses),
         accruedPreference: fix(ledger.accruedPreference.minus(preferredReturn)),
         returnOfCapital: fix(returnOfCapital),
         preferredReturnPaid: fix(preferredReturn),
@@ -1022,7 +1022,7 @@ function validateConservation(
       !new Decimal(ledger.settledCapital).eq(stagedLedger.settledCapital) ||
       !new Decimal(ledger.paidInCapital).eq(stagedLedger.paidInCapital) ||
       !new Decimal(ledger.cumulativeFees).eq(stagedLedger.cumulativeFees) ||
-      !new Decimal(ledger.cumulativeExpenses).isZero() ||
+      !new Decimal(ledger.cumulativeExpenses).eq(stagedLedger.cumulativeExpenses) ||
       !new Decimal(ledger.accruedPreference).eq(
         stagedLedger.accruedPreference.minus(preferredReturn)
       ) ||
@@ -1034,6 +1034,15 @@ function validateConservation(
     ) {
       return conservationRefusal(`Partner ${partner.partnerId} ledger ordering failed.`);
     }
+  }
+
+  const journalFundExpenses = sumJournalAccount(journal, 'fund_expenses');
+  const stagedPartnerExpenses = Array.from(state.partnerLedgers.values()).reduce(
+    (total, ledger) => total.plus(ledger.cumulativeExpenses),
+    ZERO
+  );
+  if (!journalFundExpenses.eq(stagedPartnerExpenses)) {
+    return conservationRefusal('Journal fund-expense conservation failed.');
   }
 
   const classLedgerMap = new Map(classLedgers.map((ledger) => [ledger.lpClassId, ledger]));

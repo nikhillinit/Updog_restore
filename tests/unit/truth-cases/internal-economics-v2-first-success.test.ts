@@ -42,10 +42,10 @@ describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
       receiptVersion: 'internal-economics-receipt/2.2.0' as const,
       componentVersions: {
         normalizer: 'internal-economics-normalizer/2.0.1' as const,
-        composite: 'internal-economics-composite/2.2.0' as const,
-        eventEngine: 'internal-economics-event-engine/2.2.0' as const,
+        composite: 'internal-economics-composite/2.2.1' as const,
+        eventEngine: 'internal-economics-event-engine/2.2.1' as const,
         selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.2.0' as const,
-        receiptSerializer: 'internal-economics-receipt-serializer/2.2.0' as const,
+        receiptSerializer: 'internal-economics-receipt-serializer/2.2.1' as const,
       },
       selectedLane: 'deal_by_deal' as const,
       hashAlgorithm: 'canonical-json-sha256/1' as const,

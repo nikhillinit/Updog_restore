@@ -34,9 +34,9 @@ type ReceiptLike = {
   receiptVersion: string;
   componentVersions: Record<string, string>;
   fundCashEquation: Record<string, string>;
-  journal: readonly Array<{
+  journal: ReadonlyArray<{
     source: 'event' | 'distribution';
-    postings: readonly Array<{ account: string; amountUsd: string }>;
+    postings: ReadonlyArray<{ account: string; amountUsd: string }>;
     eventId?: string;
     chronologyOrdinal?: number;
     lane?: string;
@@ -45,20 +45,25 @@ type ReceiptLike = {
     partnerId?: string;
     instant?: string;
   }>;
-  partnerLedgers: readonly Array<{
+  partnerLedgers: ReadonlyArray<{
     partnerId: string;
     calledCapital: string;
     cumulativeDistributions: string;
-    cashFlowVector: readonly Array<Record<string, string>>;
+    cumulativeExpenses: string;
+    cashFlowVector: ReadonlyArray<Record<string, string>>;
+  }>;
+  classLedgers: ReadonlyArray<{
+    lpClassId: string;
+    cumulativeExpenses: string;
   }>;
   lineage: {
-    cashLots: readonly Array<{
+    cashLots: ReadonlyArray<{
       lotId: string;
       consumingEventIds: readonly string[];
     }>;
-    investmentSlices: readonly Array<{
+    investmentSlices: ReadonlyArray<{
       investmentLotId: string;
-      fundingAllocations: readonly Array<{ lotId: string; amount: string }>;
+      fundingAllocations: ReadonlyArray<{ lotId: string; amount: string }>;
     }>;
   };
 };
@@ -158,8 +163,8 @@ describe('F3b eventful receipt contract', () => {
     expect(whole.componentVersions.selectedWaterfall).toBe(
       'internal-economics-waterfall-whole-fund/2.2.0'
     );
-    expect(deal.componentVersions.composite).toBe('internal-economics-composite/2.2.0');
-    expect(whole.componentVersions.eventEngine).toBe('internal-economics-event-engine/2.2.0');
+    expect(deal.componentVersions.composite).toBe('internal-economics-composite/2.2.1');
+    expect(whole.componentVersions.eventEngine).toBe('internal-economics-event-engine/2.2.1');
   });
 
   it.each([
@@ -353,6 +358,143 @@ describe('F3b eventful receipt contract', () => {
         expect.objectContaining({ account: 'fund_expenses', amountUsd: '10.000000' }),
       ])
     );
+  });
+
+  it('attributes fund expenses to owning partner and class ledgers', () => {
+    const events: V2Event[] = [
+      {
+        eventId: 'expense-contribution',
+        instant: '2025-02-01T00:00:00Z',
+        amountUsd: '10.000000',
+        kind: 'settled_contribution',
+        partnerId: 'lp-1',
+        purpose: 'fund_expense',
+        settlementSourceRef: 'settlement:expense',
+      },
+      {
+        eventId: 'expense-payment',
+        instant: '2025-03-01T00:00:00Z',
+        amountUsd: '10.000000',
+        kind: 'fund_expense_payment',
+        expenseCategory: 'legal',
+        cashSourceAllocations: [{ lotId: 'csl:expense-contribution', amount: '10.000000' }],
+      },
+    ];
+
+    const result = certifyInternalEconomicsDualLaneV2(eventfulInput('deal_by_deal', events));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const receipt = result.certification.dealByDeal as unknown as ReceiptLike;
+    expect(receipt.fundCashEquation.expenses).toBe('10.000000');
+    expect(
+      receipt.partnerLedgers.find((ledger) => ledger.partnerId === 'lp-1')?.cumulativeExpenses
+    ).toBe('10.000000');
+    expect(
+      receipt.partnerLedgers.find((ledger) => ledger.partnerId === 'gp-1')?.cumulativeExpenses
+    ).toBe('0.000000');
+    expect(
+      receipt.classLedgers.find((ledger) => ledger.lpClassId === 'class-a')?.cumulativeExpenses
+    ).toBe('10.000000');
+  });
+
+  it('attributes exact expense allocations across multiple partners', () => {
+    const events: V2Event[] = [
+      {
+        eventId: 'expense-contribution-lp',
+        instant: '2025-02-01T00:00:00Z',
+        amountUsd: '4.250000',
+        kind: 'settled_contribution',
+        partnerId: 'lp-1',
+        purpose: 'fund_expense',
+        settlementSourceRef: 'settlement:expense-lp',
+      },
+      {
+        eventId: 'expense-contribution-gp',
+        instant: '2025-02-02T00:00:00Z',
+        amountUsd: '5.750000',
+        kind: 'settled_contribution',
+        partnerId: 'gp-1',
+        purpose: 'fund_expense',
+        settlementSourceRef: 'settlement:expense-gp',
+      },
+      {
+        eventId: 'expense-payment-multi',
+        instant: '2025-03-01T00:00:00Z',
+        amountUsd: '10.000000',
+        kind: 'fund_expense_payment',
+        expenseCategory: 'legal',
+        cashSourceAllocations: [
+          { lotId: 'csl:expense-contribution-lp', amount: '4.250000' },
+          { lotId: 'csl:expense-contribution-gp', amount: '5.750000' },
+        ],
+      },
+    ];
+
+    const result = certifyInternalEconomicsDualLaneV2(eventfulInput('deal_by_deal', events));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const receipt = result.certification.dealByDeal as unknown as ReceiptLike;
+    expect(
+      receipt.partnerLedgers.find((ledger) => ledger.partnerId === 'lp-1')?.cumulativeExpenses
+    ).toBe('4.250000');
+    expect(
+      receipt.partnerLedgers.find((ledger) => ledger.partnerId === 'gp-1')?.cumulativeExpenses
+    ).toBe('5.750000');
+  });
+
+  it('refuses fund expenses funded by opening cash lots', () => {
+    const eventId = 'opening-expense-payment';
+    const result = certifyInternalEconomicsDualLaneV2(
+      eventfulInput('deal_by_deal', [
+        {
+          eventId,
+          instant: '2025-02-01T00:00:00Z',
+          amountUsd: '10.000000',
+          kind: 'fund_expense_payment',
+          expenseCategory: 'legal',
+          cashSourceAllocations: [{ lotId: 'opening-cash:lp-1', amount: '10.000000' }],
+        },
+      ])
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: {
+        code: 'SCHEMA_VALIDATION_FAILED',
+        stage: 'provenance',
+        diagnostics: { eventId },
+      },
+    });
+  });
+
+  it('refuses fund expenses funded by realization proceeds lots', () => {
+    const eventId = 'proceeds-expense-payment';
+    const result = certifyInternalEconomicsDualLaneV2(
+      eventfulInput('deal_by_deal', [
+        ...lifecycleEvents(),
+        {
+          eventId,
+          instant: '2025-05-01T00:00:00Z',
+          amountUsd: '10.000000',
+          kind: 'fund_expense_payment',
+          expenseCategory: 'legal',
+          cashSourceAllocations: [{ lotId: 'proceeds:realization-1', amount: '10.000000' }],
+        },
+      ])
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: {
+        code: 'SCHEMA_VALIDATION_FAILED',
+        stage: 'provenance',
+        diagnostics: { eventId },
+      },
+    });
   });
 
   it('discloses source-discriminated event and distribution cash flows in order', () => {

@@ -1340,4 +1340,152 @@ describe('processFundExpense', () => {
       '5000.000000'
     );
   });
+
+  it('refuses opening cash lots before applying expense allocations', () => {
+    const wire = buildMinimalV2Input();
+    const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(wire);
+    if (!normalizeResult.ok) return;
+
+    const state = initializeEventStreamState(normalizeResult.input);
+    const openingLot = state.cashSourceLots.get('opening-cash:lp-1');
+    if (!openingLot) throw new Error('LP opening cash lot missing');
+    const before = openingLot.remainingBalance;
+    const eventId = 'opening-expense-direct';
+
+    const result = processFundExpense(
+      {
+        eventId,
+        instant: '2025-03-01T00:00:00Z',
+        amountUsd: '10.000000',
+        kind: 'fund_expense_payment',
+        expenseCategory: 'legal',
+        cashSourceAllocations: [{ lotId: 'opening-cash:lp-1', amount: '10.000000' }],
+      },
+      state
+    );
+
+    expect(result).toMatchObject({
+      code: 'SCHEMA_VALIDATION_FAILED',
+      stage: 'provenance',
+      diagnostics: { eventId },
+    });
+    expect(openingLot.remainingBalance.eq(before)).toBe(true);
+    expect(state.consumptionRecords).toHaveLength(0);
+  });
+
+  it('refuses an OVERDRAWN opening lot with the eligibility code, not the balance code', () => {
+    const wire = buildMinimalV2Input();
+    const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(wire);
+    if (!normalizeResult.ok) return;
+
+    const state = initializeEventStreamState(normalizeResult.input);
+    const openingLot = state.cashSourceLots.get('opening-cash:lp-1');
+    if (!openingLot) throw new Error('LP opening cash lot missing');
+    expect(openingLot.remainingBalance.toFixed(6)).toBe('500000.000000');
+    const before = openingLot.remainingBalance;
+    const eventId = 'opening-expense-overdrawn';
+
+    const result = processFundExpense(
+      {
+        eventId,
+        instant: '2025-03-01T00:00:00Z',
+        amountUsd: '500001.000000',
+        kind: 'fund_expense_payment',
+        expenseCategory: 'legal',
+        cashSourceAllocations: [{ lotId: 'opening-cash:lp-1', amount: '500001.000000' }],
+      },
+      state
+    );
+
+    expect(result).toMatchObject({
+      code: 'SCHEMA_VALIDATION_FAILED',
+      stage: 'provenance',
+      diagnostics: { eventId },
+    });
+    expect(openingLot.remainingBalance.eq(before)).toBe(true);
+    expect(state.consumptionRecords).toHaveLength(0);
+  });
+
+  it('refuses an overdrawn proceeds lot with the eligibility code, not the balance code', () => {
+    const wire = buildMinimalV2Input();
+    const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(wire);
+    if (!normalizeResult.ok) return;
+
+    const state = initializeEventStreamState(normalizeResult.input);
+    processSettledContribution(
+      {
+        eventId: 'proceeds-seed-contribution',
+        instant: '2025-01-15T00:00:00Z',
+        amountUsd: '1000.000000',
+        kind: 'settled_contribution',
+        partnerId: 'lp-1',
+        purpose: 'deployment',
+        settlementSourceRef: 'settlement:proceeds-seed',
+      },
+      state
+    );
+    expect(
+      processDeployment(
+        {
+          eventId: 'proceeds-seed-deployment',
+          instant: '2025-02-01T00:00:00Z',
+          amountUsd: '1000.000000',
+          kind: 'deployment',
+          dealId: 'deal-1',
+          securityId: 'sec-1',
+          cashSourceAllocations: [
+            { lotId: 'csl:proceeds-seed-contribution', amount: '1000.000000' },
+          ],
+        },
+        state
+      )
+    ).toBeNull();
+    expect(
+      processRealization(
+        {
+          eventId: 'proceeds-seed-realization',
+          instant: '2025-03-01T00:00:00Z',
+          amountUsd: '1500.000000',
+          kind: 'realization',
+          dealId: 'deal-1',
+          reliefRows: [
+            {
+              investmentLotId: 'inv:deal-1:sec-1:proceeds-seed-deployment',
+              relievedCostBasis: '1000.000000',
+              allocatedProceeds: '1500.000000',
+            },
+          ],
+          recyclingTag: 'none',
+        },
+        state
+      )
+    ).toBeNull();
+    const proceedsLot = state.cashSourceLots.get('proceeds:proceeds-seed-realization');
+    if (!proceedsLot) throw new Error('proceeds lot missing');
+    const before = proceedsLot.remainingBalance;
+    const recordsBefore = state.consumptionRecords.length;
+    const eventId = 'proceeds-expense-overdrawn';
+
+    const result = processFundExpense(
+      {
+        eventId,
+        instant: '2025-04-01T00:00:00Z',
+        amountUsd: '1501.000000',
+        kind: 'fund_expense_payment',
+        expenseCategory: 'legal',
+        cashSourceAllocations: [
+          { lotId: 'proceeds:proceeds-seed-realization', amount: '1501.000000' },
+        ],
+      },
+      state
+    );
+
+    expect(result).toMatchObject({
+      code: 'SCHEMA_VALIDATION_FAILED',
+      stage: 'provenance',
+      diagnostics: { eventId },
+    });
+    expect(proceedsLot.remainingBalance.eq(before)).toBe(true);
+    expect(state.consumptionRecords).toHaveLength(recordsBefore);
+  });
 });

@@ -611,8 +611,12 @@ review, `#1287` target naming, `#1299` activation flip.
    `remainingBalance`. `certifyInternalEconomicsDualLaneV2` now runs both lanes
    for conformant inputs; ordinary derivation remains selected-lane-only and
    keeps the accepted input literal at `internal-economics-composite/2.0.1`
-   while its implementation manifest reports
-   `internal-economics-composite/2.2.0`.
+   while its implementation manifest reports the current implementation identity
+   — `internal-economics-composite/2.2.1` since the post-v2.0.5 expense hotfix
+   (expense allocations refuse non-contribution lots; expenses attribute per
+   partner by contribution-lot ownership), which also moved the event-engine and
+   receipt-serializer identities to 2.2.1; receipt contract and waterfall
+   versions stay 2.2.0.
 
    F3b admissions are opening-lot-funded deployments, callable-overrun refusal,
    conformant dual-lane certification, and origin-based/ remaining-balance

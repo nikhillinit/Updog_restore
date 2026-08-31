@@ -119,10 +119,10 @@ describe('V2-S-0100 opening investment provenance truth case', () => {
     expect(result.receipt.receiptVersion).toBe(manifest.afterReceiptVersion);
     expect(result.receipt.componentVersions).toEqual({
       normalizer: 'internal-economics-normalizer/2.0.1',
-      composite: 'internal-economics-composite/2.2.0',
-      eventEngine: 'internal-economics-event-engine/2.2.0',
+      composite: 'internal-economics-composite/2.2.1',
+      eventEngine: 'internal-economics-event-engine/2.2.1',
       selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.2.0',
-      receiptSerializer: 'internal-economics-receipt-serializer/2.2.0',
+      receiptSerializer: 'internal-economics-receipt-serializer/2.2.1',
     });
     expect(result.receipt.lineage).toEqual({ cashLots: [], investmentSlices: [] });
 

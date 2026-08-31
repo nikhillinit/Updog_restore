@@ -11685,3 +11685,24 @@ unreturned-capital ratios.
 This ADR authorizes no merge, deployment, provider action, environment access,
 schema change, data mutation, or production dispatch. Plans, tests, and
 certification output are evidence only.
+
+### Addendum (2026-08-30, hotfix 2.0.6)
+
+Post-merge review of v2.0.5 confirmed two F_2.0.0 normative-rule violations
+(plan lines 331-337) that the F3b landing did not close: fund-expense
+allocations accepted any unified-registry lot (the rule admits event-origin
+contribution-settlement lots only — the proceeds half of the hole predates F3b;
+opening-lot seeding widened it), and per-partner/per-class expense attribution
+was unimplemented (`cumulativeExpenses` hardcoded to zero with a conservation
+check requiring zero). The hotfix adds the expense eligibility refusal
+(`SCHEMA_VALIDATION_FAILED`, stage provenance), staged per-partner expense
+attribution by contribution-lot ownership at exact allocation amounts,
+receipt/class projection of the staged value, and extended conservation (receipt
+equals staged; journal `fund_expenses` equals the partner sum). Because
+expense-bearing streams change refusal semantics and receipt values, the
+event-engine, composite-implementation, and receipt-serializer identities move
+to 2.2.1; the receipt contract and both waterfall versions remain 2.2.0 (field
+shape and waterfall behavior unchanged). Changed-case manifest after-hashes were
+regenerated under the 2.2.1 identities; frozen before-hashes are untouched.
+Review: `docs/3-code-review/CR_w6_v2.0.6.md`; release record
+`docs/2-changelog/w6_v2.0.6.md`. The authority boundary above is unchanged.

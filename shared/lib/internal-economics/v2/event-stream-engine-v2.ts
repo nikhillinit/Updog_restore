@@ -21,7 +21,7 @@ import {
 } from './preferred-return-accrual-v2';
 
 export const INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION =
-  'internal-economics-event-engine/2.2.0' as const;
+  'internal-economics-event-engine/2.2.1' as const;
 
 type CashSourceLotBase = {
   readonly lotId: string;
@@ -84,6 +84,7 @@ export interface PartnerLedgerState {
   unreturnedSettledCashCapital: Decimal;
   cumulativeDistributions: Decimal;
   cumulativeFees: Decimal;
+  cumulativeExpenses: Decimal;
   accruedPreference: Decimal;
   calledCapitalPeriodDeployment: Decimal;
 }
@@ -182,6 +183,7 @@ export type PartnerEffectField =
   | 'unreturnedSettledCashCapital'
   | 'cumulativeDistributions'
   | 'cumulativeFees'
+  | 'cumulativeExpenses'
   | 'accruedPreference'
   | 'calledCapitalPeriodDeployment';
 
@@ -567,6 +569,7 @@ export function cloneEventStreamState(state: EventStreamState): EventStreamState
       unreturnedSettledCashCapital: new Decimal(ledger.unreturnedSettledCashCapital),
       cumulativeDistributions: new Decimal(ledger.cumulativeDistributions),
       cumulativeFees: new Decimal(ledger.cumulativeFees),
+      cumulativeExpenses: new Decimal(ledger.cumulativeExpenses),
       accruedPreference: new Decimal(ledger.accruedPreference),
       calledCapitalPeriodDeployment: new Decimal(ledger.calledCapitalPeriodDeployment),
     });
@@ -629,6 +632,7 @@ export function initializeEventStreamState(
       unreturnedSettledCashCapital: new Decimal(ledger?.unreturnedSettledCashCapital ?? '0.000000'),
       cumulativeDistributions: new Decimal(ledger?.cumulativeDistributions ?? '0.000000'),
       cumulativeFees: new Decimal(ledger?.cumulativeFees ?? '0.000000'),
+      cumulativeExpenses: new Decimal(0),
       accruedPreference: new Decimal(ledger?.accruedPreference ?? '0.000000'),
       calledCapitalPeriodDeployment: new Decimal(0),
     });
@@ -961,6 +965,28 @@ export function processFundExpense(
 ): V2CoreRefusal | null {
   const amount = new Decimal(event.amountUsd);
 
+  // Eligibility precedes generic amount/balance validation: an ineligible lot
+  // class refuses SCHEMA_VALIDATION_FAILED regardless of its balance (F_2.0.0
+  // normative rule). Unknown lots fall through to the generic existence
+  // refusal below.
+  const eligibleAllocations: Array<{
+    readonly allocation: CashSourceAllocation;
+    readonly lot: ContributionSettlementCashSourceLot;
+  }> = [];
+  for (const allocation of event.cashSourceAllocations) {
+    const lot = state.cashSourceLots.get(allocation.lotId);
+    if (!lot) continue;
+    if (lot.origin !== 'event' || lot.sourceKind !== 'contribution_settlement') {
+      return refuse(
+        'SCHEMA_VALIDATION_FAILED',
+        'provenance',
+        `Event ${event.eventId}: fund expense cash source lot '${allocation.lotId}' is not an event-origin contribution settlement.`,
+        { eventId: event.eventId }
+      );
+    }
+    eligibleAllocations.push({ allocation, lot });
+  }
+
   const allocError = validateCashSourceAllocations(
     event.cashSourceAllocations,
     state.cashSourceLots,
@@ -994,6 +1020,19 @@ export function processFundExpense(
       amountUsd: new Decimal(allocation.amount),
     }))
   );
+  for (const { allocation, lot } of eligibleAllocations) {
+    const ledger = state.partnerLedgers.get(lot.partnerId)!;
+    const amountUsd = new Decimal(allocation.amount);
+    ledger.cumulativeExpenses = ledger.cumulativeExpenses.plus(amountUsd);
+    state.partnerEffectRecords.push({
+      origin: 'event',
+      eventId: event.eventId,
+      instant: event.instant,
+      partnerId: lot.partnerId,
+      field: 'cumulativeExpenses',
+      amountUsd: new Decimal(amountUsd),
+    });
+  }
   state.eventEffectRecords.push({
     eventId: event.eventId,
     instant: event.instant,
