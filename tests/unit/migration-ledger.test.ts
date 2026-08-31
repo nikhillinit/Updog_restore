@@ -64,6 +64,7 @@ const expectedJournaledDriftPatchFiles = [
   '0051_g3_canary_schema.sql',
   '0052_g3_capital_call_notification_outbox.sql',
   '0053_g3_release_gate_hardening.sql',
+  '0054_operating_decisions_spine.sql',
 ].sort();
 
 afterEach(() => {
