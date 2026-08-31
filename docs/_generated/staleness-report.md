@@ -19,9 +19,9 @@ last_updated: 2026-08-31
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 462 |
+| ACTIVE | 463 |
 | UNKNOWN | 189 |
-| HISTORICAL | 39 |
+| HISTORICAL | 38 |
 | DRAFT | 35 |
 | VERIFIED | 13 |
 | REFERENCE | 10 |
