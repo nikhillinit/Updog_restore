@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { CreateAllocationScenarioModal } from '@/components/scenarios/CreateAllocationScenarioModal';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 import { useFeatureFlag } from '@/core/flags/flagAdapter';
 import {
@@ -734,23 +736,28 @@ function FundScenarioWorkspacePage() {
   // Review P3-7: the workspace row stays mounted through invalid, loading,
   // and error states so hub navigation survives a failing spoke (D-C:
   // partial context renders what is known plus disabled items).
-  const partialStateNav = (
-    <WorkspaceNav
-      fundId={fundId}
-      fundLabel={fundId !== null ? `Fund ${fundId}` : 'No fund'}
-      active="scenarios"
-      indicator={<WorkspaceBasisIndicator mode="construction" />}
-    />
+  const routeFundNumber = fundId !== null ? Number(fundId) : null;
+  const partialStateFrame = (content: React.ReactNode) => (
+    <FundWorkspaceProvider fundId={routeFundNumber}>
+      <WorkspaceNav
+        fundId={fundId}
+        fundLabel={fundId !== null ? `Fund ${fundId}` : 'No fund'}
+        active="scenarios"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
+      <WorkspaceContextRail>{content}</WorkspaceContextRail>
+    </FundWorkspaceProvider>
   );
 
   if (!fundId) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        {partialStateNav}
-        <WorkspaceErrorState
-          title="Invalid scenario workspace route"
-          message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
-        />
+        {partialStateFrame(
+          <WorkspaceErrorState
+            title="Invalid scenario workspace route"
+            message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
+          />
+        )}
       </div>
     );
   }
@@ -758,8 +765,7 @@ function FundScenarioWorkspacePage() {
   if (scenarioSetsQuery.isLoading || resultsQuery.isLoading) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        {partialStateNav}
-        <WorkspaceLoadingState />
+        {partialStateFrame(<WorkspaceLoadingState />)}
       </div>
     );
   }
@@ -767,12 +773,13 @@ function FundScenarioWorkspacePage() {
   if (scenarioSetsQuery.isError || resultsQuery.isError) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        {partialStateNav}
-        <WorkspaceErrorState
-          title="Scenario workspace unavailable"
-          message="Scenario workspace data could not be loaded."
-          onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
-        />
+        {partialStateFrame(
+          <WorkspaceErrorState
+            title="Scenario workspace unavailable"
+            message="Scenario workspace data could not be loaded."
+            onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
+          />
+        )}
       </div>
     );
   }
@@ -786,135 +793,145 @@ function FundScenarioWorkspacePage() {
           (construction) configuration; the saved-scenario overlay control is
           deferred until a surface-level scenario selection exists (D-E
           fallback ordering). */}
-      <WorkspaceNav
-        fundId={fundId}
-        fundLabel={fund ? fund.name : `Fund ${fundId}`}
-        active="scenarios"
-        indicator={<WorkspaceBasisIndicator mode="construction" />}
-      />
-      <header className="space-y-4">
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {seedPickerEnabled && (
-              <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
-                Start case from portfolio actuals
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setIsCreateMethodologyOpen(true)}>
-              New methodology scenario
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCreateAllocationOpen(true)}
-              className="border-presson-borderSubtle text-presson-text hover:bg-presson-surfaceSubtle"
-            >
-              New allocation scenarios
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={createReserveOptimizationMutation.isPending}
-              onClick={() => createReserveOptimizationMutation.mutate()}
-            >
-              {createReserveOptimizationMutation.isPending && (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              )}
-              {createReserveOptimizationMutation.isPending
-                ? 'Creating'
-                : 'Create optimized reserve plan'}
-            </Button>
-          </div>
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-charcoal-500 font-poppins">
-            {fund ? (
-              <>
-                <span>{fund.name}</span>
-                <span aria-hidden="true" className="text-charcoal-300">
-                  ·
-                </span>
-                <span>Vintage {fund.vintageYear}</span>
-              </>
-            ) : (
-              <span>Fund {fundId}</span>
-            )}
-            <span aria-hidden="true" className="text-charcoal-300">
-              ·
-            </span>
-            <span>
-              {scenarioSets.length === 1
-                ? '1 scenario set'
-                : `${scenarioSets.length} scenario sets`}
-            </span>
-          </p>
-        </div>
-        {seedDeepLink.kind === 'notice' && (
-          <p className="text-sm text-presson-textMuted" data-testid="seed-source-unavailable">
-            Seed source unavailable: {seedDeepLink.reason}
-          </p>
-        )}
-      </header>
-
-      <ScenarioActionList
-        scenarioSets={scenarioSets}
-        detailById={detailById}
-        statusById={statusById}
-        noticeById={reserveNotices}
-        pendingScenarioSetId={pendingScenarioSetId}
-        highlightedScenarioSetId={highlightedScenarioSetId}
-        onCalculate={(detail) => {
-          if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
-            void runReserveCalculation(detail);
-            return;
-          }
-          setPendingScenarioSetId(detail.id);
-          calculateMutation.mutate(detail);
-        }}
-      />
-
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-medium text-charcoal">Calculated Results</h2>
-          <p className="mt-1 text-sm text-charcoal-500 font-poppins">
-            Scenario outputs from the latest calculated results.
-          </p>
-        </div>
-        {scenarioPayload ? (
-          <ScenarioSetsSummary payload={scenarioPayload} />
-        ) : (
-          <ScenarioSectionEmpty results={resultsQuery.data} />
-        )}
-      </section>
-
-      <ScenarioComparisonWorkspace
-        comparisons={comparisons}
-        isLoading={comparisonQueries.some((query) => query.isLoading)}
-      />
-      <CreateMethodologyScenarioModal
-        fundId={fundId}
-        open={isCreateMethodologyOpen}
-        onOpenChange={setIsCreateMethodologyOpen}
-        onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
-      />
-      <CreateAllocationScenarioModal
-        fundId={fundId}
-        open={isCreateAllocationOpen}
-        onOpenChange={setIsCreateAllocationOpen}
-        onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
-      />
-      {seedPickerEnabled && (
-        <ScenarioFactsSeedPicker
+      <FundWorkspaceProvider fundId={routeFundNumber}>
+        <WorkspaceNav
           fundId={fundId}
-          open={isSeedPickerOpen}
-          onOpenChange={setIsSeedPickerOpen}
-          {...(seedDeepLink.kind === 'open' && seedDeepLink.seedCompanyId !== null
-            ? { initialSelectedCompanyId: seedDeepLink.seedCompanyId }
-            : {})}
+          fundLabel={fund ? fund.name : `Fund ${fundId}`}
+          active="scenarios"
+          indicator={<WorkspaceBasisIndicator mode="construction" />}
         />
-      )}
+        <WorkspaceContextRail>
+          <div className="space-y-8">
+            <header className="space-y-4">
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {seedPickerEnabled && (
+                    <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
+                      Start case from portfolio actuals
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateMethodologyOpen(true)}
+                  >
+                    New methodology scenario
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateAllocationOpen(true)}
+                    className="border-presson-borderSubtle text-presson-text hover:bg-presson-surfaceSubtle"
+                  >
+                    New allocation scenarios
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={createReserveOptimizationMutation.isPending}
+                    onClick={() => createReserveOptimizationMutation.mutate()}
+                  >
+                    {createReserveOptimizationMutation.isPending && (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    )}
+                    {createReserveOptimizationMutation.isPending
+                      ? 'Creating'
+                      : 'Create optimized reserve plan'}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-charcoal-500 font-poppins">
+                  {fund ? (
+                    <>
+                      <span>{fund.name}</span>
+                      <span aria-hidden="true" className="text-charcoal-300">
+                        ·
+                      </span>
+                      <span>Vintage {fund.vintageYear}</span>
+                    </>
+                  ) : (
+                    <span>Fund {fundId}</span>
+                  )}
+                  <span aria-hidden="true" className="text-charcoal-300">
+                    ·
+                  </span>
+                  <span>
+                    {scenarioSets.length === 1
+                      ? '1 scenario set'
+                      : `${scenarioSets.length} scenario sets`}
+                  </span>
+                </p>
+              </div>
+              {seedDeepLink.kind === 'notice' && (
+                <p className="text-sm text-presson-textMuted" data-testid="seed-source-unavailable">
+                  Seed source unavailable: {seedDeepLink.reason}
+                </p>
+              )}
+            </header>
+
+            <ScenarioActionList
+              scenarioSets={scenarioSets}
+              detailById={detailById}
+              statusById={statusById}
+              noticeById={reserveNotices}
+              pendingScenarioSetId={pendingScenarioSetId}
+              highlightedScenarioSetId={highlightedScenarioSetId}
+              onCalculate={(detail) => {
+                if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
+                  void runReserveCalculation(detail);
+                  return;
+                }
+                setPendingScenarioSetId(detail.id);
+                calculateMutation.mutate(detail);
+              }}
+            />
+
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-lg font-medium text-charcoal">Calculated Results</h2>
+                <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+                  Scenario outputs from the latest calculated results.
+                </p>
+              </div>
+              {scenarioPayload ? (
+                <ScenarioSetsSummary payload={scenarioPayload} />
+              ) : (
+                <ScenarioSectionEmpty results={resultsQuery.data} />
+              )}
+            </section>
+
+            <ScenarioComparisonWorkspace
+              comparisons={comparisons}
+              isLoading={comparisonQueries.some((query) => query.isLoading)}
+            />
+            <CreateMethodologyScenarioModal
+              fundId={fundId}
+              open={isCreateMethodologyOpen}
+              onOpenChange={setIsCreateMethodologyOpen}
+              onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
+            />
+            <CreateAllocationScenarioModal
+              fundId={fundId}
+              open={isCreateAllocationOpen}
+              onOpenChange={setIsCreateAllocationOpen}
+              onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
+            />
+            {seedPickerEnabled && (
+              <ScenarioFactsSeedPicker
+                fundId={fundId}
+                open={isSeedPickerOpen}
+                onOpenChange={setIsSeedPickerOpen}
+                {...(seedDeepLink.kind === 'open' && seedDeepLink.seedCompanyId !== null
+                  ? { initialSelectedCompanyId: seedDeepLink.seedCompanyId }
+                  : {})}
+              />
+            )}
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

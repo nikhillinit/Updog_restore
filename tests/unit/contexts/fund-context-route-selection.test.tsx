@@ -37,9 +37,11 @@ const mockFunds = [
   },
 ];
 
-function Consumer() {
+function Consumer({ onRender }: { onRender?: (fundId: number | null) => void } = {}) {
   const { currentFund, needsSetup, isLoading, isDemoMode, fundLoadError, fundLoadErrorMessage } =
     useFundContext();
+
+  onRender?.(currentFund?.id ?? null);
 
   if (isLoading) {
     return <div>loading</div>;
@@ -72,8 +74,27 @@ describe('FundProvider route-aware selection', () => {
     localStorage.clear();
   });
 
-  it('prefers the route fund ID on /fund-model-results/:fundId', async () => {
-    const { Wrapper } = createWouterWrapper('/fund-model-results/2');
+  it.each(['', '/scenarios', '/reports', '/analysis', '/internal-analysis', '/moic-analysis'])(
+    'prefers the route fund ID on /fund-model-results/:fundId%s',
+    async (suffix) => {
+      const { Wrapper } = createWouterWrapper(`/fund-model-results/2${suffix}`);
+
+      render(
+        <Wrapper>
+          <FundProvider>
+            <Consumer />
+          </FundProvider>
+        </Wrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+      });
+    }
+  );
+
+  it('does not expose a default fund on an invalid fund-results route', async () => {
+    const { Wrapper } = createWouterWrapper('/fund-model-results/2/not-a-workspace');
 
     render(
       <Wrapper>
@@ -84,12 +105,12 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
     });
   });
 
-  it('prefers the route fund ID on /fund-model-results/:fundId/scenarios', async () => {
-    const { Wrapper } = createWouterWrapper('/fund-model-results/2/scenarios');
+  it('clears a route-addressed fund when navigation reaches an invalid fund-results route', async () => {
+    const { Wrapper, goto } = createWouterWrapper('/fund-model-results/2');
 
     render(
       <Wrapper>
@@ -102,6 +123,58 @@ describe('FundProvider route-aware selection', () => {
     await waitFor(() => {
       expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
     });
+
+    act(() => {
+      goto('/fund-model-results/2/not-a-workspace');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('does not expose an ambient fund when the route fund ID is not in the resolved fund list', async () => {
+    const { Wrapper } = createWouterWrapper('/fund-model-results/999');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('clears a route-addressed fund when navigation reaches an unresolved numeric fund ID', async () => {
+    const observedFundIds: Array<number | null> = [];
+    const { Wrapper, goto } = createWouterWrapper('/fund-model-results/2');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer onRender={(fundId) => observedFundIds.push(fundId)} />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+    observedFundIds.length = 0;
+
+    act(() => {
+      goto('/fund-model-results/999');
+    });
+
+    expect(observedFundIds).not.toContain(2);
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+    expect(observedFundIds).not.toContain(2);
   });
 
   it('falls back to the first fund on non-results routes', async () => {

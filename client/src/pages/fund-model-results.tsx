@@ -11,6 +11,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useRoute } from 'wouter';
 import { CurrentPlanAcceptancePanel, FinancialEvidenceDrawer } from '@/components/fund-results';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
@@ -54,6 +55,8 @@ import {
 } from './fund-model-results/scenario-evidence-drawer';
 import { SectionRenderer } from './fund-model-results/SectionRenderer';
 import { WorkspaceBasisIndicator, WorkspaceNav } from './fund-model-results/workspace-nav';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
 import { ErrorState, LatestErrorState, LoadingState } from './fund-model-results/states';
 import { FundReadinessRollup } from './fund-model-results/FundReadinessRollup';
 import type { ReadinessSourceInput, ScenariosSection } from './fund-model-results/readiness-rollup';
@@ -128,13 +131,16 @@ function FundModelResultsPage() {
   // partial context, fund-scoped links render from a validated route id or
   // fall back to disabled-with-reason (D-C).
   const navFundId = fundId !== null && /^[1-9]\d*$/.test(fundId) ? fundId : null;
-  const partialStateNav = (
-    <WorkspaceNav
-      fundId={navFundId}
-      fundLabel={navFundId !== null ? `Fund ${navFundId}` : 'No fund'}
-      active="summary"
-      indicator={<WorkspaceBasisIndicator mode="construction" />}
-    />
+  const partialStateFrame = (content: ReactNode) => (
+    <FundWorkspaceProvider fundId={routeFundNumber}>
+      <WorkspaceNav
+        fundId={navFundId}
+        fundLabel={navFundId !== null ? `Fund ${navFundId}` : 'No fund'}
+        active="summary"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
+      <WorkspaceContextRail>{content}</WorkspaceContextRail>
+    </FundWorkspaceProvider>
   );
 
   // Handle /latest or missing fundId. The readiness rollup stays mounted
@@ -143,9 +149,12 @@ function FundModelResultsPage() {
   if (fundId === 'latest' || !fundId) {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {partialStateNav}
-        <FundReadinessRollup model={readinessModel} />
-        <LatestErrorState />
+        {partialStateFrame(
+          <div className="space-y-8">
+            <FundReadinessRollup model={readinessModel} />
+            <LatestErrorState />
+          </div>
+        )}
       </div>
     );
   }
@@ -153,9 +162,12 @@ function FundModelResultsPage() {
   if (fetchState.kind === 'loading') {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {partialStateNav}
-        <FundReadinessRollup model={readinessModel} />
-        <LoadingState />
+        {partialStateFrame(
+          <div className="space-y-8">
+            <FundReadinessRollup model={readinessModel} />
+            <LoadingState />
+          </div>
+        )}
       </div>
     );
   }
@@ -163,9 +175,12 @@ function FundModelResultsPage() {
   if (fetchState.kind === 'error') {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {partialStateNav}
-        <FundReadinessRollup model={readinessModel} />
-        <ErrorState message={fetchState.message} />
+        {partialStateFrame(
+          <div className="space-y-8">
+            <FundReadinessRollup model={readinessModel} />
+            <ErrorState message={fetchState.message} />
+          </div>
+        )}
       </div>
     );
   }
@@ -190,139 +205,153 @@ function FundModelResultsPage() {
       </div>
 
       {/* Workspace row (D-F.2): fund context + six destinations + basis indicator */}
-      <WorkspaceNav
-        fundId={fundId}
-        fundLabel={results.fund.name}
-        active="summary"
-        indicator={<WorkspaceBasisIndicator mode="construction" />}
-      />
-
-      {/* Dominant object (D-H): cross-surface readiness rollup, first section
+      <FundWorkspaceProvider fundId={routeFundNumber}>
+        <WorkspaceNav
+          fundId={fundId}
+          fundLabel={results.fund.name}
+          active="summary"
+          indicator={<WorkspaceBasisIndicator mode="construction" />}
+        />
+        <WorkspaceContextRail>
+          <div className="space-y-8">
+            {/* Dominant object (D-H): cross-surface readiness rollup, first section
           under the workspace row; existing sections render below unchanged. */}
-      <FundReadinessRollup model={readinessModel} />
+            <FundReadinessRollup model={readinessModel} />
 
-      <ConfigDiffBanner lifecycle={results.lifecycle} />
+            <ConfigDiffBanner lifecycle={results.lifecycle} />
 
-      <LifecycleStatusCard
-        lifecycle={results.lifecycle}
-        recalculateState={recalculateState}
-        onRecalculate={recalculate}
-      />
+            <LifecycleStatusCard
+              lifecycle={results.lifecycle}
+              recalculateState={recalculateState}
+              onRecalculate={recalculate}
+            />
 
-      <PublishHistoryCard historyState={historyState} />
+            <PublishHistoryCard historyState={historyState} />
 
-      <PublishComparisonCard comparisonState={comparisonState} />
+            <PublishComparisonCard comparisonState={comparisonState} />
 
-      <CurrentPlanAcceptancePanel fundId={routeFundNumber} />
+            <CurrentPlanAcceptancePanel fundId={routeFundNumber} />
 
-      {/* PLAN_61 Task 18 entry point. Deliberately a card here rather than a
+            {/* PLAN_61 Task 18 entry point. Deliberately a card here rather than a
           seventh workspace-nav link: the nav row is a six-destination contract
           (D-F.5 chrome budget). */}
-      <section
-        aria-labelledby="internal-analysis-entry-heading"
-        data-testid="internal-analysis-entry"
-        className="rounded-lg border border-beige-200 bg-white p-4"
-      >
-        <h2
-          id="internal-analysis-entry-heading"
-          className="text-sm font-semibold text-pov-charcoal"
-        >
-          Internal Analysis
-        </h2>
-        <p className="mt-1 text-xs text-presson-textMuted">
-          Quarterly reference snapshots on one coherent facts basis. Internal only -- not closes,
-          restatements, or approved reports.
-        </p>
-        <Link
-          href={`/fund-model-results/${fundId}/internal-analysis`}
-          data-testid="internal-analysis-entry-link"
-          className="mt-2 inline-block text-sm text-pov-charcoal underline decoration-1 underline-offset-4 hover:decoration-2"
-        >
-          Open internal analysis
-        </Link>
-      </section>
+            <section
+              aria-labelledby="internal-analysis-entry-heading"
+              data-testid="internal-analysis-entry"
+              className="rounded-lg border border-beige-200 bg-white p-4"
+            >
+              <h2
+                id="internal-analysis-entry-heading"
+                className="text-sm font-semibold text-pov-charcoal"
+              >
+                Internal Analysis
+              </h2>
+              <p className="mt-1 text-xs text-presson-textMuted">
+                Quarterly reference snapshots on one coherent facts basis. Internal only -- not
+                closes, restatements, or approved reports.
+              </p>
+              <Link
+                href={`/fund-model-results/${fundId}/internal-analysis`}
+                data-testid="internal-analysis-entry-link"
+                className="mt-2 inline-block text-sm text-pov-charcoal underline decoration-1 underline-offset-4 hover:decoration-2"
+              >
+                Open internal analysis
+              </Link>
+            </section>
 
-      <QuarterlyReviewTrace
-        results={results}
-        comparison={comparisonState.comparison}
-        fundId={fundId}
-      />
+            <QuarterlyReviewTrace
+              results={results}
+              comparison={comparisonState.comparison}
+              fundId={fundId}
+            />
 
-      {/* Reserve section */}
-      <SectionRenderer
-        title="Reserve allocation — awaiting current actuals"
-        section={results.sections.reserve}
-        evidenceLifecycle={evidenceLifecycle}
-        evidenceTestId="evidence-header-reserve-allocation"
-      />
+            {/* Reserve section */}
+            <SectionRenderer
+              title="Reserve allocation — awaiting current actuals"
+              section={results.sections.reserve}
+              evidenceLifecycle={evidenceLifecycle}
+              evidenceTestId="evidence-header-reserve-allocation"
+            />
 
-      {/* Pacing section */}
-      <SectionRenderer
-        title="Deployment pacing — modeled from construction assumptions"
-        section={results.sections.pacing}
-        evidenceLifecycle={evidenceLifecycle}
-        evidenceTestId="evidence-header-deployment-pacing"
-      />
+            {/* Pacing section */}
+            <SectionRenderer
+              title="Deployment pacing — modeled from construction assumptions"
+              section={results.sections.pacing}
+              evidenceLifecycle={evidenceLifecycle}
+              evidenceTestId="evidence-header-deployment-pacing"
+            />
 
-      {/* Overview (scorecard) section */}
-      <SectionRenderer
-        title="Overview — current recorded fund metrics"
-        section={results.sections.scorecard}
-        renderPayload={(p) => <OverviewCard payload={p as ScorecardPayload} />}
-        evidenceLifecycle={mixedScorecardEvidence(evidenceLifecycle, results.sections.scorecard)}
-        evidenceTestId="evidence-header-overview"
-      />
+            {/* Overview (scorecard) section */}
+            <SectionRenderer
+              title="Overview — current recorded fund metrics"
+              section={results.sections.scorecard}
+              renderPayload={(p) => <OverviewCard payload={p as ScorecardPayload} />}
+              evidenceLifecycle={mixedScorecardEvidence(
+                evidenceLifecycle,
+                results.sections.scorecard
+              )}
+              evidenceTestId="evidence-header-overview"
+            />
 
-      {/* Scenarios section — the one section whose contract exposes evidence
+            {/* Scenarios section — the one section whose contract exposes evidence
           today; the Evidence link opens the shared work panel (D-B/D-C). */}
-      <SectionRenderer
-        title="Scenario analysis — compare saved cases to the published baseline"
-        section={results.sections.scenarios}
-        headerAction={
-          <button
-            ref={scenarioEvidenceTriggerRef}
-            type="button"
-            data-testid="scenario-evidence-trigger"
-            className="text-xs font-medium text-pov-charcoal underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2"
-            onClick={() => setScenarioEvidenceOpen(true)}
-          >
-            Evidence
-          </button>
-        }
-        renderPayload={(p) => (
-          <ScenarioAnalysisCard
-            fundId={fundId}
-            payload={p as ScenariosSectionPayloadV1}
-            comparisonState={scenarioComparisonState}
-          />
-        )}
-      />
+            <SectionRenderer
+              title="Scenario analysis — compare saved cases to the published baseline"
+              section={results.sections.scenarios}
+              headerAction={
+                <button
+                  ref={scenarioEvidenceTriggerRef}
+                  type="button"
+                  data-testid="scenario-evidence-trigger"
+                  className="text-xs font-medium text-pov-charcoal underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2"
+                  onClick={() => setScenarioEvidenceOpen(true)}
+                >
+                  Evidence
+                </button>
+              }
+              renderPayload={(p) => (
+                <ScenarioAnalysisCard
+                  fundId={fundId}
+                  payload={p as ScenariosSectionPayloadV1}
+                  comparisonState={scenarioComparisonState}
+                />
+              )}
+            />
 
-      {/* Waterfall section */}
-      <SectionRenderer
-        title="Waterfall setup — published distribution terms"
-        section={results.sections.waterfall}
-        renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
-        evidenceLifecycle={configBackedEvidence(evidenceLifecycle, results.sections.waterfall)}
-        evidenceTestId="evidence-header-waterfall-setup"
-      />
+            {/* Waterfall section */}
+            <SectionRenderer
+              title="Waterfall setup — published distribution terms"
+              section={results.sections.waterfall}
+              renderPayload={(p) => <WaterfallSetupCard payload={p as WaterfallSetupSection} />}
+              evidenceLifecycle={configBackedEvidence(
+                evidenceLifecycle,
+                results.sections.waterfall
+              )}
+              evidenceTestId="evidence-header-waterfall-setup"
+            />
 
-      {/* Economics section */}
-      <SectionRenderer
-        title="GP economics — projected carry and fees from the published model"
-        section={results.sections.economics}
-        renderPayload={(p) => <EconomicsResultsCard payload={p as EconomicsResultV1} />}
-        evidenceLifecycle={sectionBackedEvidence(evidenceLifecycle, results.sections.economics)}
-        evidenceTestId="evidence-header-gp-economics"
-      />
+            {/* Economics section */}
+            <SectionRenderer
+              title="GP economics — projected carry and fees from the published model"
+              section={results.sections.economics}
+              renderPayload={(p) => <EconomicsResultsCard payload={p as EconomicsResultV1} />}
+              evidenceLifecycle={sectionBackedEvidence(
+                evidenceLifecycle,
+                results.sections.economics
+              )}
+              evidenceTestId="evidence-header-gp-economics"
+            />
 
-      <FinancialEvidenceDrawer
-        {...scenarioDrawer}
-        open={scenarioEvidenceOpen}
-        onOpenChange={setScenarioEvidenceOpen}
-        factsDomainNoun={SCENARIO_FACTS_DOMAIN_NOUN}
-        returnFocusRef={scenarioEvidenceTriggerRef}
-      />
+            <FinancialEvidenceDrawer
+              {...scenarioDrawer}
+              open={scenarioEvidenceOpen}
+              onOpenChange={setScenarioEvidenceOpen}
+              factsDomainNoun={SCENARIO_FACTS_DOMAIN_NOUN}
+              returnFocusRef={scenarioEvidenceTriggerRef}
+            />
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }
