@@ -1,0 +1,83 @@
+{
+  "name": "operating-decisions-spine",
+  "order": 31,
+  "description": "ADR-067 operating-decision spine (migration 0054): fund-scoped decision lifecycle with trigger-enforced immutability, typed evidence links to internal analyses and economics runs, and additive task-create idempotency columns. Drizzle owns the transaction spanning this journaled migration and its ledger write; the trigger replay requires an operator to apply the journaled migration manually, and reconciliation then audits to SKIP only when the exact catalog surface exists.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0054_operating_decisions_spine.sql"],
+  "allowedCreateTables": ["operating_decisions", "decision_evidence_links"],
+  "expectedTables": [
+    {
+      "name": "operating_decisions",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "title", "type": "varchar", "nullable": false },
+        { "name": "recommendation", "type": "text", "nullable": false },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "supersedes_decision_id", "type": "integer", "nullable": true },
+        { "name": "outcome", "type": "text", "nullable": true },
+        { "name": "outcome_recorded_at", "type": "timestamptz", "nullable": true },
+        { "name": "outcome_recorded_by", "type": "integer", "nullable": true },
+        { "name": "follow_up_owner_id", "type": "integer", "nullable": true },
+        { "name": "follow_up_date", "type": "date", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "operating_decisions_pkey",
+        "operating_decisions_fund_id_funds_id_fk",
+        "operating_decisions_supersedes_decision_fund_fk",
+        "operating_decisions_outcome_recorded_by_fk",
+        "operating_decisions_follow_up_owner_id_fk",
+        "operating_decisions_created_by_fk",
+        "operating_decisions_id_fund_unique",
+        "operating_decisions_fund_idempotency_unique",
+        "operating_decisions_status_check",
+        "operating_decisions_title_nonempty_check",
+        "operating_decisions_outcome_coupling_check",
+        "operating_decisions_outcome_status_check",
+        "operating_decisions_deferred_follow_up_check"
+      ],
+      "indexes": ["operating_decisions_supersedes_decision_unique"]
+    },
+    {
+      "name": "decision_evidence_links",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "decision_id", "type": "integer", "nullable": false },
+        { "name": "target_kind", "type": "varchar", "nullable": false },
+        { "name": "analysis_reference_id", "type": "integer", "nullable": true },
+        { "name": "economics_run_id", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "decision_evidence_links_pkey",
+        "decision_evidence_links_fund_id_funds_id_fk",
+        "decision_evidence_links_decision_fund_fk",
+        "decision_evidence_links_analysis_reference_fund_fk",
+        "decision_evidence_links_economics_run_fund_fk",
+        "decision_evidence_links_created_by_fk",
+        "decision_evidence_links_fund_decision_idempotency_unique",
+        "decision_evidence_links_target_kind_check",
+        "decision_evidence_links_target_coupling_check"
+      ],
+      "indexes": ["idx_decision_evidence_links_fund_decision_id"]
+    },
+    {
+      "name": "tasks",
+      "sharedTable": true,
+      "columns": [
+        { "name": "idempotency_key", "type": "varchar", "nullable": true },
+        { "name": "request_hash", "type": "varchar", "nullable": true }
+      ],
+      "indexes": ["tasks_fund_idempotency_unique"]
+    }
+  ]
+}

@@ -321,6 +321,10 @@ describe('prod schema apply policy', () => {
       // replays its immutable task-evidence trigger with DROP TRIGGER IF EXISTS. The
       // trigger delta must stay audit-visible and human-reconciled.
       'internal-economics-linkage',
+      // ADR-067 0054 follows the 0047 precedent: migrator-owned transaction,
+      // DO-block preflights with temp check tables, and DROP TRIGGER IF EXISTS
+      // replays are unknown drops for the additive-safe allow-list.
+      'operating-decisions-spine',
     ]);
     const applyingManifestNames = new Set(
       manifests

@@ -404,11 +404,16 @@ describe('reconcile-prod-schema runner helpers', () => {
   it('binds capability identities to the pinned canonical vector, not directory contents', async () => {
     const target = await prepare0053G3ReleaseGateHardeningCapability();
     expect(target.canonicalManifestIdentities).toBe(CANONICAL_MANIFEST_IDENTITIES);
-    expect(CANONICAL_MANIFEST_IDENTITIES).toHaveLength(30);
+    expect(CANONICAL_MANIFEST_IDENTITIES).toHaveLength(31);
     expect(CANONICAL_MANIFEST_IDENTITIES[29]).toMatchObject({
       name: 'g3-release-gate-hardening',
       manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
       order: 30,
+    });
+    expect(CANONICAL_MANIFEST_IDENTITIES[30]).toMatchObject({
+      name: 'operating-decisions-spine',
+      manifestPath: 'scripts/prod-schema-manifests/31-operating-decisions-spine.json',
+      order: 31,
     });
   });
 
