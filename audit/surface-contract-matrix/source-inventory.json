@@ -587,7 +587,7 @@
     "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
     "server/routes/monte-carlo.ts": "d4d9e87636ad1577f1a3ad3abff79e0c8816db6a9648515f58863b983ec59185",
     "server/routes/mount-common-routes.ts": "52e997e4ceabcfaa461582bb990333bbafea11823fc66847c67458d522061373",
-    "server/routes/operating-object-tasks.ts": "600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+    "server/routes/operating-object-tasks.ts": "28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
     "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
     "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
     "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",

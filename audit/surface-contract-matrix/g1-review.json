@@ -112,7 +112,7 @@
     "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
     "server/routes/monte-carlo.ts": "d4d9e87636ad1577f1a3ad3abff79e0c8816db6a9648515f58863b983ec59185",
     "server/routes/mount-common-routes.ts": "52e997e4ceabcfaa461582bb990333bbafea11823fc66847c67458d522061373",
-    "server/routes/operating-object-tasks.ts": "600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+    "server/routes/operating-object-tasks.ts": "28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
     "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
     "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
     "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",
@@ -4003,7 +4003,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+        "server/routes/operating-object-tasks.ts=28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -4039,7 +4039,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+        "server/routes/operating-object-tasks.ts=28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -7764,7 +7764,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+        "server/routes/operating-object-tasks.ts=28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -11794,7 +11794,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+        "server/routes/operating-object-tasks.ts=28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -11830,7 +11830,7 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
+        "server/routes/operating-object-tasks.ts=28bf95f7280366ae20addfb382688299f235fa9bdd25ea23c6478cea7420c107",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
