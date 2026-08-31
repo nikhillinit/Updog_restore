@@ -615,8 +615,19 @@ review, `#1287` target naming, `#1299` activation flip.
    — `internal-economics-composite/2.2.1` since the post-v2.0.5 expense hotfix
    (expense allocations refuse non-contribution lots; expenses attribute per
    partner by contribution-lot ownership), which also moved the event-engine and
-   receipt-serializer identities to 2.2.1; receipt contract and waterfall
-   versions stay 2.2.0.
+   receipt-serializer identities to 2.2.1. F_2.0.7 (conformance closure) then
+   ratified missing-first refusal precedence for fund-expense allocations
+   (ADR-090 A1 amendment; canonical sorted missing-lot refusal), enforced
+   positive caller-event magnitudes at the schema boundary
+   (`PositiveMoneyDecimalStringSchema`), required a non-empty `description` for
+   `expenseCategory: "other"` (validation-only), and added the
+   `expenseTotalsByCategory` fund-level receipt field with three-way
+   conservation — moving the receipt contract to
+   `internal-economics-receipt/2.3.0` and the composite/event-engine/serializer
+   identities to 2.3.0 (accepted input `2.0.1`, normalizer `2.0.1`, and both
+   waterfall contracts `2.2.0` unchanged). Changed-case manifest v1 is frozen
+   as historical 2.2.0 certification; manifest v2 certifies the 2.2.0 -> 2.3.0
+   transition.
 
    F3b admissions are opening-lot-funded deployments, callable-overrun refusal,
    conformant dual-lane certification, and origin-based/ remaining-balance

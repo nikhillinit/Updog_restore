@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../../lib/decimal-string';
+import {
+  MoneyDecimalStringSchema,
+  PositiveMoneyDecimalStringSchema,
+  RatioDecimalStringSchema,
+} from '../../lib/decimal-string';
 
 export const INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION =
   'internal-economics-composite/2.0.0' as const;
@@ -313,7 +317,7 @@ const UtcInstantSchema = z.string().datetime({ offset: false });
 const BaseEventSchema = z.object({
   eventId: z.string().min(1),
   instant: UtcInstantSchema,
-  amountUsd: MoneyDecimalStringSchema,
+  amountUsd: PositiveMoneyDecimalStringSchema,
 });
 
 const SettledContributionEventSchema = BaseEventSchema.extend({
@@ -375,17 +379,31 @@ const EqualizationInterestEventSchema = BaseEventSchema.extend({
   kind: z.literal('equalization_interest'),
 }).strict();
 
-export const V2EventSchema = z.discriminatedUnion('kind', [
-  SettledContributionEventSchema,
-  ContributionCorrectionEventSchema,
-  FundExpensePaymentEventSchema,
-  RealizationEventSchema,
-  WriteOffEventSchema,
-  ConversionEventSchema,
-  DeploymentEventSchema,
-  EqualizationPrincipalEventSchema,
-  EqualizationInterestEventSchema,
-]);
+export const V2EventSchema = z
+  .discriminatedUnion('kind', [
+    SettledContributionEventSchema,
+    ContributionCorrectionEventSchema,
+    FundExpensePaymentEventSchema,
+    RealizationEventSchema,
+    WriteOffEventSchema,
+    ConversionEventSchema,
+    DeploymentEventSchema,
+    EqualizationPrincipalEventSchema,
+    EqualizationInterestEventSchema,
+  ])
+  .superRefine((event, context) => {
+    if (
+      event.kind === 'fund_expense_payment' &&
+      event.expenseCategory === 'other' &&
+      (!event.description || event.description.trim().length === 0)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['description'],
+        message: 'Description is required for other fund expenses.',
+      });
+    }
+  });
 
 export type V2Event = z.infer<typeof V2EventSchema>;
 

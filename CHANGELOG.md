@@ -24,15 +24,27 @@ and this project adheres to
 
 ### Added (2026-08-31)
 
+- **V2 conformance closure (F_2.0.7, 2.0.7).** Missing-first refusal precedence
+  for fund-expense allocations (proposed ADR-090 amendment, canonical sorted
+  missing-lot refusal), positive caller-event magnitudes at the schema boundary,
+  conditional non-empty `description` for `expenseCategory: "other"`
+  (validation-only), fund-level `expenseTotalsByCategory` receipt disclosure
+  with three-way conservation, and complete `EventStreamState` atomicity
+  certification. Receipt contract and composite/event-engine/serializer
+  identities move to 2.3.0 (accepted input 2.0.1, normalizer 2.0.1, waterfalls
+  2.2.0 unchanged); changed-case manifest v1 frozen, manifest v2 certifies the
+  2.2.0 -> 2.3.0 transition. Release record `docs/2-changelog/w6_v2.0.7.md`;
+  review `docs/3-code-review/CR_w6_v2.0.7.md`.
+
 - **Workspace context rail (F_1.9.0, issue #1288).** Shared
   `FundWorkspaceContext` + `WorkspaceContextRail` on eight workspace pages:
   served-basis-only provenance (dual-forecast `currentForecastV2` block; held
-  renders as a served golden state), route-fund-scoped provider (no ambient
-  fund leakage), distinct loading/error/absence states, reserved-width desktop
-  rail per the approved #1284 record, presentation-only view presets.
-  Owner-ratified deviations: bridge panel, recompute action, and evidence
-  navigation ship disabled-with-reason pending backend reads (#1290
-  follow-ons). Release record `docs/2-changelog/w6_F_1.9.0.md`; review
+  renders as a served golden state), route-fund-scoped provider (no ambient fund
+  leakage), distinct loading/error/absence states, reserved-width desktop rail
+  per the approved #1284 record, presentation-only view presets. Owner-ratified
+  deviations: bridge panel, recompute action, and evidence navigation ship
+  disabled-with-reason pending backend reads (#1290 follow-ons). Release record
+  `docs/2-changelog/w6_F_1.9.0.md`; review
   `docs/3-code-review/CR_w6_F_1.9.0.md`.
 
 ### Fixed (2026-08-30)

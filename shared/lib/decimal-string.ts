@@ -7,6 +7,10 @@ function fixedDecimalStringSchema(places: number) {
 }
 
 export const MoneyDecimalStringSchema = fixedDecimalStringSchema(6);
+export const PositiveMoneyDecimalStringSchema = fixedDecimalStringSchema(6).refine(
+  (value) => value !== '0.000000' && !value.startsWith('-'),
+  'Expected a positive six-decimal money string.'
+);
 export const RatioDecimalStringSchema = fixedDecimalStringSchema(12);
 
 const MONEY_LEAF_KEY =

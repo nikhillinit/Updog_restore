@@ -228,7 +228,7 @@ describe('liquidity receipt builder V2.1.0 spine', () => {
   it('enforces complete serialized output bytes after attaching resultHash', () => {
     const { input, state, receipt: baseline } = receiptFor(buildV2S0100Input());
     const baselineBytes = countSerializedOutputBytes(baseline);
-    expect(baselineBytes).toBe(4254);
+    expect(baselineBytes).toBe(4379);
     const paddingLength = V2_ADMISSION_LIMITS.MAX_SERIALIZED_OUTPUT_BYTES - baselineBytes - 2;
     const exact = buildReceipt(
       { ...input, sourceRefs: ['x'.repeat(paddingLength)] },

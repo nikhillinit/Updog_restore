@@ -36,7 +36,7 @@ import { buildReceipt } from './liquidity-receipt-builder-v2';
 import { Decimal } from '../../decimal-config';
 
 export const INTERNAL_ECONOMICS_COMPOSITE_IMPLEMENTATION_VERSION =
-  'internal-economics-composite/2.2.1' as const;
+  'internal-economics-composite/2.3.0' as const;
 
 function admissionRefusal(code: V2RefusalCode, stage: V2Stage, message: string): V2CoreRefusal {
   return { ok: false, code, stage, message };

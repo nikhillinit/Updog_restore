@@ -4525,6 +4525,23 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/1-plans/F_2.0.7_v2-conformance-closure.plan.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -4543,7 +4560,7 @@
         "owner": "@nikhillinit",
         "status": "HISTORICAL"
       },
-      "hasExecutionClaims": true,
+      "hasExecutionClaims": false,
       "isStale": false,
       "lastUpdated": "2026-08-31",
       "owner": "@nikhillinit",
@@ -4639,6 +4656,23 @@
       "path": "docs/2-changelog/w6_v2.0.6.md",
       "staleDays": 999,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/2-changelog/w6_v2.0.7.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -4817,6 +4851,23 @@
       "path": "docs/3-code-review/CR_w6_v2.0.6.md",
       "staleDays": 999,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/3-code-review/CR_w6_v2.0.7.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -14848,14 +14899,14 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 463,
+      "ACTIVE": 464,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
       "DRAFT": 35,
       "DRAFT (red-team hardened 2026-06-21)": 1,
-      "HISTORICAL": 38,
+      "HISTORICAL": 40,
       "HISTORICAL-SNAPSHOT": 1,
       "INDEXED": 6,
       "Implemented": 1,
@@ -14870,7 +14921,7 @@
     },
     "missing_frontmatter": 95,
     "stale_docs": 485,
-    "total_docs": 772
+    "total_docs": 775
   },
   "version": "2.0"
 }
