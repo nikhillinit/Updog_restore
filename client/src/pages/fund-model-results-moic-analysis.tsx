@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/table';
 import { usePortfolioCompanies } from '@/hooks/use-fund-data';
 import { useFundMoicRankingsV2 } from '@/hooks/use-moic';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 import type { FundMoicRankingsResponseV2 } from '@shared/contracts/fund-moic-v2.contract';
 
@@ -521,66 +523,71 @@ export default function FundModelResultsMoicAnalysisPage() {
 
       {/* Workspace row (D-F.2). Planned MOIC is construction-planning by nature:
           static indicator only, no basis control (D-E). */}
-      <WorkspaceNav
-        fundId={fundIdResult.status === 'valid' ? String(fundIdResult.fundId) : null}
-        fundLabel={fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'No fund'}
-        active="reserves"
-        indicator={<WorkspaceBasisIndicator mode="construction" />}
-      />
-
-      {fundIdResult.status === 'missing' ? (
-        <StateCard
-          title="Fund ID required"
-          description="MOIC rankings are unavailable because the route did not include a fund ID."
-          icon="info"
+      <FundWorkspaceProvider fundId={fundIdResult.fundId}>
+        <WorkspaceNav
+          fundId={fundIdResult.status === 'valid' ? String(fundIdResult.fundId) : null}
+          fundLabel={fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'No fund'}
+          active="reserves"
+          indicator={<WorkspaceBasisIndicator mode="construction" />}
         />
-      ) : null}
+        <WorkspaceContextRail>
+          <div className="space-y-6">
+            {fundIdResult.status === 'missing' ? (
+              <StateCard
+                title="Fund ID required"
+                description="MOIC rankings are unavailable because the route did not include a fund ID."
+                icon="info"
+              />
+            ) : null}
 
-      {fundIdResult.status === 'invalid' ? (
-        <StateCard
-          title="Invalid fund ID"
-          description="MOIC rankings are unavailable because the fund ID is not a positive integer."
-        />
-      ) : null}
+            {fundIdResult.status === 'invalid' ? (
+              <StateCard
+                title="Invalid fund ID"
+                description="MOIC rankings are unavailable because the fund ID is not a positive integer."
+              />
+            ) : null}
 
-      {fundIdResult.status === 'valid' && isLoading ? <RankingsLoadingSkeleton /> : null}
+            {fundIdResult.status === 'valid' && isLoading ? <RankingsLoadingSkeleton /> : null}
 
-      {fundIdResult.status === 'valid' && error ? (
-        <StateCard
-          title={
-            error.code === 'CONTRACT_PARSE_ERROR'
-              ? 'MOIC contract mismatch'
-              : 'Unable to load MOIC rankings'
-          }
-          description={
-            error.code === 'CONTRACT_PARSE_ERROR'
-              ? 'The response did not match the required V2 contract, so rankings are not shown.'
-              : 'The rankings endpoint returned a load error, so rankings are not shown.'
-          }
-        />
-      ) : null}
+            {fundIdResult.status === 'valid' && error ? (
+              <StateCard
+                title={
+                  error.code === 'CONTRACT_PARSE_ERROR'
+                    ? 'MOIC contract mismatch'
+                    : 'Unable to load MOIC rankings'
+                }
+                description={
+                  error.code === 'CONTRACT_PARSE_ERROR'
+                    ? 'The response did not match the required V2 contract, so rankings are not shown.'
+                    : 'The rankings endpoint returned a load error, so rankings are not shown.'
+                }
+              />
+            ) : null}
 
-      {hasParsedResponse && data.rankings.length === 0 ? (
-        <>
-          <ProvenanceStrip data={data} />
-          <StateCard
-            title="No rankings disclosed"
-            description={`As of ${data.generatedAt.slice(0, 10)}. The V2 response returned zero reserves MOIC ranking rows for this fund.`}
-            icon="info"
-          />
-        </>
-      ) : null}
+            {hasParsedResponse && data.rankings.length === 0 ? (
+              <>
+                <ProvenanceStrip data={data} />
+                <StateCard
+                  title="No rankings disclosed"
+                  description={`As of ${data.generatedAt.slice(0, 10)}. The V2 response returned zero reserves MOIC ranking rows for this fund.`}
+                  icon="info"
+                />
+              </>
+            ) : null}
 
-      {hasParsedResponse && data.rankings.length > 0 ? (
-        <>
-          <ProvenanceStrip data={data} />
-          <RankingsTable rankings={data.rankings} portfolioCompanies={portfolioCompanies} />
-        </>
-      ) : null}
+            {hasParsedResponse && data.rankings.length > 0 ? (
+              <>
+                <ProvenanceStrip data={data} />
+                <RankingsTable rankings={data.rankings} portfolioCompanies={portfolioCompanies} />
+              </>
+            ) : null}
 
-      {fundIdResult.status === 'valid' ? (
-        <ReserveIntelligencePanel fundId={fundIdResult.fundId} />
-      ) : null}
+            {fundIdResult.status === 'valid' ? (
+              <ReserveIntelligencePanel fundId={fundIdResult.fundId} />
+            ) : null}
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

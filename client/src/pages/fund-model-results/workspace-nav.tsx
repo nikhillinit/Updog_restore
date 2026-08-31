@@ -14,6 +14,8 @@
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
 import { ForecastBasisControl } from '@/components/fund-results';
+import { useFundWorkspaceContext } from '@/hooks/useFundWorkspaceContext';
+import type { WorkspaceViewPreset } from '@/contexts/FundWorkspaceContext';
 
 export type WorkspaceNavKey =
   | 'summary'
@@ -22,7 +24,8 @@ export type WorkspaceNavKey =
   | 'reserves'
   | 'analysis'
   | 'scenarios'
-  | 'reports';
+  | 'reports'
+  | 'operations';
 
 export interface WorkspaceNavItem {
   key: WorkspaceNavKey;
@@ -41,16 +44,29 @@ const FUND_REQUIRED_REASON = 'Select a fund to open this view';
  * extractRouteScopedFundId / PortfolioTabs URL sync); the fund-scoped
  * destinations require one.
  */
-export function workspaceNavItems(fundId: string | null): WorkspaceNavItem[] {
+export function workspaceNavItems(
+  fundId: string | null,
+  viewPreset: WorkspaceViewPreset = 'gp'
+): WorkspaceNavItem[] {
+  const withViewPreset = (path: string): string => {
+    if (viewPreset === 'gp') {
+      return path;
+    }
+
+    return `${path}${path.includes('?') ? '&' : '?'}viewPreset=${encodeURIComponent(viewPreset)}`;
+  };
   const fundScoped = (path: string): { href: string | null; disabledReason?: string } =>
-    fundId === null ? { href: null, disabledReason: FUND_REQUIRED_REASON } : { href: path };
+    fundId === null
+      ? { href: null, disabledReason: FUND_REQUIRED_REASON }
+      : { href: withViewPreset(path) };
 
   return [
     { key: 'summary', label: 'Summary', ...fundScoped(`/fund-model-results/${fundId}`) },
     {
       key: 'forecast',
       label: 'Forecast',
-      href: fundId === null ? '/financial-modeling' : `/financial-modeling?fundId=${fundId}`,
+      href:
+        fundId === null ? '/financial-modeling' : withViewPreset(`/financial-modeling?fundId=${fundId}`),
     },
     {
       key: 'portfolio-actuals',
@@ -58,7 +74,7 @@ export function workspaceNavItems(fundId: string | null): WorkspaceNavItem[] {
       href:
         fundId === null
           ? '/portfolio?tab=reserve-planning'
-          : `/portfolio?tab=reserve-planning&fundId=${fundId}`,
+          : withViewPreset(`/portfolio?tab=reserve-planning&fundId=${fundId}`),
     },
     {
       key: 'reserves',
@@ -72,6 +88,12 @@ export function workspaceNavItems(fundId: string | null): WorkspaceNavItem[] {
       ...fundScoped(`/fund-model-results/${fundId}/scenarios`),
     },
     { key: 'reports', label: 'Reports', ...fundScoped(`/fund-model-results/${fundId}/reports`) },
+    {
+      key: 'operations',
+      label: 'Operations',
+      href: null,
+      disabledReason: 'Operations workspace not yet available',
+    },
   ];
 }
 
@@ -113,7 +135,8 @@ export function WorkspaceNav({
   indicator,
   primaryAction,
 }: WorkspaceNavProps) {
-  const items = workspaceNavItems(fundId);
+  const { viewPreset } = useFundWorkspaceContext();
+  const items = workspaceNavItems(fundId, viewPreset);
 
   return (
     <nav

@@ -26,6 +26,8 @@ import { QuarterlyReviewPanel } from '@/components/internal-analysis/QuarterlyRe
 import { InternalNarrativePanel } from '@/components/fund-results/InternalNarrativePanel';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { useAuthSession } from '@/lib/auth-session';
 import { useInternalAnalysis } from '@/hooks/useInternalAnalysis';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
@@ -254,41 +256,46 @@ export default function FundModelResultsInternalAnalysisPage() {
       {/* Reference snapshots are pinned to recorded facts: static "Basis: Current"
           indicator (D-E). This destination is intentionally NOT in the six-link
           workspace row (D-F.5 chrome budget); Wave H can promote it. */}
-      <WorkspaceNav
-        fundId={fundScopeMatches ? String(routeFundId) : null}
-        fundLabel={routeFundLabel}
-        active="summary"
-        indicator={<WorkspaceBasisIndicator mode="current" />}
-      />
-
-      {fundIdResult.status === 'missing' ? (
-        <StateCard
-          title="Fund ID required"
-          description="Internal analysis is unavailable because the route did not include a fund ID."
-          icon="info"
+      <FundWorkspaceProvider fundId={fundScopeMatches ? routeFundId : null}>
+        <WorkspaceNav
+          fundId={fundScopeMatches ? String(routeFundId) : null}
+          fundLabel={routeFundLabel}
+          active="summary"
+          indicator={<WorkspaceBasisIndicator mode="current" />}
         />
-      ) : null}
+        <WorkspaceContextRail>
+          <div className="space-y-6">
+            {fundIdResult.status === 'missing' ? (
+              <StateCard
+                title="Fund ID required"
+                description="Internal analysis is unavailable because the route did not include a fund ID."
+                icon="info"
+              />
+            ) : null}
 
-      {fundIdResult.status === 'invalid' ? (
-        <StateCard
-          title="Invalid fund ID"
-          description="Internal analysis is unavailable because the fund ID is not a positive integer."
-        />
-      ) : null}
+            {fundIdResult.status === 'invalid' ? (
+              <StateCard
+                title="Invalid fund ID"
+                description="Internal analysis is unavailable because the fund ID is not a positive integer."
+              />
+            ) : null}
 
-      {fundScopeMatches ? (
-        <InternalAnalysisContent fundId={routeFundId as number} />
-      ) : fundIdResult.status === 'valid' ? (
-        <StateCard
-          title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
-          description={
-            isLoading
-              ? 'Internal analysis loads once the fund context matches this route.'
-              : `Fund ${routeFundId} is not available in your workspace scope, so internal analysis is withheld.`
-          }
-          icon={isLoading ? 'info' : 'warning'}
-        />
-      ) : null}
+            {fundScopeMatches ? (
+              <InternalAnalysisContent fundId={routeFundId as number} />
+            ) : fundIdResult.status === 'valid' ? (
+              <StateCard
+                title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
+                description={
+                  isLoading
+                    ? 'Internal analysis loads once the fund context matches this route.'
+                    : `Fund ${routeFundId} is not available in your workspace scope, so internal analysis is withheld.`
+                }
+                icon={isLoading ? 'info' : 'warning'}
+              />
+            ) : null}
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

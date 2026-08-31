@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWouterWrapper } from '../../utils/withWouter';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 import FundModelResultsAnalysisPage, {
   parseFundIdParam,
 } from '@/pages/fund-model-results-analysis';
@@ -31,12 +32,33 @@ vi.mock('@/hooks/useInternalEconomics', async (importOriginal) => {
   return { ...actual, useInternalEconomics: mocks.useInternalEconomics };
 });
 
+// F_1.9.0: the page mounts FundWorkspaceProvider + WorkspaceContextRail; keep
+// their reads inert so this suite stays focused on the analysis surface.
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({ data: undefined, isSuccess: false, isError: true, error: null }),
+}));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: false,
+    error: null,
+    mint: {},
+  }),
+}));
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async () => new Response(JSON.stringify({ message: 'not found' }), { status: 404 }))
+);
+
 function renderPage(path: string) {
   const { Wrapper } = createWouterWrapper(path);
   return render(
-    <Wrapper>
-      <FundModelResultsAnalysisPage />
-    </Wrapper>
+    <TestQueryClientProvider>
+      <Wrapper>
+        <FundModelResultsAnalysisPage />
+      </Wrapper>
+    </TestQueryClientProvider>
   );
 }
 
@@ -90,5 +112,7 @@ describe('FundModelResultsAnalysisPage', () => {
     expect(mocks.useInternalEconomics).toHaveBeenCalledWith(7, [null, null]);
     expect(screen.getByRole('link', { name: 'Economics' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('No pinned economics runs are available for comparison.')).toBeInTheDocument();
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 });

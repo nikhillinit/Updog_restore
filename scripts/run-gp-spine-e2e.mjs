@@ -45,6 +45,11 @@ const apiEnv = {
   PORT: apiPort,
   _EXPLICIT_PORT: apiPort,
   ENABLE_SCENARIO_SEED_PICKER: '1',
+  // The spine spec drives full page reloads across every workspace surface, so
+  // page-driven API volume (~75 requests per attempt, x3 CI retries against one
+  // server window) legitimately exceeds the 60/min default. Keep the limiter
+  // active but budget for three full attempts.
+  RATE_LIMIT_MAX: '300',
   COMMIT_REF: commitRef,
   CLIENT_URL: baseUrl,
   CORS_ORIGIN: `${baseUrl},http://127.0.0.1:${clientPort}`,

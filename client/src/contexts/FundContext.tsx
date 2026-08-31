@@ -3,7 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
 import { logger } from '@/lib/logger';
-import { extractRouteScopedFundId, getLocationPathname } from '@/lib/fund-routes';
+import {
+  extractRouteScopedFundId,
+  getLocationPathname,
+  isFundResultsRoute,
+} from '@/lib/fund-routes';
 import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
 
 export interface Fund {
@@ -53,9 +57,11 @@ export function FundProvider({ children }: FundProviderProps) {
     [location, search]
   );
   const pathname = React.useMemo(() => getLocationPathname(location), [location]);
+  const invalidFundResultsRoute = isFundResultsRoute(location) && routeFundId == null;
   // Deterministic model routes must not silently inherit an implicit first-fund
   // selection from unrelated surfaces like /dashboard.
   const suppressImplicitFundSelection =
+    invalidFundResultsRoute ||
     pathname === '/financial-modeling' ||
     pathname === '/forecasting' ||
     pathname === '/model-results';
@@ -74,6 +80,13 @@ export function FundProvider({ children }: FundProviderProps) {
   // Update current fund when funds data changes
   useEffect(() => {
     if (funds && Array.isArray(funds) && funds.length > 0) {
+      if (invalidFundResultsRoute) {
+        setCurrentFund(null);
+        setFundId(null);
+        setFundSelectionSource(null);
+        return;
+      }
+
       // Keep route-addressed or explicitly chosen funds, but ignore any carried
       // implicit first-fund selection on the canonical deterministic route.
       const suppressesImplicitFirstFund =
@@ -113,6 +126,9 @@ export function FundProvider({ children }: FundProviderProps) {
           // On route-addressed results pages, do not overwrite the identity with
           // an unrelated "first fund". Let the route-specific page resolve truth.
           if (routeFundId != null) {
+            setCurrentFund(null);
+            setFundId(null);
+            setFundSelectionSource(null);
             return;
           }
 
@@ -175,6 +191,7 @@ export function FundProvider({ children }: FundProviderProps) {
     suppressImplicitFundSelection,
     fundSelectionSource,
     isDemoMode,
+    invalidFundResultsRoute,
   ]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
@@ -218,15 +235,17 @@ export function FundProvider({ children }: FundProviderProps) {
     routeFundId == null &&
     !isDemoMode &&
     !allowsMissingActiveFund;
+  const suppressRouteFundContext =
+    invalidFundResultsRoute || (routeFundId != null && Number(currentFund?.id) !== routeFundId);
 
   const value: FundContextType = {
-    currentFund,
+    currentFund: suppressRouteFundContext ? null : currentFund,
     setCurrentFund: handleSetCurrentFund,
     isLoading: isInitializing,
     needsSetup,
     fundLoadError,
     fundLoadErrorMessage,
-    fundId,
+    fundId: suppressRouteFundContext ? null : fundId,
     isDemoMode,
   };
 

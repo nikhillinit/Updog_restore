@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWouterWrapper } from '../../utils/withWouter';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 import FundModelResultsMoicAnalysisPage from '../../../client/src/pages/fund-model-results-moic-analysis';
 import {
   FundMoicRankingsResponseV2Schema,
@@ -68,6 +69,32 @@ function makeFactsBasis(overrides: Partial<FundMoicFactsBasisV1> = {}): FundMoic
 vi.mock('../../../client/src/hooks/use-moic', () => ({
   useFundMoicRankingsV2: (fundId: number | null) => useFundMoicRankingsV2(fundId),
 }));
+
+// F_1.9.0: the page mounts FundWorkspaceProvider + WorkspaceContextRail; keep
+// their reads inert so this suite stays focused on the MOIC surface.
+vi.mock('@/contexts/FundContext', () => ({
+  useFundContext: () => ({
+    fundId: 7,
+    currentFund: { id: 7, name: 'Fund Seven' },
+    isLoading: false,
+  }),
+}));
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({ data: undefined, isSuccess: false, isError: true, error: null }),
+}));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: false,
+    error: null,
+    mint: {},
+  }),
+}));
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async () => new Response(JSON.stringify({ message: 'not found' }), { status: 404 }))
+);
 
 vi.mock('../../../client/src/hooks/use-fund-data', () => ({
   usePortfolioCompanies: (fundId: number | undefined) => usePortfolioCompanies(fundId),
@@ -166,9 +193,11 @@ function makeV2(): FundMoicRankingsResponseV2 {
 function renderPage(path = '/fund-model-results/7/moic-analysis') {
   const { Wrapper } = createWouterWrapper(path);
   return render(
-    <Wrapper>
-      <FundModelResultsMoicAnalysisPage />
-    </Wrapper>
+    <TestQueryClientProvider>
+      <Wrapper>
+        <FundModelResultsMoicAnalysisPage />
+      </Wrapper>
+    </TestQueryClientProvider>
   );
 }
 
@@ -262,6 +291,8 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(reservesLink).toHaveAttribute('aria-current', 'page');
     expect(reservesLink).toHaveAttribute('href', '/fund-model-results/7/moic-analysis');
     expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 
   it('gates the workspace destinations with reasons when the fund id is invalid', () => {
