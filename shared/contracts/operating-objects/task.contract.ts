@@ -13,6 +13,8 @@
 
 import { z } from 'zod';
 
+export const TASK_CONTRACT_VERSION = 'task/1.0.0' as const;
+
 export const TaskStatusSchema = z.enum(['open', 'in_progress', 'done']);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
@@ -29,6 +31,12 @@ export const TaskCreateSchema = z
   .strict();
 
 export type TaskCreate = z.infer<typeof TaskCreateSchema>;
+
+export type TaskCreateCommandPreimage = TaskCreate &
+  Record<string, unknown> & {
+    commandKind: 'create_task';
+    contractVersion: typeof TASK_CONTRACT_VERSION;
+  };
 
 // PATCH (edit fields + status). All keys optional and `.strict()` (unknown keys
 // reject). `fundId` is a path-consistency check only (NOT an editable field), so

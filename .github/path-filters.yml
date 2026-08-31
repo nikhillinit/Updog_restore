@@ -329,6 +329,7 @@ schema_tests:
   - 'tests/integration/prod-journaled-migration-recovery.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
+  - 'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts'
   - 'tests/integration/fund-scenario-hard-timeout.test.ts'
   - 'tests/integration/fund-scenario-reserve-worker.test.ts'
   - 'server/services/fund-scenario-calc-queue-service.ts'

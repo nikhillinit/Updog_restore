@@ -27,4 +27,5 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
   'tests/integration/internal-economics/economics-schema.pg.test.ts',
   'tests/integration/internal-economics/economics-linkage-schema.pg.test.ts',
+  'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts',
 ]);

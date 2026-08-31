@@ -1,4 +1,5 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { readFile } from 'node:fs/promises';
 import { Client } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -45,6 +46,23 @@ async function createTestDatabase(): Promise<void> {
     testConnectionString,
     '0052_g3_capital_call_notification_outbox'
   );
+  await applyOperatingDecisionsSpineShape();
+}
+
+// The capability pins the LIVE canonical manifest vector, so every non-target
+// manifest must audit SKIP. Manifest 31 (operating-decisions-spine, journal
+// 0054) is pinned by tag, not tail position — its parents all predate 0050 —
+// so replay it raw to give the clone the post-era shape without touching the
+// absent 0053 target the capability must converge.
+async function applyOperatingDecisionsSpineShape(): Promise<void> {
+  const migration = await readFile('migrations/0054_operating_decisions_spine.sql', 'utf8');
+  const client = new Client({ connectionString: testConnectionString });
+  await client.connect();
+  try {
+    await client.query(migration.replaceAll('--> statement-breakpoint', '\n'));
+  } finally {
+    await client.end();
+  }
 }
 
 async function dropTestDatabase(): Promise<void> {

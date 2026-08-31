@@ -105,6 +105,7 @@ export const CANONICAL_MANIFEST_IDENTITIES = Object.freeze([
   Object.freeze({ name: 'g3-canary', manifestPath: 'scripts/prod-schema-manifests/28-g3-canary.json', order: 28 }),
   Object.freeze({ name: 'g3-capital-call-notification-outbox', manifestPath: 'scripts/prod-schema-manifests/29-g3-capital-call-notification-outbox.json', order: 29 }),
   Object.freeze({ name: 'g3-release-gate-hardening', manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json', order: 30 }),
+  Object.freeze({ name: 'operating-decisions-spine', manifestPath: 'scripts/prod-schema-manifests/31-operating-decisions-spine.json', order: 31 }),
 ]);
 
 export const MISSING_TABLE_POLICY_CREATE_OR_REPAIR = 'create_or_repair';
@@ -2282,13 +2283,12 @@ async function auditTable({
         expected: indexDefinition.expectedDefinition,
         actual: index.indexdef,
         additiveSafe: false,
+        humanReviewRequired: true,
       });
     }
   }
 
-  const requiresHumanReview = deltas.some((delta) => delta.humanReviewRequired === true);
   const populated =
-    !requiresHumanReview &&
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
   const action = decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy });

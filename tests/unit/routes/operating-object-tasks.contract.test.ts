@@ -25,7 +25,11 @@ const dbState = vi.hoisted(() => {
     insert: vi.fn(() => ({
       values: vi.fn((payload: unknown) => {
         state.insertedValues = payload;
-        return { returning: vi.fn(() => Promise.resolve(state.insertResult)) };
+        return {
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(() => Promise.resolve(state.insertResult)),
+          })),
+        };
       }),
     })),
     update: vi.fn(() => ({
@@ -77,14 +81,31 @@ vi.mock('../../../server/services/operating-objects/task-evidence-link-service',
 import tasksRouter from '../../../server/routes/operating-object-tasks';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
 import { TaskEvidenceLinkServiceError } from '../../../server/services/operating-objects/task-evidence-link-service';
+import { clearIdempotencyCache, idempotency } from '../../../server/middleware/idempotency';
+import { TASK_CONTRACT_VERSION } from '../../../shared/contracts/operating-objects/task.contract';
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 
-function makeApp() {
+function makeApp(options: { railwayMiddleware?: boolean } = {}) {
   const app = express();
   app.use(express.json());
+  if (options.railwayMiddleware) {
+    // Railway surface: the generic in-memory idempotency middleware runs before
+    // the router; the classifier must bypass it for task creation.
+    app.use(idempotency());
+  }
   app.use(tasksRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
 }
+
+// Mirrors the service preimage -- actor (createdBy) and status excluded.
+const taskCreateHash = (fundId: number, title: string) =>
+  canonicalSha256({
+    commandKind: 'create_task',
+    contractVersion: TASK_CONTRACT_VERSION,
+    fundId,
+    title,
+  });
 
 function denyOnce() {
   fundScopeState.enforceProvidedFundScope.mockImplementationOnce(async (_req, res) => {
@@ -107,6 +128,8 @@ function dbRow(overrides: Record<string, unknown> = {}) {
     dueDate: null,
     description: null,
     createdBy: null,
+    idempotencyKey: 'task-key-1',
+    requestHash: taskCreateHash(1, 'Follow up with LP'),
     createdAt: new Date('2026-06-16T00:00:00.000Z'),
     updatedAt: new Date('2026-06-16T00:00:00.000Z'),
     rowXmin: '1',
@@ -151,7 +174,10 @@ describe('operating-object tasks route contracts', () => {
 
   it('POST creates a task and returns 201 with an etag and no created_by leak', async () => {
     dbState.state.insertResult = [dbRow()];
-    const res = await request(makeApp()).post('/api/funds/1/tasks').send(validBody(1));
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send(validBody(1));
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       id: 10,
@@ -163,17 +189,71 @@ describe('operating-object tasks route contracts', () => {
     expect(res.body.etag.length).toBeGreaterThan(0);
     expect(res.body).not.toHaveProperty('createdBy');
     expect(res.body).not.toHaveProperty('created_by');
+    expect(res.body).not.toHaveProperty('idempotencyKey');
+    expect(res.body).not.toHaveProperty('requestHash');
     expect(dbState.db.insert).toHaveBeenCalledTimes(1);
   });
 
-  it('POST stores status open and the parsed fundId on insert', async () => {
+  it('POST stores status open, the parsed fundId, and the trimmed Idempotency-Key on insert', async () => {
     dbState.state.insertResult = [dbRow()];
-    await request(makeApp()).post('/api/funds/1/tasks').send(validBody(1));
-    expect(dbState.state.insertedValues).toMatchObject({ status: 'open', fundId: 1 });
+    await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', ' task-key-1 ')
+      .send(validBody(1));
+    expect(dbState.state.insertedValues).toMatchObject({
+      status: 'open',
+      fundId: 1,
+      idempotencyKey: 'task-key-1',
+      requestHash: taskCreateHash(1, 'Follow up with LP'),
+    });
+  });
+
+  it('POST requires Idempotency-Key (428) BEFORE body validation', async () => {
+    // Invalid body + missing key must still 428, proving order.
+    const res = await request(makeApp()).post('/api/funds/1/tasks').send({ fundId: 1 });
+    expect(res.status).toBe(428);
+    expect(res.body).toMatchObject({ error: 'IDEMPOTENCY_KEY_REQUIRED' });
+    expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('POST rejects a malformed Idempotency-Key (400)', async () => {
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'bad key')
+      .send(validBody(1));
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'INVALID_IDEMPOTENCY_KEY' });
+    expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('POST replays an identical request as 200 with the stored row', async () => {
+    dbState.state.insertResult = []; // conflict -> DO NOTHING -> reload
+    dbState.state.loadQueue = [[dbRow()]];
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send(validBody(1));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 10, fundId: 1, title: 'Follow up with LP' });
+    expect(typeof res.body.etag).toBe('string');
+  });
+
+  it('POST maps key reuse with a different payload to 409 IDEMPOTENCY_KEY_REUSE', async () => {
+    dbState.state.insertResult = [];
+    dbState.state.loadQueue = [[dbRow()]]; // stored hash is for 'Follow up with LP'
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send({ fundId: 1, title: 'A different task' });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'IDEMPOTENCY_KEY_REUSE' });
   });
 
   it('POST rejects a body fundId that does not match the path fundId', async () => {
-    const res = await request(makeApp()).post('/api/funds/1/tasks').send(validBody(2));
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send(validBody(2));
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'fundId mismatch' });
     expect(dbState.db.insert).not.toHaveBeenCalled();
@@ -182,6 +262,7 @@ describe('operating-object tasks route contracts', () => {
   it('POST rejects a whitespace-only title', async () => {
     const res = await request(makeApp())
       .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
       .send({ fundId: 1, title: '   ' });
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'Invalid request body' });
@@ -191,6 +272,7 @@ describe('operating-object tasks route contracts', () => {
   it('POST rejects unknown body keys (.strict)', async () => {
     const res = await request(makeApp())
       .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
       .send({ ...validBody(1), status: 'done' });
     expect(res.status).toBe(400);
     expect(dbState.db.insert).not.toHaveBeenCalled();
@@ -554,5 +636,65 @@ describe('operating-object task evidence POST route', () => {
 
     expect(response.status).toBe(status);
     expect(response.body.error).toBe(code);
+  });
+});
+
+describe('task-create dual-surface idempotency parity (Vercel direct vs Railway middleware)', () => {
+  beforeEach(() => {
+    clearIdempotencyCache();
+    fundScopeState.enforceProvidedFundScope.mockReset();
+    fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    dbState.db.insert.mockClear();
+    dbState.state.insertResult = [];
+    dbState.state.loadQueue = [];
+  });
+
+  async function runSequence(app: ReturnType<typeof makeApp>) {
+    // 1st: fresh create (insert wins).
+    dbState.state.insertResult = [dbRow()];
+    dbState.state.loadQueue = [];
+    const created = await request(app)
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send(validBody(1));
+
+    // 2nd: identical replay (insert conflicts, stored hash matches).
+    dbState.state.insertResult = [];
+    dbState.state.loadQueue = [[dbRow()]];
+    const replayed = await request(app)
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send(validBody(1));
+
+    // 3rd: same key, different payload (stored hash differs).
+    dbState.state.insertResult = [];
+    dbState.state.loadQueue = [[dbRow()]];
+    const conflicted = await request(app)
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-1')
+      .send({ fundId: 1, title: 'A different task' });
+
+    return { created, replayed, conflicted };
+  }
+
+  it('produces the identical 201 / 200-replay / 409 outcome on both surfaces', async () => {
+    const vercel = await runSequence(makeApp());
+    clearIdempotencyCache();
+    const railway = await runSequence(makeApp({ railwayMiddleware: true }));
+
+    for (const surface of [vercel, railway]) {
+      expect(surface.created.status).toBe(201);
+      expect(surface.replayed.status).toBe(200);
+      expect(surface.conflicted.status).toBe(409);
+      expect(surface.conflicted.body).toMatchObject({ error: 'IDEMPOTENCY_KEY_REUSE' });
+    }
+    expect(railway.created.body).toEqual(vercel.created.body);
+    expect(railway.replayed.body).toEqual(vercel.replayed.body);
+
+    // The Railway chain must have BYPASSED the generic cache: a cached 201
+    // replay would carry Idempotency-Replay and mask the database 200/409.
+    expect(railway.created.headers['idempotency-replay']).toBeUndefined();
+    expect(railway.replayed.headers['idempotency-replay']).toBeUndefined();
+    expect(railway.conflicted.headers['idempotency-replay']).toBeUndefined();
   });
 });

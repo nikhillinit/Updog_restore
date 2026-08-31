@@ -194,6 +194,14 @@ const G3_RELEASE_GATE_HARDENING_MANIFEST_TABLES = [
   'fund_scenario_calculation_runs',
   'release_canary_runs',
 ] as const;
+// M31 (31-operating-decisions-spine): ADR-067 decision spine and evidence
+// links (journal 0054) plus the shared tasks entry carrying the additive
+// task-create idempotency columns.
+const OPERATING_DECISIONS_SPINE_MANIFEST_TABLES = [
+  'operating_decisions',
+  'decision_evidence_links',
+  'tasks',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -225,6 +233,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'g3-canary',
   'g3-capital-call-notification-outbox',
   'g3-release-gate-hardening',
+  'operating-decisions-spine',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -875,6 +884,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...G3_CANARY_MANIFEST_TABLES,
         ...G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES,
         ...G3_RELEASE_GATE_HARDENING_MANIFEST_TABLES,
+        ...OPERATING_DECISIONS_SPINE_MANIFEST_TABLES,
       ])
     );
 
