@@ -11706,3 +11706,136 @@ shape and waterfall behavior unchanged). Changed-case manifest after-hashes were
 regenerated under the 2.2.1 identities; frozen before-hashes are untouched.
 Review: `docs/3-code-review/CR_w6_v2.0.6.md`; release record
 `docs/2-changelog/w6_v2.0.6.md`. The authority boundary above is unchanged.
+
+### Proposed A1 amendment (F_2.0.7, 2026-08-31)
+
+**Status:** PROPOSED — pending owner ratification at merge.
+
+This amendment recommends ratifying missing-first refusal precedence for
+`fund_expense_payment` cash-source allocations. The existing accepted F3b
+decision and its 2026-08-30 hotfix addendum remain historical record; this
+section is the pending A1 amendment only.
+
+#### Recommendation: missing references win before eligibility
+
+The proposed validation order is:
+
+1. Check existence of every referenced cash-source lot.
+2. If any reference is missing, return the existing generic missing-lot
+   refusal: `CASH_SOURCE_ALLOCATION_VIOLATION` at `provenance`. Do not select
+   an eligibility, amount, balance, or total-mismatch refusal first.
+3. Once all references exist, require every lot to be an event-origin
+   `contribution_settlement` lot. A known opening-cash lot or event-origin
+   `realization_proceeds` lot remains ineligible and returns
+   `SCHEMA_VALIDATION_FAILED` at `provenance`, before amount or balance checks.
+4. For all eligible lots, validate per-lot remaining balance and aggregate
+   allocation totals, then validate the event total.
+5. Apply staged mutations only after all checks pass.
+
+This recommendation makes the winning refusal code and stage independent of
+allocation order. It preserves the documented distinction that known ineligible
+lots are checked before generic amount/balance validation while clarifying that
+an unknown lot wins before any eligibility check. The same-release intent says
+that “unknown lots still take the generic existence refusal”
+(`docs/2-changelog/w6_v2.0.6.md:48-53`). `F_2.0.0` establishes positive event
+magnitudes, explicit cash-source allocations, missing/ambiguous/over-consumed
+allocation refusal, eligible-lot restrictions, expense metadata, and receipt-only
+category grouping (`docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md:280-337`);
+those lines do not settle mixed missing-versus-ineligible ordering. This
+amendment supplies that missing ordering decision.
+
+#### Component-version tuple
+
+The following tuple is the A7 target recorded by A1. “Unchanged” means the
+component literal remains byte-identical through the planned conformance work.
+
+| Component | Identity source | Current | Planned | Disposition |
+| --- | --- | --- | --- | --- |
+| Accepted input contract | `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts:8` | `internal-economics-composite/2.0.1` | `internal-economics-composite/2.0.1` | Unchanged |
+| Normalizer identity | Runtime `shared/lib/internal-economics/v2/normalize-input-v2.ts:18`; type mirror `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts:240-243` | `internal-economics-normalizer/2.0.1` | `internal-economics-normalizer/2.0.1` | **Unchanged; expected because A3/A4 are validation-only and conformant parsed bytes remain identical** |
+| Receipt contract | `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts:8` | `internal-economics-receipt/2.2.0` | `internal-economics-receipt/2.3.0` | Receipt shape/hash transition |
+| Waterfall deal-by-deal | `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts:18` | `internal-economics-waterfall-deal-by-deal/2.2.0` | `internal-economics-waterfall-deal-by-deal/2.2.0` | Unchanged |
+| Waterfall whole-fund | `shared/lib/internal-economics/v2/waterfall-whole-fund-v2.ts:20` | `internal-economics-waterfall-whole-fund/2.2.0` | `internal-economics-waterfall-whole-fund/2.2.0` | Unchanged |
+| Composite implementation | `shared/lib/internal-economics/v2/derive-composite-v2.ts:38` | `internal-economics-composite/2.2.1` | `internal-economics-composite/2.3.0` | Identity transition |
+| Event-engine identity | `shared/lib/internal-economics/v2/event-stream-engine-v2.ts:23` | `internal-economics-event-engine/2.2.1` | `internal-economics-event-engine/2.3.0` | Identity transition |
+| Receipt-serializer identity | `shared/lib/internal-economics/v2/liquidity-receipt-builder-v2.ts:46-47` | `internal-economics-receipt-serializer/2.2.1` | `internal-economics-receipt-serializer/2.3.0` | Identity transition |
+| Package | `package.json` | `1.6.0` | `1.6.0` | Unchanged |
+
+If A3 or A4 requires a transformation, changes the accepted input value
+space, or otherwise changes normalized bytes for conformant inputs, the
+normalizer row is not silently revised: A7 STOP applies and the tuple returns
+to planning for an explicit decision.
+
+#### Proposed acceptance matrix
+
+All refusal rows require complete before/after `EventStreamState` equality and
+no caller-visible staged mutation. The matrix is an A1 review artifact; A2-A7
+implementation and tests are not part of this amendment.
+
+##### A2 — Missing-reference precedence
+
+| ID | Case | Expected result | Acceptance invariant |
+| --- | --- | --- | --- |
+| A2-01 | Missing lot first, known ineligible lot second | `CASH_SOURCE_ALLOCATION_VIOLATION` at `provenance` | Missing-reference refusal wins; allocation order cannot promote eligibility or balance refusal |
+| A2-02 | Known ineligible lot first, missing lot second | `CASH_SOURCE_ALLOCATION_VIOLATION` at `provenance` | Same refusal class and stage as A2-01 |
+| A2-03 | Multiple missing lot references, in any order | `CASH_SOURCE_ALLOCATION_VIOLATION` at `provenance` | Existence failure is selected before eligibility, amount, balance, or total validation; refusal classification is order-independent |
+| A2-04 | Existing opening-cash lot referenced by fund expense | `SCHEMA_VALIDATION_FAILED` at `provenance` | Known lot is ineligible even when balance is sufficient; no amount/balance refusal takes precedence |
+| A2-05 | Existing event-origin `realization_proceeds` lot referenced by fund expense | `SCHEMA_VALIDATION_FAILED` at `provenance` | Proceeds lot is ineligible; fund expenses may consume only event-origin `contribution_settlement` lots |
+| A2-06 | Existing eligible contribution-settlement lot is overdrawn | `CASH_SOURCE_ALLOCATION_VIOLATION` at `provenance` | Existence and eligibility pass first; remaining-balance refusal occurs before any mutation |
+
+##### A3 — Positive caller-event magnitudes
+
+| Caller event kind | `amountUsd: "0.000000"` | Negative six-decimal amount | Positive six-decimal amount |
+| --- | --- | --- | --- |
+| `settled_contribution` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing settlement validation applies |
+| `contribution_correction` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing correction refusal/validation applies |
+| `fund_expense_payment` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing expense validation applies |
+| `realization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing realization validation applies |
+| `write_off` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing write-off validation applies |
+| `conversion` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing conversion validation applies |
+| `deployment` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes; existing deployment validation applies |
+| `equalization_principal` (reserved) | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes, then refuse `UNSUPPORTED_V2_EQUALIZATION` at `equalization` |
+| `equalization_interest` (reserved) | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` | Amount boundary passes, then refuse `UNSUPPORTED_V2_EQUALIZATION` at `equalization` |
+
+Direction remains determined exclusively by event kind. This matrix applies only
+to caller-supplied `V2Event.amountUsd`; engine-derived directional journal,
+ledger, and receipt fields remain outside the positive-input boundary.
+
+##### A4 — Conditional expense description
+
+| ID | Expense category | Description input | Expected result |
+| --- | --- | --- | --- |
+| A4-01 | `other` | Missing | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` |
+| A4-02 | `other` | Empty string `""` | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` |
+| A4-03 | `other` | Whitespace-only string | Refuse `SCHEMA_VALIDATION_FAILED` at `normalization` |
+| A4-04 | `other` | Non-empty, non-whitespace string | Accepted by description rule, subject to all other validation |
+| A4-05 | `legal`, `audit`, `admin`, or `custody` | Missing | Accepted; description remains optional metadata |
+| A4-06 | `legal`, `audit`, `admin`, or `custody` | Empty string `""` | Accepted; no non-empty rule applies to these categories |
+| A4-07 | `legal`, `audit`, `admin`, or `custody` | Whitespace-only string | Accepted; no non-empty rule applies to these categories |
+
+The rule is validation-only: check `description.trim().length > 0` for
+`other`, without applying a trim transform. Already-conformant parsed input
+bytes and `normalizedInputHash` therefore remain unchanged.
+
+##### A5 — Fund-level receipt category totals
+
+| ID | Receipt acceptance condition | Required assertion |
+| --- | --- | --- |
+| A5-01 | Field presence | `expenseTotalsByCategory` is always emitted with exactly five keys: `legal`, `audit`, `admin`, `custody`, and `other` |
+| A5-02 | Value shape | Every value is a canonical six-decimal money string; a category with no expense emits `0.000000` |
+| A5-03 | Journal conservation | Sum of all five category values equals the journal `fund_expenses` account total |
+| A5-04 | Partner conservation | Sum of all five category values equals total partner `cumulativeExpenses` |
+| A5-05 | Event conservation | Sum of all five category values equals the admitted fund-expense event total |
+| A5-06 | Receipt integrity | The field is included in the planned `internal-economics-receipt/2.3.0` closed receipt shape and canonical hash preimage |
+
+#### Historical evidence boundary and scope
+
+V2-S-0100 `internal-economics-receipt/2.1.0` literals, existing
+`internal-economics-receipt/2.2.0` literals, and the prior changed-case
+manifest remain byte-frozen and untouched. A7 may add a separately regenerated
+changed-case manifest with one reason per changed hash; A1 does not edit those
+fixtures, code, or tests. No A2-A7 implementation is authorized by this draft.
+
+Owner ratification remains required at merge. This proposed amendment grants no
+merge, deployment, provider, schema, data-mutation, production-dispatch, or
+production-activation authority.

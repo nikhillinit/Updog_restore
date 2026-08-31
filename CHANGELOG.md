@@ -22,6 +22,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-31)
+
+- **V2 conformance closure (F_2.0.7, 2.0.7).** Missing-first refusal
+  precedence for fund-expense allocations (proposed ADR-090 amendment,
+  canonical sorted missing-lot refusal), positive caller-event magnitudes at
+  the schema boundary, conditional non-empty `description` for
+  `expenseCategory: "other"` (validation-only), fund-level
+  `expenseTotalsByCategory` receipt disclosure with three-way conservation,
+  and complete `EventStreamState` atomicity certification. Receipt contract
+  and composite/event-engine/serializer identities move to 2.3.0 (accepted
+  input 2.0.1, normalizer 2.0.1, waterfalls 2.2.0 unchanged); changed-case
+  manifest v1 frozen, manifest v2 certifies the 2.2.0 -> 2.3.0 transition.
+  Release record `docs/2-changelog/w6_v2.0.7.md`; review
+  `docs/3-code-review/CR_w6_v2.0.7.md`.
+
 ### Fixed (2026-08-30)
 
 - **V2 expense lot eligibility and partner expense attribution (F3b hotfix,

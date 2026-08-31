@@ -7,6 +7,7 @@ import {
   type PartnerV2,
   type V2RefusalCode,
   type V2Stage,
+  type V2ExpenseCategory,
   type V2WaterfallLane,
 } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import {
@@ -17,6 +18,7 @@ import {
   type DistributionJournalEntryV2,
   type EventJournalEntryV2,
   type EventJournalPostingV2,
+  type ExpenseTotalsByCategoryV2,
   type FundCashEquationV2,
   type InternalEconomicsReceiptV2,
   type InternalEconomicsReceiptV2Result,
@@ -44,7 +46,7 @@ import { INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION } from './waterfal
 import { INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION } from './waterfall-whole-fund-v2';
 
 export const INTERNAL_ECONOMICS_RECEIPT_SERIALIZER_V2_VERSION =
-  'internal-economics-receipt-serializer/2.2.1' as const;
+  'internal-economics-receipt-serializer/2.3.0' as const;
 
 const ZERO = new Decimal(0);
 const FIX6 = 6;
@@ -235,6 +237,30 @@ export function buildFundCashEquation(
     expenses: fix(expenses),
     distributions: fix(distributionTotal),
     endingCash: fix(endingCash),
+  };
+}
+
+function buildExpenseTotalsByCategory(state: EventStreamState): ExpenseTotalsByCategoryV2 {
+  const totals = {
+    legal: ZERO,
+    audit: ZERO,
+    admin: ZERO,
+    custody: ZERO,
+    other: ZERO,
+  } satisfies Record<V2ExpenseCategory, Decimal>;
+
+  for (const event of state.eventEffectRecords) {
+    if (event.kind === 'fund_expense_payment') {
+      totals[event.expenseCategory] = totals[event.expenseCategory].plus(event.amountUsd);
+    }
+  }
+
+  return {
+    legal: fix(totals.legal),
+    audit: fix(totals.audit),
+    admin: fix(totals.admin),
+    custody: fix(totals.custody),
+    other: fix(totals.other),
   };
 }
 
@@ -869,6 +895,7 @@ function validateConservation(
   input: NormalizedInternalEconomicsInputV2,
   state: EventStreamState,
   fundCashEquation: FundCashEquationV2,
+  expenseTotalsByCategory: ExpenseTotalsByCategoryV2,
   openingPositions: OpeningPositionsReceiptV2,
   journal: readonly JournalEntryV2[],
   tierAllocations: readonly TierAllocationV2[],
@@ -1037,11 +1064,29 @@ function validateConservation(
   }
 
   const journalFundExpenses = sumJournalAccount(journal, 'fund_expenses');
+  const categoryExpenseAmounts: readonly string[] = [
+    expenseTotalsByCategory.legal,
+    expenseTotalsByCategory.audit,
+    expenseTotalsByCategory.admin,
+    expenseTotalsByCategory.custody,
+    expenseTotalsByCategory.other,
+  ];
+  const categoryExpenseTotal = categoryExpenseAmounts.reduce(
+    (total, amount) => total.plus(new Decimal(amount)),
+    ZERO
+  );
+  const stagedFundExpenseEvents = state.eventEffectRecords
+    .filter((event) => event.kind === 'fund_expense_payment')
+    .reduce((total, event) => total.plus(event.amountUsd), ZERO);
   const stagedPartnerExpenses = Array.from(state.partnerLedgers.values()).reduce(
     (total, ledger) => total.plus(ledger.cumulativeExpenses),
     ZERO
   );
-  if (!journalFundExpenses.eq(stagedPartnerExpenses)) {
+  if (
+    !categoryExpenseTotal.eq(journalFundExpenses) ||
+    !categoryExpenseTotal.eq(stagedPartnerExpenses) ||
+    !categoryExpenseTotal.eq(stagedFundExpenseEvents)
+  ) {
     return conservationRefusal('Journal fund-expense conservation failed.');
   }
 
@@ -1178,6 +1223,7 @@ export function buildReceipt(
   const upstreamReceiptIds = [...(input.upstreamReceiptIds ?? [])].sort(compareStrings);
   const lineage = buildLineage(state);
   const componentVersions = buildComponentVersions(selectedLane);
+  const expenseTotalsByCategory = buildExpenseTotalsByCategory(state);
 
   const rowCount = countReceiptRows({
     componentVersionCount: Object.keys(componentVersions).length,
@@ -1218,6 +1264,7 @@ export function buildReceipt(
     input,
     state,
     fundCashEquation,
+    expenseTotalsByCategory,
     openingPositions,
     journal,
     receiptTierAllocations,
@@ -1236,6 +1283,7 @@ export function buildReceipt(
     hashAlgorithm: 'canonical-json-sha256/1',
     normalizedInputHash: input._normalizedInputHash,
     fundCashEquation,
+    expenseTotalsByCategory,
     openingPositions,
     lineage,
     journal,

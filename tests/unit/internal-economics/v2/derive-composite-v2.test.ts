@@ -164,7 +164,7 @@ describe('deriveInternalEconomicsV2', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.receipt.receiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(result.receipt.receiptVersion).toBe('internal-economics-receipt/2.3.0');
     expect(
       result.receipt.journal.filter((entry) => entry.kind === 'opening_investment_slice')
     ).toHaveLength(1);
@@ -668,8 +668,8 @@ describe('certifyInternalEconomicsDualLaneV2', () => {
     if (!result.ok) return;
     expect(result.certification.dealByDeal.selectedLane).toBe('deal_by_deal');
     expect(result.certification.wholeFund.selectedLane).toBe('whole_fund');
-    expect(result.certification.dealByDeal.receiptVersion).toBe('internal-economics-receipt/2.2.0');
-    expect(result.certification.wholeFund.receiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(result.certification.dealByDeal.receiptVersion).toBe('internal-economics-receipt/2.3.0');
+    expect(result.certification.wholeFund.receiptVersion).toBe('internal-economics-receipt/2.3.0');
   });
 
   it('applies the management-fee fence before certification', () => {

@@ -11,16 +11,16 @@ last_updated: 2026-08-31
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 769 |
-| Stale Documents | 485 |
-| Missing Frontmatter | 95 |
+| Total Documents | 772 |
+| Stale Documents | 488 |
+| Missing Frontmatter | 98 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 189 |
+| UNKNOWN | 192 |
 | HISTORICAL | 36 |
 | DRAFT | 35 |
 | VERIFIED | 13 |
@@ -69,6 +69,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_2.0.7_v2-conformance-closure.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w5_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v1.3.2.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.2.md` | Never | 999 | No | Unassigned |
@@ -76,6 +77,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/2-changelog/w6_v2.0.4.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/2-changelog/w6_v2.0.5.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.6.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w6_v2.0.7.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w4_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w5_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
@@ -88,16 +90,14 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w6_v2.0.4.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.5.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.6.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w6_v2.0.7.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
 | `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-020-analysis-cohort-boundary.md` | Never | 999 | No | Unassigned |
-| `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md` | Never | 999 | No | Unassigned |
-| `docs/adr/ADR-034-fund-scope-target-enforcement-matrix.md` | Never | 999 | No | Unassigned |
-| `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 
-*...and 435 more stale documents.*
+*...and 438 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -222,6 +222,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.3.2_governed-production-release-path.plan.md`
 - [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
 - [ ] `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md`
+- [ ] `docs/1-plans/F_2.0.7_v2-conformance-closure.plan.md`
 - [ ] `docs/2-changelog/w5_v1.6.0.md`
 - [ ] `docs/2-changelog/w6_v1.3.2.md`
 - [ ] `docs/2-changelog/w6_v2.0.2.md`
@@ -229,6 +230,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/2-changelog/w6_v2.0.4.md`
 - [ ] `docs/2-changelog/w6_v2.0.5.md`
 - [ ] `docs/2-changelog/w6_v2.0.6.md`
+- [ ] `docs/2-changelog/w6_v2.0.7.md`
 - [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
 - [ ] `docs/3-code-review/CR_w4_v1.5.0.md`
 - [ ] `docs/3-code-review/CR_w5_v1.6.0.md`
@@ -241,6 +243,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w6_v2.0.4.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.5.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.6.md`
+- [ ] `docs/3-code-review/CR_w6_v2.0.7.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
