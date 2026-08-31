@@ -2288,9 +2288,7 @@ async function auditTable({
     }
   }
 
-  const requiresHumanReview = deltas.some((delta) => delta.humanReviewRequired === true);
   const populated =
-    !requiresHumanReview &&
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
   const action = decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy });

@@ -1443,7 +1443,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     const audit = await auditManifest(client, definitionAwareIndexManifest);
 
     expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
-    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.populated).toBe(true);
     expect(audit.objects[0]?.deltas).toEqual([
       {
         kind: 'index-definition-mismatch',
@@ -1659,7 +1659,7 @@ describe('reconcile-prod-schema shape decisions', () => {
     );
 
     expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
-    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.populated).toBe(true);
     expect(audit.objects[0]?.deltas).toEqual([
       {
         kind: 'constraint-definition-mismatch',
