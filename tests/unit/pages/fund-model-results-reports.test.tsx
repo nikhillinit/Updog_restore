@@ -8,8 +8,9 @@
 
 import React, { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { createWouterWrapper } from '../../utils/withWouter';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 import FundModelResultsReportsPage from '../../../client/src/pages/fund-model-results-reports';
 import type { LpReportingMetricsPageProps } from '../../../client/src/pages/lp-reporting/metrics';
 
@@ -41,9 +42,36 @@ vi.mock('@/pages/lp-reporting/metrics', () => ({
   },
 }));
 
+// F_1.9.0: the page mounts FundWorkspaceProvider + WorkspaceContextRail; keep
+// their reads inert so this suite stays focused on the reports surface.
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({ data: undefined, isSuccess: false, isError: true, error: null }),
+}));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: false,
+    error: null,
+    mint: {},
+  }),
+}));
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async () => new Response(JSON.stringify({ message: 'not found' }), { status: 404 }))
+);
+
 function renderAt(path: string) {
   const { Wrapper, goto } = createWouterWrapper(path);
-  return { goto, ...render(<FundModelResultsReportsPage />, { wrapper: Wrapper }) };
+  return {
+    goto,
+    ...render(
+      <TestQueryClientProvider>
+        <FundModelResultsReportsPage />
+      </TestQueryClientProvider>,
+      { wrapper: Wrapper }
+    ),
+  };
 }
 
 describe('FundModelResultsReportsPage', () => {
@@ -78,6 +106,8 @@ describe('FundModelResultsReportsPage', () => {
     expect(reportsLink).toHaveAttribute('aria-current', 'page');
     expect(reportsLink).toHaveAttribute('href', '/fund-model-results/42/reports');
     expect(screen.getByText('Basis: Current')).toBeInTheDocument();
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 
   it('rejects a non-numeric fund id with the guard idiom and withholds the pipeline', () => {
@@ -116,8 +146,14 @@ describe('FundModelResultsReportsPage', () => {
     expect(screen.getByText('Fund not available')).toBeInTheDocument();
     expect(screen.queryByText('Metrics Pipeline Stub')).not.toBeInTheDocument();
     expect(screen.queryByTestId('gp-qualification-strip')).not.toBeInTheDocument();
-    // Review P1-2: the context fund's identity never leaks onto this route.
+    // Review P1-2 (re-tightened by the F_1.9.0 cross-fund fix): the context
+    // fund's identity never leaks ANYWHERE on this route — the workspace
+    // provider now receives the resolved route fund (null here), so the rail
+    // renders its unavailable state instead of the ambient fund.
     expect(screen.queryByText(/Other Fund/)).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('workspace-context-rail')).getAllByText('No fund selected').length
+    ).toBeGreaterThan(0);
     // Fund-scoped nav destinations render disabled with reason for the
     // unavailable fund (D-C).
     expect(screen.getByTestId('workspace-nav-reports-disabled')).toHaveAttribute(
@@ -144,8 +180,9 @@ describe('FundModelResultsReportsPage', () => {
     mocks.pipelineSnapshot = null;
     act(() => goto('/fund-model-results/999/reports'));
 
-    // Review P1-2: nothing from fund 42 survives — no name, no snapshot-backed
-    // strip, no live fund-scoped links.
+    // Review P1-2 (re-tightened by the F_1.9.0 cross-fund fix): nothing from
+    // fund 42 survives anywhere on the route — the rail included, since the
+    // provider is keyed to the resolved route fund (null for fund 999).
     expect(screen.queryByText(/Fund Forty Two/)).not.toBeInTheDocument();
     expect(screen.queryByText('Qualified pending export gates')).not.toBeInTheDocument();
     expect(screen.queryByTestId('gp-qualification-strip')).not.toBeInTheDocument();

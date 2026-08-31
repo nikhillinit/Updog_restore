@@ -1,8 +1,19 @@
 import { expect, type Page, type Route } from '@playwright/test';
 import {
   DualForecastResponseSchema,
+  type DualForecastCurrentForecastV2,
   type DualForecastResponse,
 } from '../../../shared/contracts/dual-forecast/dual-forecast-response.contract';
+import {
+  CurrentPlanVersionV1Schema,
+  PLAN_TRANSFORMATION_VERSION,
+  type CurrentPlanVersionV1,
+} from '../../../shared/contracts/current-plan-version-v1.contract';
+import {
+  FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+  PersistedFinancialFactsSnapshotV1Schema,
+  type PersistedFinancialFactsSnapshotV1,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import type { FundMoicRankingsResponseV2 } from '../../../shared/contracts/fund-moic-v2.contract';
 import { makeDashboardSummaryFixture } from './dashboard-summary';
 
@@ -696,18 +707,199 @@ interface DualForecastAnchorMetrics {
 }
 
 /**
+ * F_1.9.0 workspace-context-rail basis identity constants. The block hashes,
+ * plan-version id, and facts input hash are deliberately distinct so specs
+ * can assert that facts freshness never renders as basis identity.
+ */
+export const CURRENT_FORECAST_V2_FIXTURE = {
+  asOfDate: '2026-02-14',
+  currentPlanVersionId: 'cpv-e2e-1',
+  financialFactsSnapshotId: '9001',
+  inputHash: 'ab'.repeat(32),
+  resultHash: 'cd'.repeat(32),
+  assumptionsHash: 'ef'.repeat(32),
+  factsInputHash: 'a1b2c3d4'.repeat(8),
+  factsAsOfDate: '2026-01-31',
+  heldReasonCopy: 'The live calculation failed when this response was served.',
+} as const;
+
+export type DualForecastCurrentForecastV2Variant = 'live' | 'held';
+
+function makeCurrentForecastV2Block(
+  variant: DualForecastCurrentForecastV2Variant
+): DualForecastCurrentForecastV2 {
+  const base = {
+    asOfDate: CURRENT_FORECAST_V2_FIXTURE.asOfDate,
+    currentPlanVersionId: CURRENT_FORECAST_V2_FIXTURE.currentPlanVersionId,
+    financialFactsSnapshotId: CURRENT_FORECAST_V2_FIXTURE.financialFactsSnapshotId,
+    inputHash: CURRENT_FORECAST_V2_FIXTURE.inputHash,
+    resultHash: CURRENT_FORECAST_V2_FIXTURE.resultHash,
+    assumptionsHash: CURRENT_FORECAST_V2_FIXTURE.assumptionsHash,
+    engineVersion: 'current-forecast-v2/1.0.0',
+    methodologyVersion: 'current-forecast-methodology/1.0.0',
+    unavailableReasons: [],
+  };
+
+  if (variant === 'held') {
+    return {
+      ...base,
+      status: 'held',
+      engineStatus: 'held',
+      held: {
+        referenceId: 77,
+        reason: 'v2_runtime_failure',
+        pinnedAt: '2026-02-11T00:00:00.000Z',
+        ageDays: 3,
+      },
+    };
+  }
+
+  return { ...base, status: 'live', engineStatus: 'available', held: null };
+}
+
+/**
+ * Cohering accepted-facts snapshot for the rail's
+ * GET /api/funds/:fundId/financial-facts/latest read. Built through the SHARED
+ * persisted contract so drift fails at fixture-build time; the client ingress
+ * schema is pinned against the same contract in
+ * tests/unit/contract/financial-facts-latest-parity.test.tsx.
+ */
+export function makeFinancialFactsLatestResponse(
+  fundId: number
+): PersistedFinancialFactsSnapshotV1 {
+  return PersistedFinancialFactsSnapshotV1Schema.parse({
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+    fundId,
+    asOfDate: CURRENT_FORECAST_V2_FIXTURE.factsAsOfDate,
+    knowledgeCutoff: '2026-01-31T23:59:59.000Z',
+    vehicleScope: 'fund_all',
+    vehicleIds: [7],
+    selectionSetHash: 'b'.repeat(64),
+    sourceFactsInputHash: 'c'.repeat(64),
+    snapshotInputHash: CURRENT_FORECAST_V2_FIXTURE.factsInputHash,
+    consumerEvaluations: [],
+    payload: {
+      companyActuals: {
+        fundId,
+        asOfDate: CURRENT_FORECAST_V2_FIXTURE.factsAsOfDate,
+        facts: [],
+        inputHash: 'a'.repeat(64),
+      },
+      sourceObservationIds: [],
+      workingValueSelectionIds: [],
+      participationTermRefs: [],
+      cashFlowSeries: {
+        series: [],
+        totals: {
+          contributions: '0.000000',
+          distributions: '0.000000',
+          recallableDistributions: '0.000000',
+        },
+        warnings: [],
+      },
+      marksSeries: { marks: [], periodNav: [], warnings: [] },
+      vehicleRoster: [
+        {
+          vehicleId: 7,
+          vehicleType: 'main_fund',
+          vehicleSlug: 'main-fund',
+          name: 'Main Fund',
+          currency: 'USD',
+        },
+      ],
+    },
+    actorId: 1,
+    createdAt: '2026-01-31T23:59:59.000Z',
+  });
+}
+
+/**
+ * Cohering current-plan-versions read: one version whose id matches the served
+ * block's currentPlanVersionId so the rail labels it "Plan v1".
+ */
+export function makeCurrentPlanVersionsResponse(fundId: number): CurrentPlanVersionV1[] {
+  return [
+    CurrentPlanVersionV1Schema.parse({
+      contractVersion: 'current-plan-version-v1',
+      id: CURRENT_FORECAST_V2_FIXTURE.currentPlanVersionId,
+      fundId,
+      version: 1,
+      sourceConfigId: 11,
+      sourceConfigVersion: 3,
+      sourceFactsSnapshotId: CURRENT_FORECAST_V2_FIXTURE.financialFactsSnapshotId,
+      deployableCapitalUsd: '9000000.000000',
+      planTransformationVersion: PLAN_TRANSFORMATION_VERSION,
+      allocations: [
+        {
+          allocationId: 'seed-allocation',
+          name: 'Seed',
+          stageFocus: 'Seed',
+          initialCapitalUsd: '6000000.000000',
+          followOnCapitalUsd: '3000000.000000',
+          avgInitialCheckUsd: '1000000.000000',
+          pacingQuarters: 8,
+          followOnStrategy: 'maintain_ownership',
+          followOnParticipationPct: '0.500000000000',
+        },
+      ],
+      pacingAssumptions: {
+        contractVersion: 'current-plan-pacing-v1',
+        deploymentQuarters: 2,
+        quarterlyDeploymentPcts: ['0.500000000000', '0.500000000000'],
+        followOnReservePct: '0.333333333333',
+        annualFeeDragPct: '0.020000000000',
+      },
+      cohortAssumptions: {
+        contractVersion: 'current-plan-cohort-v1',
+        averageInitialCheckUsd: '1000000.000000',
+        stageDistribution: [
+          { stage: 'Seed', pct: '0.600000000000' },
+          { stage: 'Series A', pct: '0.400000000000' },
+        ],
+        graduationMatrix: [
+          {
+            fromStage: 'Seed',
+            toStage: 'Series A',
+            rate: '0.750000000000',
+            quartersToGraduate: 4,
+          },
+        ],
+        exitAssumptions: [
+          {
+            stage: 'Seed',
+            exitMultiple: '3.000000000000',
+            quartersToExit: 20,
+            failureRate: '0.250000000000',
+          },
+        ],
+      },
+      reservePolicyVersion: 'reserve-policy/1.0.0',
+      assumptionsHash: CURRENT_FORECAST_V2_FIXTURE.assumptionsHash,
+      supersedesVersionId: null,
+      supersededByVersionId: null,
+      createdAt: '2026-01-15T00:00:00.000Z',
+    }),
+  ];
+}
+
+/**
  * The ONE shared populated dual-forecast builder (PR-3 CP3): every e2e stub
  * goes through the response contract at module scope, so contract drift fails
  * the suite at import time instead of silently stubbing an invalid shape.
  * Disclosure blocks are populated so the real trust surface renders in a
  * browser; Q4 2026 carries the canonical -$8M NAV / +$5M called-capital drift
  * the route-publish spec asserts.
+ *
+ * F_1.9.0: pass `currentForecastV2: 'live' | 'held'` to attach a valid served
+ * current-forecast block (golden basis paths); omit it for the
+ * unavailable-basis path (the block is optional in off/shadow modes).
  */
 export function makeDualForecastResponse(options: {
   fundId: number;
   fundName: string;
   asOfDate: string;
   actual: DualForecastAnchorMetrics;
+  currentForecastV2?: DualForecastCurrentForecastV2Variant;
 }): DualForecastResponse {
   const anchor = {
     nav: options.actual.currentNAV,
@@ -961,6 +1153,9 @@ export function makeDualForecastResponse(options: {
       ],
     },
     currentProjection: { status: 'projected', fallbackReason: null },
+    ...(options.currentForecastV2
+      ? { currentForecastV2: makeCurrentForecastV2Block(options.currentForecastV2) }
+      : {}),
     warnings: [],
   });
 }
@@ -1043,6 +1238,20 @@ export async function installQaAuditApi(page: Page) {
 
     if (request.method() === 'GET' && url.pathname === '/api/funds/1/dual-forecast') {
       await fulfillJson(route, DUAL_FORECAST_RESPONSE);
+      return;
+    }
+
+    // F_1.9.0 workspace-context-rail reads on every rail-mounting surface.
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/financial-facts/latest'
+    ) {
+      await fulfillJson(route, makeFinancialFactsLatestResponse(MOCK_FUND.id));
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/current-plan-versions') {
+      await fulfillJson(route, makeCurrentPlanVersionsResponse(MOCK_FUND.id));
       return;
     }
 

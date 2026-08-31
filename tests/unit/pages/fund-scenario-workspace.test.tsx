@@ -14,6 +14,14 @@ import type {
   FundScenarioSetSummaryV1,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 
+// F_1.9.0: the page mounts FundWorkspaceProvider + WorkspaceContextRail, which
+// derive their fund from FundContext (not the route). Resolve no context fund
+// so the rail issues no reads and this suite's fetch-call assertions stay
+// scoped to the page's own requests.
+vi.mock('@/contexts/FundContext', () => ({
+  useFundContext: () => ({ fundId: null, currentFund: null, isLoading: false }),
+}));
+
 describe('reserveStatusPollIntervalMs', () => {
   it('polls only while a reserve calculation is in flight', () => {
     expect(reserveStatusPollIntervalMs('queued')).toBe(4000);
@@ -644,6 +652,8 @@ describe('FundScenarioWorkspacePage', () => {
     expect(scenariosLink).toHaveAttribute('href', '/fund-model-results/123/scenarios');
     expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /back to results/i })).not.toBeInTheDocument();
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 
   it('keeps workspace navigation available while the workspace data is loading', () => {

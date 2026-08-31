@@ -23,6 +23,8 @@ import {
 } from '@/components/lp-reporting/GpQualificationStrip';
 import LpReportingMetricsPage from '@/pages/lp-reporting/metrics';
 import { useFundContext } from '@/contexts/FundContext';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 
 type FundIdParseResult =
@@ -123,44 +125,49 @@ export default function FundModelResultsReportsPage() {
 
       {/* Workspace row (D-F.2). Reporting metrics are computed from recorded
           fund facts: static "Basis: Current" indicator (D-E). */}
-      <WorkspaceNav
-        fundId={fundScopeMatches ? String(routeFundId) : null}
-        fundLabel={routeFundLabel}
-        active="reports"
-        indicator={<WorkspaceBasisIndicator mode="current" />}
-      />
-
-      {fundIdResult.status === 'missing' ? (
-        <StateCard
-          title="Fund ID required"
-          description="Fund reports are unavailable because the route did not include a fund ID."
-          icon="info"
+      <FundWorkspaceProvider fundId={fundScopeMatches ? routeFundId : null}>
+        <WorkspaceNav
+          fundId={fundScopeMatches ? String(routeFundId) : null}
+          fundLabel={routeFundLabel}
+          active="reports"
+          indicator={<WorkspaceBasisIndicator mode="current" />}
         />
-      ) : null}
+        <WorkspaceContextRail>
+          <div className="space-y-6">
+            {fundIdResult.status === 'missing' ? (
+              <StateCard
+                title="Fund ID required"
+                description="Fund reports are unavailable because the route did not include a fund ID."
+                icon="info"
+              />
+            ) : null}
 
-      {fundIdResult.status === 'invalid' ? (
-        <StateCard
-          title="Invalid fund ID"
-          description="Fund reports are unavailable because the fund ID is not a positive integer."
-        />
-      ) : null}
+            {fundIdResult.status === 'invalid' ? (
+              <StateCard
+                title="Invalid fund ID"
+                description="Fund reports are unavailable because the fund ID is not a positive integer."
+              />
+            ) : null}
 
-      {fundScopeMatches ? (
-        <>
-          <GpQualificationStrip snapshot={snapshot} />
-          <LpReportingMetricsPage onQualificationSnapshot={handleSnapshot} />
-        </>
-      ) : fundIdResult.status === 'valid' ? (
-        <StateCard
-          title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
-          description={
-            isLoading
-              ? 'The reporting pipeline loads once the fund context matches this route.'
-              : `Fund ${routeFundId} is not available in your workspace scope, so the reporting pipeline is withheld.`
-          }
-          icon={isLoading ? 'info' : 'warning'}
-        />
-      ) : null}
+            {fundScopeMatches ? (
+              <>
+                <GpQualificationStrip snapshot={snapshot} />
+                <LpReportingMetricsPage onQualificationSnapshot={handleSnapshot} />
+              </>
+            ) : fundIdResult.status === 'valid' ? (
+              <StateCard
+                title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
+                description={
+                  isLoading
+                    ? 'The reporting pipeline loads once the fund context matches this route.'
+                    : `Fund ${routeFundId} is not available in your workspace scope, so the reporting pipeline is withheld.`
+                }
+                icon={isLoading ? 'info' : 'warning'}
+              />
+            ) : null}
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

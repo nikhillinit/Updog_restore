@@ -308,6 +308,8 @@ describe('mounted portfolio route behavior', () => {
     expect(
       screen.getAllByRole('button', { name: /view northstar systems details/i }).length
     ).toBeGreaterThan(0);
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 
   it('keeps a planned-reserves edit local to the active allocation scenario', async () => {

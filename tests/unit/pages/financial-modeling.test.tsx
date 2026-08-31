@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 import FinancialModeling from '@/pages/financial-modeling';
 
 vi.mock('@/components/dashboard/dual-forecast-dashboard', () => ({
@@ -15,9 +16,36 @@ vi.mock('@/contexts/FundContext', () => ({
   }),
 }));
 
+// F_1.9.0: the page mounts FundWorkspaceProvider + WorkspaceContextRail;
+// keep their reads inert so this suite stays focused on the page surface.
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({ data: undefined, isSuccess: false, isError: true, error: null }),
+}));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: false,
+    error: null,
+    mint: {},
+  }),
+}));
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async () => new Response(JSON.stringify({ message: 'not found' }), { status: 404 }))
+);
+
+function renderPage() {
+  return render(
+    <TestQueryClientProvider>
+      <FinancialModeling />
+    </TestQueryClientProvider>
+  );
+}
+
 describe('FinancialModeling page', () => {
   it('defaults to the API-based projection surface', () => {
-    render(<FinancialModeling />);
+    renderPage();
 
     expect(
       screen.getByRole('heading', { name: /financial modeling & forecasting/i })
@@ -37,11 +65,13 @@ describe('FinancialModeling page', () => {
     expect(
       screen.queryByText(/api facts|api-based|canonical deterministic/i)
     ).not.toBeInTheDocument();
+    // F_1.9.0: workspace context rail mounts on this surface.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
   });
 
   it('treats the scenario-modeling tab as deferred instead of live placeholder content', async () => {
     const user = userEvent.setup();
-    render(<FinancialModeling />);
+    renderPage();
 
     await user.click(screen.getByRole('tab', { name: /scenario modeling/i }));
 
