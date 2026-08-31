@@ -107,7 +107,7 @@ None.
 - [x] 6. Performance — passed
 - [x] 7. Testing — passed (client project 213 files / 1,716 tests; contract
       parity across five persisted policy versions; e2e golden live, golden
-      held, and unavailable paths 12/12; smoke 25/25 under NODE_ENV=test)
+      held, and unavailable paths 15/15; smoke 25/25 under NODE_ENV=test)
 - [x] 8. Documentation — passed (plan updated; this record; changelog)
 
 ---
@@ -121,7 +121,7 @@ At the reviewed candidate (uncommitted worktree diff on
   skipped, 0 failed.
 - `npm run check`: 0 errors. `npm run lint`: pass. `npm run build:web` (Preact
   production bundle): pass — confirms no Node-only contract leak.
-- Playwright `route-fund-context-fidelity.spec.ts --project=smoke`: 12/12 under
+- Playwright `route-fund-context-fidelity.spec.ts --project=smoke`: 15/15 under
   `NODE_ENV=test` (CI-equivalent); full smoke 25/25. A plain local
   production-mode run fails pre-existing at the auth gate with zero F_1.9.0
   involvement (verified via `basic-smoke.spec.ts` control).
