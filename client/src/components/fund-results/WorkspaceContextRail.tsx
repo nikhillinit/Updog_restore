@@ -565,7 +565,7 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
             <ContextTrigger />
           </SheetTrigger>
         </div>
-        <div className="fixed right-4 top-24 z-30 lg:hidden">
+        <div className="flex justify-end py-2 lg:hidden">
           <SheetTrigger asChild>
             <ContextTrigger compact />
           </SheetTrigger>

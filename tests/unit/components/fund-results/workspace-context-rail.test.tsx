@@ -715,6 +715,15 @@ describe('WorkspaceContextRail', () => {
     expect(rail.parentElement).toBe(content.parentElement?.parentElement);
   });
 
+  it('keeps the compact trigger in page flow instead of fixing it over the viewport', () => {
+    renderRail();
+
+    const trigger = screen.getByTestId('workspace-context-trigger-compact');
+    expect(trigger.parentElement?.className).toContain('lg:hidden');
+    expect(trigger.parentElement?.className).toContain('justify-end');
+    expect(trigger.parentElement?.className).not.toContain('fixed');
+  });
+
   it('mounts on the internal-analysis page (presence pin for the suite-less page)', async () => {
     const { default: InternalAnalysisPage } =
       await import('@/pages/fund-model-results-internal-analysis');

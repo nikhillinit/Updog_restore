@@ -349,6 +349,18 @@ async function installRouteFidelityApi(
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/auth/session') {
+      await fulfillJson(route, {
+        user: {
+          id: '314',
+          email: 'route-fidelity@example.com',
+          role: 'admin',
+          fundIds: [FIDELITY_FUND.id],
+        },
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       await fulfillJson(route, [FIDELITY_FUND]);
       return;
@@ -590,10 +602,34 @@ async function installRouteFidelityApi(
 
     if (
       request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/moic/reserve-intelligence/latest`
+    ) {
+      await fulfillJson(route, { code: 'RESERVE_INTELLIGENCE_RUN_NOT_FOUND' }, 404);
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/scenario-sets` &&
       url.search === ''
     ) {
       await fulfillJson(route, { scenarioSets: [] });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/internal-analysis/drafts`
+    ) {
+      await fulfillJson(route, { drafts: [] });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/internal-analysis/references`
+    ) {
+      await fulfillJson(route, { references: [] });
       return;
     }
 
@@ -773,6 +809,58 @@ test.describe('workspace context rail basis fidelity (F_1.9.0)', () => {
     return { apiTracker, rail };
   }
 
+  for (const responsiveCase of [
+    {
+      label: 'compact command-bar trigger below 1024px',
+      width: 820,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/internal-analysis`,
+      trigger: 'workspace-context-trigger-compact',
+    },
+    {
+      label: 'slide-over trigger from 1024px through 1279px',
+      width: 1100,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/analysis`,
+      trigger: 'workspace-context-trigger',
+    },
+    {
+      label: 'pinned rail at 1280px and wider',
+      width: 1440,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/moic-analysis`,
+      trigger: null,
+    },
+  ] as const) {
+    test(`${responsiveCase.label} mounts route-scoped context`, async ({ page }) => {
+      await page.setViewportSize({ width: responsiveCase.width, height: 900 });
+      const apiTracker = await installRouteFidelityApi(page, { basis: 'live' });
+
+      await page.goto(new URL(responsiveCase.route, APP_BASE_URL).toString(), {
+        waitUntil: 'domcontentloaded',
+        timeout: 30_000,
+      });
+
+      await expect(page.getByRole('navigation', { name: 'Fund workspace' })).toBeVisible({
+        timeout: ROUTE_READY_TIMEOUT_MS,
+      });
+
+      const rail = page.getByTestId('workspace-context-rail');
+      if (responsiveCase.trigger === null) {
+        await expect(rail).toBeVisible();
+        await expect(page.getByTestId('workspace-context-trigger')).toBeHidden();
+        await expect(page.getByTestId('workspace-context-trigger-compact')).toBeHidden();
+      } else {
+        await expect(rail).toBeHidden();
+        const trigger = page.getByTestId(responsiveCase.trigger);
+        await expect(trigger).toBeVisible();
+        await trigger.click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('heading', { name: FIDELITY_FUND.name })).toBeVisible();
+      }
+
+      expect(apiTracker.unexpectedRequests).toEqual([]);
+    });
+  }
+
   test('golden live basis renders served identity, plan label, and facts freshness', async ({
     page,
   }) => {
@@ -841,9 +929,7 @@ test.describe('workspace context rail basis fidelity (F_1.9.0)', () => {
     await expect(basis.getByText('Current forecast is held')).toHaveCount(0);
     await expect(rail.getByText('Accepted facts unavailable.')).toBeVisible();
     await expect(
-      rail.getByText(
-        'A single main fund vehicle is required; accepted facts did not provide one.'
-      )
+      rail.getByText('A single main fund vehicle is required; accepted facts did not provide one.')
     ).toBeVisible();
 
     expect(apiTracker.unexpectedRequests).toEqual([]);
