@@ -6,6 +6,7 @@ import type {
   OpeningCashOwnerV2,
   OpeningPartnerOwnerV2,
   V2CoreRefusal,
+  V2ExpenseCategory,
   V2RefusalCode,
   V2Stage,
   V2TierKind,
@@ -21,7 +22,7 @@ import {
 } from './preferred-return-accrual-v2';
 
 export const INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION =
-  'internal-economics-event-engine/2.2.1' as const;
+  'internal-economics-event-engine/2.3.0' as const;
 
 type CashSourceLotBase = {
   readonly lotId: string;
@@ -169,13 +170,24 @@ export interface ConsumptionRecord {
 export type EventEffectKind =
   'settled_contribution' | 'deployment' | 'realization' | 'fund_expense_payment';
 
-export interface EventEffectRecord {
+type EventEffectRecordBase = {
   readonly eventId: string;
   readonly instant: string;
-  readonly kind: EventEffectKind;
   readonly amountUsd: Decimal;
-  readonly reliefTotal?: Decimal;
-}
+};
+
+export type EventEffectRecord =
+  | (EventEffectRecordBase & {
+      readonly kind: 'settled_contribution' | 'deployment';
+    })
+  | (EventEffectRecordBase & {
+      readonly kind: 'realization';
+      readonly reliefTotal: Decimal;
+    })
+  | (EventEffectRecordBase & {
+      readonly kind: 'fund_expense_payment';
+      readonly expenseCategory: V2ExpenseCategory;
+    });
 
 export type PartnerEffectField =
   | 'settledCapital'
@@ -497,6 +509,26 @@ function cloneOpeningJournalEntry(entry: OpeningJournalEntry): OpeningJournalEnt
   };
 }
 
+function cloneEventEffectRecord(record: EventEffectRecord): EventEffectRecord {
+  if (record.kind === 'realization') {
+    return {
+      ...record,
+      amountUsd: new Decimal(record.amountUsd),
+      reliefTotal: new Decimal(record.reliefTotal),
+    };
+  }
+
+  if (record.kind === 'fund_expense_payment') {
+    return {
+      ...record,
+      amountUsd: new Decimal(record.amountUsd),
+      expenseCategory: record.expenseCategory,
+    };
+  }
+
+  return { ...record, amountUsd: new Decimal(record.amountUsd) };
+}
+
 export function cloneEventStreamState(state: EventStreamState): EventStreamState {
   const clonedState = {
     cashSourceLots: new Map<string, CashSourceLot>(),
@@ -507,11 +539,7 @@ export function cloneEventStreamState(state: EventStreamState): EventStreamState
       ...record,
       amountUsd: new Decimal(record.amountUsd),
     })),
-    eventEffectRecords: state.eventEffectRecords.map((record) => ({
-      ...record,
-      amountUsd: new Decimal(record.amountUsd),
-      ...(record.reliefTotal !== undefined ? { reliefTotal: new Decimal(record.reliefTotal) } : {}),
-    })),
+    eventEffectRecords: state.eventEffectRecords.map(cloneEventEffectRecord),
     partnerEffectRecords: state.partnerEffectRecords.map((record) => ({
       ...record,
       amountUsd: new Decimal(record.amountUsd),
@@ -965,10 +993,28 @@ export function processFundExpense(
 ): V2CoreRefusal | null {
   const amount = new Decimal(event.amountUsd);
 
-  // Eligibility precedes generic amount/balance validation: an ineligible lot
-  // class refuses SCHEMA_VALIDATION_FAILED regardless of its balance (F_2.0.0
-  // normative rule). Unknown lots fall through to the generic existence
-  // refusal below.
+  // ADR-090 A1 amendment: missing references are checked before eligibility;
+  // known ineligible lots then refuse before generic amount/balance validation.
+  // The refusal is canonical over the full allocation list (sorted, deduplicated)
+  // so the complete refusal object is independent of allocation order.
+  const missingLotIds = [
+    ...new Set(
+      event.cashSourceAllocations
+        .filter((allocation) => !state.cashSourceLots.has(allocation.lotId))
+        .map((allocation) => allocation.lotId)
+    ),
+  ].sort();
+  if (missingLotIds.length > 0) {
+    return refuse(
+      'CASH_SOURCE_ALLOCATION_VIOLATION',
+      'provenance',
+      `Event ${event.eventId}: cash source lot(s) not found: ${missingLotIds
+        .map((lotId) => `'${lotId}'`)
+        .join(', ')}.`,
+      { eventId: event.eventId }
+    );
+  }
+
   const eligibleAllocations: Array<{
     readonly allocation: CashSourceAllocation;
     readonly lot: ContributionSettlementCashSourceLot;
@@ -1038,6 +1084,7 @@ export function processFundExpense(
     instant: event.instant,
     kind: 'fund_expense_payment',
     amountUsd: new Decimal(amount),
+    expenseCategory: event.expenseCategory,
   });
   state.endingCash = state.endingCash.minus(amount);
   return null;

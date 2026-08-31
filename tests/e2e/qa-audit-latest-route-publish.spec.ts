@@ -198,6 +198,18 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       return;
     }
 
+    // F_1.9.0 workspace-context-rail facts read: no accepted snapshot in this
+    // spec's world — the route contract 404s and the rail renders
+    // disabled-with-reason.
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/financial-facts/latest') {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'No accepted financial facts snapshot' }),
+      });
+      return;
+    }
+
     if (url.pathname === '/api/funds/1/results') {
       await route.fulfill({
         status: 200,
@@ -455,8 +467,9 @@ test.describe('latest QA route/nav/publish closeout matrix', () => {
       await expect(page).not.toHaveURL(/\/fund-setup\b/);
       if (path.startsWith('/model-results')) {
         await expect(page).toHaveURL(/\/fund-model-results\/1\b/);
+        // Level pin: the F_1.9.0 context rail repeats the fund name as an h2.
         await expect(
-          page.getByRole('main').getByRole('heading', { name: /^QA Fund I$/i })
+          page.getByRole('main').getByRole('heading', { level: 1, name: /^QA Fund I$/i })
         ).toBeVisible();
       } else if (path === '/forecasting' || path === '/financial-modeling') {
         await expect(

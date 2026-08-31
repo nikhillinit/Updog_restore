@@ -6,6 +6,7 @@ import {
   oracleHash,
 } from '../internal-economics/v2/support/canonical-receipt-oracle-v1';
 import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 } from '../internal-economics/v2/support/canonical-receipt-changed-case-manifest-v1';
+import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V2 } from '../internal-economics/v2/support/canonical-receipt-changed-case-manifest-v2';
 
 function buildV2S0101Input() {
   const input = buildMinimalV2Input({
@@ -34,18 +35,19 @@ function micros(value: string): bigint {
 }
 
 describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
-  it('returns the exact detached 2.2.0 opening-state receipt with changed-case evidence', () => {
+  it('returns the exact detached 2.3.0 opening-state receipt with changed-case evidence', () => {
     const input = buildV2S0101Input();
     const inputBefore = structuredClone(input);
-    const manifest = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1[0]!;
+    const manifestV1 = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1[0]!;
+    const manifest = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V2[0]!;
     const expectedReceipt = {
-      receiptVersion: 'internal-economics-receipt/2.2.0' as const,
+      receiptVersion: 'internal-economics-receipt/2.3.0' as const,
       componentVersions: {
         normalizer: 'internal-economics-normalizer/2.0.1' as const,
-        composite: 'internal-economics-composite/2.2.1' as const,
-        eventEngine: 'internal-economics-event-engine/2.2.1' as const,
+        composite: 'internal-economics-composite/2.3.0' as const,
+        eventEngine: 'internal-economics-event-engine/2.3.0' as const,
         selectedWaterfall: 'internal-economics-waterfall-deal-by-deal/2.2.0' as const,
-        receiptSerializer: 'internal-economics-receipt-serializer/2.2.1' as const,
+        receiptSerializer: 'internal-economics-receipt-serializer/2.3.0' as const,
       },
       selectedLane: 'deal_by_deal' as const,
       hashAlgorithm: 'canonical-json-sha256/1' as const,
@@ -59,6 +61,13 @@ describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
         expenses: '0.000000',
         distributions: '0.000000',
         endingCash: '550000.000000',
+      },
+      expenseTotalsByCategory: {
+        legal: '0.000000',
+        audit: '0.000000',
+        admin: '0.000000',
+        custody: '0.000000',
+        other: '0.000000',
       },
       openingPositions: {
         cashLots: [
@@ -192,10 +201,17 @@ describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
       resultHash: manifest.afterResultHash,
     };
 
-    expect(manifest.beforeResultHash).toBe(
+    // Frozen manifest v1 literals remain historical evidence; manifest v2
+    // chains from v1's after-hash (the frozen 2.2.0 result hash).
+    expect(manifestV1.beforeResultHash).toBe(
       'e0263b99740005feffcb89bb000d931b00b9232b6086b13056849a191eb07e28'
     );
-    expect(manifest.afterReceiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(manifestV1.afterReceiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(manifest.caseId).toBe(manifestV1.caseId);
+    expect(manifest.beforeReceiptVersion).toBe(manifestV1.afterReceiptVersion);
+    expect(manifest.beforeResultHash).toBe(manifestV1.afterResultHash);
+    expect(manifest.normalizedInputHash).toBe(manifestV1.normalizedInputHash);
+    expect(manifest.afterReceiptVersion).toBe('internal-economics-receipt/2.3.0');
     expect(manifest.beforeResultHash).not.toBe(manifest.afterResultHash);
     expect(INTERNAL_ECONOMICS_TEST_ORACLE_VERSION).toBe('internal-economics-test-oracle/1.0.0');
 

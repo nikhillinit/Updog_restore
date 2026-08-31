@@ -5,6 +5,8 @@ import { useRoute } from 'wouter';
 import { InternalEconomicsPanel } from '@/components/fund-results/InternalEconomicsPanel';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { useInternalAnalysis } from '@/hooks/useInternalAnalysis';
 import {
   defaultInternalEconomicsSelection,
@@ -84,20 +86,14 @@ function InternalEconomicsContent({ fundId }: { fundId: number }) {
         baselineRunId = groups.find((group) => group.runId !== currentRunId)?.runId ?? null;
       }
 
-      if (
-        previous.baselineRunId === baselineRunId &&
-        previous.currentRunId === currentRunId
-      ) {
+      if (previous.baselineRunId === baselineRunId && previous.currentRunId === currentRunId) {
         return previous;
       }
       return { baselineRunId, currentRunId };
     });
   }, [groups]);
 
-  const receipts = useInternalEconomics(fundId, [
-    selection.baselineRunId,
-    selection.currentRunId,
-  ]);
+  const receipts = useInternalEconomics(fundId, [selection.baselineRunId, selection.currentRunId]);
 
   return (
     <section aria-labelledby="internal-economics-heading" className="space-y-5">
@@ -153,39 +149,44 @@ export default function FundModelResultsAnalysisPage() {
         </p>
       </header>
 
-      <WorkspaceNav
-        fundId={fundScopeMatches ? String(routeFundId) : null}
-        fundLabel={routeFundLabel}
-        active="analysis"
-        indicator={<WorkspaceBasisIndicator mode="current" />}
-      />
-
-      {fundIdResult.status === 'missing' ? (
-        <StateCard
-          title="Fund ID required"
-          description="Economics comparison is unavailable because the route did not include a fund ID."
-          icon="info"
+      <FundWorkspaceProvider fundId={fundScopeMatches ? routeFundId : null}>
+        <WorkspaceNav
+          fundId={fundScopeMatches ? String(routeFundId) : null}
+          fundLabel={routeFundLabel}
+          active="analysis"
+          indicator={<WorkspaceBasisIndicator mode="current" />}
         />
-      ) : null}
-      {fundIdResult.status === 'invalid' ? (
-        <StateCard
-          title="Invalid fund ID"
-          description="Economics comparison is unavailable because the fund ID is not a positive integer."
-        />
-      ) : null}
-      {fundScopeMatches ? (
-        <InternalEconomicsContent fundId={routeFundId as number} />
-      ) : fundIdResult.status === 'valid' ? (
-        <StateCard
-          title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
-          description={
-            isLoading
-              ? 'Economics comparison loads once the fund context matches this route.'
-              : `Fund ${routeFundId} is not available in your workspace scope, so economics evidence is withheld.`
-          }
-          icon={isLoading ? 'info' : 'warning'}
-        />
-      ) : null}
+        <WorkspaceContextRail>
+          <div className="space-y-6">
+            {fundIdResult.status === 'missing' ? (
+              <StateCard
+                title="Fund ID required"
+                description="Economics comparison is unavailable because the route did not include a fund ID."
+                icon="info"
+              />
+            ) : null}
+            {fundIdResult.status === 'invalid' ? (
+              <StateCard
+                title="Invalid fund ID"
+                description="Economics comparison is unavailable because the fund ID is not a positive integer."
+              />
+            ) : null}
+            {fundScopeMatches ? (
+              <InternalEconomicsContent fundId={routeFundId as number} />
+            ) : fundIdResult.status === 'valid' ? (
+              <StateCard
+                title={isLoading ? 'Resolving fund scope' : 'Fund not available'}
+                description={
+                  isLoading
+                    ? 'Economics comparison loads once the fund context matches this route.'
+                    : `Fund ${routeFundId} is not available in your workspace scope, so economics evidence is withheld.`
+                }
+                icon={isLoading ? 'info' : 'warning'}
+              />
+            ) : null}
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

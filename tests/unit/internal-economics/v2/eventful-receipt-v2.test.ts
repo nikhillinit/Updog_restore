@@ -147,7 +147,7 @@ function sumPostings(postings: readonly { amountUsd: string }[]): Decimal {
 }
 
 describe('F3b eventful receipt contract', () => {
-  it('certifies both lanes and binds lane-correct 2.2.0 receipts', () => {
+  it('certifies both lanes and binds lane-correct 2.3.0 receipts', () => {
     const result = certifyInternalEconomicsDualLaneV2(eventfulInput('whole_fund'));
 
     expect(result.ok).toBe(true);
@@ -155,16 +155,16 @@ describe('F3b eventful receipt contract', () => {
 
     const deal = result.certification.dealByDeal as unknown as ReceiptLike;
     const whole = result.certification.wholeFund as unknown as ReceiptLike;
-    expect(deal.receiptVersion).toBe('internal-economics-receipt/2.2.0');
-    expect(whole.receiptVersion).toBe('internal-economics-receipt/2.2.0');
+    expect(deal.receiptVersion).toBe('internal-economics-receipt/2.3.0');
+    expect(whole.receiptVersion).toBe('internal-economics-receipt/2.3.0');
     expect(deal.componentVersions.selectedWaterfall).toBe(
       'internal-economics-waterfall-deal-by-deal/2.2.0'
     );
     expect(whole.componentVersions.selectedWaterfall).toBe(
       'internal-economics-waterfall-whole-fund/2.2.0'
     );
-    expect(deal.componentVersions.composite).toBe('internal-economics-composite/2.2.1');
-    expect(whole.componentVersions.eventEngine).toBe('internal-economics-event-engine/2.2.1');
+    expect(deal.componentVersions.composite).toBe('internal-economics-composite/2.3.0');
+    expect(whole.componentVersions.eventEngine).toBe('internal-economics-event-engine/2.3.0');
   });
 
   it.each([

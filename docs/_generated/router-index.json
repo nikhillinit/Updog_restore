@@ -4439,6 +4439,23 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/1-plans/F_1.9.0_workspace-context-rail.plan.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
         "last_updated": "2026-08-28",
         "status": "HISTORICAL"
       },
@@ -4525,6 +4542,23 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/1-plans/F_2.0.7_v2-conformance-closure.plan.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -4550,6 +4584,23 @@
       "path": "docs/2-changelog/w6_F_1.8.0.md",
       "staleDays": 0,
       "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/2-changelog/w6_F_1.9.0.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -4643,6 +4694,23 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/2-changelog/w6_v2.0.7.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -4702,6 +4770,23 @@
       "lastUpdated": "2026-08-31",
       "owner": "@nikhillinit",
       "path": "docs/3-code-review/CR_w6_F_1.8.0.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/3-code-review/CR_w6_F_1.9.0.md",
       "staleDays": 0,
       "status": "HISTORICAL"
     },
@@ -4817,6 +4902,23 @@
       "path": "docs/3-code-review/CR_w6_v2.0.6.md",
       "staleDays": 999,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "both",
+        "last_updated": "2026-08-31",
+        "owner": "@nikhillinit",
+        "status": "HISTORICAL"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-31",
+      "owner": "@nikhillinit",
+      "path": "docs/3-code-review/CR_w6_v2.0.7.md",
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -14848,14 +14950,14 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 464,
+      "ACTIVE": 466,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
       "DRAFT": 35,
       "DRAFT (red-team hardened 2026-06-21)": 1,
-      "HISTORICAL": 37,
+      "HISTORICAL": 41,
       "HISTORICAL-SNAPSHOT": 1,
       "INDEXED": 6,
       "Implemented": 1,
@@ -14870,7 +14972,7 @@
     },
     "missing_frontmatter": 95,
     "stale_docs": 485,
-    "total_docs": 772
+    "total_docs": 778
   },
   "version": "2.0"
 }

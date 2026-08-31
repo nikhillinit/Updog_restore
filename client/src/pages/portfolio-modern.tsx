@@ -2,6 +2,8 @@ import React from 'react';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 import { PortfolioTabs } from '@/components/portfolio/PortfolioTabs';
 import { useFundContext } from '@/contexts/FundContext';
+import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
+import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 
 /**
@@ -26,16 +28,19 @@ export default function ModernPortfolio() {
 
       {/* Workspace row (D-F.2). Portfolio actuals are recorded facts: static
           "Basis: Current" indicator (D-E). */}
-      <WorkspaceNav
-        fundId={fundId !== null ? String(fundId) : null}
-        fundLabel={currentFund?.name ?? 'No fund selected'}
-        active="portfolio-actuals"
-        indicator={<WorkspaceBasisIndicator mode="current" />}
-      />
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <PortfolioTabs defaultTab="companies" syncWithUrl={true} />
-      </div>
+      <FundWorkspaceProvider fundId={fundId}>
+        <WorkspaceNav
+          fundId={fundId !== null ? String(fundId) : null}
+          fundLabel={currentFund?.name ?? 'No fund selected'}
+          active="portfolio-actuals"
+          indicator={<WorkspaceBasisIndicator mode="current" />}
+        />
+        <WorkspaceContextRail>
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <PortfolioTabs defaultTab="companies" syncWithUrl={true} />
+          </div>
+        </WorkspaceContextRail>
+      </FundWorkspaceProvider>
     </div>
   );
 }

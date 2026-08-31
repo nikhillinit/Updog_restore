@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
@@ -91,7 +92,16 @@ describe('FundModelResultsPage (server-backed)', () => {
 
   async function renderPage(path: string) {
     const { Wrapper } = createWouterWrapper(path);
-    return render(<FundModelResultsPage />, { wrapper: Wrapper });
+    // F_1.9.0: FundWorkspaceProvider + WorkspaceContextRail mount on this page
+    // and read react-query directly (facts-latest); the rail's own data hooks
+    // are already module-mocked above.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <FundModelResultsPage />
+      </QueryClientProvider>,
+      { wrapper: Wrapper }
+    );
   }
 
   function createDeferred<T>() {
@@ -594,8 +604,12 @@ describe('FundModelResultsPage (server-backed)', () => {
   it('shows error state when fundId is "latest"', async () => {
     await renderPage('/fund-model-results/latest');
 
-    // Should NOT call fetch (no valid fund ID)
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // Should NOT fetch the page's own results reads (no valid route fund ID).
+    // The F_1.9.0 workspace provider may still read facts for the CONTEXT fund.
+    const pageReads = fetchSpy.mock.calls.filter(
+      ([url]) => typeof url === 'string' && !url.includes('/financial-facts/latest')
+    );
+    expect(pageReads).toEqual([]);
     // Should show error directing user to fund setup
     expect(screen.getByText(/fund setup/i)).toBeInTheDocument();
 
@@ -740,6 +754,8 @@ describe('FundModelResultsPage (server-backed)', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Test Fund' })).toBeInTheDocument();
     });
     expect(screen.getByTestId('workspace-nav-fund')).toHaveTextContent('Test Fund');
+    // F_1.9.0: workspace context rail mounts alongside the workspace row.
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
     expect(screen.getByText(/Vintage 2024/)).toBeInTheDocument();
     // $100M appears in both header and overview card
     const sizeMatches = screen.getAllByText(/\$100M/);
@@ -1510,7 +1526,15 @@ describe('FundModelResultsPage (server-backed)', () => {
     await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
     const nav = screen.getByTestId('workspace-nav');
     const rollup = screen.getByTestId('fund-readiness-rollup');
-    expect(nav.nextElementSibling).toBe(rollup);
+    // F_1.9.0 two-column layout: page content renders in the reserved-width
+    // content column beside the rail; the rollup stays the FIRST content
+    // section under the workspace row group.
+    expect(nav.compareDocumentPosition(rollup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rollup.parentElement?.firstElementChild).toBe(rollup);
+    const rail = screen.getByTestId('workspace-context-rail');
+    // Content and rail share the reserved-width grid (never a fixed overlay).
+    expect(rail.parentElement?.className).toContain('xl:grid-cols-[minmax(0,1fr)_320px]');
+    expect(rail.parentElement?.contains(rollup)).toBe(true);
 
     const scoped = within(rollup);
     expect(
@@ -1591,10 +1615,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     fetchSpy.mockReturnValue(fetchDeferred.promise);
     await renderPage('/fund-model-results/123');
 
-    // Loading: the rollup is already the first section under the nav row.
-    expect(screen.getByTestId('workspace-nav').nextElementSibling).toBe(
-      screen.getByTestId('fund-readiness-rollup')
-    );
+    // Loading: the rollup is already the first content section under the nav
+    // row group (the F_1.9.0 context rail overlay sits between them in DOM).
+    const loadingNav = screen.getByTestId('workspace-nav');
+    const loadingRollup = screen.getByTestId('fund-readiness-rollup');
+    expect(
+      loadingNav.compareDocumentPosition(loadingRollup) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getByTestId('workspace-context-rail')).toBeInTheDocument();
 
     await act(async () => {
       fetchDeferred.resolve(
@@ -1608,7 +1636,10 @@ describe('FundModelResultsPage (server-backed)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/not found/i);
     const rollup = screen.getByTestId('fund-readiness-rollup');
-    expect(screen.getByTestId('workspace-nav').nextElementSibling).toBe(rollup);
+    expect(
+      screen.getByTestId('workspace-nav').compareDocumentPosition(rollup) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     // The failing spoke reads Facts unavailable in the Scenarios row, with
     // the short cause — the page never blanks its dominant object (D-C).
     expect(within(rollup).getByTestId('readiness-row-scenarios-reason')).toHaveTextContent(

@@ -2,7 +2,10 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { PortfolioOverviewResponseV1Schema } from '../../shared/contracts/portfolio-overview-v1.contract';
 import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
 import {
+  CURRENT_FORECAST_V2_FIXTURE,
+  makeCurrentPlanVersionsResponse,
   makeDualForecastResponse,
+  makeFinancialFactsLatestResponse,
   makeNeutralFundMoicRankingsResponseV2,
 } from './fixtures/qa-audit-api';
 
@@ -127,12 +130,31 @@ const FIDELITY_METRICS = {
   lastUpdated: '2026-02-01T00:00:00.000Z',
 };
 
-const FIDELITY_DUAL_FORECAST = makeDualForecastResponse({
-  fundId: FIDELITY_FUND.id,
-  fundName: FIDELITY_FUND.name,
-  asOfDate: FIDELITY_METRICS.actual.asOfDate,
-  actual: FIDELITY_METRICS.actual,
-});
+/**
+ * F_1.9.0 basis paths for the workspace-context rail: golden live, golden
+ * held, and the unavailable path (no served block). The slice loop uses the
+ * golden live default.
+ */
+type FidelityBasis = 'live' | 'held' | 'absent';
+
+function makeFidelityDualForecast(basis: FidelityBasis) {
+  return makeDualForecastResponse({
+    fundId: FIDELITY_FUND.id,
+    fundName: FIDELITY_FUND.name,
+    asOfDate: FIDELITY_METRICS.actual.asOfDate,
+    actual: FIDELITY_METRICS.actual,
+    ...(basis === 'absent' ? {} : { currentForecastV2: basis }),
+  });
+}
+
+const FIDELITY_DUAL_FORECAST_BY_BASIS: Record<FidelityBasis, unknown> = {
+  live: makeFidelityDualForecast('live'),
+  held: makeFidelityDualForecast('held'),
+  absent: makeFidelityDualForecast('absent'),
+};
+
+const FIDELITY_FACTS_LATEST = makeFinancialFactsLatestResponse(FIDELITY_FUND.id);
+const FIDELITY_PLAN_VERSIONS = makeCurrentPlanVersionsResponse(FIDELITY_FUND.id);
 
 const FIDELITY_PORTFOLIO_OVERVIEW = PortfolioOverviewResponseV1Schema.parse({
   fundId: FIDELITY_FUND.id,
@@ -291,7 +313,17 @@ function fundResultsResponse() {
   };
 }
 
-async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTracker> {
+interface RouteFidelityApiOptions {
+  basis?: FidelityBasis;
+  facts?: 'present' | 'missing';
+}
+
+async function installRouteFidelityApi(
+  page: Page,
+  options: RouteFidelityApiOptions = {}
+): Promise<RouteFidelityApiTracker> {
+  const basis = options.basis ?? 'live';
+  const facts = options.facts ?? 'present';
   const unexpectedRequests: string[] = [];
   const observedFundRequests: string[] = [];
 
@@ -314,6 +346,18 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       url.pathname.startsWith('/api/v1/image/')
     ) {
       await route.fulfill({ status: 204, body: '' });
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/auth/session') {
+      await fulfillJson(route, {
+        user: {
+          id: '314',
+          email: 'route-fidelity@example.com',
+          role: 'admin',
+          fundIds: [FIDELITY_FUND.id],
+        },
+      });
       return;
     }
 
@@ -358,7 +402,7 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/dual-forecast`
     ) {
-      await fulfillJson(route, FIDELITY_DUAL_FORECAST);
+      await fulfillJson(route, FIDELITY_DUAL_FORECAST_BY_BASIS[basis]);
       return;
     }
 
@@ -366,7 +410,21 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/current-plan-versions`
     ) {
-      await fulfillJson(route, []);
+      await fulfillJson(route, FIDELITY_PLAN_VERSIONS);
+      return;
+    }
+
+    // F_1.9.0 workspace-context-rail accepted-facts read; the route contract
+    // 404s when no accepted snapshot exists (unavailable-basis path).
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/financial-facts/latest`
+    ) {
+      if (facts === 'missing') {
+        await fulfillJson(route, { error: 'No accepted financial facts snapshot' }, 404);
+      } else {
+        await fulfillJson(route, FIDELITY_FACTS_LATEST);
+      }
       return;
     }
 
@@ -544,10 +602,34 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
 
     if (
       request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/moic/reserve-intelligence/latest`
+    ) {
+      await fulfillJson(route, { code: 'RESERVE_INTELLIGENCE_RUN_NOT_FOUND' }, 404);
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/scenario-sets` &&
       url.search === ''
     ) {
       await fulfillJson(route, { scenarioSets: [] });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/internal-analysis/drafts`
+    ) {
+      await fulfillJson(route, { drafts: [] });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/internal-analysis/references`
+    ) {
+      await fulfillJson(route, { references: [] });
       return;
     }
 
@@ -707,4 +789,149 @@ test.describe('route fund context fidelity', () => {
       expect(consoleFailures).toEqual([]);
     });
   }
+});
+
+test.describe('workspace context rail basis fidelity (F_1.9.0)', () => {
+  const RAIL_ROUTE = `/fund-model-results/${FIDELITY_FUND.id}`;
+  const shortInput = CURRENT_FORECAST_V2_FIXTURE.inputHash.slice(0, 8);
+  const shortResult = CURRENT_FORECAST_V2_FIXTURE.resultHash.slice(0, 8);
+  const shortAssumptions = CURRENT_FORECAST_V2_FIXTURE.assumptionsHash.slice(0, 8);
+  const shortFacts = CURRENT_FORECAST_V2_FIXTURE.factsInputHash.slice(0, 8);
+
+  async function openRailRoute(page: Page, options: RouteFidelityApiOptions) {
+    const apiTracker = await installRouteFidelityApi(page, options);
+    await page.goto(new URL(RAIL_ROUTE, APP_BASE_URL).toString(), {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    const rail = page.getByTestId('workspace-context-rail');
+    await expect(rail).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+    return { apiTracker, rail };
+  }
+
+  for (const responsiveCase of [
+    {
+      label: 'compact command-bar trigger below 1024px',
+      width: 820,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/internal-analysis`,
+      trigger: 'workspace-context-trigger-compact',
+    },
+    {
+      label: 'slide-over trigger from 1024px through 1279px',
+      width: 1100,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/analysis`,
+      trigger: 'workspace-context-trigger',
+    },
+    {
+      label: 'pinned rail at 1280px and wider',
+      width: 1440,
+      route: `/fund-model-results/${FIDELITY_FUND.id}/moic-analysis`,
+      trigger: null,
+    },
+  ] as const) {
+    test(`${responsiveCase.label} mounts route-scoped context`, async ({ page }) => {
+      await page.setViewportSize({ width: responsiveCase.width, height: 900 });
+      const apiTracker = await installRouteFidelityApi(page, { basis: 'live' });
+
+      await page.goto(new URL(responsiveCase.route, APP_BASE_URL).toString(), {
+        waitUntil: 'domcontentloaded',
+        timeout: 30_000,
+      });
+
+      await expect(page.getByRole('navigation', { name: 'Fund workspace' })).toBeVisible({
+        timeout: ROUTE_READY_TIMEOUT_MS,
+      });
+
+      const rail = page.getByTestId('workspace-context-rail');
+      if (responsiveCase.trigger === null) {
+        await expect(rail).toBeVisible();
+        await expect(page.getByTestId('workspace-context-trigger')).toBeHidden();
+        await expect(page.getByTestId('workspace-context-trigger-compact')).toBeHidden();
+      } else {
+        await expect(rail).toBeHidden();
+        const trigger = page.getByTestId(responsiveCase.trigger);
+        await expect(trigger).toBeVisible();
+        await trigger.click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('heading', { name: FIDELITY_FUND.name })).toBeVisible();
+      }
+
+      expect(apiTracker.unexpectedRequests).toEqual([]);
+    });
+  }
+
+  test('golden live basis renders served identity, plan label, and facts freshness', async ({
+    page,
+  }) => {
+    const { apiTracker, rail } = await openRailRoute(page, { basis: 'live' });
+    const basis = rail.getByTestId('workspace-context-basis');
+
+    await expect(basis.getByText('Live', { exact: true })).toBeVisible();
+    await expect(basis.getByText('As of Feb 14, 2026').first()).toBeVisible();
+    await expect(basis.getByText('Plan v1')).toBeVisible();
+    await expect(basis.getByText(shortInput)).toBeVisible();
+    await expect(basis.getByText(shortResult)).toBeVisible();
+    await expect(basis.getByText(shortAssumptions)).toBeVisible();
+    await expect(basis.getByText(/basis unavailable/i)).toHaveCount(0);
+    await expect(basis.getByText('Current forecast is held')).toHaveCount(0);
+
+    // Facts hash renders only under the freshness label.
+    await expect(
+      rail.getByText(
+        `Facts as of ${CURRENT_FORECAST_V2_FIXTURE.factsAsOfDate} · input ${shortFacts}`
+      )
+    ).toBeVisible();
+    await expect(basis.getByText(new RegExp(shortFacts))).toHaveCount(0);
+
+    // Disabled-with-reason controls issue no requests.
+    await expect(
+      rail.getByRole('button', { name: 'Recompute from latest accepted facts' })
+    ).toBeDisabled();
+
+    expect(apiTracker.unexpectedRequests).toEqual([]);
+  });
+
+  test('golden held basis renders the pinned identity and held disclosure, never unavailable', async ({
+    page,
+  }) => {
+    const { apiTracker, rail } = await openRailRoute(page, { basis: 'held' });
+    const basis = rail.getByTestId('workspace-context-basis');
+
+    await expect(basis.getByText('Held reference')).toBeVisible();
+    // Pinned basis identity of the served reference.
+    await expect(basis.getByText(shortInput)).toBeVisible();
+    await expect(basis.getByText(shortResult)).toBeVisible();
+    await expect(basis.getByText(shortAssumptions)).toBeVisible();
+    await expect(basis.getByText('As of Feb 14, 2026').first()).toBeVisible();
+    // Held disclosure content.
+    await expect(basis.getByText('Current forecast is held')).toBeVisible();
+    await expect(basis.getByText(CURRENT_FORECAST_V2_FIXTURE.heldReasonCopy)).toBeVisible();
+    await expect(basis.getByText('Pinned 3 days ago')).toBeVisible();
+    // A held serving is a golden state, never basis-unavailable.
+    await expect(basis.getByText(/basis unavailable/i)).toHaveCount(0);
+
+    expect(apiTracker.unexpectedRequests).toEqual([]);
+  });
+
+  test('unavailable basis renders disabled-with-reason and never fabricates identity', async ({
+    page,
+  }) => {
+    const { apiTracker, rail } = await openRailRoute(page, {
+      basis: 'absent',
+      facts: 'missing',
+    });
+    const basis = rail.getByTestId('workspace-context-basis');
+
+    await expect(basis.getByText('No served current forecast was returned.')).toBeVisible();
+    await expect(basis.getByText('Basis unavailable').first()).toBeVisible();
+    await expect(basis.getByText(shortInput)).toHaveCount(0);
+    await expect(basis.getByText('Current forecast is held')).toHaveCount(0);
+    await expect(rail.getByText('Accepted facts unavailable.')).toBeVisible();
+    await expect(
+      rail.getByText('A single main fund vehicle is required; accepted facts did not provide one.')
+    ).toBeVisible();
+
+    expect(apiTracker.unexpectedRequests).toEqual([]);
+  });
 });
