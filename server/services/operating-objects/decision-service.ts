@@ -21,10 +21,7 @@ import {
   type DecisionSupersedeCommandPreimage,
   type DecisionTransition,
 } from '@shared/contracts/operating-objects/decision.contract';
-import {
-  operatingDecisions,
-  type OperatingDecision,
-} from '@shared/schema/operating-objects';
+import { operatingDecisions, type OperatingDecision } from '@shared/schema/operating-objects';
 
 import { db } from '../../db';
 import { runIdempotentCommand } from '../../lib/idempotent-command';
@@ -120,9 +117,7 @@ function createFields(input: DecisionCreate): DecisionCreate {
     fundId: input.fundId,
     title: input.title,
     recommendation: input.recommendation,
-    ...(input.followUpOwnerId !== undefined
-      ? { followUpOwnerId: input.followUpOwnerId }
-      : {}),
+    ...(input.followUpOwnerId !== undefined ? { followUpOwnerId: input.followUpOwnerId } : {}),
     ...(input.followUpDate !== undefined ? { followUpDate: input.followUpDate } : {}),
   });
 }
@@ -134,9 +129,7 @@ function decisionCreatePreimage(fields: DecisionCreate): DecisionCreateCommandPr
     fundId: fields.fundId,
     title: fields.title,
     recommendation: fields.recommendation,
-    ...(fields.followUpOwnerId !== undefined
-      ? { followUpOwnerId: fields.followUpOwnerId }
-      : {}),
+    ...(fields.followUpOwnerId !== undefined ? { followUpOwnerId: fields.followUpOwnerId } : {}),
     ...(fields.followUpDate !== undefined ? { followUpDate: fields.followUpDate } : {}),
   };
 }
@@ -168,7 +161,9 @@ function isUniqueConstraintViolation(error: unknown, constraintName: string): bo
     return true;
   }
   // Drizzle wraps driver errors in DrizzleQueryError with the pg error as cause.
-  return candidate.cause !== undefined && isUniqueConstraintViolation(candidate.cause, constraintName);
+  return (
+    candidate.cause !== undefined && isUniqueConstraintViolation(candidate.cause, constraintName)
+  );
 }
 
 async function loadDecisionByIdempotencyKey(
@@ -327,12 +322,26 @@ async function requireDecision(
 }
 
 function staleDecisionError(current: DecisionRow, expectedXmin: string): DecisionServiceError {
-  return new DecisionServiceError(
-    412,
-    'PRECONDITION_FAILED',
-    'Decision ETag is stale.',
-    { currentXmin: current.xmin, expectedXmin }
-  );
+  return new DecisionServiceError(412, 'PRECONDITION_FAILED', 'Decision ETag is stale.', {
+    currentXmin: current.xmin,
+    expectedXmin,
+  });
+}
+
+function classifyOutcomeReplay(
+  row: OperatingDecision,
+  outcome: DecisionOutcome['outcome'],
+  actorId: number
+): 'none' | 'match' | 'conflict' {
+  const recorded =
+    row.outcome !== null || row.outcomeRecordedAt !== null || row.outcomeRecordedBy !== null;
+  if (!recorded) return 'none';
+
+  return row.outcome === outcome &&
+    row.outcomeRecordedAt !== null &&
+    row.outcomeRecordedBy === actorId
+    ? 'match'
+    : 'conflict';
 }
 
 export async function transitionDecision(
@@ -365,7 +374,11 @@ export async function transitionDecision(
 
   const result = await loadDecision(input.fundId, input.decisionId, { database });
   if (!result) {
-    throw new DecisionServiceError(500, 'DECISION_UPDATE_LOST', 'Updated decision could not be loaded.');
+    throw new DecisionServiceError(
+      500,
+      'DECISION_UPDATE_LOST',
+      'Updated decision could not be loaded.'
+    );
   }
   return result;
 }
@@ -376,11 +389,25 @@ export async function recordOutcome(
 ): Promise<DecisionRow> {
   const database = options.database ?? db;
   const parsed = DecisionOutcomeSchema.parse({ outcome: input.outcome });
-  if (input.actorId === null || !Number.isInteger(input.actorId) || input.actorId <= 0) {
-    throw new DecisionServiceError(403, 'ACTOR_REQUIRED', 'Numeric actor required to record outcome.');
+  const actorId = input.actorId;
+  if (actorId === null || !Number.isInteger(actorId) || actorId <= 0) {
+    throw new DecisionServiceError(
+      403,
+      'ACTOR_REQUIRED',
+      'Numeric actor required to record outcome.'
+    );
   }
 
   const current = await requireDecision(database, input.fundId, input.decisionId);
+  const replayState = classifyOutcomeReplay(current.row, parsed.outcome, actorId);
+  if (replayState === 'match') return current;
+  if (replayState === 'conflict') {
+    throw new DecisionServiceError(
+      409,
+      'DECISION_OUTCOME_ALREADY_RECORDED',
+      'Decision outcome is immutable once recorded.'
+    );
+  }
   if (current.xmin !== input.expectedXmin) {
     throw staleDecisionError(current, input.expectedXmin);
   }
@@ -391,25 +418,13 @@ export async function recordOutcome(
       'Only accepted or rejected decisions can record an outcome.'
     );
   }
-  if (
-    current.row.outcome !== null ||
-    current.row.outcomeRecordedAt !== null ||
-    current.row.outcomeRecordedBy !== null
-  ) {
-    throw new DecisionServiceError(
-      409,
-      'DECISION_OUTCOME_ALREADY_RECORDED',
-      'Decision outcome is immutable once recorded.'
-    );
-  }
-
   const now = new Date();
   const updated = await database
     .update(operatingDecisions)
     .set({
       outcome: parsed.outcome,
       outcomeRecordedAt: now,
-      outcomeRecordedBy: input.actorId,
+      outcomeRecordedBy: actorId,
       updatedAt: now,
     })
     .where(
@@ -426,6 +441,15 @@ export async function recordOutcome(
     .returning({ id: operatingDecisions.id });
   if (updated.length === 0) {
     const recheck = await requireDecision(database, input.fundId, input.decisionId);
+    const recheckReplayState = classifyOutcomeReplay(recheck.row, parsed.outcome, actorId);
+    if (recheckReplayState === 'match') return recheck;
+    if (recheckReplayState === 'conflict') {
+      throw new DecisionServiceError(
+        409,
+        'DECISION_OUTCOME_ALREADY_RECORDED',
+        'Decision outcome is immutable once recorded.'
+      );
+    }
     if (recheck.xmin !== input.expectedXmin) {
       throw staleDecisionError(recheck, input.expectedXmin);
     }
@@ -438,7 +462,11 @@ export async function recordOutcome(
 
   const result = await loadDecision(input.fundId, input.decisionId, { database });
   if (!result) {
-    throw new DecisionServiceError(500, 'DECISION_UPDATE_LOST', 'Updated decision could not be loaded.');
+    throw new DecisionServiceError(
+      500,
+      'DECISION_UPDATE_LOST',
+      'Updated decision could not be loaded.'
+    );
   }
   return result;
 }

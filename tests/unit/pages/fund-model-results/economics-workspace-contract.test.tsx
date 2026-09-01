@@ -9,8 +9,7 @@ import { workspaceNavItems } from '@/pages/fund-model-results/workspace-nav';
 const unavailable = { kind: 'error', message: 'Facts unavailable' } as const;
 
 describe('economics workspace navigation and readiness contract', () => {
-  it('adds Economics after Reserves among the seven live fund workspace destinations', () => {
-    // F_1.9.0 appends the disabled Operations placeholder as the eighth entry.
+  it('keeps Economics after Reserves among the eight live fund workspace destinations', () => {
     expect(workspaceNavItems('42').map(({ key, label, href }) => [key, label, href])).toEqual([
       ['summary', 'Summary', '/fund-model-results/42'],
       ['forecast', 'Forecast', '/financial-modeling?fundId=42'],
@@ -19,7 +18,7 @@ describe('economics workspace navigation and readiness contract', () => {
       ['analysis', 'Economics', '/fund-model-results/42/analysis'],
       ['scenarios', 'Scenarios', '/fund-model-results/42/scenarios'],
       ['reports', 'Reports', '/fund-model-results/42/reports'],
-      ['operations', 'Operations', null],
+      ['operations', 'Operations', '/fund-model-results/42/operations'],
     ]);
   });
 

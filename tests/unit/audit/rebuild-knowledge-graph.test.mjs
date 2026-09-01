@@ -1023,7 +1023,7 @@ describe('route knowledge-graph generator contract', () => {
     const expected = expectedClientPaths();
     const governed = new Set(ROUTE_GOVERNANCE_REGISTRY.map((entry) => entry.path));
 
-    expect(records).toHaveLength(43);
+    expect(records).toHaveLength(44);
     expect(new Set(paths)).toEqual(expected);
     expect([...expected].filter((routePath) => !governed.has(routePath))).toEqual([
       '/login',

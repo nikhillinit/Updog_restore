@@ -167,6 +167,7 @@ describe('prod-schema manifest sentinels', () => {
       '29-g3-capital-call-notification-outbox.json',
       '30-g3-release-gate-hardening.json',
       '31-operating-decisions-spine.json',
+      '32-current-forecast-recompute-commands.json',
     ]);
   });
 
@@ -269,6 +270,33 @@ describe('prod-schema manifest sentinels', () => {
         [...(table.indexes ?? [])].sort()
       );
     }
+  });
+
+  it('pins manifest 32 to definition-aware recompute command catalog sentinels', () => {
+    const recompute = manifests.find(
+      (entry) => entry.file === '32-current-forecast-recompute-commands.json'
+    );
+    expect(recompute?.manifest).toMatchObject({
+      name: 'current-forecast-recompute-commands',
+      order: 32,
+      missingTablePolicy: 'create_or_repair',
+      sqlFiles: ['migrations/0055_current_forecast_recompute_commands.sql'],
+      allowedCreateTables: ['current_forecast_recompute_commands'],
+    });
+
+    const table = recompute?.manifest.expectedTables?.find(
+      (candidate) => candidate.name === 'current_forecast_recompute_commands'
+    );
+    expect(table).toBeDefined();
+    expect(table!.constraintDefinitions?.map(({ name }) => name).sort()).toEqual(
+      [...(table!.constraints ?? [])].sort()
+    );
+    expect(
+      table!.constraintDefinitions?.find(
+        ({ name }) => name === 'current_forecast_recompute_commands_finalized_at_check'
+      )?.expectedDefinition.stringLiterals
+    ).toEqual(['pending', 'pending']);
+    expect(table!.indexes ?? []).toEqual([]);
   });
 
   it('every referenced sqlFile exists in the repo', () => {

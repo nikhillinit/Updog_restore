@@ -30,6 +30,11 @@ const CORPUS: CorpusEntry[] = [
     expectStatus: 400,
   },
   {
+    label: 'operating-object decisions malformed fundId reaches the mounted handler',
+    path: '/api/funds/abc/decisions',
+    expectStatus: 400,
+  },
+  {
     label: 'unknown api path falls through to the catch-all',
     path: '/api/__no_such_dual_surface_route__/1',
     expectStatus: 404,

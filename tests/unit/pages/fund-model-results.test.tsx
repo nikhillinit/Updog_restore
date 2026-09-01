@@ -1501,6 +1501,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       'Economics',
       'Scenarios',
       'Reports',
+      'Operations',
     ]);
     expect(within(nav).getByRole('link', { name: 'Summary' })).toHaveAttribute(
       'aria-current',

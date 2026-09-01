@@ -74,24 +74,29 @@ describe('FundProvider route-aware selection', () => {
     localStorage.clear();
   });
 
-  it.each(['', '/scenarios', '/reports', '/analysis', '/internal-analysis', '/moic-analysis'])(
-    'prefers the route fund ID on /fund-model-results/:fundId%s',
-    async (suffix) => {
-      const { Wrapper } = createWouterWrapper(`/fund-model-results/2${suffix}`);
+  it.each([
+    '',
+    '/scenarios',
+    '/reports',
+    '/analysis',
+    '/internal-analysis',
+    '/moic-analysis',
+    '/operations',
+  ])('prefers the route fund ID on /fund-model-results/:fundId%s', async (suffix) => {
+    const { Wrapper } = createWouterWrapper(`/fund-model-results/2${suffix}`);
 
-      render(
-        <Wrapper>
-          <FundProvider>
-            <Consumer />
-          </FundProvider>
-        </Wrapper>
-      );
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
 
-      await waitFor(() => {
-        expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
-      });
-    }
-  );
+    await waitFor(() => {
+      expect(screen.getByText('2:Route Fund:false:false')).toBeInTheDocument();
+    });
+  });
 
   it('does not expose a default fund on an invalid fund-results route', async () => {
     const { Wrapper } = createWouterWrapper('/fund-model-results/2/not-a-workspace');

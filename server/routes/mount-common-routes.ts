@@ -38,6 +38,7 @@ import lpDocumentsRouter from './lp-documents.js';
 import lpNotificationsRouter from './lp-notifications.js';
 import lpReportingImportsRouter from './lp-reporting/imports.js';
 import lpReportingMetricRunsRouter from './lp-reporting/metric-runs.js';
+import operatingObjectDecisionsRouter from './operating-object-decisions.js';
 import operatingObjectTasksRouter from './operating-object-tasks.js';
 import performanceApiRouter from './performance-api.js';
 import planningFmvOverridesRouter from './planning-fmv-overrides.js';
@@ -97,6 +98,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   reallocation: at(null, reallocationRouter),
   'cash-flow-events': at(null, cashFlowEventsRouter),
   'operating-object-tasks': at(null, operatingObjectTasksRouter),
+  'operating-object-decisions': at(null, operatingObjectDecisionsRouter),
   'kpi-observations': at(null, kpiObservationsRouter),
   'deal-pipeline': at('/api/deals', dealPipelineRouter),
   'cohort-analysis': at('/api/cohorts', cohortAnalysisRouter),
@@ -144,6 +146,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'reallocation',
     'cash-flow-events',
     'operating-object-tasks',
+    'operating-object-decisions',
     'kpi-observations',
     'fund-metrics',
     'dual-forecast',

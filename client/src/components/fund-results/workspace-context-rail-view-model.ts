@@ -90,7 +90,8 @@ export interface WorkspaceContextRailViewModel {
     disabledReason: string;
   };
   recompute: {
-    disabledReason: string;
+    enabled: boolean;
+    disabledReason: string | null;
   };
   evidence: readonly WorkspaceContextRailEvidenceItem[];
   viewPreset: WorkspaceViewPreset;
@@ -111,6 +112,8 @@ export interface WorkspaceContextRailViewModelInput {
   /** Transport state of the facts-latest read; defaults to `ready`. */
   factsStatus?: WorkspaceContextRailSourceStatus;
   planVersions?: readonly CurrentPlanVersionV1[];
+  recomputeEnabled?: boolean;
+  recomputeDisabledReason?: string | null;
 }
 
 function formatAsOfDate(asOfDate: string | null): string {
@@ -329,6 +332,8 @@ export function buildWorkspaceContextRailViewModel(
     forecastStatus = 'ready',
     forecastErrorDetail = null,
     factsStatus = 'ready',
+    recomputeEnabled = false,
+    recomputeDisabledReason = 'Recompute requires an idempotency-keyed command',
   } = input;
   const plan = planDisplay(context.currentPlanVersionId, planVersions);
   const basis = basisModel(currentForecastV2, planVersions, forecastStatus, forecastErrorDetail);
@@ -399,7 +404,8 @@ export function buildWorkspaceContextRailViewModel(
       disabledReason: 'Bridge amounts not yet exposed by an authorized read contract',
     },
     recompute: {
-      disabledReason: 'Recompute requires an idempotency-keyed command',
+      enabled: recomputeEnabled,
+      disabledReason: recomputeEnabled ? null : recomputeDisabledReason,
     },
     evidence: evidenceModel(basis),
     viewPreset: context.viewPreset,

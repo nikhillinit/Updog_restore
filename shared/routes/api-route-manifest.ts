@@ -669,6 +669,32 @@ export const COMMON_API_ROUTE_MANIFEST = [
     },
   },
   {
+    id: 'operating-object-decisions',
+    sourceModule: './routes/operating-object-decisions.js',
+    mountPath: null,
+    authBoundary: 'global_authenticated',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: ['operating_decisions', 'decision_evidence_links'],
+    },
+    schemaTables: [
+      'operating_decisions',
+      'decision_evidence_links',
+      'internal_analysis_references',
+      'internal_lp_economics_runs',
+      'funds',
+    ],
+    owner: 'gp-team',
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/decisions',
+      expectedStatus: 400,
+      authenticated: true,
+    },
+  },
+  {
     id: 'kpi-observations',
     sourceModule: './routes/kpi-observations.js',
     // The router declares full `/api/...` paths (operating-object-tasks style),

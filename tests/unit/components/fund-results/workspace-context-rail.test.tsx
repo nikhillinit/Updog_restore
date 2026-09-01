@@ -6,9 +6,9 @@
  * facts `snapshotInputHash` renders ONLY under the freshness label, an absent
  * or unavailable block renders disabled-with-reason, and a present `held`
  * block is a SERVED golden state (pinned identity + held disclosure), never
- * basis-unavailable. Bridge, recompute, and evidence rows are all
- * disabled-with-reason; recompute issues NO request; focus treatment is the
- * solid charcoal accent.
+ * basis-unavailable. Bridge and evidence rows stay disabled-with-reason;
+ * recompute is role-gated and reports awaited command outcomes; focus
+ * treatment uses the solid charcoal accent.
  */
 
 import React from 'react';
@@ -364,6 +364,13 @@ const mocks = vi.hoisted(() => ({
     isSuccess: false,
     isError: false,
     error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  authSession: {
+    data: {
+      user: { id: '9', email: 'analyst@example.com', role: 'analyst', fundIds: [42] },
+    } as { user: { id: string; email: string; role: string; fundIds: number[] } } | null,
+    isPending: false,
   },
   planVersions: [] as unknown[],
 }));
@@ -396,7 +403,7 @@ vi.mock('@/hooks/useInternalAnalysis', () => ({
   useInternalAnalysis: () => ({ drafts: [], references: [], isLoading: false, error: null }),
 }));
 vi.mock('@/lib/auth-session', () => ({
-  useAuthSession: () => ({ data: undefined }),
+  useAuthSession: () => mocks.authSession,
 }));
 vi.mock('@/components/fund-results/InternalNarrativePanel', () => ({
   InternalNarrativePanel: () => <div data-testid="internal-narrative-stub" />,
@@ -438,6 +445,13 @@ describe('WorkspaceContextRail', () => {
       isSuccess: true,
       isError: false,
       error: null,
+      refetch: vi.fn().mockResolvedValue({ data: { currentForecastV2: LIVE_BLOCK } }),
+    };
+    mocks.authSession = {
+      data: {
+        user: { id: '9', email: 'analyst@example.com', role: 'analyst', fundIds: [42] },
+      },
+      isPending: false,
     };
     mocks.planVersions = [...PLAN_VERSIONS];
     fetchSpy = vi.fn(async () => jsonResponse(FACTS_LATEST));
@@ -474,6 +488,7 @@ describe('WorkspaceContextRail', () => {
       isSuccess: true,
       isError: false,
       error: null,
+      refetch: vi.fn(),
     };
 
     renderRail();
@@ -495,7 +510,13 @@ describe('WorkspaceContextRail', () => {
     mocks.workspaceContext.vehicleId = null;
     mocks.workspaceContext.asOfDate = null;
     mocks.workspaceContext.currentPlanVersionId = null;
-    mocks.dualForecast = { data: {}, isSuccess: true, isError: false, error: null };
+    mocks.dualForecast = {
+      data: {},
+      isSuccess: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
     fetchSpy.mockResolvedValue(jsonResponse({ message: 'No accepted snapshot' }, 404));
 
     renderRail();
@@ -526,7 +547,10 @@ describe('WorkspaceContextRail', () => {
     );
   });
 
-  it('disables the recompute control with its reason and issues no request', () => {
+  it('keeps recompute visible but disabled with a reason for read-only roles', () => {
+    mocks.authSession.data = {
+      user: { id: '10', email: 'service@example.com', role: 'service', fundIds: [42] },
+    };
     renderRail();
 
     const recompute = screen.getByTestId('workspace-context-recompute');
@@ -536,12 +560,133 @@ describe('WorkspaceContextRail', () => {
     expect(button).toBeDisabled();
     const reasonId = button.getAttribute('aria-describedby')!;
     expect(document.getElementById(reasonId)).toHaveTextContent(
-      'Recompute requires an idempotency-keyed command.'
+      'Your current role has read-only access to recompute.'
     );
 
     const callsBefore = fetchSpy.mock.calls.length;
     fireEvent.click(button);
     expect(fetchSpy.mock.calls.length).toBe(callsBefore);
+  });
+
+  it.each(['operator', 'viewer'])(
+    'normalizes legacy %s role before recompute authorization',
+    (role) => {
+      mocks.authSession.data = {
+        user: { id: '10', email: `${role}@example.com`, role, fundIds: [42] },
+      };
+      renderRail();
+
+      expect(
+        within(screen.getByTestId('workspace-context-recompute')).getByRole('button', {
+          name: 'Recompute from latest accepted facts',
+        })
+      ).toBeEnabled();
+    }
+  );
+
+  it('posts a fresh idempotency key per click and refreshes rail reads after completion', async () => {
+    fetchSpy.mockImplementation(async (input) => {
+      if (String(input).endsWith('/current-forecast/recompute')) {
+        return jsonResponse({ status: 'completed', shadowReconciliationId: 501, replayed: false });
+      }
+      return jsonResponse(FACTS_LATEST);
+    });
+    renderRail();
+
+    const button = within(screen.getByTestId('workspace-context-recompute')).getByRole('button', {
+      name: 'Recompute from latest accepted facts',
+    });
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    await screen.findByText('Recompute completed. Reconciliation 501.');
+    await waitFor(() => expect(mocks.dualForecast.refetch).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.dualForecast.refetch).toHaveBeenCalledTimes(2));
+
+    const commandCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).endsWith('/current-forecast/recompute')
+    );
+    expect(commandCalls).toHaveLength(2);
+    const keys = commandCalls.map(([, init]) =>
+      new Headers((init as RequestInit).headers).get('Idempotency-Key')
+    );
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(keys[1]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it.each([
+    [
+      { status: 'failed', failureCode: 'execution_timeout', replayed: false },
+      'Recompute timed out before completion.',
+    ],
+    [
+      { status: 'failed', failureCode: 'stale_pending', replayed: true },
+      'A stale recompute claim was closed. Try again.',
+    ],
+    [
+      { status: 'skipped', replayed: false },
+      'Recompute skipped because the current forecast mode is not eligible.',
+    ],
+  ])('renders awaited typed recompute outcome %#', async (outcome, expectedMessage) => {
+    fetchSpy.mockImplementation(async (input) =>
+      String(input).endsWith('/current-forecast/recompute')
+        ? jsonResponse(outcome)
+        : jsonResponse(FACTS_LATEST)
+    );
+    renderRail();
+
+    fireEvent.click(
+      within(screen.getByTestId('workspace-context-recompute')).getByRole('button', {
+        name: 'Recompute from latest accepted facts',
+      })
+    );
+
+    expect(await screen.findByText(expectedMessage)).toBeInTheDocument();
+  });
+
+  it('renders an in-flight conflict as a readable result', async () => {
+    fetchSpy.mockImplementation(async (input) =>
+      String(input).endsWith('/current-forecast/recompute')
+        ? jsonResponse(
+            { error: 'RECOMPUTE_IN_FLIGHT', message: 'Current-forecast recompute already running' },
+            409
+          )
+        : jsonResponse(FACTS_LATEST)
+    );
+    renderRail();
+
+    fireEvent.click(
+      within(screen.getByTestId('workspace-context-recompute')).getByRole('button', {
+        name: 'Recompute from latest accepted facts',
+      })
+    );
+
+    expect(await screen.findByText('A recompute is already running.')).toBeInTheDocument();
+  });
+
+  it('falls back to a visible disabled state when the server returns 403', async () => {
+    fetchSpy.mockImplementation(async (input) =>
+      String(input).endsWith('/current-forecast/recompute')
+        ? jsonResponse({ error: 'FORBIDDEN', message: 'Forbidden' }, 403)
+        : jsonResponse(FACTS_LATEST)
+    );
+    renderRail();
+
+    const recompute = screen.getByTestId('workspace-context-recompute');
+    fireEvent.click(
+      within(recompute).getByRole('button', { name: 'Recompute from latest accepted facts' })
+    );
+
+    expect(
+      await within(recompute).findByText('Server denied write access for this fund.')
+    ).toBeInTheDocument();
+    expect(
+      within(recompute).getByRole('button', { name: 'Recompute from latest accepted facts' })
+    ).toBeDisabled();
   });
 
   it('renders every evidence row disabled with an aria-described reason', () => {
@@ -580,7 +725,13 @@ describe('WorkspaceContextRail', () => {
   });
 
   it('renders loading as a non-authoritative pending state, never domain unavailability', () => {
-    mocks.dualForecast = { data: undefined, isSuccess: false, isError: false, error: null };
+    mocks.dualForecast = {
+      data: undefined,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
     // Keep the facts read in flight for the duration of the assertion.
     fetchSpy.mockImplementation(() => new Promise(() => undefined));
 
@@ -613,6 +764,7 @@ describe('WorkspaceContextRail', () => {
       isSuccess: false,
       isError: true,
       error: new Error('HTTP 500: Failed to fetch dual forecast'),
+      refetch: vi.fn(),
     };
     fetchSpy.mockResolvedValue(jsonResponse({ message: 'boom' }, 500));
 
@@ -684,7 +836,13 @@ describe('WorkspaceContextRail', () => {
       currentFund: { id: 7, name: 'Other Fund' },
       isLoading: false,
     };
-    mocks.dualForecast = { data: undefined, isSuccess: false, isError: false, error: null };
+    mocks.dualForecast = {
+      data: undefined,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
 
     renderRail();
 

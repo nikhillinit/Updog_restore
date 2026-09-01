@@ -65,6 +65,7 @@ const expectedJournaledDriftPatchFiles = [
   '0052_g3_capital_call_notification_outbox.sql',
   '0053_g3_release_gate_hardening.sql',
   '0054_operating_decisions_spine.sql',
+  '0055_current_forecast_recompute_commands.sql',
 ].sort();
 
 afterEach(() => {
@@ -188,9 +189,11 @@ describe('migration ledger helpers', () => {
       tag: '0053_g3_release_gate_hardening',
       breakpoints: true,
     });
-    expect(rawJournal.entries.find(
-      (candidate) => candidate.tag === '0052_g3_capital_call_notification_outbox'
-    )?.idx).toBe(53);
+    expect(
+      rawJournal.entries.find(
+        (candidate) => candidate.tag === '0052_g3_capital_call_notification_outbox'
+      )?.idx
+    ).toBe(53);
   });
 
   // T-A1 (WP-L3 Phase A): the pin asserts THIS migration's OWN journal entry
