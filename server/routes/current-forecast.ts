@@ -17,10 +17,7 @@ import {
   getCurrentPlanVersions,
   mintCurrentPlanVersion,
 } from '../services/current-plan-version-service';
-import {
-  CurrentForecastV2ServiceError,
-  runCurrentForecastV2,
-} from '../services/current-forecast-v2-service';
+import { CurrentForecastV2ServiceError } from '../services/current-forecast-v2-service';
 import {
   FundCalculationModeBlockedError,
   FundCalculationModeIdempotencyConflictError,
@@ -61,14 +58,6 @@ const currentForecastWriteLimiter = rateLimit({
 const MintCurrentPlanVersionBodySchema = z
   .object({
     asOfDate: z.string().date().optional(),
-  })
-  .strict();
-
-const RunCurrentForecastV2BodySchema = z
-  .object({
-    currentPlanVersionId: z.string().optional(),
-    financialFactsSnapshotId: z.string().optional(),
-    clock: z.string().datetime().optional(),
   })
   .strict();
 
@@ -238,45 +227,6 @@ router.post(
         ...(parsedBody.data.asOfDate === undefined ? {} : { asOfDate: parsedBody.data.asOfDate }),
       });
       return res.status(200).json(version);
-    } catch (error) {
-      if (respondToTypedError(error, res)) return;
-      throw error;
-    }
-  })
-);
-
-router.post(
-  '/funds/:fundId/current-forecast/runs',
-  currentForecastWriteLimiter,
-  requireAuth(),
-  validateFundIdParam,
-  requireTeamWrite,
-  routeHandler(async (req: Request, res: Response) => {
-    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
-    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
-      return;
-    }
-    const parsedBody = RunCurrentForecastV2BodySchema.safeParse(req.body);
-    if (!parsedBody.success) {
-      return res.status(400).json({
-        error: 'invalid_current_forecast_request',
-        message: 'Current forecast request is invalid',
-        details: parsedBody.error.format(),
-      });
-    }
-
-    try {
-      const forecast = await runCurrentForecastV2({
-        fundId,
-        clock: parsedBody.data.clock ?? new Date().toISOString(),
-        ...(parsedBody.data.currentPlanVersionId === undefined
-          ? {}
-          : { currentPlanVersionId: parsedBody.data.currentPlanVersionId }),
-        ...(parsedBody.data.financialFactsSnapshotId === undefined
-          ? {}
-          : { financialFactsSnapshotId: parsedBody.data.financialFactsSnapshotId }),
-      });
-      return res.status(200).json(forecast);
     } catch (error) {
       if (respondToTypedError(error, res)) return;
       throw error;

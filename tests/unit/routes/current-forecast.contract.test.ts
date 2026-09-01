@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const service = vi.hoisted(() => ({
   getCurrentPlanVersions: vi.fn(),
   mintCurrentPlanVersion: vi.fn(),
-  runCurrentForecastV2: vi.fn(),
   runManualCurrentForecastRecompute: vi.fn(),
 }));
 
@@ -103,7 +102,6 @@ vi.mock('../../../server/services/current-forecast-v2-service', () => {
 
   return {
     CurrentForecastV2ServiceError: MockCurrentForecastV2ServiceError,
-    runCurrentForecastV2: service.runCurrentForecastV2,
   };
 });
 
@@ -122,14 +120,6 @@ const PLAN_VERSION = {
   version: 1,
 };
 
-const FORECAST = {
-  contractVersion: 'current-forecast-v2',
-  fundId: 1,
-  currentPlanVersionId: '41',
-  financialFactsSnapshotId: '31',
-  clock: '2026-07-22T18:24:32.051Z',
-};
-
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -145,7 +135,6 @@ function routeRequests() {
         .post('/api/funds/1/current-plan-versions')
         .set('Idempotency-Key', 'plan-41')
         .send({}),
-    () => request(buildApp()).post('/api/funds/1/current-forecast/runs').send({}),
     () =>
       request(buildApp())
         .post('/api/funds/1/current-forecast/recompute')
@@ -163,7 +152,6 @@ beforeEach(() => {
   fundScopeState.enforceProvidedFundScope.mockClear();
   service.getCurrentPlanVersions.mockResolvedValue([PLAN_VERSION]);
   service.mintCurrentPlanVersion.mockResolvedValue(PLAN_VERSION);
-  service.runCurrentForecastV2.mockResolvedValue(FORECAST);
   service.runManualCurrentForecastRecompute.mockResolvedValue({
     status: 'completed',
     shadowReconciliationId: 91,
@@ -179,7 +167,6 @@ describe('current-forecast route contract', () => {
         .post('/api/funds/not-a-number/current-plan-versions')
         .set('Idempotency-Key', 'invalid-fund-probe')
         .send({}),
-      request(buildApp()).post('/api/funds/not-a-number/current-forecast/runs').send({}),
       request(buildApp())
         .post('/api/funds/not-a-number/current-forecast/recompute')
         .set('Idempotency-Key', 'invalid-fund-recompute')
@@ -192,7 +179,6 @@ describe('current-forecast route contract', () => {
     }
     expect(service.getCurrentPlanVersions).not.toHaveBeenCalled();
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
-    expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
     expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
   });
 
@@ -202,7 +188,7 @@ describe('current-forecast route contract', () => {
       const response = await send();
       expect(response.status).toBe(401);
     }
-    expect(authState.calls).toEqual(['requireAuth', 'requireAuth', 'requireAuth', 'requireAuth']);
+    expect(authState.calls).toEqual(['requireAuth', 'requireAuth', 'requireAuth']);
 
     authState.authenticated = true;
     authState.fundAccess = false;
@@ -218,14 +204,11 @@ describe('current-forecast route contract', () => {
       'requireWriteRole',
       'requireAuth',
       'requireWriteRole',
-      'requireAuth',
-      'requireWriteRole',
     ]);
     expect(service.getCurrentPlanVersions).not.toHaveBeenCalled();
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
-    expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
     expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
-    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledTimes(3);
+    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledTimes(2);
   });
 
   it.each(['partner', 'admin', 'analyst'])(
@@ -237,16 +220,12 @@ describe('current-forecast route contract', () => {
         .post('/api/funds/1/current-plan-versions')
         .set('Idempotency-Key', `plan-${role}`)
         .send({});
-      const forecastResponse = await request(buildApp())
-        .post('/api/funds/1/current-forecast/runs')
-        .send({});
       const recomputeResponse = await request(buildApp())
         .post('/api/funds/1/current-forecast/recompute')
         .set('Idempotency-Key', `recompute-${role}`)
         .send({});
 
       expect(planResponse.status).toBe(200);
-      expect(forecastResponse.status).toBe(200);
       expect(recomputeResponse.status).toBe(201);
     }
   );
@@ -259,16 +238,14 @@ describe('current-forecast route contract', () => {
         .post('/api/funds/1/current-plan-versions')
         .set('Idempotency-Key', 'restricted-plan')
         .send({}),
-      request(buildApp()).post('/api/funds/1/current-forecast/runs').send({}),
       request(buildApp())
         .post('/api/funds/1/current-forecast/recompute')
         .set('Idempotency-Key', 'restricted-recompute')
         .send({}),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([403, 403, 403]);
+    expect(responses.map((response) => response.status)).toEqual([403, 403]);
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
-    expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
     expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
   });
 
@@ -305,33 +282,6 @@ describe('current-forecast route contract', () => {
       idempotencyKey: 'plan-41',
       actorId: 7,
       asOfDate: '2026-07-21',
-    });
-  });
-
-  it('POST current-forecast runs validates its body', async () => {
-    const response = await request(buildApp())
-      .post('/api/funds/1/current-forecast/runs')
-      .send({ clock: 'not-a-date-time' });
-
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({ error: 'invalid_current_forecast_request' });
-    expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
-  });
-
-  it('POST current-forecast runs returns the service result', async () => {
-    const response = await request(buildApp()).post('/api/funds/1/current-forecast/runs').send({
-      currentPlanVersionId: '41',
-      financialFactsSnapshotId: '31',
-      clock: '2026-07-22T18:24:32.051Z',
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual(FORECAST);
-    expect(service.runCurrentForecastV2).toHaveBeenCalledWith({
-      fundId: 1,
-      currentPlanVersionId: '41',
-      financialFactsSnapshotId: '31',
-      clock: '2026-07-22T18:24:32.051Z',
     });
   });
 
