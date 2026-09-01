@@ -7,6 +7,7 @@ const service = vi.hoisted(() => ({
   getCurrentPlanVersions: vi.fn(),
   mintCurrentPlanVersion: vi.fn(),
   runCurrentForecastV2: vi.fn(),
+  runManualCurrentForecastRecompute: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -106,7 +107,12 @@ vi.mock('../../../server/services/current-forecast-v2-service', () => {
   };
 });
 
+vi.mock('../../../server/services/current-forecast-shadow-trigger', () => ({
+  runManualCurrentForecastRecompute: service.runManualCurrentForecastRecompute,
+}));
+
 import currentForecastRouter from '../../../server/routes/current-forecast';
+import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
 import { CurrentPlanVersionServiceError } from '../../../server/services/current-plan-version-service';
 
 const PLAN_VERSION = {
@@ -140,6 +146,11 @@ function routeRequests() {
         .set('Idempotency-Key', 'plan-41')
         .send({}),
     () => request(buildApp()).post('/api/funds/1/current-forecast/runs').send({}),
+    () =>
+      request(buildApp())
+        .post('/api/funds/1/current-forecast/recompute')
+        .set('Idempotency-Key', 'recompute-1')
+        .send({}),
   ];
 }
 
@@ -153,6 +164,11 @@ beforeEach(() => {
   service.getCurrentPlanVersions.mockResolvedValue([PLAN_VERSION]);
   service.mintCurrentPlanVersion.mockResolvedValue(PLAN_VERSION);
   service.runCurrentForecastV2.mockResolvedValue(FORECAST);
+  service.runManualCurrentForecastRecompute.mockResolvedValue({
+    status: 'completed',
+    shadowReconciliationId: 91,
+    replayed: false,
+  });
 });
 
 describe('current-forecast route contract', () => {
@@ -164,6 +180,10 @@ describe('current-forecast route contract', () => {
         .set('Idempotency-Key', 'invalid-fund-probe')
         .send({}),
       request(buildApp()).post('/api/funds/not-a-number/current-forecast/runs').send({}),
+      request(buildApp())
+        .post('/api/funds/not-a-number/current-forecast/recompute')
+        .set('Idempotency-Key', 'invalid-fund-recompute')
+        .send({}),
     ]);
 
     for (const response of responses) {
@@ -173,6 +193,7 @@ describe('current-forecast route contract', () => {
     expect(service.getCurrentPlanVersions).not.toHaveBeenCalled();
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
     expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
+    expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
   });
 
   it('enforces authentication, write roles, and verified write fund scope', async () => {
@@ -181,7 +202,7 @@ describe('current-forecast route contract', () => {
       const response = await send();
       expect(response.status).toBe(401);
     }
-    expect(authState.calls).toEqual(['requireAuth', 'requireAuth', 'requireAuth']);
+    expect(authState.calls).toEqual(['requireAuth', 'requireAuth', 'requireAuth', 'requireAuth']);
 
     authState.authenticated = true;
     authState.fundAccess = false;
@@ -197,11 +218,14 @@ describe('current-forecast route contract', () => {
       'requireWriteRole',
       'requireAuth',
       'requireWriteRole',
+      'requireAuth',
+      'requireWriteRole',
     ]);
     expect(service.getCurrentPlanVersions).not.toHaveBeenCalled();
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
     expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
-    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledTimes(2);
+    expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
+    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledTimes(3);
   });
 
   it.each(['partner', 'admin', 'analyst'])(
@@ -216,9 +240,14 @@ describe('current-forecast route contract', () => {
       const forecastResponse = await request(buildApp())
         .post('/api/funds/1/current-forecast/runs')
         .send({});
+      const recomputeResponse = await request(buildApp())
+        .post('/api/funds/1/current-forecast/recompute')
+        .set('Idempotency-Key', `recompute-${role}`)
+        .send({});
 
       expect(planResponse.status).toBe(200);
       expect(forecastResponse.status).toBe(200);
+      expect(recomputeResponse.status).toBe(201);
     }
   );
 
@@ -231,11 +260,16 @@ describe('current-forecast route contract', () => {
         .set('Idempotency-Key', 'restricted-plan')
         .send({}),
       request(buildApp()).post('/api/funds/1/current-forecast/runs').send({}),
+      request(buildApp())
+        .post('/api/funds/1/current-forecast/recompute')
+        .set('Idempotency-Key', 'restricted-recompute')
+        .send({}),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([403, 403]);
+    expect(responses.map((response) => response.status)).toEqual([403, 403, 403]);
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
     expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
+    expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
   });
 
   it('GET returns current plan versions from the service', async () => {
@@ -300,6 +334,65 @@ describe('current-forecast route contract', () => {
       clock: '2026-07-22T18:24:32.051Z',
     });
   });
+
+  it('POST recompute enforces Idempotency-Key before service work', async () => {
+    const missing = await request(buildApp())
+      .post('/api/funds/1/current-forecast/recompute')
+      .send({});
+    const invalid = await request(buildApp())
+      .post('/api/funds/1/current-forecast/recompute')
+      .set('Idempotency-Key', 'contains space')
+      .send({});
+
+    expect(missing.status).toBe(428);
+    expect(missing.body).toMatchObject({ error: 'IDEMPOTENCY_KEY_REQUIRED' });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body).toMatchObject({ error: 'INVALID_IDEMPOTENCY_KEY' });
+    expect(service.runManualCurrentForecastRecompute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['fresh completed', { status: 'completed', shadowReconciliationId: 91, replayed: false }, 201],
+    [
+      'replayed completed',
+      { status: 'completed', shadowReconciliationId: 91, replayed: true },
+      200,
+    ],
+    ['fresh skipped', { status: 'skipped', replayed: false }, 200],
+    ['fresh failed', { status: 'failed', failureCode: 'execution_error', replayed: false }, 200],
+  ] as const)('POST recompute returns %s outcome', async (_label, outcome, expectedStatus) => {
+    service.runManualCurrentForecastRecompute.mockResolvedValueOnce(outcome);
+
+    const response = await request(buildApp())
+      .post('/api/funds/1/current-forecast/recompute')
+      .set('Idempotency-Key', ' recompute-1 ')
+      .send({});
+
+    expect(response.status).toBe(expectedStatus);
+    expect(response.body).toEqual(outcome);
+    expect(service.runManualCurrentForecastRecompute).toHaveBeenCalledWith({
+      fundId: 1,
+      idempotencyKey: 'recompute-1',
+      actorId: 7,
+    });
+  });
+
+  it.each(['RECOMPUTE_IN_FLIGHT', 'IDEMPOTENCY_KEY_REUSE'])(
+    'POST recompute propagates %s as 409',
+    async (code) => {
+      service.runManualCurrentForecastRecompute.mockRejectedValueOnce(
+        new IdempotentCommandError(409, code, 'Conflict')
+      );
+
+      const response = await request(buildApp())
+        .post('/api/funds/1/current-forecast/recompute')
+        .set('Idempotency-Key', 'recompute-conflict')
+        .send({});
+
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ error: code, message: 'Conflict' });
+    }
+  );
 
   it('maps typed current-plan service errors to their route status', async () => {
     service.mintCurrentPlanVersion.mockRejectedValueOnce(

@@ -2,6 +2,8 @@ import { Fragment, forwardRef, useMemo, useState } from 'react';
 import type { ComponentPropsWithoutRef, KeyboardEvent, ReactNode } from 'react';
 import { Info, PanelRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { isTeamRole } from '@shared/auth/effective-roles';
+import type { CurrentForecastRecomputeFailureCode } from '@shared/schema/current-forecast-recompute-commands';
 import {
   Sheet,
   SheetContent,
@@ -18,6 +20,9 @@ import {
 import { useFundWorkspaceContext } from '@/hooks/useFundWorkspaceContext';
 import { useCurrentPlanVersions } from '@/hooks/useCurrentPlanVersions';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import { useAuthSession } from '@/lib/auth-session';
+import { ApiError, apiRequest } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import {
   buildWorkspaceContextRailViewModel,
@@ -32,6 +37,48 @@ const PRESET_OPTIONS = [
   { value: 'analyst', label: 'Analyst' },
   { value: 'operations', label: 'Operations' },
 ] as const;
+
+type RecomputeOutcome =
+  | { status: 'completed'; shadowReconciliationId: number; replayed: boolean }
+  | { status: 'failed'; failureCode: CurrentForecastRecomputeFailureCode; replayed: boolean }
+  | { status: 'skipped'; replayed: boolean };
+
+type RecomputeReadback = {
+  fundId: number;
+  tone: 'success' | 'warning' | 'error';
+  message: string;
+};
+
+const RECOMPUTE_FAILURE_MESSAGES: Record<CurrentForecastRecomputeFailureCode, string> = {
+  execution_timeout: 'Recompute timed out before completion.',
+  execution_error: 'Recompute failed during execution.',
+  mode_ineligible: 'Current forecast mode is not eligible for manual recompute.',
+  stale_pending: 'A stale recompute claim was closed. Try again.',
+};
+
+function recomputeReadback(fundId: number, outcome: RecomputeOutcome): RecomputeReadback {
+  if (outcome.status === 'completed') {
+    return {
+      fundId,
+      tone: 'success',
+      message: `Recompute completed. Reconciliation ${outcome.shadowReconciliationId}.`,
+    };
+  }
+
+  if (outcome.status === 'skipped') {
+    return {
+      fundId,
+      tone: 'warning',
+      message: 'Recompute skipped because the current forecast mode is not eligible.',
+    };
+  }
+
+  return {
+    fundId,
+    tone: 'error',
+    message: RECOMPUTE_FAILURE_MESSAGES[outcome.failureCode] ?? 'Recompute failed.',
+  };
+}
 
 function focusClassName(): string {
   return 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-presson-accent focus-visible:ring-offset-2';
@@ -259,14 +306,28 @@ function DisabledBridge({
   );
 }
 
-function DisabledRecompute({
+function RecomputeControl({
   model,
   idPrefix,
+  busy,
+  readback,
+  onRecompute,
 }: {
   model: WorkspaceContextRailViewModel;
   idPrefix: string;
+  busy: boolean;
+  readback: RecomputeReadback | null;
+  onRecompute: () => void;
 }) {
   const reasonId = `${idPrefix}-recompute-reason`;
+  const resultId = `${idPrefix}-recompute-result`;
+  const disabled = !model.recompute.enabled || busy;
+  const readbackClass =
+    readback?.tone === 'success'
+      ? 'text-presson-positive'
+      : readback?.tone === 'error'
+        ? 'text-presson-negative'
+        : 'text-presson-warning';
 
   return (
     <section
@@ -279,19 +340,39 @@ function DisabledRecompute({
       </h3>
       <button
         type="button"
-        disabled
-        aria-disabled="true"
-        aria-describedby={reasonId}
+        disabled={disabled}
+        aria-disabled={disabled}
+        aria-describedby={
+          model.recompute.disabledReason ? reasonId : readback ? resultId : undefined
+        }
+        onClick={onRecompute}
         className={cn(
-          'mt-2 min-h-11 w-full rounded-md border border-presson-borderSubtle bg-presson-surface px-3 py-2 text-left text-sm font-medium text-presson-textMuted opacity-70',
+          'mt-2 min-h-11 w-full rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors motion-reduce:transition-none',
+          disabled
+            ? 'border-presson-borderSubtle bg-presson-surface text-presson-textMuted opacity-70'
+            : 'border-presson-accent bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90',
           focusClassName()
         )}
       >
-        Recompute from latest accepted facts
+        {busy
+          ? 'Recomputing from latest accepted facts...'
+          : 'Recompute from latest accepted facts'}
       </button>
-      <p id={reasonId} className="mt-2 text-xs text-presson-textMuted">
-        {model.recompute.disabledReason}.
-      </p>
+      {model.recompute.disabledReason ? (
+        <p id={reasonId} className="mt-2 text-xs text-presson-textMuted">
+          {model.recompute.disabledReason}.
+        </p>
+      ) : null}
+      {readback ? (
+        <p
+          id={resultId}
+          role="status"
+          aria-live="polite"
+          className={cn('mt-2 text-xs', readbackClass)}
+        >
+          {readback.message}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -332,10 +413,16 @@ function RailContent({
   model,
   idPrefix,
   onViewPresetChange,
+  recomputeBusy,
+  recomputeReadback,
+  onRecompute,
 }: {
   model: WorkspaceContextRailViewModel;
   idPrefix: string;
   onViewPresetChange: (value: WorkspaceContextRailViewModel['viewPreset']) => void;
+  recomputeBusy: boolean;
+  recomputeReadback: RecomputeReadback | null;
+  onRecompute: () => void;
 }) {
   // Presets are presentation-only: the section keys below render in the
   // model's per-preset order (emphasis/ordering, never queries or actions).
@@ -407,7 +494,15 @@ function RailContent({
       </section>
     ),
     bridge: <DisabledBridge model={model} idPrefix={idPrefix} />,
-    recompute: <DisabledRecompute model={model} idPrefix={idPrefix} />,
+    recompute: (
+      <RecomputeControl
+        model={model}
+        idPrefix={idPrefix}
+        busy={recomputeBusy}
+        readback={recomputeReadback}
+        onRecompute={onRecompute}
+      />
+    ),
     evidence: (
       <section
         aria-labelledby={`${idPrefix}-evidence-heading`}
@@ -484,6 +579,11 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
   const { currentFund } = useFundContext();
   const fundId = workspaceContext.fundId > 0 ? workspaceContext.fundId : null;
   const [open, setOpen] = useState(false);
+  const [recomputeBusy, setRecomputeBusy] = useState(false);
+  const [recomputeResult, setRecomputeResult] = useState<RecomputeReadback | null>(null);
+  const [writeDeniedFundId, setWriteDeniedFundId] = useState<number | null>(null);
+  const recomputeIdempotencyKey = useIdempotencyKey();
+  const authSession = useAuthSession(fundId != null);
   const dualForecastQuery = useDualForecast(fundId);
   const factsQuery = useQuery({
     queryKey: financialFactsLatestQueryKey(fundId),
@@ -523,6 +623,62 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
         : factsQuery.data === undefined
           ? 'pending'
           : 'ready';
+  const role = authSession.data?.user.role;
+  const hasTeamWriteRole = isTeamRole(role);
+  const recomputeDisabledReason =
+    fundId == null
+      ? 'Select a fund before recomputing'
+      : authSession.isPending
+        ? 'Checking write access'
+        : writeDeniedFundId === fundId
+          ? 'Server denied write access for this fund'
+          : !hasTeamWriteRole
+            ? 'Your current role has read-only access to recompute'
+            : null;
+  const handleRecompute = async () => {
+    if (fundId == null || recomputeDisabledReason !== null || recomputeBusy) return;
+
+    setRecomputeBusy(true);
+    setRecomputeResult(null);
+    try {
+      const outcome = await apiRequest<RecomputeOutcome>(
+        'POST',
+        `/api/funds/${fundId}/current-forecast/recompute`,
+        {},
+        { headers: { 'Idempotency-Key': recomputeIdempotencyKey.keyFor(fundId) } }
+      );
+      // A returned outcome (completed or failed) is a durably recorded
+      // command; retries after a thrown transport error reuse the key so
+      // server dedup and stale-pending recovery engage.
+      recomputeIdempotencyKey.reset();
+      setRecomputeResult(recomputeReadback(fundId, outcome));
+      if (outcome.status === 'completed') {
+        await Promise.all([dualForecastQuery.refetch(), factsQuery.refetch()]);
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        setWriteDeniedFundId(fundId);
+      } else if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.errorCode === 'RECOMPUTE_IN_FLIGHT'
+      ) {
+        setRecomputeResult({
+          fundId,
+          tone: 'warning',
+          message: 'A recompute is already running.',
+        });
+      } else {
+        setRecomputeResult({
+          fundId,
+          tone: 'error',
+          message: 'Recompute request failed.',
+        });
+      }
+    } finally {
+      setRecomputeBusy(false);
+    }
+  };
   const model = useMemo(
     () =>
       buildWorkspaceContextRailViewModel({
@@ -536,6 +692,8 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
         ...(factsQuery.data !== undefined ? { factsLatest: factsQuery.data } : {}),
         factsStatus,
         planVersions: planVersionsQuery.versions,
+        recomputeEnabled: recomputeDisabledReason === null,
+        recomputeDisabledReason,
       }),
     [
       scopedFundName,
@@ -545,15 +703,20 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
       factsStatus,
       forecastStatus,
       planVersionsQuery.versions,
+      recomputeDisabledReason,
       workspaceContext,
     ]
   );
+  const visibleRecomputeResult = recomputeResult?.fundId === fundId ? recomputeResult : null;
 
   const content = (
     <RailContent
       model={model}
       idPrefix="desktop"
       onViewPresetChange={workspaceContext.setViewPreset}
+      recomputeBusy={recomputeBusy}
+      recomputeReadback={visibleRecomputeResult}
+      onRecompute={handleRecompute}
     />
   );
 
@@ -585,6 +748,9 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
               model={model}
               idPrefix="sheet"
               onViewPresetChange={workspaceContext.setViewPreset}
+              recomputeBusy={recomputeBusy}
+              recomputeReadback={visibleRecomputeResult}
+              onRecompute={handleRecompute}
             />
           </div>
         </SheetContent>

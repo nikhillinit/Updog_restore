@@ -24,6 +24,18 @@ and this project adheres to
 
 ### Added (2026-08-31)
 
+- **Operations workspace remainder (F_1.10.0, issues #1290/#1293).** Added the
+  fund-scoped operating-decisions HTTP surface and analysis-shell operations
+  page, including optimistic-locking/idempotency contracts and derived
+  supersession state. Added durable manual current-forecast recompute through
+  migration 0055: claim-first pending rows, immediate in-flight 409, 90-second
+  stale recovery, sanitized terminal outcomes, and final-CAS transaction fencing
+  that rolls back late executor snapshots and reconciliations. The context rail
+  now exposes role-gated awaited recompute results without minting candidate
+  references or changing served state. Real PostgreSQL coverage proves
+  nullable/non-null reconciliation deduplication, one same-key execution,
+  organic provenance preservation, and lost-CAS rollback.
+
 - **Operating decisions spine (F_1.8.0, issue #1289).** Migration 0054 adds
   fund-scoped `operating_decisions` (proposed/accepted/rejected/deferred
   lifecycle trigger, immutable terminal rows, one-shot outcomes, same-fund

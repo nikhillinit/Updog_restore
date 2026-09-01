@@ -14,7 +14,7 @@ import {
 } from '@shared/contracts/operating-objects/task-evidence-link.contract';
 import type { Task } from '@shared/schema/operating-objects';
 import { firstString } from '../lib/request-values';
-import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { enforceProvidedFundScope, enforceTeamWriteRole } from '../lib/auth/provided-fund-scope';
 import { parseETag, rowVersionETag } from '../lib/http-preconditions';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
@@ -68,7 +68,10 @@ router['post']('/api/funds/:fundId/tasks', async (req: Request, res: Response) =
     if (fundId === null) {
       return res.status(400).json({ error: 'Invalid fund ID' });
     }
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+    if (!enforceTeamWriteRole(req, res)) {
       return;
     }
     const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
@@ -183,6 +186,9 @@ router['post'](
       if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
+      if (!enforceTeamWriteRole(req, res)) {
+        return;
+      }
 
       const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
       if (parsedKey.kind === 'missing') {
@@ -244,7 +250,10 @@ router['patch']('/api/funds/:fundId/tasks/:taskId', async (req: Request, res: Re
     if (taskId === null) {
       return res.status(400).json({ error: 'Invalid task ID' });
     }
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+    if (!enforceTeamWriteRole(req, res)) {
       return;
     }
     // If-Match required, checked BEFORE body validation (mirrors cash-flow-events).

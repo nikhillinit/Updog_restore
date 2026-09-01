@@ -1,3 +1,5 @@
+import { and, eq, isNull } from 'drizzle-orm';
+
 import { db } from '../db';
 import { substrateShadowReconciliations } from '@shared/schema';
 import type { InsertSubstrateShadowReconciliation } from '../../shared/schema/substrate-shadow-reconciliations';
@@ -219,16 +221,49 @@ export function buildCurrentForecastShadowRecord(params: BuildCurrentForecastSha
 }
 
 /** Default append-only writer (substrate-writer shape: idempotent, no rethrow filtering). */
+export interface CurrentForecastShadowReconciliationWriteResult {
+  id: number;
+  created: boolean;
+}
+
 export async function persistCurrentForecastShadowReconciliation(
   record: InsertSubstrateShadowReconciliation,
   database: typeof db = db
-): Promise<void> {
-  await database.insert(substrateShadowReconciliations).values(record).onConflictDoNothing();
+): Promise<CurrentForecastShadowReconciliationWriteResult> {
+  const [inserted] = await database
+    .insert(substrateShadowReconciliations)
+    .values(record)
+    .onConflictDoNothing()
+    .returning({ id: substrateShadowReconciliations.id });
+
+  if (inserted) return { id: inserted.id, created: true };
+
+  const resultHash = record.resultHash ?? null;
+  const [existing] = await database
+    .select({ id: substrateShadowReconciliations.id })
+    .from(substrateShadowReconciliations)
+    .where(
+      and(
+        eq(substrateShadowReconciliations.fundId, record.fundId),
+        eq(substrateShadowReconciliations.calculationKey, record.calculationKey),
+        eq(substrateShadowReconciliations.inputHash, record.inputHash),
+        resultHash === null
+          ? isNull(substrateShadowReconciliations.resultHash)
+          : eq(substrateShadowReconciliations.resultHash, resultHash)
+      )
+    )
+    .limit(1);
+
+  if (!existing) {
+    throw new Error('Current-forecast shadow reconciliation conflict row not found');
+  }
+
+  return { id: existing.id, created: false };
 }
 
 export type PersistCurrentForecastShadowReconciliationFn = (
   record: InsertSubstrateShadowReconciliation
-) => Promise<void>;
+) => Promise<CurrentForecastShadowReconciliationWriteResult | void>;
 
 /** Persist a non-engine failure without allowing duplicate retries to resurrect it. */
 export async function persistCurrentForecastShadowFailure(params: {

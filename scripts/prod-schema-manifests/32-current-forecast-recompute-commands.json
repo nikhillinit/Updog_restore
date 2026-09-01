@@ -1,0 +1,201 @@
+{
+  "name": "current-forecast-recompute-commands",
+  "order": 32,
+  "description": "F_1.10.0 Phase 3 migration 0055: durable claim-first manual current-forecast recompute commands with terminal outcome coupling and reconciliation provenance.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0055_current_forecast_recompute_commands.sql"],
+  "allowedCreateTables": ["current_forecast_recompute_commands"],
+  "expectedTables": [
+    {
+      "name": "current_forecast_recompute_commands",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "failure_code", "type": "varchar", "nullable": true },
+        {
+          "name": "shadow_reconciliation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_reconciliation",
+          "type": "boolean",
+          "nullable": false
+        },
+        { "name": "started_at", "type": "timestamptz", "nullable": false },
+        { "name": "finalized_at", "type": "timestamptz", "nullable": true },
+        { "name": "created_by", "type": "integer", "nullable": true }
+      ],
+      "constraints": [
+        "current_forecast_recompute_commands_pkey",
+        "current_forecast_recompute_commands_fund_fk",
+        "current_forecast_recompute_commands_reconciliation_fk",
+        "current_forecast_recompute_commands_created_by_fk",
+        "current_forecast_recompute_commands_fund_idempotency_unique",
+        "current_forecast_recompute_commands_status_check",
+        "current_forecast_recompute_commands_request_hash_check",
+        "current_forecast_recompute_commands_failure_code_check",
+        "current_forecast_recompute_commands_terminal_coupling_check",
+        "current_forecast_recompute_commands_finalized_at_check",
+        "current_forecast_recompute_commands_created_recon_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "current_forecast_recompute_commands_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_reconciliation_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (shadow_reconciliation_id) REFERENCES substrate_shadow_reconciliations(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(shadow_reconciliation_id)",
+              "REFERENCES substrate_shadow_reconciliations(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_created_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(created_by)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_fund_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE", "(fund_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_status_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'completed'::character varying, 'failed'::character varying, 'skipped'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "(status)::text",
+              "ANY",
+              "'pending'::character varying",
+              "'completed'::character varying",
+              "'failed'::character varying",
+              "'skipped'::character varying"
+            ],
+            "stringLiterals": ["pending", "completed", "failed", "skipped"]
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_request_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((request_hash)::text ~ '^[a-f0-9]{64}$'::text))",
+            "orderedFragments": [
+              "CHECK",
+              "(request_hash)::text",
+              "~",
+              "'^[a-f0-9]{64}$'::text"
+            ],
+            "stringLiterals": ["^[a-f0-9]{64}$"]
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_failure_code_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((failure_code IS NULL) OR ((failure_code)::text = ANY ((ARRAY['execution_timeout'::character varying, 'execution_error'::character varying, 'mode_ineligible'::character varying, 'stale_pending'::character varying])::text[]))))",
+            "orderedFragments": [
+              "CHECK",
+              "failure_code IS NULL",
+              "OR",
+              "ANY",
+              "'execution_timeout'::character varying",
+              "'execution_error'::character varying",
+              "'mode_ineligible'::character varying",
+              "'stale_pending'::character varying"
+            ],
+            "stringLiterals": [
+              "execution_timeout",
+              "execution_error",
+              "mode_ineligible",
+              "stale_pending"
+            ]
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_terminal_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((status)::text = 'completed'::text) AND (shadow_reconciliation_id IS NOT NULL) AND (failure_code IS NULL)) OR (((status)::text = 'failed'::text) AND (failure_code IS NOT NULL) AND (shadow_reconciliation_id IS NULL)) OR (((status)::text = ANY ((ARRAY['pending'::character varying, 'skipped'::character varying])::text[])) AND (shadow_reconciliation_id IS NULL) AND (failure_code IS NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "'completed'::text",
+              "shadow_reconciliation_id IS NOT NULL",
+              "failure_code IS NULL",
+              "OR",
+              "'failed'::text",
+              "failure_code IS NOT NULL",
+              "shadow_reconciliation_id IS NULL",
+              "'pending'::character varying",
+              "'skipped'::character varying"
+            ],
+            "stringLiterals": ["completed", "failed", "pending", "skipped"]
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_finalized_at_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((status)::text = 'pending'::text) AND (finalized_at IS NULL)) OR (((status)::text <> 'pending'::text) AND (finalized_at IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "'pending'::text",
+              "finalized_at IS NULL",
+              "OR",
+              "<>",
+              "finalized_at IS NOT NULL"
+            ],
+            "stringLiterals": ["pending", "pending"]
+          }
+        },
+        {
+          "name": "current_forecast_recompute_commands_created_recon_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((NOT created_reconciliation) OR (((status)::text = 'completed'::text) AND (shadow_reconciliation_id IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "NOT created_reconciliation",
+              "OR",
+              "'completed'::text",
+              "shadow_reconciliation_id IS NOT NULL"
+            ],
+            "stringLiterals": ["completed"]
+          }
+        }
+      ]
+    }
+  ]
+}

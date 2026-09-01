@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { insert, values, onConflictDoNothing } = vi.hoisted(() => {
-  const onConflictDoNothing = vi.fn(() => Promise.resolve({ rowsAffected: 0 }));
-  const values = vi.fn(() => ({ onConflictDoNothing }));
-  const insert = vi.fn(() => ({ values }));
-  return { insert, values, onConflictDoNothing };
-});
+const { insert, values, onConflictDoNothing, returning, select, from, where, limit } = vi.hoisted(
+  () => {
+    const returning = vi.fn();
+    const onConflictDoNothing = vi.fn(() => ({ returning }));
+    const values = vi.fn(() => ({ onConflictDoNothing }));
+    const insert = vi.fn(() => ({ values }));
+    const limit = vi.fn();
+    const where = vi.fn(() => ({ limit }));
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    return { insert, values, onConflictDoNothing, returning, select, from, where, limit };
+  }
+);
 
-vi.mock('../../../server/db', () => ({ db: { insert } }));
+vi.mock('../../../server/db', () => ({ db: { insert, select } }));
 
 import { runCohortProjectionV2 } from '@shared/core/cohorts/CohortProjectionV2';
 import { substrateShadowReconciliations } from '../../../shared/schema';
@@ -481,9 +488,11 @@ describe('evaluateCurrentForecastShadowGreen (D1: legacy parity is not a criteri
 describe('persistCurrentForecastShadowReconciliation (default writer)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    returning.mockResolvedValue([{ id: 41 }]);
+    limit.mockResolvedValue([]);
   });
 
-  it('issues insert(table).values(record).onConflictDoNothing() exactly once', async () => {
+  it('returns the inserted row id for a fresh reconciliation', async () => {
     const entry = corpusEntry('full-facts');
     const { record } = buildCurrentForecastShadowRecord({
       base: toShadowBase(entry),
@@ -491,12 +500,73 @@ describe('persistCurrentForecastShadowReconciliation (default writer)', () => {
       modes: SHADOW_MODES,
     });
 
-    await persistCurrentForecastShadowReconciliation(record);
+    await expect(persistCurrentForecastShadowReconciliation(record)).resolves.toEqual({
+      id: 41,
+      created: true,
+    });
 
     expect(insert).toHaveBeenCalledOnce();
     expect(insert).toHaveBeenCalledWith(substrateShadowReconciliations);
     expect(values).toHaveBeenCalledOnce();
     expect(values).toHaveBeenCalledWith(record);
     expect(onConflictDoNothing).toHaveBeenCalledOnce();
+    expect(returning).toHaveBeenCalledWith({ id: substrateShadowReconciliations.id });
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing row id after a non-null result-hash conflict', async () => {
+    returning.mockResolvedValue([]);
+    limit.mockResolvedValue([{ id: 42 }]);
+    const entry = corpusEntry('full-facts');
+    const { record } = buildCurrentForecastShadowRecord({
+      base: toShadowBase(entry),
+      result: runEngine(entry),
+      modes: SHADOW_MODES,
+    });
+
+    await expect(persistCurrentForecastShadowReconciliation(record)).resolves.toEqual({
+      id: 42,
+      created: false,
+    });
+
+    expect(select).toHaveBeenCalledWith({ id: substrateShadowReconciliations.id });
+    expect(from).toHaveBeenCalledWith(substrateShadowReconciliations);
+    expect(where).toHaveBeenCalledOnce();
+    expect(limit).toHaveBeenCalledWith(1);
+  });
+
+  it('returns the existing row id after a null result-hash conflict', async () => {
+    returning.mockResolvedValue([]);
+    limit.mockResolvedValue([{ id: 43 }]);
+    const entry = corpusEntry('full-facts');
+    const { record } = buildCurrentForecastShadowRecord({
+      base: toShadowBase(entry),
+      result: null,
+      modes: SHADOW_MODES,
+    });
+
+    expect(record.resultHash).toBeNull();
+    await expect(persistCurrentForecastShadowReconciliation(record)).resolves.toEqual({
+      id: 43,
+      created: false,
+    });
+
+    expect(where).toHaveBeenCalledOnce();
+    expect(limit).toHaveBeenCalledWith(1);
+  });
+
+  it('fails closed when a conflict row cannot be read back', async () => {
+    returning.mockResolvedValue([]);
+    limit.mockResolvedValue([]);
+    const entry = corpusEntry('full-facts');
+    const { record } = buildCurrentForecastShadowRecord({
+      base: toShadowBase(entry),
+      result: runEngine(entry),
+      modes: SHADOW_MODES,
+    });
+
+    await expect(persistCurrentForecastShadowReconciliation(record)).rejects.toThrow(
+      'Current-forecast shadow reconciliation conflict row not found'
+    );
   });
 });

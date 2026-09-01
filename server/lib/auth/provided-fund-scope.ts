@@ -14,6 +14,27 @@ function assertTokenRequiredOutsideDevelopment(): void {
   }
 }
 
+/**
+ * Team-write role gate for mutation handlers that authenticate via
+ * enforceProvidedFundScope instead of requireAuth middleware. Call it after a
+ * passing enforceProvidedFundScope so req.user reflects the verified
+ * credential. An absent user is only reachable through the development/test
+ * no-credential fallback that enforceProvidedFundScope already asserts, so it
+ * stays permitted there. Mirrors requireWriteRole(TEAM_WRITE_ROLES) semantics
+ * (admin/partner/analyst, never lp-linked users).
+ */
+export function enforceTeamWriteRole(req: Request, res: Response): boolean {
+  if (req.user === undefined || isTeamMemberUser(req.user)) {
+    return true;
+  }
+  res.status(403).json({
+    error: 'Forbidden',
+    code: 'TEAM_WRITE_REQUIRED',
+    message: 'A team write role is required for this operation',
+  });
+  return false;
+}
+
 function denyFundAccess(res: Response, fundId: number): void {
   res.status(403).json({
     error: 'Forbidden',

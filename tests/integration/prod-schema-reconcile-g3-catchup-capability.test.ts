@@ -50,20 +50,25 @@ async function createTestDatabase(): Promise<void> {
   // Production parity: schema journal applied through 0049 only; migrations
   // 0050-0053 (the four catch-up targets) are absent.
   await runMigrationsWithConnectionString(testConnectionString, '0049_kpi_observations');
-  await applyOperatingDecisionsSpineShape();
+  await applyPostEraNonTargetShapes();
 }
 
 // The capability pins the LIVE canonical manifest vector, so every non-target
-// manifest must audit SKIP. Manifest 31 (operating-decisions-spine, journal
-// 0054) is pinned by tag, not tail position — its parents all predate 0050 —
-// so replay it raw to give the clone the post-era shape without touching the
+// manifest must audit SKIP. Manifests 31-32 (journals 0054-0055) are pinned by
+// tag, not tail position — their parents all predate 0050 — so replay their
+// raw shapes to give the clone the post-era shape without touching the
 // absent catch-up targets the capability must converge.
-async function applyOperatingDecisionsSpineShape(): Promise<void> {
-  const migration = await readFile('migrations/0054_operating_decisions_spine.sql', 'utf8');
+async function applyPostEraNonTargetShapes(): Promise<void> {
+  const migrations = await Promise.all([
+    readFile('migrations/0054_operating_decisions_spine.sql', 'utf8'),
+    readFile('migrations/0055_current_forecast_recompute_commands.sql', 'utf8'),
+  ]);
   const client = new Client({ connectionString: testConnectionString });
   await client.connect();
   try {
-    await client.query(migration.replaceAll('--> statement-breakpoint', '\n'));
+    for (const migration of migrations) {
+      await client.query(migration.replaceAll('--> statement-breakpoint', '\n'));
+    }
   } finally {
     await client.end();
   }

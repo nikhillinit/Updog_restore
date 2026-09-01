@@ -127,6 +127,22 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/auth/session') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: '314',
+            email: 'qa-route-publish@example.com',
+            role: 'admin',
+            fundIds: [FUND_ONE.id],
+          },
+        }),
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       if (scenario === 'failed') {
         await route.fulfill({

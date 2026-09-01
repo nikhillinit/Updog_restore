@@ -2,7 +2,7 @@
  * Workspace navigation row (Plan 9 Wave 9B1, D-F.2/D-F.5; F_1.9.0 preset
  * propagation).
  *
- * Pins the seven-live-destinations-plus-disabled-Operations contract: labels,
+ * Pins the eight-live-destinations contract: labels,
  * hrefs, nav-item ORDER (Portfolio Actuals BEFORE Reserves), per-surface
  * active state, disabled-with-reason gating (D-C), the static basis indicator
  * (D-E), and viewPreset-only link propagation (never asOfDate/plan params).
@@ -49,7 +49,7 @@ function renderNav(props?: Partial<React.ComponentProps<typeof WorkspaceNav>>) {
 }
 
 describe('workspaceNavItems', () => {
-  it('produces seven live destinations plus the disabled Operations placeholder', () => {
+  it('produces eight live destinations including Operations', () => {
     const items = workspaceNavItems('42');
 
     expect(items.map((item) => [item.label, item.href])).toEqual([
@@ -60,10 +60,8 @@ describe('workspaceNavItems', () => {
       ['Economics', '/fund-model-results/42/analysis'],
       ['Scenarios', '/fund-model-results/42/scenarios'],
       ['Reports', '/fund-model-results/42/reports'],
-      ['Operations', null],
+      ['Operations', '/fund-model-results/42/operations'],
     ]);
-    const operations = items.find((item) => item.key === 'operations');
-    expect(operations?.disabledReason).toBe('Operations workspace not yet available');
   });
 
   it('pins Portfolio Actuals before Reserves in nav order', () => {
@@ -83,7 +81,7 @@ describe('workspaceNavItems', () => {
       ['analysis', '/fund-model-results/42/analysis?viewPreset=analyst'],
       ['scenarios', '/fund-model-results/42/scenarios?viewPreset=analyst'],
       ['reports', '/fund-model-results/42/reports?viewPreset=analyst'],
-      ['operations', null],
+      ['operations', '/fund-model-results/42/operations?viewPreset=analyst'],
     ]);
   });
 
@@ -104,16 +102,20 @@ describe('workspaceNavItems', () => {
     const items = workspaceNavItems(null);
     const byKey = new Map(items.map((item) => [item.key, item]));
 
-    for (const key of ['summary', 'reserves', 'analysis', 'scenarios', 'reports'] as const) {
+    for (const key of [
+      'summary',
+      'reserves',
+      'analysis',
+      'scenarios',
+      'reports',
+      'operations',
+    ] as const) {
       expect(byKey.get(key)?.href).toBeNull();
       expect(byKey.get(key)?.disabledReason).toBe('Select a fund to open this view');
     }
     // Forecast and Portfolio Actuals stay live links without a fund param.
     expect(byKey.get('forecast')?.href).toBe('/financial-modeling');
     expect(byKey.get('portfolio-actuals')?.href).toBe('/portfolio?tab=reserve-planning');
-    // The Operations placeholder stays disabled with its own reason.
-    expect(byKey.get('operations')?.href).toBeNull();
-    expect(byKey.get('operations')?.disabledReason).toBe('Operations workspace not yet available');
   });
 });
 
@@ -123,7 +125,7 @@ describe('WorkspaceNav', () => {
     navMocks.viewPreset = 'gp';
   });
 
-  it('renders all seven live destinations plus the disabled Operations entry', () => {
+  it('renders all eight live destinations', () => {
     renderNav();
 
     expect(screen.getByTestId('workspace-nav-fund')).toHaveTextContent('Fund Forty Two');
@@ -137,13 +139,11 @@ describe('WorkspaceNav', () => {
       'Economics',
       'Scenarios',
       'Reports',
+      'Operations',
     ]);
     for (const link of links) {
       expect(link.className).toContain('underline');
     }
-    const operations = screen.getByTestId('workspace-nav-operations-disabled');
-    expect(operations).toHaveAttribute('aria-disabled', 'true');
-    expect(operations).toHaveTextContent('Operations workspace not yet available');
   });
 
   it('propagates the context viewPreset onto every live link', () => {
@@ -165,6 +165,7 @@ describe('WorkspaceNav', () => {
     ['analysis', 'Economics'],
     ['scenarios', 'Scenarios'],
     ['reports', 'Reports'],
+    ['operations', 'Operations'],
   ])('marks only the active destination with aria-current on the %s surface', (key, label) => {
     renderNav({ active: key });
 
@@ -180,14 +181,11 @@ describe('WorkspaceNav', () => {
   it('renders gated destinations disabled with visible reasons, never dead links', () => {
     renderNav({ fundId: null, active: 'forecast' });
 
-    for (const key of ['summary', 'reserves', 'analysis', 'scenarios', 'reports']) {
+    for (const key of ['summary', 'reserves', 'analysis', 'scenarios', 'reports', 'operations']) {
       const disabled = screen.getByTestId(`workspace-nav-${key}-disabled`);
       expect(disabled).toHaveAttribute('aria-disabled', 'true');
       expect(disabled).toHaveTextContent('Select a fund to open this view');
     }
-    expect(screen.getByTestId('workspace-nav-operations-disabled')).toHaveTextContent(
-      'Operations workspace not yet available'
-    );
     const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
     expect(within(nav).getAllByRole('link')).toHaveLength(2);
   });

@@ -202,6 +202,9 @@ const OPERATING_DECISIONS_SPINE_MANIFEST_TABLES = [
   'decision_evidence_links',
   'tasks',
 ] as const;
+const CURRENT_FORECAST_RECOMPUTE_COMMAND_MANIFEST_TABLES = [
+  'current_forecast_recompute_commands',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -234,6 +237,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'g3-capital-call-notification-outbox',
   'g3-release-gate-hardening',
   'operating-decisions-spine',
+  'current-forecast-recompute-commands',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -885,6 +889,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES,
         ...G3_RELEASE_GATE_HARDENING_MANIFEST_TABLES,
         ...OPERATING_DECISIONS_SPINE_MANIFEST_TABLES,
+        ...CURRENT_FORECAST_RECOMPUTE_COMMAND_MANIFEST_TABLES,
       ])
     );
 

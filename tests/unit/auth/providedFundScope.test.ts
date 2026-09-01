@@ -262,9 +262,8 @@ describe('enforceProvidedFundScope', () => {
   it('allows a team-member GET across funds and exposes unrestricted read scope', async () => {
     setJwtEnv();
     const token = signToken({ role: 'analyst', fundIds: [78] });
-    const { enforceProvidedFundScope, getVerifiedFundScope } = await import(
-      '@/server/lib/auth/provided-fund-scope'
-    );
+    const { enforceProvidedFundScope, getVerifiedFundScope } =
+      await import('@/server/lib/auth/provided-fund-scope');
     const { res, status } = makeResponse();
     const req = makeRequest(`Bearer ${token}`);
     req.method = 'GET';
@@ -285,9 +284,7 @@ describe('enforceProvidedFundScope', () => {
     const req = makeRequest(`Bearer ${token}`);
     req.method = 'GET';
 
-    await expect(
-      enforceProvidedFundScope(req, res, 77, { forWrite: true })
-    ).resolves.toBe(false);
+    await expect(enforceProvidedFundScope(req, res, 77, { forWrite: true })).resolves.toBe(false);
     expect(status).toHaveBeenCalledWith(403);
   });
 
@@ -717,5 +714,44 @@ describe('getVerifiedFundScope', () => {
     const { getVerifiedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
 
     await expect(getVerifiedFundScope(makeRequest())).resolves.toBeNull();
+  });
+});
+
+describe('enforceTeamWriteRole', () => {
+  function requestWithUser(user: Record<string, unknown> | undefined): Request {
+    return { user } as unknown as Request;
+  }
+
+  it('allows team-role users', async () => {
+    const { enforceTeamWriteRole } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+
+    expect(enforceTeamWriteRole(requestWithUser({ id: 7, role: 'analyst' }), res)).toBe(true);
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('rejects lp-linked users with 403 TEAM_WRITE_REQUIRED', async () => {
+    const { enforceTeamWriteRole } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status, json } = makeResponse();
+
+    expect(enforceTeamWriteRole(requestWithUser({ id: 8, role: 'lp', lpId: 3 }), res)).toBe(false);
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: 'TEAM_WRITE_REQUIRED' }));
+  });
+
+  it('rejects non-team roles even without an lp link', async () => {
+    const { enforceTeamWriteRole } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+
+    expect(enforceTeamWriteRole(requestWithUser({ id: 9, role: 'user' }), res)).toBe(false);
+    expect(status).toHaveBeenCalledWith(403);
+  });
+
+  it('permits the no-credential development/test fallback (absent user)', async () => {
+    const { enforceTeamWriteRole } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+
+    expect(enforceTeamWriteRole(requestWithUser(undefined), res)).toBe(true);
+    expect(status).not.toHaveBeenCalled();
   });
 });

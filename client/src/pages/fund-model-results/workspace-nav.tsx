@@ -66,7 +66,9 @@ export function workspaceNavItems(
       key: 'forecast',
       label: 'Forecast',
       href:
-        fundId === null ? '/financial-modeling' : withViewPreset(`/financial-modeling?fundId=${fundId}`),
+        fundId === null
+          ? '/financial-modeling'
+          : withViewPreset(`/financial-modeling?fundId=${fundId}`),
     },
     {
       key: 'portfolio-actuals',
@@ -81,7 +83,11 @@ export function workspaceNavItems(
       label: 'Reserves',
       ...fundScoped(`/fund-model-results/${fundId}/moic-analysis`),
     },
-    { key: 'analysis', label: 'Economics', ...fundScoped(`/fund-model-results/${fundId}/analysis`) },
+    {
+      key: 'analysis',
+      label: 'Economics',
+      ...fundScoped(`/fund-model-results/${fundId}/analysis`),
+    },
     {
       key: 'scenarios',
       label: 'Scenarios',
@@ -91,8 +97,7 @@ export function workspaceNavItems(
     {
       key: 'operations',
       label: 'Operations',
-      href: null,
-      disabledReason: 'Operations workspace not yet available',
+      ...fundScoped(`/fund-model-results/${fundId}/operations`),
     },
   ];
 }

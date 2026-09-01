@@ -1,14 +1,14 @@
 /**
  * Operating Objects -- Foundation Schema
  *
- * Drizzle bindings for the operating-object program (backend-first per
- * docs/design/audits/server-object-readiness.md). First object: `tasks`
- * (fund-scoped work items, minimal create/list). assumption/comment follow in
- * later PRs and slot in beside `tasks` here.
+ * Drizzle bindings for fund-scoped tasks, operating decisions, and immutable
+ * task/decision evidence links.
  *
- * Mirrors migrations/0020_operating_tasks_drift.sql. Use the
- * exported $inferSelect / $inferInsert types in services/contracts; never
- * hand-declare a column type in a consumer.
+ * Mirrors migrations/0020_operating_tasks_drift.sql,
+ * 0047_internal_economics_linkage.sql, and
+ * 0054_operating_decisions_spine.sql. Use the exported $inferSelect /
+ * $inferInsert types in services/contracts; never hand-declare a column type
+ * in a consumer.
  *
  * @module shared/schema/operating-objects
  * @see docs/design/audits/server-object-readiness.md
@@ -179,9 +179,7 @@ export const decisionEvidenceLinks = pgTable(
     id: serial('id').primaryKey(),
     fundId: integer('fund_id').notNull(),
     decisionId: integer('decision_id').notNull(),
-    targetKind: varchar('target_kind')
-      .notNull()
-      .$type<DecisionEvidenceTargetKind>(),
+    targetKind: varchar('target_kind').notNull().$type<DecisionEvidenceTargetKind>(),
     analysisReferenceId: integer('analysis_reference_id'),
     economicsRunId: integer('economics_run_id'),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),

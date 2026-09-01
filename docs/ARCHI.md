@@ -399,22 +399,21 @@ the modules + `Decimal`) has **zero importers** — dead.
 | `index.ts`                    | Barrel — dead                                                     | 0                            |
 | `examples/standard-fund.ts`   | $100M example-fund fixture (not a schema)                         | 0                            |
 
-### Migration tail — **verified 2026-08-05 at `main @ d030a803`**
+### Migration tail — **verified 2026-09-01 in the F_1.10.0 candidate based on `main @ a972a5f7`**
 
 Read directly from `migrations/meta/_journal.json` (the authoritative source —
 never infer the tail from a doc's claim or "last file alphabetically"):
 
-- **True tail: journal idx 50, tag `0049_kpi_observations`** (51 journal
-  entries). The prior revision's "no kpi migration exists" claim (keyed to
-  `b8297832`) is resolved — `0049_kpi_observations.sql` landed with the #1326
-  KPI backend work and is present on `main`.
-- 55 `.sql` files exist vs. 51 journal entries; the 4 extras are **tracked at
-  HEAD** (`git status --porcelain migrations/` is clean):
-  `0002_add_organizations.sql`, `0002_multi_tenant_rls_setup.sql` (+
-  `_ROLLBACK`), `0008_demo_profile_import_rows_rollback.sql` — committed
-  duplicate/rollback files outside the journal; they don't affect the tail.
+- **True tail: journal idx 56, tag `0055_current_forecast_recompute_commands`**
+  (57 journal entries). The immediately preceding entries are
+  `0054_operating_decisions_spine` and the G3 `0050`-`0053` sequence.
+- 61 `.sql` files exist vs. 57 journal entries; the 4 extras remain **tracked
+  outside the journal**: `0002_add_organizations.sql`,
+  `0002_multi_tenant_rls_setup.sql` (+ `_ROLLBACK`),
+  `0008_demo_profile_import_rows_rollback.sql` — committed duplicate/rollback
+  files outside the journal; they don't affect the tail.
 
-The next free index is `0050` **as of this refresh only** — always re-read the
+The next free index is `0056` **as of this refresh only** — always re-read the
 journal at dispatch time before minting a migration; never assume the index from
 a doc's claimed tail (this section has caught drift twice).
 
@@ -562,9 +561,15 @@ areas must not conflict with this DAG:
    only), one-way activation latch + resume/re-arm command shipped. Remaining:
    soak-window evidence collection and the activation flip itself (`#1299`,
    HITL), plus Phase-2 activation-time transaction work (`F_1.2.0`).
-2. **Wave H context rail + representative-fund eligibility** (Phase 1) —
-   `context-rail/` prototype → implementation (§5), `operating_decisions`
-   schema/routes (`#1289`/`#1290`), operations page (`#1293`).
+2. **Wave H operations workspace + representative-fund eligibility**
+   (F_1.8.0-F_1.10.0) — the context rail (§5), fund-scoped operating decisions
+   (`#1289`/`#1290`), and operations page (`#1293`) share the existing
+   analysis-shell and operating-object services. F_1.10.0 adds manual
+   current-forecast recompute through durable claim-first command migration
+   `0055`: fresh duplicates return immediate 409, stale pending claims recover
+   after 90 seconds, and a final-CAS-fenced transaction prevents timeout losers
+   from persisting snapshots or reconciliation provenance. Manual runs remain
+   observation-only: no candidate reference and no served-state mutation.
 3. **Deployment proof chain + four-window soak** (Phase 2) — organic soak via
    `evaluateCurrentForecastShadowGreen`, no soak script exists (runbook-driven
    observation).
@@ -625,8 +630,8 @@ review, `#1287` target naming, `#1299` activation flip.
    conservation — moving the receipt contract to
    `internal-economics-receipt/2.3.0` and the composite/event-engine/serializer
    identities to 2.3.0 (accepted input `2.0.1`, normalizer `2.0.1`, and both
-   waterfall contracts `2.2.0` unchanged). Changed-case manifest v1 is frozen
-   as historical 2.2.0 certification; manifest v2 certifies the 2.2.0 -> 2.3.0
+   waterfall contracts `2.2.0` unchanged). Changed-case manifest v1 is frozen as
+   historical 2.2.0 certification; manifest v2 certifies the 2.2.0 -> 2.3.0
    transition.
 
    F3b admissions are opening-lot-funded deployments, callable-overrun refusal,

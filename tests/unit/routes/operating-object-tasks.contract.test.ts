@@ -6,6 +6,7 @@ import { rowVersionETag } from '../../../server/lib/http-preconditions';
 
 const fundScopeState = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
+  enforceTeamWriteRole: vi.fn((_req: Request, _res: Response) => true),
 }));
 
 const evidenceService = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ const dbState = vi.hoisted(() => {
 
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
+  enforceTeamWriteRole: fundScopeState.enforceTeamWriteRole,
 }));
 
 vi.mock('../../../server/db', () => ({ db: dbState.db }));
@@ -141,6 +143,8 @@ describe('operating-object tasks route contracts', () => {
   beforeEach(() => {
     fundScopeState.enforceProvidedFundScope.mockReset();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    fundScopeState.enforceTeamWriteRole.mockReset();
+    fundScopeState.enforceTeamWriteRole.mockReturnValue(true);
     dbState.db.insert.mockClear();
     dbState.db.update.mockClear();
     dbState.db.select.mockClear();
@@ -167,8 +171,23 @@ describe('operating-object tasks route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
+    expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('POST denies non-team-write principals before any DB write', async () => {
+    fundScopeState.enforceTeamWriteRole.mockImplementationOnce((_req, res) => {
+      res.status(403).json({ error: 'Forbidden', code: 'TEAM_WRITE_REQUIRED' });
+      return false;
+    });
+    const res = await request(makeApp())
+      .post('/api/funds/1/tasks')
+      .set('Idempotency-Key', 'task-key-role')
+      .send(validBody(1));
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('TEAM_WRITE_REQUIRED');
     expect(dbState.db.insert).not.toHaveBeenCalled();
   });
 
@@ -301,6 +320,8 @@ describe('operating-object tasks PATCH route', () => {
   beforeEach(() => {
     fundScopeState.enforceProvidedFundScope.mockReset();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    fundScopeState.enforceTeamWriteRole.mockReset();
+    fundScopeState.enforceTeamWriteRole.mockReturnValue(true);
     dbState.db.insert.mockClear();
     dbState.db.update.mockClear();
     dbState.db.select.mockClear();
@@ -511,6 +532,8 @@ describe('operating-object task evidence POST route', () => {
   beforeEach(() => {
     fundScopeState.enforceProvidedFundScope.mockReset();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    fundScopeState.enforceTeamWriteRole.mockReset();
+    fundScopeState.enforceTeamWriteRole.mockReturnValue(true);
     evidenceService.createTaskEvidenceLink.mockReset();
     evidenceService.createTaskEvidenceLink.mockResolvedValue({
       evidenceLink: publicLink,
@@ -644,6 +667,8 @@ describe('task-create dual-surface idempotency parity (Vercel direct vs Railway 
     clearIdempotencyCache();
     fundScopeState.enforceProvidedFundScope.mockReset();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    fundScopeState.enforceTeamWriteRole.mockReset();
+    fundScopeState.enforceTeamWriteRole.mockReturnValue(true);
     dbState.db.insert.mockClear();
     dbState.state.insertResult = [];
     dbState.state.loadQueue = [];

@@ -25,10 +25,8 @@ export const RECONCILE_LOCK_ID = 20260628;
 export const ACTION_SKIP = 'SKIP';
 export const ACTION_APPLY_MISSING_DDL = 'APPLY-MISSING-DDL';
 export const ACTION_REFUSE_FOR_HUMAN = 'REFUSE-FOR-HUMAN';
-export const APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG =
-  '--apply-0053-g3-release-gate-hardening';
-const APPLY_0053_MANIFEST_PATH =
-  'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json';
+export const APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG = '--apply-0053-g3-release-gate-hardening';
+const APPLY_0053_MANIFEST_PATH = 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json';
 const APPLY_0053_MANIFEST_NAME = 'g3-release-gate-hardening';
 const APPLY_0053_SQL_PATH = 'migrations/0053_g3_release_gate_hardening.sql';
 const APPLY_0053_MANIFEST_SHA256 =
@@ -75,37 +73,166 @@ export const G3_CATCHUP_TARGETS = Object.freeze([
 // vector must contain exactly these identities in this order. Directory drift
 // (added/removed/renamed/reordered manifests) is a rejection, never authority.
 export const CANONICAL_MANIFEST_IDENTITIES = Object.freeze([
-  Object.freeze({ name: 'M1-cohort', manifestPath: 'scripts/prod-schema-manifests/01-cohort.json', order: 1 }),
-  Object.freeze({ name: 'M2-fund-moic', manifestPath: 'scripts/prod-schema-manifests/02-fund-moic.json', order: 2 }),
-  Object.freeze({ name: 'M3-operating-tasks', manifestPath: 'scripts/prod-schema-manifests/03-operating-tasks.json', order: 3 }),
-  Object.freeze({ name: 'M4-lp-reporting', manifestPath: 'scripts/prod-schema-manifests/04-lp-reporting.json', order: 4 }),
-  Object.freeze({ name: 'M5-operator-seam', manifestPath: 'scripts/prod-schema-manifests/05-operator-seam.json', order: 5 }),
-  Object.freeze({ name: 'M6-h9-actionability', manifestPath: 'scripts/prod-schema-manifests/06-h9-actionability.json', order: 6 }),
-  Object.freeze({ name: 'M7-allocation-scenarios', manifestPath: 'scripts/prod-schema-manifests/07-allocation-scenarios.json', order: 7 }),
-  Object.freeze({ name: 'scenario-case-seed-provenance', manifestPath: 'scripts/prod-schema-manifests/08-scenario-case-seed-provenance.json', order: 8 }),
-  Object.freeze({ name: 'substrate-shadow-reconciliations', manifestPath: 'scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json', order: 9 }),
-  Object.freeze({ name: 'financial-facts-snapshots', manifestPath: 'scripts/prod-schema-manifests/10-financial-facts-snapshots.json', order: 10 }),
-  Object.freeze({ name: 'current-plan-versions', manifestPath: 'scripts/prod-schema-manifests/11-current-plan-versions.json', order: 11 }),
-  Object.freeze({ name: 'current-forecast-references', manifestPath: 'scripts/prod-schema-manifests/12-current-forecast-references.json', order: 12 }),
-  Object.freeze({ name: 'financial-observations', manifestPath: 'scripts/prod-schema-manifests/13-financial-observations.json', order: 13 }),
-  Object.freeze({ name: 'investment-ledger', manifestPath: 'scripts/prod-schema-manifests/14-investment-ledger.json', order: 14 }),
-  Object.freeze({ name: 'vehicle-financing-participations', manifestPath: 'scripts/prod-schema-manifests/15-vehicle-financing-participations.json', order: 15 }),
-  Object.freeze({ name: 'positions-ownership-compat', manifestPath: 'scripts/prod-schema-manifests/16-positions-ownership-compat.json', order: 16 }),
-  Object.freeze({ name: 'position-source-basis-reliefs', manifestPath: 'scripts/prod-schema-manifests/17-position-source-basis-reliefs.json', order: 17 }),
-  Object.freeze({ name: 'internal-analysis', manifestPath: 'scripts/prod-schema-manifests/18-internal-analysis.json', order: 18 }),
-  Object.freeze({ name: 'user-identity-grants-revocation', manifestPath: 'scripts/prod-schema-manifests/19-user-identity-grants-revocation.json', order: 19 }),
-  Object.freeze({ name: 'company-scenario-create-requests', manifestPath: 'scripts/prod-schema-manifests/20-company-scenario-create-requests.json', order: 20 }),
-  Object.freeze({ name: 'business-time-comparison-lineage', manifestPath: 'scripts/prod-schema-manifests/21-business-time-comparison-lineage.json', order: 21 }),
-  Object.freeze({ name: 'internal-economics-policy-runs', manifestPath: 'scripts/prod-schema-manifests/22-internal-economics-policy-runs.json', order: 22 }),
-  Object.freeze({ name: 'internal-economics-certification', manifestPath: 'scripts/prod-schema-manifests/23-internal-economics-certification.json', order: 23 }),
-  Object.freeze({ name: 'internal-economics-linkage', manifestPath: 'scripts/prod-schema-manifests/24-internal-economics-linkage.json', order: 24 }),
-  Object.freeze({ name: 'quarterly-review-workflow', manifestPath: 'scripts/prod-schema-manifests/25-quarterly-review-workflow.json', order: 25 }),
-  Object.freeze({ name: 'kpi-observations', manifestPath: 'scripts/prod-schema-manifests/26-kpi-observations.json', order: 26 }),
-  Object.freeze({ name: 'g3-portfolio-and-calculation', manifestPath: 'scripts/prod-schema-manifests/27-g3-portfolio-and-calculation.json', order: 27 }),
-  Object.freeze({ name: 'g3-canary', manifestPath: 'scripts/prod-schema-manifests/28-g3-canary.json', order: 28 }),
-  Object.freeze({ name: 'g3-capital-call-notification-outbox', manifestPath: 'scripts/prod-schema-manifests/29-g3-capital-call-notification-outbox.json', order: 29 }),
-  Object.freeze({ name: 'g3-release-gate-hardening', manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json', order: 30 }),
-  Object.freeze({ name: 'operating-decisions-spine', manifestPath: 'scripts/prod-schema-manifests/31-operating-decisions-spine.json', order: 31 }),
+  Object.freeze({
+    name: 'M1-cohort',
+    manifestPath: 'scripts/prod-schema-manifests/01-cohort.json',
+    order: 1,
+  }),
+  Object.freeze({
+    name: 'M2-fund-moic',
+    manifestPath: 'scripts/prod-schema-manifests/02-fund-moic.json',
+    order: 2,
+  }),
+  Object.freeze({
+    name: 'M3-operating-tasks',
+    manifestPath: 'scripts/prod-schema-manifests/03-operating-tasks.json',
+    order: 3,
+  }),
+  Object.freeze({
+    name: 'M4-lp-reporting',
+    manifestPath: 'scripts/prod-schema-manifests/04-lp-reporting.json',
+    order: 4,
+  }),
+  Object.freeze({
+    name: 'M5-operator-seam',
+    manifestPath: 'scripts/prod-schema-manifests/05-operator-seam.json',
+    order: 5,
+  }),
+  Object.freeze({
+    name: 'M6-h9-actionability',
+    manifestPath: 'scripts/prod-schema-manifests/06-h9-actionability.json',
+    order: 6,
+  }),
+  Object.freeze({
+    name: 'M7-allocation-scenarios',
+    manifestPath: 'scripts/prod-schema-manifests/07-allocation-scenarios.json',
+    order: 7,
+  }),
+  Object.freeze({
+    name: 'scenario-case-seed-provenance',
+    manifestPath: 'scripts/prod-schema-manifests/08-scenario-case-seed-provenance.json',
+    order: 8,
+  }),
+  Object.freeze({
+    name: 'substrate-shadow-reconciliations',
+    manifestPath: 'scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json',
+    order: 9,
+  }),
+  Object.freeze({
+    name: 'financial-facts-snapshots',
+    manifestPath: 'scripts/prod-schema-manifests/10-financial-facts-snapshots.json',
+    order: 10,
+  }),
+  Object.freeze({
+    name: 'current-plan-versions',
+    manifestPath: 'scripts/prod-schema-manifests/11-current-plan-versions.json',
+    order: 11,
+  }),
+  Object.freeze({
+    name: 'current-forecast-references',
+    manifestPath: 'scripts/prod-schema-manifests/12-current-forecast-references.json',
+    order: 12,
+  }),
+  Object.freeze({
+    name: 'financial-observations',
+    manifestPath: 'scripts/prod-schema-manifests/13-financial-observations.json',
+    order: 13,
+  }),
+  Object.freeze({
+    name: 'investment-ledger',
+    manifestPath: 'scripts/prod-schema-manifests/14-investment-ledger.json',
+    order: 14,
+  }),
+  Object.freeze({
+    name: 'vehicle-financing-participations',
+    manifestPath: 'scripts/prod-schema-manifests/15-vehicle-financing-participations.json',
+    order: 15,
+  }),
+  Object.freeze({
+    name: 'positions-ownership-compat',
+    manifestPath: 'scripts/prod-schema-manifests/16-positions-ownership-compat.json',
+    order: 16,
+  }),
+  Object.freeze({
+    name: 'position-source-basis-reliefs',
+    manifestPath: 'scripts/prod-schema-manifests/17-position-source-basis-reliefs.json',
+    order: 17,
+  }),
+  Object.freeze({
+    name: 'internal-analysis',
+    manifestPath: 'scripts/prod-schema-manifests/18-internal-analysis.json',
+    order: 18,
+  }),
+  Object.freeze({
+    name: 'user-identity-grants-revocation',
+    manifestPath: 'scripts/prod-schema-manifests/19-user-identity-grants-revocation.json',
+    order: 19,
+  }),
+  Object.freeze({
+    name: 'company-scenario-create-requests',
+    manifestPath: 'scripts/prod-schema-manifests/20-company-scenario-create-requests.json',
+    order: 20,
+  }),
+  Object.freeze({
+    name: 'business-time-comparison-lineage',
+    manifestPath: 'scripts/prod-schema-manifests/21-business-time-comparison-lineage.json',
+    order: 21,
+  }),
+  Object.freeze({
+    name: 'internal-economics-policy-runs',
+    manifestPath: 'scripts/prod-schema-manifests/22-internal-economics-policy-runs.json',
+    order: 22,
+  }),
+  Object.freeze({
+    name: 'internal-economics-certification',
+    manifestPath: 'scripts/prod-schema-manifests/23-internal-economics-certification.json',
+    order: 23,
+  }),
+  Object.freeze({
+    name: 'internal-economics-linkage',
+    manifestPath: 'scripts/prod-schema-manifests/24-internal-economics-linkage.json',
+    order: 24,
+  }),
+  Object.freeze({
+    name: 'quarterly-review-workflow',
+    manifestPath: 'scripts/prod-schema-manifests/25-quarterly-review-workflow.json',
+    order: 25,
+  }),
+  Object.freeze({
+    name: 'kpi-observations',
+    manifestPath: 'scripts/prod-schema-manifests/26-kpi-observations.json',
+    order: 26,
+  }),
+  Object.freeze({
+    name: 'g3-portfolio-and-calculation',
+    manifestPath: 'scripts/prod-schema-manifests/27-g3-portfolio-and-calculation.json',
+    order: 27,
+  }),
+  Object.freeze({
+    name: 'g3-canary',
+    manifestPath: 'scripts/prod-schema-manifests/28-g3-canary.json',
+    order: 28,
+  }),
+  Object.freeze({
+    name: 'g3-capital-call-notification-outbox',
+    manifestPath: 'scripts/prod-schema-manifests/29-g3-capital-call-notification-outbox.json',
+    order: 29,
+  }),
+  Object.freeze({
+    name: 'g3-release-gate-hardening',
+    manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
+    order: 30,
+  }),
+  Object.freeze({
+    name: 'operating-decisions-spine',
+    manifestPath: 'scripts/prod-schema-manifests/31-operating-decisions-spine.json',
+    order: 31,
+  }),
+  Object.freeze({
+    name: 'current-forecast-recompute-commands',
+    manifestPath: 'scripts/prod-schema-manifests/32-current-forecast-recompute-commands.json',
+    order: 32,
+  }),
 ]);
 
 export const MISSING_TABLE_POLICY_CREATE_OR_REPAIR = 'create_or_repair';
@@ -150,9 +277,7 @@ export function parseReconcileArgs(argv, env = process.env) {
   const args = [...argv];
   const apply = args.includes('--apply');
   const yes = args.includes('--yes');
-  const apply0053G3ReleaseGateHardening = args.includes(
-    APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG
-  );
+  const apply0053G3ReleaseGateHardening = args.includes(APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG);
   const applyG3Catchup0050To0053 = args.includes(APPLY_G3_CATCHUP_0050_0053_FLAG);
   const hasManifestDirArgument = args.some(
     (arg) => arg === '--manifest-dir' || arg.startsWith('--manifest-dir=')
@@ -352,17 +477,16 @@ export async function assertPrepared0053G3ReleaseGateHardeningCapability({
     prepared.sqlFiles[0]?.checksum !== capability?.migrationSha256 ||
     (prepared.dropStatements?.length ?? 0) !== 0
   ) {
-    throw new ReconcileError('0053 selected prepared manifest no longer matches pinned canonical bytes', {
-      kind: 'invalid-0053-capability-binding',
-    });
+    throw new ReconcileError(
+      '0053 selected prepared manifest no longer matches pinned canonical bytes',
+      {
+        kind: 'invalid-0053-capability-binding',
+      }
+    );
   }
 }
 
-export function selectExact0053G3ReleaseGateHardeningApply({
-  preparedManifests,
-  audits,
-  target,
-}) {
+export function selectExact0053G3ReleaseGateHardeningApply({ preparedManifests, audits, target }) {
   if (
     !Array.isArray(preparedManifests) ||
     !Array.isArray(audits) ||
@@ -470,19 +594,22 @@ export function selectExact0053G3ReleaseGateHardeningApply({
       });
     }
     if (summarizeAction(audit.objects.map((object) => object.action)) !== audit.action) {
-      throw new ReconcileError('0053 exact target-only selector received contradictory audit actions', {
-        kind: 'invalid-0053-selection',
-      });
+      throw new ReconcileError(
+        '0053 exact target-only selector received contradictory audit actions',
+        {
+          kind: 'invalid-0053-selection',
+        }
+      );
     }
     if (
       audit.objects.some(
-      (object) =>
-        object?.action === ACTION_REFUSE_FOR_HUMAN ||
-        object?.deltas?.some(
-          (delta) =>
-            delta?.kind === 'extra-object-present' ||
-            /(?:drop|destructive)/i.test(String(delta?.kind ?? ''))
-        )
+        (object) =>
+          object?.action === ACTION_REFUSE_FOR_HUMAN ||
+          object?.deltas?.some(
+            (delta) =>
+              delta?.kind === 'extra-object-present' ||
+              /(?:drop|destructive)/i.test(String(delta?.kind ?? ''))
+          )
       )
     ) {
       throw new ReconcileError('0053 exact target-only selector refuses destructive audit state', {
@@ -633,9 +760,12 @@ export async function prepareG3Catchup0050To0053Capability({ rootDir = repoRoot 
       (candidate) => candidate.name === target.manifestName
     );
     if (canonicalMatches.length !== 1 || canonicalMatches[0].manifestPath !== target.manifestPath) {
-      throw new ReconcileError('g3-catchup capability target is absent from canonical manifest set', {
-        kind: 'invalid-g3-catchup-capability-binding',
-      });
+      throw new ReconcileError(
+        'g3-catchup capability target is absent from canonical manifest set',
+        {
+          kind: 'invalid-g3-catchup-capability-binding',
+        }
+      );
     }
   }
   return Object.freeze({
@@ -921,9 +1051,7 @@ export function parseG3CatchupLockTimeApplyVectorV1(
   }
   const expectedAudits = preparedForValidation.map((prepared) => {
     const name = prepared?.manifest?.name;
-    const action = targetNames.has(name)
-      ? expectedActionByManifest.get(name)
-      : ACTION_SKIP;
+    const action = targetNames.has(name) ? expectedActionByManifest.get(name) : ACTION_SKIP;
     return {
       manifest: name,
       action,
@@ -1557,9 +1685,7 @@ function isSafeNonNullColumnAdd(addition) {
     return false;
   }
 
-  const defaultMatch = addition.definition.match(
-    /\bDEFAULT\s+([\s\S]+?)(?=\s+NOT\s+NULL\b|$)/i
-  );
+  const defaultMatch = addition.definition.match(/\bDEFAULT\s+([\s\S]+?)(?=\s+NOT\s+NULL\b|$)/i);
   return defaultMatch !== null && isProvenNonNullDefault(defaultMatch[1].trim());
 }
 
@@ -1633,7 +1759,9 @@ export async function auditManifest(client, manifest) {
   }
 
   if (functionDefinitions.length > 0) {
-    objects.push(...(await auditFunctionDefinitions(client, functionDefinitions, missingTablePolicy)));
+    objects.push(
+      ...(await auditFunctionDefinitions(client, functionDefinitions, missingTablePolicy))
+    );
   }
 
   if (dropObjects.length > 0) {
@@ -1662,9 +1790,7 @@ async function auditFunctionDefinitions(client, functionDefinitions, missingTabl
   );
 
   return functionDefinitions.map((functionDefinition) => {
-    const matches = rows.filter(
-      (row) => row.proname === pgIdentifier(functionDefinition.name)
-    );
+    const matches = rows.filter((row) => row.proname === pgIdentifier(functionDefinition.name));
     const deltas = [];
     if (matches.length === 0) {
       deltas.push({
@@ -1680,9 +1806,7 @@ async function auditFunctionDefinitions(client, functionDefinitions, missingTabl
         additiveSafe: false,
         humanReviewRequired: true,
       });
-    } else if (
-      !definitionMatches(matches[0].definition, functionDefinition.expectedDefinition)
-    ) {
+    } else if (!definitionMatches(matches[0].definition, functionDefinition.expectedDefinition)) {
       deltas.push({
         kind: 'function-definition-mismatch',
         name: functionDefinition.name,
@@ -1998,11 +2122,13 @@ export async function runReconciliation({
         }
         if (!committed) pendingTargets.push(prepared);
       }
-      stdout.write(`${buildG3CatchupLockTimeApplyVectorV1({
-        preparedManifests,
-        audits: lockTimeAudits,
-        capability,
-      })}\n`);
+      stdout.write(
+        `${buildG3CatchupLockTimeApplyVectorV1({
+          preparedManifests,
+          audits: lockTimeAudits,
+          capability,
+        })}\n`
+      );
       await setApplyTimeouts(client);
       await ensureLedger(client);
       const applied = [];
@@ -2038,11 +2164,13 @@ export async function runReconciliation({
           kind: 'committed-0053-capability-repeat',
         });
       }
-      stdout.write(`${buildLockTimeApplyVectorV1({
-        preparedManifests,
-        audits: lockTimeAudits,
-        target: capability,
-      })}\n`);
+      stdout.write(
+        `${buildLockTimeApplyVectorV1({
+          preparedManifests,
+          audits: lockTimeAudits,
+          target: capability,
+        })}\n`
+      );
       await setApplyTimeouts(client);
       await ensureLedger(client);
       await applyPreparedManifest({ client, prepared: selected, identity, stdout });
@@ -2418,8 +2546,7 @@ function triggerDefinitionDeltas(expectedTable, triggers) {
   for (const triggerDefinition of expectedTable.triggerDefinitions ?? []) {
     const trigger = triggers.find(
       (row) =>
-        row.tgname === pgIdentifier(triggerDefinition.name) &&
-        row.table_name === expectedTable.name
+        row.tgname === pgIdentifier(triggerDefinition.name) && row.table_name === expectedTable.name
     );
     if (!trigger) {
       deltas.push({

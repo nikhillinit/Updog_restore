@@ -144,6 +144,7 @@ describe('canonical common API route manifest', () => {
         "reallocation:<bare>",
         "cash-flow-events:<bare>",
         "operating-object-tasks:<bare>",
+        "operating-object-decisions:<bare>",
         "kpi-observations:<bare>",
         "deal-pipeline:/api/deals",
         "cohort-analysis:/api/cohorts",
@@ -264,6 +265,52 @@ describe('canonical common API route manifest', () => {
         'internal_lp_economics_runs',
       ])
     );
+  });
+
+  it('registers operating-object decisions with manifest and policy parity on both runtimes', () => {
+    const entry = COMMON_API_ROUTE_MANIFEST.find(
+      (candidate) => candidate.id === 'operating-object-decisions'
+    );
+
+    expect(entry).toMatchObject({
+      sourceModule: './routes/operating-object-decisions.js',
+      mountPath: null,
+      authBoundary: 'global_authenticated',
+      fundScope: 'path',
+      financial: true,
+      migrationParity: {
+        kind: 'c1',
+        tables: ['operating_decisions', 'decision_evidence_links'],
+      },
+      owner: 'gp-team',
+      probe: {
+        method: 'GET',
+        path: '/api/funds/abc/decisions',
+        expectedStatus: 400,
+        authenticated: true,
+      },
+    });
+    expect(entry?.schemaTables).toEqual(
+      expect.arrayContaining([
+        'operating_decisions',
+        'decision_evidence_links',
+        'internal_analysis_references',
+        'internal_lp_economics_runs',
+        'funds',
+      ])
+    );
+    expect(COMMON_ROUTE_SURFACE_ORDER.make_app).toContain('operating-object-decisions');
+    expect(COMMON_ROUTE_SURFACE_ORDER.register_routes).toContain('operating-object-decisions');
+    expect(COMMON_API_ROUTE_POLICY_IDS['operating-object-decisions']).toEqual([
+      'api:post:/api/funds/:fundId/decisions',
+      'api:get:/api/funds/:fundId/decisions',
+      'api:get:/api/funds/:fundId/decisions/:decisionId',
+      'api:patch:/api/funds/:fundId/decisions/:decisionId',
+      'api:post:/api/funds/:fundId/decisions/:decisionId/outcome',
+      'api:post:/api/funds/:fundId/decisions/:decisionId/supersede',
+      'api:get:/api/funds/:fundId/decisions/:decisionId/evidence-links',
+      'api:post:/api/funds/:fundId/decisions/:decisionId/evidence-links',
+    ]);
   });
 
   it('bypasses database-backed internal-economics creation before generic idempotency', async () => {

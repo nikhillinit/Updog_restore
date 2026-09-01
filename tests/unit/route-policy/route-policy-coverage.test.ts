@@ -338,6 +338,22 @@ describe('route policy coverage', () => {
     expect(policy.humanReviewRequired).toBe(true);
   });
 
+  it('classifies the operations workspace as fund-scoped and non-exportable', () => {
+    const policy = expectPolicy('/fund-model-results/:fundId/operations');
+
+    expect(policy).toMatchObject({
+      governanceRef: '/fund-model-results/:fundId/operations',
+      financialSurface: 'fund_modeling',
+      apiAuthBoundary: 'require_auth_and_fund_access',
+      fundScopeMode: 'route_param_fund_id',
+      workflowRequirement: 'fund_scope_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+      staleBlocksExport: false,
+      humanReviewRequired: true,
+    });
+  });
+
   it('covers LP financial routes with the LP auth boundary', () => {
     const lpGovernanceEntries = ROUTE_GOVERNANCE_REGISTRY.filter(
       (entry) => entry.surface === 'lp-route'

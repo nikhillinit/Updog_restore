@@ -92,6 +92,14 @@ describe('route governance registry', () => {
     });
   });
 
+  it('governs Operations as a protected internal-live app route', () => {
+    expect(getRouteGovernanceEntry('/fund-model-results/:fundId/operations')).toMatchObject({
+      exposure: 'internal-live',
+      surface: 'app-route',
+      isProtected: true,
+    });
+  });
+
   it('tracks archived placeholder routes as redirect-only entrypoints', () => {
     expect(sorted(ARCHIVED_PLACEHOLDER_GOVERNED_PATHS)).toEqual(
       sorted(['/planning', '/moic-analysis', '/kpi-manager', '/kpi-submission', '/investments'])

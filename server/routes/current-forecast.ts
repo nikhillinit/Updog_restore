@@ -8,6 +8,7 @@ import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
 import { IdempotentCommandError } from '../lib/idempotent-command';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { createRouteLogger } from '../lib/route-logger.js';
@@ -37,6 +38,7 @@ import {
   activateCurrentForecast,
   createRollbackCurrentForecastReference,
 } from '../services/current-forecast-reference-service';
+import { runManualCurrentForecastRecompute } from '../services/current-forecast-shadow-trigger';
 
 const routeLog = createRouteLogger('current-forecast');
 const router = Router();
@@ -275,6 +277,47 @@ router.post(
           : { financialFactsSnapshotId: parsedBody.data.financialFactsSnapshotId }),
       });
       return res.status(200).json(forecast);
+    } catch (error) {
+      if (respondToTypedError(error, res)) return;
+      throw error;
+    }
+  })
+);
+
+router.post(
+  '/funds/:fundId/current-forecast/recompute',
+  currentForecastWriteLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireTeamWrite,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+
+    const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
+    if (parsedKey.kind === 'missing') {
+      return res.status(428).json({
+        error: 'IDEMPOTENCY_KEY_REQUIRED',
+        message: 'Idempotency-Key header is required.',
+      });
+    }
+    if (parsedKey.kind === 'invalid') {
+      return res.status(400).json({
+        error: 'INVALID_IDEMPOTENCY_KEY',
+        message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+      });
+    }
+
+    try {
+      const outcome = await runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey: parsedKey.value,
+        actorId: actorId(req),
+      });
+      const status = outcome.status === 'completed' && !outcome.replayed ? 201 : 200;
+      return res.status(status).json(outcome);
     } catch (error) {
       if (respondToTypedError(error, res)) return;
       throw error;

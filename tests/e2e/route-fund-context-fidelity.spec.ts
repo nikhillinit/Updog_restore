@@ -884,10 +884,10 @@ test.describe('workspace context rail basis fidelity (F_1.9.0)', () => {
     ).toBeVisible();
     await expect(basis.getByText(new RegExp(shortFacts))).toHaveCount(0);
 
-    // Disabled-with-reason controls issue no requests.
+    // Rendering the authorized command does not issue a mutation.
     await expect(
       rail.getByRole('button', { name: 'Recompute from latest accepted facts' })
-    ).toBeDisabled();
+    ).toBeEnabled();
 
     expect(apiTracker.unexpectedRequests).toEqual([]);
   });
