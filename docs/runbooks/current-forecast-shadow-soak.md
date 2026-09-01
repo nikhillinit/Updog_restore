@@ -21,6 +21,18 @@ The four windows are:
 3. Window 3: the next seven calendar days.
 4. Window 4: the next seven calendar days.
 
+One candidate SHA serves all four windows. A candidate change (a new `main`
+HEAD, a redeploy, or a reconfiguration of any bound unit) restarts the soak from
+Window 1; no completed window survives it. Re-verify the deployed identity
+against the #1295 binding record at every window boundary (see "Window-boundary
+identity re-check").
+
+Manual recompute against a soak-target fund is prohibited from the
+production-side shadow deployment (soak start) until the flip. The activation
+latch enforces the prohibition mechanically (see "One-way activation latch");
+the per-window and pre-flip manual-row audits below remain the evidence controls
+and are still required.
+
 Take observations at least at window start and end, and after each organic
 financial-facts commit or analysis checkpoint that invokes the shadow trigger.
 Record the exact UTC interval, corpus revision, evaluated base names, outcome
@@ -60,12 +72,68 @@ UNEXPLAINED bases separately, and returns false for an empty evaluation. It
 returns green only when replay inconsistency is empty, unexplained divergence is
 empty, and available coverage is at least `0.90`.
 
+## Window-boundary identity re-check
+
+Run this check at the start of Window 1, at every window boundary, and again in
+the pre-flip fence. Read each field back with the same tooling that produced the
+#1295 binding record and compare field by field:
+
+- Vercel: the active production deployment ID and the `/api/version` version/SHA
+  readback.
+- Railway, per required worker: the service ID, the deployment ID, the SHA
+  readback, and the autodeploy-disabled readback.
+- Database: the connection identity (host and database) and the schema identity
+  from a clean `scripts/reconcile-prod-schema.mjs` run against the candidate-SHA
+  manifest set.
+- Target funds: the current-forecast mode row, compared with the bound row.
+
+```sql
+SELECT configured_mode,
+       kill_switch_active,
+       shadow_started_at,
+       version,
+       activated_at,
+       cutover_reference_id
+FROM fund_calculation_modes
+WHERE fund_id = $1
+  AND calculation_key = 'current_forecast';
+```
+
+Any absent, stale, or mismatched field stops the window. A same-SHA redeploy is
+a mismatch: the binding is to deployment IDs, not to the SHA alone. Record the
+readbacks and the comparison in the window evidence.
+
 ## Entering shadow mode
 
 The current-forecast mode route is the only entry procedure for pre-cutover
 shadow mode. It is admin-only, fund-scoped, rate-limited, and idempotency-keyed.
 Obtain the current mode preview and its `version` first. Do not reuse an old
 version after another mode write.
+
+### Zero-pending-command preflight
+
+Before the formal shadow transition, confirm that no manual recompute command is
+pending for the target fund:
+
+```sql
+SELECT id,
+       idempotency_key,
+       started_at,
+       created_by
+FROM current_forecast_recompute_commands
+WHERE fund_id = $1
+  AND status = 'pending'
+ORDER BY started_at ASC, id ASC;
+```
+
+The expected result is zero rows. A pending row younger than 90 seconds is an
+in-flight command: wait for it to finalize and rerun the query. A pending row at
+least 90 seconds old is stale and blocks entry until it is resolved. The only
+resolution is a same-key, same-request attempt, which terminalizes the row as
+`failed` / `stale_pending` without executing; do not delete or edit the row.
+Record the preflight result in the Window 1 evidence. A pending row observed
+during the soak blocks the window and promotes the pending-row janitor follow-up
+from deferred to blocker.
 
 ```http
 PUT /api/admin/funds/{fundId}/calculation-modes/current-forecast
@@ -203,6 +271,60 @@ LEFT JOIN substrate_shadow_reconciliations AS s
 WHERE r.fund_id = $1
   AND r.id = $2;
 ```
+
+### Per-window manual-provenance audit
+
+Each window's evidence includes this query proving zero manual-provenance rows
+for the target fund inside the window. A manual command counts when it started
+inside the window, or when it created its reconciliation row inside the window
+(`created_reconciliation = true`). Any returned row voids the window. This is an
+evidence control: the observation queries above deliberately remain unfiltered
+by provenance.
+
+```sql
+SELECT command.id AS command_id,
+       command.idempotency_key,
+       command.status,
+       command.started_at,
+       command.created_reconciliation,
+       command.shadow_reconciliation_id,
+       reconciliation.observed_at
+FROM current_forecast_recompute_commands AS command
+LEFT JOIN substrate_shadow_reconciliations AS reconciliation
+  ON reconciliation.id = command.shadow_reconciliation_id
+WHERE command.fund_id = $1
+  AND (
+    (command.started_at >= $2 AND command.started_at < $3)
+    OR (
+      command.created_reconciliation
+      AND reconciliation.observed_at >= $2
+      AND reconciliation.observed_at < $3
+    )
+  )
+ORDER BY command.started_at ASC, command.id ASC;
+```
+
+### Pre-flip manual-row audit
+
+Immediately before the activation flip, attach two results to the #1299
+evidence. First, the per-window query run over the entire soak-start-to-flip
+interval (`$2` is the soak-start `shadowStartedAt`, `$3` is the audit time),
+which covers the gaps before Window 1 and after Window 4; the expected result is
+zero rows. Second, proof that the decisive row activation will read is organic:
+take the id from the "Latest decisive observation" query and confirm that no
+command row claims to have created it.
+
+```sql
+SELECT command.id AS command_id,
+       command.status,
+       command.started_at
+FROM current_forecast_recompute_commands AS command
+WHERE command.fund_id = $1
+  AND command.shadow_reconciliation_id = $2
+  AND command.created_reconciliation;
+```
+
+`$2` is the decisive reconciliation row id. The expected result is zero rows.
 
 ## Failure and retry interpretation
 
@@ -352,12 +474,27 @@ completed activation request with the same idempotency key returns `200` with
 resume/re-arm command, which clears the kill/configured hold controls while
 preserving activation and pointer fields.
 
+The latch also enforces the manual-run prohibition. The activation eligibility
+check returns a typed `manual_recompute_since_shadow_start` blocker (`409`
+`activation_blocked`) when any manual recompute command for the fund started at
+or after the mode row's `shadow_started_at`, or created a current-forecast
+reconciliation row at or after it; a missing `shadow_started_at` fails closed.
+The blocker check and the flip run in one transaction under a per-fund lock, so
+a manual claim cannot land between them. A violated prohibition therefore cannot
+reach the flip even if an audit is missed. The per-window and pre-flip audits
+remain the evidence controls and are still required; the blocker is not a
+substitute for them.
+
 ## Evidence record
 
 For each seven-day window attach:
 
 - fund id, environment, provider/database identity, deployed SHA, and UTC
   start/end;
+- the window-boundary identity re-check readbacks and their field-by-field
+  comparison against the #1295 binding record;
+- the per-window manual-provenance audit result (zero rows), and for #1299 the
+  pre-flip manual-row audit and decisive-row organic check;
 - mode transition response, `shadowStartedAt`, version, and idempotency key;
 - corpus revision and every evaluated base name;
 - `evaluateCurrentForecastShadowGreen` output, including coverage,
