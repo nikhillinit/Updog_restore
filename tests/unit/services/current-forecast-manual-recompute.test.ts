@@ -127,12 +127,17 @@ function makeHarness(options: HarnessOptions = {}) {
       })),
     })),
     transaction: vi.fn(async (work: (tx: unknown) => unknown) => {
-      if (options.transactionError) throw options.transactionError;
+      // The claim transaction runs first; `transactionError` models the
+      // execution transaction failing to start once the claim is owned.
+      if (options.transactionError && row?.status === 'pending') throw options.transactionError;
       return work(transactionDb);
     }),
   };
 
   Object.assign(transactionDb, {
+    execute: vi.fn(async () => ({ rows: [] })),
+    insert: database.insert,
+    select: database.select,
     update: database.update,
   });
 
@@ -196,6 +201,21 @@ describe('runManualCurrentForecastRecompute', () => {
         shadowReconciliationId: 501,
         createdReconciliation: true,
       })
+    );
+  });
+
+  it('claims under the per-fund advisory lock inside its own transaction', async () => {
+    const harness = makeHarness();
+    const transactionExecute = harness.transactionDb['execute'] as ReturnType<typeof vi.fn>;
+
+    await runManualCurrentForecastRecompute(input(harness.database));
+
+    expect(harness.database.transaction).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(transactionExecute.mock.calls[0]?.[0])).toContain(
+      'pg_advisory_xact_lock'
+    );
+    expect(transactionExecute.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.database.insert.mock.invocationCallOrder[0] ?? 0
     );
   });
 

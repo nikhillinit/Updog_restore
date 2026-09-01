@@ -236,6 +236,24 @@ describe('POST /api/admin/funds/:fundId/current-forecast/activate', () => {
     });
   });
 
+  it('surfaces the manual-recompute latch blocker through the blocked-response shape', async () => {
+    svc.activateCurrentForecast.mockRejectedValue(
+      new CurrentForecastActivationBlockedError(['manual_recompute_since_shadow_start'])
+    );
+
+    const response = await post(ACTIVATE_PATH, {
+      key: 'act-manual-blocked',
+      body: validActivateBody,
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: 'activation_blocked',
+      message: 'current-forecast activation is blocked: manual_recompute_since_shadow_start',
+      blockers: ['manual_recompute_since_shadow_start'],
+    });
+  });
+
   it('maps already_activated to 409', async () => {
     svc.activateCurrentForecast.mockRejectedValue(
       new CurrentForecastReferenceError(409, 'already_activated', 'already activated')

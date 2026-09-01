@@ -335,9 +335,15 @@ describe('activateCurrentForecast', () => {
     kill_switch_active: false,
     activated_at: null,
     cutover_reference_id: null,
+    shadow_started_at: '2026-07-01T00:00:00.000Z',
     version: 3,
   };
   const verifyGreen = () => vi.fn(async () => [] as string[]);
+  // Executor call order inside the critical section: advisory lock, mode row,
+  // reference, manual-recompute ledger, flip CTE. The replay read precedes it.
+  const noRows: unknown[] = [];
+  const advisoryLockCalls = (calls: unknown[][]) =>
+    calls.filter((call) => JSON.stringify(call[0]).includes('pg_advisory_xact_lock'));
 
   function activationRequestHash() {
     return canonicalSha256({
@@ -349,10 +355,12 @@ describe('activateCurrentForecast', () => {
   }
 
   it('atomically writes on + activated_at + pointer and flips the candidate (P2)', async () => {
-    const { database, database_raw } = makeDatabase([
+    const { database, database_raw, tx, transaction } = makeDatabase([
       [],
+      noRows,
       [dormantModeRow],
       [snakeRow({ id: 42 })],
+      noRows,
       [
         {
           mode_exists: true,
@@ -394,7 +402,56 @@ describe('activateCurrentForecast', () => {
       cutoverReferenceId: 42,
       version: 4,
     });
-    expect(database_raw.execute).toHaveBeenCalledTimes(4);
+    expect(database_raw.execute).toHaveBeenCalledTimes(1);
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(tx.execute).toHaveBeenCalledTimes(5);
+    expect(advisoryLockCalls(tx.execute.mock.calls)).toHaveLength(1);
+    expect(JSON.stringify(tx.execute.mock.calls[0]?.[0])).toContain('pg_advisory_xact_lock');
+  });
+
+  it('falls back to the plain executor without the lock for neon-http transactionless mode', async () => {
+    const { database, database_raw, transaction } = makeDatabase([
+      [],
+      [dormantModeRow],
+      [snakeRow({ id: 42 })],
+      noRows,
+      [
+        {
+          mode_exists: true,
+          version_matches: true,
+          actual_version: 3,
+          activated_at: null,
+          kill_switch_active: false,
+          reference_exists: true,
+          reference_eligible: true,
+          existing_request_id: null,
+          mode_write_id: 9,
+          claim_id: 1,
+          claim_response_body: {
+            calculationKey: 'current_forecast',
+            configuredMode: 'on',
+            activatedAt: '2026-07-22T00:00:00.000Z',
+            cutoverReferenceId: 42,
+            version: 4,
+          },
+        },
+      ],
+    ]);
+    transaction.mockRejectedValueOnce(new Error(NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE));
+
+    const result = await activateCurrentForecast({
+      fundId: 7,
+      referenceId: 42,
+      expectedVersion: 3,
+      idempotencyKey: 'activate-1',
+      actorId: 101,
+      database,
+      verifyGreenCandidate: verifyGreen(),
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(database_raw.execute).toHaveBeenCalledTimes(5);
+    expect(advisoryLockCalls(database_raw.execute.mock.calls)).toHaveLength(0);
   });
 
   it('replays a completed activation without re-writing', async () => {
@@ -405,7 +462,7 @@ describe('activateCurrentForecast', () => {
       cutoverReferenceId: 42,
       version: 4,
     };
-    const { database, database_raw } = makeDatabase([
+    const { database, database_raw, transaction } = makeDatabase([
       [
         {
           request_hash: activationRequestHash(),
@@ -428,6 +485,7 @@ describe('activateCurrentForecast', () => {
     expect(result.replayed).toBe(true);
     expect(result.response).toEqual(stored);
     expect(database_raw.execute).toHaveBeenCalledTimes(1);
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('rejects idempotency-key reuse with a different activation request', async () => {
@@ -449,7 +507,7 @@ describe('activateCurrentForecast', () => {
   });
 
   it('throws a version conflict on a stale expectedVersion', async () => {
-    const { database } = makeDatabase([[], [{ ...dormantModeRow, version: 5 }]]);
+    const { database } = makeDatabase([[], noRows, [{ ...dormantModeRow, version: 5 }]]);
 
     await expect(
       activateCurrentForecast({
@@ -467,6 +525,7 @@ describe('activateCurrentForecast', () => {
   it('refuses to activate twice', async () => {
     const { database } = makeDatabase([
       [],
+      noRows,
       [{ ...dormantModeRow, activated_at: '2026-07-01T00:00:00.000Z' }],
     ]);
 
@@ -484,7 +543,13 @@ describe('activateCurrentForecast', () => {
   });
 
   it('blocks on green-candidate blockers without writing', async () => {
-    const { database } = makeDatabase([[], [dormantModeRow], [snakeRow({ id: 42 })]]);
+    const { database } = makeDatabase([
+      [],
+      noRows,
+      [dormantModeRow],
+      [snakeRow({ id: 42 })],
+      noRows,
+    ]);
 
     await expect(
       activateCurrentForecast({
@@ -502,11 +567,46 @@ describe('activateCurrentForecast', () => {
     });
   });
 
+  it('blocks on manual_recompute_since_shadow_start without writing', async () => {
+    const { database, tx } = makeDatabase([
+      [],
+      noRows,
+      [dormantModeRow],
+      [snakeRow({ id: 42 })],
+      [
+        {
+          status: 'completed',
+          started_at: '2026-07-02T00:00:00.000Z',
+          created_reconciliation: true,
+          reconciliation_observed_at: '2026-07-02T00:00:05.000Z',
+        },
+      ],
+    ]);
+
+    await expect(
+      activateCurrentForecast({
+        fundId: 7,
+        referenceId: 42,
+        expectedVersion: 3,
+        idempotencyKey: 'activate-7',
+        actorId: 101,
+        database,
+        verifyGreenCandidate: verifyGreen(),
+      })
+    ).rejects.toMatchObject({
+      name: 'CurrentForecastActivationBlockedError',
+      blockers: ['manual_recompute_since_shadow_start'],
+    });
+    expect(tx.execute).toHaveBeenCalledTimes(4);
+  });
+
   it('includes kill_switch_active among activation blockers', async () => {
     const { database } = makeDatabase([
       [],
+      noRows,
       [{ ...dormantModeRow, kill_switch_active: true }],
       [snakeRow({ id: 42 })],
+      noRows,
     ]);
 
     await expect(
@@ -526,7 +626,7 @@ describe('activateCurrentForecast', () => {
   });
 
   it('404s a missing reference', async () => {
-    const { database } = makeDatabase([[], [dormantModeRow], []]);
+    const { database } = makeDatabase([[], noRows, [dormantModeRow], []]);
 
     await expect(
       activateCurrentForecast({
