@@ -21,9 +21,7 @@
         "line": 67,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "dockerfile-root: Dockerfile; listener discovery evidence Dockerfile:56, Dockerfile:65; detected listener patterns container-http-entrypoint:56, container-http-entrypoint:65. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    ]
   },
   {
     "candidate_path": "Dockerfile.railway",
@@ -47,8 +45,7 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "approved",
-    "decision_evidence": "legacy-dockerfile-railway: Dockerfile.railway; listener discovery evidence Dockerfile.railway:41, Dockerfile.railway:45; detected listener patterns container-http-entrypoint:41, container-http-entrypoint:45. Current disposition non-product-tooling is supported by this executable listener discovery."
+    "decision_status": "proposed"
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -72,9 +69,7 @@
         "line": 36,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "dockerfile-simple: Dockerfile.simple; listener discovery evidence Dockerfile.simple:32, Dockerfile.simple:36; detected listener patterns container-http-entrypoint:32, container-http-entrypoint:36. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    ]
   },
   {
     "candidate_path": "Dockerfile.worker",
@@ -98,9 +93,7 @@
         "line": 177,
         "text": "CMD [\"sh\", \"-c\", \"case \\\"$WORKER_TYPE\\\" in fund-scenario-calc|capital-call-status) exec node \\\"dist/workers/$WORKER_TYPE-worker.js\\\" ;; *) echo 'WORKER_TYPE must be fund-scenario-calc or capital-call-status' >&2; exit 1 ;; esac\"]"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "dockerfile-worker: Dockerfile.worker; listener discovery evidence Dockerfile.worker:163, Dockerfile.worker:175; detected listener patterns container-http-entrypoint:163, container-http-entrypoint:175. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    ]
   },
   {
     "candidate_path": "ml-service/app.py",
@@ -124,9 +117,7 @@
         "line": 427,
         "text": "uvicorn.run(app, host=host, port=port)"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "ml-reserve: ml-service/app.py; listener discovery evidence ml-service/app.py:26, ml-service/app.py:427; detected listener patterns python-app-creation:26, uvicorn-run:427. Current disposition product-surface is supported by this executable listener discovery using literal-route-registration."
+    ]
   },
   {
     "candidate_path": "ml-service/Dockerfile",
@@ -144,9 +135,7 @@
         "line": 35,
         "text": "CMD [\"uvicorn\", \"app:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8088\", \"--workers\", \"1\"]"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "dockerfile-ml-reserve: ml-service/Dockerfile; listener discovery evidence ml-service/Dockerfile:35; detected listener patterns container-http-entrypoint:35. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    ]
   },
   {
     "candidate_path": "scripts/ai-tools/metrics-server.js",
@@ -168,9 +157,7 @@
         "line": 52,
         "text": "const server = app.listen(PORT, () => {"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "tooling-scripts-ai-tools-metrics-server-js: scripts/ai-tools/metrics-server.js; listener discovery evidence scripts/ai-tools/metrics-server.js:52 (node-listen); detected listener patterns node-listen:52. Current disposition non-product-tooling is supported by this executable listener discovery."
+    ]
   },
   {
     "candidate_path": "scripts/orchestrate.ts",
@@ -192,9 +179,7 @@
         "line": 54,
         "text": "app.listen(PORT, () => {"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "tooling-scripts-orchestrate-ts: scripts/orchestrate.ts; listener discovery evidence scripts/orchestrate.ts:54 (node-listen); detected listener patterns node-listen:54. Current disposition non-product-tooling is supported by this executable listener discovery."
+    ]
   },
   {
     "candidate_path": "server/bootstrap.ts",
@@ -218,9 +203,7 @@
         "line": 55,
         "text": "server.listen(cfg.PORT, () => {"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "server-bootstrap: server/bootstrap.ts; listener discovery evidence server/bootstrap.ts:48, server/bootstrap.ts:55; detected listener patterns node-http-server-creation:48, node-listen:55. Current disposition product-surface is supported by this executable listener discovery using existing-api-row-mapping."
+    ]
   },
   {
     "candidate_path": "server/index.ts",
@@ -238,9 +221,7 @@
         "line": 13,
         "text": "app.listen(port, host, () => log.info({ host, port }, 'api listening'));"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "server-index: server/index.ts; listener discovery evidence server/index.ts:13; detected listener patterns node-listen:13. Current disposition product-surface is supported by this executable listener discovery using existing-api-row-mapping."
+    ]
   },
   {
     "candidate_path": "server/observability/metrics-demo.ts",
@@ -262,9 +243,7 @@
         "line": 16,
         "text": "app.listen(port, () => {"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "tooling-server-observability-metrics-demo-ts: server/observability/metrics-demo.ts; listener discovery evidence server/observability/metrics-demo.ts:16 (node-listen); detected listener patterns node-listen:16. Current disposition non-product-tooling is supported by this executable listener discovery."
+    ]
   },
   {
     "candidate_path": "workers/health-server.ts",
@@ -282,8 +261,6 @@
         "line": 283,
         "text": "const server = app.listen(port);"
       }
-    ],
-    "decision_status": "approved",
-    "decision_evidence": "worker-health: workers/health-server.ts; listener discovery evidence workers/health-server.ts:283; detected listener patterns node-listen:283. Current disposition product-surface is supported by this executable listener discovery using literal-route-registration."
+    ]
   }
 ]
