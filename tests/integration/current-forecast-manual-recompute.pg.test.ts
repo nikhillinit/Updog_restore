@@ -370,6 +370,46 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
       { configured_mode: 'on', activated: true, status: 'skipped', started_after_flip: true },
     ]);
   });
+
+  it('replays a concurrent same-key activation after waiting on the per-fund lock', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    let greenChecks = 0;
+    const input = {
+      fundId,
+      referenceId: fixture.referenceId,
+      expectedVersion: 1,
+      idempotencyKey: `activate-same-key-${fundId}`,
+      actorId: null,
+      database: referenceDatabase(),
+      verifyGreenCandidate: async () => {
+        greenChecks += 1;
+        entered.resolve(undefined);
+        await release.promise;
+        return [];
+      },
+    };
+
+    const first = activateCurrentForecast(input);
+    await entered.promise;
+    const second = activateCurrentForecast(input);
+    await waitForFundLockWaiter(fundId);
+    release.resolve(undefined);
+
+    const [winner, follower] = await Promise.all([first, second]);
+    expect(winner.replayed).toBe(false);
+    expect(follower).toEqual({ response: winner.response, replayed: true });
+    expect(greenChecks).toBe(1);
+    expect(await activationState(fundId)).toEqual({
+      configured_mode: 'on',
+      activated: true,
+      version: 2,
+      candidate: false,
+      requests: 1,
+    });
+  });
 });
 
 async function seedActivationFixture(fundId: number): Promise<{ referenceId: number }> {

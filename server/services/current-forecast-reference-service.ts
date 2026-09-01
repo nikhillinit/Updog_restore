@@ -662,12 +662,14 @@ function activationResponseFromLedger(value: unknown): CurrentForecastActivation
   throw new Error('Completed current-forecast activation ledger row has an invalid response body');
 }
 
+type ActivationReplay = { response: CurrentForecastActivationResponse; replayed: true };
+
 async function readActivationRequest(
   executor: Executor,
   fundId: number,
   idempotencyKey: string,
   requestHash: string
-): Promise<{ response: CurrentForecastActivationResponse; replayed: true } | null> {
+): Promise<ActivationReplay | null> {
   const existing = await executeRows<ActivationLedgerRow>(
     executor,
     sql`
@@ -717,8 +719,20 @@ async function activateCurrentForecastUnderGuards(
   requestHash: string,
   verifyGreenCandidate: VerifyGreenCandidateFn,
   transactional: boolean
-): Promise<ActivationMutationResult> {
-  if (transactional) await lockCurrentForecastFund(executor, params.fundId);
+): Promise<ActivationMutationResult | ActivationReplay> {
+  if (transactional) {
+    await lockCurrentForecastFund(executor, params.fundId);
+    // A same-key caller that waited on the lock must replay the outcome the
+    // winner committed, not trip the version check on the flipped row. The
+    // neon-http fallback never waits, so its pre-transaction read suffices.
+    const replay = await readActivationRequest(
+      executor,
+      params.fundId,
+      params.idempotencyKey,
+      requestHash
+    );
+    if (replay) return replay;
+  }
 
   const mode = await lockCurrentForecastModeRow(executor, params.fundId);
   if (!mode) {
@@ -958,10 +972,10 @@ export async function activateCurrentForecast(
   );
   if (replay) return replay;
 
-  const mutation = await runWithTransactionFallback<
+  const outcome = await runWithTransactionFallback<
     CurrentForecastReferenceDatabase,
     CurrentForecastReferenceTransaction,
-    ActivationMutationResult
+    ActivationMutationResult | ActivationReplay
   >(database, (executor, context) =>
     activateCurrentForecastUnderGuards(
       executor,
@@ -971,7 +985,9 @@ export async function activateCurrentForecast(
       context.transactional
     )
   );
+  if ('replayed' in outcome) return outcome;
 
+  const mutation = outcome;
   if (mutation.mode_write_id !== null && mutation.claim_id !== null) {
     return {
       response: activationResponseFromLedger(mutation.claim_response_body),
