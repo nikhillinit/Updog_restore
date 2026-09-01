@@ -220,6 +220,22 @@ async function installSmokeApiStubs(page: Page) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/auth/session') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: '1',
+            email: 'smoke@example.com',
+            role: 'admin',
+            fundIds: [SMOKE_FUND.id],
+          },
+        }),
+      });
+      return;
+    }
+
     if (url.pathname.startsWith('/api/v1/image/')) {
       await route.fulfill({ status: 204, body: '' });
       return;
