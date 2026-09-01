@@ -40,7 +40,7 @@ export const ConstructionReconciliationRequestSchema = z
     // Optional: when absent the server resolves the fund's current
     // non-superseded facts snapshot inside the locked transaction and records
     // the resolved id in the persisted snapshot metadata (same pattern as the
-    // current-forecast runs route).
+    // current-forecast runs route, since retired under ADR-094).
     financialFactsSnapshotId: PositiveIdSchema.optional(),
   })
   .strict();

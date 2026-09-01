@@ -411,48 +411,24 @@ describe('activateCurrentForecast', () => {
     expect(JSON.stringify(tx.execute.mock.calls[0]?.[0])).toContain('pg_advisory_xact_lock');
   });
 
-  it('falls back to the plain executor without the lock for neon-http transactionless mode', async () => {
-    const { database, database_raw, transaction } = makeDatabase([
-      [],
-      [dormantModeRow],
-      [snakeRow({ id: 42 })],
-      noRows,
-      [
-        {
-          mode_exists: true,
-          version_matches: true,
-          actual_version: 3,
-          activated_at: null,
-          kill_switch_active: false,
-          reference_exists: true,
-          reference_eligible: true,
-          existing_request_id: null,
-          mode_write_id: 9,
-          claim_id: 1,
-          claim_response_body: {
-            calculationKey: 'current_forecast',
-            configuredMode: 'on',
-            activatedAt: '2026-07-22T00:00:00.000Z',
-            cutoverReferenceId: 42,
-            version: 4,
-          },
-        },
-      ],
-    ]);
+  it('fails closed on neon-http transactionless mode instead of activating without the lock', async () => {
+    const { database, database_raw, transaction } = makeDatabase([[]]);
     transaction.mockRejectedValueOnce(new Error(NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE));
 
-    const result = await activateCurrentForecast({
-      fundId: 7,
-      referenceId: 42,
-      expectedVersion: 3,
-      idempotencyKey: 'activate-1',
-      actorId: 101,
-      database,
-      verifyGreenCandidate: verifyGreen(),
-    });
+    await expect(
+      activateCurrentForecast({
+        fundId: 7,
+        referenceId: 42,
+        expectedVersion: 3,
+        idempotencyKey: 'activate-1',
+        actorId: 101,
+        database,
+        verifyGreenCandidate: verifyGreen(),
+      })
+    ).rejects.toThrow(NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE);
 
-    expect(result.replayed).toBe(false);
-    expect(database_raw.execute).toHaveBeenCalledTimes(5);
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(database_raw.execute).toHaveBeenCalledTimes(1);
     expect(advisoryLockCalls(database_raw.execute.mock.calls)).toHaveLength(0);
   });
 

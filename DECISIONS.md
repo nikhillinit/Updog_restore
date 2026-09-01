@@ -12124,10 +12124,11 @@ activation-train control:
    (`pg_advisory_xact_lock(class, fund_id)`,
    `server/services/current-forecast-fund-lock.ts`), so a claim that commits
    first blocks the flip and a flip that commits first leaves the late claim as
-   a harmless post-flip row. The activation path keeps its neon-http autocommit
-   fallback for the retained class-(a) proofs (ADR-073); the lock applies on
-   transactional drivers, which is what production runs. The claim path has no
-   fallback (ADR-093).
+   a harmless post-flip row. Activation is therefore reclassified from ADR-073
+   class (a) to class (b): it requires a transactional driver (the production
+   WebSocket pool per ADR-073 G2-2) and fails closed on neon-http with the
+   driver's transaction error before any statement runs; the neon-lane suite
+   asserts that refusal. The claim path has no fallback (ADR-093).
 
 ### Consequences
 

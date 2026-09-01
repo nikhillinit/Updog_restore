@@ -4,7 +4,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { runIdempotentCommand } from '../lib/idempotent-command';
-import { runWithTransactionFallback } from '../lib/transaction-support';
+import { runInTransaction, runWithTransactionFallback } from '../lib/transaction-support';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
 import { lockCurrentForecastFund } from './current-forecast-fund-lock';
 import {
@@ -706,33 +706,28 @@ export interface ActivateCurrentForecastParams {
 
 /**
  * Activation critical section: typed pre-checks, blockers, and the
- * guard-fenced flip CTE on one executor. On a transactional driver the caller
- * runs this inside a transaction and the per-fund advisory lock is taken
- * first, so the manual-recompute claim (which takes the same lock) can never
- * land between the blocker read and the flip. On the neon-http fallback the
- * statements run autocommit as before; the CTE still repeats the mode, latch,
- * and candidate guards while holding the mode-row lock before any mutation.
+ * guard-fenced flip CTE on one transaction executor. The per-fund advisory
+ * lock is taken first, so the manual-recompute claim (which takes the same
+ * lock) can never land between the blocker read and the flip. The CTE still
+ * repeats the mode, latch, and candidate guards while holding the mode-row
+ * lock before any mutation.
  */
 async function activateCurrentForecastUnderGuards(
   executor: Executor,
   params: Omit<ActivateCurrentForecastParams, 'database' | 'verifyGreenCandidate'>,
   requestHash: string,
-  verifyGreenCandidate: VerifyGreenCandidateFn,
-  transactional: boolean
+  verifyGreenCandidate: VerifyGreenCandidateFn
 ): Promise<ActivationMutationResult | ActivationReplay> {
-  if (transactional) {
-    await lockCurrentForecastFund(executor, params.fundId);
-    // A same-key caller that waited on the lock must replay the outcome the
-    // winner committed, not trip the version check on the flipped row. The
-    // neon-http fallback never waits, so its pre-transaction read suffices.
-    const replay = await readActivationRequest(
-      executor,
-      params.fundId,
-      params.idempotencyKey,
-      requestHash
-    );
-    if (replay) return replay;
-  }
+  await lockCurrentForecastFund(executor, params.fundId);
+  // A same-key caller that waited on the lock must replay the outcome the
+  // winner committed, not trip the version check on the flipped row.
+  const replay = await readActivationRequest(
+    executor,
+    params.fundId,
+    params.idempotencyKey,
+    requestHash
+  );
+  if (replay) return replay;
 
   const mode = await lockCurrentForecastModeRow(executor, params.fundId);
   if (!mode) {
@@ -950,7 +945,9 @@ async function activateCurrentForecastUnderGuards(
  * The blocker check and the flip share one transaction under the per-fund
  * advisory lock (F_1.11.0 P0b item 4), so the `manual_recompute_since_shadow_start`
  * blocker is evaluated immediately before the flip with no claim window in
- * between. The neon-http fallback keeps the prior autocommit path.
+ * between. Activation therefore requires a transactional driver (ADR-073
+ * class (b), reclassified by ADR-096); on neon-http the driver's transaction
+ * error propagates before any statement runs.
  */
 export async function activateCurrentForecast(
   params: ActivateCurrentForecastParams
@@ -972,18 +969,8 @@ export async function activateCurrentForecast(
   );
   if (replay) return replay;
 
-  const outcome = await runWithTransactionFallback<
-    CurrentForecastReferenceDatabase,
-    CurrentForecastReferenceTransaction,
-    ActivationMutationResult | ActivationReplay
-  >(database, (executor, context) =>
-    activateCurrentForecastUnderGuards(
-      executor,
-      params,
-      requestHash,
-      verifyGreenCandidate,
-      context.transactional
-    )
+  const outcome = await runInTransaction(database, (tx) =>
+    activateCurrentForecastUnderGuards(tx, params, requestHash, verifyGreenCandidate)
   );
   if ('replayed' in outcome) return outcome;
 
