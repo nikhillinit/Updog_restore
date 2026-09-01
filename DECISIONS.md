@@ -11966,8 +11966,12 @@ Manual current-forecast recompute uses a durable command row with a unique
    refreshes observation evidence only and cannot change served state.
 4. Reconciliation persistence returns `{ id, created }`. The command records
    `created_reconciliation = true` only when this execution inserted the row.
-   Deduplication onto a pre-existing organic row records `false`, preserving
-   that row's organic provenance and soak-evidence eligibility.
+   Deduplication onto a pre-existing row records `false`, preserving that row's
+   provenance and soak-evidence eligibility. Because the manual input hash pins
+   the execution clock while organic runs hash their `knowledgeCutoff`, manual
+   rows are not expected to dedupe onto organic rows in practice: each manual
+   execution appends its own reconciliation row, and the `false` path is a
+   consistency guarantee rather than a storage optimization.
 5. Public failures use the closed sanitized code vocabulary. Raw exceptions
    remain server-log data keyed by command id.
 

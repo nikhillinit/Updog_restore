@@ -147,6 +147,70 @@ describe('useDecisions', () => {
     );
   });
 
+  it('reuses the idempotency key on retry after failure and mints a fresh key after success', async () => {
+    let uuidCounter = 0;
+    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `uuid-${++uuidCounter}`) });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500))
+      .mockResolvedValueOnce(jsonResponse(decision, 201))
+      .mockResolvedValueOnce(jsonResponse(decision, 201));
+    const client = createClient();
+    const { result } = renderHook(() => useCreateDecision(7), {
+      wrapper: createWrapper(client),
+    });
+    const input = {
+      fundId: 7,
+      title: 'Keep reserve',
+      recommendation: 'Keep reserve available',
+    };
+
+    await act(async () => {
+      await result.current.mutateAsync(input).catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.mutateAsync(input);
+    });
+    await act(async () => {
+      await result.current.mutateAsync(input);
+    });
+
+    const keys = fetchMock.mock.calls.map(
+      ([, init]) => ((init as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    );
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).toBeDefined();
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('mints a fresh idempotency key when the payload changes after a failure', async () => {
+    let uuidCounter = 0;
+    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `uuid-${++uuidCounter}`) });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500))
+      .mockResolvedValueOnce(jsonResponse(decision, 201));
+    const client = createClient();
+    const { result } = renderHook(() => useCreateDecision(7), {
+      wrapper: createWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ fundId: 7, title: 'First', recommendation: 'A' })
+        .catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ fundId: 7, title: 'Second', recommendation: 'B' });
+    });
+
+    const keys = fetchMock.mock.calls.map(
+      ([, init]) => ((init as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    );
+    expect(keys[1]).toBeDefined();
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
   it('invalidates only the fund decision list after decision creation', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(decision, 201));
     const client = createClient();

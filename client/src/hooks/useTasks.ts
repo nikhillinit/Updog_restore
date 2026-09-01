@@ -10,6 +10,7 @@ import type {
   TaskEvidenceLinkV1,
 } from '@shared/contracts/operating-objects/task-evidence-link.contract';
 import { apiRequest } from '@/lib/queryClient';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 
 interface EvidenceLinksOptions {
   enabled: boolean;
@@ -37,6 +38,7 @@ export function useCreateTask(
   fundId: string | undefined
 ): UseMutationResult<TaskResponse, Error, TaskCreate> {
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
 
   return useMutation<TaskResponse, Error, TaskCreate>({
     mutationFn: async (input) => {
@@ -45,10 +47,13 @@ export function useCreateTask(
       }
 
       return apiRequest<TaskResponse>('POST', `/api/funds/${fundId}/tasks`, input, {
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': idempotencyKey.keyFor(input) },
       });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', fundId] }),
+    onSuccess: () => {
+      idempotencyKey.reset();
+      return queryClient.invalidateQueries({ queryKey: ['tasks', fundId] });
+    },
   });
 }
 

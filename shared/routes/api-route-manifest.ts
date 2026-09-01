@@ -162,6 +162,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
     migrationParity: { kind: 'c1', tables: ['current_plan_versions'] },
     schemaTables: [
       'current_plan_versions',
+      'current_forecast_recompute_commands',
       'current_forecast_references',
       'financial_facts_snapshots',
       'fund_snapshots',

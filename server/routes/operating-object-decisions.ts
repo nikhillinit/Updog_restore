@@ -14,7 +14,7 @@ import {
   type DecisionV1,
 } from '@shared/contracts/operating-objects/decision.contract';
 import type { OperatingDecision } from '@shared/schema/operating-objects';
-import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { enforceProvidedFundScope, enforceTeamWriteRole } from '../lib/auth/provided-fund-scope';
 import { parseETag, rowVersionETag } from '../lib/http-preconditions';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
@@ -156,7 +156,8 @@ function setDecisionETag(res: Response, xmin: string): string {
 router['post']('/api/funds/:fundId/decisions', async (req: Request, res: Response) => {
   const fundId = fundIdOrNull(req, res);
   if (fundId === null) return undefined;
-  if (!(await enforceProvidedFundScope(req, res, fundId))) return undefined;
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return undefined;
+  if (!enforceTeamWriteRole(req, res)) return undefined;
 
   const idempotencyKey = idempotencyKeyOrNull(req, res);
   if (idempotencyKey === null) return undefined;
@@ -230,7 +231,8 @@ router['patch']('/api/funds/:fundId/decisions/:decisionId', async (req: Request,
   if (fundId === null) return undefined;
   const decisionId = decisionIdOrNull(req, res);
   if (decisionId === null) return undefined;
-  if (!(await enforceProvidedFundScope(req, res, fundId))) return undefined;
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return undefined;
+  if (!enforceTeamWriteRole(req, res)) return undefined;
 
   const ifMatch = ifMatchOrNull(req, res);
   if (ifMatch === null) return undefined;
@@ -277,7 +279,8 @@ router['post'](
     if (fundId === null) return undefined;
     const decisionId = decisionIdOrNull(req, res);
     if (decisionId === null) return undefined;
-    if (!(await enforceProvidedFundScope(req, res, fundId))) return undefined;
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return undefined;
+    if (!enforceTeamWriteRole(req, res)) return undefined;
 
     const ifMatch = ifMatchOrNull(req, res);
     if (ifMatch === null) return undefined;
@@ -339,7 +342,8 @@ router['post'](
     if (fundId === null) return undefined;
     const decisionId = decisionIdOrNull(req, res);
     if (decisionId === null) return undefined;
-    if (!(await enforceProvidedFundScope(req, res, fundId))) return undefined;
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return undefined;
+    if (!enforceTeamWriteRole(req, res)) return undefined;
 
     const idempotencyKey = idempotencyKeyOrNull(req, res);
     if (idempotencyKey === null) return undefined;
@@ -408,6 +412,7 @@ router['post'](
     const decisionId = decisionIdOrNull(req, res);
     if (decisionId === null) return undefined;
     if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return undefined;
+    if (!enforceTeamWriteRole(req, res)) return undefined;
 
     const idempotencyKey = idempotencyKeyOrNull(req, res);
     if (idempotencyKey === null) return undefined;

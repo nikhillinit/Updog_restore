@@ -137,6 +137,37 @@ describe('useTasks', () => {
     );
   });
 
+  it('reuses the idempotency key on retry after failure and mints a fresh key after success', async () => {
+    let uuidCounter = 0;
+    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `uuid-${++uuidCounter}`) });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500))
+      .mockResolvedValueOnce(jsonResponse(sampleTask, 201))
+      .mockResolvedValueOnce(jsonResponse(sampleTask, 201));
+    const client = createClient();
+    const { result } = renderHook(() => useCreateTask('7'), {
+      wrapper: createWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ fundId: 7, title: 'Follow up' }).catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ fundId: 7, title: 'Follow up' });
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ fundId: 7, title: 'Follow up' });
+    });
+
+    const keys = fetchMock.mock.calls.map(
+      ([, init]) => ((init as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+    );
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).toBeDefined();
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
   it('invalidates only the fund task list after task creation', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(sampleTask, 201));
     const client = createClient();

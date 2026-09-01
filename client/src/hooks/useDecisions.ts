@@ -11,6 +11,7 @@ import type {
   DecisionV1,
 } from '@shared/contracts/operating-objects/decision.contract';
 import { ApiError, apiRequest } from '@/lib/queryClient';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 
 interface EvidenceLinksOptions {
   enabled: boolean;
@@ -88,6 +89,7 @@ export function useCreateDecision(
   fundId: number | undefined
 ): UseMutationResult<DecisionV1, Error, DecisionCreate> {
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
 
   return useMutation<DecisionV1, Error, DecisionCreate>({
     mutationFn: async (input) => {
@@ -96,10 +98,13 @@ export function useCreateDecision(
       }
 
       return apiRequest<DecisionV1>('POST', `/api/funds/${fundId}/decisions`, input, {
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': idempotencyKey.keyFor(input) },
       });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['decisions', fundId] }),
+    onSuccess: () => {
+      idempotencyKey.reset();
+      return queryClient.invalidateQueries({ queryKey: ['decisions', fundId] });
+    },
   });
 }
 
@@ -161,6 +166,7 @@ export function useSupersedeDecision(
   fundId: number | undefined
 ): UseMutationResult<DecisionV1, Error, SupersedeDecisionVariables> {
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
 
   return useMutation<DecisionV1, Error, SupersedeDecisionVariables>({
     mutationFn: async ({ decisionId, input }) => {
@@ -172,10 +178,13 @@ export function useSupersedeDecision(
         'POST',
         `/api/funds/${fundId}/decisions/${decisionId}/supersede`,
         input,
-        { headers: { 'Idempotency-Key': crypto.randomUUID() } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor({ decisionId, input }) } }
       );
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['decisions', fundId] }),
+    onSuccess: () => {
+      idempotencyKey.reset();
+      return queryClient.invalidateQueries({ queryKey: ['decisions', fundId] });
+    },
   });
 }
 
@@ -183,6 +192,7 @@ export function useCreateDecisionEvidenceLink(
   fundId: number | undefined
 ): UseMutationResult<DecisionEvidenceLinkV1, Error, CreateDecisionEvidenceLinkVariables> {
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
 
   return useMutation<DecisionEvidenceLinkV1, Error, CreateDecisionEvidenceLinkVariables>({
     mutationFn: async ({ decisionId, input }) => {
@@ -194,10 +204,11 @@ export function useCreateDecisionEvidenceLink(
         'POST',
         `/api/funds/${fundId}/decisions/${decisionId}/evidence-links`,
         input,
-        { headers: { 'Idempotency-Key': crypto.randomUUID() } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor({ decisionId, input }) } }
       );
     },
     onSuccess: async (_link, variables) => {
+      idempotencyKey.reset();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['decisions', fundId] }),
         queryClient.invalidateQueries({

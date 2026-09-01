@@ -20,6 +20,7 @@ import {
 import { useFundWorkspaceContext } from '@/hooks/useFundWorkspaceContext';
 import { useCurrentPlanVersions } from '@/hooks/useCurrentPlanVersions';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 import { useAuthSession } from '@/lib/auth-session';
 import { ApiError, apiRequest } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
@@ -581,6 +582,7 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
   const [recomputeBusy, setRecomputeBusy] = useState(false);
   const [recomputeResult, setRecomputeResult] = useState<RecomputeReadback | null>(null);
   const [writeDeniedFundId, setWriteDeniedFundId] = useState<number | null>(null);
+  const recomputeIdempotencyKey = useIdempotencyKey();
   const authSession = useAuthSession(fundId != null);
   const dualForecastQuery = useDualForecast(fundId);
   const factsQuery = useQuery({
@@ -643,8 +645,12 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
         'POST',
         `/api/funds/${fundId}/current-forecast/recompute`,
         {},
-        { headers: { 'Idempotency-Key': crypto.randomUUID() } }
+        { headers: { 'Idempotency-Key': recomputeIdempotencyKey.keyFor(fundId) } }
       );
+      // A returned outcome (completed or failed) is a durably recorded
+      // command; retries after a thrown transport error reuse the key so
+      // server dedup and stale-pending recovery engage.
+      recomputeIdempotencyKey.reset();
       setRecomputeResult(recomputeReadback(fundId, outcome));
       if (outcome.status === 'completed') {
         await Promise.all([dualForecastQuery.refetch(), factsQuery.refetch()]);

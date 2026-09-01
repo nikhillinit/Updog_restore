@@ -7,6 +7,7 @@ import { clearIdempotencyCache, idempotency } from '../../../server/middleware/i
 
 const fundScopeState = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
+  enforceTeamWriteRole: vi.fn((_req: Request, _res: Response) => true),
 }));
 
 const decisionService = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ const evidenceService = vi.hoisted(() => ({
 
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
+  enforceTeamWriteRole: fundScopeState.enforceTeamWriteRole,
 }));
 
 vi.mock('../../../server/services/operating-objects/decision-service', () => {
@@ -130,6 +132,7 @@ describe('operating-object decision route contracts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    fundScopeState.enforceTeamWriteRole.mockReturnValue(true);
     decisionService.listDecisionsForFund.mockResolvedValue([]);
     decisionService.loadDecision.mockResolvedValue(undefined);
     evidenceService.listDecisionEvidenceLinks.mockResolvedValue([]);
@@ -163,6 +166,36 @@ describe('operating-object decision route contracts', () => {
     expect(response.status).toBe(403);
     expect(decisionService.listDecisionsForFund).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['POST', '/api/funds/1/decisions', decisionService.createDecision],
+    ['PATCH', '/api/funds/1/decisions/10', decisionService.transitionDecision],
+    ['POST', '/api/funds/1/decisions/10/outcome', decisionService.recordOutcome],
+    ['POST', '/api/funds/1/decisions/10/supersede', decisionService.supersedeDecision],
+    [
+      'POST',
+      '/api/funds/1/decisions/10/evidence-links',
+      evidenceService.createDecisionEvidenceLink,
+    ],
+  ])(
+    '%s %s rejects non-team-write principals before service access',
+    async (method, path, service) => {
+      fundScopeState.enforceTeamWriteRole.mockImplementationOnce((_req, res) => {
+        res.status(403).json({ error: 'Forbidden', code: 'TEAM_WRITE_REQUIRED' });
+        return false;
+      });
+
+      const agent = request(makeApp());
+      const response = await agent[method.toLowerCase() as 'post'](path)
+        .set('Idempotency-Key', 'team-write-key')
+        .set('If-Match', 'W/"7"')
+        .send(createBody());
+
+      expect(response.status).toBe(403);
+      expect(response.body.code).toBe('TEAM_WRITE_REQUIRED');
+      expect(service).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     ['/api/funds/1/decisions', createBody()],
