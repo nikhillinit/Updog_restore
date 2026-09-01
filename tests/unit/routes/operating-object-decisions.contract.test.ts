@@ -145,9 +145,8 @@ describe('operating-object decision route contracts', () => {
     ['GET', '/api/funds/1/decisions/01/evidence-links'],
     ['POST', '/api/funds/1/decisions/01/evidence-links'],
   ])('%s %s rejects a non-canonical identifier before service access', async (method, path) => {
-    const response = await request(makeApp())
-      [method.toLowerCase() as 'get'](path)
-      .send(createBody());
+    const agent = request(makeApp());
+    const response = await agent[method.toLowerCase() as 'get'](path).send(createBody());
 
     expect(response.status).toBe(400);
     expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
@@ -259,9 +258,8 @@ describe('operating-object decision route contracts', () => {
     ['PATCH', '/api/funds/1/decisions/10', { status: 'accepted' }],
     ['POST', '/api/funds/1/decisions/10/outcome', { outcome: 'Won' }],
   ])('%s %s requires If-Match', async (method, path, body) => {
-    const response = await request(makeApp({ actorId: '42' }))
-      [method.toLowerCase() as 'post'](path)
-      .send(body);
+    const agent = request(makeApp({ actorId: '42' }));
+    const response = await agent[method.toLowerCase() as 'post'](path).send(body);
 
     expect(response.status).toBe(428);
     expect(response.body.error).toBe('IF_MATCH_REQUIRED');
