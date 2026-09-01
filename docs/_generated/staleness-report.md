@@ -11,16 +11,16 @@ last_updated: 2026-09-01
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 779 |
-| Stale Documents | 485 |
-| Missing Frontmatter | 95 |
+| Total Documents | 780 |
+| Stale Documents | 486 |
+| Missing Frontmatter | 96 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 466 |
-| UNKNOWN | 189 |
+| UNKNOWN | 190 |
 | HISTORICAL | 41 |
 | DRAFT | 35 |
 | VERIFIED | 13 |
@@ -57,6 +57,7 @@ Documents that need review (older than their cadence threshold):
 | `TODOS.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.1.0_wave-h-context-rail-decisions.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md` | Never | 999 | No | Unassigned |
@@ -96,9 +97,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/adr/ADR-020-analysis-cohort-boundary.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md` | Never | 999 | No | Unassigned |
 | `docs/adr/ADR-034-fund-scope-target-enforcement-matrix.md` | Never | 999 | No | Unassigned |
-| `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 
-*...and 435 more stale documents.*
+*...and 436 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -210,6 +210,7 @@ Documents without proper YAML frontmatter:
 - [ ] `TODOS.md`
 - [ ] `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md`
 - [ ] `docs/1-plans/F_1.1.0_wave-h-context-rail-decisions.plan.md`
+- [ ] `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md`
 - [ ] `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`
 - [ ] `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md`
 - [ ] `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md`
