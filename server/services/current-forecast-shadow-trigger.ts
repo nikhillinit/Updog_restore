@@ -2,6 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 
 import {
   METHODOLOGY_VERSION,
+  type CurrentForecastRecomputeOutcome,
   type CurrentForecastV2,
 } from '../../shared/contracts/current-forecast-v2.contract';
 import type { PersistedFinancialFactsSnapshotV1 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
@@ -9,7 +10,6 @@ import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
   currentForecastRecomputeCommands,
   type CurrentForecastRecomputeCommand,
-  type CurrentForecastRecomputeFailureCode,
 } from '../../shared/schema/current-forecast-recompute-commands';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import { db } from '../db';
@@ -377,21 +377,7 @@ export async function triggerCurrentForecastShadowForFacts(
   });
 }
 
-export type ManualCurrentForecastRecomputeOutcome =
-  | {
-      status: 'completed';
-      shadowReconciliationId: number;
-      replayed: boolean;
-    }
-  | {
-      status: 'failed';
-      failureCode: CurrentForecastRecomputeFailureCode;
-      replayed: boolean;
-    }
-  | {
-      status: 'skipped';
-      replayed: boolean;
-    };
+export type ManualCurrentForecastRecomputeOutcome = CurrentForecastRecomputeOutcome;
 
 export interface RunManualCurrentForecastRecomputeInput {
   fundId: number;

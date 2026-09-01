@@ -110,6 +110,7 @@ vi.mock('../../../server/services/current-forecast-shadow-trigger', () => ({
 }));
 
 import currentForecastRouter from '../../../server/routes/current-forecast';
+import { CurrentForecastRecomputeOutcomeSchema } from '../../../shared/contracts/current-forecast-v2.contract';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
 import { CurrentPlanVersionServiceError } from '../../../server/services/current-plan-version-service';
 
@@ -324,6 +325,40 @@ describe('current-forecast route contract', () => {
       fundId: 1,
       idempotencyKey: 'recompute-1',
       actorId: 7,
+    });
+  });
+
+  it('POST recompute body parses under the shared outcome contract', async () => {
+    service.runManualCurrentForecastRecompute.mockResolvedValueOnce({
+      status: 'completed',
+      shadowReconciliationId: 91,
+      replayed: true,
+    });
+
+    const response = await request(buildApp())
+      .post('/api/funds/1/current-forecast/recompute')
+      .set('Idempotency-Key', 'recompute-contract')
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(CurrentForecastRecomputeOutcomeSchema.parse(response.body)).toEqual(response.body);
+  });
+
+  it('POST recompute fails closed when the service outcome violates the contract', async () => {
+    service.runManualCurrentForecastRecompute.mockResolvedValueOnce({
+      status: 'completed',
+      replayed: false,
+    });
+
+    const response = await request(buildApp())
+      .post('/api/funds/1/current-forecast/recompute')
+      .set('Idempotency-Key', 'recompute-malformed')
+      .send({});
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'recompute_outcome_contract_violation',
+      message: 'Recompute outcome failed contract validation',
     });
   });
 

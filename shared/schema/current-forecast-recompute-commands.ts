@@ -11,26 +11,22 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import type {
+  CurrentForecastRecomputeFailureCode,
+  CurrentForecastRecomputeStatus,
+} from '../contracts/current-forecast-v2.contract';
 import { funds } from './fund';
 import { substrateShadowReconciliations } from './substrate-shadow-reconciliations';
 import { users } from './user';
 
-export const CURRENT_FORECAST_RECOMPUTE_STATUSES = [
-  'pending',
-  'completed',
-  'failed',
-  'skipped',
-] as const;
-export type CurrentForecastRecomputeStatus = (typeof CURRENT_FORECAST_RECOMPUTE_STATUSES)[number];
-
-export const CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES = [
-  'execution_timeout',
-  'execution_error',
-  'mode_ineligible',
-  'stale_pending',
-] as const;
-export type CurrentForecastRecomputeFailureCode =
-  (typeof CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES)[number];
+// The contract owns these literals (client-safe); re-exported here so server
+// importers of the schema module keep working.
+export {
+  CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES,
+  CURRENT_FORECAST_RECOMPUTE_STATUSES,
+  type CurrentForecastRecomputeFailureCode,
+  type CurrentForecastRecomputeStatus,
+} from '../contracts/current-forecast-v2.contract';
 
 export const currentForecastRecomputeCommands = pgTable(
   'current_forecast_recompute_commands',

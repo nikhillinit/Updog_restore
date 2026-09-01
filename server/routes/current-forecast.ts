@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { CurrentForecastRecomputeOutcomeSchema } from '@shared/contracts/current-forecast-v2.contract';
 import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
@@ -266,8 +267,22 @@ router.post(
         idempotencyKey: parsedKey.value,
         actorId: actorId(req),
       });
-      const status = outcome.status === 'completed' && !outcome.replayed ? 201 : 200;
-      return res.status(status).json(outcome);
+      // Egress contract parse: server/schema drift is a defect, not a
+      // response, so it fails loudly instead of shipping.
+      const parsed = CurrentForecastRecomputeOutcomeSchema.safeParse(outcome);
+      if (!parsed.success) {
+        routeLog.error('Recompute outcome contract violation:', {
+          fundId,
+          idempotencyKey: parsedKey.value,
+          issues: parsed.error.issues,
+        });
+        return res.status(500).json({
+          error: 'recompute_outcome_contract_violation',
+          message: 'Recompute outcome failed contract validation',
+        });
+      }
+      const status = parsed.data.status === 'completed' && !parsed.data.replayed ? 201 : 200;
+      return res.status(status).json(parsed.data);
     } catch (error) {
       if (respondToTypedError(error, res)) return;
       throw error;

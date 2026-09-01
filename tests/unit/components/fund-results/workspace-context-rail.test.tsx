@@ -648,6 +648,28 @@ describe('WorkspaceContextRail', () => {
     expect(await screen.findByText(expectedMessage)).toBeInTheDocument();
   });
 
+  it('surfaces a malformed recompute response as the parse-failure error state', async () => {
+    fetchSpy.mockImplementation(async (input) =>
+      String(input).endsWith('/current-forecast/recompute')
+        ? jsonResponse({ status: 'completed', replayed: false })
+        : jsonResponse(FACTS_LATEST)
+    );
+    renderRail();
+
+    fireEvent.click(
+      within(screen.getByTestId('workspace-context-recompute')).getByRole('button', {
+        name: 'Recompute from latest accepted facts',
+      })
+    );
+
+    const readback = await screen.findByText(
+      'Recompute response did not match the expected contract.'
+    );
+    expect(readback).toHaveAttribute('role', 'status');
+    expect(readback).toHaveClass('text-presson-negative');
+    expect(mocks.dualForecast.refetch).not.toHaveBeenCalled();
+  });
+
   it('renders an in-flight conflict as a readable result', async () => {
     fetchSpy.mockImplementation(async (input) =>
       String(input).endsWith('/current-forecast/recompute')
