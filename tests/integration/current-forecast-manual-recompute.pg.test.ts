@@ -276,6 +276,81 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
       });
   });
 
+  it('recovers a pending command that becomes stale while its claim waits on the fund lock', async () => {
+    const fundId = await insertFund();
+    const idempotencyKey = `stale-while-waiting-${fundId}`;
+    await requiredPool().query(
+      `
+        INSERT INTO current_forecast_recompute_commands (
+          fund_id, idempotency_key, request_hash, status,
+          created_reconciliation, started_at
+        )
+        VALUES ($1, $2, $3, 'pending', false, clock_timestamp())
+      `,
+      [
+        fundId,
+        idempotencyKey,
+        canonicalSha256({
+          route: 'POST /api/funds/:fundId/current-forecast/recompute',
+          fundId,
+        }),
+      ]
+    );
+
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const recovery = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+
+      const fresh = await holder.query<{ initially_fresh: boolean }>(
+        `
+          UPDATE current_forecast_recompute_commands
+          SET started_at = clock_timestamp() - INTERVAL '87 seconds'
+          WHERE fund_id = $1 AND idempotency_key = $2
+          RETURNING clock_timestamp() - started_at < INTERVAL '90 seconds' AS initially_fresh
+        `,
+        [fundId, idempotencyKey]
+      );
+      expect(fresh.rows).toEqual([{ initially_fresh: true }]);
+
+      await holder.query('SELECT pg_sleep(5)');
+      const margin = await holder.query<{ seconds_over_threshold: string }>(
+        `
+          SELECT EXTRACT(EPOCH FROM (clock_timestamp() - started_at)) - 90
+            AS seconds_over_threshold
+          FROM current_forecast_recompute_commands
+          WHERE fund_id = $1 AND idempotency_key = $2
+        `,
+        [fundId, idempotencyKey]
+      );
+      expect(Number(margin.rows[0]?.seconds_over_threshold)).toBeGreaterThan(1.5);
+
+      await holder.query('COMMIT');
+      holderOpen = false;
+      await expect(recovery).resolves.toEqual({
+        status: 'failed',
+        failureCode: 'stale_pending',
+        replayed: true,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+  });
+
   it('stamps stale recovery after a shadow boundary advanced while waiting on the fund lock', async () => {
     const fundId = await insertFund();
     const fixture = await seedActivationFixture(fundId);

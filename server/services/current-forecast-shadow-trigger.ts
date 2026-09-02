@@ -530,7 +530,7 @@ async function claimManualCurrentForecastRecompute(params: {
         and(
           eq(currentForecastRecomputeCommands.id, existing.id),
           eq(currentForecastRecomputeCommands.status, 'pending'),
-          sql`${currentForecastRecomputeCommands.startedAt} <= NOW() - INTERVAL '90 seconds'`
+          sql`${currentForecastRecomputeCommands.startedAt} <= clock_timestamp() - INTERVAL '90 seconds'`
         )
       )
       .returning();
