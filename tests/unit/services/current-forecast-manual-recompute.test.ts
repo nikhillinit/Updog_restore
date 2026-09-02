@@ -305,17 +305,16 @@ describe('runManualCurrentForecastRecompute', () => {
     });
   });
 
-  it('does not fall back to non-transactional writes when transaction startup fails', async () => {
+  it('fails closed without non-transactional writes when transaction startup fails', async () => {
     const harness = makeHarness({
       transactionError: new Error('Transactions are not supported by this database driver'),
     });
 
-    await expect(runManualCurrentForecastRecompute(input(harness.database))).resolves.toEqual({
-      status: 'failed',
-      failureCode: 'execution_error',
-      replayed: false,
-    });
+    await expect(runManualCurrentForecastRecompute(input(harness.database))).rejects.toThrow(
+      'Transactions are not supported by this database driver'
+    );
     expect(forecastService.runCurrentForecastV2).not.toHaveBeenCalled();
+    expect(harness.row()).toMatchObject({ status: 'pending', finalizedAt: null });
   });
 
   it('does not report completion after losing the final pending-state CAS', async () => {

@@ -275,8 +275,9 @@ WHERE r.fund_id = $1
 ### Per-window manual-provenance audit
 
 Each window's evidence includes this query proving zero manual-provenance rows
-for the target fund inside the window. A manual command counts when it started
-inside the window, or when it created its reconciliation row inside the window
+for the target fund inside the window. Any pending command counts regardless of
+timestamp. A terminal command counts when it started or finalized inside the
+window, or when it created its reconciliation row inside the window
 (`created_reconciliation = true`). Any returned row voids the window. This is an
 evidence control: the observation queries above deliberately remain unfiltered
 by provenance.
@@ -286,6 +287,7 @@ SELECT command.id AS command_id,
        command.idempotency_key,
        command.status,
        command.started_at,
+       command.finalized_at,
        command.created_reconciliation,
        command.shadow_reconciliation_id,
        reconciliation.observed_at
@@ -294,7 +296,9 @@ LEFT JOIN substrate_shadow_reconciliations AS reconciliation
   ON reconciliation.id = command.shadow_reconciliation_id
 WHERE command.fund_id = $1
   AND (
-    (command.started_at >= $2 AND command.started_at < $3)
+    command.status = 'pending'
+    OR (command.started_at >= $2 AND command.started_at < $3)
+    OR (command.finalized_at >= $2 AND command.finalized_at < $3)
     OR (
       command.created_reconciliation
       AND reconciliation.observed_at >= $2
