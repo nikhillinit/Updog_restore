@@ -438,6 +438,23 @@ async function loadManualCurrentForecastRecomputeCommand(
   return command;
 }
 
+/**
+ * Diagnostic lookup of the command id behind a (fund, key) claim, for server
+ * logs that must name the command without widening the wire outcome.
+ */
+export async function findManualCurrentForecastRecomputeCommandId(params: {
+  fundId: number;
+  idempotencyKey: string;
+  database?: CurrentForecastDatabase;
+}): Promise<number | null> {
+  const command = await loadManualCurrentForecastRecomputeCommand(
+    params.database ?? db,
+    params.fundId,
+    params.idempotencyKey
+  );
+  return command?.id ?? null;
+}
+
 async function claimManualCurrentForecastRecompute(params: {
   database: CurrentForecastDatabase;
   fundId: number;

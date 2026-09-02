@@ -153,7 +153,7 @@ type ManualLedgerRow = {
   status: 'pending' | 'completed' | 'failed' | 'skipped';
   started_at: string;
   created_reconciliation: boolean;
-  reconciliation_observed_at: string | null;
+  finalized_at: string | null;
 };
 
 function manualRow(overrides: Partial<ManualLedgerRow> = {}): ManualLedgerRow {
@@ -161,7 +161,7 @@ function manualRow(overrides: Partial<ManualLedgerRow> = {}): ManualLedgerRow {
     status: 'completed',
     started_at: BEFORE_START,
     created_reconciliation: false,
-    reconciliation_observed_at: null,
+    finalized_at: null,
     ...overrides,
   };
 }
@@ -184,9 +184,7 @@ describe('current-forecast activation gate: manual recompute since shadow start'
 
   it('a command terminal before the shadow start does not block', async () => {
     await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
-      ])
+      manualBlockers([manualRow({ created_reconciliation: true, finalized_at: BEFORE_START })])
     ).resolves.toEqual([]);
   });
 
@@ -199,26 +197,20 @@ describe('current-forecast activation gate: manual recompute since shadow start'
     }
   );
 
-  it('a pre-transition command whose created reconciliation lands after the start blocks', async () => {
+  it('a pre-transition command whose created reconciliation finalizes after the start blocks', async () => {
     await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: true, reconciliation_observed_at: AFTER_START }),
-      ])
+      manualBlockers([manualRow({ created_reconciliation: true, finalized_at: AFTER_START })])
     ).resolves.toEqual([MANUAL_BLOCKER]);
   });
 
   it('a pre-transition command deduplicated onto an organic post-start row does not block', async () => {
     await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: false, reconciliation_observed_at: AFTER_START }),
-      ])
+      manualBlockers([manualRow({ created_reconciliation: false, finalized_at: AFTER_START })])
     ).resolves.toEqual([]);
   });
 
   it('a same-key replay of an older terminal command adds no rows and does not block', async () => {
-    const ledger = [
-      manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
-    ];
+    const ledger = [manualRow({ created_reconciliation: true, finalized_at: BEFORE_START })];
     await expect(manualBlockers(ledger)).resolves.toEqual([]);
     await expect(manualBlockers(ledger)).resolves.toEqual([]);
   });

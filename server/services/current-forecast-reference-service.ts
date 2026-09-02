@@ -563,7 +563,7 @@ type ManualRecomputeLedgerRow = {
   status: string;
   started_at: Date | string;
   created_reconciliation: boolean;
-  reconciliation_observed_at: Date | string | null;
+  finalized_at: Date | string | null;
 };
 
 function toTime(value: Date | string): number {
@@ -574,11 +574,15 @@ function toTime(value: Date | string): number {
  * Phase 4 manual-run prohibition, machine-enforced at the latch (F_1.11.0 P0b
  * item 4). The fund is contaminated when any manual recompute command started
  * at or after the shadow interval began, or when a command that created its
- * current-forecast reconciliation row wrote it at or after that point (a
+ * current-forecast reconciliation row finalized at or after that point (a
  * command that started before the transition but persisted after it). Status
  * is irrelevant: pending, completed, failed, and skipped attempts all count.
- * A NULL `shadow_started_at` leaves the interval unbounded, so any command
- * row for the fund blocks (fail-closed).
+ * Every timestamp compared here comes from the database clock: the shadow
+ * transition stamps `shadow_started_at` from NOW(), the claim defaults
+ * `started_at` to NOW(), and `finalized_at` is written as NOW() in the same
+ * transaction that persists the reconciliation row. A NULL `shadow_started_at`
+ * leaves the interval unbounded, so any command row for the fund blocks
+ * (fail-closed).
  */
 export async function verifyNoManualRecomputeSinceShadowStart(params: {
   executor: Executor;
@@ -593,12 +597,8 @@ export async function verifyNoManualRecomputeSinceShadowStart(params: {
       SELECT command.status,
              command.started_at,
              command.created_reconciliation,
-             reconciliation.observed_at AS reconciliation_observed_at
+             command.finalized_at
       FROM current_forecast_recompute_commands AS command
-      LEFT JOIN substrate_shadow_reconciliations AS reconciliation
-        ON reconciliation.id = command.shadow_reconciliation_id
-       AND reconciliation.fund_id = command.fund_id
-       AND reconciliation.calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
       WHERE command.fund_id = ${params.fundId}
     `
   );
@@ -611,8 +611,8 @@ export async function verifyNoManualRecomputeSinceShadowStart(params: {
     (row) =>
       toTime(row.started_at) >= shadowStart ||
       (row.created_reconciliation &&
-        row.reconciliation_observed_at !== null &&
-        toTime(row.reconciliation_observed_at) >= shadowStart)
+        row.finalized_at !== null &&
+        toTime(row.finalized_at) >= shadowStart)
   );
   return contaminated ? ['manual_recompute_since_shadow_start'] : [];
 }

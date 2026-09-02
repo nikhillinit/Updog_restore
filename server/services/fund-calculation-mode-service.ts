@@ -218,6 +218,16 @@ async function executeRows<T>(
   return result.rows;
 }
 
+/** Database clock read; the source of truth for interval boundaries. */
+async function readDatabaseNow(
+  executor: Pick<FundCalculationModeTransaction, 'execute'>
+): Promise<Date> {
+  const rows = await executeRows<{ now: Date | string }>(executor, sql`SELECT NOW() AS now`);
+  const value = rows[0]?.now;
+  if (value === undefined) throw new Error('Database clock read returned no row');
+  return value instanceof Date ? value : new Date(value);
+}
+
 function hasQueryReconciliationLookup(database: unknown): database is QueryReconciliationLookup {
   return (
     typeof database === 'object' &&
@@ -814,10 +824,15 @@ async function updateFundCalculationMode<TSources>(
         const existingStartedAt = toDate(existing?.shadow_started_at ?? null);
         const sourceChanged =
           existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
+        // A new shadow interval is stamped from the database clock, the same
+        // clock that defaults `started_at` on manual recompute commands and
+        // stamps their `finalized_at`, so the activation blocker compares like
+        // with like (F_1.11.0 P0b item 4). An injected `now` stays authoritative
+        // for callers that pin the clock.
         nextShadowStartedAt =
           existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
             ? existingStartedAt
-            : now;
+            : (params.now ?? (await readDatabaseNow(tx)));
       }
 
       if (params.configuredMode === 'on') {

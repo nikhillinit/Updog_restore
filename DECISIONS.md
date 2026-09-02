@@ -12114,10 +12114,14 @@ activation-train control:
    returns a typed `manual_recompute_since_shadow_start` blocker when any
    `current_forecast_recompute_commands` row for the fund has
    `started_at >= shadow_started_at`, or a command with
-   `created_reconciliation = true` points at a current-forecast reconciliation
-   with `observed_at >= shadow_started_at`. Status is irrelevant (pending,
-   completed, failed, and skipped all count). A NULL `shadow_started_at` fails
-   closed: any command row blocks.
+   `created_reconciliation = true` has `finalized_at >= shadow_started_at` (the
+   reconciliation row is persisted in the same transaction that stamps
+   `finalized_at`). All three timestamps come from the database clock: the
+   shadow transition stamps `shadow_started_at` from `NOW()`, the claim defaults
+   `started_at` to `NOW()`, and `finalized_at` is written as `NOW()`, so an
+   application-clock skew cannot open a gap at the boundary. Status is
+   irrelevant (pending, completed, failed, and skipped all count). A NULL
+   `shadow_started_at` fails closed: any command row blocks.
 3. The blocker is not check-then-act. The manual-recompute claim and the
    activation blocker-check-plus-flip each run inside a transaction that first
    takes the same per-fund advisory lock
