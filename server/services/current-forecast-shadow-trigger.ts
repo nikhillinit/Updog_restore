@@ -656,6 +656,9 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         killSwitchActive: false,
       },
     });
+    // Keep forecast computation outside the lock; serialize only the durable
+    // reconciliation and final pending-only CAS against a fresh shadow reset.
+    await lockCurrentForecastFund(transaction, params.fundId);
     const reconciliation = await persistCurrentForecastShadowReconciliation(record, transaction);
     const [finalized] = await transaction
       .update(currentForecastRecomputeCommands)
@@ -664,7 +667,7 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         failureCode: null,
         shadowReconciliationId: reconciliation.id,
         createdReconciliation: reconciliation.created,
-        finalizedAt: sql`NOW()`,
+        finalizedAt: sql`clock_timestamp()`,
       })
       .where(
         and(

@@ -559,16 +559,7 @@ export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
   return blockers;
 };
 
-type ManualRecomputeLedgerRow = {
-  status: string;
-  started_at: Date | string;
-  created_reconciliation: boolean;
-  finalized_at: Date | string | null;
-};
-
-function toTime(value: Date | string): number {
-  return value instanceof Date ? value.getTime() : new Date(value).getTime();
-}
+type ManualRecomputeContaminationRow = { contaminated: boolean };
 
 /**
  * Phase 4 manual-run prohibition, machine-enforced at the latch (F_1.11.0 P0b
@@ -577,44 +568,39 @@ function toTime(value: Date | string): number {
  * current-forecast reconciliation row finalized at or after that point (a
  * command that started before the transition but persisted after it). Status
  * is irrelevant: pending, completed, failed, and skipped attempts all count.
- * Every timestamp compared here comes from the database clock: the shadow
- * transition stamps `shadow_started_at` from NOW(), the claim defaults
- * `started_at` to NOW(), and `finalized_at` is written as NOW() in the same
- * transaction that persists the reconciliation row. A NULL `shadow_started_at`
- * leaves the interval unbounded, so any command row for the fund blocks
- * (fail-closed).
+ * PostgreSQL compares the stored timestamps directly, preserving microseconds.
+ * The shadow transition and successful manual persistence share the per-fund
+ * lock; claim `started_at` defaults from NOW(), while finalization and fresh
+ * shadow entry use clock_timestamp(). A NULL `shadow_started_at` leaves the
+ * interval unbounded, so any command row for the fund blocks (fail-closed).
  */
 export async function verifyNoManualRecomputeSinceShadowStart(params: {
   executor: Executor;
   fundId: number;
-  shadowStartedAt: Date | string | null;
 }): Promise<string[]> {
-  // ponytail: loads every command row for the fund and filters in process;
-  // push the interval predicate into SQL if this admin-only ledger ever grows.
-  const rows = await executeRows<ManualRecomputeLedgerRow>(
+  const rows = await executeRows<ManualRecomputeContaminationRow>(
     params.executor,
     sql`
-      SELECT command.status,
-             command.started_at,
-             command.created_reconciliation,
-             command.finalized_at
-      FROM current_forecast_recompute_commands AS command
-      WHERE command.fund_id = ${params.fundId}
+      SELECT EXISTS (
+        SELECT 1
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+        WHERE command.fund_id = ${params.fundId}
+          AND (
+            mode.shadow_started_at IS NULL
+            OR command.started_at >= mode.shadow_started_at
+            OR (
+              command.created_reconciliation
+              AND command.finalized_at IS NOT NULL
+              AND command.finalized_at >= mode.shadow_started_at
+            )
+          )
+      ) AS contaminated
     `
   );
-  if (params.shadowStartedAt === null) {
-    return rows.length > 0 ? ['manual_recompute_since_shadow_start'] : [];
-  }
-
-  const shadowStart = toTime(params.shadowStartedAt);
-  const contaminated = rows.some(
-    (row) =>
-      toTime(row.started_at) >= shadowStart ||
-      (row.created_reconciliation &&
-        row.finalized_at !== null &&
-        toTime(row.finalized_at) >= shadowStart)
-  );
-  return contaminated ? ['manual_recompute_since_shadow_start'] : [];
+  return rows[0]?.contaminated ? ['manual_recompute_since_shadow_start'] : [];
 }
 
 export interface CurrentForecastActivationResponse {
@@ -759,7 +745,6 @@ async function activateCurrentForecastUnderGuards(
     ...(await verifyNoManualRecomputeSinceShadowStart({
       executor,
       fundId: params.fundId,
-      shadowStartedAt: mode.shadow_started_at,
     })),
   ];
   if (blockers.length > 0) {

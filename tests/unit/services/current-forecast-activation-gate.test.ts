@@ -170,10 +170,18 @@ async function manualBlockers(
   rows: ManualLedgerRow[],
   shadowStartedAt: string | null = SHADOW_START
 ) {
+  const shadowStart = shadowStartedAt === null ? null : new Date(shadowStartedAt).getTime();
+  const contaminated = rows.some(
+    (row) =>
+      shadowStart === null ||
+      new Date(row.started_at).getTime() >= shadowStart ||
+      (row.created_reconciliation &&
+        row.finalized_at !== null &&
+        new Date(row.finalized_at).getTime() >= shadowStart)
+  );
   return verifyNoManualRecomputeSinceShadowStart({
-    executor: { execute: vi.fn(async () => ({ rows })) },
+    executor: { execute: vi.fn(async (_query: unknown) => ({ rows: [{ contaminated }] })) },
     fundId: gateReference.fundId,
-    shadowStartedAt,
   });
 }
 

@@ -606,14 +606,7 @@ describe('activateCurrentForecast', () => {
       noRows,
       [dormantModeRow],
       [snakeRow({ id: 42 })],
-      [
-        {
-          status: 'completed',
-          started_at: '2026-07-02T00:00:00.000Z',
-          created_reconciliation: true,
-          reconciliation_observed_at: '2026-07-02T00:00:05.000Z',
-        },
-      ],
+      [{ contaminated: true }],
     ]);
 
     await expect(

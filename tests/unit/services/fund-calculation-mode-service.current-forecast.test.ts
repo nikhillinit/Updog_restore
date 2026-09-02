@@ -21,7 +21,7 @@ function modeRow(overrides: Record<string, unknown> = {}) {
 
 function makeDatabase(executeRows: unknown[][]) {
   const queue = [...executeRows];
-  const execute = vi.fn(async () => ({ rows: queue.shift() ?? [] }));
+  const execute = vi.fn(async (_query: unknown) => ({ rows: queue.shift() ?? [] }));
   const tx = {
     execute,
   };
@@ -87,7 +87,7 @@ describe('current-forecast calculation mode service', () => {
   });
 
   it('enters shadow without an accepted reconciliation and starts residency', async () => {
-    const { database } = makeDatabase([[modeRow()], modeMutation({ actual_version: 1 })]);
+    const { database } = makeDatabase([[], [modeRow()], modeMutation({ actual_version: 1 })]);
 
     const result = await updateCurrentForecastCalculationMode({
       fundId: 7,
@@ -107,5 +107,27 @@ describe('current-forecast calculation mode service', () => {
     });
     expect(result.response.blockers).not.toContain('accepted_reconciliation_required');
     expect(result.replayed).toBe(false);
+  });
+
+  it('preserves database timestamp precision for a fresh shadow boundary', async () => {
+    const boundary = '2026-07-22 12:00:00.123456+00';
+    const { database, tx } = makeDatabase([
+      [],
+      [modeRow()],
+      [{ now: boundary }],
+      modeMutation({ actual_version: 1 }),
+    ]);
+
+    await updateCurrentForecastCalculationMode({
+      fundId: 7,
+      expectedVersion: 1,
+      configuredMode: 'shadow',
+      idempotencyKey: 'forecast-shadow-precise-clock',
+      actorId: 42,
+      database: database as never,
+      sources: { sourceInputHash: 'forecast-source' },
+    });
+
+    expect(JSON.stringify(tx.execute.mock.calls[3]?.[0])).toContain(boundary);
   });
 });

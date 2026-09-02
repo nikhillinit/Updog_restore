@@ -12116,25 +12116,30 @@ activation-train control:
    `started_at >= shadow_started_at`, or a command with
    `created_reconciliation = true` has `finalized_at >= shadow_started_at` (the
    reconciliation row is persisted in the same transaction that stamps
-   `finalized_at`). All three timestamps come from the database clock: the
-   shadow transition stamps `shadow_started_at` from `NOW()`, the claim defaults
-   `started_at` to `NOW()`, and `finalized_at` is written as `NOW()`, so an
-   application-clock skew cannot open a gap at the boundary. Status is
-   irrelevant (pending, completed, failed, and skipped all count). A NULL
-   `shadow_started_at` fails closed: any command row blocks.
-3. The blocker is not check-then-act. The manual-recompute claim and the
-   activation blocker-check-plus-flip each run inside a transaction that first
-   takes the same per-fund advisory lock
+   `finalized_at`). Boundary timestamps use the database clock: a fresh shadow
+   transition reads `clock_timestamp()` while holding the per-fund lock, the
+   claim defaults `started_at` to `NOW()`, and the successful completion CAS
+   writes `finalized_at` from `clock_timestamp()` while holding that same lock.
+   The latch compares stored timestamps in PostgreSQL, preserving microseconds
+   and serialized persistence order instead of application or transaction-start
+   time. Status is irrelevant (pending, completed, failed, and skipped all
+   count). A NULL `shadow_started_at` fails closed: any command row blocks.
+3. The blocker is not check-then-act. The manual-recompute claim, fresh shadow
+   transition, successful manual reconciliation/finalization, and activation
+   blocker-check-plus-flip each run inside a transaction that takes the same
+   per-fund advisory lock before the relevant mutation
    (`pg_advisory_xact_lock(class, fund_id)`,
-   `server/services/current-forecast-fund-lock.ts`), so a claim that commits
-   first blocks the flip and a flip that commits first leaves the late claim as
-   a harmless post-flip row. Activation is therefore reclassified from ADR-073
-   class (a) to class (b): it requires a transactional driver (the production
-   WebSocket pool per ADR-073 G2-2). A completed same-key replay may return from
-   the read-only ledger lookup; otherwise neon-http fails closed with the
-   driver's transaction error before any guarded mutation statement runs. The
-   neon-lane suite asserts that refusal. The claim path has no fallback
-   (ADR-093).
+   `server/services/current-forecast-fund-lock.ts`). Therefore a reset that
+   commits before manual persistence is followed by a later `finalized_at` and
+   blocks activation; manual persistence that commits first precedes the new
+   shadow boundary. Likewise, a claim that commits first blocks the flip and a
+   flip that commits first leaves the late claim as a harmless post-flip row.
+   Activation is therefore reclassified from ADR-073 class (a) to class (b): it
+   requires a transactional driver (the production WebSocket pool per ADR-073
+   G2-2). A completed same-key replay may return from the read-only ledger
+   lookup; otherwise neon-http fails closed with the driver's transaction error
+   before any guarded mutation statement runs. The neon-lane suite asserts that
+   refusal. The claim path has no fallback (ADR-093).
 
 ### Consequences
 

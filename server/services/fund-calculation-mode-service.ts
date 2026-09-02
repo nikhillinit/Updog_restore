@@ -23,6 +23,7 @@ import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { reconciliationRuns } from '../../shared/schema';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
+import { lockCurrentForecastFund } from './current-forecast-fund-lock';
 
 export {
   FundCalculationModeIdempotencyConflictError,
@@ -226,6 +227,18 @@ async function readDatabaseNow(
   const value = rows[0]?.now;
   if (value === undefined) throw new Error('Database clock read returned no row');
   return value instanceof Date ? value : new Date(value);
+}
+
+async function readCurrentForecastBoundaryTimestamp(
+  executor: Pick<FundCalculationModeTransaction, 'execute'>
+): Promise<string> {
+  const rows = await executeRows<{ now: string }>(
+    executor,
+    sql`SELECT clock_timestamp()::text AS now`
+  );
+  const value = rows[0]?.now;
+  if (typeof value !== 'string') throw new Error('Database clock read returned no row');
+  return value;
 }
 
 function hasQueryReconciliationLookup(database: unknown): database is QueryReconciliationLookup {
@@ -802,7 +815,7 @@ async function updateFundCalculationMode<TSources>(
         : null;
     const blockers: FundCalculationModeBlocker[] = [];
 
-    let nextShadowStartedAt: Date | null = null;
+    let nextShadowStartedAt: Date | string | null = null;
     if (versionMatches) {
       if (
         params.acceptedReconciliationRunId !== undefined &&
@@ -824,15 +837,16 @@ async function updateFundCalculationMode<TSources>(
         const existingStartedAt = toDate(existing?.shadow_started_at ?? null);
         const sourceChanged =
           existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
-        // A new shadow interval is stamped from the database clock, the same
-        // clock that defaults `started_at` on manual recompute commands and
-        // stamps their `finalized_at`, so the activation blocker compares like
-        // with like (F_1.11.0 P0b item 4). An injected `now` stays authoritative
-        // for callers that pin the clock.
+        // A fresh current-forecast interval keeps database microseconds while
+        // holding the same per-fund lock as manual reconciliation persistence.
+        // An injected `now` stays authoritative for callers that pin the clock.
         nextShadowStartedAt =
           existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
             ? existingStartedAt
-            : (params.now ?? (await readDatabaseNow(tx)));
+            : (params.now ??
+              (strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY
+                ? await readCurrentForecastBoundaryTimestamp(tx)
+                : await readDatabaseNow(tx)));
       }
 
       if (params.configuredMode === 'on') {
@@ -1036,5 +1050,16 @@ export async function updateCurrentForecastCalculationMode(
 ): Promise<{ response: GenericFundCalculationModePreview; replayed: boolean }> {
   // Transitional schema alias: last_moic_source_input_hash stores the accepted
   // source hash for whichever calculation key owns the row until Task 13.1.
-  return updateFundCalculationMode(currentForecastCalculationModeStrategy, params);
+  if (params.configuredMode !== 'shadow') {
+    return updateFundCalculationMode(currentForecastCalculationModeStrategy, params);
+  }
+  const database = params.database ?? db;
+  return database.transaction(async (transaction) => {
+    // Only shadow entry/reset creates a new activation interval boundary.
+    await lockCurrentForecastFund(transaction, params.fundId);
+    return updateFundCalculationMode(currentForecastCalculationModeStrategy, {
+      ...params,
+      database: transaction as unknown as FundCalculationModeDatabase,
+    });
+  });
 }
