@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:11f996ce9fc9b89fac24ee5652baac651fc9eddd22e7e6153ec5544468b85a87",
+  "snapshot_id": "snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "a0237e933c2cac4f1ff7e6754cf2e1435a0d848270bec4269c3021e93860874e",
+    "audit/surface-contract-matrix/boot-proofs.json": "25b8f8cc878a0620afe4749b66a9fb7a2f1679c6ce436d137be19d3866d0cf02",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -16641,9 +16641,9 @@
   "closure": {
     "independent_review": {
       "reviewed_at": "2026-09-02",
-      "reviewer": "Codex code-reviewer g1_exact_head_review",
-      "source_commit": "e00fe76b506dc42c2bf72d9ad6b924018c963ef0",
-      "baseline": "Prior closed review at 74bf00139ef26391736ef72082e1b5bc99e72c32 remains applicable after exact comparison to e00fe76b506dc42c2bf72d9ad6b924018c963ef0: 483/483 source-derived row invariants unchanged, 797/797 exposures unchanged, 12/12 persona mappings unchanged, 83/83 off-row source semantics unchanged, and 30/30 closure rows still applicable. Functional delta from 0d31a0d4e352a66adb72b27f8f71dedf25ec93cf is test-only isolated migration-pool teardown reuse. Source inventory retains 169 fingerprints with only audit/surface-contract-matrix/boot-proofs.json rebound. Snapshot rebound to snapshot:11f996ce9fc9b89fac24ee5652baac651fc9eddd22e7e6153ec5544468b85a87; fresh boot-proof table contains 9/9 entries with unchanged semantics: 7 proven, 1 failed ml-service-local proof, and 1 intentionally unproven local-process proof."
+      "reviewer": "Codex code-reviewer datestyle_diff_review",
+      "source_commit": "a4cf75ad6803c69b9620482cefbf5036bfef564e",
+      "baseline": "Prior closed review at 215d8dd257212c0126c88051b66c32d49648a81e remains applicable after exact comparison to a4cf75ad6803c69b9620482cefbf5036bfef564e: 483/483 source-derived row invariants unchanged, 797/797 exposures unchanged, 12/12 persona mappings unchanged, 83/83 off-row source semantics unchanged, and 30/30 closure rows still applicable. Functional delta from e00fe76b506dc42c2bf72d9ad6b924018c963ef0 is limited to DateStyle- and TimeZone-independent UTC microsecond serialization for the existing current-forecast shadow boundary plus regression coverage; it changes no surface contract. Source inventory retains 169 fingerprints with only audit/surface-contract-matrix/boot-proofs.json rebound. Snapshot rebound to snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848; fresh boot-proof table contains 9/9 entries with unchanged semantics: 7 proven, 1 failed ml-service-local proof, and 1 intentionally unproven local-process proof."
     },
     "rows": {
       "api:GET:/api-docs": {
@@ -16799,5 +16799,5 @@
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "codex-session:01a062d5-5f23-7392-a584-a974fcf6a947;source:e00fe76b506dc42c2bf72d9ad6b924018c963ef0;snapshot:snapshot:11f996ce9fc9b89fac24ee5652baac651fc9eddd22e7e6153ec5544468b85a87"
+  "evidence_ref": "codex-session:01a062d5-5f23-7392-a584-a974fcf6a947;source:a4cf75ad6803c69b9620482cefbf5036bfef564e;snapshot:snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848"
 }
