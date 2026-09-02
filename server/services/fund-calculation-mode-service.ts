@@ -839,14 +839,12 @@ async function updateFundCalculationMode<TSources>(
           existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
         // A fresh current-forecast interval keeps database microseconds while
         // holding the same per-fund lock as manual reconciliation persistence.
-        // An injected `now` stays authoritative for callers that pin the clock.
         nextShadowStartedAt =
           existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
             ? existingStartedAt
-            : (params.now ??
-              (strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY
-                ? await readCurrentForecastBoundaryTimestamp(tx)
-                : await readDatabaseNow(tx)));
+            : strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY
+              ? await readCurrentForecastBoundaryTimestamp(tx)
+              : (params.now ?? (await readDatabaseNow(tx)));
       }
 
       if (params.configuredMode === 'on') {
