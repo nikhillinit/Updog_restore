@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:adca3580246ace67c16927062ee37f89fea6d132ae53357d24c28b980856bc18",
+  "snapshot_id": "snapshot:373aaeb0c35be113e83f251bc4f49a11b54467b14c99afb31aabd8316424d5c7",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "48c92d7eb11a8f10c55b993a528bcd2cd73445faf7b0daac21b61a1f9f81d370",
+    "audit/surface-contract-matrix/boot-proofs.json": "a1c3225670db3a2cd5b8ebd24fd0fe628117c2e690ff4a5eec3a83b84a141ef6",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -16642,11 +16642,11 @@
     "independent_review": {
       "reviewed_at": "2026-09-02",
       "reviewer": "Codex verifier g1-independent-review",
-      "source_commit": "2813e6995c04c97cb6b0068264356a4ed185a49b",
-      "baseline": "Prior closed G1 artifact at 24f2845acf528e2c7c1ef60fde82906f94198798 used as decision baseline; reviewer independently checked current semantics before rebind",
-      "scope": "All 483 rows, 797 exposure obligations, 12 persona mappings, 83 off-row obligations, and 30 closure rows were independently compared against the current exact-SHA artifacts.",
-      "seed_determinism": "At source commit 2813e6995c04c97cb6b0068264356a4ed185a49b, exact-SHA knowledge-graph rebuild and boot proof succeeded; two seed passes produced byte-identical nine-artifact output.",
-      "result": "No row or off-row item requires changed review. Existing local-only ML failed proof remains excluded and continues to block ML promotion only."
+      "source_commit": "8e60caff3d9b8e78ef57f268ea205c9b61ca25b0",
+      "baseline": "Historical closed G1 manifest at commit 125b55d4023f9bf2f4977c35b9bdfc02ad3d48c9 used only as comparison baseline; every current row, exposure, persona, off-row, closure, and source fingerprint obligation was independently checked before decision rebind.",
+      "scope": "All 483 rows, 797 exposure obligations, 12 persona mappings, 83 off-row obligations, 30 closure rows, and 169 source fingerprints reviewed against current exact-SHA artifacts.",
+      "seed_determinism": "At source commit 8e60caff3d9b8e78ef57f268ea205c9b61ca25b0, Node 22.23.2 exact-SHA knowledge-graph rebuild and boot proof succeeded; both seed passes produced byte-identical nine-artifact output.",
+      "result": "No row or off-row semantic drift found. Existing local-only ML failed proof remains excluded and continues to block ML promotion only."
     },
     "rows": {
       "api:GET:/api-docs": {
@@ -16801,6 +16801,6 @@
       }
     }
   },
-  "approver_id": "codex-verifier:g1-independent-review",
-  "evidence_ref": "codex-session:01a06116-e531-7363-be8e-a409c3717c23;source:2813e6995c04c97cb6b0068264356a4ed185a49b"
+  "approver_id": "nikhillinit",
+  "evidence_ref": "codex-session:01a06053-ae69-7e83-8c8c-3dcfd8d885a7;source:8e60caff3d9b8e78ef57f268ea205c9b61ca25b0"
 }
