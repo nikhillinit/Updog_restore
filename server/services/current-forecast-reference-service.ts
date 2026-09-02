@@ -562,17 +562,15 @@ export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
 type ManualRecomputeContaminationRow = { contaminated: boolean };
 
 /**
- * Phase 4 manual-run prohibition, machine-enforced at the latch (F_1.11.0 P0b
- * item 4). The fund is contaminated when any manual recompute command started
- * at or after the shadow interval began, or when a command that created its
- * current-forecast reconciliation row finalized at or after that point (a
- * command that started before the transition but persisted after it). Status
- * is irrelevant: pending, completed, failed, and skipped attempts all count.
- * PostgreSQL compares the stored timestamps directly, preserving microseconds.
- * The shadow transition and successful manual persistence share the per-fund
- * lock; claim `started_at` defaults from NOW(), while finalization and fresh
- * shadow entry use clock_timestamp(). A NULL `shadow_started_at` leaves the
- * interval unbounded, so any command row for the fund blocks (fail-closed).
+ * Phase 4 manual-run prohibition, machine-enforced latch (F_1.11.0 P0b
+ * item 4). A fund is contaminated while any manual recompute is pending, when
+ * a command started during the shadow interval, or when a terminal command
+ * finalized during the interval. PostgreSQL compares stored timestamps
+ * directly, preserving microseconds. The shadow transition, manual claim, and
+ * successful manual persistence share the per-fund lock; claim `started_at`
+ * and fresh shadow entry use clock_timestamp(). A NULL `shadow_started_at`
+ * leaves the interval unbounded, so any command row for the fund blocks
+ * (fail-closed).
  */
 export async function verifyNoManualRecomputeSinceShadowStart(params: {
   executor: Executor;
@@ -590,10 +588,10 @@ export async function verifyNoManualRecomputeSinceShadowStart(params: {
         WHERE command.fund_id = ${params.fundId}
           AND (
             mode.shadow_started_at IS NULL
+            OR command.status = 'pending'
             OR command.started_at >= mode.shadow_started_at
             OR (
-              command.created_reconciliation
-              AND command.finalized_at IS NOT NULL
+              command.finalized_at IS NOT NULL
               AND command.finalized_at >= mode.shadow_started_at
             )
           )

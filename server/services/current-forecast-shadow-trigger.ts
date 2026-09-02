@@ -480,6 +480,7 @@ async function claimManualCurrentForecastRecompute(params: {
         requestHash: params.requestHash,
         status: 'pending',
         createdBy: params.actorId,
+        startedAt: sql`clock_timestamp()`,
       })
       .onConflictDoNothing({
         target: [
@@ -523,7 +524,7 @@ async function claimManualCurrentForecastRecompute(params: {
         failureCode: 'stale_pending',
         shadowReconciliationId: null,
         createdReconciliation: false,
-        finalizedAt: sql`NOW()`,
+        finalizedAt: sql`clock_timestamp()`,
       })
       .where(
         and(

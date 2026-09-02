@@ -476,14 +476,14 @@ preserving activation and pointer fields.
 
 The latch also enforces the manual-run prohibition. The activation eligibility
 check returns a typed `manual_recompute_since_shadow_start` blocker (`409`
-`activation_blocked`) when any manual recompute command for the fund started at
-or after the mode row's `shadow_started_at`, or created a current-forecast
-reconciliation row at or after it; a missing `shadow_started_at` fails closed.
-The blocker check and the flip run in one transaction under a per-fund lock, so
-a manual claim cannot land between them. A violated prohibition therefore cannot
-reach the flip even if an audit is missed. The per-window and pre-flip audits
-remain the evidence controls and are still required; the blocker is not a
-substitute for them.
+`activation_blocked`) when any manual recompute command for the fund is pending,
+started at or after the mode row's `shadow_started_at`, or finalized at or after
+it. Deduplicated reconciliation does not exempt a command, and a missing
+`shadow_started_at` fails closed. The blocker check and the flip run in one
+transaction under a per-fund lock, so a manual claim cannot land between them. A
+violated prohibition therefore cannot reach the flip even if an audit is missed.
+The per-window and pre-flip audits remain the evidence controls and are still
+required; the blocker is not a substitute for them.
 
 ## Evidence record
 

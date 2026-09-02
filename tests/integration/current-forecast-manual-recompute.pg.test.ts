@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import * as schema from '@shared/schema';
 import type { CurrentForecastV2 } from '../../shared/contracts/current-forecast-v2.contract';
+import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import type { CurrentForecastDatabase } from '../../server/services/current-forecast-v2-service';
 import { CURRENT_FORECAST_FUND_LOCK_CLASS } from '../../server/services/current-forecast-fund-lock';
 import {
@@ -186,6 +187,190 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
     });
   });
 
+  it('stamps a lock-waiting manual claim inside the new shadow interval when reconciliation deduplicates', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '1'.repeat(64), '2'.repeat(64));
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockResolvedValue(result);
+    const organic = await persistCurrentForecastShadowReconciliation(
+      reconciliationRecord(fundId, result.inputHash, result.resultHash),
+      requiredDatabase()
+    );
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const manual = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey: `lock-wait-dedup-${fundId}`,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+      expect(await commandCount(fundId)).toBe(0);
+
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+      await holder.query('COMMIT');
+      holderOpen = false;
+
+      await expect(manual).resolves.toEqual({
+        status: 'completed',
+        shadowReconciliationId: organic.id,
+        replayed: false,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    const ordering = await requiredPool().query<{
+      created_reconciliation: boolean;
+      started_after_reset: boolean;
+    }>(
+      `
+        SELECT
+          command.created_reconciliation,
+          command.started_at >= mode.shadow_started_at AS started_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, `lock-wait-dedup-${fundId}`]
+    );
+    expect
+      .soft(ordering.rows)
+      .toEqual([{ created_reconciliation: false, started_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 2,
+          idempotencyKey: `lock-wait-dedup-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
+  it('stamps stale recovery after a shadow boundary advanced while waiting on the fund lock', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const idempotencyKey = `stale-recovery-boundary-${fundId}`;
+    await requiredPool().query(
+      `
+        INSERT INTO current_forecast_recompute_commands (
+          fund_id, idempotency_key, request_hash, status,
+          created_reconciliation, started_at
+        )
+        VALUES (
+          $1, $2, $3, 'pending', false,
+          clock_timestamp() - INTERVAL '2 minutes'
+        )
+      `,
+      [
+        fundId,
+        idempotencyKey,
+        canonicalSha256({
+          route: 'POST /api/funds/:fundId/current-forecast/recompute',
+          fundId,
+        }),
+      ]
+    );
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const recovery = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+      await holder.query('COMMIT');
+      holderOpen = false;
+
+      await expect(recovery).resolves.toEqual({
+        status: 'failed',
+        failureCode: 'stale_pending',
+        replayed: true,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    const ordering = await requiredPool().query<{ finalized_after_reset: boolean }>(
+      `
+        SELECT command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, idempotencyKey]
+    );
+    expect.soft(ordering.rows).toEqual([{ finalized_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 2,
+          idempotencyKey: `stale-recovery-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
   it('rolls back snapshot and reconciliation when stale finalization wins the pending CAS', async () => {
     const fundId = await insertFund();
     const result = forecastResult(fundId, '2'.repeat(64), '3'.repeat(64));
@@ -346,6 +531,113 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
           referenceId: fixture.referenceId,
           expectedVersion: 3,
           idempotencyKey: `reset-race-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
+  it('blocks a pre-boundary manual command while pending and after deduplicated completion', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '3'.repeat(64), '4'.repeat(64));
+    const computationStarted = deferred<void>();
+    const releaseComputation = deferred<void>();
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockImplementationOnce(async () => {
+      computationStarted.resolve(undefined);
+      await releaseComputation.promise;
+      return result;
+    });
+    const organic = await persistCurrentForecastShadowReconciliation(
+      reconciliationRecord(fundId, result.inputHash, result.resultHash),
+      requiredDatabase()
+    );
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey: `pre-boundary-pending-${fundId}`,
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await computationStarted.promise;
+
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 1,
+      configuredMode: 'off',
+      idempotencyKey: `pre-boundary-off-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `pre-boundary-off-${fundId}` },
+      database: referenceDatabase(),
+    });
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 2,
+      configuredMode: 'shadow',
+      idempotencyKey: `pre-boundary-shadow-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `pre-boundary-shadow-${fundId}` },
+      database: referenceDatabase(),
+    });
+
+    const pendingActivation = await activateCurrentForecast({
+      fundId,
+      referenceId: fixture.referenceId,
+      expectedVersion: 3,
+      idempotencyKey: `pre-boundary-pending-activate-${fundId}`,
+      actorId: null,
+      database: rollbackOnlyReferenceDatabase(),
+      verifyGreenCandidate: async () => [],
+    }).then(
+      (value) => ({ status: 'resolved' as const, value }),
+      (error: unknown) => ({ status: 'rejected' as const, error })
+    );
+
+    releaseComputation.resolve(undefined);
+    await expect(manual).resolves.toEqual({
+      status: 'completed',
+      shadowReconciliationId: organic.id,
+      replayed: false,
+    });
+    expect.soft(pendingActivation).toMatchObject({
+      status: 'rejected',
+      error: {
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      },
+    });
+
+    const residue = await requiredPool().query<{
+      created_reconciliation: boolean;
+      finalized_after_reset: boolean;
+    }>(
+      `
+        SELECT
+          command.created_reconciliation,
+          command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, `pre-boundary-pending-${fundId}`]
+    );
+    expect(residue.rows).toEqual([{ created_reconciliation: false, finalized_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 3,
+          idempotencyKey: `pre-boundary-completed-activate-${fundId}`,
           actorId: null,
           database: referenceDatabase(),
           verifyGreenCandidate: async () => [],
@@ -814,6 +1106,35 @@ function hex64(seed: string): string {
 
 function referenceDatabase(): CurrentForecastReferenceDatabase {
   return requiredDatabase() as unknown as CurrentForecastReferenceDatabase;
+}
+
+function rollbackOnlyReferenceDatabase(): CurrentForecastReferenceDatabase {
+  const database = referenceDatabase();
+  return new Proxy(database, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (property !== 'transaction' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      return async (callback: (transaction: object) => Promise<unknown>, ...args: unknown[]) => {
+        const rollback = new Error('rollback activation probe');
+        let result: unknown;
+        try {
+          await value.call(
+            target,
+            async (transaction: object) => {
+              result = await callback(transaction);
+              throw rollback;
+            },
+            ...args
+          );
+        } catch (error) {
+          if (error !== rollback) throw error;
+        }
+        return result;
+      };
+    },
+  });
 }
 
 function mockReceipt(result: CurrentForecastV2): void {

@@ -12112,18 +12112,16 @@ activation-train control:
 2. Machine enforcement at the latch (P0b item 4, plan "5. P0b item 4"): the
    activation eligibility check loads the mode row's `shadow_started_at` and
    returns a typed `manual_recompute_since_shadow_start` blocker when any
-   `current_forecast_recompute_commands` row for the fund has
-   `started_at >= shadow_started_at`, or a command with
-   `created_reconciliation = true` has `finalized_at >= shadow_started_at` (the
-   reconciliation row is persisted in the same transaction that stamps
-   `finalized_at`). Boundary timestamps use the database clock: a fresh shadow
-   transition reads `clock_timestamp()` while holding the per-fund lock, the
-   claim defaults `started_at` to `NOW()`, and the successful completion CAS
-   writes `finalized_at` from `clock_timestamp()` while holding that same lock.
-   The latch compares stored timestamps in PostgreSQL, preserving microseconds
-   and serialized persistence order instead of application or transaction-start
-   time. Status is irrelevant (pending, completed, failed, and skipped all
-   count). A NULL `shadow_started_at` fails closed: any command row blocks.
+   `current_forecast_recompute_commands` row for the fund is pending, has
+   `started_at >= shadow_started_at`, or has
+   `finalized_at >= shadow_started_at`. Deduplicated reconciliation does not
+   exempt a command. Boundary timestamps use the database clock: a fresh shadow
+   transition and a new claim read `clock_timestamp()` while holding the
+   per-fund lock, and successful completion plus stale-pending recovery stamp
+   `finalized_at` from `clock_timestamp()` after acquiring that same lock. The
+   latch compares stored timestamps in PostgreSQL, preserving microseconds and
+   serialized persistence order instead of application or transaction-start
+   time. A NULL `shadow_started_at` fails closed: any command row blocks.
 3. The blocker is not check-then-act. The manual-recompute claim, fresh shadow
    transition, successful manual reconciliation/finalization, and activation
    blocker-check-plus-flip each run inside a transaction that takes the same
@@ -12145,9 +12143,9 @@ activation-train control:
 
 A violated prohibition cannot reach the flip even if an audit is missed, but the
 audits remain required evidence. Manual recompute on a soaked fund is a soak
-restart, not a footnote. A claim that began waiting for the lock before the flip
-records `started_at` (transaction start) slightly before `activated_at` while
-being a post-flip row; this affects audit timestamps only, never the blocker,
-because the flip cannot see an uncommitted claim. Provenance filters in evidence
-or activation queries can land post-activation if manual runs on soaked funds
-ever become desirable; until then no such filter exists by design.
+restart, not a footnote. A claim waiting for the lock stamps `started_at` only
+after acquiring it: a committed pending claim blocks the flip, while a flip that
+commits first leaves the later claim as a harmless post-flip row. Provenance
+filters in evidence or activation queries can land post-activation if manual
+runs on soaked funds ever become desirable; until then no such filter exists by
+design.
