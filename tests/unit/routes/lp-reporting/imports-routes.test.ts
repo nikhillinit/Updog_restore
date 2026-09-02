@@ -540,8 +540,12 @@ describe('POST /api/funds/:fundId/imports/artifacts', () => {
       .post('/api/funds/1/imports/artifacts')
       .set('Idempotency-Key', 'artifact-oversized-json')
       .send({ sourceType: 'manual', fileName: null, content: 'x'.repeat(200_001) });
-    expect(oversized.status).toBe(400);
-    expect(oversized.body.error).toBe('INVALID_ARTIFACT_BODY');
+    // Assert status and body together so a flake shows whether the route guard
+    // (INVALID_ARTIFACT_BODY) or the upstream JSON parser (BAD_REQUEST) rejected.
+    expect({ status: oversized.status, body: oversized.body }).toMatchObject({
+      status: 400,
+      body: { error: 'INVALID_ARTIFACT_BODY' },
+    });
   });
 });
 
@@ -649,7 +653,8 @@ describe('makeApp artifact raw-parser boundary', () => {
       .set('X-Artifact-Source-Type', 'csv')
       .set('Idempotency-Key', 'artifact-boundary-rejected')
       .send(Buffer.alloc(ARTIFACT_MAX_BYTES + 1));
-    expect(rejected.status).toBe(413);
+    // Capture the body so a flake distinguishes the raw-parser limit from a route rejection.
+    expect({ status: rejected.status, body: rejected.body }).toMatchObject({ status: 413 });
   });
 });
 
