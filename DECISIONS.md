@@ -12126,9 +12126,11 @@ activation-train control:
    first blocks the flip and a flip that commits first leaves the late claim as
    a harmless post-flip row. Activation is therefore reclassified from ADR-073
    class (a) to class (b): it requires a transactional driver (the production
-   WebSocket pool per ADR-073 G2-2) and fails closed on neon-http with the
-   driver's transaction error before any statement runs; the neon-lane suite
-   asserts that refusal. The claim path has no fallback (ADR-093).
+   WebSocket pool per ADR-073 G2-2). A completed same-key replay may return from
+   the read-only ledger lookup; otherwise neon-http fails closed with the
+   driver's transaction error before any guarded mutation statement runs. The
+   neon-lane suite asserts that refusal. The claim path has no fallback
+   (ADR-093).
 
 ### Consequences
 

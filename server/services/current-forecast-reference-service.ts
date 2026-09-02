@@ -946,8 +946,9 @@ async function activateCurrentForecastUnderGuards(
  * advisory lock (F_1.11.0 P0b item 4), so the `manual_recompute_since_shadow_start`
  * blocker is evaluated immediately before the flip with no claim window in
  * between. Activation therefore requires a transactional driver (ADR-073
- * class (b), reclassified by ADR-096); on neon-http the driver's transaction
- * error propagates before any statement runs.
+ * class (b), reclassified by ADR-096). A completed same-key replay may return
+ * from the read-only ledger lookup; otherwise neon-http propagates the driver's
+ * transaction error before any guarded mutation statement runs.
  */
 export async function activateCurrentForecast(
   params: ActivateCurrentForecastParams
