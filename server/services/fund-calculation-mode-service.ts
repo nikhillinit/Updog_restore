@@ -816,6 +816,7 @@ async function updateFundCalculationMode<TSources>(
     const blockers: FundCalculationModeBlocker[] = [];
 
     let nextShadowStartedAt: Date | string | null = null;
+    let preserveExistingShadowStartedAt = false;
     if (versionMatches) {
       if (
         params.acceptedReconciliationRunId !== undefined &&
@@ -837,14 +838,17 @@ async function updateFundCalculationMode<TSources>(
         const existingStartedAt = toDate(existing?.shadow_started_at ?? null);
         const sourceChanged =
           existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
-        // A fresh current-forecast interval keeps database microseconds while
-        // holding the same per-fund lock as manual reconciliation persistence.
-        nextShadowStartedAt =
-          existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
-            ? existingStartedAt
-            : strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY
-              ? await readCurrentForecastBoundaryTimestamp(tx)
-              : (params.now ?? (await readDatabaseNow(tx)));
+        preserveExistingShadowStartedAt =
+          existing?.configured_mode === 'shadow' &&
+          existingStartedAt !== null &&
+          (strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY || !sourceChanged);
+        // Fresh current-forecast intervals use the database clock; unchanged
+        // intervals stay in SQL so PostgreSQL microseconds never round-trip.
+        nextShadowStartedAt = preserveExistingShadowStartedAt
+          ? existingStartedAt
+          : strategy.calculationKey === CURRENT_FORECAST_CALCULATION_KEY
+            ? await readCurrentForecastBoundaryTimestamp(tx)
+            : (params.now ?? (await readDatabaseNow(tx)));
       }
 
       if (params.configuredMode === 'on') {
@@ -948,7 +952,10 @@ async function updateFundCalculationMode<TSources>(
           ON CONFLICT (fund_id, calculation_key) DO UPDATE
           SET configured_mode = EXCLUDED.configured_mode,
               kill_switch_active = EXCLUDED.kill_switch_active,
-              shadow_started_at = EXCLUDED.shadow_started_at,
+              shadow_started_at = CASE
+                WHEN ${preserveExistingShadowStartedAt} THEN mode.shadow_started_at
+                ELSE EXCLUDED.shadow_started_at
+              END,
               last_reconciliation_run_id = EXCLUDED.last_reconciliation_run_id,
               last_moic_source_input_hash = EXCLUDED.last_moic_source_input_hash,
               last_candidate_output_hash = EXCLUDED.last_candidate_output_hash,

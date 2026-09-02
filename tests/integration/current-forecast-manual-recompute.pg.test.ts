@@ -988,6 +988,47 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
     expect(ordering.rows).toEqual([{ finalized_before_reset: true }]);
   });
 
+  it('preserves shadow boundary microseconds on same-interval updates', async () => {
+    const fundId = await insertFund();
+    await seedActivationFixture(fundId);
+    const shadowStartedAt = '2026-08-01 00:00:00.123456+00';
+
+    await requiredPool().query(
+      `
+        UPDATE fund_calculation_modes
+        SET shadow_started_at = $2::timestamptz
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId, shadowStartedAt]
+    );
+
+    await expect(
+      updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 1,
+        configuredMode: 'shadow',
+        killSwitchActive: true,
+        idempotencyKey: `precision-stay-shadow-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: hex64(`input-${fundId}`) },
+        database: referenceDatabase(),
+      })
+    ).resolves.toMatchObject({
+      response: { configuredMode: 'shadow', killSwitchActive: true, version: 2 },
+      replayed: false,
+    });
+
+    const persisted = await requiredPool().query<{ shadow_started_at: string }>(
+      `
+        SELECT shadow_started_at::text AS shadow_started_at
+        FROM fund_calculation_modes
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId]
+    );
+    expect(persisted.rows).toEqual([{ shadow_started_at: shadowStartedAt }]);
+  });
+
   it('compares manual-run boundaries at PostgreSQL timestamp precision', async () => {
     const fundId = await insertFund();
     const fixture = await seedActivationFixture(fundId);
