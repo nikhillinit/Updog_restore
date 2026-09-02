@@ -23,7 +23,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "dockerfile-root: Dockerfile; listener discovery evidence Dockerfile:56, Dockerfile:65; detected listener patterns container-http-entrypoint:56, container-http-entrypoint:65. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    "decision_evidence": "dockerfile-root: Dockerfile; listener discovery evidence Dockerfile:58, Dockerfile:67; detected listener patterns container-http-entrypoint:58, container-http-entrypoint:67. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
   },
   {
     "candidate_path": "Dockerfile.railway",
@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "legacy-dockerfile-railway: Dockerfile.railway; listener discovery evidence Dockerfile.railway:41, Dockerfile.railway:45; detected listener patterns container-http-entrypoint:41, container-http-entrypoint:45. Current disposition non-product-tooling is supported by this executable listener discovery."
+    "decision_evidence": "legacy-dockerfile-railway: Dockerfile.railway; listener discovery evidence Dockerfile.railway:43, Dockerfile.railway:47; detected listener patterns container-http-entrypoint:43, container-http-entrypoint:47. Current disposition non-product-tooling is supported by this executable listener discovery."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -100,7 +100,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "dockerfile-worker: Dockerfile.worker; listener discovery evidence Dockerfile.worker:163, Dockerfile.worker:175; detected listener patterns container-http-entrypoint:163, container-http-entrypoint:175. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+    "decision_evidence": "dockerfile-worker: Dockerfile.worker; listener discovery evidence Dockerfile.worker:165, Dockerfile.worker:177; detected listener patterns container-http-entrypoint:165, container-http-entrypoint:177. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
   },
   {
     "candidate_path": "ml-service/app.py",
