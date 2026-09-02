@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:b8f25c9108a3b4c7232454ee4b7b27fceb8f0ae9da65c4d4270a2f9d56c7cae7",
+  "snapshot_id": "snapshot:adca3580246ace67c16927062ee37f89fea6d132ae53357d24c28b980856bc18",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "117a9a010b7b4ee7a0d61190cb2857fd430bdc33a73dc54e9476662bb5e2f40d",
+    "audit/surface-contract-matrix/boot-proofs.json": "48c92d7eb11a8f10c55b993a528bcd2cd73445faf7b0daac21b61a1f9f81d370",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -16641,12 +16641,12 @@
   "closure": {
     "independent_review": {
       "reviewed_at": "2026-09-02",
-      "reviewer": "Three independent Codex review partitions under nikhillinit owner directive",
-      "source_commit": "4373401472fc5a37de63cbea45607c1425fb11d0",
-      "baseline": "Prior closed G1 at 952e2593ade22c8c60b1d57ffd8c5881a7f94c91 used only as a review hypothesis",
-      "scope": "All 483 rows, 83 off-row obligations, 12 persona mappings, 797 exposure obligations, and 30 closure rows were independently reviewed. Per-row source fingerprints and exposure keys were verified against the fresh exact-SHA inventory; prior semantic decisions were re-evaluated rather than mechanically carried.",
-      "seed_determinism": "At source commit 4373401472fc5a37de63cbea45607c1425fb11d0, the README fresh reset, exact-SHA knowledge-graph rebuild, boot proof, and two seed passes completed; cmp matched all nine required artifacts with zero mismatches.",
-      "result": "No blocking semantic drift. Review corrected auth-session personas to include lp and service, refreshed three listener line-evidence records, and refreshed five pruned dormant-orphan evidence records. The unchanged local-only ML boot failure remains excluded and blocks any ML promotion, not G1 closure."
+      "reviewer": "Codex verifier g1-independent-review",
+      "source_commit": "2813e6995c04c97cb6b0068264356a4ed185a49b",
+      "baseline": "Prior closed G1 artifact at 24f2845acf528e2c7c1ef60fde82906f94198798 used as decision baseline; reviewer independently checked current semantics before rebind",
+      "scope": "All 483 rows, 797 exposure obligations, 12 persona mappings, 83 off-row obligations, and 30 closure rows were independently compared against the current exact-SHA artifacts.",
+      "seed_determinism": "At source commit 2813e6995c04c97cb6b0068264356a4ed185a49b, exact-SHA knowledge-graph rebuild and boot proof succeeded; two seed passes produced byte-identical nine-artifact output.",
+      "result": "No row or off-row item requires changed review. Existing local-only ML failed proof remains excluded and continues to block ML promotion only."
     },
     "rows": {
       "api:GET:/api-docs": {
@@ -16801,6 +16801,6 @@
       }
     }
   },
-  "approver_id": "nikhillinit",
-  "evidence_ref": "https://github.com/nikhillinit/Updog_restore/commit/4373401472fc5a37de63cbea45607c1425fb11d0"
+  "approver_id": "codex-verifier:g1-independent-review",
+  "evidence_ref": "codex-session:01a06116-e531-7363-be8e-a409c3717c23;source:2813e6995c04c97cb6b0068264356a4ed185a49b"
 }
