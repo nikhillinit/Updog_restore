@@ -49,7 +49,9 @@ describe.skipIf(skipIfNoDocker)(
       connectionString = databaseUrl.toString();
 
       const state = await runMigrationsWithConnectionString(connectionString, MIGRATION_TAG);
-      expect(state.applied.map((entry) => entry.name)).toContain(MIGRATION_TAG);
+      const appliedTags = state.applied.map((entry) => entry.name);
+      expect(appliedTags).toContain('0054_operating_decisions_spine');
+      expect(appliedTags).toContain(MIGRATION_TAG);
 
       pool = new Pool({ connectionString, max: 1 });
       migrationSql = await readFile(MIGRATION_FILE, 'utf8');

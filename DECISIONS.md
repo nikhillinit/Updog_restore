@@ -11981,3 +11981,164 @@ Timeout or stale-recovery winners define the durable outcome. Late executors may
 finish computation, but cannot commit snapshots, reconciliation rows, or
 provenance after losing the final CAS. A stale command is not re-executed under
 the same key; an operator must submit a fresh attempt with a fresh key.
+
+## ADR-094: Retire `POST /funds/:fundId/current-forecast/runs`
+
+**Date:** 2026-09-01 **Status:** Proposed (owner ratification on merge)
+**Tags:** #current-forecast #idempotency #route-retirement
+#surface-contract-matrix
+
+### Context
+
+`POST /api/funds/:fundId/current-forecast/runs` executed `runCurrentForecastV2`
+directly from an HTTP request with no `Idempotency-Key` requirement and an
+unconditional fund-snapshot insert, so a retried request duplicated snapshots.
+It was the only fund-scoped mutation outside the two shipped idempotency
+patterns (`runIdempotentCommand`, claim-first command table) and was tolerated
+as a de facto exclusion rather than registered anywhere. The defect is tracked
+as #1467. F_1.10.0 shipped the durable claim-first
+`POST /funds/:fundId/current-forecast/recompute` command (ADR-093), which covers
+every manual execution need.
+
+The F_1.11.0 plan (section 2, P0b item 1) required a consumer audit before
+choosing between retirement and an idempotency retrofit. The static audit
+(recorded on #1467) found zero admitted consumers: no client caller (the only
+client current-forecast call targets `/recompute`), no script, worker, CI, or
+runbook caller, and only self-verifying route tests and generated matrix rows
+referencing the path. In-process callers of the `runCurrentForecastV2` service
+function are unaffected. The production-usage observation (2026-09-01) found the
+route deployed since the 2026-07-30 dispatch, zero retained runtime-log entries
+via the Vercel CLI, and no log drain; the retained interval is at most one day,
+so the negative is presented as a one-day negative and an owner attestation of
+no operator or external use is requested on #1467 before the retirement merges.
+
+### Decision
+
+Retire the endpoint rather than retrofit it:
+
+1. Delete the Express handler, its body schema, and the `runCurrentForecastV2`
+   import from `server/routes/current-forecast.ts`.
+2. Delete the route-policy entry
+   `api:post:/api/funds/:fundId/current-forecast/runs` and its
+   `COMMON_API_ROUTE_POLICY_IDS['current-forecast']` inventory id.
+3. Delete the `/runs` cases from the route contract test.
+4. Leave the `current-forecast` manifest id, impl-map entry, group slices, and
+   mount untouched: they are module-level and shared with the surviving
+   endpoints.
+5. Drop the surface-contract matrix row through the documented regeneration
+   chain with G1 re-closure, never by hand-editing the artifacts.
+
+The retrofit path (claim-first semantics on `/runs` with a required request
+`clock`, a new command table or discriminator, and an additive migration) is not
+taken and is not pre-designed; it requires a plan amendment if an admitted
+consumer is later attested.
+
+### Consequences
+
+Any undiscovered caller receives 404 after retirement; the sanctioned
+replacement is `POST /funds/:fundId/current-forecast/recompute` with an
+`Idempotency-Key`. The route-policy registry drops from 157 to 156 entries and
+the surface-contract matrix loses one row. No schema change, no production
+apply. The `runCurrentForecastV2` service export remains live for in-process
+callers (metrics aggregator, shadow trigger, analysis checkpoint).
+
+References: #1467; `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md`
+section 2.
+
+## ADR-095: F_1.11.0 Activation Train Binds to One Candidate SHA With a Restart Rule
+
+**Date:** 2026-09-01 **Status:** Proposed (owner ratification on merge)
+**Tags:** #current-forecast #release-governance #activation-train #evidence
+
+### Decision
+
+The isolated activation train (F_1.11.0 plan, "Solution Architecture" and "Phase
+1 — Candidate certification") certifies one exact `main` SHA and binds every
+downstream action to it:
+
+1. The candidate is the P0b hardening merge SHA on top of `12af67a4e`. #1294
+   records it; static gates, the #1295 deployed-identity binding (deployment
+   IDs, database and schema identity, target-fund mode rows), the #1296
+   end-to-end proof, and all four #1298 soak windows run against exactly that
+   SHA. The binding is to immutable deployment IDs and readbacks, never to the
+   SHA alone; a same-SHA redeploy or reconfiguration breaks it.
+2. Restart rule: any change to the candidate SHA makes all downstream evidence
+   (#1295 onward) ineligible for the current action and restarts the soak from
+   Window 1. One candidate serves all four windows, so no completed window
+   survives a candidate change; a candidate-critical fix re-runs Phase 1
+   certification. Historical exact-SHA receipts stay preserved and immutable;
+   they lose current-action eligibility, not truth.
+3. The identity binding is re-checked field by field at every window boundary
+   and in the pre-flip fence (`docs/runbooks/current-forecast-shadow-soak.md`,
+   "Window-boundary identity re-check"). An absent, stale, or mismatched field
+   stops the window or returns NO-GO; there is no historical-SHA action path.
+4. Source admission to `main` queues from certification through the recorded
+   GO/NO-GO (#1299). Branch development continues throughout; an exception merge
+   during the hold requires machine-verifiable proof, recorded in #1171, that it
+   cannot rebuild, redeploy, promote, or reconfigure a qualifying unit or affect
+   final-action eligibility. Default is deny.
+
+### Consequences
+
+A candidate nobody can deploy promptly burns its hold window, so certification
+waits for confirmed owner, provider, database, and operator readiness. Evidence
+never authorizes: every Phase 3-4 production action remains owner-authorized and
+action-scoped per the governing policy. The train ends in a recorded GO or
+NO-GO, never indefinite readiness.
+
+## ADR-096: Manual Current-Forecast Recompute Is Prohibited During Soak and Blocked at the Latch
+
+**Date:** 2026-09-01 **Status:** Proposed (owner ratification on merge)
+**Tags:** #current-forecast #concurrency #provenance #activation-train
+
+### Decision
+
+Manual recompute against any soak-target fund is prohibited from the
+production-side shadow deployment (soak start) until the activation flip
+(F_1.11.0 plan, "Phase 4 — Soak + human-gated flip", #1298/#1299). The shipped
+`created_reconciliation` provenance flag marks manual rows, but neither the soak
+evidence queries nor the activation decisive-reference query filters on it, and
+engineering such filters is deliberately deferred. Prohibition plus audit is the
+activation-train control:
+
+1. Evidence controls (runbook, per #1298 and #1299): each window's evidence
+   includes a query proving zero manual-provenance rows for the target funds in
+   that window (a manual row voids the window); #1299's evidence includes a
+   pre-flip audit over the entire soak-start-to-flip interval plus proof that
+   the decisive (latest) reconciliation row is organic; and a zero-pending-
+   command preflight precedes formal shadow entry (an unresolved stale pending
+   row blocks entry; one observed during soak blocks the window and promotes the
+   pending-row janitor follow-up from deferred to blocker).
+2. Machine enforcement at the latch (P0b item 4, plan "5. P0b item 4"): the
+   activation eligibility check loads the mode row's `shadow_started_at` and
+   returns a typed `manual_recompute_since_shadow_start` blocker when any
+   `current_forecast_recompute_commands` row for the fund has
+   `started_at >= shadow_started_at`, or a command with
+   `created_reconciliation = true` points at a current-forecast reconciliation
+   with `observed_at >= shadow_started_at`. Status is irrelevant (pending,
+   completed, failed, and skipped all count). A NULL `shadow_started_at` fails
+   closed: any command row blocks.
+3. The blocker is not check-then-act. The manual-recompute claim and the
+   activation blocker-check-plus-flip each run inside a transaction that first
+   takes the same per-fund advisory lock
+   (`pg_advisory_xact_lock(class, fund_id)`,
+   `server/services/current-forecast-fund-lock.ts`), so a claim that commits
+   first blocks the flip and a flip that commits first leaves the late claim as
+   a harmless post-flip row. Activation is therefore reclassified from ADR-073
+   class (a) to class (b): it requires a transactional driver (the production
+   WebSocket pool per ADR-073 G2-2). A completed same-key replay may return from
+   the read-only ledger lookup; otherwise neon-http fails closed with the
+   driver's transaction error before any guarded mutation statement runs. The
+   neon-lane suite asserts that refusal. The claim path has no fallback
+   (ADR-093).
+
+### Consequences
+
+A violated prohibition cannot reach the flip even if an audit is missed, but the
+audits remain required evidence. Manual recompute on a soaked fund is a soak
+restart, not a footnote. A claim that began waiting for the lock before the flip
+records `started_at` (transaction start) slightly before `activated_at` while
+being a post-flip row; this affects audit timestamps only, never the blocker,
+because the flip cannot see an uncommitted claim. Provenance filters in evidence
+or activation queries can land post-activation if manual runs on soaked funds
+ever become desirable; until then no such filter exists by design.

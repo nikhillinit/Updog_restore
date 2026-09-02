@@ -5,6 +5,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import * as schema from '@shared/schema';
 import type { CurrentForecastV2 } from '../../shared/contracts/current-forecast-v2.contract';
 import type { CurrentForecastDatabase } from '../../server/services/current-forecast-v2-service';
+import { CURRENT_FORECAST_FUND_LOCK_CLASS } from '../../server/services/current-forecast-fund-lock';
+import {
+  activateCurrentForecast,
+  createCandidateCurrentForecastReference,
+  type CurrentForecastReferenceDatabase,
+} from '../../server/services/current-forecast-reference-service';
 import { persistCurrentForecastShadowReconciliation } from '../../server/services/current-forecast-shadow-service';
 import {
   cleanupTestContainers,
@@ -255,7 +261,291 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
       created_reconciliation: false,
     });
   });
+
+  it('serializes the manual claim against the activation check-and-flip in both orderings', async () => {
+    // Ordering A: a claim that commits first blocks the flip. A raw session
+    // holds the per-fund lock so the claim's own lock acquisition is observable.
+    const fundA = await insertFund();
+    const fixtureA = await seedActivationFixture(fundA);
+    const resultA = forecastResult(fundA, '5'.repeat(64), '6'.repeat(64));
+    mockReceipt(resultA);
+    forecastService.runCurrentForecastV2.mockResolvedValue(resultA);
+
+    const holder = await requiredPool().connect();
+    try {
+      await holder.query('BEGIN');
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundA,
+      ]);
+      const claim = runManualCurrentForecastRecompute({
+        fundId: fundA,
+        idempotencyKey: 'ordering-a',
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundA);
+      expect(await commandCount(fundA)).toBe(0);
+      await holder.query('COMMIT');
+      await expect(claim).resolves.toMatchObject({ status: 'completed', replayed: false });
+    } finally {
+      holder.release();
+    }
+
+    await expect(
+      activateCurrentForecast({
+        fundId: fundA,
+        referenceId: fixtureA.referenceId,
+        expectedVersion: 1,
+        idempotencyKey: `activate-${fundA}`,
+        actorId: null,
+        database: referenceDatabase(),
+        verifyGreenCandidate: async () => [],
+      })
+    ).rejects.toMatchObject({
+      name: 'CurrentForecastActivationBlockedError',
+      blockers: ['manual_recompute_since_shadow_start'],
+    });
+    expect(await activationState(fundA)).toEqual({
+      configured_mode: 'shadow',
+      activated: false,
+      version: 1,
+      candidate: true,
+      requests: 0,
+    });
+
+    // Ordering B: a flip that commits first leaves the late claim as a harmless
+    // post-flip row. The activation holds the lock while its green check is
+    // parked; fund A's command row must not block another fund.
+    const fundB = await insertFund();
+    const fixtureB = await seedActivationFixture(fundB);
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    const activation = activateCurrentForecast({
+      fundId: fundB,
+      referenceId: fixtureB.referenceId,
+      expectedVersion: 1,
+      idempotencyKey: `activate-${fundB}`,
+      actorId: null,
+      database: referenceDatabase(),
+      verifyGreenCandidate: async () => {
+        entered.resolve(undefined);
+        await release.promise;
+        return [];
+      },
+    });
+    await entered.promise;
+    modeService.resolveCurrentForecastModeResolution.mockResolvedValue({
+      mode: 'on',
+      cutoverReferenceId: fixtureB.referenceId,
+    });
+    const lateClaim = runManualCurrentForecastRecompute({
+      fundId: fundB,
+      idempotencyKey: 'ordering-b',
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await waitForFundLockWaiter(fundB);
+    expect(await commandCount(fundB)).toBe(0);
+    release.resolve(undefined);
+
+    await expect(activation).resolves.toMatchObject({
+      replayed: false,
+      response: { configuredMode: 'on', cutoverReferenceId: fixtureB.referenceId, version: 2 },
+    });
+    await expect(lateClaim).resolves.toEqual({ status: 'skipped', replayed: false });
+    const postFlip = await requiredPool().query(
+      `
+        SELECT mode.configured_mode,
+               mode.activated_at IS NOT NULL AS activated,
+               command.status,
+               command.started_at >= mode.activated_at AS started_after_flip
+        FROM fund_calculation_modes AS mode
+        JOIN current_forecast_recompute_commands AS command ON command.fund_id = mode.fund_id
+        WHERE mode.fund_id = $1 AND mode.calculation_key = 'current_forecast'
+      `,
+      [fundB]
+    );
+    expect(postFlip.rows).toEqual([
+      { configured_mode: 'on', activated: true, status: 'skipped', started_after_flip: true },
+    ]);
+  });
+
+  it('replays a concurrent same-key activation after waiting on the per-fund lock', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    let greenChecks = 0;
+    const input = {
+      fundId,
+      referenceId: fixture.referenceId,
+      expectedVersion: 1,
+      idempotencyKey: `activate-same-key-${fundId}`,
+      actorId: null,
+      database: referenceDatabase(),
+      verifyGreenCandidate: async () => {
+        greenChecks += 1;
+        entered.resolve(undefined);
+        await release.promise;
+        return [];
+      },
+    };
+
+    const first = activateCurrentForecast(input);
+    await entered.promise;
+    const second = activateCurrentForecast(input);
+    await waitForFundLockWaiter(fundId);
+    release.resolve(undefined);
+
+    const [winner, follower] = await Promise.all([first, second]);
+    expect(winner.replayed).toBe(false);
+    expect(follower).toEqual({ response: winner.response, replayed: true });
+    expect(greenChecks).toBe(1);
+    expect(await activationState(fundId)).toEqual({
+      configured_mode: 'on',
+      activated: true,
+      version: 2,
+      candidate: false,
+      requests: 1,
+    });
+  });
 });
+
+async function seedActivationFixture(fundId: number): Promise<{ referenceId: number }> {
+  const pool = requiredPool();
+  await pool.query(
+    `
+      INSERT INTO fund_calculation_modes (fund_id, calculation_key, configured_mode, shadow_started_at, version)
+      VALUES ($1, 'current_forecast', 'shadow', NOW() - INTERVAL '1 hour', 1)
+    `,
+    [fundId]
+  );
+  const factsSnapshotId = await insertedId(
+    `
+      INSERT INTO financial_facts_snapshots (
+        fund_id, policy_version, payload_schema_id, as_of_date, knowledge_cutoff,
+        vehicle_scope, vehicle_ids, selection_set_hash, source_facts_input_hash,
+        snapshot_input_hash, payload, consumer_evaluations, idempotency_key, request_hash
+      ) VALUES (
+        $1, 'financial-facts-policy/1.2.0', 'financial-facts-payload/3', '2026-06-30', NOW(),
+        'fund_all', '[]'::jsonb, $2, $3, $4, '{}'::jsonb, '[]'::jsonb, $5, $6
+      )
+      RETURNING id
+    `,
+    [
+      fundId,
+      hex64(`selection-${fundId}`),
+      hex64(`source-${fundId}`),
+      hex64(`snapshot-${fundId}`),
+      `facts-${fundId}`,
+      hex64(`request-${fundId}`),
+    ]
+  );
+  const planVersionId = await insertedId(
+    `
+      INSERT INTO current_plan_versions (
+        fund_id, version, source_config_id, source_config_version,
+        source_facts_snapshot_id, deployable_capital_usd, plan_transformation_version,
+        allocations, pacing_assumptions, cohort_assumptions, reserve_policy_version,
+        assumptions_hash, idempotency_key, request_hash
+      ) VALUES (
+        $1, 1, 1, 1, $2, '10000000.000000', 'plan-transformation/1.0.0',
+        '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, 'reserve-policy/1.0.0', $3, $4, $5
+      )
+      RETURNING id
+    `,
+    [fundId, factsSnapshotId, hex64(`plan-${fundId}`), `plan-${fundId}`, hex64('plan-req')]
+  );
+  const fundSnapshotId = await insertedId(
+    `
+      INSERT INTO fund_snapshots (fund_id, type, payload, calc_version, correlation_id, snapshot_time)
+      VALUES ($1, 'CURRENT_FORECAST_V2', '{}'::jsonb, 'cf-v2/1.0.0', $2, NOW())
+      RETURNING id
+    `,
+    [fundId, `00000000-0000-4000-8000-${String(fundId).padStart(12, '0')}`]
+  );
+  const reference = await createCandidateCurrentForecastReference({
+    fundId,
+    basis: {
+      fundSnapshotId,
+      currentPlanVersionId: planVersionId,
+      financialFactsSnapshotId: factsSnapshotId,
+      inputHash: hex64(`input-${fundId}`),
+      resultHash: hex64(`result-${fundId}`),
+      assumptionsHash: hex64(`assumptions-${fundId}`),
+      engineVersion: 'current-forecast-v2-engine/1.0.0',
+      methodologyVersion: 'cohort-projection-v2/1.0.0',
+    },
+    idempotencyKey: `cfref-${fundId}`,
+    database: referenceDatabase(),
+  });
+  return { referenceId: reference.row.id };
+}
+
+async function activationState(fundId: number) {
+  const result = await requiredPool().query(
+    `
+      SELECT mode.configured_mode,
+             mode.activated_at IS NOT NULL AS activated,
+             mode.version,
+             (SELECT bool_and(candidate) FROM current_forecast_references WHERE fund_id = $1) AS candidate,
+             (SELECT COUNT(*)::int FROM fund_calculation_mode_requests WHERE fund_id = $1) AS requests
+      FROM fund_calculation_modes AS mode
+      WHERE mode.fund_id = $1 AND mode.calculation_key = 'current_forecast'
+    `,
+    [fundId]
+  );
+  return result.rows[0];
+}
+
+async function commandCount(fundId: number): Promise<number> {
+  const result = await requiredPool().query<{ count: number }>(
+    'SELECT COUNT(*)::int AS count FROM current_forecast_recompute_commands WHERE fund_id = $1',
+    [fundId]
+  );
+  return result.rows[0]?.count ?? 0;
+}
+
+async function waitForFundLockWaiter(fundId: number): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const result = await requiredPool().query<{ waiting: number }>(
+      `
+        SELECT COUNT(*)::int AS waiting
+        FROM pg_locks
+        WHERE locktype = 'advisory'
+          AND classid = $1::oid
+          AND objid = $2::oid
+          AND objsubid = 2
+          AND NOT granted
+      `,
+      [CURRENT_FORECAST_FUND_LOCK_CLASS, fundId]
+    );
+    if ((result.rows[0]?.waiting ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`No session waited on the current-forecast fund lock for fund ${fundId}.`);
+}
+
+async function insertedId(query: string, values: unknown[]): Promise<number> {
+  const result = await requiredPool().query<{ id: number }>(query, values);
+  const id = result.rows[0]?.id;
+  if (typeof id !== 'number') throw new Error('Expected an inserted id.');
+  return id;
+}
+
+function hex64(seed: string): string {
+  let value = '';
+  for (let index = 0; value.length < 64; index += 1) {
+    value += (seed.charCodeAt(index % seed.length) + index).toString(16).padStart(2, '0');
+  }
+  return value.slice(0, 64);
+}
+
+function referenceDatabase(): CurrentForecastReferenceDatabase {
+  return requiredDatabase() as unknown as CurrentForecastReferenceDatabase;
+}
 
 function mockReceipt(result: CurrentForecastV2): void {
   forecastService.getOrCreateCurrentForecastV2WithReceipt.mockResolvedValue({

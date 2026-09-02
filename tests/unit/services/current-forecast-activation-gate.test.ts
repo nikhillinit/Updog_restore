@@ -18,7 +18,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { verifyGreenCandidateWithLedger } from '../../../server/services/current-forecast-reference-service';
+import {
+  verifyGreenCandidateWithLedger,
+  verifyNoManualRecomputeSinceShadowStart,
+} from '../../../server/services/current-forecast-reference-service';
 
 type FlagEntry = {
   default: boolean;
@@ -137,5 +140,97 @@ describe('current-forecast activation gate: latest decisive observation', () => 
     await expect(
       gateBlockers({ substrate_state: 'available', reconciliation_status: 'mismatch' })
     ).resolves.toContain('unexplained_divergence_present');
+  });
+});
+
+// F_1.11.0 P0b item 4: the Phase 4 manual-run prohibition at the latch.
+const MANUAL_BLOCKER = 'manual_recompute_since_shadow_start';
+const SHADOW_START = '2026-08-01T00:00:00.000Z';
+const BEFORE_START = '2026-07-15T00:00:00.000Z';
+const AFTER_START = '2026-08-02T00:00:00.000Z';
+
+type ManualLedgerRow = {
+  status: 'pending' | 'completed' | 'failed' | 'skipped';
+  started_at: string;
+  created_reconciliation: boolean;
+  reconciliation_observed_at: string | null;
+};
+
+function manualRow(overrides: Partial<ManualLedgerRow> = {}): ManualLedgerRow {
+  return {
+    status: 'completed',
+    started_at: BEFORE_START,
+    created_reconciliation: false,
+    reconciliation_observed_at: null,
+    ...overrides,
+  };
+}
+
+async function manualBlockers(
+  rows: ManualLedgerRow[],
+  shadowStartedAt: string | null = SHADOW_START
+) {
+  return verifyNoManualRecomputeSinceShadowStart({
+    executor: { execute: vi.fn(async () => ({ rows })) },
+    fundId: gateReference.fundId,
+    shadowStartedAt,
+  });
+}
+
+describe('current-forecast activation gate: manual recompute since shadow start', () => {
+  it('no command rows leaves the gate unblocked', async () => {
+    await expect(manualBlockers([])).resolves.toEqual([]);
+  });
+
+  it('a command terminal before the shadow start does not block', async () => {
+    await expect(
+      manualBlockers([
+        manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
+      ])
+    ).resolves.toEqual([]);
+  });
+
+  it.each(['pending', 'completed', 'failed', 'skipped'] as const)(
+    'a %s attempt after the shadow start blocks',
+    async (status) => {
+      await expect(
+        manualBlockers([manualRow({ status, started_at: AFTER_START })])
+      ).resolves.toEqual([MANUAL_BLOCKER]);
+    }
+  );
+
+  it('a pre-transition command whose created reconciliation lands after the start blocks', async () => {
+    await expect(
+      manualBlockers([
+        manualRow({ created_reconciliation: true, reconciliation_observed_at: AFTER_START }),
+      ])
+    ).resolves.toEqual([MANUAL_BLOCKER]);
+  });
+
+  it('a pre-transition command deduplicated onto an organic post-start row does not block', async () => {
+    await expect(
+      manualBlockers([
+        manualRow({ created_reconciliation: false, reconciliation_observed_at: AFTER_START }),
+      ])
+    ).resolves.toEqual([]);
+  });
+
+  it('a same-key replay of an older terminal command adds no rows and does not block', async () => {
+    const ledger = [
+      manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
+    ];
+    await expect(manualBlockers(ledger)).resolves.toEqual([]);
+    await expect(manualBlockers(ledger)).resolves.toEqual([]);
+  });
+
+  it('a fresh authorized shadow transition establishes a new interval', async () => {
+    const ledger = [manualRow({ started_at: AFTER_START })];
+    await expect(manualBlockers(ledger, SHADOW_START)).resolves.toEqual([MANUAL_BLOCKER]);
+    await expect(manualBlockers(ledger, '2026-08-10T00:00:00.000Z')).resolves.toEqual([]);
+  });
+
+  it('fails closed when no shadow interval is recorded', async () => {
+    await expect(manualBlockers([], null)).resolves.toEqual([]);
+    await expect(manualBlockers([manualRow()], null)).resolves.toEqual([MANUAL_BLOCKER]);
   });
 });

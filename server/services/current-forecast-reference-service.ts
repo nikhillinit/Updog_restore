@@ -4,8 +4,9 @@ import { sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { runIdempotentCommand } from '../lib/idempotent-command';
-import { runWithTransactionFallback } from '../lib/transaction-support';
+import { runInTransaction, runWithTransactionFallback } from '../lib/transaction-support';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
+import { lockCurrentForecastFund } from './current-forecast-fund-lock';
 import {
   FundCalculationModeIdempotencyConflictError,
   FundCalculationModeInProgressError,
@@ -293,6 +294,7 @@ type ModeRowForPointer = {
   kill_switch_active: boolean;
   activated_at: Date | string | null;
   cutover_reference_id: number | null;
+  shadow_started_at: Date | string | null;
   version: number;
 };
 
@@ -304,7 +306,7 @@ async function lockCurrentForecastModeRow(
     executor,
     sql`
       SELECT id, configured_mode, kill_switch_active, activated_at,
-             cutover_reference_id, version
+             cutover_reference_id, shadow_started_at, version
       FROM fund_calculation_modes
       WHERE fund_id = ${fundId}
         AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
@@ -557,6 +559,64 @@ export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
   return blockers;
 };
 
+type ManualRecomputeLedgerRow = {
+  status: string;
+  started_at: Date | string;
+  created_reconciliation: boolean;
+  reconciliation_observed_at: Date | string | null;
+};
+
+function toTime(value: Date | string): number {
+  return value instanceof Date ? value.getTime() : new Date(value).getTime();
+}
+
+/**
+ * Phase 4 manual-run prohibition, machine-enforced at the latch (F_1.11.0 P0b
+ * item 4). The fund is contaminated when any manual recompute command started
+ * at or after the shadow interval began, or when a command that created its
+ * current-forecast reconciliation row wrote it at or after that point (a
+ * command that started before the transition but persisted after it). Status
+ * is irrelevant: pending, completed, failed, and skipped attempts all count.
+ * A NULL `shadow_started_at` leaves the interval unbounded, so any command
+ * row for the fund blocks (fail-closed).
+ */
+export async function verifyNoManualRecomputeSinceShadowStart(params: {
+  executor: Executor;
+  fundId: number;
+  shadowStartedAt: Date | string | null;
+}): Promise<string[]> {
+  // ponytail: loads every command row for the fund and filters in process;
+  // push the interval predicate into SQL if this admin-only ledger ever grows.
+  const rows = await executeRows<ManualRecomputeLedgerRow>(
+    params.executor,
+    sql`
+      SELECT command.status,
+             command.started_at,
+             command.created_reconciliation,
+             reconciliation.observed_at AS reconciliation_observed_at
+      FROM current_forecast_recompute_commands AS command
+      LEFT JOIN substrate_shadow_reconciliations AS reconciliation
+        ON reconciliation.id = command.shadow_reconciliation_id
+       AND reconciliation.fund_id = command.fund_id
+       AND reconciliation.calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+      WHERE command.fund_id = ${params.fundId}
+    `
+  );
+  if (params.shadowStartedAt === null) {
+    return rows.length > 0 ? ['manual_recompute_since_shadow_start'] : [];
+  }
+
+  const shadowStart = toTime(params.shadowStartedAt);
+  const contaminated = rows.some(
+    (row) =>
+      toTime(row.started_at) >= shadowStart ||
+      (row.created_reconciliation &&
+        row.reconciliation_observed_at !== null &&
+        toTime(row.reconciliation_observed_at) >= shadowStart)
+  );
+  return contaminated ? ['manual_recompute_since_shadow_start'] : [];
+}
+
 export interface CurrentForecastActivationResponse {
   calculationKey: string;
   configuredMode: 'on';
@@ -602,12 +662,14 @@ function activationResponseFromLedger(value: unknown): CurrentForecastActivation
   throw new Error('Completed current-forecast activation ledger row has an invalid response body');
 }
 
+type ActivationReplay = { response: CurrentForecastActivationResponse; replayed: true };
+
 async function readActivationRequest(
   executor: Executor,
   fundId: number,
   idempotencyKey: string,
   requestHash: string
-): Promise<{ response: CurrentForecastActivationResponse; replayed: true } | null> {
+): Promise<ActivationReplay | null> {
   const existing = await executeRows<ActivationLedgerRow>(
     executor,
     sql`
@@ -632,18 +694,7 @@ async function readActivationRequest(
   return { response: activationResponseFromLedger(row.response_body), replayed: true };
 }
 
-/**
- * The DORMANT activation command (executed only by Task 23). One atomic
- * transaction validates a green candidate then writes mode `on` +
- * `activated_at` + `cutover_reference_id` AND flips the chosen candidate to
- * `candidate = false` (P2) — arming the accepted-head partial unique. The mode
- * route never writes `on` for this key; only this command does, so the
- * activation event is by construction written in the same transaction. This
- * is a one-way latch: a fresh-key repeat returns 409 (`already_activated`),
- * while a same-key retry replays 200. Pointer advance and rollback are never
- * recovery mechanisms; post-activation recovery clears held controls only.
- */
-export async function activateCurrentForecast(params: {
+export interface ActivateCurrentForecastParams {
   fundId: number;
   referenceId: number;
   expectedVersion: number;
@@ -651,27 +702,34 @@ export async function activateCurrentForecast(params: {
   actorId: number | null;
   database?: CurrentForecastReferenceDatabase;
   verifyGreenCandidate?: VerifyGreenCandidateFn;
-}): Promise<{ response: CurrentForecastActivationResponse; replayed: boolean }> {
-  const database = params.database ?? db;
-  const verifyGreenCandidate = params.verifyGreenCandidate ?? verifyGreenCandidateWithLedger;
-  const requestHash = canonicalSha256({
-    route: CURRENT_FORECAST_ACTIVATE_ROUTE,
-    fundId: params.fundId,
-    referenceId: params.referenceId,
-    expectedVersion: params.expectedVersion,
-  });
+}
 
+/**
+ * Activation critical section: typed pre-checks, blockers, and the
+ * guard-fenced flip CTE on one transaction executor. The per-fund advisory
+ * lock is taken first, so the manual-recompute claim (which takes the same
+ * lock) can never land between the blocker read and the flip. The CTE still
+ * repeats the mode, latch, and candidate guards while holding the mode-row
+ * lock before any mutation.
+ */
+async function activateCurrentForecastUnderGuards(
+  executor: Executor,
+  params: Omit<ActivateCurrentForecastParams, 'database' | 'verifyGreenCandidate'>,
+  requestHash: string,
+  verifyGreenCandidate: VerifyGreenCandidateFn
+): Promise<ActivationMutationResult | ActivationReplay> {
+  await lockCurrentForecastFund(executor, params.fundId);
+  // A same-key caller that waited on the lock must replay the outcome the
+  // winner committed, not trip the version check on the flipped row.
   const replay = await readActivationRequest(
-    database,
+    executor,
     params.fundId,
     params.idempotencyKey,
     requestHash
   );
   if (replay) return replay;
 
-  // These reads are advisory only. The CTE below repeats the mode, latch, and
-  // candidate guards while holding the mode-row lock before any mutation.
-  const mode = await lockCurrentForecastModeRow(database, params.fundId);
+  const mode = await lockCurrentForecastModeRow(executor, params.fundId);
   if (!mode) {
     throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
   }
@@ -686,7 +744,7 @@ export async function activateCurrentForecast(params: {
     );
   }
 
-  const reference = await loadReference(database, params.fundId, params.referenceId);
+  const reference = await loadReference(executor, params.fundId, params.referenceId);
   if (!reference) {
     throw new CurrentForecastReferenceError(
       404,
@@ -697,14 +755,19 @@ export async function activateCurrentForecast(params: {
 
   const blockers = [
     ...(mode.kill_switch_active ? ['kill_switch_active'] : []),
-    ...(await verifyGreenCandidate({ executor: database, fundId: params.fundId, reference })),
+    ...(await verifyGreenCandidate({ executor, fundId: params.fundId, reference })),
+    ...(await verifyNoManualRecomputeSinceShadowStart({
+      executor,
+      fundId: params.fundId,
+      shadowStartedAt: mode.shadow_started_at,
+    })),
   ];
   if (blockers.length > 0) {
     throw new CurrentForecastActivationBlockedError(blockers);
   }
 
   const rows = await executeRows<ActivationMutationResult>(
-    database,
+    executor,
     sql`
       WITH mode_row AS (
         SELECT id, version, activated_at, kill_switch_active
@@ -861,11 +924,58 @@ export async function activateCurrentForecast(params: {
       LEFT JOIN claim ON TRUE
     `
   );
-
   const mutation = rows[0];
   if (!mutation) {
     throw new Error('Current-forecast activation CTE returned no guard result');
   }
+  return mutation;
+}
+
+/**
+ * The DORMANT activation command (executed only by Task 23). One atomic
+ * transaction validates a green candidate then writes mode `on` +
+ * `activated_at` + `cutover_reference_id` AND flips the chosen candidate to
+ * `candidate = false` (P2) — arming the accepted-head partial unique. The mode
+ * route never writes `on` for this key; only this command does, so the
+ * activation event is by construction written in the same transaction. This
+ * is a one-way latch: a fresh-key repeat returns 409 (`already_activated`),
+ * while a same-key retry replays 200. Pointer advance and rollback are never
+ * recovery mechanisms; post-activation recovery clears held controls only.
+ *
+ * The blocker check and the flip share one transaction under the per-fund
+ * advisory lock (F_1.11.0 P0b item 4), so the `manual_recompute_since_shadow_start`
+ * blocker is evaluated immediately before the flip with no claim window in
+ * between. Activation therefore requires a transactional driver (ADR-073
+ * class (b), reclassified by ADR-096). A completed same-key replay may return
+ * from the read-only ledger lookup; otherwise neon-http propagates the driver's
+ * transaction error before any guarded mutation statement runs.
+ */
+export async function activateCurrentForecast(
+  params: ActivateCurrentForecastParams
+): Promise<{ response: CurrentForecastActivationResponse; replayed: boolean }> {
+  const database = params.database ?? db;
+  const verifyGreenCandidate = params.verifyGreenCandidate ?? verifyGreenCandidateWithLedger;
+  const requestHash = canonicalSha256({
+    route: CURRENT_FORECAST_ACTIVATE_ROUTE,
+    fundId: params.fundId,
+    referenceId: params.referenceId,
+    expectedVersion: params.expectedVersion,
+  });
+
+  const replay = await readActivationRequest(
+    database,
+    params.fundId,
+    params.idempotencyKey,
+    requestHash
+  );
+  if (replay) return replay;
+
+  const outcome = await runInTransaction(database, (tx) =>
+    activateCurrentForecastUnderGuards(tx, params, requestHash, verifyGreenCandidate)
+  );
+  if ('replayed' in outcome) return outcome;
+
+  const mutation = outcome;
   if (mutation.mode_write_id !== null && mutation.claim_id !== null) {
     return {
       response: activationResponseFromLedger(mutation.claim_response_body),

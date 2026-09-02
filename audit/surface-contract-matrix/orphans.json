@@ -1,5 +1,379 @@
 [
   {
+    "id": "api:POST:/api/funds/:fundId/current-forecast/runs",
+    "vanished_row": {
+      "id": "api:POST:/api/funds/:fundId/current-forecast/runs",
+      "seam": "current-forecast",
+      "interface": "http-api",
+      "personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "reachability": "vercel",
+      "proven_reachability": "vercel",
+      "exposures": [
+        {
+          "deployment": "local-process",
+          "runtime": "create_server",
+          "mount_evidence": "server/routes/current-forecast.ts:248 runtime registration",
+          "ingresses": [
+            {
+              "external_path": "/api/funds/:fundId/current-forecast/runs",
+              "express_path": "/api/funds/:fundId/current-forecast/runs",
+              "rewrite_evidence": "local-only runtime disposition"
+            }
+          ],
+          "conditions": [],
+          "definitions": [
+            {
+              "site": "server/routes/current-forecast.ts:248",
+              "role": "guard",
+              "effective_mount_order": 113
+            },
+            {
+              "site": "server/routes/current-forecast.ts:248",
+              "role": "handler",
+              "effective_mount_order": 113
+            }
+          ],
+          "auth_evidence": [
+            {
+              "kind": "guard",
+              "boundary": "authenticated",
+              "file": "server/routes/current-forecast.ts",
+              "line": 248,
+              "evidence": "server/routes/current-forecast.ts:248 route-local authentication middleware"
+            },
+            {
+              "kind": "policy-boundary",
+              "boundary": "fund_scope",
+              "file": "server/routes/current-forecast.ts",
+              "line": 256,
+              "evidence": "server/routes/current-forecast.ts:256 enforces provided fund scope"
+            },
+            {
+              "kind": "policy-boundary",
+              "boundary": "global_authenticated",
+              "file": "server/server.ts",
+              "line": 215,
+              "evidence": "server/server.ts:215 requireSecureContext precedes protected create_server routes",
+              "boundary_scope": "create_server",
+              "middleware": "requireSecureContext"
+            },
+            {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            }
+          ],
+          "boot_status": "unproven",
+          "boot_evidence": {
+            "command_or_artifact": "local runtime inventory only",
+            "probe": "no production boot proof is required for local-process surfaces",
+            "result": "local-process evidence is intentionally unproven",
+            "observed_at": "proof:cf6c91ee9c51a6e0b835650a4b1c388bc06ab306cc825711514c2f56717052fd"
+          },
+          "outer_mount_site": "server/routes/mount-common-routes.ts:62",
+          "outer_mount_order": 474
+        },
+        {
+          "deployment": "vercel-api",
+          "runtime": "make_app",
+          "mount_evidence": "server/routes/current-forecast.ts:248 runtime registration",
+          "ingresses": [
+            {
+              "external_path": "/api/funds/:fundId/current-forecast/runs",
+              "express_path": "/api/funds/:fundId/current-forecast/runs",
+              "rewrite_evidence": "vercel.json /api/:slug* -> /api/[...slug]"
+            }
+          ],
+          "conditions": [],
+          "definitions": [
+            {
+              "site": "server/routes/current-forecast.ts:248",
+              "role": "guard",
+              "effective_mount_order": 113
+            },
+            {
+              "site": "server/routes/current-forecast.ts:248",
+              "role": "handler",
+              "effective_mount_order": 113
+            }
+          ],
+          "auth_evidence": [
+            {
+              "kind": "guard",
+              "boundary": "authenticated",
+              "file": "server/routes/current-forecast.ts",
+              "line": 248,
+              "evidence": "server/routes/current-forecast.ts:248 route-local authentication middleware"
+            },
+            {
+              "kind": "policy-boundary",
+              "boundary": "fund_scope",
+              "file": "server/routes/current-forecast.ts",
+              "line": 256,
+              "evidence": "server/routes/current-forecast.ts:256 enforces provided fund scope"
+            },
+            {
+              "kind": "policy-boundary",
+              "boundary": "global_authenticated",
+              "file": "server/app.ts",
+              "line": 175,
+              "evidence": "server/app.ts:175 requireApiAuth precedes protected make_app routes",
+              "boundary_scope": "make_app",
+              "middleware": "requireApiAuth"
+            },
+            {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/current-forecast.ts",
+              "line": 45,
+              "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+            }
+          ],
+          "boot_status": "proven",
+          "boot_evidence": {
+            "command_or_artifact": "node scripts/build-vercel-api.mjs; import api/_app.generated.mjs and construct makeApp()",
+            "probe": "in-process makeApp() construction from Vercel API bundle; no listener",
+            "result": "makeApp constructed from built bundle",
+            "observed_at": "proof:c5e1f8478838cdab57b96b60c4e2fa4d94b40c9219b6b04cdb501a8a10957ec9"
+          },
+          "outer_mount_site": "server/routes/mount-common-routes.ts:62",
+          "outer_mount_order": 377
+        }
+      ],
+      "persistence": "unknown",
+      "destructive": "unknown",
+      "environment": "unknown",
+      "owner": "gp-team",
+      "evidence": [
+        "server/routes/current-forecast.ts:248"
+      ],
+      "source_mapping": {
+        "kg_node": "api:POST:/api/funds/:fundId/current-forecast/runs",
+        "source_module": "./routes/current-forecast.js",
+        "manifest_ids": [
+          "current-forecast"
+        ],
+        "runtime_specific_ids": []
+      },
+      "queue_roles": {
+        "producers": [],
+        "consumers": []
+      },
+      "auth_roles": [
+        "admin",
+        "analyst",
+        "partner"
+      ],
+      "auth_evidence": [
+        {
+          "kind": "policy-boundary",
+          "boundary": "global_authenticated",
+          "file": "server/app.ts",
+          "line": 175,
+          "evidence": "server/app.ts:175 requireApiAuth precedes protected make_app routes",
+          "boundary_scope": "make_app",
+          "middleware": "requireApiAuth"
+        },
+        {
+          "kind": "guard",
+          "boundary": "authenticated",
+          "file": "server/routes/current-forecast.ts",
+          "line": 248,
+          "evidence": "server/routes/current-forecast.ts:248 route-local authentication middleware"
+        },
+        {
+          "kind": "policy-boundary",
+          "boundary": "fund_scope",
+          "file": "server/routes/current-forecast.ts",
+          "line": 256,
+          "evidence": "server/routes/current-forecast.ts:256 enforces provided fund scope"
+        },
+        {
+          "kind": "guard",
+          "role": "admin",
+          "file": "server/routes/current-forecast.ts",
+          "line": 45,
+          "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+        },
+        {
+          "kind": "guard",
+          "role": "analyst",
+          "file": "server/routes/current-forecast.ts",
+          "line": 45,
+          "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+        },
+        {
+          "kind": "guard",
+          "role": "partner",
+          "file": "server/routes/current-forecast.ts",
+          "line": 45,
+          "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
+        },
+        {
+          "kind": "policy-boundary",
+          "boundary": "global_authenticated",
+          "file": "server/server.ts",
+          "line": 215,
+          "evidence": "server/server.ts:215 requireSecureContext precedes protected create_server routes",
+          "boundary_scope": "create_server",
+          "middleware": "requireSecureContext"
+        }
+      ],
+      "behavior_flags": [],
+      "test_evidence": {
+        "derived": [
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-mode.behavior.test.ts:31",
+            "assertion_confirmed": false,
+            "test_file_sha256": "978d107f7c858d3c844aa929c160a1d18a9204c9c11862c3ac3f5fca51d84dc4"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-references.behavior.test.ts:42",
+            "assertion_confirmed": false,
+            "test_file_sha256": "d73e54a2890b702b4f89d8ad5d778da2c66d54172b87274c2c272c6da30ca6f7"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-resume.behavior.test.ts:33",
+            "assertion_confirmed": false,
+            "test_file_sha256": "06eb1b0107fd406050eba84b2483336f987131eddaa828dd7dab9c11c17de466"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast.contract.test.ts:114",
+            "assertion_confirmed": false,
+            "test_file_sha256": "b7c4a7394688ff21913fb6702d1f14117daad996f2744dbe47e462d51d9ebd42"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-mode.behavior.test.ts:31",
+            "assertion_confirmed": false,
+            "test_file_sha256": "978d107f7c858d3c844aa929c160a1d18a9204c9c11862c3ac3f5fca51d84dc4"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-references.behavior.test.ts:42",
+            "assertion_confirmed": false,
+            "test_file_sha256": "d73e54a2890b702b4f89d8ad5d778da2c66d54172b87274c2c272c6da30ca6f7"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast-resume.behavior.test.ts:33",
+            "assertion_confirmed": false,
+            "test_file_sha256": "06eb1b0107fd406050eba84b2483336f987131eddaa828dd7dab9c11c17de466"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/current-forecast/runs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/current-forecast.contract.test.ts:114",
+            "assertion_confirmed": false,
+            "test_file_sha256": "b7c4a7394688ff21913fb6702d1f14117daad996f2744dbe47e462d51d9ebd42"
+          }
+        ],
+        "manual": []
+      },
+      "classification": "unclassified",
+      "decision": "in-contract",
+      "decision_suggestion": "in-contract",
+      "decision_status": "proposed",
+      "contract_fingerprint": "55564ebf696f856503962f2affd13c1a4c1e08c453190c66151b671b70c59bc5",
+      "approved_source_hashes": [],
+      "machine_suggestions": {
+        "owner": "gp-team",
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ],
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ],
+        "unresolved_auth": false,
+        "undecided_auth_roles": [],
+        "persistence": "unknown",
+        "persistence_evidence": {
+          "writes": [],
+          "side_effecting_calls": [],
+          "pure_calculation": [],
+          "hard_delete": [],
+          "soft_archive": [],
+          "ambiguous_calls": [],
+          "handlers": [
+            "server/routes/current-forecast.ts"
+          ]
+        },
+        "destructive": "unknown",
+        "environment": "unknown"
+      }
+    },
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "api:POST:/api/funds/:fundId/current-forecast/runs: endpoint retired in F_1.11.0 P0b item 1 (DECISIONS.md ADR-094; issue #1467). Handler and route-policy entry are absent; the shared current-forecast manifest, implementation map, mount, and group-slice registrations remain for surviving endpoints. Resolution pruned is approved.",
+    "resolution_fingerprint": "723d6df65696e21b5312963dadad769b53b833472a740e5ae674f162fa147db9",
+    "contract_fingerprint": "723d6df65696e21b5312963dadad769b53b833472a740e5ae674f162fa147db9"
+  },
+  {
     "id": "dormant:client/src/pages/admin/telemetry.tsx",
     "vanished_row": {
       "id": "dormant:client/src/pages/admin/telemetry.tsx",

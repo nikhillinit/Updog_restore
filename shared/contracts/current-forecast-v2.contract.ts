@@ -84,3 +84,44 @@ export type CurrentForecastUnavailableReasonDetail = z.infer<
   typeof CurrentForecastUnavailableReasonDetailSchema
 >;
 export type CurrentForecastV2 = z.infer<typeof CurrentForecastV2Schema>;
+
+// Manual recompute command literals. The Drizzle schema module re-exports
+// these for column typings; the contract owns them so the client bundle never
+// imports the schema module.
+export const CURRENT_FORECAST_RECOMPUTE_STATUSES = [
+  'pending',
+  'completed',
+  'failed',
+  'skipped',
+] as const;
+export type CurrentForecastRecomputeStatus = (typeof CURRENT_FORECAST_RECOMPUTE_STATUSES)[number];
+
+export const CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES = [
+  'execution_timeout',
+  'execution_error',
+  'mode_ineligible',
+  'stale_pending',
+] as const;
+export type CurrentForecastRecomputeFailureCode =
+  (typeof CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES)[number];
+
+// Wire shape of POST /funds/:fundId/current-forecast/recompute. Parsed on the
+// server before serialization and on the client after receipt.
+export const CurrentForecastRecomputeOutcomeSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('completed'),
+      shadowReconciliationId: z.number().int().positive(),
+      replayed: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('failed'),
+      failureCode: z.enum(CURRENT_FORECAST_RECOMPUTE_FAILURE_CODES),
+      replayed: z.boolean(),
+    })
+    .strict(),
+  z.object({ status: z.literal('skipped'), replayed: z.boolean() }).strict(),
+]);
+export type CurrentForecastRecomputeOutcome = z.infer<typeof CurrentForecastRecomputeOutcomeSchema>;

@@ -21,6 +21,7 @@ const ALLOWLIST = {
     'server/services/current-forecast-resume-command.ts',
   ]),
   [RUN_IN_TRANSACTION]: new Set([
+    'server/services/current-forecast-reference-service.ts',
     'server/services/lp-reporting/report-package-service.ts',
     'server/services/lp-reporting/planning-fmv-override-service.ts',
   ]),

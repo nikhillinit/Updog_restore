@@ -570,6 +570,20 @@ areas must not conflict with this DAG:
    after 90 seconds, and a final-CAS-fenced transaction prevents timeout losers
    from persisting snapshots or reconciliation provenance. Manual runs remain
    observation-only: no candidate reference and no served-state mutation.
+   F_1.11.0 P0b retires `POST /funds/:fundId/current-forecast/runs` (the last
+   non-idempotent forecast mutation, #1467); manual execution goes through the
+   `/recompute` command only, and the router's manifest, impl-map, and
+   group-slice registrations are unchanged. The recompute wire contract
+   (`CurrentForecastRecomputeOutcomeSchema` plus the status and failure-code
+   literals) lives in `shared/contracts/current-forecast-v2.contract.ts`;
+   `shared/schema/current-forecast-recompute-commands.ts` re-exports the
+   literals for Drizzle typings, never the reverse, so the client bundle imports
+   only the contract. The recompute route parses the service outcome before
+   serialization (500 `recompute_outcome_contract_violation` on drift) and
+   `WorkspaceContextRail` parses the response after receipt. Activation
+   additionally refuses with the typed `manual_recompute_since_shadow_start`
+   blocker, serialized against the manual-recompute claim by a per-fund
+   transaction-scoped advisory lock (ADR-095, ADR-096).
 3. **Deployment proof chain + four-window soak** (Phase 2) — organic soak via
    `evaluateCurrentForecastShadowGreen`, no soak script exists (runbook-driven
    observation).

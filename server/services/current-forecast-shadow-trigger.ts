@@ -2,6 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 
 import {
   METHODOLOGY_VERSION,
+  type CurrentForecastRecomputeOutcome,
   type CurrentForecastV2,
 } from '../../shared/contracts/current-forecast-v2.contract';
 import type { PersistedFinancialFactsSnapshotV1 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
@@ -9,7 +10,6 @@ import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
   currentForecastRecomputeCommands,
   type CurrentForecastRecomputeCommand,
-  type CurrentForecastRecomputeFailureCode,
 } from '../../shared/schema/current-forecast-recompute-commands';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import { db } from '../db';
@@ -19,6 +19,7 @@ import {
   resolveCurrentForecastModeResolution,
   type CurrentForecastModeResolution,
 } from './current-forecast-calc-mode-resolver';
+import { lockCurrentForecastFund } from './current-forecast-fund-lock';
 import {
   getOrCreateCurrentForecastV2WithReceipt,
   resolveCurrentForecastPlanVersionId,
@@ -377,21 +378,7 @@ export async function triggerCurrentForecastShadowForFacts(
   });
 }
 
-export type ManualCurrentForecastRecomputeOutcome =
-  | {
-      status: 'completed';
-      shadowReconciliationId: number;
-      replayed: boolean;
-    }
-  | {
-      status: 'failed';
-      failureCode: CurrentForecastRecomputeFailureCode;
-      replayed: boolean;
-    }
-  | {
-      status: 'skipped';
-      replayed: boolean;
-    };
+export type ManualCurrentForecastRecomputeOutcome = CurrentForecastRecomputeOutcome;
 
 export interface RunManualCurrentForecastRecomputeInput {
   fundId: number;
@@ -461,87 +448,95 @@ async function claimManualCurrentForecastRecompute(params: {
   | { owned: true; commandId: number }
   | { owned: false; outcome: ManualCurrentForecastRecomputeOutcome }
 > {
-  const [claimed] = await params.database
-    .insert(currentForecastRecomputeCommands)
-    .values({
-      fundId: params.fundId,
-      idempotencyKey: params.idempotencyKey,
-      requestHash: params.requestHash,
-      status: 'pending',
-      createdBy: params.actorId,
-    })
-    .onConflictDoNothing({
-      target: [
-        currentForecastRecomputeCommands.fundId,
-        currentForecastRecomputeCommands.idempotencyKey,
-      ],
-    })
-    .returning({ id: currentForecastRecomputeCommands.id });
+  // The claim is the manual path's critical section: it takes the same
+  // per-fund lock as the activation check-and-flip, so a claim can never land
+  // between the activation blocker read and the flip (F_1.11.0 P0b item 4).
+  // No non-transactional fallback (ADR-093).
+  return params.database.transaction(async (transaction) => {
+    await lockCurrentForecastFund(transaction, params.fundId);
 
-  if (claimed) return { owned: true, commandId: claimed.id };
+    const [claimed] = await transaction
+      .insert(currentForecastRecomputeCommands)
+      .values({
+        fundId: params.fundId,
+        idempotencyKey: params.idempotencyKey,
+        requestHash: params.requestHash,
+        status: 'pending',
+        createdBy: params.actorId,
+      })
+      .onConflictDoNothing({
+        target: [
+          currentForecastRecomputeCommands.fundId,
+          currentForecastRecomputeCommands.idempotencyKey,
+        ],
+      })
+      .returning({ id: currentForecastRecomputeCommands.id });
 
-  const existing = await loadManualCurrentForecastRecomputeCommand(
-    params.database,
-    params.fundId,
-    params.idempotencyKey
-  );
-  if (!existing) {
-    throw new IdempotentCommandError(
-      409,
-      'IDEMPOTENCY_RACE_UNRESOLVED',
-      'The recompute claim conflict could not be resolved after reloading the command.',
-      { idempotencyKey: params.idempotencyKey }
+    if (claimed) return { owned: true, commandId: claimed.id };
+
+    const existing = await loadManualCurrentForecastRecomputeCommand(
+      transaction,
+      params.fundId,
+      params.idempotencyKey
     );
-  }
-  if (existing.requestHash !== params.requestHash) {
-    throw new IdempotentCommandError(
-      409,
-      'IDEMPOTENCY_KEY_REUSE',
-      'Idempotency-Key was already used for a different current-forecast recompute request.',
-      { idempotencyKey: params.idempotencyKey }
-    );
-  }
-  if (existing.status !== 'pending') {
-    return { owned: false, outcome: manualRecomputeOutcomeFromCommand(existing, true) };
-  }
+    if (!existing) {
+      throw new IdempotentCommandError(
+        409,
+        'IDEMPOTENCY_RACE_UNRESOLVED',
+        'The recompute claim conflict could not be resolved after reloading the command.',
+        { idempotencyKey: params.idempotencyKey }
+      );
+    }
+    if (existing.requestHash !== params.requestHash) {
+      throw new IdempotentCommandError(
+        409,
+        'IDEMPOTENCY_KEY_REUSE',
+        'Idempotency-Key was already used for a different current-forecast recompute request.',
+        { idempotencyKey: params.idempotencyKey }
+      );
+    }
+    if (existing.status !== 'pending') {
+      return { owned: false, outcome: manualRecomputeOutcomeFromCommand(existing, true) };
+    }
 
-  const [recovered] = await params.database
-    .update(currentForecastRecomputeCommands)
-    .set({
-      status: 'failed',
-      failureCode: 'stale_pending',
-      shadowReconciliationId: null,
-      createdReconciliation: false,
-      finalizedAt: sql`NOW()`,
-    })
-    .where(
-      and(
-        eq(currentForecastRecomputeCommands.id, existing.id),
-        eq(currentForecastRecomputeCommands.status, 'pending'),
-        sql`${currentForecastRecomputeCommands.startedAt} <= NOW() - INTERVAL '90 seconds'`
+    const [recovered] = await transaction
+      .update(currentForecastRecomputeCommands)
+      .set({
+        status: 'failed',
+        failureCode: 'stale_pending',
+        shadowReconciliationId: null,
+        createdReconciliation: false,
+        finalizedAt: sql`NOW()`,
+      })
+      .where(
+        and(
+          eq(currentForecastRecomputeCommands.id, existing.id),
+          eq(currentForecastRecomputeCommands.status, 'pending'),
+          sql`${currentForecastRecomputeCommands.startedAt} <= NOW() - INTERVAL '90 seconds'`
+        )
       )
-    )
-    .returning();
+      .returning();
 
-  if (recovered) {
-    return { owned: false, outcome: manualRecomputeOutcomeFromCommand(recovered, true) };
-  }
+    if (recovered) {
+      return { owned: false, outcome: manualRecomputeOutcomeFromCommand(recovered, true) };
+    }
 
-  const current = await loadManualCurrentForecastRecomputeCommand(
-    params.database,
-    params.fundId,
-    params.idempotencyKey
-  );
-  if (current && current.status !== 'pending') {
-    return { owned: false, outcome: manualRecomputeOutcomeFromCommand(current, true) };
-  }
+    const current = await loadManualCurrentForecastRecomputeCommand(
+      transaction,
+      params.fundId,
+      params.idempotencyKey
+    );
+    if (current && current.status !== 'pending') {
+      return { owned: false, outcome: manualRecomputeOutcomeFromCommand(current, true) };
+    }
 
-  throw new IdempotentCommandError(
-    409,
-    'RECOMPUTE_IN_FLIGHT',
-    'Current-forecast recompute is already in flight for this Idempotency-Key.',
-    { idempotencyKey: params.idempotencyKey }
-  );
+    throw new IdempotentCommandError(
+      409,
+      'RECOMPUTE_IN_FLIGHT',
+      'Current-forecast recompute is already in flight for this Idempotency-Key.',
+      { idempotencyKey: params.idempotencyKey }
+    );
+  });
 }
 
 async function finalizeManualCurrentForecastRecomputeFailure(params: {

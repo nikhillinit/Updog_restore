@@ -471,7 +471,7 @@ describe('post-repair current-forecast reference proofs', () => {
     expect(rows.rows[0]?.candidate).toBe(true);
   });
 
-  it('proves activation latch completion and same-key replay on neon-http', async () => {
+  it('refuses activation on neon-http: the per-fund lock and ledger re-read need a transaction', async () => {
     await resetPostRepairTables();
     await lane.http.execute(sql`
       INSERT INTO fund_calculation_modes
@@ -490,34 +490,24 @@ describe('post-repair current-forecast reference proofs', () => {
       verifyGreenCandidate: async () => [],
     };
 
-    const result = await activateCurrentForecast(input);
-    expect(result.replayed).toBe(false);
-    expect(result.response).toMatchObject({
-      calculationKey: 'current_forecast',
-      configuredMode: 'on',
-      cutoverReferenceId: target,
-      version: 2,
-    });
+    await expectExactNeonHttpError(() => activateCurrentForecast(input));
 
-    const committed = await lane.http.execute(sql`
+    const state = await lane.http.execute(sql`
       SELECT
         (SELECT candidate FROM current_forecast_references WHERE id = ${target}) AS candidate,
         (SELECT configured_mode FROM fund_calculation_modes WHERE fund_id = 1) AS configured_mode,
-        (SELECT status FROM fund_calculation_mode_requests WHERE idempotency_key = 'neon-lane-activation') AS request_status
+        (SELECT version FROM fund_calculation_modes WHERE fund_id = 1) AS mode_version,
+        (SELECT count(*)::int FROM fund_calculation_mode_requests WHERE idempotency_key = 'neon-lane-activation') AS request_count
     `);
-    expect(committed.rows[0]).toMatchObject({
-      candidate: false,
-      configured_mode: 'on',
-      request_status: 'completed',
-    });
-
-    await expect(activateCurrentForecast(input)).resolves.toMatchObject({
-      replayed: true,
-      response: result.response,
+    expect(state.rows[0]).toMatchObject({
+      candidate: true,
+      configured_mode: 'shadow',
+      mode_version: 1,
+      request_count: 0,
     });
   });
 
-  it('suppresses activation request when expected-version guard fails on neon-http', async () => {
+  it('refuses activation on neon-http before the expected-version guard runs', async () => {
     await resetPostRepairTables();
     await lane.http.execute(sql`
       INSERT INTO fund_calculation_modes
@@ -527,7 +517,7 @@ describe('post-repair current-forecast reference proofs', () => {
     const target = await insertLaneReference('neon-lane-activation-guard');
     const database = lane.http as unknown as CurrentForecastReferenceDatabase;
 
-    await expect(
+    await expectExactNeonHttpError(() =>
       activateCurrentForecast({
         fundId: 1,
         referenceId: target,
@@ -537,7 +527,7 @@ describe('post-repair current-forecast reference proofs', () => {
         database,
         verifyGreenCandidate: async () => [],
       })
-    ).rejects.toMatchObject({ code: 'stale_expected_version' });
+    );
 
     const rows = await lane.http.execute(sql`
       SELECT count(*)::int AS count
@@ -716,7 +706,7 @@ describe('concurrent-writer contracts on neon-http', () => {
     expect(state.rows[0]).toMatchObject({ mode_version: 1, non_completed: 0, total_requests: 1 });
   });
 
-  it('resolves concurrent same-key activation as one execution plus one ledger replay', async () => {
+  it('refuses concurrent same-key activation on neon-http without touching the ledger', async () => {
     await resetPostRepairTables();
     await lane.http.execute(sql`
       INSERT INTO fund_calculation_modes
@@ -735,14 +725,17 @@ describe('concurrent-writer contracts on neon-http', () => {
       verifyGreenCandidate: async () => [],
     };
 
-    const results = await Promise.all([
+    const results = await Promise.allSettled([
       activateCurrentForecast(input),
       activateCurrentForecast(input),
     ]);
-
-    const replayFlags = results.map((result) => result.replayed).sort();
-    expect(replayFlags).toEqual([false, true]);
-    expect(results[0]?.response).toEqual(results[1]?.response);
+    for (const result of results) {
+      expect(result.status).toBe('rejected');
+      const reason = result.status === 'rejected' ? result.reason : undefined;
+      expect(reason instanceof Error ? reason.message : String(reason)).toBe(
+        NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE
+      );
+    }
 
     const state = await lane.http.execute(sql`
       SELECT
@@ -751,9 +744,9 @@ describe('concurrent-writer contracts on neon-http', () => {
         (SELECT version FROM fund_calculation_modes WHERE fund_id = 1) AS mode_version
     `);
     expect(state.rows[0]).toMatchObject({
-      request_count: 1,
-      configured_mode: 'on',
-      mode_version: 2,
+      request_count: 0,
+      configured_mode: 'shadow',
+      mode_version: 1,
     });
   });
 

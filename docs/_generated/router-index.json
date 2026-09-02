@@ -4222,6 +4222,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/1-plans/F_1.11.0_isolated-activation-train.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -14983,14 +14995,14 @@
       "REFERENCE": 10,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 189,
+      "UNKNOWN": 190,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 95,
-    "stale_docs": 485,
-    "total_docs": 779
+    "missing_frontmatter": 96,
+    "stale_docs": 486,
+    "total_docs": 780
   },
   "version": "2.0"
 }

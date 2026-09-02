@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { CurrentForecastRecomputeOutcomeSchema } from '@shared/contracts/current-forecast-v2.contract';
 import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
@@ -17,10 +18,7 @@ import {
   getCurrentPlanVersions,
   mintCurrentPlanVersion,
 } from '../services/current-plan-version-service';
-import {
-  CurrentForecastV2ServiceError,
-  runCurrentForecastV2,
-} from '../services/current-forecast-v2-service';
+import { CurrentForecastV2ServiceError } from '../services/current-forecast-v2-service';
 import {
   FundCalculationModeBlockedError,
   FundCalculationModeIdempotencyConflictError,
@@ -61,14 +59,6 @@ const currentForecastWriteLimiter = rateLimit({
 const MintCurrentPlanVersionBodySchema = z
   .object({
     asOfDate: z.string().date().optional(),
-  })
-  .strict();
-
-const RunCurrentForecastV2BodySchema = z
-  .object({
-    currentPlanVersionId: z.string().optional(),
-    financialFactsSnapshotId: z.string().optional(),
-    clock: z.string().datetime().optional(),
   })
   .strict();
 
@@ -246,45 +236,6 @@ router.post(
 );
 
 router.post(
-  '/funds/:fundId/current-forecast/runs',
-  currentForecastWriteLimiter,
-  requireAuth(),
-  validateFundIdParam,
-  requireTeamWrite,
-  routeHandler(async (req: Request, res: Response) => {
-    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
-    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
-      return;
-    }
-    const parsedBody = RunCurrentForecastV2BodySchema.safeParse(req.body);
-    if (!parsedBody.success) {
-      return res.status(400).json({
-        error: 'invalid_current_forecast_request',
-        message: 'Current forecast request is invalid',
-        details: parsedBody.error.format(),
-      });
-    }
-
-    try {
-      const forecast = await runCurrentForecastV2({
-        fundId,
-        clock: parsedBody.data.clock ?? new Date().toISOString(),
-        ...(parsedBody.data.currentPlanVersionId === undefined
-          ? {}
-          : { currentPlanVersionId: parsedBody.data.currentPlanVersionId }),
-        ...(parsedBody.data.financialFactsSnapshotId === undefined
-          ? {}
-          : { financialFactsSnapshotId: parsedBody.data.financialFactsSnapshotId }),
-      });
-      return res.status(200).json(forecast);
-    } catch (error) {
-      if (respondToTypedError(error, res)) return;
-      throw error;
-    }
-  })
-);
-
-router.post(
   '/funds/:fundId/current-forecast/recompute',
   currentForecastWriteLimiter,
   requireAuth(),
@@ -316,8 +267,22 @@ router.post(
         idempotencyKey: parsedKey.value,
         actorId: actorId(req),
       });
-      const status = outcome.status === 'completed' && !outcome.replayed ? 201 : 200;
-      return res.status(status).json(outcome);
+      // Egress contract parse: server/schema drift is a defect, not a
+      // response, so it fails loudly instead of shipping.
+      const parsed = CurrentForecastRecomputeOutcomeSchema.safeParse(outcome);
+      if (!parsed.success) {
+        routeLog.error('Recompute outcome contract violation:', {
+          fundId,
+          idempotencyKey: parsedKey.value,
+          issues: parsed.error.issues,
+        });
+        return res.status(500).json({
+          error: 'recompute_outcome_contract_violation',
+          message: 'Recompute outcome failed contract validation',
+        });
+      }
+      const status = parsed.data.status === 'completed' && !parsed.data.replayed ? 201 : 200;
+      return res.status(status).json(parsed.data);
     } catch (error) {
       if (respondToTypedError(error, res)) return;
       throw error;

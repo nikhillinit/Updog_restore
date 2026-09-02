@@ -3,7 +3,11 @@ import type { ComponentPropsWithoutRef, KeyboardEvent, ReactNode } from 'react';
 import { Info, PanelRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { isTeamRole } from '@shared/auth/effective-roles';
-import type { CurrentForecastRecomputeFailureCode } from '@shared/schema/current-forecast-recompute-commands';
+import {
+  CurrentForecastRecomputeOutcomeSchema,
+  type CurrentForecastRecomputeFailureCode,
+  type CurrentForecastRecomputeOutcome,
+} from '@shared/contracts/current-forecast-v2.contract';
 import {
   Sheet,
   SheetContent,
@@ -38,11 +42,6 @@ const PRESET_OPTIONS = [
   { value: 'operations', label: 'Operations' },
 ] as const;
 
-type RecomputeOutcome =
-  | { status: 'completed'; shadowReconciliationId: number; replayed: boolean }
-  | { status: 'failed'; failureCode: CurrentForecastRecomputeFailureCode; replayed: boolean }
-  | { status: 'skipped'; replayed: boolean };
-
 type RecomputeReadback = {
   fundId: number;
   tone: 'success' | 'warning' | 'error';
@@ -56,7 +55,10 @@ const RECOMPUTE_FAILURE_MESSAGES: Record<CurrentForecastRecomputeFailureCode, st
   stale_pending: 'A stale recompute claim was closed. Try again.',
 };
 
-function recomputeReadback(fundId: number, outcome: RecomputeOutcome): RecomputeReadback {
+function recomputeReadback(
+  fundId: number,
+  outcome: CurrentForecastRecomputeOutcome
+): RecomputeReadback {
   if (outcome.status === 'completed') {
     return {
       fundId,
@@ -641,12 +643,24 @@ export function WorkspaceContextRail({ children }: { children?: ReactNode }) {
     setRecomputeBusy(true);
     setRecomputeResult(null);
     try {
-      const outcome = await apiRequest<RecomputeOutcome>(
+      const response = await apiRequest(
         'POST',
         `/api/funds/${fundId}/current-forecast/recompute`,
         {},
         { headers: { 'Idempotency-Key': recomputeIdempotencyKey.keyFor(fundId) } }
       );
+      // Ingress contract parse: a malformed body is never a typed outcome.
+      // The key is kept so a retry replays the recorded command.
+      const parsed = CurrentForecastRecomputeOutcomeSchema.safeParse(response);
+      if (!parsed.success) {
+        setRecomputeResult({
+          fundId,
+          tone: 'error',
+          message: 'Recompute response did not match the expected contract.',
+        });
+        return;
+      }
+      const outcome = parsed.data;
       // A returned outcome (completed or failed) is a durably recorded
       // command; retries after a thrown transport error reuse the key so
       // server dedup and stale-pending recovery engage.
