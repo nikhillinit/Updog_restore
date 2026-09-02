@@ -24,6 +24,7 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 
 const modeService = vi.hoisted(() => ({
   CURRENT_FORECAST_CALCULATION_KEY: 'current_forecast',
+  currentForecastModeReaderForDatabase: vi.fn(() => vi.fn()),
   resolveCurrentForecastModeResolution: vi.fn(),
 }));
 const forecastService = vi.hoisted(() => ({

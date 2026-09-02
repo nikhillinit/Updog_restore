@@ -16,6 +16,7 @@ import { db } from '../db';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { logger } from '../lib/logger';
 import {
+  currentForecastModeReaderForDatabase,
   resolveCurrentForecastModeResolution,
   type CurrentForecastModeResolution,
 } from './current-forecast-calc-mode-resolver';
@@ -309,7 +310,10 @@ export async function triggerCurrentForecastShadow(
     database,
     context,
     work: async () => {
-      const resolution = await resolveCurrentForecastModeResolution(input.fundId);
+      const resolution = await resolveCurrentForecastModeResolution(
+        input.fundId,
+        currentForecastModeReaderForDatabase(database)
+      );
       if (resolution.mode !== 'shadow') return;
       await runShadow(input, database, resolution, context);
     },
@@ -340,7 +344,10 @@ export async function triggerCurrentForecastShadowForFacts(
     database,
     context,
     work: async () => {
-      const resolution = await resolveCurrentForecastModeResolution(input.fundId);
+      const resolution = await resolveCurrentForecastModeResolution(
+        input.fundId,
+        currentForecastModeReaderForDatabase(database)
+      );
       if (resolution.mode !== 'shadow') return;
 
       const [snapshotRow] = await database
@@ -602,7 +609,10 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
   commandId: number;
   fundId: number;
 }): Promise<ManualCurrentForecastRecomputeOutcome> {
-  const resolution = await resolveCurrentForecastModeResolution(params.fundId);
+  const resolution = await resolveCurrentForecastModeResolution(
+    params.fundId,
+    currentForecastModeReaderForDatabase(params.database)
+  );
   if (resolution.mode !== 'shadow') {
     return params.database.transaction(async (transaction) => {
       await lockCurrentForecastFund(transaction, params.fundId);

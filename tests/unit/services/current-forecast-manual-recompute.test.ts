@@ -4,6 +4,7 @@ import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import type { CurrentForecastRecomputeCommand } from '../../../shared/schema/current-forecast-recompute-commands';
 
 const modeService = vi.hoisted(() => ({
+  currentForecastModeReaderForDatabase: vi.fn(() => vi.fn()),
   resolveCurrentForecastModeResolution: vi.fn(),
 }));
 const forecastService = vi.hoisted(() => ({
@@ -194,6 +195,11 @@ describe('runManualCurrentForecastRecompute', () => {
     expect(shadowService.persistCurrentForecastShadowReconciliation).toHaveBeenCalledWith(
       expect.anything(),
       harness.transactionDb
+    );
+    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(harness.database);
+    expect(modeService.resolveCurrentForecastModeResolution).toHaveBeenCalledWith(
+      FUND_ID,
+      expect.any(Function)
     );
     expect(harness.updatePatches).toContainEqual(
       expect.objectContaining({

@@ -51,7 +51,7 @@ export default defineConfig({
     restoreMocks: true,
     pool: 'forks',
     maxWorkers: 1, // Prevent parallel execution that could conflict with containers
-    isolate: false, // Keep Docker-backed tests in one fork worker.
+    isolate: true, // Prevent cross-file module and mock state from leaking.
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',
