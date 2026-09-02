@@ -234,7 +234,10 @@ async function readCurrentForecastBoundaryTimestamp(
 ): Promise<string> {
   const rows = await executeRows<{ now: string }>(
     executor,
-    sql`SELECT clock_timestamp()::text AS now`
+    sql`SELECT to_char(
+      clock_timestamp() AT TIME ZONE 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+    ) AS now`
   );
   const value = rows[0]?.now;
   if (typeof value !== 'string') throw new Error('Database clock read returned no row');

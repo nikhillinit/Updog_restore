@@ -118,7 +118,7 @@ describe('current-forecast calculation mode service', () => {
   });
 
   it('uses the database timestamp for a fresh shadow boundary when now is injected', async () => {
-    const boundary = '2026-07-22 12:00:00.123456+00';
+    const boundary = '2026-07-22T12:00:00.123456Z';
     const { database, tx } = makeDatabase(
       [[], [modeRow()], modeMutation({ actual_version: 1 })],
       boundary
@@ -135,7 +135,14 @@ describe('current-forecast calculation mode service', () => {
       now,
     });
 
+    const boundaryQuery = tx.execute.mock.calls
+      .map(([query]) => JSON.stringify(query))
+      .find((query) => query.includes('clock_timestamp'));
     const persistedQuery = JSON.stringify(tx.execute.mock.calls.at(-1)?.[0]);
+    expect(boundaryQuery).toContain('to_char');
+    expect(boundaryQuery).toContain('UTC');
+    expect(boundaryQuery).toContain('HH24:MI:SS.US');
+    expect(boundaryQuery).not.toContain('::text');
     expect(persistedQuery).toContain(boundary);
     expect(persistedQuery).not.toContain(now.toISOString());
   });

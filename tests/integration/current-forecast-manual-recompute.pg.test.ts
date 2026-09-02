@@ -1030,6 +1030,39 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
     expect(persisted.rows).toEqual([{ shadow_started_at: shadowStartedAt }]);
   });
 
+  it('formats fresh shadow boundaries independently of PostgreSQL DateStyle', async () => {
+    const fundId = await insertFund();
+    const capturedBoundary: { value?: string } = {};
+
+    const result = await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 0,
+      configuredMode: 'shadow',
+      idempotencyKey: `datestyle-shadow-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: hex64(`input-${fundId}`) },
+      database: dateStyleBoundaryDatabase(capturedBoundary),
+    });
+
+    expect(capturedBoundary.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
+    expect(result.response.shadowStartedAt).toBe(
+      new Date(capturedBoundary.value as string).toISOString()
+    );
+
+    const persisted = await requiredPool().query<{ shadow_started_at: string }>(
+      `
+        SELECT to_char(
+          shadow_started_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+        ) AS shadow_started_at
+        FROM fund_calculation_modes
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId]
+    );
+    expect(persisted.rows).toEqual([{ shadow_started_at: capturedBoundary.value }]);
+  });
+
   it('compares manual-run boundaries at PostgreSQL timestamp precision', async () => {
     const fundId = await insertFund();
     const fixture = await seedActivationFixture(fundId);
@@ -1397,6 +1430,48 @@ function hex64(seed: string): string {
 
 function referenceDatabase(): CurrentForecastReferenceDatabase {
   return requiredDatabase() as unknown as CurrentForecastReferenceDatabase;
+}
+
+function dateStyleBoundaryDatabase(capturedBoundary: {
+  value?: string;
+}): CurrentForecastReferenceDatabase {
+  const database = referenceDatabase();
+  const wrapTransaction = (transaction: object) =>
+    new Proxy(transaction, {
+      get(target, property, receiver) {
+        const value = Reflect.get(target, property, receiver);
+        if (property !== 'execute' || typeof value !== 'function') {
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+        return async (query: unknown) => {
+          const result = await value.call(target, query);
+          const boundary = (result as { rows?: Array<{ now?: unknown }> }).rows?.[0]?.now;
+          if (typeof boundary === 'string') capturedBoundary.value = boundary;
+          return result;
+        };
+      },
+    });
+
+  return new Proxy(database, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (property !== 'transaction' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      return (callback: (transaction: object) => unknown, ...args: unknown[]) =>
+        value.call(
+          target,
+          async (transaction: object) => {
+            const wrapped = wrapTransaction(transaction);
+            await (wrapped as { execute: (query: unknown) => Promise<unknown> }).execute(
+              sql.raw("SET LOCAL DateStyle = 'SQL, DMY'")
+            );
+            return callback(wrapped);
+          },
+          ...args
+        );
+    },
+  });
 }
 
 function rollbackOnlyReferenceDatabase(): CurrentForecastReferenceDatabase {
