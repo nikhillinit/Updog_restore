@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const modeService = vi.hoisted(() => ({
+  currentForecastModeReaderForDatabase: vi.fn(() => vi.fn()),
   resolveCurrentForecastModeResolution: vi.fn(),
 }));
 const forecastService = vi.hoisted(() => ({

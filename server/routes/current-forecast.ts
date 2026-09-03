@@ -36,7 +36,10 @@ import {
   activateCurrentForecast,
   createRollbackCurrentForecastReference,
 } from '../services/current-forecast-reference-service';
-import { runManualCurrentForecastRecompute } from '../services/current-forecast-shadow-trigger';
+import {
+  findManualCurrentForecastRecomputeCommandId,
+  runManualCurrentForecastRecompute,
+} from '../services/current-forecast-shadow-trigger';
 
 const routeLog = createRouteLogger('current-forecast');
 const router = Router();
@@ -271,9 +274,14 @@ router.post(
       // response, so it fails loudly instead of shipping.
       const parsed = CurrentForecastRecomputeOutcomeSchema.safeParse(outcome);
       if (!parsed.success) {
+        const commandId = await findManualCurrentForecastRecomputeCommandId({
+          fundId,
+          idempotencyKey: parsedKey.value,
+        }).catch(() => null);
         routeLog.error('Recompute outcome contract violation:', {
           fundId,
           idempotencyKey: parsedKey.value,
+          commandId,
           issues: parsed.error.issues,
         });
         return res.status(500).json({

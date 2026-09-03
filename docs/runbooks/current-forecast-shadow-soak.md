@@ -275,8 +275,9 @@ WHERE r.fund_id = $1
 ### Per-window manual-provenance audit
 
 Each window's evidence includes this query proving zero manual-provenance rows
-for the target fund inside the window. A manual command counts when it started
-inside the window, or when it created its reconciliation row inside the window
+for the target fund inside the window. Any pending command counts regardless of
+timestamp. A terminal command counts when it started or finalized inside the
+window, or when it created its reconciliation row inside the window
 (`created_reconciliation = true`). Any returned row voids the window. This is an
 evidence control: the observation queries above deliberately remain unfiltered
 by provenance.
@@ -286,6 +287,7 @@ SELECT command.id AS command_id,
        command.idempotency_key,
        command.status,
        command.started_at,
+       command.finalized_at,
        command.created_reconciliation,
        command.shadow_reconciliation_id,
        reconciliation.observed_at
@@ -294,7 +296,9 @@ LEFT JOIN substrate_shadow_reconciliations AS reconciliation
   ON reconciliation.id = command.shadow_reconciliation_id
 WHERE command.fund_id = $1
   AND (
-    (command.started_at >= $2 AND command.started_at < $3)
+    command.status = 'pending'
+    OR (command.started_at >= $2 AND command.started_at < $3)
+    OR (command.finalized_at >= $2 AND command.finalized_at < $3)
     OR (
       command.created_reconciliation
       AND reconciliation.observed_at >= $2
@@ -476,14 +480,14 @@ preserving activation and pointer fields.
 
 The latch also enforces the manual-run prohibition. The activation eligibility
 check returns a typed `manual_recompute_since_shadow_start` blocker (`409`
-`activation_blocked`) when any manual recompute command for the fund started at
-or after the mode row's `shadow_started_at`, or created a current-forecast
-reconciliation row at or after it; a missing `shadow_started_at` fails closed.
-The blocker check and the flip run in one transaction under a per-fund lock, so
-a manual claim cannot land between them. A violated prohibition therefore cannot
-reach the flip even if an audit is missed. The per-window and pre-flip audits
-remain the evidence controls and are still required; the blocker is not a
-substitute for them.
+`activation_blocked`) when any manual recompute command for the fund is pending,
+started at or after the mode row's `shadow_started_at`, or finalized at or after
+it. Deduplicated reconciliation does not exempt a command, and a missing
+`shadow_started_at` fails closed. The blocker check and the flip run in one
+transaction under a per-fund lock, so a manual claim cannot land between them. A
+violated prohibition therefore cannot reach the flip even if an audit is missed.
+The per-window and pre-flip audits remain the evidence controls and are still
+required; the blocker is not a substitute for them.
 
 ## Evidence record
 

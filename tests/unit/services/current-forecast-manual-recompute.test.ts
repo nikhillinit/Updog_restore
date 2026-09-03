@@ -4,6 +4,7 @@ import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import type { CurrentForecastRecomputeCommand } from '../../../shared/schema/current-forecast-recompute-commands';
 
 const modeService = vi.hoisted(() => ({
+  currentForecastModeReaderForDatabase: vi.fn(() => vi.fn()),
   resolveCurrentForecastModeResolution: vi.fn(),
 }));
 const forecastService = vi.hoisted(() => ({
@@ -195,6 +196,11 @@ describe('runManualCurrentForecastRecompute', () => {
       expect.anything(),
       harness.transactionDb
     );
+    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(harness.database);
+    expect(modeService.resolveCurrentForecastModeResolution).toHaveBeenCalledWith(
+      FUND_ID,
+      expect.any(Function)
+    );
     expect(harness.updatePatches).toContainEqual(
       expect.objectContaining({
         status: 'completed',
@@ -305,17 +311,16 @@ describe('runManualCurrentForecastRecompute', () => {
     });
   });
 
-  it('does not fall back to non-transactional writes when transaction startup fails', async () => {
+  it('fails closed without non-transactional writes when transaction startup fails', async () => {
     const harness = makeHarness({
       transactionError: new Error('Transactions are not supported by this database driver'),
     });
 
-    await expect(runManualCurrentForecastRecompute(input(harness.database))).resolves.toEqual({
-      status: 'failed',
-      failureCode: 'execution_error',
-      replayed: false,
-    });
+    await expect(runManualCurrentForecastRecompute(input(harness.database))).rejects.toThrow(
+      'Transactions are not supported by this database driver'
+    );
     expect(forecastService.runCurrentForecastV2).not.toHaveBeenCalled();
+    expect(harness.row()).toMatchObject({ status: 'pending', finalizedAt: null });
   });
 
   it('does not report completion after losing the final pending-state CAS', async () => {

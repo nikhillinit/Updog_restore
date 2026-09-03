@@ -1,9 +1,11 @@
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as schema from '@shared/schema';
 import type { CurrentForecastV2 } from '../../shared/contracts/current-forecast-v2.contract';
+import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import type { CurrentForecastDatabase } from '../../server/services/current-forecast-v2-service';
 import { CURRENT_FORECAST_FUND_LOCK_CLASS } from '../../server/services/current-forecast-fund-lock';
 import {
@@ -12,6 +14,7 @@ import {
   type CurrentForecastReferenceDatabase,
 } from '../../server/services/current-forecast-reference-service';
 import { persistCurrentForecastShadowReconciliation } from '../../server/services/current-forecast-shadow-service';
+import { updateCurrentForecastCalculationMode } from '../../server/services/fund-calculation-mode-service';
 import {
   cleanupTestContainers,
   getPostgresConnectionString,
@@ -21,6 +24,7 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 
 const modeService = vi.hoisted(() => ({
   CURRENT_FORECAST_CALCULATION_KEY: 'current_forecast',
+  currentForecastModeReaderForDatabase: vi.fn(() => vi.fn()),
   resolveCurrentForecastModeResolution: vi.fn(),
 }));
 const forecastService = vi.hoisted(() => ({
@@ -184,6 +188,265 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
     });
   });
 
+  it('stamps a lock-waiting manual claim inside the new shadow interval when reconciliation deduplicates', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '1'.repeat(64), '2'.repeat(64));
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockResolvedValue(result);
+    const organic = await persistCurrentForecastShadowReconciliation(
+      reconciliationRecord(fundId, result.inputHash, result.resultHash),
+      requiredDatabase()
+    );
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const manual = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey: `lock-wait-dedup-${fundId}`,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+      expect(await commandCount(fundId)).toBe(0);
+
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+      await holder.query('COMMIT');
+      holderOpen = false;
+
+      await expect(manual).resolves.toEqual({
+        status: 'completed',
+        shadowReconciliationId: organic.id,
+        replayed: false,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    const ordering = await requiredPool().query<{
+      created_reconciliation: boolean;
+      started_after_reset: boolean;
+    }>(
+      `
+        SELECT
+          command.created_reconciliation,
+          command.started_at >= mode.shadow_started_at AS started_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, `lock-wait-dedup-${fundId}`]
+    );
+    expect
+      .soft(ordering.rows)
+      .toEqual([{ created_reconciliation: false, started_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 2,
+          idempotencyKey: `lock-wait-dedup-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
+  it('recovers a pending command that becomes stale while its claim waits on the fund lock', async () => {
+    const fundId = await insertFund();
+    const idempotencyKey = `stale-while-waiting-${fundId}`;
+    await requiredPool().query(
+      `
+        INSERT INTO current_forecast_recompute_commands (
+          fund_id, idempotency_key, request_hash, status,
+          created_reconciliation, started_at
+        )
+        VALUES ($1, $2, $3, 'pending', false, clock_timestamp())
+      `,
+      [
+        fundId,
+        idempotencyKey,
+        canonicalSha256({
+          route: 'POST /api/funds/:fundId/current-forecast/recompute',
+          fundId,
+        }),
+      ]
+    );
+
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const recovery = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+
+      const fresh = await holder.query<{ initially_fresh: boolean }>(
+        `
+          UPDATE current_forecast_recompute_commands
+          SET started_at = clock_timestamp() - INTERVAL '87 seconds'
+          WHERE fund_id = $1 AND idempotency_key = $2
+          RETURNING clock_timestamp() - started_at < INTERVAL '90 seconds' AS initially_fresh
+        `,
+        [fundId, idempotencyKey]
+      );
+      expect(fresh.rows).toEqual([{ initially_fresh: true }]);
+
+      await holder.query('SELECT pg_sleep(5)');
+      const margin = await holder.query<{ seconds_over_threshold: string }>(
+        `
+          SELECT EXTRACT(EPOCH FROM (clock_timestamp() - started_at)) - 90
+            AS seconds_over_threshold
+          FROM current_forecast_recompute_commands
+          WHERE fund_id = $1 AND idempotency_key = $2
+        `,
+        [fundId, idempotencyKey]
+      );
+      expect(Number(margin.rows[0]?.seconds_over_threshold)).toBeGreaterThan(1.5);
+
+      await holder.query('COMMIT');
+      holderOpen = false;
+      await expect(recovery).resolves.toEqual({
+        status: 'failed',
+        failureCode: 'stale_pending',
+        replayed: true,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+  });
+
+  it('stamps stale recovery after a shadow boundary advanced while waiting on the fund lock', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const idempotencyKey = `stale-recovery-boundary-${fundId}`;
+    await requiredPool().query(
+      `
+        INSERT INTO current_forecast_recompute_commands (
+          fund_id, idempotency_key, request_hash, status,
+          created_reconciliation, started_at
+        )
+        VALUES (
+          $1, $2, $3, 'pending', false,
+          clock_timestamp() - INTERVAL '2 minutes'
+        )
+      `,
+      [
+        fundId,
+        idempotencyKey,
+        canonicalSha256({
+          route: 'POST /api/funds/:fundId/current-forecast/recompute',
+          fundId,
+        }),
+      ]
+    );
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+
+      const recovery = runManualCurrentForecastRecompute({
+        fundId,
+        idempotencyKey,
+        actorId: null,
+        database: requiredDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+      await holder.query('COMMIT');
+      holderOpen = false;
+
+      await expect(recovery).resolves.toEqual({
+        status: 'failed',
+        failureCode: 'stale_pending',
+        replayed: true,
+      });
+    } finally {
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    const ordering = await requiredPool().query<{ finalized_after_reset: boolean }>(
+      `
+        SELECT command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, idempotencyKey]
+    );
+    expect.soft(ordering.rows).toEqual([{ finalized_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 2,
+          idempotencyKey: `stale-recovery-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
   it('rolls back snapshot and reconciliation when stale finalization wins the pending CAS', async () => {
     const fundId = await insertFund();
     const result = forecastResult(fundId, '2'.repeat(64), '3'.repeat(64));
@@ -259,6 +522,585 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
       references: '0',
       shadow_reconciliation_id: null,
       created_reconciliation: false,
+    });
+  });
+
+  it('orders manual completion after a concurrent shadow reset before activation', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '7'.repeat(64), '8'.repeat(64));
+    const transactionStarted = deferred<void>();
+    const release = deferred<void>();
+
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 1,
+      configuredMode: 'off',
+      idempotencyKey: `reset-race-off-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `reset-race-off-${fundId}` },
+      database: referenceDatabase(),
+    });
+
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockImplementationOnce(
+      async ({ database: transaction }: { database: CurrentForecastDatabase }) => {
+        await transaction.execute(sql`SELECT NOW()`);
+        transactionStarted.resolve(undefined);
+        await release.promise;
+        return result;
+      }
+    );
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey: `reset-race-manual-${fundId}`,
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await transactionStarted.promise;
+
+    try {
+      const reset = await updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 2,
+        configuredMode: 'shadow',
+        idempotencyKey: `reset-race-shadow-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: `reset-race-shadow-${fundId}` },
+        database: referenceDatabase(),
+      });
+      expect(reset.response).toMatchObject({ configuredMode: 'shadow', version: 3 });
+    } finally {
+      release.resolve(undefined);
+    }
+    await expect(manual).resolves.toMatchObject({ status: 'completed', replayed: false });
+
+    const ordering = await requiredPool().query<{
+      status: string;
+      created_reconciliation: boolean;
+      finalized_after_reset: boolean;
+    }>(
+      `
+        SELECT command.status,
+               command.created_reconciliation,
+               command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1
+          AND command.idempotency_key = $2
+      `,
+      [fundId, `reset-race-manual-${fundId}`]
+    );
+    expect.soft(ordering.rows[0]).toEqual({
+      status: 'completed',
+      created_reconciliation: true,
+      finalized_after_reset: true,
+    });
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 3,
+          idempotencyKey: `reset-race-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
+  it('serializes failed terminalization after a shadow reset and blocks activation', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const terminalizationStarted = deferred<void>();
+    const releaseTerminalization = deferred<void>();
+    const idempotencyKey = `failed-reset-race-${fundId}`;
+
+    forecastService.getOrCreateCurrentForecastV2WithReceipt.mockImplementationOnce(async () => {
+      terminalizationStarted.resolve(undefined);
+      await releaseTerminalization.promise;
+      throw new Error('synthetic manual recompute failure');
+    });
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey,
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await terminalizationStarted.promise;
+
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+
+      releaseTerminalization.resolve(undefined);
+      await Promise.race([
+        waitForFundLockWaiter(fundId),
+        manual.then(() => {
+          throw new Error('Failed terminalization completed without waiting on fund lock.');
+        }),
+      ]);
+
+      await holder.query('COMMIT');
+      holderOpen = false;
+    } finally {
+      releaseTerminalization.resolve(undefined);
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    await expect(manual).resolves.toEqual({
+      status: 'failed',
+      failureCode: 'execution_error',
+      replayed: false,
+    });
+    const ordering = await requiredPool().query<{ finalized_after_reset: boolean }>(
+      `
+        SELECT command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+          AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, idempotencyKey]
+    );
+    expect(ordering.rows).toEqual([{ finalized_after_reset: true }]);
+
+    await expect(
+      activateCurrentForecast({
+        fundId,
+        referenceId: fixture.referenceId,
+        expectedVersion: 2,
+        idempotencyKey: `failed-reset-race-activate-${fundId}`,
+        actorId: null,
+        database: referenceDatabase(),
+        verifyGreenCandidate: async () => [],
+      })
+    ).rejects.toMatchObject({
+      name: 'CurrentForecastActivationBlockedError',
+      blockers: ['manual_recompute_since_shadow_start'],
+    });
+  });
+
+  it('serializes skipped terminalization after a shadow reset and blocks activation', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const terminalizationStarted = deferred<void>();
+    const releaseTerminalization = deferred<void>();
+    const idempotencyKey = `skipped-reset-race-${fundId}`;
+
+    modeService.resolveCurrentForecastModeResolution.mockImplementationOnce(async () => {
+      terminalizationStarted.resolve(undefined);
+      await releaseTerminalization.promise;
+      return { mode: 'on', cutoverReferenceId: fixture.referenceId };
+    });
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey,
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await terminalizationStarted.promise;
+
+    const holder = await requiredPool().connect();
+    let holderOpen = false;
+    try {
+      await holder.query('BEGIN');
+      holderOpen = true;
+      await holder.query('SELECT pg_advisory_xact_lock($1::integer, $2::integer)', [
+        CURRENT_FORECAST_FUND_LOCK_CLASS,
+        fundId,
+      ]);
+      await holder.query(
+        `
+          UPDATE fund_calculation_modes
+          SET shadow_started_at = clock_timestamp(), version = version + 1
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+
+      releaseTerminalization.resolve(undefined);
+      await Promise.race([
+        waitForFundLockWaiter(fundId),
+        manual.then(() => {
+          throw new Error('Skipped terminalization completed without waiting on fund lock.');
+        }),
+      ]);
+
+      await holder.query('COMMIT');
+      holderOpen = false;
+    } finally {
+      releaseTerminalization.resolve(undefined);
+      if (holderOpen) await holder.query('ROLLBACK');
+      holder.release();
+    }
+
+    await expect(manual).resolves.toEqual({ status: 'skipped', replayed: false });
+    const ordering = await requiredPool().query<{ finalized_after_reset: boolean }>(
+      `
+        SELECT command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+          AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, idempotencyKey]
+    );
+    expect(ordering.rows).toEqual([{ finalized_after_reset: true }]);
+
+    await expect(
+      activateCurrentForecast({
+        fundId,
+        referenceId: fixture.referenceId,
+        expectedVersion: 2,
+        idempotencyKey: `skipped-reset-race-activate-${fundId}`,
+        actorId: null,
+        database: referenceDatabase(),
+        verifyGreenCandidate: async () => [],
+      })
+    ).rejects.toMatchObject({
+      name: 'CurrentForecastActivationBlockedError',
+      blockers: ['manual_recompute_since_shadow_start'],
+    });
+  });
+
+  it('blocks a pre-boundary manual command while pending and after deduplicated completion', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '3'.repeat(64), '4'.repeat(64));
+    const computationStarted = deferred<void>();
+    const releaseComputation = deferred<void>();
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockImplementationOnce(async () => {
+      computationStarted.resolve(undefined);
+      await releaseComputation.promise;
+      return result;
+    });
+    const organic = await persistCurrentForecastShadowReconciliation(
+      reconciliationRecord(fundId, result.inputHash, result.resultHash),
+      requiredDatabase()
+    );
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey: `pre-boundary-pending-${fundId}`,
+      actorId: null,
+      database: requiredDatabase(),
+    });
+    await computationStarted.promise;
+
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 1,
+      configuredMode: 'off',
+      idempotencyKey: `pre-boundary-off-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `pre-boundary-off-${fundId}` },
+      database: referenceDatabase(),
+    });
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 2,
+      configuredMode: 'shadow',
+      idempotencyKey: `pre-boundary-shadow-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `pre-boundary-shadow-${fundId}` },
+      database: referenceDatabase(),
+    });
+
+    const pendingActivation = await activateCurrentForecast({
+      fundId,
+      referenceId: fixture.referenceId,
+      expectedVersion: 3,
+      idempotencyKey: `pre-boundary-pending-activate-${fundId}`,
+      actorId: null,
+      database: rollbackOnlyReferenceDatabase(),
+      verifyGreenCandidate: async () => [],
+    }).then(
+      (value) => ({ status: 'resolved' as const, value }),
+      (error: unknown) => ({ status: 'rejected' as const, error })
+    );
+
+    releaseComputation.resolve(undefined);
+    await expect(manual).resolves.toEqual({
+      status: 'completed',
+      shadowReconciliationId: organic.id,
+      replayed: false,
+    });
+    expect.soft(pendingActivation).toMatchObject({
+      status: 'rejected',
+      error: {
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      },
+    });
+
+    const residue = await requiredPool().query<{
+      created_reconciliation: boolean;
+      finalized_after_reset: boolean;
+    }>(
+      `
+        SELECT
+          command.created_reconciliation,
+          command.finalized_at >= mode.shadow_started_at AS finalized_after_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1 AND command.idempotency_key = $2
+      `,
+      [fundId, `pre-boundary-pending-${fundId}`]
+    );
+    expect(residue.rows).toEqual([{ created_reconciliation: false, finalized_after_reset: true }]);
+
+    await expect
+      .soft(
+        activateCurrentForecast({
+          fundId,
+          referenceId: fixture.referenceId,
+          expectedVersion: 3,
+          idempotencyKey: `pre-boundary-completed-activate-${fundId}`,
+          actorId: null,
+          database: referenceDatabase(),
+          verifyGreenCandidate: async () => [],
+        })
+      )
+      .rejects.toMatchObject({
+        name: 'CurrentForecastActivationBlockedError',
+        blockers: ['manual_recompute_since_shadow_start'],
+      });
+  });
+
+  it('serializes a shadow reset after locked manual reconciliation persistence', async () => {
+    const fundId = await insertFund();
+    await seedActivationFixture(fundId);
+    const result = forecastResult(fundId, '9'.repeat(64), 'a'.repeat(64));
+    const completionLockAcquired = deferred<void>();
+    const releaseManual = deferred<void>();
+
+    await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 1,
+      configuredMode: 'off',
+      idempotencyKey: `manual-first-off-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: `manual-first-off-${fundId}` },
+      database: referenceDatabase(),
+    });
+
+    mockReceipt(result);
+    forecastService.runCurrentForecastV2.mockResolvedValue(result);
+
+    const manual = runManualCurrentForecastRecompute({
+      fundId,
+      idempotencyKey: `manual-first-recompute-${fundId}`,
+      actorId: null,
+      database: pauseAfterSecondFundLock({
+        database: requiredDatabase(),
+        acquired: completionLockAcquired,
+        release: releaseManual,
+      }),
+    });
+    let reset: ReturnType<typeof updateCurrentForecastCalculationMode> | undefined;
+    try {
+      await Promise.race([
+        completionLockAcquired.promise,
+        manual.then(() => {
+          throw new Error('Manual recompute completed before its second fund-lock acquisition.');
+        }),
+      ]);
+
+      reset = updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 2,
+        configuredMode: 'shadow',
+        idempotencyKey: `manual-first-shadow-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: `manual-first-shadow-${fundId}` },
+        database: referenceDatabase(),
+      });
+      await waitForFundLockWaiter(fundId);
+
+      const beforeRelease = await requiredPool().query<{
+        configured_mode: string;
+        shadow_started_at: Date | null;
+        version: number;
+      }>(
+        `
+          SELECT configured_mode, shadow_started_at, version
+          FROM fund_calculation_modes
+          WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+        `,
+        [fundId]
+      );
+      expect(beforeRelease.rows).toEqual([
+        { configured_mode: 'off', shadow_started_at: null, version: 2 },
+      ]);
+    } finally {
+      releaseManual.resolve(undefined);
+    }
+    await expect(manual).resolves.toMatchObject({ status: 'completed', replayed: false });
+    if (!reset) throw new Error('Shadow reset did not start.');
+    await expect(reset).resolves.toMatchObject({
+      replayed: false,
+      response: { configuredMode: 'shadow', version: 3 },
+    });
+
+    const ordering = await requiredPool().query<{ finalized_before_reset: boolean }>(
+      `
+        SELECT command.finalized_at < mode.shadow_started_at AS finalized_before_reset
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = 'current_forecast'
+        WHERE command.fund_id = $1
+          AND command.idempotency_key = $2
+      `,
+      [fundId, `manual-first-recompute-${fundId}`]
+    );
+    expect(ordering.rows).toEqual([{ finalized_before_reset: true }]);
+  });
+
+  it('preserves shadow boundary microseconds on same-interval updates', async () => {
+    const fundId = await insertFund();
+    await seedActivationFixture(fundId);
+    const shadowStartedAt = '2026-08-01 00:00:00.123456+00';
+
+    await requiredPool().query(
+      `
+        UPDATE fund_calculation_modes
+        SET shadow_started_at = $2::timestamptz
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId, shadowStartedAt]
+    );
+
+    await expect(
+      updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 1,
+        configuredMode: 'shadow',
+        killSwitchActive: true,
+        idempotencyKey: `precision-stay-shadow-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: hex64(`input-${fundId}`) },
+        database: referenceDatabase(),
+      })
+    ).resolves.toMatchObject({
+      response: { configuredMode: 'shadow', killSwitchActive: true, version: 2 },
+      replayed: false,
+    });
+
+    const persisted = await requiredPool().query<{ shadow_started_at: string }>(
+      `
+        SELECT shadow_started_at::text AS shadow_started_at
+        FROM fund_calculation_modes
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId]
+    );
+    expect(persisted.rows).toEqual([{ shadow_started_at: shadowStartedAt }]);
+  });
+
+  it('formats fresh shadow boundaries independently of PostgreSQL DateStyle', async () => {
+    const fundId = await insertFund();
+    const capturedBoundary: { value?: string } = {};
+
+    const result = await updateCurrentForecastCalculationMode({
+      fundId,
+      expectedVersion: 0,
+      configuredMode: 'shadow',
+      idempotencyKey: `datestyle-shadow-${fundId}`,
+      actorId: null,
+      sources: { sourceInputHash: hex64(`input-${fundId}`) },
+      database: dateStyleBoundaryDatabase(capturedBoundary),
+    });
+
+    expect(capturedBoundary.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
+    expect(result.response.shadowStartedAt).toBe(
+      new Date(capturedBoundary.value as string).toISOString()
+    );
+
+    const persisted = await requiredPool().query<{ shadow_started_at: string }>(
+      `
+        SELECT to_char(
+          shadow_started_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+        ) AS shadow_started_at
+        FROM fund_calculation_modes
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId]
+    );
+    expect(persisted.rows).toEqual([{ shadow_started_at: capturedBoundary.value }]);
+  });
+
+  it('compares manual-run boundaries at PostgreSQL timestamp precision', async () => {
+    const fundId = await insertFund();
+    const fixture = await seedActivationFixture(fundId);
+    const shadowStartedAt = '2026-08-01 00:00:00.123789+00';
+    const manualTimestamp = '2026-08-01 00:00:00.123456+00';
+
+    await requiredPool().query(
+      `
+        UPDATE fund_calculation_modes
+        SET shadow_started_at = $2::timestamptz
+        WHERE fund_id = $1 AND calculation_key = 'current_forecast'
+      `,
+      [fundId, shadowStartedAt]
+    );
+    await requiredPool().query(
+      `
+        INSERT INTO current_forecast_recompute_commands (
+          fund_id, idempotency_key, request_hash, status,
+          created_reconciliation, started_at, finalized_at
+        )
+        VALUES ($1, $2, $3, 'skipped', false, $4::timestamptz, $4::timestamptz)
+      `,
+      [fundId, `precision-${fundId}`, hex64(`precision-${fundId}`), manualTimestamp]
+    );
+
+    await expect(
+      activateCurrentForecast({
+        fundId,
+        referenceId: fixture.referenceId,
+        expectedVersion: 1,
+        idempotencyKey: `precision-activate-${fundId}`,
+        actorId: null,
+        database: referenceDatabase(),
+        verifyGreenCandidate: async () => [],
+      })
+    ).resolves.toMatchObject({
+      replayed: false,
+      response: { configuredMode: 'on', version: 2 },
     });
   });
 
@@ -528,6 +1370,49 @@ async function waitForFundLockWaiter(fundId: number): Promise<void> {
   throw new Error(`No session waited on the current-forecast fund lock for fund ${fundId}.`);
 }
 
+function pauseAfterSecondFundLock(params: {
+  database: CurrentForecastDatabase;
+  acquired: ReturnType<typeof deferred<void>>;
+  release: ReturnType<typeof deferred<void>>;
+}): CurrentForecastDatabase {
+  let acquisitions = 0;
+  const wrapTransaction = (transaction: object) =>
+    new Proxy(transaction, {
+      get(target, property, receiver) {
+        const value = Reflect.get(target, property, receiver);
+        if (property !== 'execute' || typeof value !== 'function') {
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+        return async (query: unknown) => {
+          const result = await value.call(target, query);
+          if (JSON.stringify(query).includes('pg_advisory_xact_lock')) {
+            acquisitions += 1;
+            if (acquisitions === 2) {
+              params.acquired.resolve(undefined);
+              await params.release.promise;
+            }
+          }
+          return result;
+        };
+      },
+    });
+
+  return new Proxy(params.database, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (property !== 'transaction' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      return (callback: (transaction: object) => unknown, ...args: unknown[]) =>
+        value.call(
+          target,
+          (transaction: object) => callback(wrapTransaction(transaction)),
+          ...args
+        );
+    },
+  });
+}
+
 async function insertedId(query: string, values: unknown[]): Promise<number> {
   const result = await requiredPool().query<{ id: number }>(query, values);
   const id = result.rows[0]?.id;
@@ -545,6 +1430,77 @@ function hex64(seed: string): string {
 
 function referenceDatabase(): CurrentForecastReferenceDatabase {
   return requiredDatabase() as unknown as CurrentForecastReferenceDatabase;
+}
+
+function dateStyleBoundaryDatabase(capturedBoundary: {
+  value?: string;
+}): CurrentForecastReferenceDatabase {
+  const database = referenceDatabase();
+  const wrapTransaction = (transaction: object) =>
+    new Proxy(transaction, {
+      get(target, property, receiver) {
+        const value = Reflect.get(target, property, receiver);
+        if (property !== 'execute' || typeof value !== 'function') {
+          return typeof value === 'function' ? value.bind(target) : value;
+        }
+        return async (query: unknown) => {
+          const result = await value.call(target, query);
+          const boundary = (result as { rows?: Array<{ now?: unknown }> }).rows?.[0]?.now;
+          if (typeof boundary === 'string') capturedBoundary.value = boundary;
+          return result;
+        };
+      },
+    });
+
+  return new Proxy(database, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (property !== 'transaction' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      return (callback: (transaction: object) => unknown, ...args: unknown[]) =>
+        value.call(
+          target,
+          async (transaction: object) => {
+            const wrapped = wrapTransaction(transaction);
+            await (wrapped as { execute: (query: unknown) => Promise<unknown> }).execute(
+              sql.raw("SET LOCAL DateStyle = 'SQL, DMY'")
+            );
+            return callback(wrapped);
+          },
+          ...args
+        );
+    },
+  });
+}
+
+function rollbackOnlyReferenceDatabase(): CurrentForecastReferenceDatabase {
+  const database = referenceDatabase();
+  return new Proxy(database, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (property !== 'transaction' || typeof value !== 'function') {
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      return async (callback: (transaction: object) => Promise<unknown>, ...args: unknown[]) => {
+        const rollback = new Error('rollback activation probe');
+        let result: unknown;
+        try {
+          await value.call(
+            target,
+            async (transaction: object) => {
+              result = await callback(transaction);
+              throw rollback;
+            },
+            ...args
+          );
+        } catch (error) {
+          if (error !== rollback) throw error;
+        }
+        return result;
+      };
+    },
+  });
 }
 
 function mockReceipt(result: CurrentForecastV2): void {

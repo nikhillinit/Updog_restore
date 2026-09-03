@@ -19,9 +19,14 @@ function modeRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeDatabase(executeRows: unknown[][]) {
+function makeDatabase(executeRows: unknown[][], boundaryTimestamp?: string) {
   const queue = [...executeRows];
-  const execute = vi.fn(async () => ({ rows: queue.shift() ?? [] }));
+  const execute = vi.fn(async (query: unknown) => ({
+    rows:
+      boundaryTimestamp && JSON.stringify(query).includes('clock_timestamp')
+        ? [{ now: boundaryTimestamp }]
+        : (queue.shift() ?? []),
+  }));
   const tx = {
     execute,
   };
@@ -87,7 +92,10 @@ describe('current-forecast calculation mode service', () => {
   });
 
   it('enters shadow without an accepted reconciliation and starts residency', async () => {
-    const { database } = makeDatabase([[modeRow()], modeMutation({ actual_version: 1 })]);
+    const { database } = makeDatabase(
+      [[], [modeRow()], modeMutation({ actual_version: 1 })],
+      '2026-07-22 12:00:00.000000+00'
+    );
 
     const result = await updateCurrentForecastCalculationMode({
       fundId: 7,
@@ -107,5 +115,35 @@ describe('current-forecast calculation mode service', () => {
     });
     expect(result.response.blockers).not.toContain('accepted_reconciliation_required');
     expect(result.replayed).toBe(false);
+  });
+
+  it('uses the database timestamp for a fresh shadow boundary when now is injected', async () => {
+    const boundary = '2026-07-22T12:00:00.123456Z';
+    const { database, tx } = makeDatabase(
+      [[], [modeRow()], modeMutation({ actual_version: 1 })],
+      boundary
+    );
+
+    await updateCurrentForecastCalculationMode({
+      fundId: 7,
+      expectedVersion: 1,
+      configuredMode: 'shadow',
+      idempotencyKey: 'forecast-shadow-precise-clock',
+      actorId: 42,
+      database: database as never,
+      sources: { sourceInputHash: 'forecast-source' },
+      now,
+    });
+
+    const boundaryQuery = tx.execute.mock.calls
+      .map(([query]) => JSON.stringify(query))
+      .find((query) => query.includes('clock_timestamp'));
+    const persistedQuery = JSON.stringify(tx.execute.mock.calls.at(-1)?.[0]);
+    expect(boundaryQuery).toContain('to_char');
+    expect(boundaryQuery).toContain('UTC');
+    expect(boundaryQuery).toContain('HH24:MI:SS.US');
+    expect(boundaryQuery).not.toContain('::text');
+    expect(persistedQuery).toContain(boundary);
+    expect(persistedQuery).not.toContain(now.toISOString());
   });
 });

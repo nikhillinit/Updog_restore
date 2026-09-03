@@ -152,16 +152,14 @@ const AFTER_START = '2026-08-02T00:00:00.000Z';
 type ManualLedgerRow = {
   status: 'pending' | 'completed' | 'failed' | 'skipped';
   started_at: string;
-  created_reconciliation: boolean;
-  reconciliation_observed_at: string | null;
+  finalized_at: string | null;
 };
 
 function manualRow(overrides: Partial<ManualLedgerRow> = {}): ManualLedgerRow {
   return {
     status: 'completed',
     started_at: BEFORE_START,
-    created_reconciliation: false,
-    reconciliation_observed_at: null,
+    finalized_at: null,
     ...overrides,
   };
 }
@@ -170,10 +168,17 @@ async function manualBlockers(
   rows: ManualLedgerRow[],
   shadowStartedAt: string | null = SHADOW_START
 ) {
+  const shadowStart = shadowStartedAt === null ? null : new Date(shadowStartedAt).getTime();
+  const contaminated = rows.some(
+    (row) =>
+      shadowStart === null ||
+      row.status === 'pending' ||
+      new Date(row.started_at).getTime() >= shadowStart ||
+      (row.finalized_at !== null && new Date(row.finalized_at).getTime() >= shadowStart)
+  );
   return verifyNoManualRecomputeSinceShadowStart({
-    executor: { execute: vi.fn(async () => ({ rows })) },
+    executor: { execute: vi.fn(async (_query: unknown) => ({ rows: [{ contaminated }] })) },
     fundId: gateReference.fundId,
-    shadowStartedAt,
   });
 }
 
@@ -182,16 +187,12 @@ describe('current-forecast activation gate: manual recompute since shadow start'
     await expect(manualBlockers([])).resolves.toEqual([]);
   });
 
-  it('a command terminal before the shadow start does not block', async () => {
-    await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
-      ])
-    ).resolves.toEqual([]);
+  it('a command that was terminal before shadow start does not block', async () => {
+    await expect(manualBlockers([manualRow({ finalized_at: BEFORE_START })])).resolves.toEqual([]);
   });
 
   it.each(['pending', 'completed', 'failed', 'skipped'] as const)(
-    'a %s attempt after the shadow start blocks',
+    'a %s attempt at or after shadow start blocks',
     async (status) => {
       await expect(
         manualBlockers([manualRow({ status, started_at: AFTER_START })])
@@ -199,27 +200,20 @@ describe('current-forecast activation gate: manual recompute since shadow start'
     }
   );
 
-  it('a pre-transition command whose created reconciliation lands after the start blocks', async () => {
-    await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: true, reconciliation_observed_at: AFTER_START }),
-      ])
-    ).resolves.toEqual([MANUAL_BLOCKER]);
+  it('a pre-transition terminal command finalized after start blocks', async () => {
+    await expect(manualBlockers([manualRow({ finalized_at: AFTER_START })])).resolves.toEqual([
+      MANUAL_BLOCKER,
+    ]);
   });
 
-  it('a pre-transition command deduplicated onto an organic post-start row does not block', async () => {
-    await expect(
-      manualBlockers([
-        manualRow({ created_reconciliation: false, reconciliation_observed_at: AFTER_START }),
-      ])
-    ).resolves.toEqual([]);
+  it('a pre-transition pending command blocks', async () => {
+    await expect(manualBlockers([manualRow({ status: 'pending' })])).resolves.toEqual([
+      MANUAL_BLOCKER,
+    ]);
   });
 
   it('a same-key replay of an older terminal command adds no rows and does not block', async () => {
-    const ledger = [
-      manualRow({ created_reconciliation: true, reconciliation_observed_at: BEFORE_START }),
-    ];
-    await expect(manualBlockers(ledger)).resolves.toEqual([]);
+    const ledger = [manualRow({ finalized_at: BEFORE_START })];
     await expect(manualBlockers(ledger)).resolves.toEqual([]);
   });
 

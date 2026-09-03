@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:88966d27db6543d30a1ee5437a20dc1f2f05796b48435e8e102a765e5986b29d",
+  "snapshot_id": "snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -492,7 +492,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "d2b5224f8f7ffa04fc3e64b9fded8b51baa4d9a8b659549ef33275b895cf6357",
+    "audit/surface-contract-matrix/boot-proofs.json": "25b8f8cc878a0620afe4749b66a9fb7a2f1679c6ce436d137be19d3866d0cf02",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -521,7 +521,7 @@
     "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
     "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
-    "package-lock.json": "9d9ec7b16dc18c18a27b661857a2ee29b881a023fdbe931922c4f6ddb80dc896",
+    "package-lock.json": "ed937b8c43f53806c8f6b70dbd79cac16f5c9e57a68aae3f37514e315aeca8dc",
     "package.json": "80de8c02119bd47edbcb77241af229250c223cecb0b979b43f5dbad7e7a938b7",
     "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
     "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
@@ -555,7 +555,7 @@
     "server/routes/cashflow.ts": "a838a81886716def7a5bded8615b84e4263978ec16bb5785c669008e10a57810",
     "server/routes/cohort-analysis.ts": "57e40f569ed602eade24ae876923d59f06778a1d09689420295f0776907d3a59",
     "server/routes/construction-reconciliation.ts": "c9ce98b027b478d95493ca557831ce455e1eb6849560fd7f391b3e08faeebc0f",
-    "server/routes/current-forecast.ts": "94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+    "server/routes/current-forecast.ts": "33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "f6495b1fc70dfe88d0d85c4da58a6da224b7b233869df0b1c15dfde079857a51",
     "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
@@ -11241,7 +11241,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:88966d27db6543d30a1ee5437a20dc1f2f05796b48435e8e102a765e5986b29d"
+      "snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848"
     ]
   },
   "kg_counts": {

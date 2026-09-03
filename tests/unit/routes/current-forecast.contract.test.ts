@@ -7,6 +7,7 @@ const service = vi.hoisted(() => ({
   getCurrentPlanVersions: vi.fn(),
   mintCurrentPlanVersion: vi.fn(),
   runManualCurrentForecastRecompute: vi.fn(),
+  findManualCurrentForecastRecomputeCommandId: vi.fn(async () => 77),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -107,6 +108,7 @@ vi.mock('../../../server/services/current-forecast-v2-service', () => {
 
 vi.mock('../../../server/services/current-forecast-shadow-trigger', () => ({
   runManualCurrentForecastRecompute: service.runManualCurrentForecastRecompute,
+  findManualCurrentForecastRecomputeCommandId: service.findManualCurrentForecastRecomputeCommandId,
 }));
 
 import currentForecastRouter from '../../../server/routes/current-forecast';
@@ -359,6 +361,10 @@ describe('current-forecast route contract', () => {
     expect(response.body).toEqual({
       error: 'recompute_outcome_contract_violation',
       message: 'Recompute outcome failed contract validation',
+    });
+    expect(service.findManualCurrentForecastRecomputeCommandId).toHaveBeenCalledWith({
+      fundId: 1,
+      idempotencyKey: 'recompute-malformed',
     });
   });
 

@@ -15,17 +15,26 @@ export type CurrentForecastModeReader = (
   fundId: number
 ) => Promise<CurrentForecastModeRow | null | undefined>;
 
-export const defaultCurrentForecastModeReader: CurrentForecastModeReader = (fundId) =>
-  db.query.fundCalculationModes.findFirst({
-    columns: {
-      configuredMode: true,
-      killSwitchActive: true,
-      activatedAt: true,
-      cutoverReferenceId: true,
-    },
-    where: (row, { and, eq }) =>
-      and(eq(row.fundId, fundId), eq(row.calculationKey, CURRENT_FORECAST_CALCULATION_KEY)),
-  });
+export type CurrentForecastModeDatabase = Pick<typeof db, 'query'>;
+
+export function currentForecastModeReaderForDatabase(
+  database: CurrentForecastModeDatabase
+): CurrentForecastModeReader {
+  return (fundId) =>
+    database.query.fundCalculationModes.findFirst({
+      columns: {
+        configuredMode: true,
+        killSwitchActive: true,
+        activatedAt: true,
+        cutoverReferenceId: true,
+      },
+      where: (row, { and, eq }) =>
+        and(eq(row.fundId, fundId), eq(row.calculationKey, CURRENT_FORECAST_CALCULATION_KEY)),
+    });
+}
+
+export const defaultCurrentForecastModeReader: CurrentForecastModeReader =
+  currentForecastModeReaderForDatabase(db);
 
 /**
  * Which post-cutover state produced a `held` resolution (13.2): the serving

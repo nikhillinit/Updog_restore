@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:88966d27db6543d30a1ee5437a20dc1f2f05796b48435e8e102a765e5986b29d",
+  "snapshot_id": "snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "d2b5224f8f7ffa04fc3e64b9fded8b51baa4d9a8b659549ef33275b895cf6357",
+    "audit/surface-contract-matrix/boot-proofs.json": "25b8f8cc878a0620afe4749b66a9fb7a2f1679c6ce436d137be19d3866d0cf02",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -37,7 +37,7 @@
     "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
     "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
-    "package-lock.json": "9d9ec7b16dc18c18a27b661857a2ee29b881a023fdbe931922c4f6ddb80dc896",
+    "package-lock.json": "ed937b8c43f53806c8f6b70dbd79cac16f5c9e57a68aae3f37514e315aeca8dc",
     "package.json": "80de8c02119bd47edbcb77241af229250c223cecb0b979b43f5dbad7e7a938b7",
     "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
     "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
@@ -71,7 +71,7 @@
     "server/routes/cashflow.ts": "a838a81886716def7a5bded8615b84e4263978ec16bb5785c669008e10a57810",
     "server/routes/cohort-analysis.ts": "57e40f569ed602eade24ae876923d59f06778a1d09689420295f0776907d3a59",
     "server/routes/construction-reconciliation.ts": "c9ce98b027b478d95493ca557831ce455e1eb6849560fd7f391b3e08faeebc0f",
-    "server/routes/current-forecast.ts": "94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+    "server/routes/current-forecast.ts": "33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "f6495b1fc70dfe88d0d85c4da58a6da224b7b233869df0b1c15dfde079857a51",
     "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
@@ -689,7 +689,7 @@
     },
     "api:GET:/api/auth/session": {
       "row_id": "api:GET:/api/auth/session",
-      "contract_fingerprint": "353e1187d0e88c1cd9220d4805872c373fcc0b2c8425388a39cfbbbcdd55b4d8",
+      "contract_fingerprint": "e1ac526a4f35e8db3a11f822b805c57a92348c859a79e7b0627b3a68c92f6a70",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -703,7 +703,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -715,11 +717,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "353e1187d0e88c1cd9220d4805872c373fcc0b2c8425388a39cfbbbcdd55b4d8"
+          "contract_fingerprint": "e1ac526a4f35e8db3a11f822b805c57a92348c859a79e7b0627b3a68c92f6a70"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "353e1187d0e88c1cd9220d4805872c373fcc0b2c8425388a39cfbbbcdd55b4d8"
+          "contract_fingerprint": "e1ac526a4f35e8db3a11f822b805c57a92348c859a79e7b0627b3a68c92f6a70"
         }
       }
     },
@@ -2207,13 +2209,13 @@
     },
     "api:GET:/api/funds/:fundId/current-plan-versions": {
       "row_id": "api:GET:/api/funds/:fundId/current-plan-versions",
-      "contract_fingerprint": "a756146b7d21b022e7e1e8dc5da0fd842521636acf59c10acfbe6c9a3f8c9da4",
+      "contract_fingerprint": "eae5f7c69ce80a9ddb762d12bb50e242920424b056ae02020deac275291bffdc",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -2233,11 +2235,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a756146b7d21b022e7e1e8dc5da0fd842521636acf59c10acfbe6c9a3f8c9da4"
+          "contract_fingerprint": "eae5f7c69ce80a9ddb762d12bb50e242920424b056ae02020deac275291bffdc"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a756146b7d21b022e7e1e8dc5da0fd842521636acf59c10acfbe6c9a3f8c9da4"
+          "contract_fingerprint": "eae5f7c69ce80a9ddb762d12bb50e242920424b056ae02020deac275291bffdc"
         }
       }
     },
@@ -8069,13 +8071,13 @@
     },
     "api:POST:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume": {
       "row_id": "api:POST:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume",
-      "contract_fingerprint": "726921c3c90ae88d9c504d0f09e28f8bcf3f6ae400ef0f3a4aa4a6cb991fde72",
+      "contract_fingerprint": "2097b228871a9939240921a8bc24f63329479f6bca6aea4c52a71e6ec812e2ef",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -8093,23 +8095,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "726921c3c90ae88d9c504d0f09e28f8bcf3f6ae400ef0f3a4aa4a6cb991fde72"
+          "contract_fingerprint": "2097b228871a9939240921a8bc24f63329479f6bca6aea4c52a71e6ec812e2ef"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "726921c3c90ae88d9c504d0f09e28f8bcf3f6ae400ef0f3a4aa4a6cb991fde72"
+          "contract_fingerprint": "2097b228871a9939240921a8bc24f63329479f6bca6aea4c52a71e6ec812e2ef"
         }
       }
     },
     "api:POST:/api/admin/funds/:fundId/current-forecast/activate": {
       "row_id": "api:POST:/api/admin/funds/:fundId/current-forecast/activate",
-      "contract_fingerprint": "61ca9158803e24ae8f6eb6da1f420a89f116bd54d5b4c5c734fa2f21c7f6c2ef",
+      "contract_fingerprint": "34fa53b115d020b58edc29f4b50320b9f662564a3926b1a263bd4570f6be6f96",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -8127,23 +8129,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "61ca9158803e24ae8f6eb6da1f420a89f116bd54d5b4c5c734fa2f21c7f6c2ef"
+          "contract_fingerprint": "34fa53b115d020b58edc29f4b50320b9f662564a3926b1a263bd4570f6be6f96"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "61ca9158803e24ae8f6eb6da1f420a89f116bd54d5b4c5c734fa2f21c7f6c2ef"
+          "contract_fingerprint": "34fa53b115d020b58edc29f4b50320b9f662564a3926b1a263bd4570f6be6f96"
         }
       }
     },
     "api:POST:/api/admin/funds/:fundId/current-forecast/references": {
       "row_id": "api:POST:/api/admin/funds/:fundId/current-forecast/references",
-      "contract_fingerprint": "a1d5837d797b402314867878b720f9b0acd3b62dceed80cbc160dd3b59488310",
+      "contract_fingerprint": "834fbdcd089c097556cb3deda8bc04e28788f9daa0b8e776d30bd10c3a9e7c73",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -8161,11 +8163,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a1d5837d797b402314867878b720f9b0acd3b62dceed80cbc160dd3b59488310"
+          "contract_fingerprint": "834fbdcd089c097556cb3deda8bc04e28788f9daa0b8e776d30bd10c3a9e7c73"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a1d5837d797b402314867878b720f9b0acd3b62dceed80cbc160dd3b59488310"
+          "contract_fingerprint": "834fbdcd089c097556cb3deda8bc04e28788f9daa0b8e776d30bd10c3a9e7c73"
         }
       }
     },
@@ -9926,13 +9928,13 @@
     },
     "api:POST:/api/funds/:fundId/current-forecast/recompute": {
       "row_id": "api:POST:/api/funds/:fundId/current-forecast/recompute",
-      "contract_fingerprint": "7d7adb7190319cee9627fa44bb1fa74c336f6203357715dd57d58dbf69a02497",
+      "contract_fingerprint": "1a672b59648ec1f458992e2aa7058fae0e8b55f1d51bd610fddc40775e5883e3",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -9952,23 +9954,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "7d7adb7190319cee9627fa44bb1fa74c336f6203357715dd57d58dbf69a02497"
+          "contract_fingerprint": "1a672b59648ec1f458992e2aa7058fae0e8b55f1d51bd610fddc40775e5883e3"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "7d7adb7190319cee9627fa44bb1fa74c336f6203357715dd57d58dbf69a02497"
+          "contract_fingerprint": "1a672b59648ec1f458992e2aa7058fae0e8b55f1d51bd610fddc40775e5883e3"
         }
       }
     },
     "api:POST:/api/funds/:fundId/current-plan-versions": {
       "row_id": "api:POST:/api/funds/:fundId/current-plan-versions",
-      "contract_fingerprint": "54b9fc13a2268f06e7a2f638b6e64438526e7b259ae9b6bf5d54ea816a76cfb7",
+      "contract_fingerprint": "1110a5555d0870fb088e01eb7375a69736534beba3a977f73217de62e16aa065",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -9988,11 +9990,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "54b9fc13a2268f06e7a2f638b6e64438526e7b259ae9b6bf5d54ea816a76cfb7"
+          "contract_fingerprint": "1110a5555d0870fb088e01eb7375a69736534beba3a977f73217de62e16aa065"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "54b9fc13a2268f06e7a2f638b6e64438526e7b259ae9b6bf5d54ea816a76cfb7"
+          "contract_fingerprint": "1110a5555d0870fb088e01eb7375a69736534beba3a977f73217de62e16aa065"
         }
       }
     },
@@ -13701,13 +13703,13 @@
     },
     "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast": {
       "row_id": "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast",
-      "contract_fingerprint": "6f7a4f861e00f6ed6768cdfd1c9441c5cb4889d08e8bfe9f2b59202eaffa76b1",
+      "contract_fingerprint": "c073b653d00fb3c2393112838fbad0930814e1196df986358efd5af2ca948d7c",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/current-forecast.ts=94597269efea1ed11c31fd88eab9ffef09ef14219e4b9130b45fccb49b07fe8f",
+        "server/routes/current-forecast.ts=33bd1c86f8916c6fef03a26320ea914a5acc48551b6a32e64050a1d4943d1137",
         "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -13725,11 +13727,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "6f7a4f861e00f6ed6768cdfd1c9441c5cb4889d08e8bfe9f2b59202eaffa76b1"
+          "contract_fingerprint": "c073b653d00fb3c2393112838fbad0930814e1196df986358efd5af2ca948d7c"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "6f7a4f861e00f6ed6768cdfd1c9441c5cb4889d08e8bfe9f2b59202eaffa76b1"
+          "contract_fingerprint": "c073b653d00fb3c2393112838fbad0930814e1196df986358efd5af2ca948d7c"
         }
       }
     },
@@ -16003,7 +16005,7 @@
         "disposition": "product-surface",
         "decision_status": "approved",
         "fingerprint": "f557f7dd689a505a7c989723effe860d24d1fcd39f9e7a143d135bcd057a7dc8",
-        "decision_evidence": "dockerfile-root: Dockerfile; listener discovery evidence Dockerfile:56, Dockerfile:65; detected listener patterns container-http-entrypoint:56, container-http-entrypoint:65. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+        "decision_evidence": "dockerfile-root: Dockerfile; listener discovery evidence Dockerfile:58, Dockerfile:67; detected listener patterns container-http-entrypoint:58, container-http-entrypoint:67. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
       },
       "legacy-dockerfile-railway": {
         "listener_id": "legacy-dockerfile-railway",
@@ -16011,7 +16013,7 @@
         "disposition": "non-product-tooling",
         "decision_status": "approved",
         "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4",
-        "decision_evidence": "legacy-dockerfile-railway: Dockerfile.railway; listener discovery evidence Dockerfile.railway:41, Dockerfile.railway:45; detected listener patterns container-http-entrypoint:41, container-http-entrypoint:45. Current disposition non-product-tooling is supported by this executable listener discovery."
+        "decision_evidence": "legacy-dockerfile-railway: Dockerfile.railway; listener discovery evidence Dockerfile.railway:43, Dockerfile.railway:47; detected listener patterns container-http-entrypoint:43, container-http-entrypoint:47. Current disposition non-product-tooling is supported by this executable listener discovery."
       },
       "dockerfile-simple": {
         "listener_id": "dockerfile-simple",
@@ -16027,7 +16029,7 @@
         "disposition": "product-surface",
         "decision_status": "approved",
         "fingerprint": "d34c0c0a79520e193bd7e392a398208f5d2bb825a8af98823e49741dfe5fa6a5",
-        "decision_evidence": "dockerfile-worker: Dockerfile.worker; listener discovery evidence Dockerfile.worker:163, Dockerfile.worker:175; detected listener patterns container-http-entrypoint:163, container-http-entrypoint:175. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
+        "decision_evidence": "dockerfile-worker: Dockerfile.worker; listener discovery evidence Dockerfile.worker:165, Dockerfile.worker:177; detected listener patterns container-http-entrypoint:165, container-http-entrypoint:177. Current disposition product-surface is supported by this executable listener discovery using container-entrypoint-evidence."
       },
       "ml-reserve": {
         "listener_id": "ml-reserve",
@@ -16408,10 +16410,10 @@
       "dormant:client/src/pages/investments.tsx": {
         "id": "dormant:client/src/pages/investments.tsx",
         "decision_status": "approved",
-        "resolution_fingerprint": "7bff3355620dffad974c5c36b1e1c561d1e5f200076c767584b833b37d204604",
+        "resolution_fingerprint": "6a85419c8d649008a6721205df9526d570ff2d3a5ded1d910fb736aa51da750d",
         "resolution": "pruned",
-        "decision_evidence": "dormant:client/src/pages/investments.tsx: vanished row mapping names client/src/pages/investments.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-        "contract_fingerprint": "7bff3355620dffad974c5c36b1e1c561d1e5f200076c767584b833b37d204604"
+        "decision_evidence": "dormant:client/src/pages/investments.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/investments.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
+        "contract_fingerprint": "6a85419c8d649008a6721205df9526d570ff2d3a5ded1d910fb736aa51da750d"
       },
       "dormant:client/src/pages/kpi-manager/index.tsx": {
         "id": "dormant:client/src/pages/kpi-manager/index.tsx",
@@ -16504,26 +16506,26 @@
       "dormant:client/src/pages/partial-sales.tsx": {
         "id": "dormant:client/src/pages/partial-sales.tsx",
         "decision_status": "approved",
-        "resolution_fingerprint": "e5826552e76b0468a4e87f0f4d7d1e0ce1cf955268ea18c471f3742af4cb6102",
+        "resolution_fingerprint": "3ab26e0177b71363027a8a6209270130a245e2a26bfee69a7ba8a28dcab156eb",
         "resolution": "pruned",
-        "decision_evidence": "dormant:client/src/pages/partial-sales.tsx: vanished row mapping names client/src/pages/partial-sales.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-        "contract_fingerprint": "e5826552e76b0468a4e87f0f4d7d1e0ce1cf955268ea18c471f3742af4cb6102"
+        "decision_evidence": "dormant:client/src/pages/partial-sales.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/partial-sales.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
+        "contract_fingerprint": "3ab26e0177b71363027a8a6209270130a245e2a26bfee69a7ba8a28dcab156eb"
       },
       "dormant:client/src/pages/planning.tsx": {
         "id": "dormant:client/src/pages/planning.tsx",
         "decision_status": "approved",
-        "resolution_fingerprint": "fff51d47b5c8289a7bb7eeaddf5b3496f021afee5aedbe89623c98bb4b270502",
+        "resolution_fingerprint": "bc7bdca4192dd25df07b2cdceb3439215abdfe6c6b29635f3087481647c9982b",
         "resolution": "pruned",
-        "decision_evidence": "dormant:client/src/pages/planning.tsx: vanished row mapping names client/src/pages/planning.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-        "contract_fingerprint": "fff51d47b5c8289a7bb7eeaddf5b3496f021afee5aedbe89623c98bb4b270502"
+        "decision_evidence": "dormant:client/src/pages/planning.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/planning.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
+        "contract_fingerprint": "bc7bdca4192dd25df07b2cdceb3439215abdfe6c6b29635f3087481647c9982b"
       },
       "dormant:client/src/pages/portfolio-company-detail.tsx": {
         "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
         "decision_status": "approved",
-        "resolution_fingerprint": "b8732c88513c04ac13f03c3449ae9d463ae5632bcbc4e31c4f5a129112c3f472",
+        "resolution_fingerprint": "1d590133f4d8d0735172963d0d40aec876920e4f6b59e41dcbeb8b3e33aac9cf",
         "resolution": "pruned",
-        "decision_evidence": "dormant:client/src/pages/portfolio-company-detail.tsx: vanished row mapping names client/src/pages/portfolio-company-detail.tsx in dormant-inventory.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-        "contract_fingerprint": "b8732c88513c04ac13f03c3449ae9d463ae5632bcbc4e31c4f5a129112c3f472"
+        "decision_evidence": "dormant:client/src/pages/portfolio-company-detail.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/portfolio-company-detail.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
+        "contract_fingerprint": "1d590133f4d8d0735172963d0d40aec876920e4f6b59e41dcbeb8b3e33aac9cf"
       },
       "dormant:client/src/pages/portfolio-constructor.tsx": {
         "id": "dormant:client/src/pages/portfolio-constructor.tsx",
@@ -16552,10 +16554,10 @@
       "dormant:client/src/pages/time-travel.tsx": {
         "id": "dormant:client/src/pages/time-travel.tsx",
         "decision_status": "approved",
-        "resolution_fingerprint": "e164d6f39ff9215af86efb4eebf7558072a941893632013d5d728a7b2aee4099",
+        "resolution_fingerprint": "1976329f0771948d022cc72563382f9e2a9a34443c9763328a11c320f894daee",
         "resolution": "pruned",
-        "decision_evidence": "dormant:client/src/pages/time-travel.tsx: vanished row mapping names client/src/pages/time-travel.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-        "contract_fingerprint": "e164d6f39ff9215af86efb4eebf7558072a941893632013d5d728a7b2aee4099"
+        "decision_evidence": "dormant:client/src/pages/time-travel.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/time-travel.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
+        "contract_fingerprint": "1976329f0771948d022cc72563382f9e2a9a34443c9763328a11c320f894daee"
       },
       "dormant:client/src/pages/WaterfallStep.tsx": {
         "id": "dormant:client/src/pages/WaterfallStep.tsx",
@@ -16638,13 +16640,10 @@
   },
   "closure": {
     "independent_review": {
-      "reviewed_at": "2026-09-01",
-      "reviewer": "Codex independent review under nikhillinit owner directive",
-      "source_commit": "952e2593ade22c8c60b1d57ffd8c5881a7f94c91",
-      "baseline": "origin/main@12af67a4ea8c17dc5f9b4390bfa08f032498450a closed G1",
-      "scope": "All 483 surviving rows, 83 off-row obligations, 12 persona mappings, and 30 closure rows reviewed. Semantic decisions and exposure attestations for every surviving row plus all 82 carried off-row obligations were compared against the valid baseline; the seven rows with changed source fingerprints and the new pruned /runs orphan were directly reviewed.",
-      "seed_determinism": "At source commit 952e2593ade22c8c60b1d57ffd8c5881a7f94c91, an independent disposable-worktree run completed the README fresh reset, exact-SHA KG rebuild, boot proof, and two seed passes; cmp matched all nine required artifacts with zero mismatches.",
-      "result": "No carried semantic decision drift. Seven changed-source row decisions retained; /runs orphan approved as pruned."
+      "reviewed_at": "2026-09-02",
+      "reviewer": "Codex code-reviewer datestyle_diff_review",
+      "source_commit": "a4cf75ad6803c69b9620482cefbf5036bfef564e",
+      "baseline": "Prior closed review at 215d8dd257212c0126c88051b66c32d49648a81e remains applicable after exact comparison to a4cf75ad6803c69b9620482cefbf5036bfef564e: 483/483 source-derived row invariants unchanged, 797/797 exposures unchanged, 12/12 persona mappings unchanged, 83/83 off-row source semantics unchanged, and 30/30 closure rows still applicable. Functional delta from e00fe76b506dc42c2bf72d9ad6b924018c963ef0 is limited to DateStyle- and TimeZone-independent UTC microsecond serialization for the existing current-forecast shadow boundary plus regression coverage; it changes no surface contract. Source inventory retains 169 fingerprints with only audit/surface-contract-matrix/boot-proofs.json rebound. Snapshot rebound to snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848; fresh boot-proof table contains 9/9 entries with unchanged semantics: 7 proven, 1 failed ml-service-local proof, and 1 intentionally unproven local-process proof."
     },
     "rows": {
       "api:GET:/api-docs": {
@@ -16800,5 +16799,5 @@
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "https://github.com/nikhillinit/Updog_restore/commit/952e2593ade22c8c60b1d57ffd8c5881a7f94c91"
+  "evidence_ref": "codex-session:01a062d5-5f23-7392-a584-a974fcf6a947;source:a4cf75ad6803c69b9620482cefbf5036bfef564e;snapshot:snapshot:70c8befc3acef9f0e76dfefdcd2d5b91bb974ac0f98943881d93bc932a29b848"
 }

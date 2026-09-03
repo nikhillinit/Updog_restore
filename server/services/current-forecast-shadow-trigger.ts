@@ -16,6 +16,7 @@ import { db } from '../db';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { logger } from '../lib/logger';
 import {
+  currentForecastModeReaderForDatabase,
   resolveCurrentForecastModeResolution,
   type CurrentForecastModeResolution,
 } from './current-forecast-calc-mode-resolver';
@@ -309,7 +310,10 @@ export async function triggerCurrentForecastShadow(
     database,
     context,
     work: async () => {
-      const resolution = await resolveCurrentForecastModeResolution(input.fundId);
+      const resolution = await resolveCurrentForecastModeResolution(
+        input.fundId,
+        currentForecastModeReaderForDatabase(database)
+      );
       if (resolution.mode !== 'shadow') return;
       await runShadow(input, database, resolution, context);
     },
@@ -340,7 +344,10 @@ export async function triggerCurrentForecastShadowForFacts(
     database,
     context,
     work: async () => {
-      const resolution = await resolveCurrentForecastModeResolution(input.fundId);
+      const resolution = await resolveCurrentForecastModeResolution(
+        input.fundId,
+        currentForecastModeReaderForDatabase(database)
+      );
       if (resolution.mode !== 'shadow') return;
 
       const [snapshotRow] = await database
@@ -438,6 +445,23 @@ async function loadManualCurrentForecastRecomputeCommand(
   return command;
 }
 
+/**
+ * Diagnostic lookup of the command id behind a (fund, key) claim, for server
+ * logs that must name the command without widening the wire outcome.
+ */
+export async function findManualCurrentForecastRecomputeCommandId(params: {
+  fundId: number;
+  idempotencyKey: string;
+  database?: CurrentForecastDatabase;
+}): Promise<number | null> {
+  const command = await loadManualCurrentForecastRecomputeCommand(
+    params.database ?? db,
+    params.fundId,
+    params.idempotencyKey
+  );
+  return command?.id ?? null;
+}
+
 async function claimManualCurrentForecastRecompute(params: {
   database: CurrentForecastDatabase;
   fundId: number;
@@ -463,6 +487,7 @@ async function claimManualCurrentForecastRecompute(params: {
         requestHash: params.requestHash,
         status: 'pending',
         createdBy: params.actorId,
+        startedAt: sql`clock_timestamp()`,
       })
       .onConflictDoNothing({
         target: [
@@ -506,13 +531,13 @@ async function claimManualCurrentForecastRecompute(params: {
         failureCode: 'stale_pending',
         shadowReconciliationId: null,
         createdReconciliation: false,
-        finalizedAt: sql`NOW()`,
+        finalizedAt: sql`clock_timestamp()`,
       })
       .where(
         and(
           eq(currentForecastRecomputeCommands.id, existing.id),
           eq(currentForecastRecomputeCommands.status, 'pending'),
-          sql`${currentForecastRecomputeCommands.startedAt} <= NOW() - INTERVAL '90 seconds'`
+          sql`${currentForecastRecomputeCommands.startedAt} <= clock_timestamp() - INTERVAL '90 seconds'`
         )
       )
       .returning();
@@ -546,51 +571,16 @@ async function finalizeManualCurrentForecastRecomputeFailure(params: {
   idempotencyKey: string;
   failureCode: 'execution_timeout' | 'execution_error';
 }): Promise<ManualCurrentForecastRecomputeOutcome> {
-  const [finalized] = await params.database
-    .update(currentForecastRecomputeCommands)
-    .set({
-      status: 'failed',
-      failureCode: params.failureCode,
-      shadowReconciliationId: null,
-      createdReconciliation: false,
-      finalizedAt: sql`NOW()`,
-    })
-    .where(
-      and(
-        eq(currentForecastRecomputeCommands.id, params.commandId),
-        eq(currentForecastRecomputeCommands.status, 'pending')
-      )
-    )
-    .returning();
-
-  if (finalized) return manualRecomputeOutcomeFromCommand(finalized, false);
-
-  const winner = await loadManualCurrentForecastRecomputeCommand(
-    params.database,
-    params.fundId,
-    params.idempotencyKey
-  );
-  if (winner && winner.status !== 'pending') {
-    return manualRecomputeOutcomeFromCommand(winner, false);
-  }
-  throw new ManualCurrentForecastRecomputeOwnershipLostError(params.commandId);
-}
-
-async function executeOwnedManualCurrentForecastRecompute(params: {
-  database: CurrentForecastDatabase;
-  commandId: number;
-  fundId: number;
-}): Promise<ManualCurrentForecastRecomputeOutcome> {
-  const resolution = await resolveCurrentForecastModeResolution(params.fundId);
-  if (resolution.mode !== 'shadow') {
-    const [skipped] = await params.database
+  return params.database.transaction(async (transaction) => {
+    await lockCurrentForecastFund(transaction, params.fundId);
+    const [finalized] = await transaction
       .update(currentForecastRecomputeCommands)
       .set({
-        status: 'skipped',
-        failureCode: null,
+        status: 'failed',
+        failureCode: params.failureCode,
         shadowReconciliationId: null,
         createdReconciliation: false,
-        finalizedAt: sql`NOW()`,
+        finalizedAt: sql`clock_timestamp()`,
       })
       .where(
         and(
@@ -599,8 +589,54 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         )
       )
       .returning();
-    if (!skipped) throw new ManualCurrentForecastRecomputeOwnershipLostError(params.commandId);
-    return manualRecomputeOutcomeFromCommand(skipped, false);
+
+    if (finalized) return manualRecomputeOutcomeFromCommand(finalized, false);
+
+    const winner = await loadManualCurrentForecastRecomputeCommand(
+      transaction,
+      params.fundId,
+      params.idempotencyKey
+    );
+    if (winner && winner.status !== 'pending') {
+      return manualRecomputeOutcomeFromCommand(winner, false);
+    }
+    throw new ManualCurrentForecastRecomputeOwnershipLostError(params.commandId);
+  });
+}
+
+async function executeOwnedManualCurrentForecastRecompute(params: {
+  database: CurrentForecastDatabase;
+  commandId: number;
+  fundId: number;
+}): Promise<ManualCurrentForecastRecomputeOutcome> {
+  const resolution = await resolveCurrentForecastModeResolution(
+    params.fundId,
+    currentForecastModeReaderForDatabase(params.database)
+  );
+  if (resolution.mode !== 'shadow') {
+    return params.database.transaction(async (transaction) => {
+      await lockCurrentForecastFund(transaction, params.fundId);
+      const [skipped] = await transaction
+        .update(currentForecastRecomputeCommands)
+        .set({
+          status: 'skipped',
+          failureCode: null,
+          shadowReconciliationId: null,
+          createdReconciliation: false,
+          finalizedAt: sql`clock_timestamp()`,
+        })
+        .where(
+          and(
+            eq(currentForecastRecomputeCommands.id, params.commandId),
+            eq(currentForecastRecomputeCommands.status, 'pending')
+          )
+        )
+        .returning();
+      if (!skipped) {
+        throw new ManualCurrentForecastRecomputeOwnershipLostError(params.commandId);
+      }
+      return manualRecomputeOutcomeFromCommand(skipped, false);
+    });
   }
 
   const clock = new Date().toISOString();
@@ -639,6 +675,9 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         killSwitchActive: false,
       },
     });
+    // Keep forecast computation outside the lock; serialize only the durable
+    // reconciliation and final pending-only CAS against a fresh shadow reset.
+    await lockCurrentForecastFund(transaction, params.fundId);
     const reconciliation = await persistCurrentForecastShadowReconciliation(record, transaction);
     const [finalized] = await transaction
       .update(currentForecastRecomputeCommands)
@@ -647,7 +686,7 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         failureCode: null,
         shadowReconciliationId: reconciliation.id,
         createdReconciliation: reconciliation.created,
-        finalizedAt: sql`NOW()`,
+        finalizedAt: sql`clock_timestamp()`,
       })
       .where(
         and(

@@ -559,62 +559,46 @@ export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
   return blockers;
 };
 
-type ManualRecomputeLedgerRow = {
-  status: string;
-  started_at: Date | string;
-  created_reconciliation: boolean;
-  reconciliation_observed_at: Date | string | null;
-};
-
-function toTime(value: Date | string): number {
-  return value instanceof Date ? value.getTime() : new Date(value).getTime();
-}
+type ManualRecomputeContaminationRow = { contaminated: boolean };
 
 /**
- * Phase 4 manual-run prohibition, machine-enforced at the latch (F_1.11.0 P0b
- * item 4). The fund is contaminated when any manual recompute command started
- * at or after the shadow interval began, or when a command that created its
- * current-forecast reconciliation row wrote it at or after that point (a
- * command that started before the transition but persisted after it). Status
- * is irrelevant: pending, completed, failed, and skipped attempts all count.
- * A NULL `shadow_started_at` leaves the interval unbounded, so any command
- * row for the fund blocks (fail-closed).
+ * Phase 4 manual-run prohibition, machine-enforced latch (F_1.11.0 P0b
+ * item 4). A fund is contaminated while any manual recompute is pending, when
+ * a command started during the shadow interval, or when a terminal command
+ * finalized during the interval. PostgreSQL compares stored timestamps
+ * directly, preserving microseconds. The shadow transition, manual claim, and
+ * successful manual persistence share the per-fund lock; claim `started_at`
+ * and fresh shadow entry use clock_timestamp(). A NULL `shadow_started_at`
+ * leaves the interval unbounded, so any command row for the fund blocks
+ * (fail-closed).
  */
 export async function verifyNoManualRecomputeSinceShadowStart(params: {
   executor: Executor;
   fundId: number;
-  shadowStartedAt: Date | string | null;
 }): Promise<string[]> {
-  // ponytail: loads every command row for the fund and filters in process;
-  // push the interval predicate into SQL if this admin-only ledger ever grows.
-  const rows = await executeRows<ManualRecomputeLedgerRow>(
+  const rows = await executeRows<ManualRecomputeContaminationRow>(
     params.executor,
     sql`
-      SELECT command.status,
-             command.started_at,
-             command.created_reconciliation,
-             reconciliation.observed_at AS reconciliation_observed_at
-      FROM current_forecast_recompute_commands AS command
-      LEFT JOIN substrate_shadow_reconciliations AS reconciliation
-        ON reconciliation.id = command.shadow_reconciliation_id
-       AND reconciliation.fund_id = command.fund_id
-       AND reconciliation.calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
-      WHERE command.fund_id = ${params.fundId}
+      SELECT EXISTS (
+        SELECT 1
+        FROM current_forecast_recompute_commands AS command
+        JOIN fund_calculation_modes AS mode
+          ON mode.fund_id = command.fund_id
+         AND mode.calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+        WHERE command.fund_id = ${params.fundId}
+          AND (
+            mode.shadow_started_at IS NULL
+            OR command.status = 'pending'
+            OR command.started_at >= mode.shadow_started_at
+            OR (
+              command.finalized_at IS NOT NULL
+              AND command.finalized_at >= mode.shadow_started_at
+            )
+          )
+      ) AS contaminated
     `
   );
-  if (params.shadowStartedAt === null) {
-    return rows.length > 0 ? ['manual_recompute_since_shadow_start'] : [];
-  }
-
-  const shadowStart = toTime(params.shadowStartedAt);
-  const contaminated = rows.some(
-    (row) =>
-      toTime(row.started_at) >= shadowStart ||
-      (row.created_reconciliation &&
-        row.reconciliation_observed_at !== null &&
-        toTime(row.reconciliation_observed_at) >= shadowStart)
-  );
-  return contaminated ? ['manual_recompute_since_shadow_start'] : [];
+  return rows[0]?.contaminated ? ['manual_recompute_since_shadow_start'] : [];
 }
 
 export interface CurrentForecastActivationResponse {
@@ -759,7 +743,6 @@ async function activateCurrentForecastUnderGuards(
     ...(await verifyNoManualRecomputeSinceShadowStart({
       executor,
       fundId: params.fundId,
-      shadowStartedAt: mode.shadow_started_at,
     })),
   ];
   if (blockers.length > 0) {

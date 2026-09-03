@@ -259,6 +259,30 @@ describe('post-repair single-statement service proofs', () => {
     });
   });
 
+  it('refuses current-forecast shadow mode before leaving mode or request residue', async () => {
+    await resetPostRepairTables();
+    const database = lane.http as unknown as FundCalculationModeDatabase;
+
+    await expectExactNeonHttpError(() =>
+      updateCurrentForecastCalculationMode({
+        fundId: 1,
+        expectedVersion: 0,
+        configuredMode: 'shadow',
+        idempotencyKey: 'neon-lane-mode-shadow',
+        actorId: null,
+        sources: { sourceInputHash: 'neon-lane-source' },
+        database,
+      })
+    );
+
+    const residue = await lane.http.execute(sql`
+      SELECT
+        (SELECT count(*)::int FROM fund_calculation_modes) AS mode_count,
+        (SELECT count(*)::int FROM fund_calculation_mode_requests) AS request_count
+    `);
+    expect(residue.rows[0]).toMatchObject({ mode_count: 0, request_count: 0 });
+  });
+
   it('maps version conflict without leaving a pending mode claim', async () => {
     await resetPostRepairTables();
     const database = lane.http as unknown as FundCalculationModeDatabase;

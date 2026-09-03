@@ -15,6 +15,7 @@ import {
   getPostgresConnectionString,
   setupTestContainers,
 } from '../../helpers/testcontainers';
+import { createIsolatedDatabasePool } from '../../helpers/isolated-postgres-database';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
 
 const MIGRATION_TAG = '0055_current_forecast_recompute_commands';
@@ -26,6 +27,7 @@ let adminPool: Pool | undefined;
 let databaseName: string | undefined;
 let connectionString: string | undefined;
 let pool: Pool | undefined;
+let isolatedDatabase: ReturnType<typeof createIsolatedDatabasePool> | undefined;
 let migrationSql = '';
 let startedTestContainers = false;
 const fundId = 229_055_001;
@@ -53,7 +55,8 @@ describe.skipIf(skipIfNoDocker)(
       expect(appliedTags).toContain('0054_operating_decisions_spine');
       expect(appliedTags).toContain(MIGRATION_TAG);
 
-      pool = new Pool({ connectionString, max: 1 });
+      isolatedDatabase = createIsolatedDatabasePool(connectionString);
+      pool = isolatedDatabase.pool;
       migrationSql = await readFile(MIGRATION_FILE, 'utf8');
       await pool.query(
         `
@@ -65,8 +68,12 @@ describe.skipIf(skipIfNoDocker)(
     }, 180_000);
 
     afterAll(async () => {
-      await pool?.end();
-      if (adminPool && databaseName) {
+      if (isolatedDatabase && adminPool && databaseName) {
+        await isolatedDatabase.dropDatabase(adminPool, databaseName);
+      } else {
+        await pool?.end();
+      }
+      if (!isolatedDatabase && adminPool && databaseName) {
         await adminPool.query(
           `DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`
         );
