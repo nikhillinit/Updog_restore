@@ -375,6 +375,9 @@ the spec body has one normative evidence design and no open decision.
 - Define in the approved specification for later implementation:
   `shared/contracts/reserve-intelligence-admission-v1.contract.ts`,
   `server/lib/database-backed-idempotency-routes.ts`,
+  `server/config/reserve-intelligence-admission-identity.ts`,
+  `scripts/build-server.mjs`,
+  `scripts/build-vercel-api.mjs`,
   `shared/schema/reserve-intelligence-admission.ts`,
   `shared/schema.ts`,
   `server/services/reserves/reserve-intelligence-admission-service.ts`,
@@ -527,11 +530,17 @@ and the three marginal hashes from that payload, requires each to equal the
 request material, and for V3 validates the predecessor and equivalence
 evidence exactly as specified below, all before inserting. `sourceSha` and
 `corpusRevision` are not trusted from the request: the C3a implementation plan
-adds one immutable, build-stamped identity module
+adds one immutable identity module
 `server/config/reserve-intelligence-admission-identity.ts` exporting the exact
 `{ sourceSha, corpusRevision }` the running engine was built from, and both the
 V2 and V3 admission transactions require the request pair to equal that module
-before inserting. Any inequality refuses with no row. The route regex joins
+before inserting. Both build entry scripts (`scripts/build-server.mjs`,
+`scripts/build-vercel-api.mjs`, which do no identity injection today) stamp the
+module at build time: `sourceSha` from the exact built git HEAD and
+`corpusRevision` from the pinned reserve-corpus revision, injected as esbuild
+`define` constants. The module reads those constants and throws at import when
+either is absent or a placeholder, so an unstamped build fails closed and admits
+nothing. Any inequality refuses with no row. The route regex joins
 `server/lib/database-backed-idempotency-routes.ts` with registry tests and
 cross-surface (`makeApp` and `registerRoutes`) concurrency coverage; otherwise
 the Docker/Railway generic middleware intercepts the mutation with its own
@@ -852,10 +861,14 @@ decision, or task mutation:
    correction save, so the decision cannot link a reference that gains a
    successor between check and insert. It does not forbid a later supersession:
    a decision links an immutable reference id as a point-in-time recommendation,
-   and a correction that supersedes afterward does not mutate the decision. HEAD
-   correction save (`analysis-checkpoint-service.ts:790`) inserts the successor
-   without consulting decision links, and the evidence FK only restricts
-   deletion (`operating-objects.ts:201`); the spec keeps that behavior.
+   and a correction that supersedes afterward does not mutate the decision. For
+   the race protection to hold, the C3c implementation plan must make correction
+   save with a non-null `sourceReferenceId`
+   (`analysis-checkpoint-service.ts:790`, which today inserts the successor with
+   no lock) acquire the same per-fund advisory lock before it rechecks terminal
+   state and inserts the successor; the decision's successor `EXISTS` check and
+   insert then serialize against it. The evidence FK only restricts deletion
+   (`operating-objects.ts:201`), so the lock is the sole ordering mechanism.
 2. Load `fund_snapshots` by `(reserve_reference_id, fund_id)`. Refuse unless
    `type` is `RESERVE_INTELLIGENCE` and the payload parses as
    `dynamic-reserve-intelligence-v3` with `engineVersion` `reserve-intel-v3`
