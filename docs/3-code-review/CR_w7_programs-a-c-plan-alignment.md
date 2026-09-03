@@ -18,7 +18,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `48eb97c5...` after the pool-key fix, propagation P1s, construction-side fix, concrete collision test, and lot-ID refusal doc; Codex APPROVED at round 4 pre-fix; prior approval at `cc6ec381...92c8`)
+  (Program B, `48eb97c5...` — Codex plan-review APPROVED after the pool-key fix, its propagation P1s, the construction-side fix, the collision-test spec, the lot-ID refusal doc, and the order-invariance fix; prior approvals at round 4 and `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -42,8 +42,8 @@ land before candidate selection; the minors are folded into the plans. Codex
 plan-review ran in parallel and all its findings are remediated; Programs A and
 C converged to Codex APPROVED, and Program B is in a re-review loop after two
 external merge-reviews found a pool-key collision and its construction-side
-propagation. Verdict: PENDING PROGRAM B RE-REVIEW at `48eb97c5` (Programs A and C
-APPROVED).
+propagation, both resolved. All three plans are now Codex-APPROVED. Verdict:
+APPROVED as revised; PR #1473 is ready for owner merge.
 
 ---
 
@@ -348,24 +348,28 @@ test was replaced with a precise test specification — two single-security deal
 whose raw keys both equal `a:b:c`, realized for `120`/`80`, asserting exactly two
 tuple-keyed pools, per-security proceeds with no crossing, conservation at `200`,
 and order invariance — and the `participation:5` third pool was dropped so the
-spec is internally consistent at two pools. Program B must pass a fresh Codex
-review and CI at `48eb97c5` before merge.
+spec is internally consistent at two pools. A final review found the
+order-invariance check vacuous (the engine sorts events chronologically, so
+array reversal is a no-op, and each realization has one relief row); it now swaps
+the two deals' chronological windows, which meaningfully changes which colliding
+tuple reaches pool construction first. Program B then returned **APPROVED** at
+`48eb97c5`.
 
 ## Verdict
 
-**APPROVED as revised, pending Program B re-review at `48eb97c5`.**
+**APPROVED as revised.**
 
 All three major and four minor findings are dispositioned: M1 fixed via the
 additive ADR-097 amendment in Phase P, M2's premise verified against the
 repository and retained, M3 fixed to merge Program B before candidate selection,
 and m1-m4 folded into the plans. All parallel Codex plan-review lanes converged
-to APPROVED (Program A round 5 `14177f9b`, Program B round 4 `17bcdc54`, Program
-C round 7 `286a4fa3`); the external merge-review then found and this session fixed
-the pool-key collision P1 above and its three propagation P1s, so Program B is
-now `90b400b2` and needs a fresh review pass. The merge-window finding that
-conflicted with owner decision Q3 was held and Q3 is now owner-confirmed. This
-review and its plans carry no merge, dispatch, schema, provider, deployment,
-promotion, or activation authority; every such action remains a separate
-repository-owner dispatch. Program C specification authoring may proceed under
-the applicable Program A and Program B gates (Q9). PR #1473 is ready for owner
-merge once Program B re-review at `48eb97c5` is green.
+to APPROVED (Program A round 5 `14177f9b`, Program C round 7 `286a4fa3`); two
+external merge-reviews then found the pool-key collision and its
+construction/test propagation, all fixed this session, and Program B returned
+APPROVED at `48eb97c5`. The merge-window finding that conflicted with owner
+decision Q3 was held and Q3 is now owner-confirmed. This review and its plans
+carry no merge, dispatch, schema, provider, deployment, promotion, or activation
+authority; every such action remains a separate repository-owner dispatch. PR
+#1473 is ready for owner merge. Program C specification authoring may proceed
+under
+the applicable Program A and Program B gates (Q9).
