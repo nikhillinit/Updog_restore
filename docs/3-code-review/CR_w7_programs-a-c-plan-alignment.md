@@ -18,7 +18,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `85a58b9d...` after the pool-key P1 fix, its propagation P1s, and the construction-side fix; Codex APPROVED at round 4 pre-fix; prior approval at `cc6ec381...92c8`)
+  (Program B, `27c0efef...` after the pool-key fix, propagation P1s, construction-side fix, concrete collision test, and lot-ID refusal doc; Codex APPROVED at round 4 pre-fix; prior approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -42,7 +42,7 @@ land before candidate selection; the minors are folded into the plans. Codex
 plan-review ran in parallel and all its findings are remediated; Programs A and
 C converged to Codex APPROVED, and Program B is in a re-review loop after two
 external merge-reviews found a pool-key collision and its construction-side
-propagation. Verdict: PENDING PROGRAM B RE-REVIEW at `85a58b9d` (Programs A and C
+propagation. Verdict: PENDING PROGRAM B RE-REVIEW at `27c0efef` (Programs A and C
 APPROVED).
 
 ---
@@ -304,10 +304,12 @@ in both fields, and Program C's crosswalk keys `securityId` as
 proceeds to the wrong security. Fixed at `62b7d5bb`: every `(dealId, securityId)`
 map and receipt-object key now uses a collision-free JSON 2-tuple encoding
 (`buildEntitlementPools` construction and lookup, and both `keyedPools` receipt
-maps); the normalizer additionally requires colon-free event IDs so the
-`proceeds:<eventId>:<securityId>` lot ID stays unambiguous when `securityId`
-contains a colon; and a colon-containing-lineage regression case asserts
-per-security separation, total-proceeds conservation, and order invariance.
+maps); and a colon-lineage regression case asserts per-security separation, no
+proceeds crossing, conservation, and order invariance. (An initial attempt in
+this fix to also restrict event IDs to colon-free was reverted at `b4662fc48`,
+below, as a frozen-contract violation; the multi-security lot ID instead relies
+on the existing duplicate-generated-lot-ID refusal for its narrow aliasing case,
+leaving the normalizer unchanged.)
 The same review confirmed **Q3: keep pre-candidate merge, do not widen** (post-GO
 admission would place Program B outside the soaked candidate SHA), closing the
 held owner decision. The Program B re-review of that fix (`62b7d5bb`) found three
@@ -317,20 +319,32 @@ colon-lineage regression moved from Stage A to Stage B (where the pool-key
 replacement lands, so Stage A's green checkpoint is reachable); and the
 `eventId` colon restriction was dropped as a violation of the frozen
 normalizer/input contract — multi-security lot-ID collisions (only via a colon in
-`eventId`) instead fail closed through the existing duplicate-generated-lot-ID
-refusal, preserving accepted inputs. The Codex re-review then APPROVED `90b400b2`,
+`eventId` that aliases another generated ID) instead fail closed through the
+existing duplicate-generated-lot-ID refusal. That is an intentional trade, not a
+preservation of every accepted input: the normalizer/input version is unchanged,
+but such a pathological aliasing input is refused fail-closed (no misrouting)
+rather than accepted, chosen over injective-encoding the lot ID and rewriting
+every fixture. A both-order atomicity test proves the refusal leaves no partial
+mutation. The Codex re-review then APPROVED `90b400b2`,
 but a second external merge-review caught a gap that lane missed: the plan sketch
 only *commented* that pool construction was re-keyed while HEAD's construction
 (`waterfall-deal-by-deal-v2.ts:69`) still used the raw key, so an implementer
 would build pools under the raw key and look them up under the JSON tuple — every
 exact lookup would miss and refuse. Fixed at `85a58b9d`: the sketch now shows the
 investment-lot construction loop using `poolKey` explicitly, naming the exact
-HEAD line it replaces, so construction and lookup provably share the key. Program
-B must pass a fresh Codex review and CI at `85a58b9d` before merge.
+HEAD line it replaces, so construction and lookup provably share the key. A
+further external review then asked for (a) a concrete collision test tied to the
+actual colon aliasing — added: two lots whose raw keys both collapse to `a:b:c`
+resolve to two distinct tuple-keyed pools with proceeds credited to only one and
+zero crossing to the other — and (b) explicit treatment of the non-injective
+multi-security lot ID — documented as an intentional fail-closed refusal of the
+pathological colon-in-`eventId` aliasing input with a both-order atomicity test,
+rather than an injective re-encoding. Program B must pass a fresh Codex review and
+CI at `27c0efef` before merge.
 
 ## Verdict
 
-**APPROVED as revised, pending Program B re-review at `85a58b9d`.**
+**APPROVED as revised, pending Program B re-review at `27c0efef`.**
 
 All three major and four minor findings are dispositioned: M1 fixed via the
 additive ADR-097 amendment in Phase P, M2's premise verified against the
@@ -345,4 +359,4 @@ review and its plans carry no merge, dispatch, schema, provider, deployment,
 promotion, or activation authority; every such action remains a separate
 repository-owner dispatch. Program C specification authoring may proceed under
 the applicable Program A and Program B gates (Q9). PR #1473 is ready for owner
-merge once Program B re-review at `85a58b9d` is green.
+merge once Program B re-review at `27c0efef` is green.

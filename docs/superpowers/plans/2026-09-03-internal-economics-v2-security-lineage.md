@@ -52,11 +52,16 @@ and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
   `securityId` are contract strings that may contain `:` (Program C keys
   `securityId` as `participation:<id>`), so every `(dealId, securityId)` map or
   object key uses a collision-free tuple encoding, never a raw
-  `${dealId}:${securityId}` concatenation. A multi-security lot-ID
-  collision is possible only if an `eventId` contains `:`; the existing
-  duplicate-generated-lot-ID refusal catches it before mutation, so the readable
-  `proceeds:<eventId>:<securityId>` form and the frozen input/normalizer contract
-  are both preserved (no new `eventId` restriction).
+  `${dealId}:${securityId}` concatenation. The multi-security lot ID keeps the readable
+  `proceeds:<eventId>:<securityId>` form rather than an injective JSON encoding.
+  A lot-ID collision is possible only if an `eventId` contains `:` and aliases
+  another event's generated ID; the existing duplicate-generated-lot-ID refusal
+  rejects that fail-closed before any mutation (no misrouting). This is an
+  intentional trade: the frozen normalizer/input version is unchanged and no new
+  `eventId` restriction is added, but such a pathological aliasing input is
+  refused rather than accepted — chosen over injective-encoding the lot ID and
+  rewriting every fixture, since the pool key (the actual misrouting risk) is
+  already collision-free. The refusal is atomic in both relief-row orderings.
 - A zero-proceeds security group returns existing
   `INVESTMENT_LOT_RELIEF_VIOLATION` before state mutation.
 - Missing exact entitlement pool returns the same existing typed refusal. Do
@@ -413,6 +418,11 @@ The single suffixed lot with summed proceeds proves grouping is by exact
 Cover:
 
 - duplicate generated lot ID;
+- colon-aliasing multi-security lot IDs: an `eventId` containing `:` that makes
+  `proceeds:<eventId>:<securityId>` collide with another generated lot ID hits
+  the duplicate-generated-lot-ID refusal atomically in both relief-row orderings,
+  with zero partial mutation (this documents the intentional fail-closed rejection
+  of the aliasing input, not a misroute);
 - one relief-row security group whose allocated proceeds total is zero;
 - source event amount unequal to grouped proceeds total.
 
@@ -748,6 +758,37 @@ describe('multi-security deal-by-deal realization routing', () => {
     expect(
       keyedPartnerDistributions(reversedResult.partnerDistributions)
     ).toEqual(keyedPartnerDistributions(result.partnerDistributions));
+  });
+
+  it('keeps colon-aliasing securities in separate pools (no misrouting)', () => {
+    // Two investment lots whose raw `${dealId}:${securityId}` keys both collapse
+    // to 'a:b:c': (dealId 'a:b', securityId 'c') and (dealId 'a', securityId
+    // 'b:c'). The realization credits proceeds only to the ('a:b','c') security.
+    const { input, state } = stageMultiSecurityInput(
+      buildColonAliasingRealizationV2Input()
+    );
+    const result = runDealByDealWaterfall(input, state);
+    if (!result.ok) throw new Error(result.refusal.message);
+
+    const pools = keyedPools(result);
+    // Two distinct pools under the JSON-tuple key. A raw `${dealId}:${securityId}`
+    // key would produce ONE 'a:b:c' entry and misroute -- this length is the
+    // assertion tied to the actual colon-induced collision.
+    expect(Object.keys(pools)).toHaveLength(2);
+    // Proceeds land only on ('a:b','c'); the aliasing pool ('a','b:c') stays
+    // zero, proving no cross-contamination.
+    expect(pools[JSON.stringify(['a:b', 'c'])].proceeds).toBe('120.000000');
+    expect(pools[JSON.stringify(['a', 'b:c'])].proceeds).toBe('0.000000');
+    expect(sumPools(result.pools).toFixed(6)).toBe('120.000000');
+
+    // Order invariance across relief-row permutations.
+    const reversed = stageMultiSecurityInput(buildColonAliasingReversedInput());
+    const reversedResult = runDealByDealWaterfall(
+      reversed.input,
+      reversed.state
+    );
+    if (!reversedResult.ok) throw new Error(reversedResult.refusal.message);
+    expect(keyedPools(reversedResult)).toEqual(pools);
   });
 });
 ```
