@@ -376,6 +376,7 @@ the spec body has one normative evidence design and no open decision.
   `shared/contracts/reserve-intelligence-admission-v1.contract.ts`,
   `server/lib/database-backed-idempotency-routes.ts`,
   `server/config/reserve-intelligence-admission-identity.ts`,
+  `config/reserve-corpus-manifest.json`,
   `scripts/build-server.mjs`,
   `scripts/build-vercel-api.mjs`,
   `shared/schema/reserve-intelligence-admission.ts`,
@@ -536,11 +537,21 @@ adds one immutable identity module
 V2 and V3 admission transactions require the request pair to equal that module
 before inserting. Both build entry scripts (`scripts/build-server.mjs`,
 `scripts/build-vercel-api.mjs`, which do no identity injection today) stamp the
-module at build time: `sourceSha` from the exact built git HEAD and
-`corpusRevision` from the pinned reserve-corpus revision, injected as esbuild
-`define` constants. The module reads those constants and throws at import when
-either is absent or a placeholder, so an unstamped build fails closed and admits
-nothing. Any inequality refuses with no row. The route regex joins
+module at build time as esbuild `define` constants. `.git` is excluded from the
+Docker build (`.dockerignore`, `Dockerfile.railway` `COPY . .`), so `sourceSha`
+comes from the platform build variable, not `git`: `RAILWAY_GIT_COMMIT_SHA` in
+`build-server.mjs` and `VERCEL_GIT_COMMIT_SHA` in `build-vercel-api.mjs`.
+`corpusRevision` comes from a new tracked manifest
+`config/reserve-corpus-manifest.json` (copied into the build) whose declared
+`revision` string both scripts read. Validation is lazy, at admission-command
+execution, not at import: the module exports whatever was stamped (a placeholder
+in unbuilt `dev:api`/Vitest, which run TS directly and skip both scripts), and
+the admission command refuses with a typed error when either value is absent or
+still the placeholder, so a real unstamped deployment admits nothing while dev
+and test startup do not crash. Dev and test set the pair through an explicit
+environment-override seam the module reads before the stamped constant, so
+admission tests can exercise both stamped and unstamped states. Any inequality
+refuses with no row. The route regex joins
 `server/lib/database-backed-idempotency-routes.ts` with registry tests and
 cross-surface (`makeApp` and `registerRoutes`) concurrency coverage; otherwise
 the Docker/Railway generic middleware intercepts the mutation with its own
@@ -651,8 +662,11 @@ admission receipt ID/hash/acceptance fields in the calculation `resultHash`.
 Name expected-output cases for paired delta math, zero/negative delta capital,
 non-unique IRR, SAFE/note missing provenance, FX missing, terminal liquidation
 missing, partial-sale missing, feature off/shadow/on behavior, ranking exclusion,
-receipt hash replay, and a real-PostgreSQL concurrent same-key admission race
-(two clients, one receipt row, one replay).
+receipt hash replay, a real-PostgreSQL concurrent same-key admission race
+(two clients, one receipt row, one replay), and admission-identity cases: a
+stamped module whose `sourceSha`/`corpusRevision` match the request admits, a
+mismatch refuses, and an unstamped/placeholder identity refuses at command
+execution without crashing import.
 
 - [ ] **Step 5: Review, approve, and generate the implementation plan**
 

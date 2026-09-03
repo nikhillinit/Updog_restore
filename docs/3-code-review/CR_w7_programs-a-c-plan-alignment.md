@@ -20,7 +20,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
   (Program B, `b2af7ac2...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
-  (Program C, `e246210c...`)
+  (Program C, `64c53d98...`)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
 
 **Plan**: `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md` (Program A
@@ -159,9 +159,16 @@ mechanism, since the evidence FK only restricts deletion); and the build-stamped
 identity module is given an implementable fail-closed path (both build entry
 scripts inject `sourceSha`/`corpusRevision` as esbuild defines, the module
 throws on a placeholder, and the module plus both scripts join the Task 3
-manifest). Round 5 is running against `e246210c...`. Per Q9, this does not block
-Program A or overview finalization; only Program C specification authoring waits
-for convergence.
+manifest). Round 5 REQUEST_CHANGES (one P1, one P2) also verified and fixed: the
+build SHA comes from the platform build variables (`RAILWAY_GIT_COMMIT_SHA`,
+`VERCEL_GIT_COMMIT_SHA`) rather than `git` (which `.dockerignore` excludes from
+the Docker build), the corpus revision from a new tracked
+`config/reserve-corpus-manifest.json`, and validation moved from import-time
+throw (which would crash `dev:api`/Vitest) to lazy refusal at admission-command
+execution with a dev/test env-override seam and stamped/unstamped tests. Round 6
+is running against `64c53d98...`. Per Q9, this does not block Program A or
+overview finalization; only Program C specification authoring waits for
+convergence.
 
 **m6. Program A Codex review (parallel lane).** Round 1 REQUEST_CHANGES (five P1,
 two P2); all verified and remediated: recovery integration test moved to the
