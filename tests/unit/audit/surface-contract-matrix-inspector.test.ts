@@ -15,6 +15,8 @@ function runInspector(
   fsVariant: 'static' | 'api-only'
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
+    const childEnv = { ...process.env, CI: '1', FORCE_COLOR: '0', TZ: 'UTC' };
+    delete childEnv['VITEST'];
     const child = spawn(
       process.execPath,
       [
@@ -29,7 +31,7 @@ function runInspector(
       ],
       {
         cwd: repoRoot,
-        env: { ...process.env, CI: '1', FORCE_COLOR: '0', TZ: 'UTC' },
+        env: childEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
