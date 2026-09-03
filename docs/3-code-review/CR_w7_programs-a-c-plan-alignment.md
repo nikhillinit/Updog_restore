@@ -39,9 +39,9 @@ issues; all are now dispositioned. Program A's ADR-095 contradiction is closed
 by an additive ADR-097 amendment inside the Phase P admission unit; its Phase P
 premise is verified against the repository; Program B's merge timing is fixed to
 land before candidate selection; the minors are folded into the plans. Codex
-plan-review ran in parallel and its findings are remediated. Verdict: APPROVED
-as revised, subject to the running Program C review reaching convergence before
-any Program C specification is authored.
+plan-review ran in parallel and all its findings are remediated; all three
+program plans (A, B, C) have since converged to Codex APPROVED. Verdict: APPROVED
+as revised.
 
 ---
 
@@ -201,7 +201,8 @@ still sends no mutation request; the "mode API" references became direct-databas
 mode row plus serving resolver; the stale-version outcome is refused by the
 item-6 pre-request fence with the service 409 kept as separately tested defense
 in depth; and the action-mapping test asserts readback builds no request. Round
-5 is running against `14177f9b...`.
+5 returned **APPROVED** at `14177f9b...` (existing optimistic-lock tests 57/57,
+no new findings): Program A's plan review has converged.
 
 **m7. Program B Codex review (parallel lane) — one finding held for owner
 decision.** The lane returned REQUEST_CHANGES with two P1 and one P2. Two are
@@ -296,9 +297,11 @@ checked.
 All three major and four minor findings are dispositioned: M1 fixed via the
 additive ADR-097 amendment in Phase P, M2's premise verified against the
 repository and retained, M3 fixed to merge Program B before candidate selection,
-and m1-m4 folded into the plans. The parallel Codex plan-review findings on
-Programs A and C are remediated in the committed revisions. This review and its
+and m1-m4 folded into the plans. All parallel Codex plan-review lanes have
+converged to APPROVED: Program A at round 5 (`14177f9b`), Program B at round 4
+(`17bcdc54`), Program C at round 7 (`286a4fa3`); the one merge-window finding
+that conflicted with owner decision Q3 was held, not applied. This review and its
 plans carry no merge, dispatch, schema, provider, deployment, promotion, or
 activation authority; every such action remains a separate repository-owner
-dispatch. Program C specification authoring remains gated on the running Codex
-review reaching convergence (Q9).
+dispatch. Program C specification authoring may proceed under the applicable
+Program A and Program B gates (Q9). PR #1473 is ready for owner merge.
