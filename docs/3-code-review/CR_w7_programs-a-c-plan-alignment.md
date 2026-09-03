@@ -20,7 +20,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
   (Program B, `17bcdc54...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
-  (Program C, `64c53d98...`)
+  (Program C, `286a4fa3...`)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
 
 **Plan**: `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md` (Program A
@@ -166,7 +166,11 @@ the Docker build), the corpus revision from a new tracked
 `config/reserve-corpus-manifest.json`, and validation moved from import-time
 throw (which would crash `dev:api`/Vitest) to lazy refusal at admission-command
 execution with a dev/test env-override seam and stamped/unstamped tests. Round 6
-is running against `64c53d98...`. Per Q9, this does not block Program A or
+REQUEST_CHANGES (one P1) also fixed: the dev/test env-override seam let a
+production environment variable replace the stamped identity, so the module now
+reads the override only when `NODE_ENV === 'test'` and otherwise reads the
+stamped constant alone, with a test proving production cannot override. Round 7
+is running against `286a4fa3...`. Per Q9, this does not block Program A or
 overview finalization; only Program C specification authoring waits for
 convergence.
 

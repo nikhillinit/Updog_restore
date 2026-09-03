@@ -549,9 +549,11 @@ in unbuilt `dev:api`/Vitest, which run TS directly and skip both scripts), and
 the admission command refuses with a typed error when either value is absent or
 still the placeholder, so a real unstamped deployment admits nothing while dev
 and test startup do not crash. Dev and test set the pair through an explicit
-environment-override seam the module reads before the stamped constant, so
-admission tests can exercise both stamped and unstamped states. Any inequality
-refuses with no row. The route regex joins
+environment-override seam the module reads only when `NODE_ENV === 'test'`
+(equivalently, test-only dependency injection); in every other environment the
+module ignores those variables and reads only the stamped constant, so a
+production environment variable can never substitute an identity not embedded in
+the deployed artifact. Any inequality refuses with no row. The route regex joins
 `server/lib/database-backed-idempotency-routes.ts` with registry tests and
 cross-surface (`makeApp` and `registerRoutes`) concurrency coverage; otherwise
 the Docker/Railway generic middleware intercepts the mutation with its own
@@ -665,8 +667,9 @@ missing, partial-sale missing, feature off/shadow/on behavior, ranking exclusion
 receipt hash replay, a real-PostgreSQL concurrent same-key admission race
 (two clients, one receipt row, one replay), and admission-identity cases: a
 stamped module whose `sourceSha`/`corpusRevision` match the request admits, a
-mismatch refuses, and an unstamped/placeholder identity refuses at command
-execution without crashing import.
+mismatch refuses, an unstamped/placeholder identity refuses at command execution
+without crashing import, and with `NODE_ENV` unset/`production` the override
+variables are ignored so admission uses the stamped identity only.
 
 - [ ] **Step 5: Review, approve, and generate the implementation plan**
 
