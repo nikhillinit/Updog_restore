@@ -828,9 +828,25 @@ function buildEntitlementPools(
   const poolKey = (dealId: string, securityId: string): string =>
     JSON.stringify([dealId, securityId]);
 
-  // Investment-lot pool construction, re-keyed with poolKey on both the build
-  // and lookup sides so the two always agree (replacing the prior
-  // `${dealId}:${securityId}` string key).
+  // Investment-lot pool construction, re-keyed with poolKey. This replaces the
+  // existing raw `${lot.dealId}:${lot.securityId}` key at
+  // `waterfall-deal-by-deal-v2.ts:69`, so construction and lookup use the same
+  // collision-free key and an exact lookup never misses.
+  for (const [, lot] of state.investmentLots) {
+    const key = poolKey(lot.dealId, lot.securityId);
+    if (!poolMap.has(key)) {
+      poolMap.set(key, {
+        dealId: lot.dealId,
+        securityId: lot.securityId,
+        proceedsAvailable: ZERO,
+        costBasisRelieved: ZERO,
+        gainLoss: ZERO,
+      });
+    }
+    poolMap.get(key)!.costBasisRelieved = poolMap
+      .get(key)!
+      .costBasisRelieved.plus(lot.relievedAmount);
+  }
 
   for (const [, lot] of state.cashSourceLots) {
     if (
