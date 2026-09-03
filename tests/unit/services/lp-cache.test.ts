@@ -70,6 +70,16 @@ describe('LPReportingCache', () => {
     expect(fetchSummary).toHaveBeenCalledTimes(1);
   });
 
+  it('returns origin data when the cache write fails', async () => {
+    const redis = createRedis();
+    redis.setex.mockRejectedValueOnce(new Error('redis unavailable'));
+    const cache = createLPCache(redis as unknown as Redis);
+    const fetchSummary = vi.fn().mockResolvedValue({ committed: 1000 });
+
+    await expect(cache.getLPSummary('lp-1', fetchSummary)).resolves.toEqual({ committed: 1000 });
+    expect(fetchSummary).toHaveBeenCalledTimes(1);
+  });
+
   it('falls through to one origin fetch when Redis get fails', async () => {
     const redis = createRedis();
     redis.get.mockRejectedValueOnce(new Error('redis unavailable'));

@@ -2521,13 +2521,20 @@ class DatabaseMock {
  */
 export const databaseMock = new DatabaseMock();
 
-vi.mock('../../server/db', () => ({
-  db: databaseMock,
-  pool: {
-    connect: vi.fn(),
-    end: vi.fn(),
-  },
-}));
+/**
+ * Setup database mock for tests
+ */
+export function setupDatabaseMock() {
+  vi.mock('../../server/db', () => ({
+    db: databaseMock,
+    pool: {
+      connect: vi.fn(),
+      end: vi.fn(),
+    },
+  }));
+
+  return databaseMock;
+}
 
 /**
  * Cleanup database mock after tests

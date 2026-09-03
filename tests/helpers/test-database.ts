@@ -4,7 +4,7 @@
  * Provides isolated database connections and cleanup utilities for tests
  */
 
-import { databaseMock } from './database-mock';
+import { databaseMock, setupDatabaseMock } from './database-mock';
 
 export interface TestDatabase {
   getConnection(): Promise<any>;
@@ -18,9 +18,14 @@ export interface TestDatabase {
 class TestDatabaseImpl implements TestDatabase {
   private connection: any = null;
   private transactions: any[] = [];
+  private isSetup = false;
 
   async getConnection(): Promise<any> {
     if (!this.connection) {
+      if (!this.isSetup) {
+        setupDatabaseMock();
+        this.isSetup = true;
+      }
       this.connection = databaseMock;
     }
     return this.connection;
@@ -41,7 +46,7 @@ class TestDatabaseImpl implements TestDatabase {
       },
       commit: async () => {
         // No-op for mock
-      }
+      },
     };
     this.transactions.push(transaction);
     return transaction;
