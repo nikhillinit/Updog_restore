@@ -76,9 +76,11 @@ describe('LPReportingCache', () => {
     const cache = createLPCache(redis as unknown as Redis);
     const fetchSummary = vi.fn().mockResolvedValue({ committed: 1000 });
 
-    await expect(cache.getLPSummary('lp-1', fetchSummary)).resolves.toEqual({
-      committed: 1000,
-    });
+    const first = await cache.getLPSummary('lp-1', fetchSummary);
+    const second = await cache.getLPSummary('lp-1', fetchSummary);
+
+    expect(first).toEqual({ committed: 1000 });
+    expect(second).toEqual({ committed: 1000 });
     expect(fetchSummary).toHaveBeenCalledTimes(1);
   });
 
@@ -88,9 +90,11 @@ describe('LPReportingCache', () => {
     const cache = createLPCache(redis as unknown as Redis);
     const fetchSummary = vi.fn().mockResolvedValue({ committed: 1000 });
 
-    await expect(cache.getLPSummary('lp-1', fetchSummary)).resolves.toEqual({
-      committed: 1000,
-    });
+    const first = await cache.getLPSummary('lp-1', fetchSummary);
+    const second = await cache.getLPSummary('lp-1', fetchSummary);
+
+    expect(first).toEqual({ committed: 1000 });
+    expect(second).toEqual({ committed: 1000 });
     expect(fetchSummary).toHaveBeenCalledTimes(1);
   });
 
