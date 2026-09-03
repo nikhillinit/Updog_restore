@@ -14,11 +14,11 @@ identities, Program C targets specification gates only
 **Files Reviewed** (final SHA-256 after this disposition):
 
 - `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`
-  (overview, `1a55dd10...`)
+  (overview, `6d8fb369...`)
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `717c28cf...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `b2af7ac2...`; prior Codex approval at `cc6ec381...92c8`)
+  (Program B, `17bcdc54...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `64c53d98...`)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -204,7 +204,14 @@ The third P1 asks to widen the merge window back to "before candidate selection
 before candidate selection so the candidate soaks the fix), which deliberately
 traded Program B's post-GO independence for having the fix inside the soaked
 candidate. The plan is left at the Q3 decision and this finding is surfaced to
-the owner, not silently applied; the reviewer lacked the Q3 rationale.
+the owner, not silently applied; the reviewer lacked the Q3 rationale. Round 2
+accepted Q3 as intentional and raised three smaller items, all fixed: the
+multi-lot grouping assertion changed from `toContainEqual` to a length-1
+`toEqual` (proving exactly one lot), `docs/ARCHI.md` added to Stage D's staging
+command, and the stale "keep Program B out of the candidate" boundary lines in
+the Program B plan and the overview reconciled with Q3 (independently owned but
+admitted before candidate selection and included in the frozen candidate, never
+injected into an already-frozen one). Round 3 is running against `17bcdc54...`.
 
 ### Suggestions
 
