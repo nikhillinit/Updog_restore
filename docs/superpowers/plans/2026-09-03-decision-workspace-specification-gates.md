@@ -525,8 +525,13 @@ strict-parses the same-fund snapshot by `(snapshot_id, fund_id, type)`, derives
 `basis` from its payload, recomputes `inputHash`, `configHash`, `resultHash`,
 and the three marginal hashes from that payload, requires each to equal the
 request material, and for V3 validates the predecessor and equivalence
-evidence exactly as specified below, all before inserting. Any inequality
-refuses with no row. The route regex joins
+evidence exactly as specified below, all before inserting. `sourceSha` and
+`corpusRevision` are not trusted from the request: the C3a implementation plan
+adds one immutable, build-stamped identity module
+`server/config/reserve-intelligence-admission-identity.ts` exporting the exact
+`{ sourceSha, corpusRevision }` the running engine was built from, and both the
+V2 and V3 admission transactions require the request pair to equal that module
+before inserting. Any inequality refuses with no row. The route regex joins
 `server/lib/database-backed-idempotency-routes.ts` with registry tests and
 cross-surface (`makeApp` and `registerRoutes`) concurrency coverage; otherwise
 the Docker/Railway generic middleware intercepts the mutation with its own
@@ -538,12 +543,19 @@ joined at read time. Mode `on` alone no longer suffices; the C3a implementation
 plan changes `dynamic-reserve-intelligence-service.ts:383` and
 `fund-moic.ts:228` accordingly. An unreceipted snapshot is `non_actionable`,
 and `GET .../reserve-intelligence/latest` labels it so.
-`GET /funds/:fundId/moic/marginal-rankings` (`fund-moic.ts:277`) recomputes
-from live inputs with no snapshot ID; it must resolve the accepted receipt,
-recompute the current projection hashes from those live inputs, and mark
-results `actionable` only when `inputHash`, `configHash`, and `resultHash`
-equal the receipted snapshot's; otherwise `indicative`. An old receipt never
-authorizes new results.
+`GET /funds/:fundId/moic/marginal-rankings` (`fund-moic.ts:304`) today builds
+marginal inputs only (`buildMarginalReserveMoicInputs`) with no snapshot ID, so
+"resolve the accepted receipt" is underdetermined while multiple accepted
+receipts exist across snapshots. The C3a/C3b implementation plan routes ranking
+through the one shared full-V2 projection producer
+(`dynamic-reserve-intelligence-service.ts`, the same builder that writes the
+snapshot), computes `financialFactsSnapshotId`, source config id/version,
+model-input as-of date, and the `inputHash`/`configHash`/`resultHash` for the
+current fund state, then selects the single accepted receipt whose bound
+snapshot matches that exact basis tuple and all three hashes. Zero or more than
+one match is `indicative`, never `actionable`; an exact-basis tie is broken by
+the latest `acceptedAt` only after hash equality already holds. An old receipt
+never authorizes new results.
 
 The wire contract is exact. Each variant pins its literal pair and nullability,
 mirroring the database checks; the Zod schema is a `z.union` of the two strict
@@ -685,14 +697,16 @@ derives every `InvestmentLot.securityId` from that rule, and
 `current-position-service.ts` positions (grouped by vehicle and company) map to
 securities through their participation IDs. A position whose participation has
 no Program B lot, or a lot whose `securityId` does not follow the rule, returns
-typed unavailable and cannot rank. C3b computes per participation, never per
-position: `current-position-service.ts:113` groups events by vehicle and
-company across participations and `position-valuation-service.ts:184` returns
-that aggregate's fair value, so C3b takes deployed follow-on capital and
-attributable value from the event rows and terms keyed by participation ID
-that `buildPositions` already consumes. A position spanning more than one live
-participation, or a participation with a correction successor, returns typed
-unavailable and cannot rank.
+typed unavailable and cannot rank. Deployed follow-on capital is per
+participation from the ledger event cost rows keyed by participation ID that
+`buildPositions` already consumes. Attributable fair value, however, exists at
+HEAD only as the vehicle/company aggregate
+(`position-valuation-service.ts:184`); the event rows carry cost/proceeds only
+and the terms carry security type only (`current-position-service.ts:14`). C3b
+therefore uses that aggregate fair value only when the position maps to exactly
+one eligible live participation; a position spanning more than one live
+participation, or any participation with a correction successor, returns typed
+unavailable and cannot rank. C3b introduces no new participation-valued source.
 
 - [ ] **Step 2: Lock numerator and event treatment**
 
@@ -833,9 +847,15 @@ decision, or task mutation:
    successor exists:
    `EXISTS (SELECT 1 FROM internal_analysis_references s WHERE s.supersedes_reference_id = r.id)`.
    `supersedes_reference_id` lives on the successor and points backward; the
-   loaded row's own field is not the staleness signal. Correction-draft save
-   takes the same lock, so a supersession and a decision cannot both commit
-   against one reference.
+   loaded row's own field is not the staleness signal. The lock only serializes
+   the successor `EXISTS` check with the decision insert against a concurrent
+   correction save, so the decision cannot link a reference that gains a
+   successor between check and insert. It does not forbid a later supersession:
+   a decision links an immutable reference id as a point-in-time recommendation,
+   and a correction that supersedes afterward does not mutate the decision. HEAD
+   correction save (`analysis-checkpoint-service.ts:790`) inserts the successor
+   without consulting decision links, and the evidence FK only restricts
+   deletion (`operating-objects.ts:201`); the spec keeps that behavior.
 2. Load `fund_snapshots` by `(reserve_reference_id, fund_id)`. Refuse unless
    `type` is `RESERVE_INTELLIGENCE` and the payload parses as
    `dynamic-reserve-intelligence-v3` with `engineVersion` `reserve-intel-v3`
@@ -895,7 +915,9 @@ cross-fund, or hash mismatch, marginal hash mismatch, source/corpus mismatch,
 same-key replay, different-material conflict, transactional rollback, optional
 task evidence linking, decision supersession, zero-mutation refusal, and a
 two-session real-PostgreSQL race of correction-draft save against decision
-creation proving exactly one ordering commits.
+creation proving the decision never links a reference that already has a
+committed successor (a supersession committing after the decision is allowed and
+leaves the decision's linked reference id immutable).
 
 - [ ] **Step 5: Review, approve, and generate the implementation plan**
 

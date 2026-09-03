@@ -20,7 +20,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
   (Program B, `0a075e0c...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
-  (Program C, `1fd88ab1...`)
+  (Program C, `32c26f68...`)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
 
 **Plan**: `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md` (Program A
@@ -143,9 +143,18 @@ decision-time verification entry points; successor `EXISTS` supersession under a
 per-fund advisory lock with a two-session race test; a per-participation
 `securityId` crosswalk with multi-participation and corrected-chain refusal; a
 two-variant wire type; a `request_hash` preimage; the admission route joined to
-the database-backed idempotency regex registry. Round 3 is running against
-`1fd88ab1...`. Per Q9, this does not block Program A or overview finalization;
-only Program C specification authoring waits for convergence.
+the database-backed idempotency regex registry. Round 3 REQUEST_CHANGES (four
+P1) also verified and fixed: the over-claimed lock invariant weakened to match
+HEAD (decision links an immutable reference id; lock only serializes the
+successor check with the insert); C3b fair value taken from the vehicle/company
+aggregate only when a position maps to exactly one live participation, else
+typed unavailable; an immutable build-stamped
+`reserve-intelligence-admission-identity.ts` required for `sourceSha`/
+`corpusRevision` equality at admission; deterministic marginal-ranking receipt
+selection by exact basis tuple and all three hashes through the shared full-V2
+projection producer. Round 4 is running against `32c26f68...`. Per Q9, this does
+not block Program A or overview finalization; only Program C specification
+authoring waits for convergence.
 
 **m6. Program A Codex review (parallel lane).** Round 1 REQUEST_CHANGES (five P1,
 two P2); all verified and remediated: recovery integration test moved to the
