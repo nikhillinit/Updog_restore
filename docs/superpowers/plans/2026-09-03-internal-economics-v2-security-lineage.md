@@ -651,13 +651,12 @@ const snapshotState = (state: EventStreamState) => canonicalState(state);
 
 - [ ] **Step 2: Add the RED exact-routing, conservation, and order-invariance test**
 
-Include a collision case proving the tuple key routes correctly: pools
-`(dealId 'a:b', securityId 'c')` and `(dealId 'a', securityId 'b:c')`, plus a
-Program-C-style `securityId 'participation:5'`, must resolve to distinct
-entitlement pools with no proceeds crossing between them; assert per-security
-separation, total-proceeds conservation, and order invariance across relief-row
-permutations. A raw `${dealId}:${securityId}` key would alias the first two
-pairs; the JSON-tuple key must keep them separate.
+Add a second, colliding test (specified exactly after the routing block below):
+two single-security deals whose raw `${dealId}:${securityId}` keys both equal
+`a:b:c` -- deal `a:b` security `c`, and deal `a` security `b:c` -- each deployed
+and realized independently. A raw key would merge both into one `a:b:c` pool, so
+the check that `keyedPools` has exactly two entries is the assertion tied to the
+collision; the JSON-tuple key keeps the two securities separate.
 
 Add this complete test block:
 
@@ -760,38 +759,28 @@ describe('multi-security deal-by-deal realization routing', () => {
     ).toEqual(keyedPartnerDistributions(result.partnerDistributions));
   });
 
-  it('keeps colon-aliasing securities in separate pools (no misrouting)', () => {
-    // Two investment lots whose raw `${dealId}:${securityId}` keys both collapse
-    // to 'a:b:c': (dealId 'a:b', securityId 'c') and (dealId 'a', securityId
-    // 'b:c'). The realization credits proceeds only to the ('a:b','c') security.
-    const { input, state } = stageMultiSecurityInput(
-      buildColonAliasingRealizationV2Input()
-    );
-    const result = runDealByDealWaterfall(input, state);
-    if (!result.ok) throw new Error(result.refusal.message);
-
-    const pools = keyedPools(result);
-    // Two distinct pools under the JSON-tuple key. A raw `${dealId}:${securityId}`
-    // key would produce ONE 'a:b:c' entry and misroute -- this length is the
-    // assertion tied to the actual colon-induced collision.
-    expect(Object.keys(pools)).toHaveLength(2);
-    // Proceeds land only on ('a:b','c'); the aliasing pool ('a','b:c') stays
-    // zero, proving no cross-contamination.
-    expect(pools[JSON.stringify(['a:b', 'c'])].proceeds).toBe('120.000000');
-    expect(pools[JSON.stringify(['a', 'b:c'])].proceeds).toBe('0.000000');
-    expect(sumPools(result.pools).toFixed(6)).toBe('120.000000');
-
-    // Order invariance across relief-row permutations.
-    const reversed = stageMultiSecurityInput(buildColonAliasingReversedInput());
-    const reversedResult = runDealByDealWaterfall(
-      reversed.input,
-      reversed.state
-    );
-    if (!reversedResult.ok) throw new Error(reversedResult.refusal.message);
-    expect(keyedPools(reversedResult)).toEqual(pools);
-  });
 });
 ```
+
+
+Then add the colliding-key test. Build a two-deal fixture to the same
+`InternalEconomicsInputV2Wire` shape as `buildMultiSecurityRealizationV2Input`,
+with two single-security deals:
+
+- deal `a:b`, security `c`: deployed, then realized for `120.000000` proceeds;
+- deal `a`, security `b:c`: deployed, then realized for `80.000000` proceeds.
+
+Its assertions (a raw `${dealId}:${securityId}` key would fail every one because
+both pairs collapse to `a:b:c`):
+
+- `Object.keys(keyedPools(result))` has length exactly `2` (a raw key yields one
+  `a:b:c` pool of `200.000000`);
+- `keyedPools(result)[JSON.stringify(['a:b', 'c'])].proceeds === '120.000000'`
+  and `keyedPools(result)[JSON.stringify(['a', 'b:c'])].proceeds === '80.000000'`
+  -- each security keeps its own proceeds, none crosses;
+- `sumPools(result.pools).toFixed(6) === '200.000000'` (conservation);
+- reversing the deploy/realize event order and the relief rows yields an equal
+  `keyedPools` result (order invariance).
 
 - [ ] **Step 3: Add the missing-exact-pool typed-refusal test**
 
