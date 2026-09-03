@@ -17,7 +17,7 @@ only **Files Reviewed** (final SHA-256 after this disposition):
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `32cd2264...` — concrete two-event lot-ID alias atomicity repair
+  (Program B, `96768598...` — concrete two-event lot-ID alias atomicity repair
   applied; fresh plan-review and exact-head CI pending)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
@@ -42,7 +42,7 @@ land before candidate selection; the minors are folded into the plans. Codex
 plan-review ran in parallel; Programs A and C converged to Codex APPROVED.
 Program B's exact-head review at `146a212e` found one remaining merge-blocking
 test-spec gap after the prior pool-key and construction-side fixes. The plan now
-defines the required two-event staged-state atomicity test at `32cd2264...`.
+defines the required two-event staged-state atomicity test at `96768598...`.
 Verdict: PENDING PROGRAM B RE-REVIEW AND EXACT-HEAD CI; PR #1473 is not ready
 for owner merge.
 
@@ -377,7 +377,7 @@ relief-row orderings, although the collision requires two separate
 multi-security realization events. Snapshotting caller state around
 `processEventsV2ForTest` would prove clone isolation, not rollback of the
 already-mutated staged state when the second event refuses. Fixed in Program B
-at `32cd2264...`: exact events `alias`/`x:y` and `alias:x`/`y` both generate
+at `96768598...`: exact events `alias`/`x:y` and `alias:x`/`y` both generate
 `proceeds:alias:x:y`; both chronological orders process the first event,
 snapshot the complete returned staged state, invoke the second realization
 directly, and assert refusal code, stage, diagnostic event identity, and full
@@ -389,7 +389,7 @@ review and exact-head CI pass.
 **PENDING PROGRAM B RE-REVIEW AND EXACT-HEAD CI.**
 
 The original three major and four minor findings remain dispositioned. Program
-B's prior approval at `48eb97c5` is stale after the `32cd2264...` atomicity-spec
+B's prior approval at `48eb97c5` is stale after the `96768598...` atomicity-spec
 repair, while Program A round 5 `14177f9b` and Program C round 7 `286a4fa3`
 remain approved. The merge-window finding that conflicted with owner decision Q3
 was held and Q3 remains owner-confirmed. This review and its plans carry no
