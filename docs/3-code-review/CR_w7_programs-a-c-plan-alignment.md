@@ -18,7 +18,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `17bcdc54...` — Codex plan-review APPROVED at round 4; prior approval at `cc6ec381...92c8`)
+  (Program B, `62b7d5bb...` after a post-approval external merge-review P1; Codex APPROVED at round 4 pre-fix; prior approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -290,18 +290,41 @@ checked.
 
 ---
 
+## Post-approval external merge-review (blocking P1, fixed)
+
+After all three Codex lanes returned APPROVED, an external merge-review of PR
+#1473 found one merge-blocking P1 that the internal lanes missed. **P1 — pool
+key collision.** Program B keyed entitlement pools by the string
+`` `${dealId}:${securityId}` ``; the input contract allows any non-empty string
+in both fields, and Program C's crosswalk keys `securityId` as
+`participation:<id>` (a value that contains a colon), so distinct pairs such as
+`('a:b','c')` and `('a','b:c')` alias to the same key and could route realization
+proceeds to the wrong security. Fixed at `62b7d5bb`: every `(dealId, securityId)`
+map and receipt-object key now uses a collision-free JSON 2-tuple encoding
+(`buildEntitlementPools` construction and lookup, and both `keyedPools` receipt
+maps); the normalizer additionally requires colon-free event IDs so the
+`proceeds:<eventId>:<securityId>` lot ID stays unambiguous when `securityId`
+contains a colon; and a colon-containing-lineage regression case asserts
+per-security separation, total-proceeds conservation, and order invariance.
+Program B must pass a fresh Codex review and CI at `62b7d5bb` before merge. The
+same review confirmed **Q3: keep pre-candidate merge, do not widen** (post-GO
+admission would place Program B outside the soaked candidate SHA), closing the
+held owner decision.
+
 ## Verdict
 
-**APPROVED as revised.**
+**APPROVED as revised, pending Program B re-review at `62b7d5bb`.**
 
 All three major and four minor findings are dispositioned: M1 fixed via the
 additive ADR-097 amendment in Phase P, M2's premise verified against the
 repository and retained, M3 fixed to merge Program B before candidate selection,
-and m1-m4 folded into the plans. All parallel Codex plan-review lanes have
-converged to APPROVED: Program A at round 5 (`14177f9b`), Program B at round 4
-(`17bcdc54`), Program C at round 7 (`286a4fa3`); the one merge-window finding
-that conflicted with owner decision Q3 was held, not applied. This review and its
-plans carry no merge, dispatch, schema, provider, deployment, promotion, or
-activation authority; every such action remains a separate repository-owner
-dispatch. Program C specification authoring may proceed under the applicable
-Program A and Program B gates (Q9). PR #1473 is ready for owner merge.
+and m1-m4 folded into the plans. All parallel Codex plan-review lanes converged
+to APPROVED (Program A round 5 `14177f9b`, Program B round 4 `17bcdc54`, Program
+C round 7 `286a4fa3`); the external merge-review then found and this session fixed
+the pool-key collision P1 above, so Program B is now `62b7d5bb` and needs a fresh
+review pass. The merge-window finding that conflicted with owner decision Q3 was
+held and Q3 is now owner-confirmed. This review and its plans carry no merge,
+dispatch, schema, provider, deployment, promotion, or activation authority; every
+such action remains a separate repository-owner dispatch. Program C specification
+authoring may proceed under the applicable Program A and Program B gates (Q9). PR
+#1473 is ready for owner merge once Program B re-review at `62b7d5bb` is green.

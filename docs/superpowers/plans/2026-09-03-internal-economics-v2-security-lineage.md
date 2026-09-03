@@ -48,7 +48,13 @@ and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
 - Security lineage comes only from
   `reliefRows[].investmentLotId -> InvestmentLot.securityId`.
 - Single-security realization lot IDs remain `proceeds:<eventId>`.
-  Multi-security IDs become `proceeds:<eventId>:<securityId>`.
+  Multi-security IDs become `proceeds:<eventId>:<securityId>`. `dealId` and
+  `securityId` are contract strings that may contain `:` (Program C keys
+  `securityId` as `participation:<id>`), so every `(dealId, securityId)` map or
+  object key uses a collision-free tuple encoding, never a raw
+  `${dealId}:${securityId}` concatenation. The multi-security lot ID stays
+  unambiguous because event IDs are colon-free internal identifiers (asserted by
+  the normalizer) placed before the trailing `securityId` remainder.
 - A zero-proceeds security group returns existing
   `INVESTMENT_LOT_RELIEF_VIOLATION` before state mutation.
 - Missing exact entitlement pool returns the same existing typed refusal. Do
@@ -406,7 +412,12 @@ Cover:
 
 - duplicate generated lot ID;
 - one relief-row security group whose allocated proceeds total is zero;
-- source event amount unequal to grouped proceeds total.
+- source event amount unequal to grouped proceeds total;
+- colon-containing lineage: pools `(dealId 'a:b', securityId 'c')` and
+  `(dealId 'a', securityId 'b:c')`, plus a Program-C-style `securityId
+  'participation:5'`, must resolve to distinct entitlement pools with no proceeds
+  crossing between them; assert per-security separation, total-proceeds
+  conservation, and order invariance across relief-row permutations.
 
 Snapshot `cashSourceLots`, `investmentLots`, `eventEffectRecords`, partner
 ledgers, and `endingCash` before each call; assert every snapshot is unchanged
@@ -433,7 +444,10 @@ Before any state mutation:
 3. group `allocatedProceeds` by exact `securityId`;
 4. reject a non-positive group;
 5. sort drafts by `securityId`;
-6. generate every lot ID, retaining the legacy ID for one security;
+6. require every realization `eventId` to be colon-free (internal identifier;
+   the normalizer refuses `:` in `eventId`) so `proceeds:<eventId>:<securityId>`
+   stays unambiguous even when `securityId` contains `:`, then generate every lot
+   ID, retaining the legacy ID for one security;
 7. detect every collision;
 8. verify grouped proceeds sum equals the event amount.
 
@@ -582,7 +596,7 @@ function keyedPools(result: DealByDealWaterfallResult) {
       .map(
         (pool) =>
           [
-            `${pool.dealId}:${pool.securityId}`,
+            JSON.stringify([pool.dealId, pool.securityId]),
             {
               proceeds: pool.proceedsAvailable.toFixed(6),
               basis: pool.costBasisRelieved.toFixed(6),
@@ -804,7 +818,16 @@ function buildEntitlementPools(
 ): BuildEntitlementPoolsResult {
   const poolMap = new Map<string, EntitlementPool>();
 
-  // Preserve existing investment-lot pool construction.
+  // Collision-free composite key. dealId/securityId may contain ':' (e.g.
+  // Program C's `participation:<id>`), so a raw `${dealId}:${securityId}`
+  // concatenation can alias distinct pairs and route proceeds to the wrong
+  // security. A JSON 2-tuple is injective over string pairs.
+  const poolKey = (dealId: string, securityId: string): string =>
+    JSON.stringify([dealId, securityId]);
+
+  // Investment-lot pool construction, re-keyed with poolKey on both the build
+  // and lookup sides so the two always agree (replacing the prior
+  // `${dealId}:${securityId}` string key).
 
   for (const [, lot] of state.cashSourceLots) {
     if (
@@ -814,7 +837,7 @@ function buildEntitlementPools(
       continue;
     }
 
-    const key = `${lot.dealId}:${lot.securityId}`;
+    const key = poolKey(lot.dealId, lot.securityId);
     const pool = poolMap.get(key);
     if (!pool) {
       return {
@@ -1506,7 +1529,7 @@ function keyedPools(result: DealByDealWaterfallResult) {
       .map(
         (pool) =>
           [
-            `${pool.dealId}:${pool.securityId}`,
+            JSON.stringify([pool.dealId, pool.securityId]),
             {
               proceeds: pool.proceedsAvailable.toFixed(6),
               basis: pool.costBasisRelieved.toFixed(6),
