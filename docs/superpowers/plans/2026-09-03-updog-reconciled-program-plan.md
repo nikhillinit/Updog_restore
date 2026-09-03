@@ -92,7 +92,7 @@ decision 1), and
 | Program | Plan | Entry gate | Exit gate |
 | --- | --- | --- | --- |
 | A | `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md` | Begin with prerequisite release-capability work | Recorded NO-GO, or GO followed by verified activation, kill containment, resume, and final serving state |
-| B | `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md` | May be implemented independently; must not enter Program A candidate | Exact per-security routing or typed refusal with conservation, version, and Phoenix truth proof |
+| B | `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md` | Independently owned; admitted before candidate selection and included in that candidate (Q3); never injected into an already-frozen candidate | Exact per-security routing or typed refusal with conservation, version, and Phoenix truth proof |
 | C | `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md` | Specification work may start now; product implementation waits for Program A GO, and C3b also waits for Program B admission | Five owner-approved specifications and five separately generated implementation plans |
 
 Program B merges into `main` before Program A candidate selection, so the
@@ -169,9 +169,11 @@ Program C specification gates may run before activation
 
 - [ ] **Step 4: Execute Program B independently**
 
-  Run every task in the Program B plan. Keep its commits out of the Program A
-  candidate and preserve affected serving admission as blocked until Program B
-  completes its own source-admission and release process.
+  Run every task in the Program B plan. Land it before Program A candidate
+  selection so the frozen candidate includes it (Q3); never inject it into an
+  already-frozen candidate during the hold window. Preserve affected serving
+  admission as blocked until Program B completes its own source-admission and
+  release process.
 
 - [ ] **Step 5: Complete Program C specification gates**
 

@@ -39,8 +39,10 @@ and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
 
 ## Global Constraints
 
-- Program B is independent of Program A and must not enter the frozen Current
-  Forecast activation candidate.
+- Program B is independently owned. It merges before Program A candidate
+  selection so it is part of the frozen candidate and soaks across the four
+  windows (owner decision Q3); it is never injected into an already-frozen
+  candidate during the hold window, which would restart soak.
 - Preserve the public realization event schema. Do not add caller-supplied
   `securityId` to realization events.
 - Security lineage comes only from
@@ -380,16 +382,19 @@ deployments produce distinct `investmentLotId`s under one `securityId`, e.g.
 `inv:deal-1:security-a:deployment-a` and `inv:deal-1:security-a:deployment-b`;
 see `event-stream-engine-v2.ts:957`). Give the realization two relief rows that
 resolve to `security-a` with `allocatedProceeds` `120.000000` and `30.000000`,
-and assert exactly one emitted lot:
+and assert exactly one emitted lot (the grouping case's relief rows all resolve
+to `security-a`, so the filtered realization lots must be a length-1 array):
 
 ```ts
-expect(realizationLots).toContainEqual({
-  lotId: 'proceeds:realization-1:security-a',
-  dealId: 'deal-1',
-  securityId: 'security-a',
-  originalAmount: '150.000000',
-  remainingBalance: '150.000000',
-});
+expect(realizationLots).toEqual([
+  {
+    lotId: 'proceeds:realization-1:security-a',
+    dealId: 'deal-1',
+    securityId: 'security-a',
+    originalAmount: '150.000000',
+    remainingBalance: '150.000000',
+  },
+]);
 ```
 
 The single suffixed lot with summed proceeds proves grouping is by exact
@@ -1694,6 +1699,7 @@ behavior tests and all receipt/version consumers are green together.
 
 ```bash
 git add \
+  docs/ARCHI.md \
   shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts \
   shared/lib/internal-economics/v2/event-stream-engine-v2.ts \
   shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts \
