@@ -370,12 +370,9 @@ async function getLatestMetricRun(
     perspective: query.perspective,
     asOfDate: query.asOfDate,
   });
-  const res = await fetch(`/api/funds/${fundId}/metric-runs/latest?${params.toString()}`, {
-    method: 'GET',
-  });
-
-  return readContractResponse(
-    res,
+  return contractFetch(
+    `/api/funds/${fundId}/metric-runs/latest?${params.toString()}`,
+    { method: 'GET' },
     LatestMetricRunResponseSchema,
     'Latest metric-run response did not match the locked contract.'
   );
@@ -385,12 +382,9 @@ async function getMetricRunDetail(
   fundId: number,
   metricRunId: number
 ): Promise<MetricRunDetailResponse> {
-  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}`, {
-    method: 'GET',
-  });
-
-  return readContractResponse(
-    res,
+  return contractFetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}`,
+    { method: 'GET' },
     MetricRunDetailResponseSchema,
     'Metric-run detail response did not match the locked contract.'
   );
@@ -400,12 +394,9 @@ async function getMetricRunEvidenceList(
   fundId: number,
   metricRunId: number
 ): Promise<MetricRunEvidenceListResponse> {
-  const res = await fetch(`/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`, {
-    method: 'GET',
-  });
-
-  return readContractResponse(
-    res,
+  return contractFetch(
+    `/api/funds/${fundId}/metric-runs/${metricRunId}/evidence-records`,
+    { method: 'GET' },
     MetricRunEvidenceListResponseSchema,
     'Metric-run evidence list response did not match the locked contract.'
   );
