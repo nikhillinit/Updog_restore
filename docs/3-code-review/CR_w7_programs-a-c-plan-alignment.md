@@ -18,7 +18,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
   (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `17bcdc54...`; prior Codex approval at `cc6ec381...92c8`)
+  (Program B, `17bcdc54...` — Codex plan-review APPROVED at round 4; prior approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -226,7 +226,8 @@ injected into an already-frozen one). Round 3 accepted findings 1-4 and raised
 the final Q3-propagation P1: the overview Program Checklist still ran candidate
 selection and soak before the Program B step. Fixed by reordering the checklist
 so Program B is Step 2 (lands before candidate selection at Step 3) and
-renumbering. Round 4 is running against the reordered overview `176af366...`.
+renumbering. Round 4 returned **APPROVED** (plan byte-identical at `17bcdc54...`,
+diff check clean): Program B's plan review has converged.
 
 ### Suggestions
 
