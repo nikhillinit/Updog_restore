@@ -575,10 +575,16 @@ Use Node 22 `fetch` and `node:crypto`; add no dependency. The helper must:
    once; Task 2 resumes an exact contiguous Drizzle prefix from 0049 through
    0055 without using the custom 0050-0053 reconcile ledger;
 7. run clean post-audit and complete-state replay/no-op checks;
-8. run `tests/integration/current-forecast-journaled-migration-recovery.test.ts`
-   and the recompute/activation real-PostgreSQL suites through
-   `vitest.config.testcontainers.ts` inside the protected job, with
-   `DATABASE_URL` set to the ephemeral direct URL that never leaves the job;
+8. run `tests/integration/current-forecast-journaled-migration-recovery.test.ts`,
+   `tests/integration/current-forecast-manual-recompute.pg.test.ts`, and
+   `tests/integration/current-forecast-reference.pg.test.ts` through
+   `vitest.config.testcontainers.ts` inside the protected job with
+   `TEST_DATABASE_URL` (not `DATABASE_URL`) set to the ephemeral direct URL that
+   never leaves the job; setting `TEST_DATABASE_URL` makes the config skip its
+   `global-setup.testcontainers.ts`, so assert no local container is started.
+   Task 2 registers the recovery and reference suites in
+   `tests/config/testcontainers-test-paths.mjs` (the manual-recompute suite is
+   already registered);
 9. return only the `RehearsalRunOutputs` fields above; never emit a URL,
    password, bearer token, or idempotency key.
 
@@ -633,7 +639,8 @@ type CurrentForecastAction =
   | { action: 'enter-shadow'; expectedVersion: number }
   | { action: 'activate'; expectedVersion: number; referenceId: number }
   | { action: 'kill'; expectedVersion: number }
-  | { action: 'resume'; expectedVersion: number };
+  | { action: 'resume'; expectedVersion: number }
+  | { action: 'readback' };
 
 type ReleaseManifestIdentity = {
   runId: string;
@@ -672,6 +679,17 @@ Exact route mapping:
 | `activate` | `POST /api/admin/funds/:fundId/current-forecast/activate` | `{ referenceId, expectedVersion }` | `configuredMode=on`, `effectiveMode=on`, served reference equals `referenceId` |
 | `kill` | `PUT /api/admin/funds/:fundId/calculation-modes/current-forecast` | `{ expectedVersion, configuredMode: 'off', killSwitchActive: true }` | mode-row API and database: `configuredMode=off`, `effectiveMode=off`, `killSwitchActive=true`; serving resolver: `mode=held`; activation pointer unchanged |
 | `resume` | `POST /api/admin/funds/:fundId/calculation-modes/current-forecast/resume` | `{ expectedVersion }` | `configuredMode=on`, `killSwitchActive=false`, activation pointer unchanged |
+| `readback` | `GET /api/admin/funds/:fundId/calculation-modes/current-forecast` (plus `GET /api/health/db`) | none | reads only; emits the mode-row/serving-resolver post-state and database identity; mutates nothing |
+
+`readback` carries no `expectedVersion`, generates no idempotency key, and
+issues no unsafe request. Its only purpose is to resolve a prior ambiguous run:
+it re-reads the direct-database mode row, the authenticated mode API, and the
+serving resolver, emits the observed post-state and identity, and the owner
+records the resolution in #1299. Fresh-key actions on that fund stay blocked
+until a `readback` run has resolved the ambiguity. Because it mutates nothing,
+the one-action-per-run and same-key-replay assertions in Step 2 apply only to
+the four unsafe actions; `readback` is exempt from the replay/fresh-key-conflict
+flow and asserts zero writes to the mode row.
 
 - [ ] **Step 1: Add RED action-mapping tests**
 
@@ -802,8 +820,12 @@ inside the job, then reconcile against the direct-database mode row and the
 mode API. Applied post-state plus a successful same-key replay closes the
 action; otherwise the run fails with the post-state recorded. A failed or lost
 run blocks every fresh-key action on that fund until the owner dispatches the
-read-only `readback` action (post-state and identity readback only, no request)
-and records the resolution in #1299. The key lives only in job memory.
+`readback` action defined in the route mapping above (read-only: mode row,
+mode API, serving resolver, and `/api/health/db` identity; no unsafe request,
+no idempotency key) and records the resolution in #1299. A workflow-safety test
+proves a fresh-key action is refused while an unresolved ambiguous run exists
+and permitted only after a `readback` resolution is recorded. The key lives only
+in job memory.
 
 - [ ] **Step 5: Implement action-specific replay tests**
 
