@@ -5,7 +5,13 @@ last_updated: 2026-09-03
 owner: Repository Owner
 categories: [financial-correctness, internal-economics-v2]
 keywords:
-  ['1458', multi-security, realization-proceeds, deal-by-deal-waterfall, conservation]
+  [
+    '1458',
+    multi-security,
+    realization-proceeds,
+    deal-by-deal-waterfall,
+    conservation,
+  ]
 ---
 
 # Internal Economics V2 Security-Lineage Implementation Plan
@@ -23,9 +29,9 @@ refusal boundaries.
 **Architecture:** Keep the public Internal Economics V2 input contract
 unchanged. Resolve each realization relief row's `investmentLotId` to the
 existing private `InvestmentLot.securityId`, group allocated proceeds by
-security before mutation, and emit one private cash-source lot per security.
-The deal-by-deal waterfall performs exact pool lookup and returns the existing
-typed refusal before mutation when exact lineage cannot be consumed.
+security before mutation, and emit one private cash-source lot per security. The
+deal-by-deal waterfall performs exact pool lookup and returns the existing typed
+refusal before mutation when exact lineage cannot be consumed.
 
 **Tech Stack:** TypeScript, Decimal.js, Vitest, existing Internal Economics V2
 event engine, deal-by-deal and whole-fund waterfalls, dual-lane certification,
@@ -52,25 +58,26 @@ and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
   `securityId` are contract strings that may contain `:` (Program C keys
   `securityId` as `participation:<id>`), so every `(dealId, securityId)` map or
   object key uses a collision-free tuple encoding, never a raw
-  `${dealId}:${securityId}` concatenation. The multi-security lot ID keeps the readable
-  `proceeds:<eventId>:<securityId>` form rather than an injective JSON encoding.
-  A lot-ID collision is possible only if an `eventId` contains `:` and aliases
-  another event's generated ID; the existing duplicate-generated-lot-ID refusal
-  rejects that fail-closed before any mutation (no misrouting). This is an
-  intentional trade: the frozen normalizer/input version is unchanged and no new
-  `eventId` restriction is added, but such a pathological aliasing input is
+  `${dealId}:${securityId}` concatenation. The multi-security lot ID keeps the
+  readable `proceeds:<eventId>:<securityId>` form rather than an injective JSON
+  encoding. A lot-ID collision is possible only if an `eventId` contains `:` and
+  aliases another event's generated ID; the existing duplicate-generated-lot-ID
+  refusal rejects that fail-closed before any mutation (no misrouting). This is
+  an intentional trade: the frozen normalizer/input version is unchanged and no
+  new `eventId` restriction is added, but such a pathological aliasing input is
   refused rather than accepted — chosen over injective-encoding the lot ID and
   rewriting every fixture, since the pool key (the actual misrouting risk) is
-  already collision-free. The refusal is atomic in both relief-row orderings.
+  already collision-free. The refusal is atomic in both chronological event
+  orderings.
 - A zero-proceeds security group returns existing
   `INVESTMENT_LOT_RELIEF_VIOLATION` before state mutation.
-- Missing exact entitlement pool returns the same existing typed refusal. Do
-  not add a new refusal code.
+- Missing exact entitlement pool returns the same existing typed refusal. Do not
+  add a new refusal code.
 - Never choose the first matching pool or infer security from iteration order,
   amount similarity, or chronology.
 - Prove source-proceeds, cash-lot, tier, partner, and whole-fund conservation.
-- Preserve existing correction, write-off, conversion, and cross-pool
-  preference refusal behavior.
+- Preserve existing correction, write-off, conversion, and cross-pool preference
+  refusal behavior.
 - Run every test with `TZ=UTC`. `npm run calc-gate` must invoke
   `npm run phoenix:truth` and the named S-0102 expected-output case.
 - Preserve unrelated dirty/untracked work. Stage exact files only.
@@ -95,17 +102,18 @@ change. Whole-fund and normalizer/input versions remain unchanged.
 
 ### Behavior Admission Boundary
 
-Task 2 Stages A-D are one inseparable behavior-and-version unit. The event-engine change
-alters receipt hash material before the final version/manifest update can be
-valid, so Stages A-C must not be committed or admitted independently. Preserve
-their exact working diff and test output locally, then create one green commit
-only in Stage D after every receipt/version consumer and named truth case passes.
-Task 1 remains a separate green baseline/decision commit. Program B may be
-implemented at any time but merges into `main` before Program A candidate
-selection, so the candidate includes and soaks the proceeds fix. It changes
-API-bundled `shared/lib` code and cannot satisfy the ADR-095 exception-merge
-proof, so it never lands inside the hold window. Assign the decision the next
-unused `DECISIONS.md` ADR number at branch cut instead of reserving ADR-098.
+Task 2 Stages A-D are one inseparable behavior-and-version unit. The
+event-engine change alters receipt hash material before the final
+version/manifest update can be valid, so Stages A-C must not be committed or
+admitted independently. Preserve their exact working diff and test output
+locally, then create one green commit only in Stage D after every
+receipt/version consumer and named truth case passes. Task 1 remains a separate
+green baseline/decision commit. Program B may be implemented at any time but
+merges into `main` before Program A candidate selection, so the candidate
+includes and soaks the proceeds fix. It changes API-bundled `shared/lib` code
+and cannot satisfy the ADR-095 exception-merge proof, so it never lands inside
+the hold window. Assign the decision the next unused `DECISIONS.md` ADR number
+at branch cut instead of reserving ADR-098.
 
 ---
 
@@ -136,8 +144,8 @@ export const MULTI_SECURITY_REALIZATION_PRE_FIX_HASHES = {
 
 - [ ] **Step 1: Add the reusable exact fixture**
 
-Build from `buildMinimalV2Input` with return-of-capital plus carry, no management
-fee schedule, and these events:
+Build from `buildMinimalV2Input` with return-of-capital plus carry, no
+management fee schedule, and these events:
 
 ```ts
 const input = buildMinimalV2Input({
@@ -224,8 +232,7 @@ describe('Internal Economics V2 multi-security realization routing', () => {
     if (!result.ok) throw new Error(result.refusal.message);
 
     expect({
-      normalizedInputHash:
-        result.certification.dealByDeal.normalizedInputHash,
+      normalizedInputHash: result.certification.dealByDeal.normalizedInputHash,
       dealByDealResultHash: result.certification.dealByDeal.resultHash,
       wholeFundResultHash: result.certification.wholeFund.resultHash,
     }).toEqual(MULTI_SECURITY_REALIZATION_PRE_FIX_HASHES);
@@ -315,7 +322,6 @@ git diff --cached --check
 git commit -m "test(economics): freeze multi-security realization baseline"
 ```
 
-
 ---
 
 ### Task 2: Implement and Certify the Security-Lineage Correction
@@ -324,7 +330,8 @@ git commit -m "test(economics): freeze multi-security realization baseline"
 
 **Files:**
 
-- Modify: `shared/lib/internal-economics/v2/event-stream-engine-v2.ts:27-67,856-925`
+- Modify:
+  `shared/lib/internal-economics/v2/event-stream-engine-v2.ts:27-67,856-925`
 - Modify:
   `tests/unit/internal-economics/v2/event-stream-engine-v2.test.ts:1244-1325`
 - Modify: `tests/unit/internal-economics/v2/event-stream-atomicity-v2.test.ts`
@@ -343,7 +350,8 @@ type RealizationProceedsCashSourceLot = CashSourceLotBase & {
 };
 ```
 
-- [ ] **Step 1: Retire the live pre-fix result assertion, then add RED event-engine tests**
+- [ ] **Step 1: Retire the live pre-fix result assertion, then add RED
+      event-engine tests**
 
 Keep `MULTI_SECURITY_REALIZATION_PRE_FIX_HASHES` as immutable evidence, but stop
 comparing the live deal/whole-fund result hashes after the behavior edit. Retain
@@ -387,8 +395,7 @@ expect(realizationLots).toEqual([
 
 Filter state lots by
 `origin === 'event' && sourceKind === 'realization_proceeds'` before comparison.
-Also assert a single-security realization still emits
-`proceeds:<eventId>`.
+Also assert a single-security realization still emits `proceeds:<eventId>`.
 
 Add a grouping case that exercises multiple lots for one security (multiple
 deployments produce distinct `investmentLotId`s under one `securityId`, e.g.
@@ -418,19 +425,84 @@ The single suffixed lot with summed proceeds proves grouping is by exact
 Cover:
 
 - duplicate generated lot ID;
-- colon-aliasing multi-security lot IDs: an `eventId` containing `:` that makes
-  `proceeds:<eventId>:<securityId>` collide with another generated lot ID hits
-  the duplicate-generated-lot-ID refusal atomically in both relief-row orderings,
-  with zero partial mutation (this documents the intentional fail-closed rejection
-  of the aliasing input, not a misroute);
 - one relief-row security group whose allocated proceeds total is zero;
 - source event amount unequal to grouped proceeds total.
 
-Snapshot `cashSourceLots`, `investmentLots`, `eventEffectRecords`, partner
-ledgers, and `endingCash` before each call; assert every snapshot is unchanged
-after refusal. Extend the atomicity test's local `snapshotState` projection for
-realization-proceeds lots to include `securityId`; otherwise mutation of the new
-lineage field is invisible to the atomicity assertion.
+For the colon-alias case, seed one `400.000000` deployment contribution and four
+`100.000000` deployments for deal `deal-alias`, with security IDs `x:y`, `a`,
+`y`, and `b`. Then use these two concrete multi-security realizations:
+
+```ts
+const plainEvent = {
+  eventId: 'alias',
+  instant: '2025-04-01T00:00:00Z',
+  amountUsd: '200.000000',
+  kind: 'realization',
+  dealId: 'deal-alias',
+  reliefRows: [
+    {
+      investmentLotId: 'inv:deal-alias:x:y:deployment-xy',
+      relievedCostBasis: '100.000000',
+      allocatedProceeds: '100.000000',
+    },
+    {
+      investmentLotId: 'inv:deal-alias:a:deployment-a',
+      relievedCostBasis: '100.000000',
+      allocatedProceeds: '100.000000',
+    },
+  ],
+  recyclingTag: 'none',
+} satisfies V2Event & { kind: 'realization' };
+
+const colonEvent = {
+  eventId: 'alias:x',
+  instant: '2025-04-02T00:00:00Z',
+  amountUsd: '200.000000',
+  kind: 'realization',
+  dealId: 'deal-alias',
+  reliefRows: [
+    {
+      investmentLotId: 'inv:deal-alias:y:deployment-y',
+      relievedCostBasis: '100.000000',
+      allocatedProceeds: '100.000000',
+    },
+    {
+      investmentLotId: 'inv:deal-alias:b:deployment-b',
+      relievedCostBasis: '100.000000',
+      allocatedProceeds: '100.000000',
+    },
+  ],
+  recyclingTag: 'none',
+} satisfies V2Event & { kind: 'realization' };
+```
+
+`plainEvent` generates `proceeds:alias:x:y` for security `x:y`; `colonEvent`
+generates the same lot ID for security `y`. Both events must remain
+multi-security so the suffixed ID path is exercised.
+
+Run two cases by assigning the first event `2025-04-01T00:00:00Z` and the second
+`2025-04-02T00:00:00Z`: `plainEvent -> colonEvent` and
+`colonEvent -> plainEvent`. Do not only reverse the input array because the
+engine sorts by chronology. For each case:
+
+1. process the seed events and first realization successfully through
+   `processEventsV2ForTest`;
+2. use its returned `state` as the staged state, rather than snapshotting the
+   unchanged caller state;
+3. snapshot that complete staged state;
+4. call `processRealization(secondEvent, stagedState)` directly;
+5. assert `CASH_SOURCE_ALLOCATION_VIOLATION`, stage `provenance`,
+   `diagnostics.eventId === secondEvent.eventId`, and exact equality between the
+   complete before/after state snapshots.
+
+The local `snapshotState` projection is exhaustive over `EventStreamState`:
+`cashSourceLots`, `investmentLots`, `callableTrackers`, `partnerLedgers`,
+`consumptionRecords`, `eventEffectRecords`, `partnerEffectRecords`,
+`derivedEvents`, `endingCash`, all three opening-state maps, and
+`openingJournal`. Extend its realization-proceeds lot projection to include
+`securityId`; otherwise mutation of the new lineage field is invisible to the
+atomicity assertion. This test documents intentional fail-closed rejection of
+the aliasing input, not a misroute.
 
 - [ ] **Step 3: Run focused tests and confirm RED**
 
@@ -453,7 +525,8 @@ Before any state mutation:
 5. sort drafts by `securityId`;
 6. generate every lot ID, retaining the legacy ID for one security;
 7. detect every collision (this also fails closed on the only multi-security
-   lot-ID aliasing case, an `eventId` containing `:`, with no normalizer change);
+   lot-ID aliasing case, an `eventId` containing `:`, with no normalizer
+   change);
 8. verify grouped proceeds sum equals the event amount.
 
 Only after all checks pass, call `applyReliefRows` once, insert all proceeds
@@ -461,9 +534,10 @@ lots, append one event-effect record, and add the event amount to ending cash
 once.
 
 ```ts
-const lotId = drafts.length === 1
-  ? `proceeds:${event.eventId}`
-  : `proceeds:${event.eventId}:${draft.securityId}`;
+const lotId =
+  drafts.length === 1
+    ? `proceeds:${event.eventId}`
+    : `proceeds:${event.eventId}:${draft.securityId}`;
 ```
 
 - [ ] **Step 5: Run focused tests and preserve the uncommitted Stage A diff**
@@ -533,9 +607,7 @@ import { buildMultiSecurityRealizationV2Input } from '../../../helpers/v2-input-
 Define every fixture and comparison helper in that test file:
 
 ```ts
-function stageMultiSecurityInput(
-  inputWire: InternalEconomicsInputV2Wire
-): {
+function stageMultiSecurityInput(inputWire: InternalEconomicsInputV2Wire): {
   input: NormalizedInternalEconomicsInputV2;
   state: EventStreamState;
 } {
@@ -618,10 +690,7 @@ function keyedPartnerDistributions(
 ) {
   return Object.fromEntries(
     [...distributions.entries()]
-      .map(
-        ([partnerId, amount]) =>
-          [partnerId, amount.toFixed(6)] as const
-      )
+      .map(([partnerId, amount]) => [partnerId, amount.toFixed(6)] as const)
       .sort(([left], [right]) => left.localeCompare(right))
   );
 }
@@ -630,9 +699,7 @@ function canonicalState(value: unknown): unknown {
   if (value instanceof Decimal) return value.toFixed(6);
   if (value instanceof Map) {
     return [...value.entries()]
-      .sort(([left], [right]) =>
-        String(left).localeCompare(String(right))
-      )
+      .sort(([left], [right]) => String(left).localeCompare(String(right)))
       .map(([key, entry]) => [key, canonicalState(entry)]);
   }
   if (Array.isArray(value)) return value.map(canonicalState);
@@ -649,7 +716,8 @@ function canonicalState(value: unknown): unknown {
 const snapshotState = (state: EventStreamState) => canonicalState(state);
 ```
 
-- [ ] **Step 2: Add the RED exact-routing, conservation, and order-invariance test**
+- [ ] **Step 2: Add the RED exact-routing, conservation, and order-invariance
+      test**
 
 Add a second, colliding test (specified exactly after the routing block below):
 two single-security deals whose raw `${dealId}:${securityId}` keys both equal
@@ -705,39 +773,25 @@ describe('multi-security deal-by-deal realization routing', () => {
     const carry = result.tierAllocations.filter(
       (tier) => tier.kind === 'carry'
     );
-    expect(sumMap(sumByPartner(returnOfCapital)).toFixed(6)).toBe(
-      '100.000000'
-    );
+    expect(sumMap(sumByPartner(returnOfCapital)).toFixed(6)).toBe('100.000000');
     expect(
       returnOfCapital
-        .reduce(
-          (total, tier) => total.plus(tier.gpShare),
-          new Decimal(0)
-        )
+        .reduce((total, tier) => total.plus(tier.gpShare), new Decimal(0))
         .toFixed(6)
     ).toBe('9.087605');
     expect(
       returnOfCapital
-        .reduce(
-          (total, tier) => total.plus(tier.lpShare),
-          new Decimal(0)
-        )
+        .reduce((total, tier) => total.plus(tier.lpShare), new Decimal(0))
         .toFixed(6)
     ).toBe('90.912395');
     expect(
       carry
-        .reduce(
-          (total, tier) => total.plus(tier.gpShare),
-          new Decimal(0)
-        )
+        .reduce((total, tier) => total.plus(tier.gpShare), new Decimal(0))
         .toFixed(6)
     ).toBe('20.000000');
     expect(
       carry
-        .reduce(
-          (total, tier) => total.plus(tier.lpShare),
-          new Decimal(0)
-        )
+        .reduce((total, tier) => total.plus(tier.lpShare), new Decimal(0))
         .toFixed(6)
     ).toBe('80.000000');
 
@@ -751,17 +805,15 @@ describe('multi-security deal-by-deal realization routing', () => {
     }
 
     expect(keyedPools(reversedResult)).toEqual(keyedPools(result));
-    expect(
-      toTierAllocationsV2(reversedResult.tierAllocations)
-    ).toEqual(toTierAllocationsV2(result.tierAllocations));
+    expect(toTierAllocationsV2(reversedResult.tierAllocations)).toEqual(
+      toTierAllocationsV2(result.tierAllocations)
+    );
     expect(
       keyedPartnerDistributions(reversedResult.partnerDistributions)
     ).toEqual(keyedPartnerDistributions(result.partnerDistributions));
   });
-
 });
 ```
-
 
 Then add the colliding-key test. Build a two-deal fixture to the same
 `InternalEconomicsInputV2Wire` shape as `buildMultiSecurityRealizationV2Input`,
@@ -776,16 +828,17 @@ both pairs collapse to `a:b:c`):
 - `Object.keys(keyedPools(result))` has length exactly `2` (a raw key yields one
   `a:b:c` pool of `200.000000`);
 - `keyedPools(result)[JSON.stringify(['a:b', 'c'])].proceeds === '120.000000'`
-  and `keyedPools(result)[JSON.stringify(['a', 'b:c'])].proceeds === '80.000000'`
-  -- each security keeps its own proceeds, none crosses;
+  and
+  `keyedPools(result)[JSON.stringify(['a', 'b:c'])].proceeds === '80.000000'` --
+  each security keeps its own proceeds, none crosses;
 - `sumPools(result.pools).toFixed(6) === '200.000000'` (conservation);
 - order invariance: because processing sorts events chronologically
   (`sortEventsIntoChronology`, `event-stream-engine-v2.ts:231`), reordering the
-  event array alone is a no-op, and each realization here has a single relief row
-  so relief-row reversal is vacuous. Instead, swap the two deals' chronological
-  windows -- run deal `a`'s deploy-then-realize before deal `a:b`'s (each
-  deployment still strictly before its own realization) -- and require the
-  `keyedPools` result to be identical to the original ordering.
+  event array alone is a no-op, and each realization here has a single relief
+  row so relief-row reversal is vacuous. Instead, swap the two deals'
+  chronological windows -- run deal `a`'s deploy-then-realize before deal
+  `a:b`'s (each deployment still strictly before its own realization) -- and
+  require the `keyedPools` result to be identical to the original ordering.
 
 - [ ] **Step 3: Add the missing-exact-pool typed-refusal test**
 
@@ -797,13 +850,11 @@ describe('multi-security deal-by-deal realization routing', () => {
     const { input, state } = stageMultiSecurityInput(
       buildMultiSecurityRealizationV2Input()
     );
+    expect(state.cashSourceLots.has('proceeds:realization-1:security-b')).toBe(
+      true
+    );
     expect(
-      state.cashSourceLots.has('proceeds:realization-1:security-b')
-    ).toBe(true);
-    expect(
-      state.investmentLots.delete(
-        'inv:deal-1:security-b:deployment-b'
-      )
+      state.investmentLots.delete('inv:deal-1:security-b:deployment-b')
     ).toBe(true);
 
     const before = snapshotState(state);
@@ -826,8 +877,7 @@ describe('multi-security deal-by-deal realization routing', () => {
 });
 ```
 
-Snapshot after deleting
-`inv:deal-1:security-b:deployment-b`, while
+Snapshot after deleting `inv:deal-1:security-b:deployment-b`, while
 `proceeds:realization-1:security-b` remains present. This proves refusal does
 not mutate the already staged state.
 
@@ -884,10 +934,7 @@ function buildEntitlementPools(
   }
 
   for (const [, lot] of state.cashSourceLots) {
-    if (
-      lot.origin !== 'event' ||
-      lot.sourceKind !== 'realization_proceeds'
-    ) {
+    if (lot.origin !== 'event' || lot.sourceKind !== 'realization_proceeds') {
       continue;
     }
 
@@ -903,15 +950,11 @@ function buildEntitlementPools(
         ),
       };
     }
-    pool.proceedsAvailable = pool.proceedsAvailable.plus(
-      lot.remainingBalance
-    );
+    pool.proceedsAvailable = pool.proceedsAvailable.plus(lot.remainingBalance);
   }
 
   for (const [, pool] of poolMap) {
-    pool.gainLoss = pool.proceedsAvailable.minus(
-      pool.costBasisRelieved
-    );
+    pool.gainLoss = pool.proceedsAvailable.minus(pool.costBasisRelieved);
   }
 
   return { ok: true, pools: Array.from(poolMap.values()) };
@@ -957,11 +1000,11 @@ working tree because receipt/version consumers are not green until Stage D.
 **Interfaces:**
 
 - Consumes:
-  `buildMultiSecurityRealizationV2Input(): InternalEconomicsInputV2Wire`
-  from Task 1.
+  `buildMultiSecurityRealizationV2Input(): InternalEconomicsInputV2Wire` from
+  Task 1.
 - Produces no new production interface. Tests prove per-security cash-lot
-  conservation, receipt lineage, partner/class ledgers, and aggregate
-  whole-fund order invariance.
+  conservation, receipt lineage, partner/class ledgers, and aggregate whole-fund
+  order invariance.
 
 - [ ] **Step 1: Add the partial-recycling receipt fixture and helpers**
 
@@ -1018,9 +1061,7 @@ function buildReversedPartialRecyclingInput(): InternalEconomicsInputV2Wire {
   return input;
 }
 
-function stagePartialRecyclingInput(
-  inputWire: InternalEconomicsInputV2Wire
-): {
+function stagePartialRecyclingInput(inputWire: InternalEconomicsInputV2Wire): {
   input: NormalizedInternalEconomicsInputV2;
   state: EventStreamState;
 } {
@@ -1033,10 +1074,7 @@ function stagePartialRecyclingInput(
   return { input, state: processed.state };
 }
 
-function requireRealizationProceedsLot(
-  state: EventStreamState,
-  lotId: string
-) {
+function requireRealizationProceedsLot(state: EventStreamState, lotId: string) {
   const lot = state.cashSourceLots.get(lotId);
   if (
     !lot ||
@@ -1051,17 +1089,11 @@ function requireRealizationProceedsLot(
 const consumed = (state: EventStreamState, lotId: string) =>
   state.consumptionRecords
     .filter((record) => record.lotId === lotId)
-    .reduce(
-      (total, record) => total.plus(record.amountUsd),
-      new Decimal(0)
-    );
+    .reduce((total, record) => total.plus(record.amountUsd), new Decimal(0));
 
 const lineageByLot = (receipt: InternalEconomicsReceiptV2) =>
   new Map(
-    receipt.lineage.cashLots.map((lot) => [
-      lot.lotId,
-      lot.consumingEventIds,
-    ])
+    receipt.lineage.cashLots.map((lot) => [lot.lotId, lot.consumingEventIds])
   );
 
 function keyedReceiptPartners(receipt: InternalEconomicsReceiptV2) {
@@ -1115,9 +1147,7 @@ describe('multi-security partial recycling receipts', () => {
         .toFixed(6)
     ).toBe(securityBLot.originalAmount.toFixed(6));
     expect(
-      securityALot.originalAmount
-        .plus(securityBLot.originalAmount)
-        .toFixed(6)
+      securityALot.originalAmount.plus(securityBLot.originalAmount).toFixed(6)
     ).toBe('200.000000');
 
     const live = certifyInternalEconomicsDualLaneV2(inputWire);
@@ -1126,12 +1156,10 @@ describe('multi-security partial recycling receipts', () => {
     const wholeReceipt = live.certification.wholeFund;
 
     const lineage = lineageByLot(receipt);
-    expect(
-      lineage.get('proceeds:realization-1:security-a')
-    ).toContain('deployment-2');
-    expect(
-      lineage.get('proceeds:realization-1:security-b')
-    ).toEqual([]);
+    expect(lineage.get('proceeds:realization-1:security-a')).toContain(
+      'deployment-2'
+    );
+    expect(lineage.get('proceeds:realization-1:security-b')).toEqual([]);
     expect(receipt.fundCashEquation).toEqual({
       openingCash: '550000.000000',
       contributions: '200.000000',
@@ -1191,9 +1219,7 @@ describe('multi-security partial recycling receipts', () => {
       ])
     );
 
-    expect(wholeReceipt.fundCashEquation).toEqual(
-      receipt.fundCashEquation
-    );
+    expect(wholeReceipt.fundCashEquation).toEqual(receipt.fundCashEquation);
     expect(wholeReceipt.tierAllocations).toEqual([
       {
         kind: 'return_of_capital',
@@ -1228,26 +1254,25 @@ describe('multi-security partial recycling receipts', () => {
     if (!reversedLive.ok) {
       throw new Error(reversedLive.refusal.message);
     }
-    expect(
-      reversedLive.certification.dealByDeal.tierAllocations
-    ).toEqual(receipt.tierAllocations);
-    expect(
-      keyedReceiptPartners(reversedLive.certification.dealByDeal)
-    ).toEqual(keyedReceiptPartners(receipt));
-    expect(
-      reversedLive.certification.wholeFund.tierAllocations
-    ).toEqual(wholeReceipt.tierAllocations);
-    expect(
-      keyedReceiptPartners(reversedLive.certification.wholeFund)
-    ).toEqual(keyedReceiptPartners(wholeReceipt));
+    expect(reversedLive.certification.dealByDeal.tierAllocations).toEqual(
+      receipt.tierAllocations
+    );
+    expect(keyedReceiptPartners(reversedLive.certification.dealByDeal)).toEqual(
+      keyedReceiptPartners(receipt)
+    );
+    expect(reversedLive.certification.wholeFund.tierAllocations).toEqual(
+      wholeReceipt.tierAllocations
+    );
+    expect(keyedReceiptPartners(reversedLive.certification.wholeFund)).toEqual(
+      keyedReceiptPartners(wholeReceipt)
+    );
   });
 });
 ```
 
 - [ ] **Step 3: Add raw whole-fund order-invariance coverage**
 
-In `waterfall-whole-fund-v2.test.ts`, merge these imports into existing
-groups:
+In `waterfall-whole-fund-v2.test.ts`, merge these imports into existing groups:
 
 ```ts
 import type {
@@ -1287,8 +1312,7 @@ function buildPartialWholeFundInput(): InternalEconomicsInputV2Wire {
   return input;
 }
 
-function buildReversedPartialWholeFundInput():
-  InternalEconomicsInputV2Wire {
+function buildReversedPartialWholeFundInput(): InternalEconomicsInputV2Wire {
   const input = buildPartialWholeFundInput();
   input.events = input.events
     .map((event): V2Event => {
@@ -1307,14 +1331,11 @@ function buildReversedPartialWholeFundInput():
   return input;
 }
 
-function stageWholeFundInput(
-  inputWire: InternalEconomicsInputV2Wire
-): {
+function stageWholeFundInput(inputWire: InternalEconomicsInputV2Wire): {
   input: NormalizedInternalEconomicsInputV2;
   state: EventStreamState;
 } {
-  const normalized =
-    verifyAndNormalizeInternalEconomicsInputV2(inputWire);
+  const normalized = verifyAndNormalizeInternalEconomicsInputV2(inputWire);
   if (!normalized.ok) throw new Error(normalized.refusal.message);
   const processed = processEventsV2ForTest(
     normalized.input,
@@ -1324,15 +1345,10 @@ function stageWholeFundInput(
   return { input: normalized.input, state: processed.state };
 }
 
-function keyedWholeFundPartners(
-  distributions: ReadonlyMap<string, Decimal>
-) {
+function keyedWholeFundPartners(distributions: ReadonlyMap<string, Decimal>) {
   return Object.fromEntries(
     [...distributions.entries()]
-      .map(
-        ([partnerId, amount]) =>
-          [partnerId, amount.toFixed(6)] as const
-      )
+      .map(([partnerId, amount]) => [partnerId, amount.toFixed(6)] as const)
       .sort(([left], [right]) => left.localeCompare(right))
   );
 }
@@ -1361,13 +1377,8 @@ it('keeps partial-recycling whole-fund output invariant to source order', () => 
     },
   ]);
 
-  const reversed = stageWholeFundInput(
-    buildReversedPartialWholeFundInput()
-  );
-  const reversedResult = runWholeFundWaterfall(
-    reversed.input,
-    reversed.state
-  );
+  const reversed = stageWholeFundInput(buildReversedPartialWholeFundInput());
+  const reversedResult = runWholeFundWaterfall(reversed.input, reversed.state);
   if (!reversedResult.ok) {
     throw new Error(reversedResult.refusal.message);
   }
@@ -1375,12 +1386,12 @@ it('keeps partial-recycling whole-fund output invariant to source order', () => 
   expect(reversedResult.totalDistributed.toFixed(6)).toBe(
     result.totalDistributed.toFixed(6)
   );
-  expect(
-    toTierAllocationsV2(reversedResult.tierAllocations)
-  ).toEqual(toTierAllocationsV2(result.tierAllocations));
-  expect(
-    keyedWholeFundPartners(reversedResult.partnerDistributions)
-  ).toEqual(keyedWholeFundPartners(result.partnerDistributions));
+  expect(toTierAllocationsV2(reversedResult.tierAllocations)).toEqual(
+    toTierAllocationsV2(result.tierAllocations)
+  );
+  expect(keyedWholeFundPartners(reversedResult.partnerDistributions)).toEqual(
+    keyedWholeFundPartners(result.partnerDistributions)
+  );
 });
 ```
 
@@ -1407,12 +1418,11 @@ working tree because all Task 2 behavior and version evidence ships atomically.
 
 - Modify:
   `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts:8-10,249-255`
-- Modify: `docs/ARCHI.md` section 8 — update the 2.3.0 component identities to the
-  2.4.0 tuple (receipt/serializer/event-engine/composite/deal-by-deal) and note
-  the exact `dealId:securityId` proceeds routing
+- Modify: `docs/ARCHI.md` section 8 — update the 2.3.0 component identities to
+  the 2.4.0 tuple (receipt/serializer/event-engine/composite/deal-by-deal) and
+  note the exact `dealId:securityId` proceeds routing
 - Modify: `shared/lib/internal-economics/v2/event-stream-engine-v2.ts:24-25`
-- Modify:
-  `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts:18-19`
+- Modify: `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts:18-19`
 - Modify:
   `shared/lib/internal-economics/v2/liquidity-receipt-builder-v2.ts:48-49`
 - Modify: `shared/lib/internal-economics/v2/derive-composite-v2.ts:38-39`
@@ -1424,8 +1434,7 @@ working tree because all Task 2 behavior and version evidence ships atomically.
   `tests/unit/truth-cases/internal-economics-v2-first-success.test.ts:38-230`
 - Modify:
   `tests/unit/truth-cases/internal-economics-v2-opening-state.test.ts:92-155`
-- Modify:
-  `tests/unit/internal-economics/v2/eventful-receipt-v2.test.ts:140-170`
+- Modify: `tests/unit/internal-economics/v2/eventful-receipt-v2.test.ts:140-170`
 - Modify:
   `tests/unit/internal-economics/v2/derive-composite-v2.test.ts:143-180,663-675`
 - Modify:
@@ -1520,13 +1529,13 @@ function stage(inputWire: InternalEconomicsInputV2Wire): {
   input: NormalizedInternalEconomicsInputV2;
   state: EventStreamState;
 } {
-const normalized = verifyAndNormalizeInternalEconomicsInputV2(inputWire);
-if (!normalized.ok) throw new Error(normalized.refusal.message);
-const processed = processEventsV2ForTest(
-  normalized.input,
-  initializeEventStreamState(normalized.input)
-);
-if (!processed.ok) throw new Error(processed.refusal.message);
+  const normalized = verifyAndNormalizeInternalEconomicsInputV2(inputWire);
+  if (!normalized.ok) throw new Error(normalized.refusal.message);
+  const processed = processEventsV2ForTest(
+    normalized.input,
+    initializeEventStreamState(normalized.input)
+  );
+  if (!processed.ok) throw new Error(processed.refusal.message);
   return { input: normalized.input, state: processed.state };
 }
 
@@ -1595,7 +1604,9 @@ function keyedPools(result: DealByDealWaterfallResult) {
   );
 }
 
-function keyedPartnerDistributions(distributions: ReadonlyMap<string, Decimal>) {
+function keyedPartnerDistributions(
+  distributions: ReadonlyMap<string, Decimal>
+) {
   return Object.fromEntries(
     [...distributions.entries()]
       .map(([partnerId, amount]) => [partnerId, amount.toFixed(6)] as const)
@@ -1636,10 +1647,14 @@ it('internal-economics-v2-multi-security-realization-exact-routing', () => {
   if (!deal.ok) throw new Error(deal.refusal.message);
   expect(keyedPools(deal)).toEqual({
     [JSON.stringify(['deal-1', 'security-a'])]: {
-      proceeds: '120.000000', basis: '60.000000', gainLoss: '60.000000',
+      proceeds: '120.000000',
+      basis: '60.000000',
+      gainLoss: '60.000000',
     },
     [JSON.stringify(['deal-1', 'security-b'])]: {
-      proceeds: '80.000000', basis: '40.000000', gainLoss: '40.000000',
+      proceeds: '80.000000',
+      basis: '40.000000',
+      gainLoss: '40.000000',
     },
   });
   expect(deal.totalDistributed.toFixed(6)).toBe('200.000000');
@@ -1659,10 +1674,7 @@ it('internal-economics-v2-multi-security-realization-exact-routing', () => {
     keyedPartnerDistributions(deal.partnerDistributions)
   );
 
-  const reversedWhole = runWholeFundWaterfall(
-    reversed.input,
-    reversed.state
-  );
+  const reversedWhole = runWholeFundWaterfall(reversed.input, reversed.state);
   if (!reversedWhole.ok) throw new Error(reversedWhole.refusal.message);
   expect(wholeToTierAllocations(reversedWhole.tierAllocations)).toEqual(
     wholeToTierAllocations(whole.tierAllocations)
@@ -1718,8 +1730,8 @@ and reverse the event array. Keyed helpers sort keys before comparison.
 
 - [ ] **Step 4: Add manifest-chain assertions in their owning truth files**
 
-In `internal-economics-v2-first-success.test.ts`, import v3 and bind the existing
-v2/live variables explicitly:
+In `internal-economics-v2-first-success.test.ts`, import v3 and bind the
+existing v2/live variables explicitly:
 
 ```ts
 const v2S0101 = CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V2.find(
@@ -1751,7 +1763,8 @@ The S-0102 truth case owns its two v3 lookups and the exact Task 1 before-hash
 assertions shown in Step 3. No undeclared `v2*`, `v3*`, or `live` identifier may
 remain.
 
-- [ ] **Step 5: Run every changed behavior, version, and truth consumer before committing**
+- [ ] **Step 5: Run every changed behavior, version, and truth consumer before
+      committing**
 
 ```bash
 TZ=UTC npx vitest run \
@@ -1867,7 +1880,7 @@ admission and release complete.
   tier/partner conservation, whole-fund invariance, versioning, and expected
   output are assigned to explicit tasks.
 - **Type consistency:** `runDealByDealWaterfall(input, state)` and nested
-  `result.refusal` match current exports. `buildEntitlementPools` has an explicit
-  success/refusal union.
+  `result.refusal` match current exports. `buildEntitlementPools` has an
+  explicit success/refusal union.
 - **Scope:** Public schema, normalizer, whole-fund algorithm, and existing
   refusal codes remain unchanged.
