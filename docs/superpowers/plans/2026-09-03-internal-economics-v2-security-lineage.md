@@ -779,8 +779,13 @@ both pairs collapse to `a:b:c`):
   and `keyedPools(result)[JSON.stringify(['a', 'b:c'])].proceeds === '80.000000'`
   -- each security keeps its own proceeds, none crosses;
 - `sumPools(result.pools).toFixed(6) === '200.000000'` (conservation);
-- reversing the deploy/realize event order and the relief rows yields an equal
-  `keyedPools` result (order invariance).
+- order invariance: because processing sorts events chronologically
+  (`sortEventsIntoChronology`, `event-stream-engine-v2.ts:231`), reordering the
+  event array alone is a no-op, and each realization here has a single relief row
+  so relief-row reversal is vacuous. Instead, swap the two deals' chronological
+  windows -- run deal `a`'s deploy-then-realize before deal `a:b`'s (each
+  deployment still strictly before its own realization) -- and require the
+  `keyedPools` result to be identical to the original ordering.
 
 - [ ] **Step 3: Add the missing-exact-pool typed-refusal test**
 
