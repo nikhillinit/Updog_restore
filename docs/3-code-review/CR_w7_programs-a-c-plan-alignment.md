@@ -16,9 +16,9 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`
   (overview, `1a55dd10...`)
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
-  (Program A, `050212aa...`)
+  (Program A, `c83c573a...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
-  (Program B, `0a075e0c...`; prior Codex approval at `cc6ec381...92c8`)
+  (Program B, `b2af7ac2...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
   (Program C, `e246210c...`)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
@@ -169,8 +169,27 @@ Testcontainers config and registry; raw catalog definitions fed to the sentinel
 fence; orders 27-32 exact `SKIP` with 0054/0055 sentinels; bounded same-key
 retry with DB/API reconciliation and a read-only `readback` action for ambiguous
 outcomes; the additive ADR-095 amendment (closes M1); in-job rehearsal test
-execution; rehearsal-branch cleanup or custody. A round-2 lane was running when
-this disposition executed; per Q9 it does not gate finalization.
+execution; rehearsal-branch cleanup or custody. Round 2 REQUEST_CHANGES (two new
+P1) also verified and fixed: the rehearsal job sets `TEST_DATABASE_URL` (not
+`DATABASE_URL`) to the ephemeral direct URL and registers the recovery and
+reference suites in the Testcontainers path registry; `readback` is promoted from
+prose to a real read-only member of the `CurrentForecastAction` union and route
+mapping, with a workflow test proving fresh-key actions stay blocked until a
+readback resolution is recorded. Round 3 is running against `c83c573a...`.
+
+**m7. Program B Codex review (parallel lane) — one finding held for owner
+decision.** The lane returned REQUEST_CHANGES with two P1 and one P2. Two are
+verified and fixed: a grouping test with two relief rows sharing one `securityId`
+asserting a single summed proceeds lot (the base fixture used one lot per
+security, leaving the group-by-`securityId` path untested; multiple deployments
+create multiple lots per security), and `docs/ARCHI.md` added to Stage D so the
+2.3.0 component identities move to the 2.4.0 tuple with the exact-routing note.
+The third P1 asks to widen the merge window back to "before candidate selection
+**or after recorded GO/NO-GO**." That reverses owner decision **Q3** (merge
+before candidate selection so the candidate soaks the fix), which deliberately
+traded Program B's post-GO independence for having the fix inside the soaked
+candidate. The plan is left at the Q3 decision and this finding is surfaced to
+the owner, not silently applied; the reviewer lacked the Q3 rationale.
 
 ### Suggestions
 

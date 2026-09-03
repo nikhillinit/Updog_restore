@@ -375,6 +375,26 @@ Filter state lots by
 Also assert a single-security realization still emits
 `proceeds:<eventId>`.
 
+Add a grouping case that exercises multiple lots for one security (multiple
+deployments produce distinct `investmentLotId`s under one `securityId`, e.g.
+`inv:deal-1:security-a:deployment-a` and `inv:deal-1:security-a:deployment-b`;
+see `event-stream-engine-v2.ts:957`). Give the realization two relief rows that
+resolve to `security-a` with `allocatedProceeds` `120.000000` and `30.000000`,
+and assert exactly one emitted lot:
+
+```ts
+expect(realizationLots).toContainEqual({
+  lotId: 'proceeds:realization-1:security-a',
+  dealId: 'deal-1',
+  securityId: 'security-a',
+  originalAmount: '150.000000',
+  remainingBalance: '150.000000',
+});
+```
+
+The single suffixed lot with summed proceeds proves grouping is by exact
+`securityId`, not per relief row or per lot.
+
 - [ ] **Step 2: Add RED atomic-refusal tests**
 
 Cover:
@@ -1305,6 +1325,9 @@ working tree because all Task 2 behavior and version evidence ships atomically.
 
 - Modify:
   `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts:8-10,249-255`
+- Modify: `docs/ARCHI.md` section 8 — update the 2.3.0 component identities to the
+  2.4.0 tuple (receipt/serializer/event-engine/composite/deal-by-deal) and note
+  the exact `dealId:securityId` proceeds routing
 - Modify: `shared/lib/internal-economics/v2/event-stream-engine-v2.ts:24-25`
 - Modify:
   `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts:18-19`
