@@ -692,8 +692,10 @@ same-key-replay assertions in Step 2 apply only to the four unsafe actions, and
 
 - [ ] **Step 1: Add RED action-mapping tests**
 
-For every discriminant, assert exact method, path, JSON body, expected response,
-and invalid-field refusal. `referenceId` is required only for `activate`.
+For each of the four unsafe discriminants, assert exact method, path, JSON body,
+expected response, and invalid-field refusal; `referenceId` is required only for
+`activate`. Assert `readback` builds and sends no request (no method, path, or
+body).
 
 ```js
 expect(buildActionRequest({
@@ -792,21 +794,25 @@ dependency. Complete these fences before any mutation:
    direct-host fingerprint, require migration tail 0055, then read the fund
    mode row, version, activation pointer, and serving resolver state;
 6. for the four unsafe actions, require the database mode-row version equals
-   `expectedVersion`; `readback` skips this and every mutation/replay step below,
-   emitting the reads from item 5 plus `/api/health/db` identity and stopping;
-7. use `CANARY_RECONCILER_USERNAME` and `CANARY_RECONCILER_PASSWORD` through
-   the existing session flow: `GET /api/auth/csrf`, `POST /api/auth/login` with
-   the bootstrap token, retain the session cookie, then refresh CSRF before
-   the unsafe action request; do not introduce bearer authentication;
-8. generate one run-scoped idempotency key internally, send the mapped request,
-   then replay the same request with the same key inside the same workflow and
-   require status 200 with `replayed: true`;
+   `expectedVersion` before any request; a mismatch fails the workflow closed
+   here, so no mutation request is ever sent on stale state;
+7. authenticate the existing session flow for every action using
+   `CANARY_RECONCILER_USERNAME` and `CANARY_RECONCILER_PASSWORD`
+   (`GET /api/auth/csrf`, `POST /api/auth/login` with the bootstrap token,
+   retain the session cookie; no bearer auth), because `/api/health/db` requires
+   `requireHealthKeyOrAuth`. `readback` then reads `/api/health/db` identity,
+   emits the item-5 reads plus that identity, and stops here without refreshing
+   CSRF or sending any request. The four unsafe actions refresh CSRF next;
+8. (unsafe actions only) generate one run-scoped idempotency key internally,
+   send the mapped request, then replay the same request with the same key
+   inside the same workflow and require status 200 with `replayed: true`;
 9. for `activate` only, generate a fresh key, repeat the activation request,
    and require status 409 without state change;
-10. validate the mapped response schema, direct-database post-state, and
-    serving resolver state. For `kill`, the mode row and mode API must report
-    `configuredMode=off`, `effectiveMode=off`, `killSwitchActive=true`, while
-    the serving resolver must report `mode=held` with unchanged pointer;
+10. (unsafe actions only) validate the mapped response schema, direct-database
+    post-state, and serving resolver state. For `kill`, the direct-database mode
+    row must report `configuredMode=off`, `effectiveMode=off`,
+    `killSwitchActive=true`, while the serving resolver must report `mode=held`
+    with unchanged pointer;
 11. write action, source/release-manifest/provider/database identity digests,
     before/after versions, reference ID when applicable, all probe statuses,
     replay result, and UTC timestamps to typed outputs and
@@ -818,19 +824,19 @@ locking remain authoritative.
 
 Ambiguous outcome: if the initial request's response is lost after send, retry
 the identical request with the same key up to three times with bounded backoff
-inside the job, then reconcile against the direct-database mode row and the
-mode API. Applied post-state plus a successful same-key replay closes the
-action; otherwise the run fails with the post-state recorded. A failed or lost
-run fails with its observed post-state in its own immutable GitHub run output.
-No new durable ambiguity record is introduced (this is a solo-internal tool
-where every production action is already a separate owner dispatch). Cross-run
-safety is the existing mode-row optimistic lock: the owner dispatches `readback`
-(read-only) to learn the true mode-row version, then dispatches the next action
-with that exact `expectedVersion`; if the ambiguous run had applied a mutation
-the version has advanced, so any stale `expectedVersion` is refused 409 by the
-existing lock before any state change. A workflow-safety test proves that a
-stale `expectedVersion` after an applied mutation is refused without mutation.
-The idempotency key lives only in job memory.
+inside the job, then reconcile against the direct-database mode row and serving
+resolver plus a successful same-key replay response. Applied post-state plus a
+successful same-key replay closes the action; if every replay response is lost,
+the run fails with the observed direct-database state recorded in its own
+immutable GitHub run output. No new durable ambiguity record is introduced (this
+is a solo-internal tool where every production action is already a separate
+owner dispatch). Cross-run safety is the existing mode-row optimistic lock: the
+owner dispatches `readback` (read-only) to learn the true mode-row version, then
+dispatches the next action with that exact `expectedVersion`; if the ambiguous
+run applied a mutation the version has advanced, so the item-6 pre-request fence
+refuses the stale `expectedVersion` and sends no request. The service-level 409
+on a stale version remains as defense in depth and is tested separately from the
+workflow. The idempotency key lives only in job memory.
 
 - [ ] **Step 5: Implement action-specific replay tests**
 

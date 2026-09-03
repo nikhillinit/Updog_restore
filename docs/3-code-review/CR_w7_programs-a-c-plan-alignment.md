@@ -14,13 +14,13 @@ identities, Program C targets specification gates only
 **Files Reviewed** (final SHA-256 after this disposition):
 
 - `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`
-  (overview, `6d8fb369...`)
+  (overview, `176af366...`)
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
-  (Program A, `717c28cf...`)
+  (Program A, `14177f9b...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
   (Program B, `17bcdc54...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
-  (Program C, `286a4fa3...`)
+  (Program C, `286a4fa3...` — Codex plan-review APPROVED at round 7)
 - `/tmp/updog-program-a-c-plan-handoff-2026-09-03.md` (session handoff)
 
 **Plan**: `docs/1-plans/F_1.11.0_isolated-activation-train.plan.md` (Program A
@@ -170,9 +170,9 @@ REQUEST_CHANGES (one P1) also fixed: the dev/test env-override seam let a
 production environment variable replace the stamped identity, so the module now
 reads the override only when `NODE_ENV === 'test'` and otherwise reads the
 stamped constant alone, with a test proving production cannot override. Round 7
-is running against `286a4fa3...`. Per Q9, this does not block Program A or
-overview finalization; only Program C specification authoring waits for
-convergence.
+returned **APPROVED** at `286a4fa3...` with no new findings: Program C's plan
+review has converged. Per Q9 its specification authoring may now proceed under
+the applicable Program A and Program B gates.
 
 **m6. Program A Codex review (parallel lane).** Round 1 REQUEST_CHANGES (five P1,
 two P2); all verified and remediated: recovery integration test moved to the
@@ -194,7 +194,14 @@ unsafe actions already perform plus `/api/health/db` (no new route), relying on
 the existing mode-row optimistic lock for cross-run safety (a stale
 `expectedVersion` after an applied mutation is refused 409, no new durable
 record), and making `expected_version` conditional on the four unsafe actions.
-Round 4 is running against `717c28cf...`.
+Round 4 REQUEST_CHANGES (one P1, three P2) accepted the right-sizing and fixed
+its consistency gaps: readback now authenticates the session before its
+`/api/health/db` probe (that endpoint requires `requireHealthKeyOrAuth`) and
+still sends no mutation request; the "mode API" references became direct-database
+mode row plus serving resolver; the stale-version outcome is refused by the
+item-6 pre-request fence with the service 409 kept as separately tested defense
+in depth; and the action-mapping test asserts readback builds no request. Round
+5 is running against `14177f9b...`.
 
 **m7. Program B Codex review (parallel lane) — one finding held for owner
 decision.** The lane returned REQUEST_CHANGES with two P1 and one P2. Two are
@@ -215,7 +222,11 @@ multi-lot grouping assertion changed from `toContainEqual` to a length-1
 command, and the stale "keep Program B out of the candidate" boundary lines in
 the Program B plan and the overview reconciled with Q3 (independently owned but
 admitted before candidate selection and included in the frozen candidate, never
-injected into an already-frozen one). Round 3 is running against `17bcdc54...`.
+injected into an already-frozen one). Round 3 accepted findings 1-4 and raised
+the final Q3-propagation P1: the overview Program Checklist still ran candidate
+selection and soak before the Program B step. Fixed by reordering the checklist
+so Program B is Step 2 (lands before candidate selection at Step 3) and
+renumbering. Round 4 is running against the reordered overview `176af366...`.
 
 ### Suggestions
 
