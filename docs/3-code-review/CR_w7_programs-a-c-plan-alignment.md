@@ -16,7 +16,7 @@ identities, Program C targets specification gates only
 - `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`
   (overview, `1a55dd10...`)
 - `docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md`
-  (Program A, `c83c573a...`)
+  (Program A, `717c28cf...`)
 - `docs/superpowers/plans/2026-09-03-internal-economics-v2-security-lineage.md`
   (Program B, `b2af7ac2...`; prior Codex approval at `cc6ec381...92c8`)
 - `docs/superpowers/plans/2026-09-03-decision-workspace-specification-gates.md`
@@ -175,7 +175,15 @@ P1) also verified and fixed: the rehearsal job sets `TEST_DATABASE_URL` (not
 reference suites in the Testcontainers path registry; `readback` is promoted from
 prose to a real read-only member of the `CurrentForecastAction` union and route
 mapping, with a workflow test proving fresh-key actions stay blocked until a
-readback resolution is recorded. Round 3 is running against `c83c573a...`.
+readback resolution is recorded. Round 3 REQUEST_CHANGES (two P1, one P2) was
+right-sized rather than built out: `readback` had mapped to a nonexistent GET
+route and implied a durable cross-run ambiguity state machine, over-built for a
+solo-internal tool. Fixed by reusing the direct-database mode-row reads the
+unsafe actions already perform plus `/api/health/db` (no new route), relying on
+the existing mode-row optimistic lock for cross-run safety (a stale
+`expectedVersion` after an applied mutation is refused 409, no new durable
+record), and making `expected_version` conditional on the four unsafe actions.
+Round 4 is running against `717c28cf...`.
 
 **m7. Program B Codex review (parallel lane) — one finding held for owner
 decision.** The lane returned REQUEST_CHANGES with two P1 and one P2. Two are
