@@ -156,24 +156,26 @@ Program C specification gates may run before activation
   governance-only partial
   state. Record one Phase P PR and one owner source-admission decision.
 
-- [ ] **Step 2: Select, certify, deploy, and bind Program A candidate**
+- [ ] **Step 2: Execute Program B independently, before candidate selection**
+
+  Run every task in the Program B plan and land it on `main` before Program A
+  candidate selection (Step 3), so the frozen candidate includes the V2 proceeds
+  fix and soaks it (Q3). Never inject it into an already-frozen candidate during
+  the hold window. Preserve affected serving admission as blocked until Program B
+  completes its own source-admission and release process. Program B may run in
+  parallel with Phase P; only its `main` landing must precede candidate
+  selection.
+
+- [ ] **Step 3: Select, certify, deploy, and bind Program A candidate**
 
   Execute Program A Tasks 6-10. Result must bind one newly selected SHA/tree to
   the canonical API, both workers, one database, one queue environment, and
-  migration tail 0055.
+  migration tail 0055. The candidate includes any Program B landing from Step 2.
 
-- [ ] **Step 3: Complete Program A evidence, soak, and terminal decision**
+- [ ] **Step 4: Complete Program A evidence, soak, and terminal decision**
 
   Execute Program A Tasks 11-13. Program A ends only with explicit NO-GO or with
   separately dispatched activation, kill, resume, and verified final mode.
-
-- [ ] **Step 4: Execute Program B independently**
-
-  Run every task in the Program B plan. Land it before Program A candidate
-  selection so the frozen candidate includes it (Q3); never inject it into an
-  already-frozen candidate during the hold window. Preserve affected serving
-  admission as blocked until Program B completes its own source-admission and
-  release process.
 
 - [ ] **Step 5: Complete Program C specification gates**
 
