@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { dbMock, selectChain } = vi.hoisted(() => {
   const selectChain = {
@@ -28,8 +28,10 @@ vi.mock('../../../server/observability/production-metrics.js', () => ({
 }));
 
 import {
+  createApprovalIfNeeded,
   DEFAULT_MIN_APPROVALS,
   computeStrategyHash,
+  requiresApproval,
   verifyApproval,
 } from '../../../server/lib/approvals-guard';
 
@@ -48,6 +50,52 @@ const signature = (partnerId: string, partnerEmail: string) => ({
 });
 
 describe('approvals guard defaults', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hashes canonical strategy inputs deterministically', () => {
+    const hash = computeStrategyHash({
+      fund: { id: '123', name: 'Test Fund' },
+      companies: [{ id: 'c1', invested: 100_000 }],
+    });
+
+    expect(hash).toBe(
+      computeStrategyHash({
+        companies: [{ invested: 100_000, id: 'c1' }],
+        fund: { name: 'Test Fund', id: '123' },
+      })
+    );
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('requires approval at the amount and fund-count thresholds', () => {
+    expect(requiresApproval('create', 999_999, 2)).toBe(false);
+    expect(requiresApproval('create', 1_000_000, 1)).toBe(true);
+    expect(requiresApproval('create', 1, 3)).toBe(true);
+    expect(requiresApproval('delete', 0, 0)).toBe(true);
+    expect(requiresApproval('update', 1, 1)).toBe(true);
+  });
+
+  it('skips approval creation and database access for low-impact creates', async () => {
+    await expect(
+      createApprovalIfNeeded(
+        'test-strategy',
+        'create',
+        { reserves: 100_000 },
+        'Small allocation test',
+        'admin@test.com',
+        {
+          affectedFunds: ['fund1'],
+          estimatedAmount: 100_000,
+          riskLevel: 'low',
+        }
+      )
+    ).resolves.toEqual({ requiresApproval: false });
+    expect(dbMock.select).not.toHaveBeenCalled();
+    expect(dbMock.execute).not.toHaveBeenCalled();
+  });
+
   // Uses the REAL validateDistinctSigners: it requires two unique signers, so
   // this test proves the guard skips it at the single-signature threshold.
   it('accepts one distinct signature, including requester self-signing', async () => {

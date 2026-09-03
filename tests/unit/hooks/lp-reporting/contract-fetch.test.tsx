@@ -57,4 +57,13 @@ describe('contractFetch', () => {
       status: 200,
     });
   });
+
+  it('preserves network rejections', async () => {
+    const networkError = new TypeError('fetch failed');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(networkError);
+
+    await expect(
+      contractFetch('/api/test', {}, SuccessSchema, 'contract mismatch')
+    ).rejects.toBe(networkError);
+  });
 });

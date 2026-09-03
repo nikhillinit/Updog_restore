@@ -79,17 +79,16 @@ export class LPReportingCache {
         logger.debug(logContext, hitMessage);
         return this.parseCachedValue<T>(cached);
       }
-
-      const data = await fetchFn();
-      if (data !== null && data !== undefined) {
-        await this.set(key, data, ttl, tags);
-      }
-
-      return data;
     } catch (error) {
       logger.error({ ...logContext, error }, errorMessage);
-      return fetchFn();
     }
+
+    const data = await fetchFn();
+    if (data !== null && data !== undefined) {
+      await this.set(key, data, ttl, tags);
+    }
+
+    return data;
   }
 
   // =========================================================================

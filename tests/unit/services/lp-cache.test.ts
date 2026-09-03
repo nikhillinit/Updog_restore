@@ -60,6 +60,40 @@ describe('LPReportingCache', () => {
     );
   });
 
+  it('does not retry a failed origin fetch', async () => {
+    const redis = createRedis();
+    const cache = createLPCache(redis as unknown as Redis);
+    const error = new Error('origin failed');
+    const fetchSummary = vi.fn().mockRejectedValue(error);
+
+    await expect(cache.getLPSummary('lp-1', fetchSummary)).rejects.toBe(error);
+    expect(fetchSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls through to one origin fetch when Redis get fails', async () => {
+    const redis = createRedis();
+    redis.get.mockRejectedValueOnce(new Error('redis unavailable'));
+    const cache = createLPCache(redis as unknown as Redis);
+    const fetchSummary = vi.fn().mockResolvedValue({ committed: 1000 });
+
+    await expect(cache.getLPSummary('lp-1', fetchSummary)).resolves.toEqual({
+      committed: 1000,
+    });
+    expect(fetchSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls through to one origin fetch when cached JSON is invalid', async () => {
+    const redis = createRedis();
+    redis.store.set('lp:lp-1:summary', 'not-json');
+    const cache = createLPCache(redis as unknown as Redis);
+    const fetchSummary = vi.fn().mockResolvedValue({ committed: 1000 });
+
+    await expect(cache.getLPSummary('lp-1', fetchSummary)).resolves.toEqual({
+      committed: 1000,
+    });
+    expect(fetchSummary).toHaveBeenCalledTimes(1);
+  });
+
   it('invalidates keys that match a tag pattern', async () => {
     const redis = createRedis();
     const cache = createLPCache(redis as unknown as Redis);
