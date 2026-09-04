@@ -2,6 +2,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { db } from '../../../server/db';
 import type { CurrentPlanVersionV1 } from '../../../shared/contracts/current-plan-version-v1.contract';
 import type { StructuredWarning } from '../../../shared/contracts/provenance-envelope.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
@@ -14,10 +15,15 @@ import {
   buildResult,
   buildValue,
   getLatestConstructionReconciliation,
+  runConstructionReconciliation,
   reduceState,
   structuredWarningsFromFacts,
   type ConstructionReconciliationActualFact,
 } from '../../../server/services/construction-reconciliation-service';
+import { currentPlanVersions, type CurrentPlanVersionRow } from '../../../shared/schema/current-plans';
+import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
+import { funds, fundSnapshots, type FundSnapshot } from '../../../shared/schema/fund';
+import { financialFactsRowV5 } from '../fixtures/financial-facts-payload5';
 
 const CONTRACT_VERSION = 'construction-reconciliation/1.0.0';
 const ENGINE_VERSION = 'construction-rec-v1';
@@ -26,6 +32,16 @@ const FUND_ID = 1;
 const PLAN_ID = 11;
 const FACTS_ID = 31;
 const AS_OF_DATE = '2026-07-21';
+
+function queryRows<T>(rows: readonly T[]) {
+  const values = [...rows];
+  const query = {
+    where: (_condition: unknown) => query,
+    orderBy: (..._order: unknown[]) => query,
+    limit: (count: number) => Promise.resolve(values.slice(0, count)),
+  };
+  return query;
+}
 
 const basis: CalcBasis = {
   contractVersion: CALC_SUBSTRATE_CONTRACT_VERSION,
@@ -207,6 +223,100 @@ function latestDatabase(rows: ReturnType<typeof makeStoredRow>[]) {
   };
 }
 
+function makePlanRow(): CurrentPlanVersionRow {
+  const plan = makePlan();
+  return {
+    id: PLAN_ID,
+    fundId: FUND_ID,
+    version: 1,
+    sourceConfigId: 2,
+    sourceConfigVersion: 1,
+    sourceFactsSnapshotId: FACTS_ID,
+    deployableCapitalUsd: plan.deployableCapitalUsd,
+    planTransformationVersion: plan.planTransformationVersion,
+    allocations: plan.allocations,
+    pacingAssumptions: plan.pacingAssumptions,
+    cohortAssumptions: plan.cohortAssumptions,
+    reservePolicyVersion: plan.reservePolicyVersion,
+    assumptionsHash: plan.assumptionsHash,
+    supersedesVersionId: null,
+    supersededByVersionId: null,
+    idempotencyKey: 'plan-11',
+    requestHash: 'a'.repeat(64),
+    createdAt: new Date('2026-07-21T12:00:00.000Z'),
+  };
+}
+
+class ConstructionRunDatabase {
+  readonly planRow = makePlanRow();
+  readonly factsRow = financialFactsRowV5(FACTS_ID);
+  readonly fundSnapshotRows: FundSnapshot[] = [];
+  private nextSnapshotId = 701;
+
+  asDatabase(): typeof db {
+    return this as unknown as typeof db;
+  }
+
+  select(fields?: Record<string, unknown>) {
+    return {
+      from: (table: unknown) => {
+        if (fields !== undefined) {
+          if (table === funds) return queryRows([{ id: FUND_ID }]);
+          if (table === currentPlanVersions) return queryRows([{ id: this.planRow.id }]);
+          if (table === financialFactsSnapshots) return queryRows([{ id: this.factsRow.id }]);
+        }
+        if (table === currentPlanVersions) return queryRows([this.planRow]);
+        if (table === financialFactsSnapshots) return queryRows([this.factsRow]);
+        if (table === fundSnapshots) return queryRows(this.fundSnapshotRows);
+        return queryRows([]);
+      },
+    };
+  }
+
+  insert(table: unknown) {
+    return {
+      values: (values: Record<string, unknown>) => ({
+        returning: async () => {
+          if (table !== fundSnapshots) return [];
+
+          const row = {
+            id: this.nextSnapshotId++,
+            fundId: values['fundId'] as number,
+            type: values['type'] as string,
+            payload: values['payload'],
+            calcVersion: values['calcVersion'] as string,
+            correlationId: values['correlationId'] as string,
+            metadata: values['metadata'] ?? null,
+            snapshotTime: values['snapshotTime'] as Date,
+            eventCount: 0,
+            stateHash: (values['stateHash'] as string | null | undefined) ?? null,
+            state: values['state'] ?? null,
+            runId: null,
+            configId: null,
+            configVersion: null,
+            scenarioSetId: null,
+            h9MoicSourceInputHash: null,
+            h9RoundEvidenceInputHash: null,
+            h9RoundEvidenceAssumptionsHash: null,
+            h9FingerprintHash: null,
+            h9PolicyVersion: null,
+            h9ActionabilityStatus: null,
+            createdAt: new Date('2026-07-22T02:00:00.000Z'),
+          } as FundSnapshot;
+          this.fundSnapshotRows.push(row);
+          return [row];
+        },
+      }),
+    };
+  }
+
+  async execute(_query: unknown): Promise<void> {}
+
+  transaction<T>(callback: (transaction: this) => Promise<T>): Promise<T> {
+    return callback(this);
+  }
+}
+
 function renderOrderClause(clause: unknown): string {
   return new PgDialect().sqlToQuery((clause as SQL<unknown>).getSQL()).sql;
 }
@@ -317,6 +427,48 @@ describe('construction reconciliation calculation', () => {
     ) as typeof result.value;
 
     expect(computeResultHash(result.basis, reorderedValue)).toBe(result.resultHash);
+  });
+});
+
+describe('construction reconciliation payload-5 adoption', () => {
+  it('runs from a payload-5 facts head and carries its basis reference through readback', async () => {
+    const database = new ConstructionRunDatabase();
+
+    const run = await runConstructionReconciliation({
+      fundId: FUND_ID,
+      idempotencyKey: 'construction-payload-5',
+      request: {
+        contractVersion: CONTRACT_VERSION,
+        fundId: FUND_ID,
+        currentPlanVersionId: PLAN_ID,
+        financialFactsSnapshotId: FACTS_ID,
+      },
+      database: database.asDatabase(),
+    });
+    const facts = database.factsRow;
+    const expectedBasisRef = {
+      schemaId: 'financial-facts-basis-ref/1.0.0',
+      fundId: facts.fundId,
+      snapshotId: facts.id,
+      snapshotInputHash: facts.snapshotInputHash,
+      sourceFactsInputHash: facts.sourceFactsInputHash,
+      policyVersion: facts.policyVersion,
+      asOfDate: facts.asOfDate,
+      knowledgeCutoff: facts.knowledgeCutoff.toISOString(),
+    };
+
+    expect(run.persisted).toBe(true);
+    expect(run.envelope.result.basisRef).toEqual(expectedBasisRef);
+    expect(database.fundSnapshotRows[0]?.metadata).toMatchObject({ basisRef: expectedBasisRef });
+
+    const latest = await getLatestConstructionReconciliation(FUND_ID, {
+      database: database.asDatabase(),
+    });
+    expect(latest).toMatchObject({
+      state: 'persisted',
+      basisRef: expectedBasisRef,
+      result: { basisRef: expectedBasisRef },
+    });
   });
 });
 

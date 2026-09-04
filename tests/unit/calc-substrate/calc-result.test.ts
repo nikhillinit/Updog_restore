@@ -5,9 +5,11 @@ import {
   type CalcBasis,
 } from '../../../shared/core/calc-substrate/calc-basis';
 import {
+  createCalcResultSchema,
   GenericCalcResultSchema,
   toDatasetTrustState,
 } from '../../../shared/core/calc-substrate/calc-result';
+import { z } from 'zod';
 
 const SHA_A = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
@@ -68,6 +70,20 @@ describe('CalcBasisSchema', () => {
 });
 
 describe('GenericCalcResultSchema', () => {
+  it('keeps result schemas without extraShape strict and backward compatible', () => {
+    const schema = createCalcResultSchema(z.unknown());
+    const result = {
+      state: 'available' as const,
+      basis: validBasis,
+      value: { totalReserve: '100' },
+      resultHash: SHA_C,
+      reasonCodes: [] as const,
+    };
+
+    expect(schema.parse(result)).toEqual(result);
+    expect(schema.safeParse({ ...result, basisRef: {} }).success).toBe(false);
+  });
+
   it('accepts a valid available result', () => {
     const parsed = GenericCalcResultSchema.safeParse({
       state: 'available',

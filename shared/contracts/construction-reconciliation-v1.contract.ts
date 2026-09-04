@@ -23,6 +23,7 @@ import { z } from 'zod';
 
 import { createCalcResultSchema, toDatasetTrustState } from '../core/calc-substrate/calc-result';
 import { MoneyDecimalStringSchema } from '../lib/decimal-string';
+import { FinancialFactsBasisRefSchema } from './financial-facts-snapshot-v1.contract';
 import { DatasetTrustStateSchema, StructuredWarningSchema } from './provenance-envelope.contract';
 
 const PositiveIdSchema = z.number().int().positive();
@@ -65,7 +66,8 @@ export const ConstructionReconciliationValueSchema = z
   .strict();
 
 export const ConstructionReconciliationResultSchema = createCalcResultSchema(
-  ConstructionReconciliationValueSchema
+  ConstructionReconciliationValueSchema,
+  { basisRef: FinancialFactsBasisRefSchema.optional() }
 );
 
 function validateTrustState(
@@ -103,6 +105,7 @@ export const ConstructionReconciliationPersistedPresentationEnvelopeSchema = z
     currentPlanVersionId: PositiveIdSchema,
     financialFactsSnapshotId: PositiveIdSchema,
     asOfDate: IsoDateSchema,
+    basisRef: FinancialFactsBasisRefSchema.optional(),
   })
   .strict();
 

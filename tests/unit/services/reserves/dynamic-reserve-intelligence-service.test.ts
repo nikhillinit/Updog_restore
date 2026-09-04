@@ -28,6 +28,7 @@ import {
 } from '../../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { financialFactsSnapshots } from '../../../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../../../shared/schema/fund';
+import { financialFactsSnapshotV5 } from '../../fixtures/financial-facts-payload5';
 
 const NOW = new Date('2026-07-29T20:00:00.000Z');
 const HASH_A = 'a'.repeat(64);
@@ -261,8 +262,10 @@ function factsRow(snapshot = factsSnapshot()): FactsRow {
     fundId: snapshot.fundId,
     policyVersion: snapshot.policyVersion,
     payloadSchemaId:
-      snapshot.policyVersion === 'financial-facts-policy/1.3.0'
-        ? 'financial-facts-payload/4'
+      snapshot.policyVersion === 'financial-facts-policy/1.4.0'
+        ? 'financial-facts-payload/5'
+        : snapshot.policyVersion === 'financial-facts-policy/1.3.0'
+          ? 'financial-facts-payload/4'
         : snapshot.policyVersion === 'financial-facts-policy/1.2.0'
           ? 'financial-facts-payload/3'
           : snapshot.policyVersion === 'financial-facts-policy/1.1.0'
@@ -554,6 +557,29 @@ describe('dynamic reserve intelligence service', () => {
     expect(seamSource).not.toContain('currentPlanVersions');
     expect(serviceSource).not.toContain('facts-reserve-input-adapter');
     expect(seamSource).not.toContain('facts-reserve-input-adapter');
+  });
+
+  it('runs from a payload-5 facts head and persists its basis reference', async () => {
+    const database = new FakeDatabase();
+    const facts = financialFactsSnapshotV5();
+    database.facts = factsRow(facts);
+
+    const response = await createDynamicReserveIntelligenceRun(
+      runInput(dependencies(database))
+    );
+    const expectedBasisRef = {
+      schemaId: 'financial-facts-basis-ref/1.0.0',
+      fundId: facts.fundId,
+      snapshotId: database.facts.id,
+      snapshotInputHash: facts.snapshotInputHash,
+      sourceFactsInputHash: facts.sourceFactsInputHash,
+      policyVersion: facts.policyVersion,
+      asOfDate: facts.asOfDate,
+      knowledgeCutoff: facts.knowledgeCutoff,
+    };
+
+    expect(response.result.basisRef).toEqual(expectedBasisRef);
+    expect(database.inserts[0]?.['payload']).toMatchObject({ basisRef: expectedBasisRef });
   });
 
   it('records unknown overlay companies as constraint findings', async () => {

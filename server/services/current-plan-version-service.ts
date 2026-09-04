@@ -3,7 +3,6 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { runIdempotentCommand } from '../lib/idempotent-command';
-import { FINANCIAL_FACTS_POLICY_VERSION_1_4_0 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { FundDraftWriteV1Schema } from '../../shared/contracts/fund-draft-write-v1.contract';
 import {
   CurrentPlanVersionV1Schema,
@@ -61,15 +60,11 @@ export interface GetCurrentPlanVersionsInput {
 
 function factsSnapshotFromRow(row: FactsSnapshotRow) {
   const parsed = parsePersistedFactsRow(row);
-  if (
-    parsed.kind === 'unsupported' ||
-    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
-  ) {
-    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+  if (parsed.kind === 'unsupported') {
     throw new CurrentPlanVersionServiceError(
       422,
       'UNSUPPORTED_FACTS_POLICY',
-      `Financial-facts policy ${policyVersion} is not supported by current plan derivation.`
+      `Financial-facts policy ${parsed.policyVersion} is not supported by current plan derivation.`
     );
   }
   return parsed.snapshot;

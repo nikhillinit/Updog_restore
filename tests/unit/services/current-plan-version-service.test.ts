@@ -255,22 +255,18 @@ describe('current plan version service', () => {
     expect(plan.sourceFactsSnapshotId).toBe('31');
   });
 
-  it('refuses a policy-1.4 row through the typed unsupported-policy path', async () => {
+  it('mints a plan from a payload-5 facts head', async () => {
     const fakeDb = new FakeCurrentPlanDb();
     fakeDb.factsRows[0] = factsRowV5();
 
-    const error = await mintCurrentPlanVersion({
+    const plan = await mintCurrentPlanVersion({
       fundId: 1,
-      idempotencyKey: 'plan-payload-5-rejected',
+      idempotencyKey: 'plan-payload-5',
       database: fakeDb.asDatabase(),
-    }).catch((caught: unknown) => caught);
-
-    expect(error).toBeInstanceOf(CurrentPlanVersionServiceError);
-    expect(error).toMatchObject({
-      status: 422,
-      code: 'UNSUPPORTED_FACTS_POLICY',
     });
-    expect(fakeDb.currentPlanRows).toHaveLength(0);
+
+    expect(plan.sourceFactsSnapshotId).toBe('31');
+    expect(fakeDb.currentPlanRows).toHaveLength(1);
   });
 });
 
