@@ -95,6 +95,7 @@ export function makeApp() {
         'Access-Control-Allow-Headers',
         'content-type, authorization, x-csrf-token, x-request-id, if-match, idempotency-key, x-artifact-file-name, x-artifact-source-type'
       );
+      res.setHeader('Access-Control-Expose-Headers', 'ETag, Retry-After, X-Request-ID');
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
