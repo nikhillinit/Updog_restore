@@ -15,7 +15,7 @@ import {
   type CurrentPlanVersionV1,
 } from '../../shared/contracts/current-plan-version-v1.contract';
 import {
-  PersistedFinancialFactsSnapshotV1Schema,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
@@ -30,6 +30,7 @@ import {
 } from '../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
+import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row';
 
 export type CurrentForecastDatabase = typeof db;
 type CurrentForecastTransaction = Parameters<
@@ -43,6 +44,7 @@ export const CURRENT_FORECAST_V2_CALC_VERSION = 'cf-v2/1.0.0' as const;
 export type CurrentForecastV2ServiceErrorCode =
   | 'NO_CURRENT_PLAN_VERSION'
   | 'NO_FACTS_SNAPSHOT'
+  | 'UNSUPPORTED_FACTS_POLICY'
   | 'FACTS_FORECAST_EVALUATION_BLOCKED'
   | 'FORECAST_SNAPSHOT_WRITE_FAILED'
   | 'CURRENT_FORECAST_BASIS_MISMATCH';
@@ -101,45 +103,19 @@ function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersi
 }
 
 function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
-  const persisted = {
-    policyVersion: row.policyVersion,
-    payloadSchemaId: row.payloadSchemaId,
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  };
-  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
-
-  const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    ...(row.policyVersion === 'financial-facts-policy/1.1.0' ||
-    row.policyVersion === 'financial-facts-policy/1.2.0' ||
-    row.policyVersion === 'financial-facts-policy/1.3.0'
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : {}),
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
-  return { ...snapshot, id: row.id };
+  const parsed = parsePersistedFactsRow(row);
+  if (
+    parsed.kind === 'unsupported' ||
+    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+  ) {
+    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+    throw new CurrentForecastV2ServiceError(
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${policyVersion} is not supported by Current Forecast V2.`
+    );
+  }
+  return parsed.snapshot;
 }
 
 async function loadCurrentPlanVersion(

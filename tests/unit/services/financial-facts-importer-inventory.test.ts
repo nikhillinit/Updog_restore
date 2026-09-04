@@ -7,9 +7,12 @@ const SERVER_ROOT = path.resolve(process.cwd(), 'server');
 const PAYLOAD_EVALUATION_READERS = new Set([
   'server/services/construction-reconciliation-service.ts',
   'server/services/current-forecast-v2-service.ts',
-  'server/services/financial-facts-snapshot-service.ts',
   'server/services/internal-economics/lp-economics-run-service.ts',
   'server/services/reserves/dynamic-reserve-intelligence-service.ts',
+]);
+
+const DIRECT_FACTS_WRITERS = new Set([
+  'server/services/financial-facts-snapshot-service.ts',
 ]);
 
 const EXEMPT_ID_ONLY_LOOKUPS = {
@@ -57,6 +60,7 @@ const actualImporters = walk(SERVER_ROOT)
 
 const expectedImporters = [
   ...PAYLOAD_EVALUATION_READERS,
+  ...DIRECT_FACTS_WRITERS,
   ...Object.keys(EXEMPT_ID_ONLY_LOOKUPS),
 ].sort();
 
@@ -65,11 +69,10 @@ describe('financialFactsSnapshots importer inventory', () => {
     expect(actualImporters).toEqual(expectedImporters);
   });
 
-  it('keeps every codec-required reader on hand-rolled parsing until Phase 2', () => {
+  it('requires every codec-required reader to import the shared codec', () => {
     for (const reader of CODEC_REQUIRED_READERS) {
       const source = stripComments(fs.readFileSync(path.resolve(process.cwd(), reader), 'utf8'));
-      // TODO(Phase 2): flip to expect(...).toContain(CODEC_MODULE) once the codec exists.
-      expect(source, reader).not.toContain(CODEC_MODULE);
+      expect(source, reader).toContain(CODEC_MODULE);
     }
   });
 });
