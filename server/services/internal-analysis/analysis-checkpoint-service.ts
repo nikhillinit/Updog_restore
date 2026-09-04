@@ -52,6 +52,7 @@ import {
   type QuarterlyReviewCommandResult,
 } from '../../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+import { FINANCIAL_FACTS_POLICY_VERSION_1_4_0 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { internalLpEconomicsRuns } from '../../../shared/schema/internal-economics';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import { db } from '../../db';
@@ -1388,6 +1389,14 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
         idempotencyKey: input.idempotencyKey,
         database,
       });
+
+      if (snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+        throw new AnalysisCheckpointServiceError(
+          422,
+          'UNSUPPORTED_FACTS_POLICY',
+          'The financial-facts policy is not supported by periodic analysis.'
+        );
+      }
 
       // buildFinancialFactsSnapshot returns the wire contract, which carries no row
       // id. Resolve it deterministically through the fund-scoped identity unique

@@ -28,11 +28,8 @@ import {
   type ConstructionReconciliationResult,
 } from '../../shared/contracts/construction-reconciliation-v1.contract.js';
 import {
-  FinancialFactsPayloadV1_0_0Schema,
-  FinancialFactsPayloadV1Schema,
-  FinancialFactsPayloadV2Schema,
-  FinancialFactsPayloadV3Schema,
-  FinancialFactsPayloadV4Schema,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract.js';
 import {
   CurrentPlanVersionV1Schema,
@@ -61,6 +58,7 @@ import {
   type FinancialFactsSnapshot,
 } from '../../shared/schema/financial-facts-snapshots.js';
 import { funds, fundSnapshots } from '../../shared/schema/fund.js';
+import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row.js';
 
 const routeLog = createRouteLogger('construction-reconciliation');
 
@@ -78,15 +76,7 @@ type ConstructionReconciliationExecutor =
   ConstructionReconciliationDatabase | ConstructionReconciliationTransaction;
 type FundSnapshotRow = typeof fundSnapshots.$inferSelect;
 
-const FinancialFactsPayloadSchema = z.union([
-  FinancialFactsPayloadV1_0_0Schema,
-  FinancialFactsPayloadV1Schema,
-  FinancialFactsPayloadV2Schema,
-  FinancialFactsPayloadV3Schema,
-  FinancialFactsPayloadV4Schema,
-]);
-
-type FactsPayload = z.infer<typeof FinancialFactsPayloadSchema>;
+type FactsPayload = PersistedFinancialFactsSnapshotV1['payload'];
 export type ConstructionReconciliationActualFact = FactsPayload['companyActuals']['facts'][number];
 
 const SnapshotMetadataSchema = z
@@ -433,16 +423,20 @@ async function loadCurrentFactsSnapshot(
     );
   }
 
-  const parsedPayload = FinancialFactsPayloadSchema.safeParse(row.payload);
-  if (!parsedPayload.success) {
+  const parsed = parsePersistedFactsRow(row);
+  if (
+    parsed.kind === 'unsupported' ||
+    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+  ) {
+    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
     throw new ConstructionReconciliationServiceError(
-      500,
-      'FINANCIAL_FACTS_SNAPSHOT_INVALID',
-      'The selected financial-facts snapshot does not satisfy its persisted contract.'
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${policyVersion} is not supported by construction reconciliation.`
     );
   }
 
-  const payload = parsedPayload.data;
+  const payload = parsed.snapshot.payload;
   if (
     payload.companyActuals.fundId !== fundId ||
     payload.companyActuals.asOfDate !== row.asOfDate ||

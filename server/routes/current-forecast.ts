@@ -121,6 +121,7 @@ function currentPlanVersionErrorStatus(error: CurrentPlanVersionServiceError): 4
     case 'CURRENT_PLAN_HEAD_CONFLICT':
       return 409;
     case 'NO_FACTS_SNAPSHOT':
+    case 'UNSUPPORTED_FACTS_POLICY':
     case 'PLAN_DERIVATION_INCOMPLETE':
     case 'OWNERSHIP_STRATEGY_UNSUPPORTED':
     case 'FEE_PROFILE_ABSENT':
@@ -134,6 +135,7 @@ function currentForecastErrorStatus(error: CurrentForecastV2ServiceError): 409 |
     case 'CURRENT_FORECAST_BASIS_MISMATCH':
       return 409;
     case 'NO_FACTS_SNAPSHOT':
+    case 'UNSUPPORTED_FACTS_POLICY':
     case 'FACTS_FORECAST_EVALUATION_BLOCKED':
       return 422;
     case 'FORECAST_SNAPSHOT_WRITE_FAILED':
