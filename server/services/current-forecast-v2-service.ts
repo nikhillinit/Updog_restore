@@ -30,6 +30,7 @@ import {
 } from '../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
+import { basisRefFromPersistedSnapshot } from './financial-facts/financial-facts-basis-ref';
 import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row';
 
 export type CurrentForecastDatabase = typeof db;
@@ -51,13 +52,18 @@ export type CurrentForecastV2ServiceErrorCode =
 
 export class CurrentForecastV2ServiceError extends Error {
   readonly statusCode: number;
-  readonly basisMismatchCode: CurrentForecastBasisMismatchCode | undefined;
+  readonly basisMismatchCode:
+    | CurrentForecastBasisMismatchCode
+    | 'PLAN_FACTS_HEAD_MISMATCH'
+    | undefined;
 
   constructor(
     readonly status: number,
     readonly code: CurrentForecastV2ServiceErrorCode,
     message: string,
-    options?: { basisMismatchCode?: CurrentForecastBasisMismatchCode }
+    options?: {
+      basisMismatchCode?: CurrentForecastBasisMismatchCode | 'PLAN_FACTS_HEAD_MISMATCH';
+    }
   ) {
     super(message);
     this.name = 'CurrentForecastV2ServiceError';
@@ -104,15 +110,11 @@ function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersi
 
 function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
   const parsed = parsePersistedFactsRow(row);
-  if (
-    parsed.kind === 'unsupported' ||
-    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
-  ) {
-    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+  if (parsed.kind === 'unsupported') {
     throw new CurrentForecastV2ServiceError(
       422,
       'UNSUPPORTED_FACTS_POLICY',
-      `Financial-facts policy ${policyVersion} is not supported by Current Forecast V2.`
+      `Financial-facts policy ${parsed.policyVersion} is not supported by Current Forecast V2.`
     );
   }
   return parsed.snapshot;
@@ -251,6 +253,17 @@ export async function runCurrentForecastV2WithReceipt(
       'The financial-facts snapshot blocks Current Forecast V2.'
     );
   }
+  if (
+    facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+    plan.sourceFactsSnapshotId !== String(facts.id)
+  ) {
+    throw new CurrentForecastV2ServiceError(
+      409,
+      'CURRENT_FORECAST_BASIS_MISMATCH',
+      'A policy-1.4 forecast requires a plan minted from the same financial-facts head.',
+      { basisMismatchCode: 'PLAN_FACTS_HEAD_MISMATCH' }
+    );
+  }
   const engineInput = CurrentForecastV2InputSchema.parse({
     fundId: input.fundId,
     financialFactsSnapshotId: String(facts.id),
@@ -262,7 +275,14 @@ export async function runCurrentForecastV2WithReceipt(
 
   let result: CurrentForecastV2;
   try {
-    result = runCohortProjectionV2(engineInput, plan, facts);
+    const projected = runCohortProjectionV2(engineInput, plan, facts);
+    result =
+      facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+        ? CurrentForecastV2Schema.parse({
+            ...projected,
+            basisRef: basisRefFromPersistedSnapshot(facts, facts.id),
+          })
+        : projected;
   } catch (error) {
     if (error instanceof CurrentForecastBasisMismatchError) {
       throw new CurrentForecastV2ServiceError(

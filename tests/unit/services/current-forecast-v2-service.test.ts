@@ -9,6 +9,11 @@ import {
   runCurrentForecastV2WithReceipt,
 } from '../../../server/services/current-forecast-v2-service';
 import { NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE } from '../../../server/lib/transaction-support';
+import {
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FinancialFactsPayloadV5Schema,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../../shared/schema/fund';
@@ -273,6 +278,49 @@ describe('current forecast v2 service', () => {
     expect(fakeDb.insertedSnapshots).toHaveLength(1);
   });
 
+  it('refuses a policy-1.4 forecast when the plan references a predecessor facts head', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.factsRows[0] = factsRowV5();
+    fakeDb.planRows[0] = currentPlanRow({ sourceFactsSnapshotId: 30 });
+
+    await expect(
+      runCurrentForecastV2WithReceipt({
+        fundId: 1,
+        clock: '2026-07-22T18:24:32.051Z',
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'CURRENT_FORECAST_BASIS_MISMATCH',
+      basisMismatchCode: 'PLAN_FACTS_HEAD_MISMATCH',
+    });
+    expect(fakeDb.insertedSnapshots).toHaveLength(0);
+  });
+
+  it('runs from a payload-5 facts head and persists its basis reference', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.factsRows[0] = factsRowV5();
+
+    const receipt = await runCurrentForecastV2WithReceipt({
+      fundId: 1,
+      clock: '2026-07-22T18:24:32.051Z',
+      database: fakeDb.asDatabase(),
+    });
+    const expectedBasisRef = {
+      schemaId: 'financial-facts-basis-ref/1.0.0',
+      fundId: 1,
+      snapshotId: 31,
+      snapshotInputHash: 'd'.repeat(64),
+      sourceFactsInputHash: 'c'.repeat(64),
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T02:00:00.000Z',
+    };
+
+    expect(receipt.result.basisRef).toEqual(expectedBasisRef);
+    expect(fakeDb.insertedSnapshots[0]?.payload).toMatchObject({ basisRef: expectedBasisRef });
+  });
+
   it('rejects facts rows whose stored policy and payload schema tuple is invalid', async () => {
     const fakeDb = new FakeCurrentForecastDb();
     fakeDb.factsRows[0] = factsRow({
@@ -485,5 +533,162 @@ function factsRow(overrides: Partial<FactsRow> = {}): FactsRow {
     requestHash: 'f'.repeat(64),
     createdAt: new Date('2026-07-22T02:00:00.000Z'),
     ...overrides,
+  };
+}
+
+function unavailableMoney(reason = 'SOURCE_NOT_SUPPLIED') {
+  return {
+    value: null,
+    availability: 'unavailable' as const,
+    reasonCodes: [reason as 'SOURCE_NOT_SUPPLIED'],
+    sourceRefs: [],
+  };
+}
+
+function factsRowV5(): FactsRow {
+  const legacy = factsRow();
+  const payload = FinancialFactsPayloadV5Schema.parse({
+    ...(legacy.payload as Record<string, unknown>),
+    positionRefs: [],
+    positionComponentRefs: [],
+    ownershipRefs: [],
+    valuationRefs: [],
+    observationRefs: [],
+    openingAccountingState: null,
+    cashFlowSeries: {
+      series: [
+        {
+          eventType: 'lp_capital_call',
+          vehicleId: 11,
+          perspective: 'lp_net',
+          points: [
+            {
+              eventId: 51,
+              effectiveAt: '2026-07-01T00:00:00.000Z',
+              amount: '50.000000',
+            },
+          ],
+        },
+        {
+          eventType: 'portfolio_investment',
+          vehicleId: 11,
+          perspective: 'fund_gross',
+          points: [
+            {
+              eventId: 52,
+              effectiveAt: '2026-07-02T00:00:00.000Z',
+              amount: '40.000000',
+            },
+          ],
+        },
+      ],
+      totals: {
+        contributions: '50.000000',
+        distributions: '0.000000',
+        recallableDistributions: '0.000000',
+      },
+      warnings: [],
+    },
+    marksSeries: {
+      marks: [],
+      periodNav: [
+        {
+          periodEnd: '2026-06-30',
+          nav: '55.000000',
+          warnings: [
+            {
+              code: 'PERIOD_NAV_IS_POSITION_VALUE',
+              severity: 'warning',
+              message: 'Position-value NAV fixture.',
+              source: 'fixture:payload-5',
+            },
+          ],
+        },
+      ],
+      warnings: [],
+    },
+    vehicleRoster: [
+      {
+        vehicleId: 11,
+        vehicleType: 'main_fund',
+        vehicleSlug: 'main-fund',
+        name: 'Main Fund',
+        currency: 'USD',
+      },
+    ],
+    capitalActuals: {
+      ledgerCoverage: 'complete',
+      committedCapital: { value: '100.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      calledCapitalIssued: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      paidInCapital: { value: '50.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      deployedCapital: { value: '40.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      initialDeployedCapital: { value: '40.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      followOnDeployedCapital: unavailableMoney(),
+      secondaryDeployedCapital: unavailableMoney(),
+      otherDeployedCapital: unavailableMoney(),
+      managementFeesPaid: unavailableMoney(),
+      otherExpensesPaid: unavailableMoney(),
+      realizedFundProceeds: unavailableMoney(),
+      distributionsToPartners: unavailableMoney(),
+      recallableDistributions: unavailableMoney(),
+      netCalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      uncalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      availableRecallCapacity: unavailableMoney('RECALL_LIFECYCLE_UNAVAILABLE'),
+      portfolioFmv: { value: '55.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      fundCash: unavailableMoney(),
+      otherAssets: unavailableMoney(),
+      liabilities: unavailableMoney(),
+      nav: unavailableMoney('NAV_UNAVAILABLE'),
+      dpi: unavailableMoney('PAID_IN_ZERO'),
+      rvpi: unavailableMoney('NAV_UNAVAILABLE'),
+      tvpi: unavailableMoney('NAV_UNAVAILABLE'),
+    },
+    valuationActuals: {
+      valuationDate: '2026-07-21',
+      roster: [],
+      marks: [],
+      coverage: 'complete',
+      missingCompanyIds: [],
+    },
+    admissionReceiptCore: {
+      contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+      operationHash: 'e'.repeat(64),
+      fundId: 1,
+      asOfDate: '2026-07-21',
+      coverage: {
+        ledger: 'inception_to_date',
+        priorFactsSnapshotId: null,
+        evidenceNote: 'Current forecast payload-5 fixture.',
+      },
+      admitted: {
+        ledger: {
+          sourceArtifactId: 41,
+          payloadSha256: 'a'.repeat(64),
+          canonicalRowsHash: 'b'.repeat(64),
+          previewHash: 'c'.repeat(64),
+          approvedRowIds: [51, 52],
+          approvedCount: 2,
+        },
+        valuation: null,
+        importBatchId: '11111111-2222-3333-4444-555555555555',
+      },
+      facts: {
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+        payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+        supersedesSnapshotId: null,
+        knowledgeCutoff: '2026-07-22T02:00:00.000Z',
+      },
+      actor: { userId: 7 },
+    },
+  });
+
+  return {
+    ...legacy,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    sourceFactsInputHash: 'c'.repeat(64),
+    snapshotInputHash: 'd'.repeat(64),
+    payload,
+    consumerEvaluations: [{ consumer: 'forecast', status: 'accepted', reasons: [] }],
   };
 }

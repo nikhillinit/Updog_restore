@@ -30,7 +30,11 @@ const nonEmptyReasonCodes = z
   .array(CalcReasonCodeSchema)
   .min(1, 'non-available results must disclose at least one reason code');
 
-export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
+export function createCalcResultSchema<
+  V extends z.ZodTypeAny,
+  Extra extends z.ZodRawShape = {},
+>(valueSchema: V, extraShape?: Extra) {
+  const extra = (extraShape ?? {}) as Extra;
   const available = z
     .object({
       state: z.literal('available'),
@@ -38,6 +42,7 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
       value: valueSchema,
       resultHash: Sha256HexSchema,
       reasonCodes: z.array(CalcReasonCodeSchema).length(0),
+      ...extra,
     })
     .strict();
 
@@ -48,6 +53,7 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
       value: valueSchema,
       resultHash: Sha256HexSchema,
       reasonCodes: nonEmptyReasonCodes,
+      ...extra,
     })
     .strict();
 
@@ -56,6 +62,7 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
       state: z.literal('unavailable'),
       basis: CalcBasisSchema,
       reasonCodes: nonEmptyReasonCodes,
+      ...extra,
     })
     .strict();
 
@@ -65,13 +72,16 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
       basis: CalcBasisSchema,
       reasonCodes: nonEmptyReasonCodes,
       diagnostic: z.string().min(1).optional(),
+      ...extra,
     })
     .strict();
 
   return z
     .discriminatedUnion('state', [available, indicative, unavailable, failed])
     .superRefine((result, ctx) => {
-      const { basis } = result;
+      const baseResult = result as CalcResult<unknown>;
+      const { basis } = baseResult;
+      const reasonCodes = baseResult.reasonCodes as readonly string[];
       const carriesValue = result.state === 'available' || result.state === 'indicative';
       if (carriesValue && basis.effectiveMode === 'off') {
         ctx.addIssue({
@@ -80,7 +90,7 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
           message: `a ${result.state} value cannot come from an engine whose effectiveMode is off`,
         });
       }
-      if (basis.killSwitchActive && !result.reasonCodes.includes('KILL_SWITCH_ACTIVE')) {
+      if (basis.killSwitchActive && !reasonCodes.includes('KILL_SWITCH_ACTIVE')) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['reasonCodes'],
@@ -90,7 +100,7 @@ export function createCalcResultSchema<V extends z.ZodTypeAny>(valueSchema: V) {
       if (
         basis.effectiveMode === 'off' &&
         !basis.killSwitchActive &&
-        !result.reasonCodes.includes('MODE_OFF')
+        !reasonCodes.includes('MODE_OFF')
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

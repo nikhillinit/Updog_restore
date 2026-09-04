@@ -25,7 +25,6 @@ import {
 } from '../../../shared/contracts/dynamic-reserve-intelligence-v1.contract';
 import type { FundCompanyActualsFactsResponse } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import {
-  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import Decimal from '../../../shared/lib/decimal-config';
@@ -51,6 +50,7 @@ import {
 import { composeRankedReserveAllocation } from './ranked-reserve-orchestrator';
 import { buildRankedReserveInputFromSnapshot } from './ranked-reserve-input-from-snapshot';
 import { parsePersistedFactsRow } from '../financial-facts/parse-persisted-facts-row';
+import { basisRefFromPersistedSnapshot } from '../financial-facts/financial-facts-basis-ref';
 
 const SNAPSHOT_TYPE = 'RESERVE_INTELLIGENCE';
 
@@ -121,15 +121,11 @@ function dependencies(
 
 function snapshotFromRow(row: FinancialFactsSnapshot): PersistedFinancialFactsSnapshotV1 {
   const parsed = parsePersistedFactsRow(row);
-  if (
-    parsed.kind === 'unsupported' ||
-    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
-  ) {
-    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+  if (parsed.kind === 'unsupported') {
     throw new DynamicReserveIntelligenceServiceError(
       422,
       'UNSUPPORTED_FACTS_POLICY',
-      `Financial-facts policy ${policyVersion} is not supported by reserve intelligence.`
+      `Financial-facts policy ${parsed.policyVersion} is not supported by reserve intelligence.`
     );
   }
   const { id: _id, ...snapshot } = parsed.snapshot;
@@ -375,10 +371,15 @@ function buildPayload(input: {
         (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) ||
         left.companyId - right.companyId
     );
+  const basisRef = basisRefFromPersistedSnapshot(
+    input.factsSnapshot,
+    input.financialFactsSnapshotId
+  );
 
   return DynamicReserveIntelligencePayloadV1Schema.parse({
     contractVersion: DYNAMIC_RESERVE_INTELLIGENCE_CONTRACT_VERSION,
     fundId: input.fundId,
+    ...(basisRef === undefined ? {} : { basisRef }),
     actionability:
       input.effectiveMode === 'on' && input.h9Actionability === 'actionable' && !composed.failSafe
         ? 'actionable'
