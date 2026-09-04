@@ -250,7 +250,7 @@ describe('current plan version service', () => {
     expect(plan.sourceFactsSnapshotId).toBe('31');
   });
 
-  it('rejects a persisted payload-5 row at the current mint parse boundary', async () => {
+  it('routes a policy-1.4 row to the payload-5 schema at the mint parse boundary', async () => {
     const fakeDb = new FakeCurrentPlanDb();
     fakeDb.factsRows[0] = {
       ...factsRow(),
@@ -264,12 +264,12 @@ describe('current plan version service', () => {
       database: fakeDb.asDatabase(),
     }).catch((caught: unknown) => caught);
 
-    expect(error).toMatchObject({
-      name: 'ZodError',
-      issues: [
-        expect.objectContaining({ code: 'invalid_union_discriminator', path: ['policyVersion'] }),
-      ],
-    });
+    // Phase 1 widened the persisted union, so the discriminator now accepts 1.4 and the
+    // legacy fixture payload is what fails; Phase 2 replaces this with codec adoption.
+    expect(error).toMatchObject({ name: 'ZodError' });
+    const issues = (error as { issues: Array<{ path: unknown[] }> }).issues;
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.every((issue) => issue.path[0] === 'payload')).toBe(true);
     expect(fakeDb.currentPlanRows).toHaveLength(0);
   });
 });

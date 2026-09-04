@@ -18,9 +18,11 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
   PersistedFinancialFactsSnapshotV1Schema,
   type PersistedFinancialFactsSnapshotV1,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
@@ -92,6 +94,79 @@ const PAYLOAD_V2 = {
   observationRefs: [],
 };
 
+const unavailable = (reason: string) => ({
+  value: null,
+  availability: 'unavailable',
+  reasonCodes: [reason],
+  sourceRefs: [],
+});
+const CAPITAL_ACTUALS_V5 = Object.fromEntries(
+  [
+    'committedCapital',
+    'calledCapitalIssued',
+    'paidInCapital',
+    'deployedCapital',
+    'initialDeployedCapital',
+    'followOnDeployedCapital',
+    'secondaryDeployedCapital',
+    'otherDeployedCapital',
+    'managementFeesPaid',
+    'otherExpensesPaid',
+    'realizedFundProceeds',
+    'distributionsToPartners',
+    'recallableDistributions',
+    'netCalledCapital',
+    'uncalledCapital',
+    'availableRecallCapacity',
+    'portfolioFmv',
+    'fundCash',
+    'otherAssets',
+    'liabilities',
+    'nav',
+    'dpi',
+    'rvpi',
+    'tvpi',
+  ].map((field) => [field, unavailable('SOURCE_NOT_SUPPLIED')])
+);
+const PAYLOAD_V5 = {
+  ...PAYLOAD_V2,
+  openingAccountingState: null,
+  capitalActuals: { ledgerCoverage: 'partial', ...CAPITAL_ACTUALS_V5 },
+  valuationActuals: {
+    valuationDate: null,
+    roster: [],
+    marks: [],
+    coverage: 'not_supplied',
+    missingCompanyIds: [],
+  },
+  admissionReceiptCore: {
+    contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+    operationHash: 'd'.repeat(64),
+    fundId: 10,
+    asOfDate: '2026-01-31',
+    coverage: { ledger: 'inception_to_date', priorFactsSnapshotId: null, evidenceNote: 'fixture' },
+    admitted: {
+      ledger: {
+        sourceArtifactId: 1,
+        payloadSha256: 'e'.repeat(64),
+        canonicalRowsHash: 'f'.repeat(64),
+        previewHash: '1'.repeat(64),
+        approvedRowIds: [],
+        approvedCount: 0,
+      },
+      valuation: null,
+      importBatchId: '11111111-2222-3333-4444-555555555555',
+    },
+    facts: {
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+      supersedesSnapshotId: null,
+      knowledgeCutoff: '2026-01-31T23:59:59.000Z',
+    },
+    actor: { userId: 1 },
+  },
+};
+
 const PERSISTED_FIXTURES: Record<string, unknown> = {
   [FINANCIAL_FACTS_POLICY_VERSION_1_0_0]: {
     ...SNAPSHOT_ENVELOPE,
@@ -130,6 +205,12 @@ const PERSISTED_FIXTURES: Record<string, unknown> = {
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
     payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
     payload: { ...PAYLOAD_V2, openingAccountingState: null },
+  },
+  [FINANCIAL_FACTS_POLICY_VERSION_1_4_0]: {
+    ...SNAPSHOT_ENVELOPE,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    payload: PAYLOAD_V5,
   },
 };
 
