@@ -18,6 +18,7 @@ import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governan
 import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 import {
   canonicalRowId,
+  authMiddlewareCallLine,
   AUTH_UNRESOLVED_ROLE,
   assertAuthRoleMappingExhaustive,
   BootProofDocumentSchema,
@@ -84,20 +85,20 @@ const GLOBAL_AUTH_BOUNDARIES = Object.freeze({
   make_app: Object.freeze({
     boundary: 'global_authenticated',
     file: 'server/app.ts',
-    line: 175,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/app.ts'), 'utf8'), 'requireApiAuth'),
     middleware: 'requireApiAuth',
   }),
   create_server: Object.freeze({
     boundary: 'global_authenticated',
     file: 'server/server.ts',
-    line: 215,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'), 'requireSecureContext'),
     middleware: 'requireSecureContext',
   }),
   register_routes: Object.freeze({
     boundary: 'global_authenticated',
     boundary_scope: 'create_server',
     file: 'server/server.ts',
-    line: 215,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'), 'requireSecureContext'),
     middleware: 'requireSecureContext',
   }),
 });

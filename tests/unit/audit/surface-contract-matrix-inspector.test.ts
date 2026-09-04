@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -105,7 +106,15 @@ describe('surface contract matrix runtime inspector', () => {
       );
       expect(preBoundaryMetrics.length).toBeGreaterThan(0);
       expect(
-        preBoundaryMetrics.every((route) => route.outer_mount_site === 'server/server.ts:202')
+        preBoundaryMetrics.every((route) => {
+          const source = fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8');
+          const mountLine =
+            source
+              .split('\n')
+              .findIndex((line) => line.includes("app.use('/api', metricsRouter)")) + 1;
+          expect(mountLine).toBeGreaterThan(0);
+          return route.outer_mount_site === `server/server.ts:${mountLine}`;
+        })
       ).toBe(true);
       expect(preBoundaryMetrics.every((route) => Number.isInteger(route.outer_mount_order))).toBe(
         true

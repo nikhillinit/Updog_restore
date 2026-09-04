@@ -1194,6 +1194,24 @@ const parsedAuthSource = (source) => {
   return parsed;
 };
 
+export const authMiddlewareCallLine = (source, middleware) => {
+  const parsed = parsedAuthSource(source);
+  const lines = [];
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === middleware
+    ) {
+      lines.push(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line + 1);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  if (lines.length !== 1) throw new Error(`Expected one ${middleware} call; found ${lines.length}`);
+  return lines[0];
+};
+
 const unwrapExpression = (node) => {
   let current = node;
   while (
