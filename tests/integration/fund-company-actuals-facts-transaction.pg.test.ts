@@ -234,5 +234,66 @@ describe.skipIf(skipTest)('fund company actuals transaction visibility', () => {
     });
   });
 
-  it.todo("plan item 12: planningMarkSources ['actuals_pilot_v1'] exposes same-transaction marks");
+  it('exposes same-transaction pilot marks only when their source is selected', async () => {
+    const { fundId, companyId } = await seedFundAndCompany();
+
+    await moduleDb.transaction(async (transaction) => {
+      const [pilotMark] = await transaction
+        .insert(valuationMarks)
+        .values({
+          fundId,
+          companyId,
+          markDate: '2026-08-31',
+          asOfDate: '2026-08-31',
+          fairValue: '300.000000',
+          currency: 'USD',
+          markPurpose: 'planning_company_fmv',
+          markSource: 'board_update',
+          confidenceLevel: 'high',
+          valuationMethod: 'comparable_companies',
+          status: 'approved',
+          importedFrom: 'actuals_pilot_v1',
+          approvedAt: new Date('2026-08-31T12:00:00.000Z'),
+          createdAt: new Date('2026-08-31T12:00:00.000Z'),
+          updatedAt: new Date('2026-08-31T12:00:00.000Z'),
+        })
+        .returning({ id: valuationMarks.id });
+
+      const transactionDatabase = transaction as unknown as typeof db;
+      const defaultSource = await actualsService.buildFundCompanyActualsFacts({
+        fundId,
+        asOfDate: '2026-08-31',
+        now: new Date('2026-09-01T00:00:00.000Z'),
+        database: transactionDatabase,
+      });
+      expect(defaultSource.facts).toEqual([
+        expect.objectContaining({
+          fundId,
+          companyId,
+          approvedPlanningFmvMarkId: null,
+          latestPlanningFmvDate: null,
+          latestPlanningFmvValue: null,
+          planningFmvStatus: 'none',
+        }),
+      ]);
+
+      const pilotSource = await actualsService.buildFundCompanyActualsFacts({
+        fundId,
+        asOfDate: '2026-08-31',
+        now: new Date('2026-09-01T00:00:00.000Z'),
+        planningMarkSources: ['actuals_pilot_v1'],
+        database: transactionDatabase,
+      });
+      expect(pilotSource.facts).toEqual([
+        expect.objectContaining({
+          fundId,
+          companyId,
+          approvedPlanningFmvMarkId: pilotMark!.id,
+          latestPlanningFmvDate: '2026-08-31',
+          latestPlanningFmvValue: '300.000000',
+          planningFmvStatus: 'active',
+        }),
+      ]);
+    });
+  });
 });
