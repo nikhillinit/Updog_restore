@@ -16,6 +16,10 @@ const KPI_OBSERVATION_IMPORT_PATH = /^\/api\/funds\/[^/?#]+\/kpi-observations\/i
 // canonical queued response in fund_scenario_calculation_commands.
 const SCENARIO_CALCULATE_RESERVE_PATH =
   /^\/api\/funds\/[^/?#]+\/scenario-sets\/[^/?#]+\/calculate-reserve\/?$/i;
+const ACTUALS_PREVIEW_PATH =
+  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/dry-run\/?$/i;
+const ACTUALS_PUBLISH_PATH =
+  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/publish\/?$/i;
 
 export function isDatabaseBackedIdempotencyRoute(method: string, path: string): boolean {
   const pathnameEnd = path.search(/[?#]/);
@@ -31,6 +35,8 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
       TASK_EVIDENCE_LINK_CREATION_PATH.test(pathname) ||
       KPI_OBSERVATION_CREATION_PATH.test(pathname) ||
       KPI_OBSERVATION_IMPORT_PATH.test(pathname) ||
-      SCENARIO_CALCULATE_RESERVE_PATH.test(pathname))
+      SCENARIO_CALCULATE_RESERVE_PATH.test(pathname) ||
+      ACTUALS_PREVIEW_PATH.test(pathname) ||
+      ACTUALS_PUBLISH_PATH.test(pathname))
   );
 }

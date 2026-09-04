@@ -35,6 +35,9 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve?mode=queue'],
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve#fragment'],
     ['POST', '/api/FUNDS/1/SCENARIO-SETS/ABC/CALCULATE-RESERVE/'],
+    ['POST', '/api/funds/1/imports/actuals/dry-run'],
+    ['POST', '/api/funds/1/imports/actuals/dry-run/'],
+    ['POST', '/api/FUNDS/1/IMPORTS/ACTUALS/PUBLISH/?mode=queue#receipt'],
   ])('matches %s %s', (method, path) => {
     expect(isDatabaseBackedIdempotencyRoute(method, path)).toBe(true);
   });
@@ -79,6 +82,10 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve/extra'],
     ['POST', '/api/funds/1/scenario-sets/calculate-reserve'],
     ['POST', '/prefix/api/funds/1/scenario-sets/abc/calculate-reserve'],
+    ['POST', '/api/funds/1/imports/actuals/publishx'],
+    ['POST', '/api/funds/1/imports/actuals/dry-run/extra'],
+    ['POST', '/api/funds/1/imports/ledger/publish'],
+    ['POST', '/api/funds/1/imports/actuals/dry-run//'],
   ])('does not match %s %s', (method, path) => {
     expect(isDatabaseBackedIdempotencyRoute(method, path)).toBe(false);
   });
