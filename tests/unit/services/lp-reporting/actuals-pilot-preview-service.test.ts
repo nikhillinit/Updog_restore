@@ -12,6 +12,8 @@ import {
 import {
   ACTUALS_LEDGER_MAX_BYTES,
   type ActualsPreviewRequestV1,
+  ACTUALS_MAX_ROWS,
+  ACTUALS_PREVIEW_MAX_ISSUES,
 } from '@shared/contracts/lp-reporting/actuals-pilot.contract';
 import {
   ACTUALS_LEDGER_TEMPLATE_HEADER,
@@ -219,7 +221,8 @@ function csv(header: string, rows: string[][], ending = '\n'): Buffer {
 }
 
 function request(
-  templateVersion: typeof ACTUALS_LEDGER_TEMPLATE_VERSION | typeof ACTUALS_VALUATION_TEMPLATE_VERSION,
+  templateVersion:
+    typeof ACTUALS_LEDGER_TEMPLATE_VERSION | typeof ACTUALS_VALUATION_TEMPLATE_VERSION,
   payload: Buffer,
   asOfDate = '2026-03-31',
   fileName = 'actuals.csv'
@@ -234,7 +237,8 @@ function request(
 }
 
 async function preview(
-  templateVersion: typeof ACTUALS_LEDGER_TEMPLATE_VERSION | typeof ACTUALS_VALUATION_TEMPLATE_VERSION,
+  templateVersion:
+    typeof ACTUALS_LEDGER_TEMPLATE_VERSION | typeof ACTUALS_VALUATION_TEMPLATE_VERSION,
   payload: Buffer,
   database = new FakePreviewDb(),
   asOfDate = '2026-03-31'
@@ -361,7 +365,9 @@ describe('actuals pilot preview service', () => {
   it('accepts one leading BOM, rejects whitespace cells, formula-like values, and bad enums', async () => {
     const bom = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      Buffer.from(`\uFEFF${ACTUALS_LEDGER_TEMPLATE_HEADER}\n${ledgerRow({ external_ref: 'bom-1' }).join(',')}`)
+      Buffer.from(
+        `\uFEFF${ACTUALS_LEDGER_TEMPLATE_HEADER}\n${ledgerRow({ external_ref: 'bom-1' }).join(',')}`
+      )
     );
     expect(bom.response.rows[0]?.status).toBe('valid');
 
@@ -386,26 +392,28 @@ describe('actuals pilot preview service', () => {
       csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [ledgerRow({ description: ' =SUM(A1:A2)' })])
     );
     expect(formula.response.rows[0]?.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'FORMULA_LIKE_VALUE', column: 'description' })])
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'FORMULA_LIKE_VALUE', column: 'description' }),
+      ])
     );
 
     const whitespace = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [ledgerRow({ event_type: 'portfolio_investment', company_name: '   ' })]
-      )
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({ event_type: 'portfolio_investment', company_name: '   ' }),
+      ])
     );
     expect(whitespace.response.rows[0]?.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'INVALID_VALUE', column: 'company_name' })])
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'INVALID_VALUE', column: 'company_name' }),
+      ])
     );
 
     const badEnums = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [ledgerRow({ event_type: 'lp_distribution', distribution_type: 'other', recallable: 'yes' })]
-      )
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({ event_type: 'lp_distribution', distribution_type: 'other', recallable: 'yes' }),
+      ])
     );
     expect(badEnums.response.rows[0]?.issues).toEqual(
       expect.arrayContaining([
@@ -429,17 +437,14 @@ describe('actuals pilot preview service', () => {
     const database = new FakePreviewDb();
     const result = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [
-          ledgerRow({
-            event_type: 'portfolio_investment',
-            company_name: 'Ａcme\t Labs',
-            vehicle_slug: '  MAIN  ',
-            deployment_category: 'initial',
-          }),
-        ]
-      ),
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({
+          event_type: 'portfolio_investment',
+          company_name: 'Ａcme\t Labs',
+          vehicle_slug: '  MAIN  ',
+          deployment_category: 'initial',
+        }),
+      ]),
       database
     );
 
@@ -454,10 +459,9 @@ describe('actuals pilot preview service', () => {
   it('reports missing, ambiguous, and unsupported fund-scoped identities', async () => {
     const missingCompany = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [ledgerRow({ event_type: 'portfolio_investment', company_name: 'Unknown Co' })]
-      )
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({ event_type: 'portfolio_investment', company_name: 'Unknown Co' }),
+      ])
     );
     expect(missingCompany.response.rows[0]?.issues).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: 'COMPANY_NOT_FOUND' })])
@@ -473,10 +477,9 @@ describe('actuals pilot preview service', () => {
 
     const ambiguous = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [ledgerRow({ event_type: 'portfolio_investment', company_name: 'Acme Labs' })]
-      ),
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({ event_type: 'portfolio_investment', company_name: 'Acme Labs' }),
+      ]),
       new FakePreviewDb({
         companies: [
           { id: 42, fundId: 1, name: 'Acme Labs' },
@@ -606,7 +609,11 @@ describe('actuals pilot preview service', () => {
       payload,
       new FakePreviewDb({
         existingCashRows: [
-          { sourceHash, importedFrom: 'actuals_pilot_v1', payload: { rowContentHash: 'b'.repeat(64) } },
+          {
+            sourceHash,
+            importedFrom: 'actuals_pilot_v1',
+            payload: { rowContentHash: 'b'.repeat(64) },
+          },
         ],
       })
     );
@@ -656,7 +663,10 @@ describe('actuals pilot preview service', () => {
       ledgerRow({ external_ref: 'order-a', amount: '10.00' }),
       ledgerRow({ external_ref: 'order-b', amount: '20.00' }),
     ];
-    const first = await preview(ACTUALS_LEDGER_TEMPLATE_VERSION, csv(ACTUALS_LEDGER_TEMPLATE_HEADER, rows));
+    const first = await preview(
+      ACTUALS_LEDGER_TEMPLATE_VERSION,
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, rows)
+    );
     const second = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
       csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [rows[1]!, rows[0]!])
@@ -749,10 +759,9 @@ describe('actuals pilot preview service', () => {
   it('uses the declared row-content hash preimage for resolved pilot rows', async () => {
     const result = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
-      csv(
-        ACTUALS_LEDGER_TEMPLATE_HEADER,
-        [ledgerRow({ external_ref: 'preimage-1', description: 'verbatim note' })]
-      )
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        ledgerRow({ external_ref: 'preimage-1', description: 'verbatim note' }),
+      ])
     );
     const row = result.response.rows[0]!;
     expect(row.rowSourceHash).toBe(computeActualsPilotRowSourceHash(1, 'preimage-1'));
@@ -775,5 +784,67 @@ describe('actuals pilot preview service', () => {
         resolvedVehicleId: 7,
       })
     );
+  });
+
+  it('resolves a blank vehicle_slug only when the fund has exactly one vehicle', async () => {
+    const sidecar = new FakePreviewDb({
+      vehicles: [
+        {
+          id: 7,
+          fundId: 1,
+          vehicleSlug: 'main',
+          vehicleType: 'main_fund',
+          status: 'active',
+          currency: 'USD',
+        },
+        {
+          id: 8,
+          fundId: 1,
+          vehicleSlug: 'sidecar',
+          vehicleType: 'sidecar',
+          status: 'active',
+          currency: 'USD',
+        },
+      ],
+    });
+    const blank = await preview(
+      ACTUALS_LEDGER_TEMPLATE_VERSION,
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [ledgerRow()]),
+      sidecar
+    );
+    expect(blank.response.rows[0]?.status).toBe('invalid');
+    expect(blank.response.rows[0]?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'UNSUPPORTED_VEHICLE_SCOPE', column: 'vehicle_slug' }),
+      ])
+    );
+
+    const explicit = await preview(
+      ACTUALS_LEDGER_TEMPLATE_VERSION,
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [ledgerRow({ vehicle_slug: 'main' })]),
+      new FakePreviewDb({ vehicles: sidecar.state.vehicles })
+    );
+    expect(explicit.response.rows[0]?.status).toBe('valid');
+  });
+
+  it('bounds the flat issue list for a maximum-size malformed file and still returns a blocked preview', async () => {
+    const rows = Array.from({ length: ACTUALS_MAX_ROWS }, (_, index) =>
+      ledgerRow({
+        amount: 'abc',
+        currency: 'EUR',
+        effective_date: '2026/01/01',
+        external_ref: `r${index}`,
+      })
+    );
+    const { response } = await preview(
+      ACTUALS_LEDGER_TEMPLATE_VERSION,
+      csv(ACTUALS_LEDGER_TEMPLATE_HEADER, rows)
+    );
+    expect(response.rowCounts.invalid).toBe(ACTUALS_MAX_ROWS);
+    expect(response.canPublish).toBe(false);
+    expect(response.issues).toHaveLength(ACTUALS_PREVIEW_MAX_ISSUES);
+    expect(response.rows[ACTUALS_MAX_ROWS - 1]?.issues.length).toBeGreaterThanOrEqual(3);
+    const total = response.rows.reduce((sum, row) => sum + row.issues.length, 0);
+    expect(total).toBeGreaterThan(ACTUALS_PREVIEW_MAX_ISSUES);
   });
 });

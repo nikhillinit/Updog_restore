@@ -13,9 +13,11 @@ import {
   FinancialFactsPayloadV4Schema,
   FinancialFactsSnapshotInputHashPreimageV4Schema,
   FinancialFactsSnapshotV4Schema,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
   buildSelectionSetHash,
   buildSnapshotInputHash,
-} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+} from '../../../shared/lib/financial-facts/snapshot-hashes';
 import { funds } from '../../../shared/schema/fund';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { sourceArtifacts, sourceObservations } from '../../../shared/schema/financial-observations';

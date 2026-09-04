@@ -26,13 +26,15 @@ import {
   FinancialFactsSnapshotV3Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
-  buildSelectionSetHash,
-  buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type FinancialFactsPayloadV3,
   type FinancialFactsSnapshotInputHashPreimageV3,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  buildSelectionSetHash,
+  buildSnapshotInputHash,
+} from '../../../shared/lib/financial-facts/snapshot-hashes';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../shared/lib/decimal-config';
 import {
@@ -705,5 +707,11 @@ describe('financial facts snapshot hashes', () => {
     };
 
     expect(() => PersistedFinancialFactsSnapshotV1Schema.parse(legacySnapshot)).toThrow();
+  });
+
+  it('pins EMPTY_SELECTION_SET_HASH to the empty selection-set preimage hash', () => {
+    expect(buildSelectionSetHash({ sourceObservationIds: [], workingValueSelectionIds: [] })).toBe(
+      EMPTY_SELECTION_SET_HASH
+    );
   });
 });

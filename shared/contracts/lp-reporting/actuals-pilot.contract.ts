@@ -26,6 +26,7 @@ export const ACTUALS_LEDGER_MAX_BYTES = 122_880 as const;
 export const ACTUALS_VALUATION_MAX_BYTES = 40_960 as const;
 export const ACTUALS_COMBINED_MAX_BYTES = 163_840 as const;
 export const ACTUALS_MAX_ROWS = 1_000 as const;
+export const ACTUALS_PREVIEW_MAX_ISSUES = 2_000 as const;
 
 export const ACTUALS_PILOT_MONEY_PATTERN = '^(?:0|[1-9][0-9]{0,13})(?:\\.[0-9]{1,6})?$' as const;
 export const ACTUALS_PILOT_MONEY_REGEX = new RegExp(ACTUALS_PILOT_MONEY_PATTERN);
@@ -273,7 +274,7 @@ const ActualsPreviewResponseShape = {
   fileTotals: ActualsPreviewTotalsV1Schema,
   netNewEffectTotals: ActualsPreviewTotalsV1Schema,
   categoryCoverage: ActualsCategoryCoverageSchema,
-  issues: z.array(ActualsPreviewIssueV1Schema).max(2_000),
+  issues: z.array(ActualsPreviewIssueV1Schema).max(ACTUALS_PREVIEW_MAX_ISSUES),
   canPublish: z.boolean(),
 };
 
@@ -557,7 +558,7 @@ export const ActualsPilotErrorCodeSchema = z.enum([
   'INVALID_IDEMPOTENCY_KEY',
   'INVALID_QUERY',
   'INSUFFICIENT_ROLE',
-  'NOT_FOUND',
+  'RESOURCE_NOT_FOUND',
   'IDEMPOTENCY_KEY_REUSED',
   'EXTERNAL_REF_REUSE_CONFLICT',
   'EXISTING_IMPORT_PROVENANCE_CONFLICT',
@@ -692,7 +693,7 @@ const ActualsPilotNoDetailsErrorCodeSchema = z.enum([
   'INVALID_IDEMPOTENCY_KEY',
   'INVALID_QUERY',
   'INSUFFICIENT_ROLE',
-  'NOT_FOUND',
+  'RESOURCE_NOT_FOUND',
   'IDEMPOTENCY_KEY_REUSED',
   'FACTS_HEAD_AMBIGUOUS',
   'FACTS_LINEAGE_INVALID',

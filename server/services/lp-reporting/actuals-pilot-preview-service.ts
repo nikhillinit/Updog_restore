@@ -16,6 +16,7 @@ import {
   ACTUALS_COMBINED_MAX_BYTES,
   ACTUALS_LEDGER_MAX_BYTES,
   ACTUALS_MAX_ROWS,
+  ACTUALS_PREVIEW_MAX_ISSUES,
   ACTUALS_VALUATION_MAX_BYTES,
   ActualsLedgerEventTypeSchema,
   ActualsPreviewRequestV1Schema,
@@ -261,10 +262,15 @@ function byteCompare(left: string, right: string): number {
   return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'));
 }
 
-function compareIssues(left: ActualsPreviewRowV1['issues'][number], right: ActualsPreviewRowV1['issues'][number]): number {
+function compareIssues(
+  left: ActualsPreviewRowV1['issues'][number],
+  right: ActualsPreviewRowV1['issues'][number]
+): number {
   if (left.rowNumber !== right.rowNumber) return left.rowNumber - right.rowNumber;
-  const leftColumn = left.column === null ? -1 : (COLUMN_INDEX.get(left.column) ?? Number.MAX_SAFE_INTEGER);
-  const rightColumn = right.column === null ? -1 : (COLUMN_INDEX.get(right.column) ?? Number.MAX_SAFE_INTEGER);
+  const leftColumn =
+    left.column === null ? -1 : (COLUMN_INDEX.get(left.column) ?? Number.MAX_SAFE_INTEGER);
+  const rightColumn =
+    right.column === null ? -1 : (COLUMN_INDEX.get(right.column) ?? Number.MAX_SAFE_INTEGER);
   if (leftColumn !== rightColumn) return leftColumn - rightColumn;
   const codeOrder = byteCompare(left.code, right.code);
   if (codeOrder !== 0) return codeOrder;
@@ -459,9 +465,10 @@ function parseStrictCsv(buffer: Buffer, kind: TemplateKind): ParsedCsv {
 
   const withoutLeadingBom = text.startsWith('\uFEFF') ? text.slice(1) : text;
   const firstNewline = withoutLeadingBom.indexOf('\n');
-  const firstLine = (firstNewline < 0
-    ? withoutLeadingBom
-    : withoutLeadingBom.slice(0, firstNewline).replace(/\r$/u, ''));
+  const firstLine =
+    firstNewline < 0
+      ? withoutLeadingBom
+      : withoutLeadingBom.slice(0, firstNewline).replace(/\r$/u, '');
   if (!firstLine.includes(',') && /[;\t]/u.test(firstLine)) {
     structuralError('CSV uses an unsupported delimiter.');
   }
@@ -477,7 +484,11 @@ function parseStrictCsv(buffer: Buffer, kind: TemplateKind): ParsedCsv {
 
 async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Promise<IdentityMaps> {
   const companyRows = (await database
-    .select({ id: portfolioCompanies.id, fundId: portfolioCompanies.fundId, name: portfolioCompanies.name })
+    .select({
+      id: portfolioCompanies.id,
+      fundId: portfolioCompanies.fundId,
+      name: portfolioCompanies.name,
+    })
     .from(portfolioCompanies)
     .where(eq(portfolioCompanies.fundId, fundId))
     .limit(IDENTITY_QUERY_LIMIT)) as CompanyLookupRow[];
@@ -513,22 +524,25 @@ async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Prom
     vehiclesByLabel.set(label, ids);
   }
 
-  const defaultVehicles = vehicleRows.filter(
-    (row) =>
-      row.fundId === fundId &&
-      row.status === 'active' &&
-      row.currency === 'USD' &&
-      row.vehicleType === 'main_fund'
-  );
+  // Blank vehicle_slug resolves only when the fund has exactly one vehicle
+  // and that vehicle is an active USD main fund.
+  const fundVehicles = vehicleRows.filter((row) => row.fundId === fundId);
+  const sole = fundVehicles.length === 1 ? fundVehicles[0]! : null;
+  const defaultVehicleId =
+    sole !== null &&
+    sole.status === 'active' &&
+    sole.currency === 'USD' &&
+    sole.vehicleType === 'main_fund'
+      ? sole.id
+      : null;
 
-  return {
-    companies,
-    vehicles: vehiclesByLabel,
-    defaultVehicleId: defaultVehicles.length === 1 ? defaultVehicles[0]!.id : null,
-  };
+  return { companies, vehicles: vehiclesByLabel, defaultVehicleId };
 }
 
-async function hasNonPilotCashFlowRows(database: PreviewDatabase, fundId: number): Promise<boolean> {
+async function hasNonPilotCashFlowRows(
+  database: PreviewDatabase,
+  fundId: number
+): Promise<boolean> {
   const rows = await database
     .select({ id: cashFlowEvents.id })
     .from(cashFlowEvents)
@@ -542,7 +556,10 @@ async function hasNonPilotCashFlowRows(database: PreviewDatabase, fundId: number
   return rows.length > 0;
 }
 
-async function hasNonPilotValuationRows(database: PreviewDatabase, fundId: number): Promise<boolean> {
+async function hasNonPilotValuationRows(
+  database: PreviewDatabase,
+  fundId: number
+): Promise<boolean> {
   const rows = await database
     .select({ id: valuationMarks.id })
     .from(valuationMarks)
@@ -567,12 +584,16 @@ async function loadExistingRowsBySourceHash(
     return (await database
       .select()
       .from(cashFlowEvents)
-      .where(and(eq(cashFlowEvents.fundId, fundId), inArray(cashFlowEvents.sourceHash, hashes)))) as ExistingRow[];
+      .where(
+        and(eq(cashFlowEvents.fundId, fundId), inArray(cashFlowEvents.sourceHash, hashes))
+      )) as ExistingRow[];
   }
   return (await database
     .select()
     .from(valuationMarks)
-    .where(and(eq(valuationMarks.fundId, fundId), inArray(valuationMarks.sourceHash, hashes)))) as ExistingRow[];
+    .where(
+      and(eq(valuationMarks.fundId, fundId), inArray(valuationMarks.sourceHash, hashes))
+    )) as ExistingRow[];
 }
 
 async function loadExistingValuationTuples(
@@ -650,8 +671,10 @@ function existingRowContentHash(
     const effectiveDate = dayValue(valueOf(row, 'eventDate', 'event_date'));
     const amount = stringValue(row, 'amount', 'amount');
     const currency = stringValue(row, 'currency', 'currency');
-    const payloadRecord = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
-    const persistedExpenseCategory = payloadRecord['expenseCategory'] ?? payloadRecord['expense_category'];
+    const payloadRecord =
+      payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+    const persistedExpenseCategory =
+      payloadRecord['expenseCategory'] ?? payloadRecord['expense_category'];
     const eventType =
       persistedEventType === 'lp_capital_call'
         ? 'settled_contribution'
@@ -676,13 +699,16 @@ function existingRowContentHash(
         amount: canonicalMoney(amount),
         currency,
         deploymentCategory:
-          typeof (payloadRecord['deploymentCategory'] ?? payloadRecord['deployment_category']) === 'string'
+          typeof (payloadRecord['deploymentCategory'] ?? payloadRecord['deployment_category']) ===
+          'string'
             ? (payloadRecord['deploymentCategory'] ?? payloadRecord['deployment_category'])
             : null,
         description: stringValue(row, 'description', 'description'),
-        expenseCategory: typeof persistedExpenseCategory === 'string' ? persistedExpenseCategory : null,
+        expenseCategory:
+          typeof persistedExpenseCategory === 'string' ? persistedExpenseCategory : null,
         distributionType:
-          typeof (payloadRecord['distributionType'] ?? payloadRecord['distribution_type']) === 'string'
+          typeof (payloadRecord['distributionType'] ?? payloadRecord['distribution_type']) ===
+          'string'
             ? (payloadRecord['distributionType'] ?? payloadRecord['distribution_type'])
             : null,
         recallable:
@@ -703,7 +729,8 @@ function existingRowContentHash(
   const markSource = stringValue(row, 'markSource', 'mark_source');
   const confidenceLevel = stringValue(row, 'confidenceLevel', 'confidence_level');
   const valuationMethod = stringValue(row, 'valuationMethod', 'valuation_method');
-  if (!markDate || !fairValue || !currency || !markSource || !confidenceLevel || !valuationMethod) return null;
+  if (!markDate || !fairValue || !currency || !markSource || !confidenceLevel || !valuationMethod)
+    return null;
   const costBasis = stringValue(row, 'costBasis', 'cost_basis');
   return computeActualsPilotRowContentHash({
     templateVersion: ACTUALS_VALUATION_TEMPLATE_VERSION,
@@ -873,7 +900,10 @@ function parseLedgerRow(
   row.companyLabel = companyRaw === '' || !cellValidity.get('company_name') ? null : companyRaw;
   row.vehicleLabel = vehicleRaw === '' || !cellValidity.get('vehicle_slug') ? null : vehicleRaw;
 
-  if (cellValidity.get('external_ref') && ActualsExternalRefSchema.safeParse(externalRefRaw).success) {
+  if (
+    cellValidity.get('external_ref') &&
+    ActualsExternalRefSchema.safeParse(externalRefRaw).success
+  ) {
     row.sourceExternalRef = externalRefRaw;
     row.rowSourceHash = computeActualsPilotRowSourceHash(fundId, externalRefRaw);
   } else if (cellValidity.get('external_ref')) {
@@ -898,14 +928,19 @@ function parseLedgerRow(
     if (row.canonicalAmount !== null) row.amountCents = moneyToCents(amountRaw);
   }
 
-  if (cellValidity.get('currency') && ActualsCurrencySchema.safeParse(currencyRaw).success === false) {
+  if (
+    cellValidity.get('currency') &&
+    ActualsCurrencySchema.safeParse(currencyRaw).success === false
+  ) {
     addIssue(row, 'INVALID_VALUE', 'currency');
   }
 
-  const companyRequired = row.eventType === 'portfolio_investment' || row.eventType === 'realized_proceeds';
+  const companyRequired =
+    row.eventType === 'portfolio_investment' || row.eventType === 'realized_proceeds';
   if (cellValidity.get('company_name')) {
     if (!companyRequired && companyRaw !== '') addIssue(row, 'INVALID_VALUE', 'company_name');
-    if (companyRequired || companyRaw === '') row.companyId = resolveCompany(row, companyRaw, companyRequired, maps);
+    if (companyRequired || companyRaw === '')
+      row.companyId = resolveCompany(row, companyRaw, companyRequired, maps);
   }
   if (cellValidity.get('vehicle_slug')) row.vehicleId = resolveVehicle(row, vehicleRaw, maps);
 
@@ -926,7 +961,8 @@ function parseLedgerRow(
   if (cellValidity.get('expense_category')) {
     const validExpense =
       (row.eventType === 'management_fee' && expenseRaw === 'management_fee') ||
-      (row.eventType === 'fund_expense' && ['legal', 'audit', 'admin', 'other'].includes(expenseRaw));
+      (row.eventType === 'fund_expense' &&
+        ['legal', 'audit', 'admin', 'other'].includes(expenseRaw));
     if (row.eventType === 'management_fee' || row.eventType === 'fund_expense') {
       if (!validExpense) addIssue(row, 'INVALID_VALUE', 'expense_category');
     } else if (expenseRaw !== '') {
@@ -936,7 +972,8 @@ function parseLedgerRow(
 
   if (cellValidity.get('distribution_type')) {
     if (row.eventType === 'lp_distribution') {
-      if (!DISTRIBUTION_TYPES.has(distributionRaw)) addIssue(row, 'INVALID_VALUE', 'distribution_type');
+      if (!DISTRIBUTION_TYPES.has(distributionRaw))
+        addIssue(row, 'INVALID_VALUE', 'distribution_type');
     } else if (distributionRaw !== '') {
       addIssue(row, 'INVALID_VALUE', 'distribution_type');
     }
@@ -944,13 +981,20 @@ function parseLedgerRow(
 
   if (cellValidity.get('recallable')) {
     if (row.eventType === 'lp_distribution') {
-      if (recallableRaw !== 'true' && recallableRaw !== 'false') addIssue(row, 'INVALID_VALUE', 'recallable');
+      if (recallableRaw !== 'true' && recallableRaw !== 'false')
+        addIssue(row, 'INVALID_VALUE', 'recallable');
     } else if (recallableRaw !== '') {
       addIssue(row, 'INVALID_VALUE', 'recallable');
     }
   }
 
-  if (!hasError(row.issues) && row.rowSourceHash && row.canonicalAmount && row.eventType && row.effectiveDate) {
+  if (
+    !hasError(row.issues) &&
+    row.rowSourceHash &&
+    row.canonicalAmount &&
+    row.eventType &&
+    row.effectiveDate
+  ) {
     row.canonicalEconomicFields = {
       eventType: row.eventType,
       effectiveDate: row.effectiveDate,
@@ -998,7 +1042,10 @@ function parseValuationRow(
   row.companyLabel = companyRaw === '' || !cellValidity.get('company_name') ? null : companyRaw;
   row.vehicleLabel = vehicleRaw === '' || !cellValidity.get('vehicle_slug') ? null : vehicleRaw;
 
-  if (cellValidity.get('external_ref') && ActualsExternalRefSchema.safeParse(externalRefRaw).success) {
+  if (
+    cellValidity.get('external_ref') &&
+    ActualsExternalRefSchema.safeParse(externalRefRaw).success
+  ) {
     row.sourceExternalRef = externalRefRaw;
     row.rowSourceHash = computeActualsPilotRowSourceHash(fundId, externalRefRaw);
   } else if (cellValidity.get('external_ref')) {
@@ -1019,7 +1066,10 @@ function parseValuationRow(
     row.canonicalAmount = validateMoney(row, fairValueRaw, 'position_fair_value', true, false);
     if (row.canonicalAmount !== null) row.amountCents = moneyToCents(fairValueRaw);
   }
-  if (cellValidity.get('currency') && ActualsCurrencySchema.safeParse(currencyRaw).success === false) {
+  if (
+    cellValidity.get('currency') &&
+    ActualsCurrencySchema.safeParse(currencyRaw).success === false
+  ) {
     addIssue(row, 'INVALID_VALUE', 'currency');
   }
   if (cellValidity.get('mark_source') && !MARK_SOURCES.has(markSourceRaw)) {
@@ -1038,7 +1088,14 @@ function parseValuationRow(
     canonicalCostBasis = validateMoney(row, costBasisRaw, 'cost_basis', false, false);
   }
 
-  if (!hasError(row.issues) && row.rowSourceHash && row.canonicalAmount && row.effectiveDate && row.companyId && row.vehicleId) {
+  if (
+    !hasError(row.issues) &&
+    row.rowSourceHash &&
+    row.canonicalAmount &&
+    row.effectiveDate &&
+    row.companyId &&
+    row.vehicleId
+  ) {
     row.canonicalEconomicFields = {
       markDate: row.effectiveDate,
       positionFairValue: row.canonicalAmount,
@@ -1100,7 +1157,11 @@ function markDuplicateRows(rows: WorkingRow[], kind: TemplateKind): void {
   }
 }
 
-function existingContentHashForRow(row: ExistingRow, working: WorkingRow, kind: TemplateKind): string | null {
+function existingContentHashForRow(
+  row: ExistingRow,
+  working: WorkingRow,
+  kind: TemplateKind
+): string | null {
   if (!working.rowSourceHash) return null;
   return existingRowContentHash(row, kind, working.rowSourceHash);
 }
@@ -1132,7 +1193,13 @@ function applyExistingClassification(
       }
     }
 
-    if (kind !== 'valuation' || hasError(row.issues) || row.companyId === null || row.vehicleId === null) continue;
+    if (
+      kind !== 'valuation' ||
+      hasError(row.issues) ||
+      row.companyId === null ||
+      row.vehicleId === null
+    )
+      continue;
     const existingMark = valuationRows.find((candidate) => {
       const candidateCompany = valueOf(candidate, 'companyId', 'company_id');
       const candidateVehicle = valueOf(candidate, 'vehicleId', 'vehicle_id');
@@ -1172,10 +1239,14 @@ function canAddTotals(totals: TotalsCents, row: WorkingRow, kind: TemplateKind):
       break;
     case 'portfolio_investment':
       next.deployed += amount;
-      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'initial') next.initialDeployed += amount;
-      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'follow_on') next.followOnDeployed += amount;
-      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'secondary') next.secondaryDeployed += amount;
-      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'other') next.otherDeployed += amount;
+      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'initial')
+        next.initialDeployed += amount;
+      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'follow_on')
+        next.followOnDeployed += amount;
+      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'secondary')
+        next.secondaryDeployed += amount;
+      if (row.canonicalEconomicFields?.['deploymentCategory'] === 'other')
+        next.otherDeployed += amount;
       break;
     case 'realized_proceeds':
       next.realizedFundProceeds += amount;
@@ -1245,12 +1316,16 @@ function addTotals(totals: TotalsCents, row: WorkingRow, kind: TemplateKind): vo
   }
 }
 
-function classifyAndAggregate(rows: WorkingRow[], kind: TemplateKind): { fileTotals: TotalsCents; netNewTotals: TotalsCents } {
+function classifyAndAggregate(
+  rows: WorkingRow[],
+  kind: TemplateKind
+): { fileTotals: TotalsCents; netNewTotals: TotalsCents } {
   const fileTotals = zeroTotals();
   const netNewTotals = zeroTotals();
   for (const row of rows) {
     if (hasError(row.issues) || row.rowContentHash === null) {
-      row.status = row.duplicateInFile || row.duplicateCompanyMark ? 'duplicate_in_file' : 'invalid';
+      row.status =
+        row.duplicateInFile || row.duplicateCompanyMark ? 'duplicate_in_file' : 'invalid';
       continue;
     }
     if (row.status === 'already_imported') {
@@ -1273,11 +1348,20 @@ function classifyAndAggregate(rows: WorkingRow[], kind: TemplateKind): { fileTot
   return { fileTotals, netNewTotals };
 }
 
-function categoryCoverage(rows: readonly WorkingRow[], kind: TemplateKind): ActualsPreviewResponseV1['categoryCoverage'] {
+function categoryCoverage(
+  rows: readonly WorkingRow[],
+  kind: TemplateKind
+): ActualsPreviewResponseV1['categoryCoverage'] {
   if (kind === 'valuation') return 'not_applicable';
-  const deploymentRows = rows.filter((row) => row.eventType === 'portfolio_investment' && !hasError(row.issues));
+  const deploymentRows = rows.filter(
+    (row) => row.eventType === 'portfolio_investment' && !hasError(row.issues)
+  );
   if (deploymentRows.length === 0) return 'not_applicable';
-  return deploymentRows.every((row) => row.canonicalEconomicFields?.['deploymentCategory'] !== null && row.canonicalEconomicFields?.['deploymentCategory'] !== undefined)
+  return deploymentRows.every(
+    (row) =>
+      row.canonicalEconomicFields?.['deploymentCategory'] !== null &&
+      row.canonicalEconomicFields?.['deploymentCategory'] !== undefined
+  )
     ? 'complete'
     : 'partial';
 }
@@ -1320,7 +1404,9 @@ function canonicalRowsHash(
     .map((row) => ({ rowSourceHash: row.rowSourceHash!, rowContentHash: row.rowContentHash! }))
     .sort((left, right) => {
       const sourceOrder = byteCompare(left.rowSourceHash, right.rowSourceHash);
-      return sourceOrder === 0 ? byteCompare(left.rowContentHash, right.rowContentHash) : sourceOrder;
+      return sourceOrder === 0
+        ? byteCompare(left.rowContentHash, right.rowContentHash)
+        : sourceOrder;
     });
   return canonicalSha256({ templateVersion, fundId, asOfDate, rows: canonicalRows });
 }
@@ -1339,7 +1425,9 @@ function previewHash(
     ...rows.map((row) => ({
       rowNumber: row.rowNumber,
       status: row.status,
-      issues: [...row.issues].sort(compareIssues).map(({ rowNumber, column, code }) => ({ rowNumber, column, code })),
+      issues: [...row.issues]
+        .sort(compareIssues)
+        .map(({ rowNumber, column, code }) => ({ rowNumber, column, code })),
     })),
     ...globalIssues.map(({ rowNumber, column, code }) => ({
       rowNumber,
@@ -1355,8 +1443,14 @@ function previewHash(
     }
     if (leftIssue === null) return -1;
     if (rightIssue === null) return 1;
-    const leftColumn = leftIssue.column === null ? -1 : (COLUMN_INDEX.get(leftIssue.column) ?? Number.MAX_SAFE_INTEGER);
-    const rightColumn = rightIssue.column === null ? -1 : (COLUMN_INDEX.get(rightIssue.column) ?? Number.MAX_SAFE_INTEGER);
+    const leftColumn =
+      leftIssue.column === null
+        ? -1
+        : (COLUMN_INDEX.get(leftIssue.column) ?? Number.MAX_SAFE_INTEGER);
+    const rightColumn =
+      rightIssue.column === null
+        ? -1
+        : (COLUMN_INDEX.get(rightIssue.column) ?? Number.MAX_SAFE_INTEGER);
     if (leftColumn !== rightColumn) return leftColumn - rightColumn;
     return byteCompare(leftIssue.code, rightIssue.code);
   });
@@ -1384,17 +1478,30 @@ function invalidHeaderRows(count: number): WorkingRow[] {
 }
 
 function maxRowsError(kind: TemplateKind, count: number): never {
-  throw new ActualsPilotPreviewError(413, 'ROW_CAP_EXCEEDED', `${kind} CSV contains too many rows.`, {
-    safeCounts: { total: count, accepted: 0, rejected: count },
-  });
+  throw new ActualsPilotPreviewError(
+    413,
+    'ROW_CAP_EXCEEDED',
+    `${kind} CSV contains too many rows.`,
+    {
+      safeCounts: { total: count, accepted: 0, rejected: count },
+    }
+  );
 }
 
-function validateRequest(input: ActualsPilotPreviewInput): { fundId: number; request: ActualsPreviewRequestV1 } {
+function validateRequest(input: ActualsPilotPreviewInput): {
+  fundId: number;
+  request: ActualsPreviewRequestV1;
+} {
   const fundId = input.fundId;
   const request = requestFromInput(input);
   const parsed = ActualsPreviewRequestV1Schema.safeParse(request);
   if (!parsed.success) {
-    throw new ActualsPilotPreviewError(400, 'INVALID_BODY', 'Actuals preview request is invalid.', parsed.error.issues);
+    throw new ActualsPilotPreviewError(
+      400,
+      'INVALID_BODY',
+      'Actuals preview request is invalid.',
+      parsed.error.issues
+    );
   }
   return { fundId, request: parsed.data };
 }
@@ -1407,7 +1514,11 @@ export async function previewActualsPilot(
   const kind = templateKind(request.templateVersion);
   const payload = decodePayload(request.payload);
   if (payload.byteLength > maxBytes(kind) || payload.byteLength > ACTUALS_COMBINED_MAX_BYTES) {
-    throw new ActualsPilotPreviewError(413, 'PAYLOAD_TOO_LARGE', 'CSV payload exceeds the fixed-template byte cap.');
+    throw new ActualsPilotPreviewError(
+      413,
+      'PAYLOAD_TOO_LARGE',
+      'CSV payload exceeds the fixed-template byte cap.'
+    );
   }
 
   const parsed = parseStrictCsv(payload, kind);
@@ -1430,8 +1541,23 @@ export async function previewActualsPilot(
       byteCount: payload.byteLength,
       payloadSha256,
       canonicalRowsHash: rowsHash,
-      previewHash: previewHash(fundId, request.asOfDate, request.templateVersion, payloadSha256, rows, globalIssues, zero, rowsHash),
-      rowCounts: { total: rows.length, valid: 0, invalid: rows.length, duplicateInFile: 0, alreadyImported: 0 },
+      previewHash: previewHash(
+        fundId,
+        request.asOfDate,
+        request.templateVersion,
+        payloadSha256,
+        rows,
+        globalIssues,
+        zero,
+        rowsHash
+      ),
+      rowCounts: {
+        total: rows.length,
+        valid: 0,
+        invalid: rows.length,
+        duplicateInFile: 0,
+        alreadyImported: 0,
+      },
       fileTotals: zero,
       netNewEffectTotals: zero,
       categoryCoverage: 'not_applicable' as const,
@@ -1455,17 +1581,21 @@ export async function previewActualsPilot(
     hasNonPilotCashFlowRows(database, fundId),
     hasNonPilotValuationRows(database, fundId),
   ]);
-  if (nonPilotCash || nonPilotValuation) globalIssues.push(makeIssue('FUND_LEDGER_NOT_PILOT_OWNED', 0, null));
+  if (nonPilotCash || nonPilotValuation)
+    globalIssues.push(makeIssue('FUND_LEDGER_NOT_PILOT_OWNED', 0, null));
 
   const existingHashes = rows
     .map((row) => row.rowSourceHash)
     .filter((hash): hash is string => hash !== null);
   const [existingRows, existingValuationRows, rosterExists] = await Promise.all([
     loadExistingRowsBySourceHash(database, fundId, kind, Array.from(new Set(existingHashes))),
-    kind === 'valuation' ? loadExistingValuationTuples(database, fundId, request.asOfDate) : Promise.resolve([]),
+    kind === 'valuation'
+      ? loadExistingValuationTuples(database, fundId, request.asOfDate)
+      : Promise.resolve([]),
     kind === 'valuation' ? loadPilotRoster(database, fundId) : Promise.resolve(true),
   ]);
-  if (kind === 'valuation' && !rosterExists) globalIssues.push(makeIssue('VALUATION_ROSTER_EMPTY', 0, null));
+  if (kind === 'valuation' && !rosterExists)
+    globalIssues.push(makeIssue('VALUATION_ROSTER_EMPTY', 0, null));
 
   applyExistingClassification(rows, existingRows, existingValuationRows, kind, request.asOfDate);
   const { fileTotals, netNewTotals } = classifyAndAggregate(rows, kind);
@@ -1473,14 +1603,22 @@ export async function previewActualsPilot(
   const netNewTotalsResponse = totalsResponse(netNewTotals);
   const rowsHash = canonicalRowsHash(fundId, request.asOfDate, request.templateVersion, rows);
   const rowResponses = rows.map(rowResponse);
-  const issues = [
-    ...globalIssues,
-    ...rowResponses.flatMap((row) => row.issues),
-  ].sort(compareIssues);
-  const hasIdentityError = rows.some((row) =>
-    row.issues.some((issue) => ['COMPANY_NOT_FOUND', 'COMPANY_NAME_AMBIGUOUS', 'VEHICLE_NOT_FOUND', 'UNSUPPORTED_VEHICLE_SCOPE'].includes(issue.code))
+  const allIssues = [...globalIssues, ...rowResponses.flatMap((row) => row.issues)].sort(
+    compareIssues
   );
-  const hasErrorIssue = issues.some((issue) => issue.severity === 'error');
+  // The flat list is a bounded convenience view; every row keeps its own issues.
+  const issues = allIssues.slice(0, ACTUALS_PREVIEW_MAX_ISSUES);
+  const hasIdentityError = rows.some((row) =>
+    row.issues.some((issue) =>
+      [
+        'COMPANY_NOT_FOUND',
+        'COMPANY_NAME_AMBIGUOUS',
+        'VEHICLE_NOT_FOUND',
+        'UNSUPPORTED_VEHICLE_SCOPE',
+      ].includes(issue.code)
+    )
+  );
+  const hasErrorIssue = allIssues.some((issue) => issue.severity === 'error');
   const response = {
     contractVersion: 'actuals-preview-response/1.0.0' as const,
     templateVersion: request.templateVersion,

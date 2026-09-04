@@ -558,7 +558,7 @@ export function calculateActualsV1(input: ActualsCalculatorInputV1): ActualsCalc
   const valuationCoverage: FinancialValuationActualsV1['coverage'] =
     input.valuationPayloadSha256 === null
       ? 'not_supplied'
-      : missingCompanyIds.length === 0
+      : missingCompanyIds.length === 0 && (roster.length > 0 || valuationMarks.length === 0)
         ? 'complete'
         : 'partial';
 

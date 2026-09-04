@@ -11,12 +11,14 @@ import {
   FinancialFactsPayloadV4Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
-  buildSelectionSetHash,
-  buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  buildSelectionSetHash,
+  buildSnapshotInputHash,
+} from '../../shared/lib/financial-facts/snapshot-hashes';
 import {
   DOMAIN_MEASURE_MATRIX,
   type MeasureKeyV2,

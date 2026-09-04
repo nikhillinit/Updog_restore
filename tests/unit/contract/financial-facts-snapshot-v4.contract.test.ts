@@ -27,7 +27,6 @@ import {
   FinancialFactsSnapshotV4Schema,
   FinancialFactsSnapshotV5Schema,
   PersistedFinancialFactsSnapshotV1Schema,
-  buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type FinancialFactsPayloadV3,
@@ -38,6 +37,7 @@ import {
   type FinancialFactsSnapshotV4,
   type PersistedFinancialFactsSnapshotInputHashPreimage,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import { buildSnapshotInputHash } from '../../../shared/lib/financial-facts/snapshot-hashes';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import {
   ConsumerEvaluationReasonV3Schema,

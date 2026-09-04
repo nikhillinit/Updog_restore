@@ -453,4 +453,39 @@ describe('actuals calculator', () => {
     });
     expect(partial.valuationActuals.missingCompanyIds).toEqual([11]);
   });
+
+  it('keeps portfolio FMV unavailable when marks are supplied over an empty roster', () => {
+    const mark = {
+      contractVersion: 'actuals-pilot-valuation-mark/1.0.0' as const,
+      sourceExternalRef: 'mark-orphan',
+      rowContentHash: rowHash,
+      templateVersion: 'actuals-valuation/1.0.0' as const,
+      markId: 1,
+      markDate: '2026-01-31',
+      positionFairValue: '55.000000',
+      markSource: 'gp_estimate' as const,
+      confidenceLevel: 'medium' as const,
+      resolvedCompanyId: 10,
+      resolvedVehicleId: 1,
+      externalRefHash: rowHash,
+    };
+    const orphaned = success(
+      input({ roster: [], valuationPayloadSha256: valuationHash, valuationMarks: [mark] })
+    );
+    expect(orphaned.valuationActuals.coverage).toBe('partial');
+    expect(orphaned.capitalActuals.portfolioFmv).toMatchObject({
+      value: null,
+      availability: 'unavailable',
+      reasonCodes: ['VALUATION_COVERAGE_PARTIAL'],
+    });
+
+    const empty = success(
+      input({ roster: [], valuationPayloadSha256: valuationHash, valuationMarks: [] })
+    );
+    expect(empty.valuationActuals.coverage).toBe('complete');
+    expect(empty.capitalActuals.portfolioFmv).toMatchObject({
+      value: '0.000000',
+      availability: 'available',
+    });
+  });
 });

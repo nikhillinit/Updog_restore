@@ -17,7 +17,6 @@ import { FinancialProvenanceSchema } from './financial-provenance.contract';
 import { FundAccountingStateSnapshotRefV1Schema } from './internal-economics/fund-accounting-state-observation-v1.contract';
 import { FundAccountingStateSnapshotRefV1_1Schema } from './internal-economics/fund-accounting-state-observation-v1.1.contract';
 import { ProvenanceEnvelopeSchema } from './provenance-envelope.contract';
-import { canonicalSha256 } from '../lib/canonical-hash';
 import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../lib/decimal-string';
 
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_0 = 'financial-facts-policy/1.0.0' as const;
@@ -47,22 +46,10 @@ export type FinancialFactsSelectionSetHashPreimage = z.infer<
   typeof FinancialFactsSelectionSetHashPreimageSchema
 >;
 
-function sortSelectionIds(ids: FinancialFactsSelectionSetHashPreimage['sourceObservationIds']) {
-  return [...ids].sort((left, right) => String(left).localeCompare(String(right)));
-}
-
-export function buildSelectionSetHash(input: FinancialFactsSelectionSetHashPreimage): string {
-  const parsed = FinancialFactsSelectionSetHashPreimageSchema.parse(input);
-  return canonicalSha256({
-    sourceObservationIds: sortSelectionIds(parsed.sourceObservationIds),
-    workingValueSelectionIds: sortSelectionIds(parsed.workingValueSelectionIds),
-  });
-}
-
-export const EMPTY_SELECTION_SET_HASH = buildSelectionSetHash({
-  sourceObservationIds: [],
-  workingValueSelectionIds: [],
-});
+// sha256 of the canonical empty preimage; pinned against buildSelectionSetHash
+// in the contract test so this module stays free of node:crypto.
+export const EMPTY_SELECTION_SET_HASH =
+  'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230' as const;
 
 const VolatileStrippedFinancialProvenanceSchema = FinancialProvenanceSchema.innerType().omit({
   generatedAt: true,
@@ -716,35 +703,6 @@ export type FinancialFactsSnapshotInputHashPreimageV5 = z.infer<
 export type PersistedFinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof PersistedFinancialFactsSnapshotInputHashPreimageSchema
 >;
-
-/**
- * Total for every schema-valid persisted preimage (WP-L3 section 7, R9
- * amendment): the discriminated preimage/payload Zod schemas are the
- * validation boundary for decimal strings, so the redundant decimal-leaf scan
- * (whose unanchored scientific-notation guard also matched ordinary SHA-256
- * substrings such as `EMPTY_SELECTION_SET_HASH`) is not reapplied here.
- * Canonical bytes are unchanged: both canonicalizers recursively sort object
- * keys and preserve array order.
- */
-export function buildSnapshotInputHash(
-  input: PersistedFinancialFactsSnapshotInputHashPreimage
-): string {
-  const parsed = PersistedFinancialFactsSnapshotInputHashPreimageSchema.parse(input);
-
-  return canonicalSha256({
-    fundId: parsed.fundId,
-    vehicleIds: [...parsed.vehicleIds].sort((left, right) => left - right),
-    asOfDate: parsed.asOfDate,
-    knowledgeCutoff: parsed.knowledgeCutoff,
-    policyVersion: parsed.policyVersion,
-    selectionSetHash: parsed.selectionSetHash,
-    payloadSchemaId:
-      'payloadSchemaId' in parsed && parsed.payloadSchemaId !== undefined
-        ? parsed.payloadSchemaId
-        : FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
-    payload: parsed.payload,
-  });
-}
 
 export const FinancialFactsSnapshotV1_0_0Schema = z
   .object({
