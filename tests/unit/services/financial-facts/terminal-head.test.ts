@@ -4,14 +4,19 @@ import { resolveTerminalFactsHead } from '../../../../server/services/financial-
 import { financialFactsSnapshots } from '../../../../shared/schema/financial-facts-snapshots';
 import type { FinancialFactsSnapshot } from '../../../../shared/schema/financial-facts-snapshots';
 
-function snapshot(id: number, supersedesSnapshotId: number | null): FinancialFactsSnapshot {
+function snapshot(
+  id: number,
+  supersedesSnapshotId: number | null,
+  asOfDate = '2026-06-30',
+  knowledgeCutoff = new Date('2026-07-01T00:00:00.000Z')
+): FinancialFactsSnapshot {
   return {
     id,
     fundId: 7,
     policyVersion: 'financial-facts-policy/1.3.0',
     payloadSchemaId: 'financial-facts-payload/4',
-    asOfDate: '2026-06-30',
-    knowledgeCutoff: new Date('2026-07-01T00:00:00.000Z'),
+    asOfDate,
+    knowledgeCutoff,
     vehicleScope: 'fund_all',
     vehicleIds: [11],
     selectionSetHash: 'a'.repeat(64),
@@ -60,7 +65,32 @@ describe('resolveTerminalFactsHead', () => {
     expect(result).toEqual({ kind: 'head', row: expect.objectContaining({ id: 2 }) });
   });
 
-  it('returns deterministic head ids when multiple terminal heads exist', async () => {
+  it('selects the newest valid terminal across distinct historical as-of families', async () => {
+    const result = await resolve([
+      snapshot(2, 1, '2026-03-31', new Date('2026-04-01T00:00:00.000Z')),
+      snapshot(1, null, '2026-03-31', new Date('2026-04-01T00:00:00.000Z')),
+      snapshot(4, 3, '2026-06-30', new Date('2026-07-01T00:00:00.000Z')),
+      snapshot(3, null, '2026-06-30', new Date('2026-07-01T00:00:00.000Z')),
+    ]);
+
+    expect(result).toEqual({ kind: 'head', row: expect.objectContaining({ id: 4 }) });
+
+    await expect(
+      resolve([
+        snapshot(1, null, '2026-03-31', new Date('2026-12-01T00:00:00.000Z')),
+        snapshot(2, 1, '2026-06-30', new Date('2026-07-01T00:00:00.000Z')),
+      ])
+    ).resolves.toEqual({ kind: 'head', row: expect.objectContaining({ id: 2 }) });
+
+    await expect(
+      resolve([
+        snapshot(3, null, '2026-03-31', new Date('2026-07-01T00:00:00.000Z')),
+        snapshot(9, null, '2026-06-30', new Date('2026-07-01T00:00:00.000Z')),
+      ])
+    ).resolves.toEqual({ kind: 'head', row: expect.objectContaining({ id: 9 }) });
+  });
+
+  it('returns deterministic head ids when same-date independent terminal heads exist', async () => {
     await expect(resolve([snapshot(9, null), snapshot(3, null)])).resolves.toEqual({
       kind: 'ambiguous',
       code: 'FACTS_HEAD_AMBIGUOUS',
@@ -69,7 +99,9 @@ describe('resolveTerminalFactsHead', () => {
   });
 
   it('rejects a repeated lineage id as a cycle', async () => {
-    await expect(resolve([snapshot(2, 1), snapshot(1, 2)])).resolves.toEqual({
+    await expect(
+      resolve([snapshot(2, 1), snapshot(1, null), snapshot(4, 3), snapshot(3, 4)])
+    ).resolves.toEqual({
       kind: 'invalid',
       code: 'FACTS_LINEAGE_INVALID',
       reason: 'cycle',

@@ -49,7 +49,6 @@ import { vehicles } from '@shared/schema/vehicles';
 type PreviewDatabase = typeof db;
 
 const PILOT_IMPORT_ORIGIN = 'actuals_pilot_v1';
-const IDENTITY_QUERY_LIMIT = ACTUALS_MAX_ROWS + 1;
 const NUMERIC_20_6_MAX_CENTS = 9_999_999_999_999_999n;
 
 const LEDGER_COLUMNS = [
@@ -483,6 +482,7 @@ function parseStrictCsv(buffer: Buffer, kind: TemplateKind): ParsedCsv {
 }
 
 async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Promise<IdentityMaps> {
+  // ponytail: use full fund-scoped/date-scoped scans; add keyset paging only for measured pilot-scale need.
   const companyRows = (await database
     .select({
       id: portfolioCompanies.id,
@@ -490,8 +490,7 @@ async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Prom
       name: portfolioCompanies.name,
     })
     .from(portfolioCompanies)
-    .where(eq(portfolioCompanies.fundId, fundId))
-    .limit(IDENTITY_QUERY_LIMIT)) as CompanyLookupRow[];
+    .where(eq(portfolioCompanies.fundId, fundId))) as CompanyLookupRow[];
 
   const vehicleRows = (await database
     .select({
@@ -503,8 +502,7 @@ async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Prom
       currency: vehicles.currency,
     })
     .from(vehicles)
-    .where(eq(vehicles.fundId, fundId))
-    .limit(IDENTITY_QUERY_LIMIT)) as VehicleLookupRow[];
+    .where(eq(vehicles.fundId, fundId))) as VehicleLookupRow[];
 
   const companies = new Map<string, number[]>();
   for (const row of companyRows) {
@@ -604,8 +602,7 @@ async function loadExistingValuationTuples(
   return (await database
     .select()
     .from(valuationMarks)
-    .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate)))
-    .limit(IDENTITY_QUERY_LIMIT)) as ExistingRow[];
+    .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate)))) as ExistingRow[];
 }
 
 async function loadPilotRoster(database: PreviewDatabase, fundId: number): Promise<boolean> {
