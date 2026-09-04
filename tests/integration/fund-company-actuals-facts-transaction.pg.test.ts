@@ -230,16 +230,7 @@ describe.skipIf(skipTest)('fund company actuals transaction visibility', () => {
         knowledgeCutoff: new Date('2026-08-31T11:59:59.999Z'),
         database: transactionDatabase,
       });
-      expect(capped.facts).toEqual([
-        expect.objectContaining({
-          fundId,
-          companyId,
-          approvedPlanningFmvMarkId: null,
-          latestPlanningFmvDate: null,
-          latestPlanningFmvValue: null,
-          planningFmvStatus: 'none',
-        }),
-      ]);
+      expect(capped.facts).toEqual(actualsOnly.facts);
     });
   });
 

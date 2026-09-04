@@ -348,6 +348,7 @@ schema_tests:
   # F_1.7.0 C1A construction reconciliation
   - 'tests/integration/construction-reconciliation.pg.test.ts'
   - 'tests/integration/fund-company-actuals-facts-transaction.pg.test.ts'
+  - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # PLAN_61 Task 18 internal-analysis substrate
   - 'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts'
   - 'migrations/0044_internal_analysis.sql'

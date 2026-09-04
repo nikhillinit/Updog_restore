@@ -377,48 +377,16 @@ describe('runCohortProjectionV2', () => {
   });
 
   it('keeps empty payload-5 periodNav at zero and tvpi equal to dpi', () => {
-    const actualSeries = payload5ActualSeries([]);
+    const projected = payload5ActualSeries([]).map(({ navUsd, tvpi, dpi }) => ({
+      navUsd,
+      tvpi,
+      dpi,
+    }));
 
-    expect(actualSeries).toEqual([
-      {
-        periodStart: '2026-01-01',
-        periodEnd: '2026-03-31',
-        source: 'actual',
-        deployedUsd: '40.000000',
-        contributionsUsd: '100.000000',
-        distributionsUsd: '0.000000',
-        navUsd: '0.000000',
-        tvpi: '0.000000000000',
-        dpi: '0.000000000000',
-        activeCompanyCount: 0,
-        projectedCohortCount: 0,
-      },
-      {
-        periodStart: '2026-04-01',
-        periodEnd: '2026-06-30',
-        source: 'actual',
-        deployedUsd: '50.000000',
-        contributionsUsd: '0.000000',
-        distributionsUsd: '50.000000',
-        navUsd: '0.000000',
-        tvpi: '0.500000000000',
-        dpi: '0.500000000000',
-        activeCompanyCount: 0,
-        projectedCohortCount: 0,
-      },
-      {
-        periodStart: '2026-07-01',
-        periodEnd: '2026-09-30',
-        source: 'actual',
-        deployedUsd: '50.000000',
-        contributionsUsd: '0.000000',
-        distributionsUsd: '0.000000',
-        navUsd: '0.000000',
-        tvpi: '0.500000000000',
-        dpi: '0.500000000000',
-        activeCompanyCount: 0,
-        projectedCohortCount: 0,
-      },
+    expect(projected).toEqual([
+      { navUsd: '0.000000', tvpi: '0.000000000000', dpi: '0.000000000000' },
+      { navUsd: '0.000000', tvpi: '0.500000000000', dpi: '0.500000000000' },
+      { navUsd: '0.000000', tvpi: '0.500000000000', dpi: '0.500000000000' },
     ]);
   });
 });

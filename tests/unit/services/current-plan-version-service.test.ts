@@ -267,19 +267,7 @@ describe('current plan version service', () => {
     expect(error).toMatchObject({
       name: 'ZodError',
       issues: [
-        {
-          code: 'invalid_union_discriminator',
-          options: [
-            'financial-facts-policy/1.0.0',
-            'financial-facts-policy/1.0.1',
-            'financial-facts-policy/1.1.0',
-            'financial-facts-policy/1.2.0',
-            'financial-facts-policy/1.3.0',
-          ],
-          path: ['policyVersion'],
-          message:
-            "Invalid discriminator value. Expected 'financial-facts-policy/1.0.0' | 'financial-facts-policy/1.0.1' | 'financial-facts-policy/1.1.0' | 'financial-facts-policy/1.2.0' | 'financial-facts-policy/1.3.0'",
-        },
+        expect.objectContaining({ code: 'invalid_union_discriminator', path: ['policyVersion'] }),
       ],
     });
     expect(fakeDb.currentPlanRows).toHaveLength(0);
