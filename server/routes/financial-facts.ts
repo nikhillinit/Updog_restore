@@ -5,10 +5,6 @@ import { z } from 'zod';
 
 import {
   FINANCIAL_FACTS_POLICY_VERSION,
-  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
-  FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
-  FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
-  PersistedFinancialFactsSnapshotV1Schema,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { toNumber } from '@shared/number';
 import type { FinancialFactsSnapshot } from '@shared/schema/financial-facts-snapshots';
@@ -24,6 +20,7 @@ import {
 } from '../services/financial-facts-snapshot-service';
 import { OpeningAccountingStateArtifactError } from '../services/financial-facts/opening-accounting-state-artifact';
 import { triggerCurrentForecastShadowForFacts } from '../services/current-forecast-shadow-trigger';
+import { parsePersistedFactsRow } from '../services/financial-facts/parse-persisted-facts-row';
 
 const routeLog = createRouteLogger('financial-facts');
 const router = Router();
@@ -74,32 +71,13 @@ function actorId(req: Request): number {
 }
 
 function snapshotResponse(row: FinancialFactsSnapshot) {
-  const persisted = {
-    policyVersion: row.policyVersion,
-    payloadSchemaId: row.payloadSchemaId,
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  };
-  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
+  const parsed = parsePersistedFactsRow(row);
+  if (parsed.kind === 'unsupported') {
+    throw new Error(`Financial-facts policy ${parsed.policyVersion} is not supported.`);
+  }
 
-  return PersistedFinancialFactsSnapshotV1Schema.parse({
-    ...persisted,
-    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0 ||
-    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_2_0 ||
-    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_3_0
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : { payloadSchemaId: undefined }),
-  });
+  const { id: _id, ...snapshot } = parsed.snapshot;
+  return snapshot;
 }
 
 router.get(

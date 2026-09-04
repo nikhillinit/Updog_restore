@@ -52,6 +52,11 @@ import {
   TerminalPolicyV1Error,
   INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
 } from '../../../../shared/contracts/internal-economics/terminal-policy-v1.contract';
+import {
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FinancialFactsPayloadV5Schema,
+} from '../../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { LP_ECONOMICS_RUN_CONTRACT_VERSION as LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
 import type { LpEconomicsResultV1 } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
 import {
@@ -507,6 +512,85 @@ function goldenFactsPayload(openingAccountingState: unknown = resolvedOpeningAcc
     observationRefs: [],
     openingAccountingState,
   };
+}
+
+function goldenFactsPayloadV5() {
+  const unavailable = () => ({
+    value: null,
+    availability: 'unavailable' as const,
+    reasonCodes: ['SOURCE_NOT_SUPPLIED' as const],
+    sourceRefs: [],
+  });
+  const moneyFields = [
+    'committedCapital',
+    'calledCapitalIssued',
+    'paidInCapital',
+    'deployedCapital',
+    'initialDeployedCapital',
+    'followOnDeployedCapital',
+    'secondaryDeployedCapital',
+    'otherDeployedCapital',
+    'managementFeesPaid',
+    'otherExpensesPaid',
+    'realizedFundProceeds',
+    'distributionsToPartners',
+    'recallableDistributions',
+    'netCalledCapital',
+    'uncalledCapital',
+    'availableRecallCapacity',
+    'portfolioFmv',
+    'fundCash',
+    'otherAssets',
+    'liabilities',
+    'nav',
+  ];
+  const ratioFields = ['dpi', 'rvpi', 'tvpi'];
+
+  return FinancialFactsPayloadV5Schema.parse({
+    ...goldenFactsPayload(),
+    capitalActuals: {
+      ledgerCoverage: 'complete',
+      ...Object.fromEntries(moneyFields.map((field) => [field, unavailable()])),
+      ...Object.fromEntries(ratioFields.map((field) => [field, unavailable()])),
+    },
+    valuationActuals: {
+      valuationDate: null,
+      roster: [],
+      marks: [],
+      coverage: 'not_supplied',
+      missingCompanyIds: [],
+    },
+    admissionReceiptCore: {
+      contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+      operationHash: hex64(18),
+      fundId: FUND_ID,
+      asOfDate: '2026-06-30',
+      coverage: {
+        ledger: 'inception_to_date',
+        priorFactsSnapshotId: null,
+        evidenceNote: 'Internal economics policy fence fixture.',
+      },
+      admitted: {
+        ledger: {
+          sourceArtifactId: 1,
+          payloadSha256: hex64(1),
+          canonicalRowsHash: hex64(2),
+          previewHash: hex64(3),
+          approvedRowIds: [],
+          approvedCount: 0,
+        },
+        valuation: null,
+        importBatchId: '11111111-2222-3333-4444-555555555555',
+      },
+      facts: {
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+        payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+        supersedesSnapshotId: null,
+        knowledgeCutoff: '2026-06-30T23:59:59.000Z',
+      },
+      actor: { userId: ACTOR_ID },
+    },
+  });
 }
 
 /** Seeds a fully eligible golden basis set into `fakeDb` and returns the row
@@ -1036,6 +1120,31 @@ describe('executeLpEconomicsRun -- T-C2 section 8 gates', () => {
       ];
     });
     await expectUnavailable(fakeDb, 'gate4-duplicate', 'FACTS_ECONOMICS_EVALUATION_BLOCKED');
+  });
+
+  it('refuses policy 1.4 facts with a typed error before economics computation', async () => {
+    const fakeDb = seededDb((db_) => {
+      const facts = db_.factsRows[0]!;
+      facts['policyVersion'] = FINANCIAL_FACTS_POLICY_VERSION_1_4_0;
+      facts['payloadSchemaId'] = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5;
+      facts['payload'] = goldenFactsPayloadV5();
+      facts['consumerEvaluations'] = [];
+    });
+
+    await expect(
+      executeLpEconomicsRun({
+        fundId: FUND_ID,
+        actorId: ACTOR_ID,
+        idempotencyKey: 'policy-1-4-unsupported',
+        request: goldenRequest(),
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'UNSUPPORTED_FACTS_POLICY',
+    });
+    expect(fakeDb.runRows).toHaveLength(0);
+    expect(fakeDb.runInsertAttempts).toHaveLength(0);
   });
 
   it('gate 5: OPENING_CASH_UNAVAILABLE when openingAccountingState is null', async () => {

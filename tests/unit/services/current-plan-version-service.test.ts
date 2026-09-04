@@ -7,6 +7,11 @@ import {
   mintCurrentPlanVersion,
 } from '../../../server/services/current-plan-version-service';
 import type { FundDraftWriteV1 } from '../../../shared/contracts/fund-draft-write-v1.contract';
+import {
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FinancialFactsPayloadV5Schema,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import type { fundConfigs } from '../../../shared/schema/fund';
@@ -250,13 +255,9 @@ describe('current plan version service', () => {
     expect(plan.sourceFactsSnapshotId).toBe('31');
   });
 
-  it('routes a policy-1.4 row to the payload-5 schema at the mint parse boundary', async () => {
+  it('refuses a policy-1.4 row through the typed unsupported-policy path', async () => {
     const fakeDb = new FakeCurrentPlanDb();
-    fakeDb.factsRows[0] = {
-      ...factsRow(),
-      policyVersion: 'financial-facts-policy/1.4.0',
-      payloadSchemaId: 'financial-facts-payload/5',
-    };
+    fakeDb.factsRows[0] = factsRowV5();
 
     const error = await mintCurrentPlanVersion({
       fundId: 1,
@@ -264,12 +265,11 @@ describe('current plan version service', () => {
       database: fakeDb.asDatabase(),
     }).catch((caught: unknown) => caught);
 
-    // Phase 1 widened the persisted union, so the discriminator now accepts 1.4 and the
-    // legacy fixture payload is what fails; Phase 2 replaces this with codec adoption.
-    expect(error).toMatchObject({ name: 'ZodError' });
-    const issues = (error as { issues: Array<{ path: unknown[] }> }).issues;
-    expect(issues.length).toBeGreaterThan(0);
-    expect(issues.every((issue) => issue.path[0] === 'payload')).toBe(true);
+    expect(error).toBeInstanceOf(CurrentPlanVersionServiceError);
+    expect(error).toMatchObject({
+      status: 422,
+      code: 'UNSUPPORTED_FACTS_POLICY',
+    });
     expect(fakeDb.currentPlanRows).toHaveLength(0);
   });
 });
@@ -388,5 +388,97 @@ function factsRowWithEffectiveTerms(input: {
       observationRefs: [],
       ...(input.isPayload3 ? { openingAccountingState: null } : {}),
     },
+  };
+}
+
+function factsRowV5(): FactsRow {
+  const legacy = factsRow();
+  const unavailable = () => ({
+    value: null,
+    availability: 'unavailable' as const,
+    reasonCodes: ['SOURCE_NOT_SUPPLIED' as const],
+    sourceRefs: [],
+  });
+  const moneyFields = [
+    'committedCapital',
+    'calledCapitalIssued',
+    'paidInCapital',
+    'deployedCapital',
+    'initialDeployedCapital',
+    'followOnDeployedCapital',
+    'secondaryDeployedCapital',
+    'otherDeployedCapital',
+    'managementFeesPaid',
+    'otherExpensesPaid',
+    'realizedFundProceeds',
+    'distributionsToPartners',
+    'recallableDistributions',
+    'netCalledCapital',
+    'uncalledCapital',
+    'availableRecallCapacity',
+    'portfolioFmv',
+    'fundCash',
+    'otherAssets',
+    'liabilities',
+    'nav',
+  ];
+  const ratioFields = ['dpi', 'rvpi', 'tvpi'];
+
+  return {
+    ...legacy,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    payload: FinancialFactsPayloadV5Schema.parse({
+      ...legacy.payload,
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+      openingAccountingState: null,
+      capitalActuals: {
+        ledgerCoverage: 'complete',
+        ...Object.fromEntries(moneyFields.map((field) => [field, unavailable()])),
+        ...Object.fromEntries(ratioFields.map((field) => [field, unavailable()])),
+      },
+      valuationActuals: {
+        valuationDate: null,
+        roster: [],
+        marks: [],
+        coverage: 'not_supplied',
+        missingCompanyIds: [],
+      },
+      admissionReceiptCore: {
+        contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+        operationHash: 'e'.repeat(64),
+        fundId: 1,
+        asOfDate: '2026-07-21',
+        coverage: {
+          ledger: 'inception_to_date',
+          priorFactsSnapshotId: null,
+          evidenceNote: 'Current plan policy fence fixture.',
+        },
+        admitted: {
+          ledger: {
+            sourceArtifactId: 1,
+            payloadSha256: 'f'.repeat(64),
+            canonicalRowsHash: '0'.repeat(64),
+            previewHash: '1'.repeat(64),
+            approvedRowIds: [],
+            approvedCount: 0,
+          },
+          valuation: null,
+          importBatchId: '11111111-2222-3333-4444-555555555555',
+        },
+        facts: {
+          policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+          supersedesSnapshotId: null,
+          knowledgeCutoff: '2026-07-22T02:00:00.000Z',
+        },
+        actor: { userId: 7 },
+      },
+    }),
+    consumerEvaluations: [],
   };
 }

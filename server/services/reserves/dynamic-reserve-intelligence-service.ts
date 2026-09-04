@@ -25,7 +25,7 @@ import {
 } from '../../../shared/contracts/dynamic-reserve-intelligence-v1.contract';
 import type { FundCompanyActualsFactsResponse } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import {
-  PersistedFinancialFactsSnapshotV1Schema,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import Decimal from '../../../shared/lib/decimal-config';
@@ -50,6 +50,7 @@ import {
 } from './reserve-envelope-service';
 import { composeRankedReserveAllocation } from './ranked-reserve-orchestrator';
 import { buildRankedReserveInputFromSnapshot } from './ranked-reserve-input-from-snapshot';
+import { parsePersistedFactsRow } from '../financial-facts/parse-persisted-facts-row';
 
 const SNAPSHOT_TYPE = 'RESERVE_INTELLIGENCE';
 
@@ -68,6 +69,7 @@ interface PersistedRunRow {
 }
 
 export type DynamicReserveIntelligenceServiceErrorCode =
+  | 'UNSUPPORTED_FACTS_POLICY'
   | 'FACTS_RESERVE_EVALUATION_BLOCKED'
   | 'RESERVE_INTELLIGENCE_NOT_FOUND'
   | 'RESERVE_INTELLIGENCE_RUN_NOT_FOUND'
@@ -118,26 +120,20 @@ function dependencies(
 }
 
 function snapshotFromRow(row: FinancialFactsSnapshot): PersistedFinancialFactsSnapshotV1 {
-  return PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    ...(row.policyVersion === 'financial-facts-policy/1.1.0' ||
-    row.policyVersion === 'financial-facts-policy/1.2.0' ||
-    row.policyVersion === 'financial-facts-policy/1.3.0'
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : {}),
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
+  const parsed = parsePersistedFactsRow(row);
+  if (
+    parsed.kind === 'unsupported' ||
+    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+  ) {
+    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+    throw new DynamicReserveIntelligenceServiceError(
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${policyVersion} is not supported by reserve intelligence.`
+    );
+  }
+  const { id: _id, ...snapshot } = parsed.snapshot;
+  return snapshot;
 }
 
 function hydrateSnapshotFacts(

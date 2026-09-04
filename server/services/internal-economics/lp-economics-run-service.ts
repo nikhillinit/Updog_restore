@@ -148,7 +148,7 @@ import {
   type InternalLpEconomicsRunReceiptV1,
 } from '../../../shared/contracts/internal-economics/lp-economics-run-receipt-v1.contract';
 import {
-  PersistedFinancialFactsSnapshotV1Schema,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { FundDraftWriteV1Schema } from '../../../shared/contracts/fund-draft-write-v1.contract';
@@ -166,6 +166,7 @@ import {
   type InternalLpEconomicsRunRow,
 } from '../../../shared/schema/internal-economics';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
+import { parsePersistedFactsRow } from '../financial-facts/parse-persisted-facts-row';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
 import { fundConfigs, fundSnapshots } from '../../../shared/schema/fund';
 
@@ -213,6 +214,7 @@ export type LpEconomicsRunServiceErrorCode =
   | 'RUN_NOT_FOUND'
   | 'RUN_RESULT_SNAPSHOT_MISSING'
   | 'SOURCE_CONFIG_VERSION_DRIFTED'
+  | 'UNSUPPORTED_FACTS_POLICY'
   | 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION';
 
 export class LpEconomicsRunServiceError extends Error {
@@ -617,23 +619,19 @@ async function loadEnvelopeRow(
 function parseFactsSnapshotRow(
   row: FactsRow
 ): PersistedFinancialFactsSnapshotV1 & { readonly id: number } {
-  const parsed = PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    payloadSchemaId: row.payloadSchemaId,
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
-  return { ...parsed, id: row.id };
+  const parsed = parsePersistedFactsRow(row);
+  if (
+    parsed.kind === 'unsupported' ||
+    parsed.snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+  ) {
+    const policyVersion = parsed.kind === 'unsupported' ? parsed.policyVersion : parsed.snapshot.policyVersion;
+    throw new LpEconomicsRunServiceError(
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${policyVersion} is not supported by internal LP economics.`
+    );
+  }
+  return parsed.snapshot;
 }
 
 async function loadFactsRow(
