@@ -135,9 +135,39 @@ const MetricsTargetExtractionSchema = z
   })
   .passthrough();
 
-// Simple in-memory cache fallback
-class InMemoryCache implements CacheClient {
-  private cache = new Map<string, { value: unknown; expiry: number }>();
+const IN_MEMORY_CACHE_DEFAULT_MAX_KEYS = 5000;
+const IN_MEMORY_CACHE_SWEEP_INTERVAL_MS = 60_000;
+
+function readInMemoryCacheMaxKeys(): number {
+  const parsed = Number(process.env['CACHE_MAX_KEYS']);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : IN_MEMORY_CACHE_DEFAULT_MAX_KEYS;
+}
+
+/**
+ * Bounded in-memory cache fallback for the metrics aggregator.
+ *
+ * Unified-metrics keys embed the fund's financial-facts head id and input hash,
+ * so every new head leaves the previous key permanently unreachable. Entries are
+ * therefore bounded by LRU eviction at capacity (expired entries are swept
+ * first) and by a periodic expiry sweep, mirroring `server/cache/memory.ts`.
+ * That class is not reused directly because it stores strings only and has no
+ * `setnx`, while this cache holds `UnifiedFundMetrics` objects by reference.
+ */
+export class InMemoryCache implements CacheClient {
+  private readonly cache = new Map<string, { value: unknown; expiry: number }>();
+  readonly maxSize: number;
+
+  constructor(options: { maxSize?: number; sweepIntervalMs?: number } = {}) {
+    this.maxSize = Math.max(1, options.maxSize ?? readInMemoryCacheMaxKeys());
+    const sweepIntervalMs = options.sweepIntervalMs ?? IN_MEMORY_CACHE_SWEEP_INTERVAL_MS;
+    if (sweepIntervalMs > 0) {
+      setInterval(() => this.sweepExpired(), sweepIntervalMs).unref();
+    }
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
 
   async get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
@@ -146,11 +176,23 @@ class InMemoryCache implements CacheClient {
       this.cache.delete(key);
       return null;
     }
+    // Re-insert so Map iteration order doubles as least-recently-used order.
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     return entry['value'] as T;
   }
 
   async set<T>(key: string, value: T, options?: { ttlSeconds?: number }): Promise<void> {
     const ttl = (options?.ttlSeconds || 300) * 1000;
+    this.cache.delete(key);
+    if (this.cache.size >= this.maxSize) {
+      this.sweepExpired();
+    }
+    while (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.cache.delete(oldestKey);
+    }
     this.cache.set(key, {
       value,
       expiry: Date.now() + ttl,
@@ -162,11 +204,21 @@ class InMemoryCache implements CacheClient {
   }
 
   async setnx(key: string, value: string, ttlSeconds = 60): Promise<boolean> {
-    if (this.cache.has(key)) {
+    const existing = this.cache.get(key);
+    if (existing && Date.now() <= existing['expiry']) {
       return false;
     }
     await this.set(key, value, { ttlSeconds });
     return true;
+  }
+
+  private sweepExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache) {
+      if (now > entry['expiry']) {
+        this.cache.delete(key);
+      }
+    }
   }
 }
 
