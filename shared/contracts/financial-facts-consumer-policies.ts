@@ -28,6 +28,14 @@ export const ConsumerEvaluationReasonV2Schema = z.enum([
   'contingent_instrument_excluded',
 ]);
 
+export const ConsumerEvaluationReasonV3Schema = z.enum([
+  ...ConsumerEvaluationReasonV2Schema.options,
+  'unsupported_payload_policy',
+  'ledger_coverage_partial',
+  'investment_lineage_unresolved',
+  'period_nav_unavailable',
+]);
+
 export const ConsumerEvaluationDetailV2Schema = z
   .object({
     code: ConsumerEvaluationReasonV2Schema,
@@ -55,11 +63,33 @@ export const ConsumerEvaluationV2Schema = z
   })
   .strict();
 
+export const ConsumerEvaluationDetailV3Schema = z
+  .object({
+    code: ConsumerEvaluationReasonV3Schema,
+    companyIds: z.array(z.number().int().positive()).optional(),
+    vehicleId: z.number().int().positive().optional(),
+    companyIdentityId: z.number().int().positive().optional(),
+    message: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const ConsumerEvaluationV3Schema = z
+  .object({
+    consumer: FinancialFactsConsumerKeySchema,
+    status: z.enum(['accepted', 'blocked']),
+    reasons: z.array(ConsumerEvaluationReasonV3Schema),
+    details: z.array(ConsumerEvaluationDetailV3Schema).optional(),
+  })
+  .strict();
+
 export type FinancialFactsConsumerKey = z.infer<typeof FinancialFactsConsumerKeySchema>;
 export type ConsumerEvaluationReason = z.infer<typeof ConsumerEvaluationReasonSchema>;
 export type ConsumerEvaluationReasonV2 = z.infer<typeof ConsumerEvaluationReasonV2Schema>;
+export type ConsumerEvaluationReasonV3 = z.infer<typeof ConsumerEvaluationReasonV3Schema>;
 export type ConsumerEvaluation = z.infer<typeof ConsumerEvaluationSchema>;
 export type ConsumerEvaluationV2 = z.infer<typeof ConsumerEvaluationV2Schema>;
+export type ConsumerEvaluationDetailV3 = z.infer<typeof ConsumerEvaluationDetailV3Schema>;
+export type ConsumerEvaluationV3 = z.infer<typeof ConsumerEvaluationV3Schema>;
 
 export const DEFAULT_SELECTION_RULE = 'latest_effective_dated_accepted_at_or_before_as_of' as const;
 
