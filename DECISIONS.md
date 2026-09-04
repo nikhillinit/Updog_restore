@@ -12149,3 +12149,58 @@ commits first leaves the later claim as a harmless post-flip row. Provenance
 filters in evidence or activation queries can land post-activation if manual
 runs on soaked funds ever become desirable; until then no such filter exists by
 design.
+
+## ADR-097: F_1.12.0 Fixed-Template Financial-Facts Publication Is the Sole Successor to Plan A and Plan B
+
+**Date:** 2026-09-04 **Status:** Accepted (owner ratified 2026-09-04) **Tags:**
+#financial-facts #actuals-pilot #idempotency #planning-authority
+
+### Decision
+
+`docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md`
+(SHA-256 `8fd4f99777f46a528396352db41f1f617a6b72f1c10ae67652c845f7881754c6`,
+Codex plan review APPROVED round 7) is the sole successor plan for the actuals
+publication loop. It supersedes Plan A
+(`.omx/plans/trustworthy-decision-loop-implementation-plan-v4.md`; RALPLAN
+iteration 7 is retired and no further iterations run) and Plan B
+(`2026-09-04-updog-actuals-trust-pilot.md`, untracked). Plan A's frozen
+artifacts under `.omx/` are not edited or deleted. The synthesized plan
+(`.omx/plans/trustworthy-decision-loop-synthesized-plan.md`, SHA-256
+`3c30ceed791ae582dac7d2c24f7f3958cc27e6c5ef0ecf2696c2658c4e6b401c`) remains the
+source of settled decisions S1-S11 except as amended below.
+
+1. Scope widening. The valuation template `actuals-valuation/1.0.0` and the
+   forecast, reserve, and construction-reconciliation adoption of
+   `FinancialFactsBasisRef` are in scope. This reopens dispositions D6 (consumer
+   adoption deferred to a separately authorized follow-on) and D8 (valuation
+   template deferred as template version 1.1) recorded in
+   `.omx/plans/reviews/tdl-synthesis-dialectical-map.md`, and resolves them per
+   plan decisions S12 and S13. Economics and periodic-analysis consumers stay
+   fenced with typed `UNSUPPORTED_FACTS_POLICY` (S14).
+2. S8 amendment. The synthesis limited facts to admitted template rows, the
+   vehicle commitment row, and the named predecessor snapshot, with the builder
+   reading no other table. Under this plan capital facts derive from the fund's
+   accepted pilot rows and marks (`imported_from='actuals_pilot_v1'` and
+   `status IN ('approved','locked')`) read under the fund lock after this
+   publication's inserts, plus the vehicle commitment row and the named
+   predecessor snapshot; per-company facts come from the existing
+   `server/services/fund-actuals/fund-company-actuals-facts-service.ts` producer
+   invoked inside the transaction through an additive `planningMarkSources`
+   option. The read set stays bounded and is reproduced by
+   `sourceFactsInputHash`.
+3. Still deferred: the generic V2 import route unmount; the Plan B Milestone A
+   containment bundle; NAV, RVPI, and TVPI, which remain typed `unavailable`
+   because no fund-cash or liabilities source exists.
+4. Plan version is F_1.12.0. The trial is Phase 8 of the plan, and the plan is
+   complete only when the STOP/GO record is committed.
+
+### Consequences
+
+Approval of the plan by any reviewer is planning evidence only. Implementation
+begins only after an explicit execution handoff names the worktree, base SHA,
+and phase. This ADR grants no schema, GitHub, provider, serving, activation,
+merge, deployment, or production authority; `ACTUALS_PILOT_FUND_ID` stays unset
+on Vercel until a separately authorized activation. Reopening D6 and D8 widens
+the change surface the synthesis had deliberately fenced; the plan's per-reader
+codec and consumer evaluation gates are the compensating control and must ship
+before any consumer reads payload 5.
