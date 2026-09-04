@@ -16,5 +16,8 @@
     "tailwind.config.ts"
   ],
   "exclude": ["dist", "node_modules", "build", "coverage"],
-  "files": ["tests/unit/lib/dual-forecast-display.test.tsx"]
+  "files": [
+    "tests/unit/lib/dual-forecast-display.test.tsx",
+    "tests/unit/lib/sha256-bytes.test.tsx"
+  ]
 }
