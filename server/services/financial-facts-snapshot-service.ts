@@ -56,6 +56,7 @@ import {
   parseOpeningAccountingStateArtifact,
   type OpeningAccountingStateArtifactRow,
 } from './financial-facts/opening-accounting-state-artifact';
+import { lockFinancialFactsFund } from './financial-facts/fund-lock';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -290,7 +291,7 @@ function policyVersionLabel(policyVersion: string): string {
   return policyVersion.split('/').at(-1) ?? policyVersion;
 }
 
-function buildCashFlowSeries(
+export function buildCashFlowSeries(
   rows: readonly CashFlowRow[],
   asOfDate: string,
   policyVersion: string
@@ -409,7 +410,7 @@ function toSelectableMark(row: ValuationMarkRow): ParsedValuationMark {
   };
 }
 
-function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
+export function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
   const acceptedRows = rows
     .filter(
       (row) =>
@@ -1371,12 +1372,6 @@ export async function getFinancialFactsSnapshotById(opts: {
   return selected ?? null;
 }
 
-async function lockFactsGeneration(database: SnapshotDatabase, fundId: number): Promise<void> {
-  await database.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtext(${`financial-facts:${fundId}`}))`
-  );
-}
-
 function scopeKey(value: { vehicleId: number; companyIdentityId: number }): string {
   return `${value.vehicleId}:${value.companyIdentityId}`;
 }
@@ -1724,7 +1719,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
   knowledgeCutoff: string;
 }): Promise<PersistedFinancialFactsSnapshotV1> {
   const { input, database, now, knowledgeCutoff } = params;
-  await lockFactsGeneration(database, input.fundId);
+  await lockFinancialFactsFund(database, input.fundId);
   const idempotencyRequest = {
     fundId: input.fundId,
     contractVersion: FINANCIAL_FACTS_POLICY_VERSION,

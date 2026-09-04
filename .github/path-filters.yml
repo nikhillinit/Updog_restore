@@ -349,6 +349,10 @@ schema_tests:
   - 'tests/integration/construction-reconciliation.pg.test.ts'
   - 'tests/integration/fund-company-actuals-facts-transaction.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
+  # F_1.12.0 financial-facts terminal-head proof
+  - 'tests/integration/financial-facts-terminal-head.pg.test.ts'
+  - 'server/services/financial-facts/fund-lock.ts'
+  - 'server/services/financial-facts/terminal-head.ts'
   # PLAN_61 Task 18 internal-analysis substrate
   - 'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts'
   - 'migrations/0044_internal_analysis.sql'

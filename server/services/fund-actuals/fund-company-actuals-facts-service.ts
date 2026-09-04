@@ -91,6 +91,7 @@ export interface BuildFundCompanyActualsFactsInput {
   asOfDate: string;
   now?: Date;
   knowledgeCutoff?: Date;
+  planningMarkSources?: readonly string[];
   database?: typeof db;
 }
 
@@ -603,6 +604,7 @@ export async function buildFundCompanyActualsFacts(
 ): Promise<FundCompanyActualsFactsResponse> {
   const database = input.database ?? db;
   const now = input.now ?? new Date();
+  const planningMarkSources = input.planningMarkSources ?? ['planning_fmv_override'];
 
   const [fund] = await database
     .select({ id: funds.id, baseCurrency: funds.baseCurrency })
@@ -690,7 +692,7 @@ export async function buildFundCompanyActualsFacts(
         .where(
           and(
             eq(valuationMarks.fundId, input.fundId),
-            eq(valuationMarks.importedFrom, 'planning_fmv_override'),
+            inArray(valuationMarks.importedFrom, [...planningMarkSources]),
             eq(valuationMarks.markPurpose, 'planning_company_fmv'),
             inArray(valuationMarks.status, ['approved', 'locked']),
             ...(input.knowledgeCutoff === undefined
