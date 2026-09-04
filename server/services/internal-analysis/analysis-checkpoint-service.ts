@@ -63,7 +63,10 @@ import {
 import { logger } from '../../lib/logger';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { funds, fundSnapshots } from '../../../shared/schema/fund';
-import { buildFinancialFactsSnapshot } from '../financial-facts-snapshot-service';
+import {
+  buildFinancialFactsSnapshot,
+  FinancialFactsSnapshotServiceError,
+} from '../financial-facts-snapshot-service';
 import {
   resolveCurrentForecastPlanVersionId,
   runCurrentForecastV2WithReceipt,
@@ -1382,13 +1385,28 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
 
     async rebuildBasis(input) {
       // ONE canonical facts snapshot at the server-assigned cutoff...
-      const snapshot = await buildFinancialFactsSnapshot({
-        fundId: input.fundId,
-        asOfDate: input.asOfDate,
-        actorId: input.actorId ?? 0,
-        idempotencyKey: input.idempotencyKey,
-        database,
-      });
+      let snapshot;
+      try {
+        snapshot = await buildFinancialFactsSnapshot({
+          fundId: input.fundId,
+          asOfDate: input.asOfDate,
+          actorId: input.actorId ?? 0,
+          idempotencyKey: input.idempotencyKey,
+          database,
+        });
+      } catch (error) {
+        if (
+          error instanceof FinancialFactsSnapshotServiceError &&
+          error.code === 'PILOT_FACTS_WRITER_ONLY'
+        ) {
+          throw new AnalysisCheckpointServiceError(
+            422,
+            'UNSUPPORTED_FACTS_POLICY',
+            'The financial-facts policy is not supported by periodic analysis.'
+          );
+        }
+        throw error;
+      }
 
       if (snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
         throw new AnalysisCheckpointServiceError(

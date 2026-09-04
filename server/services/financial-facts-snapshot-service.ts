@@ -42,6 +42,7 @@ import {
   vehicles,
 } from '../../shared/schema/lp-reporting-evidence';
 import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service';
+import { readActualsPilotFundId } from '../config/actuals-pilot-env';
 import { isoDay, selectActiveValuationMarks } from './lp-reporting/active-valuation-mark-selector';
 import type {
   CashFlowEventType,
@@ -193,12 +194,19 @@ interface SnapshotLineage {
   consumerEvaluations: ConsumerEvaluation[];
 }
 
+export type FinancialFactsSnapshotServiceErrorCode =
+  | 'CASH_FLOW_PERSPECTIVE_INVALID'
+  | 'FACTS_SNAPSHOT_READ_FAILED'
+  | 'VEHICLE_SCOPE_UNSUPPORTED'
+  | 'CUTOFF_NOT_ACCEPTED'
+  | 'PILOT_FACTS_WRITER_ONLY';
+
 export class FinancialFactsSnapshotServiceError extends Error {
   readonly statusCode: number;
 
   constructor(
     readonly status: number,
-    readonly code: string,
+    readonly code: FinancialFactsSnapshotServiceErrorCode,
     message: string,
     readonly details?: Readonly<Record<string, unknown>>
   ) {
@@ -2001,6 +2009,14 @@ export async function buildFinancialFactsSnapshot(
       400,
       'CUTOFF_NOT_ACCEPTED',
       'knowledgeCutoff is assigned by the server when the snapshot is created.'
+    );
+  }
+
+  if (input.fundId === readActualsPilotFundId()) {
+    throw new FinancialFactsSnapshotServiceError(
+      409,
+      'PILOT_FACTS_WRITER_ONLY',
+      'The pilot fund financial-facts builder is writer-only.'
     );
   }
 

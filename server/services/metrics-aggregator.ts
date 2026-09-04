@@ -62,8 +62,9 @@ import { funds, type Fund, type PortfolioCompany } from '@shared/schema';
 import { toDecimal, type Decimal } from '@shared/lib/decimal-utils';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { db } from '../db';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { financialFactsSnapshots } from '@shared/schema/financial-facts-snapshots';
 
 interface CacheClient {
   get<T>(key: string): Promise<T | null>;
@@ -218,10 +219,9 @@ export class MetricsAggregator {
       skipProjections?: boolean;
     } = {}
   ): Promise<UnifiedFundMetrics> {
-    // Cache key versioning: v2 includes projection flag for better granularity
-    const SCHEMA_VERSION = 2;
     const projectionFlag = options.skipProjections ? 'no-proj' : 'with-proj';
-    const cacheKey = `unified:v${SCHEMA_VERSION}:fund:${fundId}:${projectionFlag}`;
+    const cacheKeys = await this.buildUnifiedMetricsCacheKeys(fundId);
+    const cacheKey = cacheKeys[projectionFlag];
     const lockKey = `${cacheKey}:rebuilding`;
 
     // Check cache unless explicitly skipped
@@ -868,12 +868,35 @@ export class MetricsAggregator {
    * Invalidates both projection variants to ensure consistency
    */
   async invalidateCache(fundId: number): Promise<void> {
-    const SCHEMA_VERSION = 2;
+    const cacheKeys = await this.buildUnifiedMetricsCacheKeys(fundId);
     // Invalidate both cache variants (with-proj and no-proj)
     await Promise.all([
-      this.cache.del(`unified:v${SCHEMA_VERSION}:fund:${fundId}:with-proj`),
-      this.cache.del(`unified:v${SCHEMA_VERSION}:fund:${fundId}:no-proj`),
+      this.cache.del(cacheKeys['with-proj']),
+      this.cache.del(cacheKeys['no-proj']),
     ]);
+  }
+
+  private async buildUnifiedMetricsCacheKeys(
+    fundId: number
+  ): Promise<Record<'with-proj' | 'no-proj', string>> {
+    const [factsHead] = await db
+      .select({
+        id: financialFactsSnapshots.id,
+        snapshotInputHash: financialFactsSnapshots.snapshotInputHash,
+      })
+      .from(financialFactsSnapshots)
+      .where(eq(financialFactsSnapshots.fundId, fundId))
+      .orderBy(desc(financialFactsSnapshots.id))
+      .limit(1);
+
+    const factsIdentity = factsHead
+      ? `facts:${factsHead.id}:${factsHead.snapshotInputHash}`
+      : 'facts:none';
+
+    return {
+      'with-proj': `unified:v3:fund:${fundId}:${factsIdentity}:with-proj`,
+      'no-proj': `unified:v3:fund:${fundId}:${factsIdentity}:no-proj`,
+    };
   }
 
   private async getFundForMetrics(fundId: number): Promise<Fund | undefined> {
