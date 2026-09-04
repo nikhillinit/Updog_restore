@@ -21,6 +21,8 @@ const EXEMPT_ID_ONLY_LOOKUPS = {
     'Checks whether a snapshot ID exists for a snapshotInputHash.',
   'server/services/internal-analysis/analysis-checkpoint-service.ts':
     'Checks whether a snapshot ID exists for a snapshotInputHash.',
+  'server/services/metrics-aggregator.ts':
+    'Reads only snapshot id and snapshot_input_hash to fingerprint the metrics cache.',
 } as const;
 
 // Plan item 8: every payload/evaluation reader that must adopt the Phase 2 codec,
