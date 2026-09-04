@@ -18,12 +18,14 @@ import {
 import type {
   ConsumerEvaluation,
   ConsumerEvaluationV2,
+  ConsumerEvaluationV3,
 } from '../contracts/financial-facts-consumer-policies';
 import type {
   FinancialFactsPayloadV1,
   FinancialFactsPayloadV2,
   FinancialFactsPayloadV3,
   FinancialFactsPayloadV4,
+  FinancialFactsPayloadV5,
 } from '../contracts/financial-facts-snapshot-v1.contract';
 import { funds } from './fund';
 
@@ -50,10 +52,11 @@ export const financialFactsSnapshots = pgTable(
         | FinancialFactsPayloadV2
         | FinancialFactsPayloadV3
         | FinancialFactsPayloadV4
+        | FinancialFactsPayloadV5
       >(),
     consumerEvaluations: jsonb('consumer_evaluations')
       .notNull()
-      .$type<ConsumerEvaluation[] | ConsumerEvaluationV2[]>(),
+      .$type<ConsumerEvaluation[] | ConsumerEvaluationV2[] | ConsumerEvaluationV3[]>(),
     actorId: integer('actor_id'),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),
