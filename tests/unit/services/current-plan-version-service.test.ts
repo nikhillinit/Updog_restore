@@ -249,6 +249,41 @@ describe('current plan version service', () => {
 
     expect(plan.sourceFactsSnapshotId).toBe('31');
   });
+
+  it('rejects a persisted payload-5 row at the current mint parse boundary', async () => {
+    const fakeDb = new FakeCurrentPlanDb();
+    fakeDb.factsRows[0] = {
+      ...factsRow(),
+      policyVersion: 'financial-facts-policy/1.4.0',
+      payloadSchemaId: 'financial-facts-payload/5',
+    };
+
+    const error = await mintCurrentPlanVersion({
+      fundId: 1,
+      idempotencyKey: 'plan-payload-5-rejected',
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      name: 'ZodError',
+      issues: [
+        {
+          code: 'invalid_union_discriminator',
+          options: [
+            'financial-facts-policy/1.0.0',
+            'financial-facts-policy/1.0.1',
+            'financial-facts-policy/1.1.0',
+            'financial-facts-policy/1.2.0',
+            'financial-facts-policy/1.3.0',
+          ],
+          path: ['policyVersion'],
+          message:
+            "Invalid discriminator value. Expected 'financial-facts-policy/1.0.0' | 'financial-facts-policy/1.0.1' | 'financial-facts-policy/1.1.0' | 'financial-facts-policy/1.2.0' | 'financial-facts-policy/1.3.0'",
+        },
+      ],
+    });
+    expect(fakeDb.currentPlanRows).toHaveLength(0);
+  });
 });
 
 function publishedConfigRow(config: FundDraftWriteV1 = completeConfig()): FundConfigRow {

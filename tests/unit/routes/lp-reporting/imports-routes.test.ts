@@ -240,13 +240,79 @@ describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
       .post('/api/funds/1/imports/ledger/dry-run')
       .send({ sourceType: 'csv', payload: ledgerCsvBase64 });
     expect(res.status).toBe(200);
-    expect(res.body.sourceType).toBe('csv');
-    expect(typeof res.body.importId).toBe('string');
-    expect(res.body.previewHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(res.body.parsedRows).toBeGreaterThan(0);
-    expect(res.body.duplicateRows).toBe(1);
-    expect(res.body.invalidRows).toBe(1);
-    expect(typeof res.body.reconciliation.calledCapitalImported).toBe('string');
+    expect(res.body).toEqual({
+      importId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+      sourceType: 'csv',
+      previewHash: '5b1e5841ca3ac59d3062a852b15cdca789cf116a0e5f5e841f26d9f34b38601f',
+      parsedRows: 6,
+      validRows: 4,
+      invalidRows: 1,
+      duplicateRows: 1,
+      warnings: [],
+      errors: [
+        {
+          row: 6,
+          column: 'event_date',
+          code: 'MALFORMED_EVENT_DATE',
+          message: 'event_date "not-a-date" must be ISO-8601.',
+          severity: 'error',
+        },
+      ],
+      reconciliation: {
+        calledCapitalImported: '2000000.000000',
+        distributionsImported: '250000.000000',
+        latestNavImported: '0.000000',
+        explanations: [],
+      },
+      preview: [
+        {
+          rowIndex: 1,
+          eventType: 'lp_capital_call',
+          lpId: 1,
+          amount: '1000000.000000',
+          eventDate: '2026-01-15T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 2,
+          eventType: 'lp_distribution',
+          lpId: 1,
+          amount: '250000.000000',
+          eventDate: '2026-02-20T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 3,
+          eventType: 'portfolio_investment',
+          companyId: 42,
+          amount: '500000.000000',
+          eventDate: '2026-03-10T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 4,
+          eventType: 'fund_expense',
+          amount: '12500.000000',
+          eventDate: '2026-03-31T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 5,
+          eventType: 'lp_capital_call',
+          lpId: 1,
+          amount: '1000000.000000',
+          eventDate: '2026-01-15T00:00:00.000Z',
+          duplicate: true,
+          excluded: false,
+        },
+      ],
+    });
   });
 
   it('returns 400 when body is missing sourceType / payload', async () => {
@@ -326,7 +392,16 @@ describe('POST /api/funds/:fundId/imports/ledger/commit', () => {
       .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
 
     expect(res.status).toBe(201);
-    expect(res.body.insertedCount).toBe(2);
+    expect(res.body).toEqual({
+      importBatchId: '11111111-2222-3333-4444-555555555555',
+      previewHash,
+      insertedCount: 2,
+      skippedExistingCount: 0,
+      skippedDuplicateCount: 1,
+      skippedExcludedCount: 0,
+      insertedIds: [10, 11],
+    });
+    expect(res.body).not.toHaveProperty('idempotencyKey');
     expect(commitServiceMock.commitLedgerImport).toHaveBeenCalledWith({
       fundId: 1,
       userId: authState.userId,
@@ -334,6 +409,9 @@ describe('POST /api/funds/:fundId/imports/ledger/commit', () => {
       payload: ledgerCsvBase64,
       previewHash,
     });
+    expect(commitServiceMock.commitLedgerImport.mock.calls[0]?.[0]).not.toHaveProperty(
+      'idempotencyKey'
+    );
   });
 
   it('returns 400 when previewHash is missing', async () => {

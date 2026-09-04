@@ -26,6 +26,105 @@ describe('deriveCurrentPlanV1', () => {
     expect(persistedPlan.allocations).toEqual(result.plan.allocations);
   });
 
+  it('pins derivation from a payload-5-shaped facts snapshot', () => {
+    const result = deriveCurrentPlanV1({
+      ...completeInput(),
+      // Phase 1 adds payload-5 schema/types; keep this characterization fixture plain.
+      factsSnapshot: payload5FactsSnapshot() as unknown as PersistedFinancialFactsSnapshotV1,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      plan: {
+        contractVersion: 'current-plan-version-v1',
+        fundId: 1,
+        sourceConfigId: 17,
+        sourceConfigVersion: 3,
+        sourceFactsSnapshotId: '31',
+        deployableCapitalUsd: '80000000.000000',
+        planTransformationVersion: 'fund-config-to-current-plan/1.0.0',
+        allocations: [
+          {
+            allocationId: 'seed',
+            name: 'Seed',
+            stageFocus: 'Seed',
+            initialCapitalUsd: '48000000.000000',
+            followOnCapitalUsd: '5000000.000000',
+            avgInitialCheckUsd: '1000000.000000',
+            pacingQuarters: 8,
+            followOnStrategy: 'amount',
+            followOnParticipationPct: '0.250000000000',
+          },
+          {
+            allocationId: 'series-a',
+            name: 'Series A',
+            stageFocus: 'Series A',
+            initialCapitalUsd: '32000000.000000',
+            followOnCapitalUsd: '3200000.000000',
+            avgInitialCheckUsd: '2000000.000000',
+            pacingQuarters: 6,
+            followOnStrategy: 'maintain_ownership',
+            followOnParticipationPct: '0.100000000000',
+          },
+        ],
+        pacingAssumptions: {
+          contractVersion: 'current-plan-pacing-v1',
+          deploymentQuarters: 8,
+          quarterlyDeploymentPcts: [
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+            '0.125000000000',
+          ],
+          followOnReservePct: '0.092970521542',
+          annualFeeDragPct: '0.020000000000',
+        },
+        cohortAssumptions: {
+          contractVersion: 'current-plan-cohort-v1',
+          averageInitialCheckUsd: '1400000.000000',
+          stageDistribution: [
+            { stage: 'Seed', pct: '0.600000000000' },
+            { stage: 'Series A', pct: '0.400000000000' },
+          ],
+          graduationMatrix: [
+            {
+              fromStage: 'Seed',
+              toStage: 'Seed',
+              rate: '1.000000000000',
+              quartersToGraduate: 0,
+            },
+            {
+              fromStage: 'Series A',
+              toStage: 'Series A',
+              rate: '1.000000000000',
+              quartersToGraduate: 0,
+            },
+          ],
+          exitAssumptions: [
+            {
+              stage: 'Seed',
+              exitMultiple: '1.000000000000',
+              quartersToExit: 0,
+              failureRate: '0.000000000000',
+            },
+            {
+              stage: 'Series A',
+              exitMultiple: '1.000000000000',
+              quartersToExit: 0,
+              failureRate: '0.000000000000',
+            },
+          ],
+        },
+        reservePolicyVersion: 'reserve-policy/1.0.0',
+        assumptionsHash: 'dc977b2e7462a3d4c1b0f00df0258a38899cdb64a6797f5171a9a58c56b60dbe',
+      },
+    });
+  });
+
   it('produces the same assumptions hash for the same config', () => {
     const input = completeInput();
     const first = deriveCurrentPlanV1(input);
@@ -208,5 +307,44 @@ function factsSnapshot(): PersistedFinancialFactsSnapshotV1 & { id: number } {
     },
     actorId: 7,
     createdAt: '2026-07-22T02:00:00.000Z',
+  };
+}
+
+function payload5FactsSnapshot() {
+  const facts = factsSnapshot();
+  return {
+    ...facts,
+    policyVersion: 'financial-facts-policy/1.4.0',
+    payloadSchemaId: 'financial-facts-payload/5',
+    payload: {
+      ...facts.payload,
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+      openingAccountingState: null,
+      capitalActuals: {
+        ledgerCoverage: 'complete',
+        paidInCapital: {
+          value: '0.000000',
+          availability: 'available',
+          reasonCodes: [],
+          sourceRefs: ['fixture:payload-5'],
+        },
+      },
+      valuationActuals: {
+        valuationDate: null,
+        roster: [],
+        marks: [],
+        coverage: 'not_supplied',
+        missingCompanyIds: [],
+      },
+      admissionReceiptCore: {
+        contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+        fundId: facts.fundId,
+        asOfDate: facts.asOfDate,
+      },
+    },
   };
 }
