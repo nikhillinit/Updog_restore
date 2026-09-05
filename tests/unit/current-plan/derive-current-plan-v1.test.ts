@@ -26,6 +26,16 @@ describe('deriveCurrentPlanV1', () => {
     expect(persistedPlan.allocations).toEqual(result.plan.allocations);
   });
 
+  it('derives the same plan from a payload-5-shaped facts snapshot', () => {
+    const result = deriveCurrentPlanV1({
+      ...completeInput(),
+      // Phase 1 adds payload-5 schema/types; keep this characterization fixture plain.
+      factsSnapshot: payload5FactsSnapshot() as unknown as PersistedFinancialFactsSnapshotV1,
+    });
+
+    expect(result).toEqual(deriveCurrentPlanV1(completeInput()));
+  });
+
   it('produces the same assumptions hash for the same config', () => {
     const input = completeInput();
     const first = deriveCurrentPlanV1(input);
@@ -208,5 +218,44 @@ function factsSnapshot(): PersistedFinancialFactsSnapshotV1 & { id: number } {
     },
     actorId: 7,
     createdAt: '2026-07-22T02:00:00.000Z',
+  };
+}
+
+function payload5FactsSnapshot() {
+  const facts = factsSnapshot();
+  return {
+    ...facts,
+    policyVersion: 'financial-facts-policy/1.4.0',
+    payloadSchemaId: 'financial-facts-payload/5',
+    payload: {
+      ...facts.payload,
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+      openingAccountingState: null,
+      capitalActuals: {
+        ledgerCoverage: 'complete',
+        paidInCapital: {
+          value: '0.000000',
+          availability: 'available',
+          reasonCodes: [],
+          sourceRefs: ['fixture:payload-5'],
+        },
+      },
+      valuationActuals: {
+        valuationDate: null,
+        roster: [],
+        marks: [],
+        coverage: 'not_supplied',
+        missingCompanyIds: [],
+      },
+      admissionReceiptCore: {
+        contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+        fundId: facts.fundId,
+        asOfDate: facts.asOfDate,
+      },
+    },
   };
 }

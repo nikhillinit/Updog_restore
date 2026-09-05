@@ -146,6 +146,11 @@ const valuationCsv = [
   '43,2026-04-15,2026-04-15,5500000.000000,USD,board_update,high,management_estimate,3000000.000000,',
 ].join('\n');
 
+const notionLedgerCsv = [
+  'Event Type,Amount,Currency,Date,Perspective,Company,LP,Notes',
+  'lp_capital_call,1000000.000000,USD,2026-01-01T00:00:00.000Z,lp_net,,1,Notion call',
+].join('\n');
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-05-09T12:00:00.000Z'));
@@ -171,13 +176,50 @@ describe('commitLedgerImport', () => {
       { database: fakeDb.asDatabase() }
     );
 
-    expect(result.insertedCount).toBe(2);
-    expect(result.skippedExistingCount).toBe(0);
-    expect(result.insertedIds).toHaveLength(2);
-    expect(fakeDb.insertedCashFlowRows).toHaveLength(2);
-    expect(fakeDb.insertedCashFlowRows.every((row) => readSourceHash(row)?.length === 64)).toBe(
-      true
-    );
+    expect(result).toEqual({
+      importBatchId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+      previewHash: dryRun.previewHash,
+      insertedCount: 2,
+      skippedExistingCount: 0,
+      skippedDuplicateCount: 0,
+      skippedExcludedCount: 0,
+      insertedIds: [100, 101],
+    });
+    expect(fakeDb.insertedCashFlowRows).toEqual([
+      {
+        fundId: 1,
+        eventType: 'lp_capital_call',
+        amount: '1000000.000000',
+        currency: 'USD',
+        eventDate: new Date('2026-01-01T00:00:00.000Z'),
+        perspective: 'lp_net',
+        payload: {},
+        importedFrom: 'csv',
+        importBatchId: result.importBatchId,
+        sourceHash: '20a3e865e69f6b2d3bc2f1c89d3cf4687d20eaa15d6970c778d5629c229cdfee',
+        createdBy: 7,
+        lpId: 1,
+        description: 'Q1 call',
+      },
+      {
+        fundId: 1,
+        eventType: 'portfolio_investment',
+        amount: '250000.000000',
+        currency: 'USD',
+        eventDate: new Date('2026-01-02T00:00:00.000Z'),
+        perspective: 'company',
+        payload: {},
+        importedFrom: 'csv',
+        importBatchId: result.importBatchId,
+        sourceHash: 'b15a02dfe8f87e3477b8aaf62283bed6ff5d9606f6287f8eb990042203c0e5f1',
+        createdBy: 7,
+        vehicleId: 7,
+        companyId: 42,
+        description: 'Seed investment',
+      },
+    ]);
     expect(
       fakeDb.insertedCashFlowRows.some((row) => readSourceHash(row) === dryRun.previewHash)
     ).toBe(false);
@@ -203,6 +245,31 @@ describe('commitLedgerImport', () => {
     expect(fakeDb.insertedCashFlowRows).toHaveLength(1);
   });
 
+  it('persists sourceType as importedFrom for a notion ledger commit', async () => {
+    const fakeDb = new FakeCommitDb();
+    const dryRun = runLedgerDryRun(Buffer.from(notionLedgerCsv), 'notion', 1);
+
+    const result = await commitLedgerImport(
+      {
+        fundId: 1,
+        sourceType: 'notion',
+        payload: toBase64(notionLedgerCsv),
+        previewHash: dryRun.previewHash,
+        userId: 7,
+      },
+      { database: fakeDb.asDatabase() }
+    );
+
+    expect(result.insertedCount).toBe(1);
+    expect(fakeDb.insertedCashFlowRows).toEqual([
+      expect.objectContaining({
+        importedFrom: 'notion',
+        importBatchId: result.importBatchId,
+        sourceHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    ]);
+  });
+
   it('replays the same ledger commit as skipped existing rows', async () => {
     const fakeDb = new FakeCommitDb();
     const dryRun = runLedgerDryRun(Buffer.from(ledgerCsv), 'csv', 1);
@@ -214,11 +281,29 @@ describe('commitLedgerImport', () => {
       userId: 7,
     };
 
-    await commitLedgerImport(input, { database: fakeDb.asDatabase() });
+    const first = await commitLedgerImport(input, { database: fakeDb.asDatabase() });
+    const persistedAfterFirst = fakeDb.insertedCashFlowRows.map((row) => ({
+      ...(row as Record<string, unknown>),
+    }));
     const replay = await commitLedgerImport(input, { database: fakeDb.asDatabase() });
 
-    expect(replay.insertedCount).toBe(0);
-    expect(replay.skippedExistingCount).toBe(2);
+    expect(replay).toEqual({
+      importBatchId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+      previewHash: dryRun.previewHash,
+      insertedCount: 0,
+      skippedExistingCount: 2,
+      skippedDuplicateCount: 0,
+      skippedExcludedCount: 0,
+      insertedIds: [],
+    });
+    expect(replay.importBatchId).not.toBe(first.importBatchId);
+    expect(fakeDb.insertedCashFlowRows).toEqual(persistedAfterFirst);
+    expect(fakeDb.insertedCashFlowRows.map(readSourceHash)).toEqual([
+      '20a3e865e69f6b2d3bc2f1c89d3cf4687d20eaa15d6970c778d5629c229cdfee',
+      'b15a02dfe8f87e3477b8aaf62283bed6ff5d9606f6287f8eb990042203c0e5f1',
+    ]);
   });
 
   it('counts concurrent conflict skips when the DB inserts fewer rows than requested', async () => {

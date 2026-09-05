@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../lib/decimal-string';
+import { FinancialFactsBasisRefSchema } from './financial-facts-snapshot-v1.contract';
 
 export const ENGINE_VERSION = 'current-forecast-v2-engine/1.0.0' as const;
 export const METHODOLOGY_VERSION = 'cohort-projection-v2/1.0.0' as const;
@@ -55,6 +56,7 @@ export const CurrentForecastV2Schema = z
     fundId: z.number().int().positive(),
     financialFactsSnapshotId: z.string(),
     currentPlanVersionId: z.string(),
+    basisRef: FinancialFactsBasisRefSchema.optional(),
     asOfDate: z.string().date(),
     status: z.enum(['available', 'indicative', 'unavailable', 'failed', 'held']),
     series: z.array(CurrentForecastSeriesPointV1Schema),

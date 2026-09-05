@@ -28,7 +28,7 @@ const V1_FILES: Record<string, string> = {
   'server/services/internal-economics/economics-policy-service.ts':
     '26db8be872a073d79f3903e8c058eae68d50d029c91a53f3e8c63ed198bf62fe',
   'server/services/internal-economics/lp-economics-run-service.ts':
-    '6fea6fa9f476ee07fc023af7a8e09939e261fc314ec01bc21ffbf4621ffc3777',
+    'a261afd3a506e4679cb80f4f4707934b51c0810fe6d13e0fab50376148820052',
   'shared/lib/current-plan/derive-current-plan-v1.ts':
     '150eb9d2d7d16fd933279fefb721111afe3012ecb4840e5291fb00466910f330',
 };

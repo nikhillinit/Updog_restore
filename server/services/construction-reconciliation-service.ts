@@ -28,11 +28,9 @@ import {
   type ConstructionReconciliationResult,
 } from '../../shared/contracts/construction-reconciliation-v1.contract.js';
 import {
-  FinancialFactsPayloadV1_0_0Schema,
-  FinancialFactsPayloadV1Schema,
-  FinancialFactsPayloadV2Schema,
-  FinancialFactsPayloadV3Schema,
-  FinancialFactsPayloadV4Schema,
+  FinancialFactsBasisRefSchema,
+  type FinancialFactsBasisRef,
+  type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract.js';
 import {
   CurrentPlanVersionV1Schema,
@@ -61,6 +59,8 @@ import {
   type FinancialFactsSnapshot,
 } from '../../shared/schema/financial-facts-snapshots.js';
 import { funds, fundSnapshots } from '../../shared/schema/fund.js';
+import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row.js';
+import { basisRefFromPersistedSnapshot } from './financial-facts/financial-facts-basis-ref.js';
 
 const routeLog = createRouteLogger('construction-reconciliation');
 
@@ -78,15 +78,8 @@ type ConstructionReconciliationExecutor =
   ConstructionReconciliationDatabase | ConstructionReconciliationTransaction;
 type FundSnapshotRow = typeof fundSnapshots.$inferSelect;
 
-const FinancialFactsPayloadSchema = z.union([
-  FinancialFactsPayloadV1_0_0Schema,
-  FinancialFactsPayloadV1Schema,
-  FinancialFactsPayloadV2Schema,
-  FinancialFactsPayloadV3Schema,
-  FinancialFactsPayloadV4Schema,
-]);
-
-type FactsPayload = z.infer<typeof FinancialFactsPayloadSchema>;
+type FactsPayload = PersistedFinancialFactsSnapshotV1['payload'];
+type ParsedFactsSnapshot = PersistedFinancialFactsSnapshotV1 & { readonly id: number };
 export type ConstructionReconciliationActualFact = FactsPayload['companyActuals']['facts'][number];
 
 const SnapshotMetadataSchema = z
@@ -100,6 +93,7 @@ const SnapshotMetadataSchema = z
     // whose preimage is the request exactly as supplied.
     requestedFactsSnapshotId: z.number().int().positive().nullable(),
     asOfDate: z.string().date(),
+    basisRef: FinancialFactsBasisRefSchema.optional(),
     // Provenance-side warnings captured at compute time so replays and
     // GET-latest reads keep serving the original financial disclosures.
     structuredWarnings: z.array(StructuredWarningSchema),
@@ -401,7 +395,7 @@ async function loadCurrentFactsSnapshot(
   database: ConstructionReconciliationExecutor,
   fundId: number,
   snapshotId: number
-): Promise<{ row: FinancialFactsSnapshot; payload: FactsPayload }> {
+): Promise<{ row: FinancialFactsSnapshot; payload: FactsPayload; snapshot: ParsedFactsSnapshot }> {
   await assertOwnedByFund({
     db: database as unknown as FundScopedOwnershipDatabase,
     fundId,
@@ -433,16 +427,16 @@ async function loadCurrentFactsSnapshot(
     );
   }
 
-  const parsedPayload = FinancialFactsPayloadSchema.safeParse(row.payload);
-  if (!parsedPayload.success) {
+  const parsed = parsePersistedFactsRow(row);
+  if (parsed.kind === 'unsupported') {
     throw new ConstructionReconciliationServiceError(
-      500,
-      'FINANCIAL_FACTS_SNAPSHOT_INVALID',
-      'The selected financial-facts snapshot does not satisfy its persisted contract.'
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${parsed.policyVersion} is not supported by construction reconciliation.`
     );
   }
 
-  const payload = parsedPayload.data;
+  const payload = parsed.snapshot.payload;
   if (
     payload.companyActuals.fundId !== fundId ||
     payload.companyActuals.asOfDate !== row.asOfDate ||
@@ -455,7 +449,7 @@ async function loadCurrentFactsSnapshot(
     );
   }
 
-  return { row, payload };
+  return { row, payload, snapshot: parsed.snapshot };
 }
 
 export function reduceState(facts: readonly ConstructionReconciliationActualFact[]):
@@ -549,6 +543,7 @@ export function buildResult(params: {
   plan: CurrentPlanVersionV1;
   facts: readonly ConstructionReconciliationActualFact[];
   asOfDate: string;
+  basisRef?: FinancialFactsBasisRef;
 }): ConstructionReconciliationResult {
   try {
     const reduced = reduceState(params.facts);
@@ -557,6 +552,7 @@ export function buildResult(params: {
         state: reduced.state,
         basis: params.basis,
         reasonCodes: reduced.reasonCodes,
+        ...(params.basisRef === undefined ? {} : { basisRef: params.basisRef }),
       });
     }
 
@@ -572,6 +568,7 @@ export function buildResult(params: {
       value,
       resultHash,
       reasonCodes: reduced.reasonCodes,
+      ...(params.basisRef === undefined ? {} : { basisRef: params.basisRef }),
     });
   } catch (error) {
     routeLog.error({ err: error }, 'Construction reconciliation calculation failed');
@@ -633,6 +630,7 @@ function persistedEnvelopeFromStoredSnapshotWithLabels(
     currentPlanVersionId: metadata.currentPlanVersionId,
     financialFactsSnapshotId: metadata.financialFactsSnapshotId,
     asOfDate: metadata.asOfDate,
+    ...(metadata.basisRef === undefined ? {} : { basisRef: metadata.basisRef }),
   });
 }
 
@@ -707,12 +705,13 @@ export async function runConstructionReconciliation(
     const requestedFactsSnapshotId = request.financialFactsSnapshotId ?? null;
     const factsSnapshotId =
       requestedFactsSnapshotId ?? (await resolveCurrentFactsSnapshotId(transaction, input.fundId));
-    const { row: factsRow, payload } = await loadCurrentFactsSnapshot(
+    const { row: factsRow, payload, snapshot: factsSnapshot } = await loadCurrentFactsSnapshot(
       transaction,
       input.fundId,
       factsSnapshotId
     );
     const facts = payload.companyActuals.facts;
+    const basisRef = basisRefFromPersistedSnapshot(factsSnapshot, factsSnapshot.id);
     const basis = buildBasis({
       fundId: input.fundId,
       currentPlanVersionId: planRow.id,
@@ -725,6 +724,7 @@ export async function runConstructionReconciliation(
       plan,
       facts,
       asOfDate: factsRow.asOfDate,
+      ...(basisRef === undefined ? {} : { basisRef }),
     });
     const envelope = presentationEnvelopeFromResult(result, structuredWarningsFromFacts(facts));
 
@@ -757,6 +757,7 @@ export async function runConstructionReconciliation(
               requestedFactsSnapshotId,
               asOfDate: factsRow.asOfDate,
               structuredWarnings: envelope.structuredWarnings,
+              ...(basisRef === undefined ? {} : { basisRef }),
             },
             snapshotTime,
             stateHash: result.resultHash,

@@ -1,36 +1,50 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  AdmissionReceiptCoreV1Schema,
   EMPTY_SELECTION_SET_HASH,
   EmbeddedFundAccountingStateSnapshotRefV1_1Schema,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   FinancialFactsPayloadV1Schema,
   FinancialFactsPayloadV1_0_0Schema,
   FinancialFactsPayloadV2Schema,
   FinancialFactsPayloadV3Schema,
   FinancialFactsPayloadV4Schema,
+  FinancialFactsPayloadV5Schema,
   FinancialFactsSnapshotInputHashPreimageSchema,
   FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
   FinancialFactsSnapshotInputHashPreimageV4Schema,
+  FinancialFactsSnapshotInputHashPreimageV5Schema,
   FinancialFactsSnapshotV4Schema,
+  FinancialFactsSnapshotV5Schema,
   PersistedFinancialFactsSnapshotV1Schema,
-  buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type FinancialFactsPayloadV3,
   type FinancialFactsPayloadV4,
+  type FinancialFactsPayloadV5,
   type FinancialFactsSnapshotInputHashPreimageV4,
+  type FinancialFactsSnapshotInputHashPreimageV5,
   type FinancialFactsSnapshotV4,
   type PersistedFinancialFactsSnapshotInputHashPreimage,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import { buildSnapshotInputHash } from '../../../shared/lib/financial-facts/snapshot-hashes';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+import {
+  ConsumerEvaluationReasonV3Schema,
+  ConsumerEvaluationSchema,
+  ConsumerEvaluationV2Schema,
+  ConsumerEvaluationV3Schema,
+} from '../../../shared/contracts/financial-facts-consumer-policies';
 
 /**
  * Raw (frozen-input-shape) v1.1 embedded ref: no derived
@@ -158,6 +172,145 @@ function preimageV4(): FinancialFactsSnapshotInputHashPreimageV4 {
   });
 }
 
+function governedMoney(value: string) {
+  return {
+    value,
+    availability: 'available' as const,
+    reasonCodes: [],
+    sourceRefs: ['fixture:payload-5'],
+  };
+}
+
+function unavailableMoney(reason = 'SOURCE_NOT_SUPPLIED') {
+  return {
+    value: null,
+    availability: 'unavailable' as const,
+    reasonCodes: [reason],
+    sourceRefs: ['fixture:payload-5'],
+  };
+}
+
+function payloadV5(): FinancialFactsPayloadV5 {
+  return FinancialFactsPayloadV5Schema.parse({
+    ...emptyPayloadV4(rawEmbeddedRef()),
+    capitalActuals: {
+      ledgerCoverage: 'complete',
+      committedCapital: governedMoney('100.000000'),
+      calledCapitalIssued: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      paidInCapital: governedMoney('50.000000'),
+      deployedCapital: governedMoney('40.000000'),
+      initialDeployedCapital: governedMoney('40.000000'),
+      followOnDeployedCapital: governedMoney('0.000000'),
+      secondaryDeployedCapital: governedMoney('0.000000'),
+      otherDeployedCapital: governedMoney('0.000000'),
+      managementFeesPaid: governedMoney('0.000000'),
+      otherExpensesPaid: governedMoney('0.000000'),
+      realizedFundProceeds: governedMoney('12.000000'),
+      distributionsToPartners: governedMoney('8.000000'),
+      recallableDistributions: governedMoney('5.000000'),
+      netCalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      uncalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
+      availableRecallCapacity: unavailableMoney('RECALL_LIFECYCLE_UNAVAILABLE'),
+      portfolioFmv: governedMoney('55.000000'),
+      fundCash: unavailableMoney('SOURCE_NOT_SUPPLIED'),
+      otherAssets: unavailableMoney('SOURCE_NOT_SUPPLIED'),
+      liabilities: unavailableMoney('SOURCE_NOT_SUPPLIED'),
+      nav: unavailableMoney('NAV_UNAVAILABLE'),
+      dpi: {
+        value: '0.160000000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture:payload-5'],
+      },
+      rvpi: unavailableMoney('NAV_UNAVAILABLE'),
+      tvpi: unavailableMoney('NAV_UNAVAILABLE'),
+    },
+    valuationActuals: {
+      valuationDate: '2026-07-21',
+      roster: [{ vehicleId: 11, companyId: 20 }],
+      marks: [
+        {
+          markId: 21,
+          vehicleId: 11,
+          companyId: 20,
+          positionFairValue: '55.000000',
+          markSource: 'gp_estimate',
+          confidenceLevel: 'high',
+          externalRefHash: 'f'.repeat(64),
+        },
+      ],
+      coverage: 'complete',
+      missingCompanyIds: [],
+    },
+    admissionReceiptCore: AdmissionReceiptCoreV1Schema.parse({
+      contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+      operationHash: 'e'.repeat(64),
+      fundId: 10,
+      asOfDate: '2026-07-21',
+      coverage: {
+        ledger: 'inception_to_date',
+        priorFactsSnapshotId: null,
+        evidenceNote: 'Payload 5 contract fixture.',
+      },
+      admitted: {
+        ledger: {
+          sourceArtifactId: 41,
+          payloadSha256: 'a'.repeat(64),
+          canonicalRowsHash: 'b'.repeat(64),
+          previewHash: 'c'.repeat(64),
+          approvedRowIds: [51],
+          approvedCount: 1,
+        },
+        valuation: {
+          sourceArtifactId: 42,
+          payloadSha256: 'd'.repeat(64),
+          canonicalRowsHash: 'e'.repeat(64),
+          previewHash: 'f'.repeat(64),
+          approvedMarkIds: [21],
+          approvedCount: 1,
+        },
+        importBatchId: '11111111-2222-3333-4444-555555555555',
+      },
+      facts: {
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+        payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+        supersedesSnapshotId: null,
+        knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      },
+      actor: { userId: 7 },
+    }),
+  });
+}
+
+function snapshotV5(): FinancialFactsSnapshotV5 {
+  return FinancialFactsSnapshotV5Schema.parse({
+    ...snapshotEnvelopeCommon(),
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    consumerEvaluations: [
+      {
+        consumer: 'forecast',
+        status: 'blocked',
+        reasons: ['unsupported_payload_policy'],
+      },
+    ],
+    payload: payloadV5(),
+  });
+}
+
+function preimageV5(): FinancialFactsSnapshotInputHashPreimageV5 {
+  return FinancialFactsSnapshotInputHashPreimageV5Schema.parse({
+    fundId: 10,
+    vehicleIds: [20, 10],
+    asOfDate: '2026-07-21',
+    knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    selectionSetHash: EMPTY_SELECTION_SET_HASH,
+    payload: payloadV5(),
+  });
+}
+
 describe('embedded v1.1 snapshot-ref adapter (T-D1, R10)', () => {
   it('derives unreturned LP capital from a raw-shape v1.1 ref via the frozen schema', () => {
     const resolved = EmbeddedFundAccountingStateSnapshotRefV1_1Schema.parse(rawEmbeddedRef());
@@ -279,6 +432,56 @@ describe('financial facts payload v4 and persisted cascade (T-D1)', () => {
     for (const stored of [v1, v2, v3]) {
       expect(PersistedFinancialFactsSnapshotV1Schema.parse(stored)).toEqual(stored);
     }
+  });
+
+  it('round-trips payload v5 through its persisted and preimage unions', () => {
+    const snapshot = snapshotV5();
+    const preimage = preimageV5();
+
+    expect(
+      PersistedFinancialFactsSnapshotV1Schema.parse(JSON.parse(JSON.stringify(snapshot)) as unknown)
+    ).toEqual(snapshot);
+    expect(
+      FinancialFactsSnapshotInputHashPreimageV5Schema.parse(
+        JSON.parse(JSON.stringify(preimage)) as unknown
+      )
+    ).toEqual(preimage);
+    expect(buildSnapshotInputHash(preimage)).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('parses V1, V2, and V3 evaluation fixtures without rewriting earlier shapes', () => {
+    const v1 = {
+      consumer: 'forecast',
+      status: 'blocked',
+      reasons: ['unattributed_legacy_direct'],
+    } as const;
+    const v2 = {
+      consumer: 'reserve',
+      status: 'blocked',
+      reasons: ['position_valuation_incomplete'],
+      details: [{ code: 'position_valuation_incomplete', companyIdentityId: 42 }],
+    } as const;
+    const v3 = {
+      consumer: 'reserve',
+      status: 'blocked',
+      reasons: ['investment_lineage_unresolved'],
+      details: [{ code: 'investment_lineage_unresolved', companyIds: [42] }],
+    } as const;
+
+    expect(ConsumerEvaluationSchema.parse(v1)).toEqual(v1);
+    expect(ConsumerEvaluationV2Schema.parse(v2)).toEqual(v2);
+    expect(ConsumerEvaluationV3Schema.parse(v3)).toEqual(v3);
+  });
+
+  it('rejects an unknown V3 evaluation reason', () => {
+    expect(ConsumerEvaluationReasonV3Schema.safeParse('unknown_v3_reason').success).toBe(false);
+    expect(() =>
+      ConsumerEvaluationV3Schema.parse({
+        consumer: 'forecast',
+        status: 'blocked',
+        reasons: ['unknown_v3_reason'],
+      })
+    ).toThrow();
   });
 
   it('rejects cross-version tuples on both discriminant axes', () => {

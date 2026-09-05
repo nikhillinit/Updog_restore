@@ -133,7 +133,14 @@ export async function createServer(
         'X-Artifact-File-Name',
         'X-Artifact-Source-Type',
       ],
-      exposedHeaders: ['X-Request-ID', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+      exposedHeaders: [
+        'X-Request-ID',
+        'RateLimit-Limit',
+        'RateLimit-Remaining',
+        'RateLimit-Reset',
+        'ETag',
+        'Retry-After',
+      ],
     })
   );
 

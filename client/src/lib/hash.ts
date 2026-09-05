@@ -30,3 +30,12 @@ export async function sha256Hash(data: unknown): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+
+export async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+  const digestInput = new Uint8Array(bytes.byteLength);
+  digestInput.set(bytes);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', digestInput);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}

@@ -221,6 +221,82 @@ describe('runLedgerDryRun -- orchestrator', () => {
     expect(second.importId).not.toBe(result.importId);
     expect(second.previewHash).toBe(result.previewHash);
   });
+
+  it('pins the complete current ledger dry-run response body', () => {
+    expect(result).toEqual({
+      importId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+      sourceType: 'csv',
+      previewHash: '5b1e5841ca3ac59d3062a852b15cdca789cf116a0e5f5e841f26d9f34b38601f',
+      parsedRows: 6,
+      validRows: 4,
+      invalidRows: 1,
+      duplicateRows: 1,
+      warnings: [],
+      errors: [
+        {
+          row: 6,
+          column: 'event_date',
+          code: 'MALFORMED_EVENT_DATE',
+          message: 'event_date "not-a-date" must be ISO-8601.',
+          severity: 'error',
+        },
+      ],
+      reconciliation: {
+        calledCapitalImported: '2000000.000000',
+        distributionsImported: '250000.000000',
+        latestNavImported: '0.000000',
+        explanations: [],
+      },
+      preview: [
+        {
+          rowIndex: 1,
+          eventType: 'lp_capital_call',
+          lpId: 1,
+          amount: '1000000.000000',
+          eventDate: '2026-01-15T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 2,
+          eventType: 'lp_distribution',
+          lpId: 1,
+          amount: '250000.000000',
+          eventDate: '2026-02-20T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 3,
+          eventType: 'portfolio_investment',
+          companyId: 42,
+          amount: '500000.000000',
+          eventDate: '2026-03-10T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 4,
+          eventType: 'fund_expense',
+          amount: '12500.000000',
+          eventDate: '2026-03-31T00:00:00.000Z',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 5,
+          eventType: 'lp_capital_call',
+          lpId: 1,
+          amount: '1000000.000000',
+          eventDate: '2026-01-15T00:00:00.000Z',
+          duplicate: true,
+          excluded: false,
+        },
+      ],
+    });
+  });
 });
 
 describe('runValuationMarkDryRun -- orchestrator', () => {
@@ -244,5 +320,91 @@ describe('runValuationMarkDryRun -- orchestrator', () => {
   it('previewHash changes when the fund changes', () => {
     const otherFund = runValuationMarkDryRun(buffer, 'csv', 2);
     expect(otherFund.previewHash).not.toBe(result.previewHash);
+  });
+
+  it('pins the complete current valuation dry-run response body', () => {
+    const current = runValuationMarkDryRun(buffer, 'csv', 1);
+
+    expect(current).toEqual({
+      importId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+      sourceType: 'csv',
+      previewHash: 'd778927a9320b2dec4f51d8852af604164dff352ff75d93bf6483f35b17901b4',
+      parsedRows: 4,
+      validRows: 4,
+      invalidRows: 0,
+      duplicateRows: 0,
+      warnings: [
+        {
+          row: 2,
+          column: 'confidence_level',
+          code: 'CONFIDENCE_DOWNGRADED',
+          message: 'confidence_level "high" downgraded to "low" per import policy.',
+        },
+        {
+          row: 3,
+          column: 'confidence_level',
+          code: 'CONFIDENCE_DOWNGRADED',
+          message: 'confidence_level "medium" downgraded to "low" per import policy.',
+        },
+        {
+          row: 4,
+          column: 'confidence_level',
+          code: 'CONFIDENCE_DOWNGRADED',
+          message: 'confidence_level "medium" downgraded to "low" per import policy.',
+        },
+      ],
+      errors: [],
+      reconciliation: {
+        calledCapitalImported: '0.000000',
+        distributionsImported: '0.000000',
+        latestNavImported: '16300000.000000',
+        explanations: ['1 future-dated mark(s) excluded from current as-of NAV calculation.'],
+      },
+      preview: [
+        {
+          rowIndex: 1,
+          markSource: 'financing_round',
+          companyId: 42,
+          fairValue: '5000000.000000',
+          asOfDate: '2026-03-31',
+          confidenceLevel: 'high',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 2,
+          markSource: 'board_update',
+          companyId: 42,
+          fairValue: '5500000.000000',
+          asOfDate: '2026-04-15',
+          confidenceLevel: 'low',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 3,
+          markSource: 'gp_estimate',
+          companyId: 42,
+          fairValue: '5800000.000000',
+          asOfDate: '2026-04-20',
+          confidenceLevel: 'low',
+          duplicate: false,
+          excluded: false,
+        },
+        {
+          rowIndex: 4,
+          markSource: 'board_update',
+          companyId: 42,
+          fairValue: '6500000.000000',
+          asOfDate: '2027-01-01',
+          confidenceLevel: 'low',
+          duplicate: false,
+          excluded: true,
+          excludedReason: 'Future-dated mark',
+        },
+      ],
+    });
   });
 });

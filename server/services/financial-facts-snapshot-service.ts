@@ -11,12 +11,14 @@ import {
   FinancialFactsPayloadV4Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
-  buildSelectionSetHash,
-  buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  buildSelectionSetHash,
+  buildSnapshotInputHash,
+} from '../../shared/lib/financial-facts/snapshot-hashes';
 import {
   DOMAIN_MEASURE_MATRIX,
   type MeasureKeyV2,
@@ -42,6 +44,7 @@ import {
   vehicles,
 } from '../../shared/schema/lp-reporting-evidence';
 import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service';
+import { readActualsPilotFundId } from '../config/actuals-pilot-env';
 import { isoDay, selectActiveValuationMarks } from './lp-reporting/active-valuation-mark-selector';
 import type {
   CashFlowEventType,
@@ -53,6 +56,7 @@ import {
   parseOpeningAccountingStateArtifact,
   type OpeningAccountingStateArtifactRow,
 } from './financial-facts/opening-accounting-state-artifact';
+import { lockFinancialFactsFund } from './financial-facts/fund-lock';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -193,12 +197,19 @@ interface SnapshotLineage {
   consumerEvaluations: ConsumerEvaluation[];
 }
 
+export type FinancialFactsSnapshotServiceErrorCode =
+  | 'CASH_FLOW_PERSPECTIVE_INVALID'
+  | 'FACTS_SNAPSHOT_READ_FAILED'
+  | 'VEHICLE_SCOPE_UNSUPPORTED'
+  | 'CUTOFF_NOT_ACCEPTED'
+  | 'PILOT_FACTS_WRITER_ONLY';
+
 export class FinancialFactsSnapshotServiceError extends Error {
   readonly statusCode: number;
 
   constructor(
     readonly status: number,
-    readonly code: string,
+    readonly code: FinancialFactsSnapshotServiceErrorCode,
     message: string,
     readonly details?: Readonly<Record<string, unknown>>
   ) {
@@ -280,7 +291,7 @@ function policyVersionLabel(policyVersion: string): string {
   return policyVersion.split('/').at(-1) ?? policyVersion;
 }
 
-function buildCashFlowSeries(
+export function buildCashFlowSeries(
   rows: readonly CashFlowRow[],
   asOfDate: string,
   policyVersion: string
@@ -399,7 +410,7 @@ function toSelectableMark(row: ValuationMarkRow): ParsedValuationMark {
   };
 }
 
-function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
+export function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
   const acceptedRows = rows
     .filter(
       (row) =>
@@ -1361,12 +1372,6 @@ export async function getFinancialFactsSnapshotById(opts: {
   return selected ?? null;
 }
 
-async function lockFactsGeneration(database: SnapshotDatabase, fundId: number): Promise<void> {
-  await database.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtext(${`financial-facts:${fundId}`}))`
-  );
-}
-
 function scopeKey(value: { vehicleId: number; companyIdentityId: number }): string {
   return `${value.vehicleId}:${value.companyIdentityId}`;
 }
@@ -1714,7 +1719,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
   knowledgeCutoff: string;
 }): Promise<PersistedFinancialFactsSnapshotV1> {
   const { input, database, now, knowledgeCutoff } = params;
-  await lockFactsGeneration(database, input.fundId);
+  await lockFinancialFactsFund(database, input.fundId);
   const idempotencyRequest = {
     fundId: input.fundId,
     contractVersion: FINANCIAL_FACTS_POLICY_VERSION,
@@ -2001,6 +2006,14 @@ export async function buildFinancialFactsSnapshot(
       400,
       'CUTOFF_NOT_ACCEPTED',
       'knowledgeCutoff is assigned by the server when the snapshot is created.'
+    );
+  }
+
+  if (input.fundId === readActualsPilotFundId()) {
+    throw new FinancialFactsSnapshotServiceError(
+      409,
+      'PILOT_FACTS_WRITER_ONLY',
+      'The pilot fund financial-facts builder is writer-only.'
     );
   }
 

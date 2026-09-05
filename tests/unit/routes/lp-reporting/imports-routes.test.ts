@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import request from 'supertest';
 
+import { runLedgerDryRun } from '../../../../server/services/lp-reporting/import-reconciliation-service';
+
 const authState = {
   authenticated: true,
   userId: 7,
@@ -240,13 +242,13 @@ describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
       .post('/api/funds/1/imports/ledger/dry-run')
       .send({ sourceType: 'csv', payload: ledgerCsvBase64 });
     expect(res.status).toBe(200);
-    expect(res.body.sourceType).toBe('csv');
-    expect(typeof res.body.importId).toBe('string');
-    expect(res.body.previewHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(res.body.parsedRows).toBeGreaterThan(0);
-    expect(res.body.duplicateRows).toBe(1);
-    expect(res.body.invalidRows).toBe(1);
-    expect(typeof res.body.reconciliation.calledCapitalImported).toBe('string');
+    const expected = runLedgerDryRun(Buffer.from(ledgerCsvBase64, 'base64'), 'csv', 1);
+    expect(res.body).toEqual({
+      ...JSON.parse(JSON.stringify(expected)),
+      importId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      ),
+    });
   });
 
   it('returns 400 when body is missing sourceType / payload', async () => {
@@ -326,7 +328,16 @@ describe('POST /api/funds/:fundId/imports/ledger/commit', () => {
       .send({ sourceType: 'csv', payload: ledgerCsvBase64, previewHash });
 
     expect(res.status).toBe(201);
-    expect(res.body.insertedCount).toBe(2);
+    expect(res.body).toEqual({
+      importBatchId: '11111111-2222-3333-4444-555555555555',
+      previewHash,
+      insertedCount: 2,
+      skippedExistingCount: 0,
+      skippedDuplicateCount: 1,
+      skippedExcludedCount: 0,
+      insertedIds: [10, 11],
+    });
+    expect(res.body).not.toHaveProperty('idempotencyKey');
     expect(commitServiceMock.commitLedgerImport).toHaveBeenCalledWith({
       fundId: 1,
       userId: authState.userId,
@@ -334,6 +345,9 @@ describe('POST /api/funds/:fundId/imports/ledger/commit', () => {
       payload: ledgerCsvBase64,
       previewHash,
     });
+    expect(commitServiceMock.commitLedgerImport.mock.calls[0]?.[0]).not.toHaveProperty(
+      'idempotencyKey'
+    );
   });
 
   it('returns 400 when previewHash is missing', async () => {

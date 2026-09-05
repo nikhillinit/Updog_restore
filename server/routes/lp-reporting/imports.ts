@@ -110,6 +110,29 @@ const importLimiter = rateLimit({
   },
 });
 
+export const actualsPilotLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = req.user?.id;
+    return userId !== undefined ? `actuals-pilot:${userId}` : 'actuals-pilot:anon';
+  },
+  handler: (req: Request, res: Response) => {
+    const resetTime = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit?.resetTime;
+    const retryAfter = resetTime
+      ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
+      : 60 * 60;
+    res.setHeader('Retry-After', String(retryAfter));
+    return res.status(429).json({
+      error: 'Too Many Requests',
+      code: 'RATE_LIMITED',
+      retryAfter,
+    });
+  },
+});
+
 const importArtifactLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 100,

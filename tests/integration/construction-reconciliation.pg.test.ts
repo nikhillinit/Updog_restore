@@ -20,6 +20,7 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
   FinancialFactsPayloadV1Schema,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import { buildSnapshotInputHash } from '../../shared/lib/financial-facts/snapshot-hashes';
 import { combinedSchema } from '../../server/db-schema';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
@@ -185,6 +186,16 @@ async function insertFactsSnapshot(
   amount = '10.000000'
 ): Promise<number> {
   const payload = makeFactsPayload(fundId, amount);
+  const snapshotInputHash = buildSnapshotInputHash({
+    fundId,
+    vehicleIds: [],
+    asOfDate: '2026-07-21',
+    knowledgeCutoff: '2026-07-21T12:00:00.000Z',
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
+    selectionSetHash: '1'.repeat(64),
+    payload,
+  });
   const result = await adminPool.query<{ id: number }>(
     `
       INSERT INTO financial_facts_snapshots (
@@ -206,7 +217,7 @@ async function insertFactsSnapshot(
       JSON.stringify([]),
       '1'.repeat(64),
       '2'.repeat(64),
-      `snapshot-input-${fundId}-${suffix}`,
+      snapshotInputHash,
       JSON.stringify(payload),
       JSON.stringify([]),
       `facts-${fundId}-${suffix}`,

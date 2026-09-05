@@ -52,6 +52,7 @@ import {
   type QuarterlyReviewCommandResult,
 } from '../../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+import { FINANCIAL_FACTS_POLICY_VERSION_1_4_0 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { internalLpEconomicsRuns } from '../../../shared/schema/internal-economics';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import { db } from '../../db';
@@ -62,7 +63,10 @@ import {
 import { logger } from '../../lib/logger';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { funds, fundSnapshots } from '../../../shared/schema/fund';
-import { buildFinancialFactsSnapshot } from '../financial-facts-snapshot-service';
+import {
+  buildFinancialFactsSnapshot,
+  FinancialFactsSnapshotServiceError,
+} from '../financial-facts-snapshot-service';
 import {
   resolveCurrentForecastPlanVersionId,
   runCurrentForecastV2WithReceipt,
@@ -1381,13 +1385,36 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
 
     async rebuildBasis(input) {
       // ONE canonical facts snapshot at the server-assigned cutoff...
-      const snapshot = await buildFinancialFactsSnapshot({
-        fundId: input.fundId,
-        asOfDate: input.asOfDate,
-        actorId: input.actorId ?? 0,
-        idempotencyKey: input.idempotencyKey,
-        database,
-      });
+      let snapshot;
+      try {
+        snapshot = await buildFinancialFactsSnapshot({
+          fundId: input.fundId,
+          asOfDate: input.asOfDate,
+          actorId: input.actorId ?? 0,
+          idempotencyKey: input.idempotencyKey,
+          database,
+        });
+      } catch (error) {
+        if (
+          error instanceof FinancialFactsSnapshotServiceError &&
+          error.code === 'PILOT_FACTS_WRITER_ONLY'
+        ) {
+          throw new AnalysisCheckpointServiceError(
+            422,
+            'UNSUPPORTED_FACTS_POLICY',
+            'The financial-facts policy is not supported by periodic analysis.'
+          );
+        }
+        throw error;
+      }
+
+      if (snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+        throw new AnalysisCheckpointServiceError(
+          422,
+          'UNSUPPORTED_FACTS_POLICY',
+          'The financial-facts policy is not supported by periodic analysis.'
+        );
+      }
 
       // buildFinancialFactsSnapshot returns the wire contract, which carries no row
       // id. Resolve it deterministically through the fund-scoped identity unique

@@ -24,6 +24,8 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
   'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
   'tests/integration/construction-reconciliation.pg.test.ts',
+  'tests/integration/fund-company-actuals-facts-transaction.pg.test.ts',
+  'tests/integration/financial-facts-terminal-head.pg.test.ts',
   'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
   'tests/integration/internal-economics/economics-schema.pg.test.ts',
   'tests/integration/internal-economics/economics-linkage-schema.pg.test.ts',

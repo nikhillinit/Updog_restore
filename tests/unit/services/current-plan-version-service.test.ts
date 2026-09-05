@@ -7,6 +7,11 @@ import {
   mintCurrentPlanVersion,
 } from '../../../server/services/current-plan-version-service';
 import type { FundDraftWriteV1 } from '../../../shared/contracts/fund-draft-write-v1.contract';
+import {
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FinancialFactsPayloadV5Schema,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import type { fundConfigs } from '../../../shared/schema/fund';
@@ -249,6 +254,20 @@ describe('current plan version service', () => {
 
     expect(plan.sourceFactsSnapshotId).toBe('31');
   });
+
+  it('mints a plan from a payload-5 facts head', async () => {
+    const fakeDb = new FakeCurrentPlanDb();
+    fakeDb.factsRows[0] = factsRowV5();
+
+    const plan = await mintCurrentPlanVersion({
+      fundId: 1,
+      idempotencyKey: 'plan-payload-5',
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(plan.sourceFactsSnapshotId).toBe('31');
+    expect(fakeDb.currentPlanRows).toHaveLength(1);
+  });
 });
 
 function publishedConfigRow(config: FundDraftWriteV1 = completeConfig()): FundConfigRow {
@@ -365,5 +384,97 @@ function factsRowWithEffectiveTerms(input: {
       observationRefs: [],
       ...(input.isPayload3 ? { openingAccountingState: null } : {}),
     },
+  };
+}
+
+function factsRowV5(): FactsRow {
+  const legacy = factsRow();
+  const unavailable = () => ({
+    value: null,
+    availability: 'unavailable' as const,
+    reasonCodes: ['SOURCE_NOT_SUPPLIED' as const],
+    sourceRefs: [],
+  });
+  const moneyFields = [
+    'committedCapital',
+    'calledCapitalIssued',
+    'paidInCapital',
+    'deployedCapital',
+    'initialDeployedCapital',
+    'followOnDeployedCapital',
+    'secondaryDeployedCapital',
+    'otherDeployedCapital',
+    'managementFeesPaid',
+    'otherExpensesPaid',
+    'realizedFundProceeds',
+    'distributionsToPartners',
+    'recallableDistributions',
+    'netCalledCapital',
+    'uncalledCapital',
+    'availableRecallCapacity',
+    'portfolioFmv',
+    'fundCash',
+    'otherAssets',
+    'liabilities',
+    'nav',
+  ];
+  const ratioFields = ['dpi', 'rvpi', 'tvpi'];
+
+  return {
+    ...legacy,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+    payload: FinancialFactsPayloadV5Schema.parse({
+      ...legacy.payload,
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+      openingAccountingState: null,
+      capitalActuals: {
+        ledgerCoverage: 'complete',
+        ...Object.fromEntries(moneyFields.map((field) => [field, unavailable()])),
+        ...Object.fromEntries(ratioFields.map((field) => [field, unavailable()])),
+      },
+      valuationActuals: {
+        valuationDate: null,
+        roster: [],
+        marks: [],
+        coverage: 'not_supplied',
+        missingCompanyIds: [],
+      },
+      admissionReceiptCore: {
+        contractVersion: 'actuals-pilot-publish-receipt/1.0.0',
+        operationHash: 'e'.repeat(64),
+        fundId: 1,
+        asOfDate: '2026-07-21',
+        coverage: {
+          ledger: 'inception_to_date',
+          priorFactsSnapshotId: null,
+          evidenceNote: 'Current plan policy fence fixture.',
+        },
+        admitted: {
+          ledger: {
+            sourceArtifactId: 1,
+            payloadSha256: 'f'.repeat(64),
+            canonicalRowsHash: '0'.repeat(64),
+            previewHash: '1'.repeat(64),
+            approvedRowIds: [],
+            approvedCount: 0,
+          },
+          valuation: null,
+          importBatchId: '11111111-2222-3333-4444-555555555555',
+        },
+        facts: {
+          policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+          supersedesSnapshotId: null,
+          knowledgeCutoff: '2026-07-22T02:00:00.000Z',
+        },
+        actor: { userId: 7 },
+      },
+    }),
+    consumerEvaluations: [],
   };
 }

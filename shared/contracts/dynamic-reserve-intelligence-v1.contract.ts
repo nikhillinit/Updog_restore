@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { H9ActionabilityStatusSchema } from './h9-actionability.contract';
+import { FinancialFactsBasisRefSchema } from './financial-facts-snapshot-v1.contract';
 import { PersistedFinancialFactsSnapshotV1Schema } from './financial-facts-snapshot-v1.contract';
 import { DecimalStringSchema } from './lp-reporting/cash-flow-event.contract';
 import { CanonicalStageSchema } from '../schemas/stage';
@@ -211,6 +212,7 @@ export const DynamicReserveIntelligencePayloadV1Schema = z
   .object({
     contractVersion: z.literal(DYNAMIC_RESERVE_INTELLIGENCE_CONTRACT_VERSION),
     fundId: z.number().int().positive(),
+    basisRef: FinancialFactsBasisRefSchema.optional(),
     actionability: z.enum(['actionable', 'non_actionable']),
     companies: z.array(DynamicReserveIntelligenceCompanyResultV1Schema),
     fund: DynamicReserveIntelligenceFundResultV1Schema,

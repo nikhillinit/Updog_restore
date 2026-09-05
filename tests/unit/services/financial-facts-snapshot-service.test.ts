@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -11,9 +13,11 @@ import {
   FinancialFactsPayloadV4Schema,
   FinancialFactsSnapshotInputHashPreimageV4Schema,
   FinancialFactsSnapshotV4Schema,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
   buildSelectionSetHash,
   buildSnapshotInputHash,
-} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+} from '../../../shared/lib/financial-facts/snapshot-hashes';
 import { funds } from '../../../shared/schema/fund';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { sourceArtifacts, sourceObservations } from '../../../shared/schema/financial-observations';
@@ -361,6 +365,23 @@ function seedInternalFundCorpus(fakeDb: FakeSnapshotDb): void {
 }
 
 describe('buildFinancialFactsSnapshot', () => {
+  it('pins the raw cashFlowSeries fixture bytes', () => {
+    const fixture = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'tests',
+        'fixtures',
+        'internal-fund-corpus',
+        'expected-cash-flows',
+        'financial-facts-cash-flow-series.json'
+      )
+    );
+
+    expect(createHash('sha256').update(fixture).digest('hex')).toBe(
+      '144f28ecdcac9b878bc7b5ef81009e43d5b4627d0cdd821ee79628147a3219bd'
+    );
+  });
+
   it('matches the legacy internal-fund corpus for split cash-flow and valuation authority', async () => {
     loadInternalFundCorpusManifest();
     const fakeDb = new FakeSnapshotDb();
@@ -687,7 +708,9 @@ describe('buildFinancialFactsSnapshot', () => {
     expect(fakeDb.insertedSnapshotCount).toBe(1);
     const replayStatements = fakeDb.executedStatements.slice(statementCountAfterCreate);
     expect(replayStatements).toHaveLength(1);
-    expect(new PgDialect().sqlToQuery(replayStatements[0]!).sql).toContain('pg_advisory_xact_lock');
+    const lockQuery = new PgDialect().sqlToQuery(replayStatements[0]!);
+    expect(lockQuery.sql).toBe('SELECT pg_advisory_xact_lock(hashtext($1))');
+    expect(lockQuery.params).toEqual(['financial-facts:1']);
   });
 
   it('selects an opening-state artifact by composite fund and id', async () => {

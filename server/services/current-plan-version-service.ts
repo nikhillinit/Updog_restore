@@ -3,7 +3,6 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { runIdempotentCommand } from '../lib/idempotent-command';
-import { PersistedFinancialFactsSnapshotV1Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { FundDraftWriteV1Schema } from '../../shared/contracts/fund-draft-write-v1.contract';
 import {
   CurrentPlanVersionV1Schema,
@@ -13,6 +12,7 @@ import { deriveCurrentPlanV1 } from '../../shared/lib/current-plan/derive-curren
 import { currentPlanVersions, type CurrentPlanVersionRow } from '../../shared/schema/current-plans';
 import { fundConfigs } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
+import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row';
 
 const CURRENT_PLAN_CONTRACT_VERSION = 'current-plan-version-v1' as const;
 
@@ -22,6 +22,7 @@ type FactsSnapshotRow = NonNullable<Awaited<ReturnType<typeof getLatestFinancial
 export type CurrentPlanVersionServiceErrorCode =
   | 'NO_PUBLISHED_CONFIG'
   | 'NO_FACTS_SNAPSHOT'
+  | 'UNSUPPORTED_FACTS_POLICY'
   | 'PLAN_DERIVATION_INCOMPLETE'
   | 'OWNERSHIP_STRATEGY_UNSUPPORTED'
   | 'FEE_PROFILE_ABSENT'
@@ -58,23 +59,15 @@ export interface GetCurrentPlanVersionsInput {
 }
 
 function factsSnapshotFromRow(row: FactsSnapshotRow) {
-  const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    payloadSchemaId: row.payloadSchemaId,
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
-  return { ...snapshot, id: row.id };
+  const parsed = parsePersistedFactsRow(row);
+  if (parsed.kind === 'unsupported') {
+    throw new CurrentPlanVersionServiceError(
+      422,
+      'UNSUPPORTED_FACTS_POLICY',
+      `Financial-facts policy ${parsed.policyVersion} is not supported by current plan derivation.`
+    );
+  }
+  return parsed.snapshot;
 }
 
 function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersionV1 {
