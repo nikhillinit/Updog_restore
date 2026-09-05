@@ -38,3 +38,4 @@ export {
 export { CsvUploader, type CsvUploaderProps, type CsvUploaderSourceType } from './CsvUploader';
 export { ImportPreviewPanel, type ImportPreviewPanelProps } from './ImportPreviewPanel';
 export { ImportWarningsList, type ImportWarningsListProps } from './ImportWarningsList';
+export { ActualMetricsReadback, type ActualMetricsReadbackProps } from './ActualMetricsReadback';

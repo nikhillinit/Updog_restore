@@ -177,10 +177,10 @@ describe('LpReportingImportsPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the V2 stage form and not the legacy dry-run tabs', () => {
+  it('renders the V2 stage form unchanged when actuals pilot route is absent', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(jsonResponse(casesResponse([])));
+      .mockResolvedValue(jsonResponse({ code: 'RESOURCE_NOT_FOUND', message: 'Not found.' }, 404));
 
     renderPage();
 
@@ -191,7 +191,14 @@ describe('LpReportingImportsPage', () => {
     expect(screen.queryByTestId('csv-uploader-ledger')).toBeNull();
     expect(screen.queryByTestId('imports-v2-refresh-cases')).toBeNull();
     expect(screen.queryByTestId('imports-v2-commit-button')).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith('/api/funds/7/financial-facts/latest-reference', {
+        method: 'GET',
+      })
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Publish fixed-template actuals' })).toBeNull()
+    );
   });
 
   it('stages a CSV artifact through R1, loads R2 status, and keeps previewHash private', async () => {

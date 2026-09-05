@@ -198,7 +198,7 @@ interface IdentityMaps {
   defaultVehicleId: number | null;
 }
 
-interface WorkingRow {
+export interface ActualsPilotPreparedRow {
   rowNumber: number;
   sourceExternalRef: string | null;
   status: PreviewStatus;
@@ -216,6 +216,14 @@ interface WorkingRow {
   canonicalEconomicFields: Record<string, unknown> | null;
   duplicateInFile: boolean;
   duplicateCompanyMark: boolean;
+}
+
+type WorkingRow = ActualsPilotPreparedRow;
+
+export interface ActualsPilotPreparedPreview {
+  readonly preview: ActualsPreviewResponseV1;
+  readonly rows: readonly ActualsPilotPreparedRow[];
+  readonly payload: Uint8Array;
 }
 
 interface TotalsCents {
@@ -602,7 +610,9 @@ async function loadExistingValuationTuples(
   return (await database
     .select()
     .from(valuationMarks)
-    .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate)))) as ExistingRow[];
+    .where(
+      and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate))
+    )) as ExistingRow[];
 }
 
 async function loadPilotRoster(database: PreviewDatabase, fundId: number): Promise<boolean> {
@@ -1503,10 +1513,10 @@ function validateRequest(input: ActualsPilotPreviewInput): {
   return { fundId, request: parsed.data };
 }
 
-export async function previewActualsPilot(
+export async function prepareActualsPilotPreview(
   input: ActualsPilotPreviewInput,
   options: ActualsPilotPreviewServiceOptions = {}
-): Promise<ActualsPreviewResponseV1> {
+): Promise<ActualsPilotPreparedPreview> {
   const { fundId, request } = validateRequest(input);
   const kind = templateKind(request.templateVersion);
   const payload = decodePayload(request.payload);
@@ -1562,7 +1572,11 @@ export async function previewActualsPilot(
       issues: [...globalIssues].sort(compareIssues),
       canPublish: false,
     };
-    return ActualsPreviewResponseV1Schema.parse(response);
+    return {
+      preview: ActualsPreviewResponseV1Schema.parse(response),
+      rows,
+      payload,
+    };
   }
 
   const maps = await loadIdentityMaps(database, fundId);
@@ -1574,23 +1588,25 @@ export async function previewActualsPilot(
   assignContentHashes(rows, fundId, request.templateVersion);
   markDuplicateRows(rows, kind);
 
-  const [nonPilotCash, nonPilotValuation] = await Promise.all([
-    hasNonPilotCashFlowRows(database, fundId),
-    hasNonPilotValuationRows(database, fundId),
-  ]);
+  const nonPilotCash = await hasNonPilotCashFlowRows(database, fundId);
+  const nonPilotValuation = await hasNonPilotValuationRows(database, fundId);
   if (nonPilotCash || nonPilotValuation)
     globalIssues.push(makeIssue('FUND_LEDGER_NOT_PILOT_OWNED', 0, null));
 
   const existingHashes = rows
     .map((row) => row.rowSourceHash)
     .filter((hash): hash is string => hash !== null);
-  const [existingRows, existingValuationRows, rosterExists] = await Promise.all([
-    loadExistingRowsBySourceHash(database, fundId, kind, Array.from(new Set(existingHashes))),
+  const existingRows = await loadExistingRowsBySourceHash(
+    database,
+    fundId,
+    kind,
+    Array.from(new Set(existingHashes))
+  );
+  const existingValuationRows =
     kind === 'valuation'
-      ? loadExistingValuationTuples(database, fundId, request.asOfDate)
-      : Promise.resolve([]),
-    kind === 'valuation' ? loadPilotRoster(database, fundId) : Promise.resolve(true),
-  ]);
+      ? await loadExistingValuationTuples(database, fundId, request.asOfDate)
+      : [];
+  const rosterExists = kind === 'valuation' ? await loadPilotRoster(database, fundId) : true;
   if (kind === 'valuation' && !rosterExists)
     globalIssues.push(makeIssue('VALUATION_ROSTER_EMPTY', 0, null));
 
@@ -1642,5 +1658,16 @@ export async function previewActualsPilot(
     issues,
     canPublish: rows.some((row) => row.status === 'valid') && !hasErrorIssue && !hasIdentityError,
   };
-  return ActualsPreviewResponseV1Schema.parse(response);
+  return {
+    preview: ActualsPreviewResponseV1Schema.parse(response),
+    rows,
+    payload,
+  };
+}
+
+export async function previewActualsPilot(
+  input: ActualsPilotPreviewInput,
+  options: ActualsPilotPreviewServiceOptions = {}
+): Promise<ActualsPreviewResponseV1> {
+  return (await prepareActualsPilotPreview(input, options)).preview;
 }

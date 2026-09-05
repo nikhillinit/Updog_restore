@@ -1331,6 +1331,53 @@ describe('discovery reducers (pure)', () => {
     expect(b.line_start).toBe(3);
   });
 
+  it('keeps configured actuals routes in a non-certifying seed projection', async () => {
+    const { buildRouteKnowledgeGraph, reduceRuntimeDocuments } = await requireGenerator();
+    const { parent, fixtureRoot, head } = await createInventoryDriftFixture();
+    const actualsRoutes = [
+      ['POST', '/api/funds/:fundId/imports/actuals/dry-run'],
+      ['POST', '/api/funds/:fundId/imports/actuals/publish'],
+      ['GET', '/api/funds/:fundId/financial-facts/latest-reference'],
+      ['GET', '/api/funds/:fundId/actuals/metrics'],
+    ];
+    const documents = [
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:unset',
+        routes: [],
+      },
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:configured',
+        routes: actualsRoutes.map(([method, routePath], index) => ({
+          id: `api:${method}:${routePath}`,
+          method,
+          path: routePath,
+          role: 'handler',
+          site: `server/routes/lp-reporting/imports.ts:${875 + index}`,
+          surface: 'make_app',
+        })),
+      },
+    ];
+
+    try {
+      await withOutputDir(async (outputDir) => {
+        await buildRouteKnowledgeGraph({
+          repoRoot: fixtureRoot,
+          outputDir,
+          expectedSha: head,
+          mode: 'seed',
+          projectionImpl: async () => [reduceRuntimeDocuments(documents), [], []],
+        });
+        const { manifest, nodes } = await readProjection(outputDir);
+        expect(manifest.valid_for_release_proof).toBe(false);
+        expect(nodes.map((node) => node.id)).toEqual(
+          actualsRoutes.map(([method, routePath]) => `api:${method} ${routePath}`).sort()
+        );
+      });
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+
   it('reduceWorkerFindings groups two findings for one queue into a single catalog-backed node', async () => {
     const { reduceWorkerFindings } = await requireGenerator();
     const findings = [

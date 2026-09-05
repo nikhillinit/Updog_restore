@@ -3,6 +3,48 @@
  * Runs ONLY for server-side tests (*.test.ts files)
  */
 import { vi } from 'vitest';
+import type { AddressInfo } from 'node:net';
+import supertest from 'supertest';
+
+type AddressableServer = {
+  address(): AddressInfo | string | null;
+};
+
+type SupertestPrototype = Record<PropertyKey, unknown> & {
+  serverAddress(app: AddressableServer, path: string): string;
+};
+
+const supertestLoopbackPatch = Symbol.for('updog.supertest.loopback-address');
+const supertestPrototype = (
+  supertest as typeof supertest & { Test: { prototype: SupertestPrototype } }
+).Test.prototype;
+
+if (supertestPrototype[supertestLoopbackPatch] !== true) {
+  const originalServerAddress = supertestPrototype.serverAddress;
+
+  supertestPrototype.serverAddress = function serverAddress(app, path) {
+    const generatedAddress = originalServerAddress.call(this, app, path);
+    const listeningAddress = app.address();
+
+    if (
+      !listeningAddress ||
+      typeof listeningAddress === 'string' ||
+      listeningAddress.family !== 'IPv6' ||
+      (listeningAddress.address !== '::' && listeningAddress.address !== '::1')
+    ) {
+      return generatedAddress;
+    }
+
+    return generatedAddress.replace('://127.0.0.1:', '://[::1]:');
+  };
+
+  Object.defineProperty(supertestPrototype, supertestLoopbackPatch, {
+    value: true,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+}
 
 // Force UTC timezone for consistent date handling
 process.env.TZ = 'UTC';

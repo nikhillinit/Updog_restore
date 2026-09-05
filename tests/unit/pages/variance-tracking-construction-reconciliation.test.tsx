@@ -199,6 +199,16 @@ const persistedLatestResponse = {
   currentPlanVersionId: 11,
   financialFactsSnapshotId: 31,
   asOfDate: '2026-07-21',
+  basisRef: {
+    schemaId: 'financial-facts-basis-ref/1.0.0',
+    fundId: 1,
+    snapshotId: 31,
+    snapshotInputHash: 'd'.repeat(64),
+    sourceFactsInputHash: 'e'.repeat(64),
+    policyVersion: 'financial-facts-policy/1.4.0',
+    asOfDate: '2026-07-21',
+    knowledgeCutoff: '2026-07-21T23:59:59.999Z',
+  },
 };
 
 describe('VarianceTrackingPage construction reconciliation card', () => {
@@ -272,6 +282,9 @@ describe('VarianceTrackingPage construction reconciliation card', () => {
     expect(screen.getByText('11', { exact: true })).toBeInTheDocument();
     expect(screen.getByText('31', { exact: true })).toBeInTheDocument();
     expect(screen.getByText('2026-07-21', { exact: true })).toBeInTheDocument();
+    expect(
+      screen.getByText('Basis: facts snapshot 31 (policy 1.4, 2026-07-21)')
+    ).toBeInTheDocument();
     expect(screen.getByText('$20', { exact: true })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });

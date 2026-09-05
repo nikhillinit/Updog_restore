@@ -42,6 +42,8 @@ const INSPECTOR_PROFILES = [
   'gate:ENABLE_QUEUES:disabled',
   'gate:ENABLE_RUM_V2:enabled',
   'gate:ENABLE_RUM_V2:disabled',
+  'selector:ACTUALS_PILOT_FUND_ID:unset',
+  'selector:ACTUALS_PILOT_FUND_ID:configured',
   'development',
 ];
 const RUNTIME_INSPECTOR_CONCURRENCY = 4;

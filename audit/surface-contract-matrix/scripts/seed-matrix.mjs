@@ -70,6 +70,11 @@ const REGISTRATION_GATES = [
   'ENABLE_QUEUES',
   'ENABLE_RUM_V2',
 ];
+const ACTUALS_PILOT_SELECTOR = 'ACTUALS_PILOT_FUND_ID';
+const ACTUALS_PILOT_PROFILES = [
+  `selector:${ACTUALS_PILOT_SELECTOR}:unset`,
+  `selector:${ACTUALS_PILOT_SELECTOR}:configured`,
+];
 
 const API_NODE_TYPES = new Set(['APIEndpoint', 'ClientRoute', 'WorkerJob']);
 const ROUTE_EDGE_TYPES = new Set([
@@ -899,6 +904,14 @@ const createRuntimeIndex = (documents) => {
         conditionSet.set(conditionKey(condition), condition);
       }
     }
+    const selectorConfigured = presentProfiles.has(`${ACTUALS_PILOT_PROFILES[1]}|static`)
+      || presentProfiles.has(`${ACTUALS_PILOT_PROFILES[1]}|api-only`);
+    const selectorUnset = presentProfiles.has(`${ACTUALS_PILOT_PROFILES[0]}|static`)
+      || presentProfiles.has(`${ACTUALS_PILOT_PROFILES[0]}|api-only`);
+    if (selectorConfigured !== selectorUnset) {
+      const condition = { selector: ACTUALS_PILOT_SELECTOR, configured: selectorConfigured };
+      conditionSet.set(conditionKey(condition), condition);
+    }
     if (entries.some((entry) => entry.profile === 'development')
       && !entries.some((entry) => entry.profile === 'default')) {
       const condition = { NODE_ENV: 'development' };
@@ -912,6 +925,7 @@ const createRuntimeIndex = (documents) => {
 const allProfiles = () => [
   'default',
   ...REGISTRATION_GATES.flatMap((gate) => [`gate:${gate}:enabled`, `gate:${gate}:disabled`]),
+  ...ACTUALS_PILOT_PROFILES,
   'development',
 ];
 

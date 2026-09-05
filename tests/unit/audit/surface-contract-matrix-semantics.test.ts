@@ -1171,6 +1171,46 @@ describe('surface contract matrix seed semantic regressions', () => {
     );
   });
 
+  it('models the actuals fund selector as configured instead of a false boolean gate', async () => {
+    const seed = await loadSeedInternals();
+    const routes = [
+      ['POST', '/api/funds/:fundId/imports/actuals/dry-run'],
+      ['POST', '/api/funds/:fundId/imports/actuals/publish'],
+      ['GET', '/api/funds/:fundId/financial-facts/latest-reference'],
+      ['GET', '/api/funds/:fundId/actuals/metrics'],
+    ].map(([method, routePath], index) =>
+      routeObservation({
+        surface: 'make_app',
+        id: `api:${method}:${routePath}`,
+        method,
+        routePath,
+        site: `server/routes/lp-reporting/imports.ts:${875 + index}`,
+        role: 'handler',
+        order: index + 1,
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:configured',
+      })
+    );
+    const runtimeIndex = seed.createRuntimeIndex([
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:unset',
+        fs_variant: 'static',
+        routes: [],
+      },
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:configured',
+        fs_variant: 'static',
+        routes,
+      },
+    ]);
+
+    for (const route of routes) {
+      const conditions = runtimeIndex.conditions.get(`make_app|${route.id}`);
+      expect(conditions).toEqual([
+        { selector: 'ACTUALS_PILOT_FUND_ID', configured: true },
+      ]);
+    }
+  });
+
   it.each([
     {
       name: 'API docs landing page uses its first handler registration',

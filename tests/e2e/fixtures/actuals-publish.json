@@ -1,0 +1,518 @@
+{
+  "fundId": 1,
+  "idempotencyKey": "10000000-0000-4000-8000-000000000001",
+  "ifMatch": "\"financial-facts:none\"",
+  "ledgerCsv": "event_type,effective_date,amount,currency,company_name,vehicle_slug,deployment_category,description,expense_category,distribution_type,recallable,external_ref\nsettled_contribution,2026-03-01,100000.00,USD,,main,,Capital call,,,,pg-contribution-1\nportfolio_investment,2026-03-15,40000.00,USD,Acme Labs,main,initial,Initial investment,,,,pg-investment-1\nlp_distribution,2026-03-20,5000.00,USD,,main,,Partner distribution,,return_of_capital,false,pg-distribution-1\n",
+  "valuationCsv": "company_name,vehicle_slug,mark_date,position_fair_value,currency,mark_source,confidence_level,valuation_method,cost_basis,external_ref\nAcme Labs,main,2026-03-31,55000.00,USD,board_update,high,manual,40000.00,pg-valuation-1\n",
+  "publishRequest": {
+    "contractVersion": "actuals-pilot-publish/1.0.0",
+    "asOfDate": "2026-03-31",
+    "ledger": {
+      "templateVersion": "actuals-ledger/1.0.0",
+      "fileName": "actuals-ledger.csv",
+      "payload": "ZXZlbnRfdHlwZSxlZmZlY3RpdmVfZGF0ZSxhbW91bnQsY3VycmVuY3ksY29tcGFueV9uYW1lLHZlaGljbGVfc2x1ZyxkZXBsb3ltZW50X2NhdGVnb3J5LGRlc2NyaXB0aW9uLGV4cGVuc2VfY2F0ZWdvcnksZGlzdHJpYnV0aW9uX3R5cGUscmVjYWxsYWJsZSxleHRlcm5hbF9yZWYKc2V0dGxlZF9jb250cmlidXRpb24sMjAyNi0wMy0wMSwxMDAwMDAuMDAsVVNELCxtYWluLCxDYXBpdGFsIGNhbGwsLCwscGctY29udHJpYnV0aW9uLTEKcG9ydGZvbGlvX2ludmVzdG1lbnQsMjAyNi0wMy0xNSw0MDAwMC4wMCxVU0QsQWNtZSBMYWJzLG1haW4saW5pdGlhbCxJbml0aWFsIGludmVzdG1lbnQsLCwscGctaW52ZXN0bWVudC0xCmxwX2Rpc3RyaWJ1dGlvbiwyMDI2LTAzLTIwLDUwMDAuMDAsVVNELCxtYWluLCxQYXJ0bmVyIGRpc3RyaWJ1dGlvbiwscmV0dXJuX29mX2NhcGl0YWwsZmFsc2UscGctZGlzdHJpYnV0aW9uLTEK",
+      "expectedPayloadSha256": "b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a",
+      "expectedCanonicalRowsHash": "ff2857164e90b33e30795c045d490114708f290f854959dee0004aa1cecab9ad",
+      "expectedPreviewHash": "aace583a4b287d6cd83bc8f946c6cb5a319a70c959ae0206052570e231897342"
+    },
+    "valuation": {
+      "templateVersion": "actuals-valuation/1.0.0",
+      "fileName": "actuals-valuation.csv",
+      "payload": "Y29tcGFueV9uYW1lLHZlaGljbGVfc2x1ZyxtYXJrX2RhdGUscG9zaXRpb25fZmFpcl92YWx1ZSxjdXJyZW5jeSxtYXJrX3NvdXJjZSxjb25maWRlbmNlX2xldmVsLHZhbHVhdGlvbl9tZXRob2QsY29zdF9iYXNpcyxleHRlcm5hbF9yZWYKQWNtZSBMYWJzLG1haW4sMjAyNi0wMy0zMSw1NTAwMC4wMCxVU0QsYm9hcmRfdXBkYXRlLGhpZ2gsbWFudWFsLDQwMDAwLjAwLHBnLXZhbHVhdGlvbi0xCg==",
+      "expectedPayloadSha256": "111099ab9c6fc48a69b4f822a490bff6a010880949e5b075b497ce7c72fe6080",
+      "expectedCanonicalRowsHash": "0fcc28894db0a77dabd120a9d1966aa38378e813fba53ef8e89ce0bb2da61a2b",
+      "expectedPreviewHash": "c7a3f18280b3d68b677b38e2d98a7a5f0f7521c6405805726bafcda20d761cb6"
+    },
+    "coverage": {
+      "ledger": "inception_to_date",
+      "priorFactsSnapshotId": null,
+      "evidenceNote": "Real PostgreSQL publication proof."
+    }
+  },
+  "previews": {
+    "ledger": {
+      "contractVersion": "actuals-preview-response/1.0.0",
+      "asOfDate": "2026-03-31",
+      "sanitizedFileName": "actuals-ledger.csv",
+      "payloadSha256": "b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a",
+      "canonicalRowsHash": "ff2857164e90b33e30795c045d490114708f290f854959dee0004aa1cecab9ad",
+      "previewHash": "aace583a4b287d6cd83bc8f946c6cb5a319a70c959ae0206052570e231897342",
+      "rowCounts": {
+        "total": 3,
+        "valid": 3,
+        "invalid": 0,
+        "duplicateInFile": 0,
+        "alreadyImported": 0
+      },
+      "fileTotals": {
+        "settledPaidIn": "100000.000000",
+        "deployed": "40000.000000",
+        "initialDeployed": "40000.000000",
+        "followOnDeployed": "0.000000",
+        "secondaryDeployed": "0.000000",
+        "otherDeployed": "0.000000",
+        "managementFees": "0.000000",
+        "otherExpenses": "0.000000",
+        "realizedFundProceeds": "0.000000",
+        "distributionsToPartners": "5000.000000",
+        "positionFairValue": "0.000000",
+        "markedCompanyCount": 0
+      },
+      "netNewEffectTotals": {
+        "settledPaidIn": "100000.000000",
+        "deployed": "40000.000000",
+        "initialDeployed": "40000.000000",
+        "followOnDeployed": "0.000000",
+        "secondaryDeployed": "0.000000",
+        "otherDeployed": "0.000000",
+        "managementFees": "0.000000",
+        "otherExpenses": "0.000000",
+        "realizedFundProceeds": "0.000000",
+        "distributionsToPartners": "5000.000000",
+        "positionFairValue": "0.000000",
+        "markedCompanyCount": 0
+      },
+      "categoryCoverage": "complete",
+      "issues": [],
+      "canPublish": true,
+      "templateVersion": "actuals-ledger/1.0.0",
+      "byteCount": 462,
+      "rows": [
+        {
+          "rowNumber": 1,
+          "sourceExternalRef": "pg-contribution-1",
+          "status": "valid",
+          "eventType": "settled_contribution",
+          "effectiveDate": "2026-03-01",
+          "companyLabel": null,
+          "vehicleLabel": "main",
+          "canonicalAmount": "100000.000000",
+          "rowSourceHash": "3d75af1e1e86bb84cea129b5fb63401b0189023968e892aa900a69a7a0ee8d8e",
+          "rowContentHash": "56e51193ee22933679f72aac0d3f733fecee9e55b943b7655a500926e536a6c8",
+          "issues": []
+        },
+        {
+          "rowNumber": 2,
+          "sourceExternalRef": "pg-investment-1",
+          "status": "valid",
+          "eventType": "portfolio_investment",
+          "effectiveDate": "2026-03-15",
+          "companyLabel": "Acme Labs",
+          "vehicleLabel": "main",
+          "canonicalAmount": "40000.000000",
+          "rowSourceHash": "cd9739cb9045b98cfe35be660aa07ca879a88a7df8b176a69657c3636f57877f",
+          "rowContentHash": "3875a6dce654cf219d3b8161fbb7a2a2b4c50914694e8e691cf6859eb117d552",
+          "issues": []
+        },
+        {
+          "rowNumber": 3,
+          "sourceExternalRef": "pg-distribution-1",
+          "status": "valid",
+          "eventType": "lp_distribution",
+          "effectiveDate": "2026-03-20",
+          "companyLabel": null,
+          "vehicleLabel": "main",
+          "canonicalAmount": "5000.000000",
+          "rowSourceHash": "ccacd2ac88fd9c131de602cc0f96bbb663e04558809bc37d2aa6bdc16df39497",
+          "rowContentHash": "f4507f021be44665c29e7b35deffa00a0ca46e0bd267c73b7fb4c5a62a1452a2",
+          "issues": []
+        }
+      ]
+    },
+    "valuation": {
+      "contractVersion": "actuals-preview-response/1.0.0",
+      "asOfDate": "2026-03-31",
+      "sanitizedFileName": "actuals-valuation.csv",
+      "payloadSha256": "111099ab9c6fc48a69b4f822a490bff6a010880949e5b075b497ce7c72fe6080",
+      "canonicalRowsHash": "0fcc28894db0a77dabd120a9d1966aa38378e813fba53ef8e89ce0bb2da61a2b",
+      "previewHash": "c7a3f18280b3d68b677b38e2d98a7a5f0f7521c6405805726bafcda20d761cb6",
+      "rowCounts": {
+        "total": 1,
+        "valid": 1,
+        "invalid": 0,
+        "duplicateInFile": 0,
+        "alreadyImported": 0
+      },
+      "fileTotals": {
+        "settledPaidIn": "0.000000",
+        "deployed": "0.000000",
+        "initialDeployed": "0.000000",
+        "followOnDeployed": "0.000000",
+        "secondaryDeployed": "0.000000",
+        "otherDeployed": "0.000000",
+        "managementFees": "0.000000",
+        "otherExpenses": "0.000000",
+        "realizedFundProceeds": "0.000000",
+        "distributionsToPartners": "0.000000",
+        "positionFairValue": "55000.000000",
+        "markedCompanyCount": 1
+      },
+      "netNewEffectTotals": {
+        "settledPaidIn": "0.000000",
+        "deployed": "0.000000",
+        "initialDeployed": "0.000000",
+        "followOnDeployed": "0.000000",
+        "secondaryDeployed": "0.000000",
+        "otherDeployed": "0.000000",
+        "managementFees": "0.000000",
+        "otherExpenses": "0.000000",
+        "realizedFundProceeds": "0.000000",
+        "distributionsToPartners": "0.000000",
+        "positionFairValue": "55000.000000",
+        "markedCompanyCount": 1
+      },
+      "categoryCoverage": "not_applicable",
+      "issues": [
+        {
+          "code": "VALUATION_ROSTER_EMPTY",
+          "rowNumber": 0,
+          "column": null,
+          "severity": "warning",
+          "message": "No admitted portfolio-investment roster exists for valuation coverage."
+        }
+      ],
+      "canPublish": true,
+      "templateVersion": "actuals-valuation/1.0.0",
+      "byteCount": 223,
+      "rows": [
+        {
+          "rowNumber": 1,
+          "sourceExternalRef": "pg-valuation-1",
+          "status": "valid",
+          "eventType": "valuation_mark",
+          "effectiveDate": "2026-03-31",
+          "companyLabel": "Acme Labs",
+          "vehicleLabel": "main",
+          "canonicalAmount": "55000.000000",
+          "rowSourceHash": "d20893daedfae12d0c456402dadfc73181268e837e26c3be00b6df6bd601021e",
+          "rowContentHash": "02a02c19aa169e27575f6fe9bc658d7cb6d6d881c3cc250825ff42640e2d2876",
+          "issues": []
+        }
+      ]
+    }
+  },
+  "receipt": {
+    "contractVersion": "actuals-pilot-publish-receipt/1.0.0",
+    "operationHash": "eb4a1dc2c46802cc2d659140eaffeced6e69bc4600ecd65549f79dded81858de",
+    "fundId": 1,
+    "asOfDate": "2026-03-31",
+    "coverage": {
+      "ledger": "inception_to_date",
+      "priorFactsSnapshotId": null
+    },
+    "admitted": {
+      "ledger": {
+        "sourceArtifactId": 1,
+        "payloadSha256": "b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a",
+        "canonicalRowsHash": "ff2857164e90b33e30795c045d490114708f290f854959dee0004aa1cecab9ad",
+        "previewHash": "aace583a4b287d6cd83bc8f946c6cb5a319a70c959ae0206052570e231897342",
+        "approvedRowIds": [
+          1,
+          2,
+          3
+        ],
+        "approvedCount": 3
+      },
+      "valuation": {
+        "sourceArtifactId": 2,
+        "payloadSha256": "111099ab9c6fc48a69b4f822a490bff6a010880949e5b075b497ce7c72fe6080",
+        "canonicalRowsHash": "0fcc28894db0a77dabd120a9d1966aa38378e813fba53ef8e89ce0bb2da61a2b",
+        "previewHash": "c7a3f18280b3d68b677b38e2d98a7a5f0f7521c6405805726bafcda20d761cb6",
+        "approvedMarkIds": [
+          1
+        ],
+        "approvedCount": 1
+      },
+      "importBatchId": "3c418dc1-b523-4c2d-a531-218edc3f767c"
+    },
+    "facts": {
+      "policyVersion": "financial-facts-policy/1.4.0",
+      "payloadSchemaId": "financial-facts-payload/5",
+      "supersedesSnapshotId": null,
+      "knowledgeCutoff": "2026-03-31T12:00:00.000Z",
+      "snapshotId": 1,
+      "snapshotInputHash": "fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d",
+      "etag": "\"financial-facts:1:fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d\""
+    },
+    "basisRef": {
+      "schemaId": "financial-facts-basis-ref/1.0.0",
+      "fundId": 1,
+      "snapshotId": 1,
+      "snapshotInputHash": "fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d",
+      "sourceFactsInputHash": "756749fce6400debad9d4275fbed84793dbfc49301a5c8e27a501bc9528a67ac",
+      "policyVersion": "financial-facts-policy/1.4.0",
+      "asOfDate": "2026-03-31",
+      "knowledgeCutoff": "2026-03-31T12:00:00.000Z"
+    }
+  },
+  "latestReference": {
+    "contractVersion": "financial-facts-latest-reference/1.0.0",
+    "head": {
+      "snapshotId": 1,
+      "asOfDate": "2026-03-31",
+      "knowledgeCutoff": "2026-03-31T12:00:00.000Z",
+      "policyVersion": "financial-facts-policy/1.4.0",
+      "payloadSchemaId": "financial-facts-payload/5",
+      "snapshotInputHash": "fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d",
+      "supersedesSnapshotId": null,
+      "basisRef": {
+        "schemaId": "financial-facts-basis-ref/1.0.0",
+        "fundId": 1,
+        "snapshotId": 1,
+        "snapshotInputHash": "fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d",
+        "sourceFactsInputHash": "756749fce6400debad9d4275fbed84793dbfc49301a5c8e27a501bc9528a67ac",
+        "policyVersion": "financial-facts-policy/1.4.0",
+        "asOfDate": "2026-03-31",
+        "knowledgeCutoff": "2026-03-31T12:00:00.000Z"
+      },
+      "consumerEvaluations": [
+        {
+          "consumer": "forecast",
+          "status": "accepted",
+          "reasons": []
+        },
+        {
+          "consumer": "reserve",
+          "status": "accepted",
+          "reasons": []
+        },
+        {
+          "consumer": "economics",
+          "status": "blocked",
+          "reasons": [
+            "unsupported_payload_policy"
+          ]
+        },
+        {
+          "consumer": "periodic_analysis",
+          "status": "blocked",
+          "reasons": [
+            "unsupported_payload_policy"
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": {
+    "contractVersion": "actual-metrics/2.0.0",
+    "snapshotStatus": "resolved",
+    "fundId": 1,
+    "asOfDate": "2026-03-31",
+    "knowledgeCutoff": "2026-03-31T12:00:00.000Z",
+    "financialFactsSnapshotId": 1,
+    "snapshotInputHash": "fe150135203af4d45c11641e92e89228fc7aa96c47efe385734e8004e789dc0d",
+    "capitalScope": "aggregate_lp_and_gp",
+    "performancePerspective": "fund_net_to_partners",
+    "deploymentPerspective": "fund_gross",
+    "currency": "USD",
+    "capital": {
+      "committed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "fund-commitment:8a43c47096943ac63c4884c9cf17c566b55d9a252575d93b3e0f3d3455f0126d"
+        ],
+        "value": "1000000.000000"
+      },
+      "calledIssued": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "CALL_NOTICE_NOT_IMPORTED"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "paidIn": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "100000.000000"
+      },
+      "deployed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "40000.000000"
+      },
+      "initialDeployed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "40000.000000"
+      },
+      "followOnDeployed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "secondaryDeployed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "otherDeployed": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "recallableDistributions": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "availableRecallCapacity": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "RECALL_LIFECYCLE_UNAVAILABLE"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "outstandingCalls": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "CALL_NOTICE_NOT_IMPORTED"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "remainingCallable": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "CALL_NOTICE_NOT_IMPORTED"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "unfunded": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "CALL_NOTICE_NOT_IMPORTED"
+        ],
+        "sourceRefs": [],
+        "value": null
+      }
+    },
+    "expenses": {
+      "managementFeesPaid": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "otherExpensesPaid": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      }
+    },
+    "value": {
+      "portfolioFmv": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a",
+          "actuals-pilot:valuation:111099ab9c6fc48a69b4f822a490bff6a010880949e5b075b497ce7c72fe6080"
+        ],
+        "value": "55000.000000"
+      },
+      "nav": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "NAV_UNAVAILABLE"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "realizedFundProceeds": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.000000"
+      },
+      "distributionsToPartners": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "5000.000000"
+      }
+    },
+    "valuation": {
+      "valuationDate": "2026-03-31",
+      "rosterCount": 1,
+      "markedCount": 1,
+      "companies": [
+        {
+          "companyId": 1,
+          "companyLabel": "Acme Labs",
+          "positionFairValue": {
+            "availability": "available",
+            "reasonCodes": [],
+            "sourceRefs": [
+              "d20893daedfae12d0c456402dadfc73181268e837e26c3be00b6df6bd601021e"
+            ],
+            "value": "55000.000000"
+          }
+        }
+      ]
+    },
+    "performance": {
+      "dpi": {
+        "availability": "available",
+        "reasonCodes": [],
+        "sourceRefs": [
+          "actuals-pilot:ledger:b5f9cbc513a9377f029f052d95953590defd42be81d66116298f38d1c00ce32a"
+        ],
+        "value": "0.050000000000"
+      },
+      "rvpi": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "NAV_UNAVAILABLE"
+        ],
+        "sourceRefs": [],
+        "value": null
+      },
+      "tvpi": {
+        "availability": "unavailable",
+        "reasonCodes": [
+          "NAV_UNAVAILABLE"
+        ],
+        "sourceRefs": [],
+        "value": null
+      }
+    },
+    "actionability": {
+      "scope": "actuals_reporting",
+      "status": "actionable",
+      "reasonCodes": []
+    }
+  }
+}
