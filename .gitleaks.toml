@@ -117,3 +117,16 @@ regexes = [
 paths = [
   '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
 ]
+
+[[allowlists]]
+description = "Allow historical F_1.12.0 actuals runtime deterministic idempotency UUID fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["7036bf01263330dadd7fa72105fc3c3162f2f8bd"]
+regexTarget = "line"
+regexes = [
+  '''^\s*const KEY = 'c2c1984c-7382-4ff5-9f18-1fa89fbba54c';$'''
+]
+paths = [
+  '''^tests/unit/server/actuals-pilot-runtime-routes\.test\.ts$'''
+]
