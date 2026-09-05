@@ -369,9 +369,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=in-contract; proposal is pruned.",
-    "resolution_fingerprint": "ee6b34569e2f6accc5efe2448f6445b0d36ec224fae65c766c52e7670136fd84",
-    "contract_fingerprint": "ee6b34569e2f6accc5efe2448f6445b0d36ec224fae65c766c52e7670136fd84"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=in-contract; proposal is pruned.",
+    "resolution_fingerprint": "7460943eecb2c95dc6ca36143084f2fcd3a05eb3a75901f60d50fd823078da4d",
+    "contract_fingerprint": "7460943eecb2c95dc6ca36143084f2fcd3a05eb3a75901f60d50fd823078da4d"
   },
   {
     "id": "dormant:client/src/pages/admin/telemetry.tsx",
@@ -419,9 +419,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "d8c1ede72bc20ec300ae3c7048ac80a1c4b3f8562187a07e16177b5b58bb2d71",
-    "contract_fingerprint": "d8c1ede72bc20ec300ae3c7048ac80a1c4b3f8562187a07e16177b5b58bb2d71"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "2def95e50ea16ad00072c8e888f18c4611804ed0bd348190fd0125d844f1e2dd",
+    "contract_fingerprint": "2def95e50ea16ad00072c8e888f18c4611804ed0bd348190fd0125d844f1e2dd"
   },
   {
     "id": "dormant:client/src/pages/analytics.tsx",
@@ -469,9 +469,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "b5b814531cac78f1323e6c6211cb7d9b7398fa9322be869e312a8518c816fc1b",
-    "contract_fingerprint": "b5b814531cac78f1323e6c6211cb7d9b7398fa9322be869e312a8518c816fc1b"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "2ddedd304e8a10276bfd0a495b39b0fa2cb9a646ad5fdd134c34f6dfeafc9a01",
+    "contract_fingerprint": "2ddedd304e8a10276bfd0a495b39b0fa2cb9a646ad5fdd134c34f6dfeafc9a01"
   },
   {
     "id": "dormant:client/src/pages/CompanyDetail.tsx",
@@ -519,9 +519,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "89791d6e3d12dd5788dbc7fa443a0bfc1deaddc9bd0e1da35dddab388792bd07",
-    "contract_fingerprint": "89791d6e3d12dd5788dbc7fa443a0bfc1deaddc9bd0e1da35dddab388792bd07"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "d93b4e963cd43b19f4dc7009b9f57260ea3e2c26061fddb5d8fa91a3a47d414b",
+    "contract_fingerprint": "d93b4e963cd43b19f4dc7009b9f57260ea3e2c26061fddb5d8fa91a3a47d414b"
   },
   {
     "id": "dormant:client/src/pages/CustomFields.tsx",
@@ -569,9 +569,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "9ae57cec74e197768e4ab168ae2322f310e806d6107bc00cd31cab38de0c6641",
-    "contract_fingerprint": "9ae57cec74e197768e4ab168ae2322f310e806d6107bc00cd31cab38de0c6641"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "ff6ec56fb069eaf906a681f950bb7623e120fc120f3ae4d72935fd59019c1382",
+    "contract_fingerprint": "ff6ec56fb069eaf906a681f950bb7623e120fc120f3ae4d72935fd59019c1382"
   },
   {
     "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
@@ -619,9 +619,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "587d9e5c3db809339fdc64cf9d77ce9362b7c688e8118174913442892ba80f88",
-    "contract_fingerprint": "587d9e5c3db809339fdc64cf9d77ce9362b7c688e8118174913442892ba80f88"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "fae55695737174243aa10946827402bd09ac066b0b121bd4eaadfa4a597b8134",
+    "contract_fingerprint": "fae55695737174243aa10946827402bd09ac066b0b121bd4eaadfa4a597b8134"
   },
   {
     "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
@@ -669,9 +669,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "4bd46be0b0ffe1aeb9f8d6e3852fbe2e7484047d7a45a8936e171a99bcdf97a7",
-    "contract_fingerprint": "4bd46be0b0ffe1aeb9f8d6e3852fbe2e7484047d7a45a8936e171a99bcdf97a7"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "c60dd500193c6152b0abc60a987d8d56c3808e60f4264a7631981072c0de6e67",
+    "contract_fingerprint": "c60dd500193c6152b0abc60a987d8d56c3808e60f4264a7631981072c0de6e67"
   },
   {
     "id": "dormant:client/src/pages/investments-table.tsx",
@@ -719,9 +719,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "9c5ad7227be2ec744cd49f65f09ee95e5386f489d53440a80fa0a22d49b0fbba",
-    "contract_fingerprint": "9c5ad7227be2ec744cd49f65f09ee95e5386f489d53440a80fa0a22d49b0fbba"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "41b70acf7dc4a355d6e58b336ef6ddf019dbc394d0870b7454da5b1d52a8f6ec",
+    "contract_fingerprint": "41b70acf7dc4a355d6e58b336ef6ddf019dbc394d0870b7454da5b1d52a8f6ec"
   },
   {
     "id": "dormant:client/src/pages/investments.tsx",
@@ -769,9 +769,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "0acdf1c6040feb565a079e646dcc9516c2cccc3ad4cf0824285612eff943cd18",
-    "contract_fingerprint": "0acdf1c6040feb565a079e646dcc9516c2cccc3ad4cf0824285612eff943cd18"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "f60423424aaf9a3fe40892f5e879add3b25e4ee13a95415b0ad8573d0059c843",
+    "contract_fingerprint": "f60423424aaf9a3fe40892f5e879add3b25e4ee13a95415b0ad8573d0059c843"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/index.tsx",
@@ -819,9 +819,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "664c732ff045741160f8851a4d883115b29444fe05fb34fb571616cbbbff9afd",
-    "contract_fingerprint": "664c732ff045741160f8851a4d883115b29444fe05fb34fb571616cbbbff9afd"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "d25076244a86e2a6b6938feee478b4693f4807906e84f9c18412f36153d23faf",
+    "contract_fingerprint": "d25076244a86e2a6b6938feee478b4693f4807906e84f9c18412f36153d23faf"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
@@ -869,9 +869,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "0e50dd53964b04bdb62fbdcf455d20b099215885ed96e68bbbcfb6aa4d4c2fc6",
-    "contract_fingerprint": "0e50dd53964b04bdb62fbdcf455d20b099215885ed96e68bbbcfb6aa4d4c2fc6"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "69f0b49c8fd8956f5a1e1a43fec398438ac6574ef0127ce1d9042a2978cba6d3",
+    "contract_fingerprint": "69f0b49c8fd8956f5a1e1a43fec398438ac6574ef0127ce1d9042a2978cba6d3"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
@@ -919,9 +919,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "9f4c629f58907063d557ade0f9eb19b7b17279518adb3c4aa875cddcdc1e15a9",
-    "contract_fingerprint": "9f4c629f58907063d557ade0f9eb19b7b17279518adb3c4aa875cddcdc1e15a9"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "047f0dde5c5595eeed0019f2476a8b3fd6a9f0f75787c1f8d18702abd5278bc9",
+    "contract_fingerprint": "047f0dde5c5595eeed0019f2476a8b3fd6a9f0f75787c1f8d18702abd5278bc9"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
@@ -969,9 +969,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "57a7a6809293d71ab9770f4fb47ac8b110c1a6913a5a84fab30ba484b0e9ebf5",
-    "contract_fingerprint": "57a7a6809293d71ab9770f4fb47ac8b110c1a6913a5a84fab30ba484b0e9ebf5"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "f00067699d5a0ee07a88aebae3356fa145114c2863a3c32e2f6bb4fbe38daa2d",
+    "contract_fingerprint": "f00067699d5a0ee07a88aebae3356fa145114c2863a3c32e2f6bb4fbe38daa2d"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
@@ -1019,9 +1019,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "623f45d8e9448d7550676f23bb0a4af8e4d7104010de40b45741116725533221",
-    "contract_fingerprint": "623f45d8e9448d7550676f23bb0a4af8e4d7104010de40b45741116725533221"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "b5729166a92ca19a66c7e9b6609674e6cc5e2ed8e47f67776b649ca4fbb39abd",
+    "contract_fingerprint": "b5729166a92ca19a66c7e9b6609674e6cc5e2ed8e47f67776b649ca4fbb39abd"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
@@ -1069,9 +1069,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "a2b61950363c324571c0d8c54ce1f6c3e686a75323ca6b9b1e086b6b2e61bf38",
-    "contract_fingerprint": "a2b61950363c324571c0d8c54ce1f6c3e686a75323ca6b9b1e086b6b2e61bf38"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "93e62351f693b8c0336df3cb7e6868ed1598e7047ce5e603d68674101cdb8751",
+    "contract_fingerprint": "93e62351f693b8c0336df3cb7e6868ed1598e7047ce5e603d68674101cdb8751"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
@@ -1119,9 +1119,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "19678dc233e50b828ba45f435e8b979242b8699e5c397d9c7bd7198696b9a524",
-    "contract_fingerprint": "19678dc233e50b828ba45f435e8b979242b8699e5c397d9c7bd7198696b9a524"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "501ae9a65e46df35f9da14ca722700ded6bfbfa1ff2968c2f69c59ee64b7f6d5",
+    "contract_fingerprint": "501ae9a65e46df35f9da14ca722700ded6bfbfa1ff2968c2f69c59ee64b7f6d5"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
@@ -1169,9 +1169,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "a8c4b101ae1d932072ae3fc92ec94a85bb62b772480f17942e45cf1af4ea2b11",
-    "contract_fingerprint": "a8c4b101ae1d932072ae3fc92ec94a85bb62b772480f17942e45cf1af4ea2b11"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "52f09cd99b24c7238efdd8ada44992371d7accbbdb717d465fbc16f0d1da2df4",
+    "contract_fingerprint": "52f09cd99b24c7238efdd8ada44992371d7accbbdb717d465fbc16f0d1da2df4"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
@@ -1219,9 +1219,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "ec3f729372b47e6675849b5005063c5965b99519e9d82202f48eae7cea6260bb",
-    "contract_fingerprint": "ec3f729372b47e6675849b5005063c5965b99519e9d82202f48eae7cea6260bb"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "e9c31fa8b7f656c41dbb27f282d813d522092ef03f4285500d3cbf0b31b7b584",
+    "contract_fingerprint": "e9c31fa8b7f656c41dbb27f282d813d522092ef03f4285500d3cbf0b31b7b584"
   },
   {
     "id": "dormant:client/src/pages/kpi-submission.tsx",
@@ -1269,9 +1269,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "2bb5b0c1583a12e941d0a15c6f3c74e9739103ee62d246bba1167664b1d8f294",
-    "contract_fingerprint": "2bb5b0c1583a12e941d0a15c6f3c74e9739103ee62d246bba1167664b1d8f294"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "5c957cf7077af299b8d3508af7fa7b638a227439409945f2440fc36cebb62b1f",
+    "contract_fingerprint": "5c957cf7077af299b8d3508af7fa7b638a227439409945f2440fc36cebb62b1f"
   },
   {
     "id": "dormant:client/src/pages/notion-integration.tsx",
@@ -1319,9 +1319,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "08670016733cc13d3c5b915f0ae9c0e99b9fa6a4b87cd6e243641196958d8627",
-    "contract_fingerprint": "08670016733cc13d3c5b915f0ae9c0e99b9fa6a4b87cd6e243641196958d8627"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "62bdaa3e7aef21459ae64155382b72b9253c0ebee31a028003c2e88c7f7ea4f7",
+    "contract_fingerprint": "62bdaa3e7aef21459ae64155382b72b9253c0ebee31a028003c2e88c7f7ea4f7"
   },
   {
     "id": "dormant:client/src/pages/partial-sales.tsx",
@@ -1369,9 +1369,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "a735b9f9fb1cf04a8336addbfbf88a665f3778549c7f5146c2e49a6148008b8b",
-    "contract_fingerprint": "a735b9f9fb1cf04a8336addbfbf88a665f3778549c7f5146c2e49a6148008b8b"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "219fd6bba6b1cbc1735227e288abdbab1255a805fdbfbfa3cf8fc699405cb118",
+    "contract_fingerprint": "219fd6bba6b1cbc1735227e288abdbab1255a805fdbfbfa3cf8fc699405cb118"
   },
   {
     "id": "dormant:client/src/pages/planning.tsx",
@@ -1419,9 +1419,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "c3448e73b06ec06b1b76a0936f4adfe52318afeff018e1f15fd8d59188b6810a",
-    "contract_fingerprint": "c3448e73b06ec06b1b76a0936f4adfe52318afeff018e1f15fd8d59188b6810a"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "e6a19e1eb56f9693c024855acc2f3d19c0d60b4a233814d80621fb67bfa5587b",
+    "contract_fingerprint": "e6a19e1eb56f9693c024855acc2f3d19c0d60b4a233814d80621fb67bfa5587b"
   },
   {
     "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
@@ -1469,9 +1469,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "7464855e3915fbd5c8cfcb4cfd45edbc4516f50cf487c0def65b747b6a459f41",
-    "contract_fingerprint": "7464855e3915fbd5c8cfcb4cfd45edbc4516f50cf487c0def65b747b6a459f41"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "fc9403900eb8c7a41c7044be5dc366d2699c8bfbe99b6d20200ab2df962124c5",
+    "contract_fingerprint": "fc9403900eb8c7a41c7044be5dc366d2699c8bfbe99b6d20200ab2df962124c5"
   },
   {
     "id": "dormant:client/src/pages/portfolio-constructor.tsx",
@@ -1519,9 +1519,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "8ac4ab5526b65ed40cc05871dcf216594b83aaa31cb9723d9debbd04232351b8",
-    "contract_fingerprint": "8ac4ab5526b65ed40cc05871dcf216594b83aaa31cb9723d9debbd04232351b8"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "57938b1a688979e604a4741b2d812d47b87147080d79c46776823362df669cfd",
+    "contract_fingerprint": "57938b1a688979e604a4741b2d812d47b87147080d79c46776823362df669cfd"
   },
   {
     "id": "dormant:client/src/pages/return-the-fund.tsx",
@@ -1569,9 +1569,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "e371c05e8d41e794482f618eb3d19bb89893b39e6a39689b49a398ce48b78173",
-    "contract_fingerprint": "e371c05e8d41e794482f618eb3d19bb89893b39e6a39689b49a398ce48b78173"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "9d8eeee6418c7fe9e2e1962d6102b44b1a48a6227803c28e3d6890704587aac6",
+    "contract_fingerprint": "9d8eeee6418c7fe9e2e1962d6102b44b1a48a6227803c28e3d6890704587aac6"
   },
   {
     "id": "dormant:client/src/pages/secondary-market.tsx",
@@ -1619,9 +1619,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "65769f6f731f1e9f90dabea124ec30715b385530c07c549fe3c8c8b68a62d292",
-    "contract_fingerprint": "65769f6f731f1e9f90dabea124ec30715b385530c07c549fe3c8c8b68a62d292"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "5a06b8c973f51827e699e74f88a606b1bc69b84e0306936f3e3e9b451505c1d9",
+    "contract_fingerprint": "5a06b8c973f51827e699e74f88a606b1bc69b84e0306936f3e3e9b451505c1d9"
   },
   {
     "id": "dormant:client/src/pages/time-travel.tsx",
@@ -1669,9 +1669,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "9eb162bca14afa9ccd10be4579c9434da0cffd1610b7e2785812159a7b94c388",
-    "contract_fingerprint": "9eb162bca14afa9ccd10be4579c9434da0cffd1610b7e2785812159a7b94c388"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "cd614ffca8c6dd1acf60b34a3ee9ed22c2181fefc937e90671fc10204e0056ee",
+    "contract_fingerprint": "cd614ffca8c6dd1acf60b34a3ee9ed22c2181fefc937e90671fc10204e0056ee"
   },
   {
     "id": "dormant:client/src/pages/WaterfallStep.tsx",
@@ -1719,9 +1719,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
-    "resolution_fingerprint": "9f4ddd0a14ba8eea78b4d0655f0c7c0f016c47aa4d3231bcba95af5a76b887bc",
-    "contract_fingerprint": "9f4ddd0a14ba8eea78b4d0655f0c7c0f016c47aa4d3231bcba95af5a76b887bc"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "3717f6c55ee38d81046a09a7ea7cd22c15fb75309c2b1c285cc1ec57a967051e",
+    "contract_fingerprint": "3717f6c55ee38d81046a09a7ea7cd22c15fb75309c2b1c285cc1ec57a967051e"
   },
   {
     "id": "worker:error-tracking",
@@ -1794,9 +1794,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
-    "resolution_fingerprint": "a566df1810e65780798a01e2ecab7023c2cc9e1b52698ffa4a5102d1efe588fd",
-    "contract_fingerprint": "a566df1810e65780798a01e2ecab7023c2cc9e1b52698ffa4a5102d1efe588fd"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
+    "resolution_fingerprint": "1ab46fed32cc772f0384752d3e6787ed38990d4a677a239cda82c1cfda74a372",
+    "contract_fingerprint": "1ab46fed32cc772f0384752d3e6787ed38990d4a677a239cda82c1cfda74a372"
   },
   {
     "id": "ws:setup-websocket-servers",
@@ -1936,8 +1936,8 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "Pending independent review: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
-    "resolution_fingerprint": "47719fde1b03f1c6fcac4adfc9a5ea3ae2276c1bddf690cf6f893d08ce8f932d",
-    "contract_fingerprint": "47719fde1b03f1c6fcac4adfc9a5ea3ae2276c1bddf690cf6f893d08ce8f932d"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
+    "resolution_fingerprint": "4d90cbb27f7914272d07d671e62ab4213755809d28c350948b7d2b428a8c9204",
+    "contract_fingerprint": "4d90cbb27f7914272d07d671e62ab4213755809d28c350948b7d2b428a8c9204"
   }
 ]
