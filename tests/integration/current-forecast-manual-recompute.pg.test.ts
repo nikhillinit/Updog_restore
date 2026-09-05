@@ -15,6 +15,7 @@ import {
 } from '../../server/services/current-forecast-reference-service';
 import { persistCurrentForecastShadowReconciliation } from '../../server/services/current-forecast-shadow-service';
 import { updateCurrentForecastCalculationMode } from '../../server/services/fund-calculation-mode-service';
+import { manageIsolatedDatabasePool } from '../helpers/isolated-postgres-database';
 import {
   cleanupTestContainers,
   getPostgresConnectionString,
@@ -66,11 +67,12 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
   }, 180_000);
 
   afterAll(async () => {
-    await pool?.end();
-    if (adminPool && databaseName.startsWith('cf_manual_recompute_')) {
-      await adminPool.query(
-        `DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`
-      );
+    if (pool && adminPool && databaseName.startsWith('cf_manual_recompute_')) {
+      await manageIsolatedDatabasePool(pool).dropDatabase(adminPool, databaseName);
+    } else {
+      await pool?.end();
+    }
+    if (adminPool) {
       await adminPool.end();
     }
     if (startedTestContainers) await cleanupTestContainers();
