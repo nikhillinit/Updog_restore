@@ -57,6 +57,10 @@ import {
   type OpeningAccountingStateArtifactRow,
 } from './financial-facts/opening-accounting-state-artifact';
 import { lockFinancialFactsFund } from './financial-facts/fund-lock';
+import {
+  resolveTerminalFactsHead,
+  type TerminalFactsHeadResult,
+} from './financial-facts/terminal-head';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -231,7 +235,7 @@ export interface BuildFinancialFactsSnapshotInput {
   now?: Date;
 }
 
-function stripGeneratedAtLeaves(value: unknown): unknown {
+export function stripGeneratedAtLeaves(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(stripGeneratedAtLeaves);
   }
@@ -410,7 +414,10 @@ function toSelectableMark(row: ValuationMarkRow): ParsedValuationMark {
   };
 }
 
-export function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
+export function buildMarksSeries(
+  rows: readonly ValuationMarkRow[],
+  asOfDate: string
+): MarksBuildResult {
   const acceptedRows = rows
     .filter(
       (row) =>
@@ -1298,6 +1305,13 @@ async function validateVehicleScope(params: {
     );
   }
   return rosterIds;
+}
+
+export function getTerminalFinancialFactsHead(opts: {
+  fundId: number;
+  database?: SnapshotDatabase;
+}): Promise<TerminalFactsHeadResult> {
+  return resolveTerminalFactsHead(opts.database ?? db, opts.fundId);
 }
 
 export async function getLatestFinancialFactsSnapshot(opts: {

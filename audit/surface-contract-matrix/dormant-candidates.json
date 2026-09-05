@@ -7,7 +7,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "9b82149a87a905e6d9fecb13fc8beaa5c1f640ad9fa2906970dbe8dccbc2a1e9",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/admin/telemetry.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/analytics.tsx",
@@ -17,7 +17,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "7bb2e42878b3e6dbe646fbe42f072c52389546225a47b2408a7ff96b6c1ab67a",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/analytics.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/CompanyDetail.tsx",
@@ -27,7 +27,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "5d9cbe84ba3ecc629bb6cad944e1411e5e081ac95d85b884d02166f92e741f7a",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/CompanyDetail.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/CustomFields.tsx",
@@ -37,7 +37,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "8b4d5b431bfeced082cb66132563effea8acf9d75b9bc8eda5f3864d16b6d6b7",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/CustomFields.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
@@ -47,7 +47,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "7b02ddd5b308f731f277037b7420b6b08e45b3733277331691c612af720453fe",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/ExitRecyclingStep.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
@@ -57,7 +57,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "29ff293ffb9615c5e6012c7cb8a8f036d7fd8c8df93282d32b9feeeeb0301304",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/InvestmentRoundsStep.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/investments-table.tsx",
@@ -67,7 +67,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "3ee82377266a978ff3e0ce4c3eda6475db6405a5dc6354dd973cace01ec6342a",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/investments-table.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/index.tsx",
@@ -77,7 +77,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "0e3aa611314986bca9402c13bc59858cd84b353f6097dc688be1f0faf8b7bf4e",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/index.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
@@ -87,7 +87,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "e67cfb73f83226f2c6eb699b15ea8f70ed5c99e7666151c81198a796e551c545",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/KpiDefinitionModal.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
@@ -97,7 +97,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "262a7bb371ceca5694c7531e47a0f66ed59f485be06aec1960a5c1e5386ffceb",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/KpiTabs.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
@@ -107,7 +107,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "96bafc17beabff04f5bba993125df1710c579668ff64bc92b883047887c01cad",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/panes/AnalyticsPane.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
@@ -117,7 +117,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "2d89a1fd4afbf6e0c2bbec6a5ab1b20ddb3776979ba7be7bda97882d0125eba8",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/panes/OverviewPane.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
@@ -127,7 +127,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "7bad48d3a5f565870740e9f56e65dba9578118351f4c22e42028d615500484ed",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/panes/SettingsPane.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
@@ -137,7 +137,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "3e0c1ed8d83deefdc00e4bf9390758b0be20bee89539e38c29b0e884288e3b89",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/tabs-config.ts: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
@@ -147,7 +147,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "eafde9b293c8a71e9a339fb38a7ad3959cb85596923db0b876b5c77263d993e2",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/useKpiManager.ts: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
@@ -157,7 +157,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "21aa4f366297b8c26fca0c4615763adb9cb8e080c74c15528a61764f3e941afb",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-manager/useModalState.ts: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/kpi-submission.tsx",
@@ -167,7 +167,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "28bdda4f93af8d8afaac69fafb4aca51476e7b55306a0a8258224b1152e4daaa",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/kpi-submission.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/notion-integration.tsx",
@@ -177,7 +177,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "cd6e11020fc3a9f90d3e607b80305dc59038192846be7a0e01205cc75b7b589c",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/notion-integration.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/portfolio-constructor.tsx",
@@ -187,7 +187,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "636dee44a6960bbb6f2133ead1ab77ccbf6a7249a3bc64d99013ef5741ab40e1",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/portfolio-constructor.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/return-the-fund.tsx",
@@ -197,7 +197,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "e6b531736e4c7efcec0564c3e19438323dae9e8a5c1f6d0570e33031ed645279",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/return-the-fund.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/secondary-market.tsx",
@@ -207,7 +207,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "616410f254676decc5b912c976ec182ab080b7c16ffbb4496201d32277120347",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/secondary-market.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/cash.tsx",
@@ -217,7 +217,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "faa6edec34fb2309e22b36471ec3d0b8c3d51377c2e7fc1652490f92b4bd0708",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/cash.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/company.tsx",
@@ -227,7 +227,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "7d2684435348e4626a4c2d24ca4151aef7451440f1831fa3eb6a7600e35312d8",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/company.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/exits.tsx",
@@ -237,7 +237,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "af899fc16e91a5e2d09375cb7d957dc4202bb79412b315b17766a6cae415200c",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/exits.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/insights.tsx",
@@ -247,7 +247,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "409304922db0c9553e77fad2489f6296a0a74b32b975f7b444b897776318aedc",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/insights.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/partners.tsx",
@@ -257,7 +257,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "0af8a884709ced7b8c5eba0322588a33acceecfae122b5696097916f1d160d2f",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/partners.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/portfolio.tsx",
@@ -267,7 +267,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "92665235991ee6e7e8a9a7a61505a151bcb12695c1d4603acc679d3e0b03d05b",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/portfolio.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/scenarios.tsx",
@@ -277,7 +277,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "79b1c560b0fb2e738c73e1c5cbea8cc12748a35f40b4de0ff4cbf4332afa5403",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/scenarios.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/v2/today.tsx",
@@ -287,7 +287,7 @@
     "decision_status": "approved",
     "contract_fingerprint": "b4b38d2ec3998a43a946ffe0cf69a0bc5f3ace29918a8fadf34d045c8e8cbe04",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/v2/today.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   },
   {
     "id": "dormant:client/src/pages/WaterfallStep.tsx",
@@ -297,6 +297,6 @@
     "decision_status": "approved",
     "contract_fingerprint": "d7dff9d9bdb350b0f11a0d1611ad818101a7d7338748015d14c1b62ddcbf8d39",
     "disposition": "not-surface",
-    "decision_evidence": "client/src/pages/WaterfallStep.tsx: dormant-candidate record reports exists=true and importer_evidence=[]; no discovered importer/router edge promotes it to a product surface. Disposition not-surface is therefore retained."
+    "decision_evidence": "Independent review completed: current dormant candidate exists=True and importer_evidence=[]; proposal is not-surface."
   }
 ]

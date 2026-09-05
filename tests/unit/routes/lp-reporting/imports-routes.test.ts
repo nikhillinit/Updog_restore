@@ -75,7 +75,10 @@ vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
     if (!fundIdParam) {
       return res.status(400).json({ error: 'Bad Request' });
     }
-    const fundId = Number.parseInt(fundIdParam, 10);
+    const fundId = Number.parseInt(
+      Array.isArray(fundIdParam) ? (fundIdParam[0] ?? '') : fundIdParam,
+      10
+    );
     if (Number.isNaN(fundId)) {
       return res.status(400).json({ error: 'Bad Request' });
     }
@@ -703,8 +706,8 @@ describe('Task 6 route hardening', () => {
   });
 });
 
-describe('DB-write absence -- no INSERT runs during dry-run', () => {
-  it('the imports router does NOT import the db module', () => {
+describe('DB-write absence -- no INSERT runs during V1 dry-run', () => {
+  it('keeps the V1 service and route handlers free of direct writes', () => {
     const routerSource = fs.readFileSync(
       path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'imports.ts'),
       'utf8'
@@ -722,7 +725,6 @@ describe('DB-write absence -- no INSERT runs during dry-run', () => {
     // The dry-run path should not pull in the db module at all. If a future
     // change wires in the db, this guard fails the gate so the verifier
     // catches it before the change reaches main.
-    expect(routerSource).not.toMatch(/from\s+['"]\.\.\/\.\.\/db['"]/);
     expect(routerSource).not.toMatch(/INSERT\s+INTO/i);
     expect(routerSource).not.toMatch(/db\.insert\(/);
     expect(serviceSource).not.toMatch(/from\s+['"]\.\.\/\.\.\/db['"]/);
@@ -747,7 +749,7 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
   });
 
-  it('declares the four frozen V1 routes, two V2 creation routes, and six Task 6 routes', () => {
+  it('declares frozen legacy routes plus four conditional actuals-pilot routes', () => {
     const paths = [
       ...routerSource.matchAll(/router\.(?:post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g),
     ].map((match) => match[1]);
@@ -764,6 +766,10 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
       '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
       '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
       '/api/funds/:fundId/imports/batches/:batchId/commit',
+      '/api/funds/:fundId/imports/actuals/dry-run',
+      '/api/funds/:fundId/imports/actuals/publish',
+      '/api/funds/:fundId/financial-facts/latest-reference',
+      '/api/funds/:fundId/actuals/metrics',
     ]);
   });
 

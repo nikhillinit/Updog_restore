@@ -369,9 +369,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "api:POST:/api/funds/:fundId/current-forecast/runs: endpoint retired in F_1.11.0 P0b item 1 (DECISIONS.md ADR-094; issue #1467). Handler and route-policy entry are absent; the shared current-forecast manifest, implementation map, mount, and group-slice registrations remain for surviving endpoints. Resolution pruned is approved.",
-    "resolution_fingerprint": "723d6df65696e21b5312963dadad769b53b833472a740e5ae674f162fa147db9",
-    "contract_fingerprint": "723d6df65696e21b5312963dadad769b53b833472a740e5ae674f162fa147db9"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=in-contract; proposal is pruned.",
+    "resolution_fingerprint": "7460943eecb2c95dc6ca36143084f2fcd3a05eb3a75901f60d50fd823078da4d",
+    "contract_fingerprint": "7460943eecb2c95dc6ca36143084f2fcd3a05eb3a75901f60d50fd823078da4d"
   },
   {
     "id": "dormant:client/src/pages/admin/telemetry.tsx",
@@ -419,9 +419,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/admin/telemetry.tsx: vanished row mapping names client/src/pages/admin/telemetry.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "44f9eb1f2bba44d85ca8fc685fd548b95e06eb810f43c1c889f0b060544ea809",
-    "contract_fingerprint": "44f9eb1f2bba44d85ca8fc685fd548b95e06eb810f43c1c889f0b060544ea809"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "2def95e50ea16ad00072c8e888f18c4611804ed0bd348190fd0125d844f1e2dd",
+    "contract_fingerprint": "2def95e50ea16ad00072c8e888f18c4611804ed0bd348190fd0125d844f1e2dd"
   },
   {
     "id": "dormant:client/src/pages/analytics.tsx",
@@ -469,9 +469,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/analytics.tsx: vanished row mapping names client/src/pages/analytics.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "fa3f1efdbb0d10148fe0af84bf754d02a13e659cb7eba837e34bf46277a178ce",
-    "contract_fingerprint": "fa3f1efdbb0d10148fe0af84bf754d02a13e659cb7eba837e34bf46277a178ce"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "2ddedd304e8a10276bfd0a495b39b0fa2cb9a646ad5fdd134c34f6dfeafc9a01",
+    "contract_fingerprint": "2ddedd304e8a10276bfd0a495b39b0fa2cb9a646ad5fdd134c34f6dfeafc9a01"
   },
   {
     "id": "dormant:client/src/pages/CompanyDetail.tsx",
@@ -519,9 +519,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/CompanyDetail.tsx: vanished row mapping names client/src/pages/CompanyDetail.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "c5dc571183f42285a6cb1c3761fbd00ffd1093cde285a4a24c3052ba65d82d16",
-    "contract_fingerprint": "c5dc571183f42285a6cb1c3761fbd00ffd1093cde285a4a24c3052ba65d82d16"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "d93b4e963cd43b19f4dc7009b9f57260ea3e2c26061fddb5d8fa91a3a47d414b",
+    "contract_fingerprint": "d93b4e963cd43b19f4dc7009b9f57260ea3e2c26061fddb5d8fa91a3a47d414b"
   },
   {
     "id": "dormant:client/src/pages/CustomFields.tsx",
@@ -569,9 +569,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/CustomFields.tsx: vanished row mapping names client/src/pages/CustomFields.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "a5a465bbc6842dfb5614f0b0ebad6c01cf4f67d139a629189a701aec29f90845",
-    "contract_fingerprint": "a5a465bbc6842dfb5614f0b0ebad6c01cf4f67d139a629189a701aec29f90845"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "ff6ec56fb069eaf906a681f950bb7623e120fc120f3ae4d72935fd59019c1382",
+    "contract_fingerprint": "ff6ec56fb069eaf906a681f950bb7623e120fc120f3ae4d72935fd59019c1382"
   },
   {
     "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
@@ -619,9 +619,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/ExitRecyclingStep.tsx: vanished row mapping names client/src/pages/ExitRecyclingStep.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "251ffbdc366f7cd9fe0ede2c69f020aa82e0c6a48350a68c58fc1b0ef1544be5",
-    "contract_fingerprint": "251ffbdc366f7cd9fe0ede2c69f020aa82e0c6a48350a68c58fc1b0ef1544be5"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "fae55695737174243aa10946827402bd09ac066b0b121bd4eaadfa4a597b8134",
+    "contract_fingerprint": "fae55695737174243aa10946827402bd09ac066b0b121bd4eaadfa4a597b8134"
   },
   {
     "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
@@ -669,9 +669,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/InvestmentRoundsStep.tsx: vanished row mapping names client/src/pages/InvestmentRoundsStep.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "404f6eb913847503ba22a0c3649c9f847d700eb80320512ed9289af2252d2fe3",
-    "contract_fingerprint": "404f6eb913847503ba22a0c3649c9f847d700eb80320512ed9289af2252d2fe3"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "c60dd500193c6152b0abc60a987d8d56c3808e60f4264a7631981072c0de6e67",
+    "contract_fingerprint": "c60dd500193c6152b0abc60a987d8d56c3808e60f4264a7631981072c0de6e67"
   },
   {
     "id": "dormant:client/src/pages/investments-table.tsx",
@@ -719,9 +719,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/investments-table.tsx: vanished row mapping names client/src/pages/investments-table.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "a68b138adfeb30361c51cfe3e9f9020f6848d8b92120969fee2924db425761a7",
-    "contract_fingerprint": "a68b138adfeb30361c51cfe3e9f9020f6848d8b92120969fee2924db425761a7"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "41b70acf7dc4a355d6e58b336ef6ddf019dbc394d0870b7454da5b1d52a8f6ec",
+    "contract_fingerprint": "41b70acf7dc4a355d6e58b336ef6ddf019dbc394d0870b7454da5b1d52a8f6ec"
   },
   {
     "id": "dormant:client/src/pages/investments.tsx",
@@ -769,9 +769,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/investments.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/investments.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
-    "resolution_fingerprint": "6a85419c8d649008a6721205df9526d570ff2d3a5ded1d910fb736aa51da750d",
-    "contract_fingerprint": "6a85419c8d649008a6721205df9526d570ff2d3a5ded1d910fb736aa51da750d"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "f60423424aaf9a3fe40892f5e879add3b25e4ee13a95415b0ad8573d0059c843",
+    "contract_fingerprint": "f60423424aaf9a3fe40892f5e879add3b25e4ee13a95415b0ad8573d0059c843"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/index.tsx",
@@ -819,9 +819,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/index.tsx: vanished row mapping names client/src/pages/kpi-manager/index.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "7fc4b079c83497f534e7d4f8bdba141031bfb9d70cd88fab9f1e0e25b2428938",
-    "contract_fingerprint": "7fc4b079c83497f534e7d4f8bdba141031bfb9d70cd88fab9f1e0e25b2428938"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "d25076244a86e2a6b6938feee478b4693f4807906e84f9c18412f36153d23faf",
+    "contract_fingerprint": "d25076244a86e2a6b6938feee478b4693f4807906e84f9c18412f36153d23faf"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
@@ -869,9 +869,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx: vanished row mapping names client/src/pages/kpi-manager/KpiDefinitionModal.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "81507e768449ba17b64750ff0f431c745a0b3f4161d644ede972215b30f52098",
-    "contract_fingerprint": "81507e768449ba17b64750ff0f431c745a0b3f4161d644ede972215b30f52098"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "69f0b49c8fd8956f5a1e1a43fec398438ac6574ef0127ce1d9042a2978cba6d3",
+    "contract_fingerprint": "69f0b49c8fd8956f5a1e1a43fec398438ac6574ef0127ce1d9042a2978cba6d3"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
@@ -919,9 +919,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx: vanished row mapping names client/src/pages/kpi-manager/KpiTabs.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "5d46abba94e3566453da921ca1836873347121d7d850d0fc74c0a59b5104ec93",
-    "contract_fingerprint": "5d46abba94e3566453da921ca1836873347121d7d850d0fc74c0a59b5104ec93"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "047f0dde5c5595eeed0019f2476a8b3fd6a9f0f75787c1f8d18702abd5278bc9",
+    "contract_fingerprint": "047f0dde5c5595eeed0019f2476a8b3fd6a9f0f75787c1f8d18702abd5278bc9"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
@@ -969,9 +969,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx: vanished row mapping names client/src/pages/kpi-manager/panes/AnalyticsPane.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "09cadce815ec16cf752d8cfff60fffe680a042d3ca7c89438bf7b6301d409c49",
-    "contract_fingerprint": "09cadce815ec16cf752d8cfff60fffe680a042d3ca7c89438bf7b6301d409c49"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "f00067699d5a0ee07a88aebae3356fa145114c2863a3c32e2f6bb4fbe38daa2d",
+    "contract_fingerprint": "f00067699d5a0ee07a88aebae3356fa145114c2863a3c32e2f6bb4fbe38daa2d"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
@@ -1019,9 +1019,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx: vanished row mapping names client/src/pages/kpi-manager/panes/OverviewPane.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "c2f98589c4f1e5ad504461d90752fdd73364986d2628c973bdb0adee12807e7a",
-    "contract_fingerprint": "c2f98589c4f1e5ad504461d90752fdd73364986d2628c973bdb0adee12807e7a"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "b5729166a92ca19a66c7e9b6609674e6cc5e2ed8e47f67776b649ca4fbb39abd",
+    "contract_fingerprint": "b5729166a92ca19a66c7e9b6609674e6cc5e2ed8e47f67776b649ca4fbb39abd"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
@@ -1069,9 +1069,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx: vanished row mapping names client/src/pages/kpi-manager/panes/SettingsPane.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "f88bb8895bd71ec0d4011fc0e1e68cf9a09fe90d24ba8f1460b293dd8ddbef23",
-    "contract_fingerprint": "f88bb8895bd71ec0d4011fc0e1e68cf9a09fe90d24ba8f1460b293dd8ddbef23"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "93e62351f693b8c0336df3cb7e6868ed1598e7047ce5e603d68674101cdb8751",
+    "contract_fingerprint": "93e62351f693b8c0336df3cb7e6868ed1598e7047ce5e603d68674101cdb8751"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
@@ -1119,9 +1119,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/tabs-config.ts: vanished row mapping names client/src/pages/kpi-manager/tabs-config.ts in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "c84a4528fbff0fc8f024366cbc60650f8b2a15909eb8122b5ed8f8dcd70eb43f",
-    "contract_fingerprint": "c84a4528fbff0fc8f024366cbc60650f8b2a15909eb8122b5ed8f8dcd70eb43f"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "501ae9a65e46df35f9da14ca722700ded6bfbfa1ff2968c2f69c59ee64b7f6d5",
+    "contract_fingerprint": "501ae9a65e46df35f9da14ca722700ded6bfbfa1ff2968c2f69c59ee64b7f6d5"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
@@ -1169,9 +1169,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/useKpiManager.ts: vanished row mapping names client/src/pages/kpi-manager/useKpiManager.ts in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "3ff6e7e6dabd1128bfe5391537a58e60a73a77b394c94e13b2b282c9663b3260",
-    "contract_fingerprint": "3ff6e7e6dabd1128bfe5391537a58e60a73a77b394c94e13b2b282c9663b3260"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "52f09cd99b24c7238efdd8ada44992371d7accbbdb717d465fbc16f0d1da2df4",
+    "contract_fingerprint": "52f09cd99b24c7238efdd8ada44992371d7accbbdb717d465fbc16f0d1da2df4"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
@@ -1219,9 +1219,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-manager/useModalState.ts: vanished row mapping names client/src/pages/kpi-manager/useModalState.ts in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "5c8deab2a5d8559803e52916bfc70426d0975a0a9e1bf2ed0dedf73763434191",
-    "contract_fingerprint": "5c8deab2a5d8559803e52916bfc70426d0975a0a9e1bf2ed0dedf73763434191"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "e9c31fa8b7f656c41dbb27f282d813d522092ef03f4285500d3cbf0b31b7b584",
+    "contract_fingerprint": "e9c31fa8b7f656c41dbb27f282d813d522092ef03f4285500d3cbf0b31b7b584"
   },
   {
     "id": "dormant:client/src/pages/kpi-submission.tsx",
@@ -1269,9 +1269,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/kpi-submission.tsx: vanished row mapping names client/src/pages/kpi-submission.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "be49727231489deb5689413f0b9f2e080cdc30707b8109bfefd5224207968c84",
-    "contract_fingerprint": "be49727231489deb5689413f0b9f2e080cdc30707b8109bfefd5224207968c84"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "5c957cf7077af299b8d3508af7fa7b638a227439409945f2440fc36cebb62b1f",
+    "contract_fingerprint": "5c957cf7077af299b8d3508af7fa7b638a227439409945f2440fc36cebb62b1f"
   },
   {
     "id": "dormant:client/src/pages/notion-integration.tsx",
@@ -1319,9 +1319,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/notion-integration.tsx: vanished row mapping names client/src/pages/notion-integration.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "35052cca558dc9004b806ac28dab4c16aa2fc1c3c7dae8be44b51b354b66735a",
-    "contract_fingerprint": "35052cca558dc9004b806ac28dab4c16aa2fc1c3c7dae8be44b51b354b66735a"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "62bdaa3e7aef21459ae64155382b72b9253c0ebee31a028003c2e88c7f7ea4f7",
+    "contract_fingerprint": "62bdaa3e7aef21459ae64155382b72b9253c0ebee31a028003c2e88c7f7ea4f7"
   },
   {
     "id": "dormant:client/src/pages/partial-sales.tsx",
@@ -1369,9 +1369,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/partial-sales.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/partial-sales.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
-    "resolution_fingerprint": "3ab26e0177b71363027a8a6209270130a245e2a26bfee69a7ba8a28dcab156eb",
-    "contract_fingerprint": "3ab26e0177b71363027a8a6209270130a245e2a26bfee69a7ba8a28dcab156eb"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "219fd6bba6b1cbc1735227e288abdbab1255a805fdbfbfa3cf8fc699405cb118",
+    "contract_fingerprint": "219fd6bba6b1cbc1735227e288abdbab1255a805fdbfbfa3cf8fc699405cb118"
   },
   {
     "id": "dormant:client/src/pages/planning.tsx",
@@ -1419,9 +1419,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/planning.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/planning.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
-    "resolution_fingerprint": "bc7bdca4192dd25df07b2cdceb3439215abdfe6c6b29635f3087481647c9982b",
-    "contract_fingerprint": "bc7bdca4192dd25df07b2cdceb3439215abdfe6c6b29635f3087481647c9982b"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "e6a19e1eb56f9693c024855acc2f3d19c0d60b4a233814d80621fb67bfa5587b",
+    "contract_fingerprint": "e6a19e1eb56f9693c024855acc2f3d19c0d60b4a233814d80621fb67bfa5587b"
   },
   {
     "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
@@ -1469,9 +1469,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/portfolio-company-detail.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/portfolio-company-detail.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
-    "resolution_fingerprint": "1d590133f4d8d0735172963d0d40aec876920e4f6b59e41dcbeb8b3e33aac9cf",
-    "contract_fingerprint": "1d590133f4d8d0735172963d0d40aec876920e4f6b59e41dcbeb8b3e33aac9cf"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "fc9403900eb8c7a41c7044be5dc366d2699c8bfbe99b6d20200ab2df962124c5",
+    "contract_fingerprint": "fc9403900eb8c7a41c7044be5dc366d2699c8bfbe99b6d20200ab2df962124c5"
   },
   {
     "id": "dormant:client/src/pages/portfolio-constructor.tsx",
@@ -1519,9 +1519,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/portfolio-constructor.tsx: vanished row mapping names client/src/pages/portfolio-constructor.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "0da61956496a95e40011fe2af3e04513be2ee432ba4ed121196235f2796f94be",
-    "contract_fingerprint": "0da61956496a95e40011fe2af3e04513be2ee432ba4ed121196235f2796f94be"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "57938b1a688979e604a4741b2d812d47b87147080d79c46776823362df669cfd",
+    "contract_fingerprint": "57938b1a688979e604a4741b2d812d47b87147080d79c46776823362df669cfd"
   },
   {
     "id": "dormant:client/src/pages/return-the-fund.tsx",
@@ -1569,9 +1569,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/return-the-fund.tsx: vanished row mapping names client/src/pages/return-the-fund.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "5a6a87010fa38baf5b997bfbd14d4a469b527f5f7afe0d1bbdb042a0b7765c74",
-    "contract_fingerprint": "5a6a87010fa38baf5b997bfbd14d4a469b527f5f7afe0d1bbdb042a0b7765c74"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "9d8eeee6418c7fe9e2e1962d6102b44b1a48a6227803c28e3d6890704587aac6",
+    "contract_fingerprint": "9d8eeee6418c7fe9e2e1962d6102b44b1a48a6227803c28e3d6890704587aac6"
   },
   {
     "id": "dormant:client/src/pages/secondary-market.tsx",
@@ -1619,9 +1619,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/secondary-market.tsx: vanished row mapping names client/src/pages/secondary-market.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "22c1499f286b19daa280f935b7ff3c037635f0cd58d6a38e44bfc17bc1998a4d",
-    "contract_fingerprint": "22c1499f286b19daa280f935b7ff3c037635f0cd58d6a38e44bfc17bc1998a4d"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "5a06b8c973f51827e699e74f88a606b1bc69b84e0306936f3e3e9b451505c1d9",
+    "contract_fingerprint": "5a06b8c973f51827e699e74f88a606b1bc69b84e0306936f3e3e9b451505c1d9"
   },
   {
     "id": "dormant:client/src/pages/time-travel.tsx",
@@ -1669,9 +1669,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/time-travel.tsx: current orphan artifact carries vanished-row evidence for client/src/pages/time-travel.tsx, but current HEAD contains neither that source path nor a current dormant inventory record. Resolution pruned removes the vanished record; no live source mapping remains.",
-    "resolution_fingerprint": "1976329f0771948d022cc72563382f9e2a9a34443c9763328a11c320f894daee",
-    "contract_fingerprint": "1976329f0771948d022cc72563382f9e2a9a34443c9763328a11c320f894daee"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "cd614ffca8c6dd1acf60b34a3ee9ed22c2181fefc937e90671fc10204e0056ee",
+    "contract_fingerprint": "cd614ffca8c6dd1acf60b34a3ee9ed22c2181fefc937e90671fc10204e0056ee"
   },
   {
     "id": "dormant:client/src/pages/WaterfallStep.tsx",
@@ -1719,9 +1719,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "dormant:client/src/pages/WaterfallStep.tsx: vanished row mapping names client/src/pages/WaterfallStep.tsx in dormant-candidates.json with importer_evidence=[]. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "18f5335a58890ebafac905d4f3b868bc04011e02a2dcff39ff75fe63518b906c",
-    "contract_fingerprint": "18f5335a58890ebafac905d4f3b868bc04011e02a2dcff39ff75fe63518b906c"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=remove-with-approval; proposal is pruned.",
+    "resolution_fingerprint": "3717f6c55ee38d81046a09a7ea7cd22c15fb75309c2b1c285cc1ec57a967051e",
+    "contract_fingerprint": "3717f6c55ee38d81046a09a7ea7cd22c15fb75309c2b1c285cc1ec57a967051e"
   },
   {
     "id": "worker:error-tracking",
@@ -1794,9 +1794,9 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "worker:error-tracking: queue mapping names error-tracking, kg node worker:error-tracking, queue_catalog_keys=[], producer server/middleware/asyncErrorHandler.ts:15, and consumer status no-reachable-consumer. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "5fb9d7824e79c1e4aaf0c4c504f329fed4e0cef9b1fe72cd1f0409851974a1f1",
-    "contract_fingerprint": "5fb9d7824e79c1e4aaf0c4c504f329fed4e0cef9b1fe72cd1f0409851974a1f1"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
+    "resolution_fingerprint": "1ab46fed32cc772f0384752d3e6787ed38990d4a677a239cda82c1cfda74a372",
+    "contract_fingerprint": "1ab46fed32cc772f0384752d3e6787ed38990d4a677a239cda82c1cfda74a372"
   },
   {
     "id": "ws:setup-websocket-servers",
@@ -1936,8 +1936,8 @@
     },
     "decision_status": "approved",
     "resolution": "pruned",
-    "decision_evidence": "ws:setup-websocket-servers: registration source server/routes.ts:153; superseded by current ws:portfolio-metrics at server/routes.ts:153 and server/websocket/portfolio-metrics.ts:1. Resolution pruned removes the vanished record while preserving the current source mapping as its evidence.",
-    "resolution_fingerprint": "778a4a35bc5a6c66084b89a79bf9bdc3c3844cf90ac2c3fc418bfd75d38e5cd1",
-    "contract_fingerprint": "778a4a35bc5a6c66084b89a79bf9bdc3c3844cf90ac2c3fc418bfd75d38e5cd1"
+    "decision_evidence": "Independent review completed: orphan is absent from current canonical row set; vanished decision=keep-and-prove; proposal is pruned.",
+    "resolution_fingerprint": "4d90cbb27f7914272d07d671e62ab4213755809d28c350948b7d2b428a8c9204",
+    "contract_fingerprint": "4d90cbb27f7914272d07d671e62ab4213755809d28c350948b7d2b428a8c9204"
   }
 ]

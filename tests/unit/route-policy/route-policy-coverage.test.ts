@@ -104,6 +104,10 @@ const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'POST /api/funds/:fundId/reconciliation/cases/:caseId/resolve',
   'POST /api/funds/:fundId/reconciliation/cases/bulk-resolve',
   'POST /api/funds/:fundId/imports/batches/:batchId/commit',
+  'POST /api/funds/:fundId/imports/actuals/dry-run',
+  'POST /api/funds/:fundId/imports/actuals/publish',
+  'GET /api/funds/:fundId/financial-facts/latest-reference',
+  'GET /api/funds/:fundId/actuals/metrics',
 ] as const;
 
 type LpReportingPolicyExpectation = Pick<
@@ -131,6 +135,33 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
     expected: {
       workflowRequirement: 'reconciliation_preview_hash_generated',
       exportPolicy: 'preview_only',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/dry-run'],
+    expected: {
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'preview_only',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'GET /api/funds/:fundId/financial-facts/latest-reference',
+      'GET /api/funds/:fundId/actuals/metrics',
+    ],
+    expected: {
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/publish'],
+    expected: {
+      workflowRequirement: 'actuals_pilot_preview_hashes_if_match_and_idempotency_key_verified',
+      exportPolicy: 'not_exportable',
       provenanceRequired: true,
     },
   },
@@ -322,6 +353,41 @@ describe('route policy coverage', () => {
       expect(policyEntry.apiAuthBoundary, routePolicyKey(policyEntry)).not.toBe('none_public');
       expect(policyEntry.fundScopeMode, routePolicyKey(policyEntry)).not.toBe('none');
     }
+  });
+
+  it('registers full actuals-pilot workflow, role, provenance, and performance policies', () => {
+    const paths = [
+      '/api/funds/:fundId/imports/actuals/dry-run',
+      '/api/funds/:fundId/imports/actuals/publish',
+      '/api/funds/:fundId/financial-facts/latest-reference',
+      '/api/funds/:fundId/actuals/metrics',
+    ] as const;
+
+    for (const path of paths) {
+      const method = path.includes('/imports/actuals/') ? 'POST' : 'GET';
+      const policy = expectPolicy(`${method} ${path}`);
+      expect(policy).toMatchObject({
+        governanceRef: '/lp-reporting/imports',
+        surface: 'lp-reporting-imports-api',
+        financialSurface: 'lp_reporting',
+        apiAuthBoundary: 'require_auth_fund_access_and_role',
+        fundScopeMode: 'route_param_fund_id',
+        provenanceRequired: true,
+        staleBlocksExport: false,
+        humanReviewRequired: false,
+      });
+    }
+
+    expect(expectPolicy('POST /api/funds/:fundId/imports/actuals/dry-run')).toMatchObject({
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'preview_only',
+      performanceBudgetMs: null,
+    });
+    expect(expectPolicy('POST /api/funds/:fundId/imports/actuals/publish')).toMatchObject({
+      workflowRequirement: 'actuals_pilot_preview_hashes_if_match_and_idempotency_key_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: 30_000,
+    });
   });
 
   it('classifies the internal economics workspace as fund-scoped and non-exportable', () => {
@@ -536,7 +602,7 @@ describe('route policy coverage', () => {
   });
 
   it('covers every LP-reporting metric-run and import route', () => {
-    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(36);
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(40);
 
     const declaredRoutes = [
       ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),
@@ -562,7 +628,11 @@ describe('route policy coverage', () => {
         const policy = expectPolicy(key);
 
         expect(policy.financialSurface, key).toBe('lp_reporting');
-        expect(policy.apiAuthBoundary, key).toBe('require_auth_and_fund_access');
+        expect(policy.apiAuthBoundary, key).toBe(
+          key.includes('/actuals/') || key.includes('/financial-facts/latest-reference')
+            ? 'require_auth_fund_access_and_role'
+            : 'require_auth_and_fund_access'
+        );
         expect(policy.fundScopeMode, key).toBe('route_param_fund_id');
         expect(policy.workflowRequirement, key).toBe(group.expected.workflowRequirement);
         expect(policy.exportPolicy, key).toBe(group.expected.exportPolicy);
@@ -654,7 +724,7 @@ describe('route policy coverage', () => {
     const errors = verifyRoutePolicy({
       ...defaultRoutePolicyVerificationInput,
       commonApiRoutes: defaultRoutePolicyVerificationInput.commonApiRoutes.map((entry) =>
-        entry.id === 'fund-moic'
+        entry.id === 'fund-moic' && entry.migrationParity.kind === 'c1'
           ? {
               ...entry,
               schemaTables: [...entry.schemaTables, 'missing_route_table'],
@@ -672,7 +742,7 @@ describe('route policy coverage', () => {
     const errors = verifyRoutePolicy({
       ...defaultRoutePolicyVerificationInput,
       commonApiRoutes: defaultRoutePolicyVerificationInput.commonApiRoutes.map((entry) =>
-        entry.id === 'fund-moic'
+        entry.id === 'fund-moic' && entry.migrationParity.kind === 'c1'
           ? {
               ...entry,
               migrationParity: {

@@ -1053,6 +1053,15 @@ export default function VarianceTrackingPage() {
                       </dd>
                     </div>
                   </dl>
+                  {persistedReconciliation.basisRef && (
+                    <p className="mt-3 text-xs tabular-nums text-presson-textMuted">
+                      Basis: facts snapshot {persistedReconciliation.basisRef.snapshotId} (policy{' '}
+                      {persistedReconciliation.basisRef.policyVersion
+                        .replace('financial-facts-policy/', '')
+                        .replace(/\.0$/, '')}
+                      , {persistedReconciliation.basisRef.asOfDate})
+                    </p>
+                  )}
                   {persistedReconciliation.structuredWarnings.length > 0 && (
                     <ul className="mt-3 space-y-1 text-xs text-presson-warning">
                       {persistedReconciliation.structuredWarnings.map((warning) => (

@@ -24,11 +24,12 @@
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
+import { requireActualsPilotGrant } from '../../lib/auth/actuals-pilot-grant';
 import { firstString } from '../../lib/request-values';
 import {
   ImportCommitRequestSchema,
@@ -80,8 +81,50 @@ import {
 } from '../../services/financial-observations/import-batch-commit-service';
 import { isReconciliationApiError } from '../../services/financial-observations/reconciliation-errors';
 import { recordV1ImportInvocation } from '../../services/lp-reporting/v1-import-telemetry';
+import { readActualsPilotFundId } from '../../config/actuals-pilot-env';
+import {
+  ActualMetricsV2Schema,
+  ActualsPreviewRequestV1Schema,
+  ActualsPreviewResponseV1Schema,
+  ActualsPublishReceiptV1Schema,
+  ActualsPublishRequestV1Schema,
+  FinancialFactsLatestReferenceV1Schema,
+  IfMatchSchema,
+} from '@shared/contracts/lp-reporting/actuals-pilot.contract';
+import {
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  type FinancialFactsSnapshotV5,
+} from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  ActualsPilotPreviewError,
+  previewActualsPilot,
+} from '../../services/lp-reporting/actuals-pilot-preview-service';
+import {
+  ActualsPilotPublishError,
+  publishActualsPilot,
+} from '../../services/lp-reporting/actuals-pilot-publish-service';
+import {
+  getFinancialFactsSnapshotById,
+  getTerminalFinancialFactsHead,
+} from '../../services/financial-facts-snapshot-service';
+import { parsePersistedFactsRow } from '../../services/financial-facts/parse-persisted-facts-row';
+import { basisRefFromPersistedSnapshot } from '../../services/financial-facts/financial-facts-basis-ref';
+import {
+  actualMetricsV2ETag,
+  projectActualMetricsV2,
+  unavailableActualMetricsV2,
+} from '../../services/actual-metrics-v2-projector';
 
 const router = Router();
+const actualsPilotFundId = readActualsPilotFundId();
+const actualsIdempotencyKeySchema = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+const actualsSnapshotIdSchema = z
+  .string()
+  .regex(/^[1-9][0-9]{0,9}$/)
+  .transform(Number)
+  .refine((value) => value <= 2_147_483_647);
 
 const valuationMarkImportBodySchema = ImportDryRunRequestSchema.extend({
   sourceType: z.literal('csv'),
@@ -273,6 +316,65 @@ function sendV2ImportError(res: Response, error: unknown): Response {
   return res.status(500).json({
     error: 'IMPORT_REQUEST_FAILED',
     message: error instanceof Error ? error.message : 'Unknown error',
+  });
+}
+
+function actualsRequestId(req: Request): string {
+  const candidate = req as Request & { requestId?: string; rid?: string };
+  return candidate.requestId ?? candidate.rid ?? 'unknown';
+}
+
+function requireVerifiedActualsCredential(req: Request, res: Response, next: NextFunction): void {
+  if (req.authCredential === undefined) {
+    res.status(401).json({ error: 'Authentication required', code: 'UNAUTHORIZED' });
+    return;
+  }
+  next();
+}
+
+function setActualsPrivateCache(_req: Request, res: Response, next: NextFunction): void {
+  res.setHeader('Cache-Control', 'private, no-store');
+  next();
+}
+
+function requireActualsJson(req: Request, res: Response, next: NextFunction): void {
+  if (baseMediaType(req) !== 'application/json') {
+    res.status(415).json({ error: 'Content-Type must be application/json.', code: 'INVALID_BODY' });
+    return;
+  }
+  next();
+}
+
+function sendActualsError(req: Request, res: Response, error: unknown): Response {
+  if (error instanceof ActualsPilotPreviewError || error instanceof ActualsPilotPublishError) {
+    return res.status(error.statusCode).json({
+      error: error.message,
+      code: error.code,
+      ...(error.details !== undefined && { details: error.details }),
+    });
+  }
+  return res.status(500).json({
+    error: 'Actuals pilot request failed.',
+    code: 'INTERNAL_ERROR',
+    requestId: actualsRequestId(req),
+  });
+}
+
+function terminalHeadError(
+  req: Request,
+  res: Response,
+  result: Extract<
+    Awaited<ReturnType<typeof getTerminalFinancialFactsHead>>,
+    { kind: 'ambiguous' | 'invalid' }
+  >
+): Response {
+  return res.status(409).json({
+    error:
+      result.kind === 'ambiguous'
+        ? 'Financial facts head is ambiguous.'
+        : 'Financial facts lineage is invalid.',
+    code: result.code,
+    requestId: actualsRequestId(req),
   });
 }
 
@@ -759,5 +861,206 @@ router.post(
     }
   }
 );
+
+if (actualsPilotFundId !== null) {
+  const actualsGrant = requireActualsPilotGrant(() => actualsPilotFundId);
+  const actualsCommon = [
+    setActualsPrivateCache,
+    requireAuth(),
+    requireVerifiedActualsCredential,
+    actualsGrant,
+    requireFundAccess,
+  ] as const;
+
+  router.post(
+    '/api/funds/:fundId/imports/actuals/dry-run',
+    ...actualsCommon,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const parsedBody = ActualsPreviewRequestV1Schema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({
+          error: 'Actuals preview request is invalid.',
+          code: 'INVALID_BODY',
+          issues: parsedBody.error.issues.map(({ path, message }) => ({ path, message })),
+        });
+      }
+
+      try {
+        const preview = ActualsPreviewResponseV1Schema.parse(
+          await previewActualsPilot({ fundId: actualsPilotFundId, request: parsedBody.data })
+        );
+        return res.status(200).json(preview);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/api/funds/:fundId/imports/actuals/publish',
+    ...actualsCommon,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const rawIfMatch = requestHeader(req, 'if-match');
+      if (rawIfMatch === undefined) {
+        return res.status(428).json({
+          error: 'If-Match is required.',
+          code: 'PRECONDITION_REQUIRED',
+        });
+      }
+      const parsedIfMatch = IfMatchSchema.safeParse(rawIfMatch);
+      if (!parsedIfMatch.success) {
+        return res.status(400).json({ error: 'If-Match is invalid.', code: 'INVALID_IF_MATCH' });
+      }
+
+      const parsedIdempotencyKey = actualsIdempotencyKeySchema.safeParse(
+        requestHeader(req, 'idempotency-key')
+      );
+      if (!parsedIdempotencyKey.success) {
+        return res.status(400).json({
+          error: 'Idempotency-Key must be a lowercase UUID.',
+          code: 'INVALID_IDEMPOTENCY_KEY',
+        });
+      }
+
+      const parsedBody = ActualsPublishRequestV1Schema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({
+          error: 'Actuals publish request is invalid.',
+          code: 'INVALID_BODY',
+          issues: parsedBody.error.issues.map(({ path, message }) => ({ path, message })),
+        });
+      }
+
+      try {
+        const result = await publishActualsPilot({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: parsedIdempotencyKey.data,
+          ifMatch: parsedIfMatch.data,
+          request: parsedBody.data,
+          requestId: actualsRequestId(req),
+        });
+        return res
+          .status(result.statusCode)
+          .json(ActualsPublishReceiptV1Schema.parse(result.receipt));
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.get(
+    '/api/funds/:fundId/financial-facts/latest-reference',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      try {
+        const head = await getTerminalFinancialFactsHead({ fundId: actualsPilotFundId });
+        if (head.kind === 'ambiguous' || head.kind === 'invalid') {
+          return terminalHeadError(req, res, head);
+        }
+        if (head.kind === 'none') {
+          return res.status(200).json(
+            FinancialFactsLatestReferenceV1Schema.parse({
+              contractVersion: 'financial-facts-latest-reference/1.0.0',
+              head: null,
+            })
+          );
+        }
+
+        const parsed = parsePersistedFactsRow(head.row);
+        if (parsed.kind === 'unsupported') {
+          return res.status(422).json({
+            error: 'Financial facts policy is unsupported.',
+            code: 'UNSUPPORTED_FACTS_POLICY',
+          });
+        }
+        const basisRef = basisRefFromPersistedSnapshot(parsed.snapshot, head.row.id) ?? null;
+        const response = FinancialFactsLatestReferenceV1Schema.parse({
+          contractVersion: 'financial-facts-latest-reference/1.0.0',
+          head: {
+            snapshotId: head.row.id,
+            asOfDate: parsed.snapshot.asOfDate,
+            knowledgeCutoff: parsed.snapshot.knowledgeCutoff,
+            policyVersion: parsed.snapshot.policyVersion,
+            payloadSchemaId: parsed.snapshot.payloadSchemaId,
+            snapshotInputHash: parsed.snapshot.snapshotInputHash,
+            supersedesSnapshotId: head.row.supersedesSnapshotId,
+            basisRef,
+            consumerEvaluations: parsed.snapshot.consumerEvaluations,
+          },
+        });
+        res.setHeader(
+          'ETag',
+          `"financial-facts:${response.head!.snapshotId}:${response.head!.snapshotInputHash}"`
+        );
+        return res.status(200).json(response);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.get(
+    '/api/funds/:fundId/actuals/metrics',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      const parsedQuery = z
+        .object({ factsSnapshotId: actualsSnapshotIdSchema.optional() })
+        .strict()
+        .safeParse(req.query);
+      if (!parsedQuery.success) {
+        return res
+          .status(400)
+          .json({ error: 'factsSnapshotId is invalid.', code: 'INVALID_QUERY' });
+      }
+
+      try {
+        let row;
+        if (parsedQuery.data.factsSnapshotId !== undefined) {
+          row = await getFinancialFactsSnapshotById({
+            fundId: actualsPilotFundId,
+            snapshotId: parsedQuery.data.factsSnapshotId,
+          });
+          if (row === null) {
+            return res
+              .status(404)
+              .json({ error: 'Resource not found.', code: 'RESOURCE_NOT_FOUND' });
+          }
+        } else {
+          const head = await getTerminalFinancialFactsHead({ fundId: actualsPilotFundId });
+          if (head.kind === 'ambiguous' || head.kind === 'invalid') {
+            return terminalHeadError(req, res, head);
+          }
+          if (head.kind === 'none') {
+            return res.status(200).json(unavailableActualMetricsV2(actualsPilotFundId));
+          }
+          row = head.row;
+        }
+
+        const parsed = parsePersistedFactsRow(row);
+        if (
+          parsed.kind === 'unsupported' ||
+          parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+        ) {
+          return res.status(422).json({
+            error: 'Financial facts policy is unsupported.',
+            code: 'UNSUPPORTED_FACTS_POLICY',
+          });
+        }
+        const metrics = ActualMetricsV2Schema.parse(
+          projectActualMetricsV2(parsed.snapshot as FinancialFactsSnapshotV5 & { id: number })
+        );
+        res.setHeader('ETag', actualMetricsV2ETag(row.id, row.snapshotInputHash));
+        return res.status(200).json(metrics);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+}
 
 export default router;
