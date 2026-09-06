@@ -16,7 +16,7 @@ import {
 } from './decimal-cents-v2';
 
 export const INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION =
-  'internal-economics-waterfall-deal-by-deal/2.2.0' as const;
+  'internal-economics-waterfall-deal-by-deal/2.3.0' as const;
 
 const ZERO = new Decimal(0);
 
@@ -62,11 +62,17 @@ export interface DealByDealWaterfallResult {
 export type DealByDealResult =
   DealByDealWaterfallResult | { readonly ok: false; readonly refusal: V2CoreRefusal };
 
-function buildEntitlementPools(state: EventStreamState): EntitlementPool[] {
+type BuildEntitlementPoolsResult =
+  | { readonly ok: true; readonly pools: EntitlementPool[] }
+  | { readonly ok: false; readonly refusal: V2CoreRefusal };
+
+function buildEntitlementPools(state: EventStreamState): BuildEntitlementPoolsResult {
   const poolMap = new Map<string, EntitlementPool>();
+  const poolKey = (dealId: string, securityId: string): string =>
+    JSON.stringify([dealId, securityId]);
 
   for (const [, lot] of state.investmentLots) {
-    const key = `${lot.dealId}:${lot.securityId}`;
+    const key = poolKey(lot.dealId, lot.securityId);
     if (!poolMap.has(key)) {
       poolMap.set(key, {
         dealId: lot.dealId,
@@ -84,19 +90,25 @@ function buildEntitlementPools(state: EventStreamState): EntitlementPool[] {
     if (lot.origin !== 'event' || lot.sourceKind !== 'realization_proceeds') {
       continue;
     }
-    for (const [key, pool] of poolMap) {
-      if (key.startsWith(`${lot.dealId}:`)) {
-        pool.proceedsAvailable = pool.proceedsAvailable.plus(lot.remainingBalance);
-        break;
-      }
+    const pool = poolMap.get(poolKey(lot.dealId, lot.securityId));
+    if (!pool) {
+      return {
+        ok: false,
+        refusal: refuse(
+          'INVESTMENT_LOT_RELIEF_VIOLATION',
+          `Realization proceeds lot '${lot.lotId}' has no exact entitlement pool.`,
+          { dealId: lot.dealId, securityId: lot.securityId, lotId: lot.lotId }
+        ),
+      };
     }
+    pool.proceedsAvailable = pool.proceedsAvailable.plus(lot.remainingBalance);
   }
 
   for (const [, pool] of poolMap) {
     pool.gainLoss = pool.proceedsAvailable.minus(pool.costBasisRelieved);
   }
 
-  return Array.from(poolMap.values());
+  return { ok: true, pools: Array.from(poolMap.values()) };
 }
 
 function allocateReturnOfCapital(
@@ -294,7 +306,9 @@ export function runDealByDealWaterfall(
   input: NormalizedInternalEconomicsInputV2,
   state: EventStreamState
 ): DealByDealResult {
-  const pools = buildEntitlementPools(state);
+  const poolResult = buildEntitlementPools(state);
+  if (!poolResult.ok) return poolResult;
+  const pools = poolResult.pools;
   const policy = input.waterfallPolicy;
 
   const carryTier = policy.find((t) => t.kind === 'carry') as

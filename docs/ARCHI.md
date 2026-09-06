@@ -663,6 +663,14 @@ review, `#1287` target naming, `#1299` activation flip.
    `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`,
    `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md`.
 
+   **Local Program B correction (2026-09-06; source admission pending):**
+   realization relief resolves private cash-lot `securityId` before mutation.
+   Deal-by-deal pools use exact JSON tuple keys, preserving delimiter-bearing
+   identities and refusing missing pools. Receipt, serializer, event-engine,
+   and composite move to 2.4.0; deal-by-deal moves to 2.3.0. Whole-fund and
+   normalizer/input versions remain unchanged. ADR-099 and the v3 changed-case
+   manifest describe the compatibility boundary.
+
 7. **Daily Decision Workspace** (F_1.7.0) — S1 lands the source-pinned
    Base/Upside/Downside allocation-scenario flow: a narrowed
    `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
@@ -680,7 +688,35 @@ review, `#1287` target naming, `#1299` activation flip.
    loads via GET only and refreshes via explicit POST with an awaited labeled
    readback. Plan: `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
+8. **Fixed-template actuals publication** (F_1.12.0; source inspected September
+   6, 2026 at `1cdef4f1bc24072742a2cd24349f04c6ec074f0f`). An unset or empty
+   `ACTUALS_PILOT_FUND_ID` disables the pilot endpoints. One configured fund
+   uses ledger/valuation preview and idempotent publication inside the existing
+   LP imports router. Publication validates organization/fund context and
+   applies RLS inside the SERIALIZABLE transaction. It publishes policy
+   `1.4.0` / payload `5`, with no new DDL; the migration journal still ends at
+   `0055_current_forecast_recompute_commands`.
+
+   `parsePersistedFactsRow` is the reader codec. Forecast, reserve intelligence,
+   and construction reconciliation propagate the full `FinancialFactsBasisRef`
+   (`version`, `fundId`, `snapshotId`, `snapshotInputHash`, `sourceFactsInputHash`,
+   `policyVersion`, `asOfDate`, `knowledgeCutoff`); legacy policies retain their
+   existing behavior. Economics and periodic analysis refuse payload 5.
+   Valuation marks establish position values, not fund NAV, RVPI, or TVPI.
+   Publication invalidates cache after commit but does not trigger organic
+   shadow soak. The isolated actuals Gate A trial remains separate from
+   Current Forecast activation. See
+   `docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md`.
+
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
+
+**Conditional registration inside an existing manifest router**: the actuals
+pilot adds fund-gated endpoints to `server/routes/lp-reporting/imports.ts`.
+Register them on both existing assemblies, preserve the manifest router ID,
+and extend route policy, database-backed idempotency, CSRF, and mount-parity
+coverage for the conditional endpoints. Do not invent another router solely
+for a conditional path. Validate configuration at startup; an invalid pilot
+fund ID fails closed.
 
 **New API endpoint**: add to `shared/routes/api-route-manifest.ts` → impl entry
 in `server/routes/mount-common-routes.ts` → group-slice on **both** `make_app`

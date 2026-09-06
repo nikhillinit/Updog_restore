@@ -12204,3 +12204,44 @@ on Vercel until a separately authorized activation. Reopening D6 and D8 widens
 the change surface the synthesis had deliberately fenced; the plan's per-reader
 codec and consumer evaluation gates are the compensating control and must ship
 before any consumer reads payload 5.
+
+
+## ADR-099: Internal Economics V2 Realization Security Lineage
+
+**Date:** 2026-09-06 **Status:** Proposed (source admission pending)
+**Tags:** #internal-economics-v2 #financial-correctness #security-lineage
+
+### Decision
+
+A realization's security identity comes only from admitted
+`reliefRows[].investmentLotId` resolved to `InvestmentLot.securityId`.
+The event engine validates and groups all relief rows before mutating state.
+Each security group must have positive proceeds; group totals must equal the
+realization amount, and every generated cash-lot ID must be unused. Existing
+typed refusals leave the event and enclosing stream unchanged.
+
+Single-security events retain `proceeds:<eventId>`. Multi-security events
+create private `proceeds:<eventId>:<securityId>` lots carrying the resolved
+security identity. Generated-ID alias collisions fail closed. Entitlement
+pools use the collision-free `JSON.stringify([dealId, securityId])` key and
+exact lookup. Missing exact pools return `INVESTMENT_LOT_RELIEF_VIOLATION`;
+iteration order never selects a security.
+
+Receipt, serializer, event-engine, and composite implementation identities
+advance to `2.4.0`; deal-by-deal waterfall advances to `2.3.0`. Whole-fund
+waterfall `2.2.0` and normalizer/input `2.0.1` remain unchanged. Public inputs
+and receipt field shape remain unchanged; the changed-case v3 manifest binds
+the new output identities while preserving historical baseline hashes.
+
+### Validation and admission
+
+`internal-economics-v2-multi-security-routing.test.ts` names the S-0102
+expected-output case. Its regression matrix covers exact security routing,
+source/cash/tier/partner conservation, partial recycling, reversed order,
+delimiter collisions, and atomic refusal. Phoenix truth and the existing
+calculation gate remain required source evidence.
+
+Program B source must be admitted before selecting Program A's next candidate
+and before affected multi-security deal-by-deal serving. It cannot be added
+to an already frozen soak window. This ADR records rationale; it does not
+approve source admission, release, or a production action.
