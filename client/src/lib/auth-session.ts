@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { USER_ROLES } from '@shared/schema/user';
+import { USER_ROLES } from '@shared/auth/effective-roles';
 
 export interface AuthenticatedUser {
   id: string;

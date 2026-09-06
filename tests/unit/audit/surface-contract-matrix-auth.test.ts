@@ -16,14 +16,14 @@ describe('surface contract matrix auth persona mapping', () => {
   it('requires every injected enum and guard role to have an explicit mapping', () => {
     const roles = discoverAuthRoleLiterals({
       sourceFiles: {
-        'shared/schema/user.ts': `export const USER_ROLES = ['viewer'] as const;`,
+        'shared/auth/effective-roles.ts': `export const USER_ROLES = ['viewer', 'future_identity'] as const;`,
         'server/routes/synthetic.ts': `router.get('/', requireRole('future_capability'), handler);`,
       },
     });
 
-    expect(roles).toEqual(['future_capability', 'viewer']);
+    expect(roles).toEqual(['future_capability', 'future_identity', 'viewer']);
     expect(() => assertAuthRoleMappingExhaustive(roles)).toThrow(
-      'missing entries: future_capability'
+      'missing entries: future_capability, future_identity'
     );
   });
 
@@ -44,6 +44,14 @@ describe('surface contract matrix auth persona mapping', () => {
       expect.arrayContaining(['flag_admin', 'flag_read', 'reserve_admin'])
     );
     expect(() => assertAuthRoleMappingExhaustive(discovered.roles)).not.toThrow();
+    expect(discovered.evidence.filter((entry) => entry.evidence === 'USER_ROLES enum')).toEqual(
+      ['admin', 'analyst', 'operator', 'partner', 'service', 'viewer'].map((role) => ({
+        role,
+        kind: 'identity',
+        file: 'shared/auth/effective-roles.ts',
+        evidence: 'USER_ROLES enum',
+      }))
+    );
   });
 
   it('resolves role-array constants imported from shared auth modules', () => {

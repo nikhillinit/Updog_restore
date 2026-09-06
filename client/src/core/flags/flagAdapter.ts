@@ -68,20 +68,6 @@ export function useFeatureFlag(flagKey: FlagKey): boolean {
 }
 
 /**
- * Simple ENV-based flags for starter kit components
- * These are computed once at module load time (not reactive)
- * For reactive flags in components, use useFeatureFlag() hook instead
- */
-const flagStates = getInitialFlagStates();
-export const FLAGS = {
-  NEW_IA: isFlagEnabled('enable_new_ia', flagStates),
-  ENABLE_SELECTOR_KPIS: isFlagEnabled('enable_kpi_selectors', flagStates),
-  ENABLE_MODELING_WIZARD: isFlagEnabled('enable_modeling_wizard', flagStates),
-  ENABLE_OPERATIONS_HUB: isFlagEnabled('enable_operations_hub', flagStates),
-  ENABLE_LP_REPORTING: isFlagEnabled('enable_lp_reporting', flagStates),
-} as const;
-
-/**
  * Export for direct access in components
  */
 export function isFlagEnabled(flagKey: FlagKey, flagStates: Record<string, boolean>): boolean {

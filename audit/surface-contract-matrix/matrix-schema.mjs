@@ -43,13 +43,13 @@ export const PersonaSchema = enumSchema(PERSONA_VALUES);
 const authMappingEntry = (persona, decided, evidence) => Object.freeze({ persona, decided, evidence });
 const G1_PERSONA_EVIDENCE = 'G1 review 2026-08-06; shared/auth/effective-roles.ts';
 export const AUTH_ROLE_PERSONA_MAPPING = Object.freeze({
-  admin: authMappingEntry('admin', true, 'shared/schema/user.ts USER_ROLES'),
-  partner: authMappingEntry('gp', true, 'shared/schema/user.ts USER_ROLES'),
-  analyst: authMappingEntry('analyst', true, 'shared/schema/user.ts USER_ROLES'),
+  admin: authMappingEntry('admin', true, 'shared/auth/effective-roles.ts USER_ROLES'),
+  partner: authMappingEntry('gp', true, 'shared/auth/effective-roles.ts USER_ROLES'),
+  analyst: authMappingEntry('analyst', true, 'shared/auth/effective-roles.ts USER_ROLES'),
   lp: authMappingEntry('lp', true, 'server/middleware/requireLPAccess.ts role guard'),
   operator: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
   viewer: authMappingEntry('analyst', true, G1_PERSONA_EVIDENCE),
-  service: authMappingEntry('service', true, 'shared/schema/user.ts USER_ROLES'),
+  service: authMappingEntry('service', true, 'shared/auth/effective-roles.ts USER_ROLES'),
   flag_read: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
   flag_admin: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
   reserve_admin: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
@@ -1563,7 +1563,7 @@ export function discoverAuthRoleEvidence(options = {}) {
   const evidence = [];
   const roles = new Set();
   const rootDir = resolve(optionRootDir(options));
-  const canonicalUserPath = 'shared/schema/user.ts';
+  const canonicalUserPath = 'shared/auth/effective-roles.ts';
   let userSource;
   const supplied = normalizeAuthSources(optionAuthSources(options));
   if (supplied) userSource = new Map(supplied).get(canonicalUserPath);

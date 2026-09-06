@@ -69,3 +69,7 @@ export function hasCapability(rawRole: RawRole, capability: Capability): boolean
   const grantedRoles: readonly EffectiveRole[] = CAPABILITY_GRANTS[capability];
   return effectiveRoles.some((role) => grantedRoles.includes(role));
 }
+
+export const USER_ROLES = ['admin', 'partner', 'analyst', 'operator', 'viewer', 'service'] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];

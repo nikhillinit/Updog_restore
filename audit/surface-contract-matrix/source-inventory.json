@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:125b4cebf631635891cdd08dfe75b45ac3799f4658737b05e5c84727677df7cb",
+  "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -498,7 +498,7 @@
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
     "audit/surface-contract-matrix/boot-proofs.json": "7241db05bf46a260b9880860edf3af5600505552a2050ea0afd41b13f521fc2c",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "38940942cfad4fd6a2901805950b1a70f976918c01dd01c1c96d22919c87653c",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "16a75e450c8c64f287cbd780cc49bdc5573f07d1ae18ddb2d1a23b0b79514e35",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
@@ -636,7 +636,7 @@
     "server/workers/capital-call-status-worker.ts": "79e18217fd3c676b8ac86ce0815bcc4b50ba33bfb9b6ebbe8bed8d8f264a88a7",
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
-    "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
+    "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
     "shared/routes/api-route-manifest.ts": "ad48e3d01c876ba54850d47b8c5f9645c3ac80a16a7f86d4598a1ccbf7d604f0",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
     "shared/routes/app-route-definitions.ts": "77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775",
@@ -11341,7 +11341,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:125b4cebf631635891cdd08dfe75b45ac3799f4658737b05e5c84727677df7cb"
+      "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76"
     ]
   },
   "kg_counts": {
