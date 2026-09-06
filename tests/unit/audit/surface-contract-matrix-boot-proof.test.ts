@@ -9,6 +9,9 @@ import {
   invokeVercelFunction,
   invokeVercelFunctionInIsolatedChild,
   ML_SERVICE_PROBE_PATHS,
+  mlColdStartReadinessProofIsValid,
+  vercelFunctionProbeRequest,
+  vercelFunctionResponseIsAcceptable,
   vercelBuildOutputFunctions,
   commandFailureEvidence,
   assertRequiredG3Proofs,
@@ -63,6 +66,33 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(
       ML_SERVICE_PROBE_PATHS.map(({ method, path: routePath }) => `${method} ${routePath}`)
     ).toEqual(['GET /health', 'GET /ready', 'POST /predict', 'POST /train', 'GET /model/info']);
+    expect(
+      ML_SERVICE_PROBE_PATHS.find(({ path: routePath }) => routePath === '/ready')
+    ).toMatchObject({
+      expected_statuses: [503],
+    });
+  });
+
+  it('accepts only the expected cold-start readiness response', () => {
+    const expected = {
+      path: '/ready',
+      method: 'GET',
+      status: 503,
+      ok: true,
+      expected_statuses: [503],
+      body_json: { detail: 'Model not ready: Trained model artifact is unavailable' },
+    };
+
+    expect(mlColdStartReadinessProofIsValid(expected)).toBe(true);
+    for (const status of [500, 404, 405]) {
+      expect(mlColdStartReadinessProofIsValid({ ...expected, status, ok: false })).toBe(false);
+    }
+    expect(
+      mlColdStartReadinessProofIsValid({
+        ...expected,
+        body_json: { detail: 'Service unavailable' },
+      })
+    ).toBe(false);
   });
 
   it('keeps Docker proof config isolated', () => {
@@ -344,6 +374,20 @@ describe('surface contract matrix boot proof completion gates', () => {
         responseTimeout: 25,
       })
     ).resolves.toMatchObject({ ok: false });
+  });
+
+  it('uses the canonical version route only for the Vercel catch-all function', () => {
+    expect(vercelFunctionProbeRequest('api/[...slug]')).toEqual({
+      path: '/api/version',
+      expected_status: 200,
+    });
+    expect(vercelFunctionProbeRequest('api/telemetry/wizard')).toEqual({
+      path: '/api/telemetry/wizard',
+    });
+    expect(vercelFunctionResponseIsAcceptable('api/[...slug]', 200)).toBe(true);
+    for (const status of [404, 405, 500, 503]) {
+      expect(vercelFunctionResponseIsAcceptable('api/[...slug]', status)).toBe(false);
+    }
   });
 
   it('discovers each Vercel function handler from its .vc-config.json manifest', async () => {

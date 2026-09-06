@@ -613,7 +613,7 @@ const vercelApiProof = async () => {
 };
 
 const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler';
-const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once; probe api/[...slug] through canonical GET /api/version with exact 200';
 
 export const vercelBuildInvocation = () => ({
   command: 'npx',
@@ -722,11 +722,21 @@ const resolveVercelFunctionHandler = (directory) => {
 };
 
 export const vercelBuildOutputFunctions = (functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions')) =>
-  functionDirectoriesUnder(functionsRoot).map(({ directory, error }) => ({
-    name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
-    directory,
-    ...(error ? { entry: undefined, error } : resolveVercelFunctionHandler(directory)),
-  }));
+ functionDirectoriesUnder(functionsRoot).map(({ directory, error }) => ({
+  name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
+  directory,
+  ...(error ? { entry: undefined, error } : resolveVercelFunctionHandler(directory)),
+ }));
+
+export const vercelFunctionProbeRequest = (name) => name === 'api/[...slug]'
+ ? { path: '/api/version', expected_status: 200 }
+ : { path: `/${name}` };
+
+export const vercelFunctionResponseIsAcceptable = (name, status) => {
+ if (!Number.isInteger(status)) return false;
+ const expectedStatus = vercelFunctionProbeRequest(name).expected_status;
+ return expectedStatus === undefined ? status >= 200 && status < 500 : status === expectedStatus;
+};
 
 export const mockVercelResponse = () => {
   const response = {
@@ -759,13 +769,14 @@ export const invokeVercelFunction = async ({ name, entry, error: entryError, res
   if (entryError) return { name, ok: false, result: entryError };
   if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
   try {
-    const imported = await import(pathToFileURL(entry).href);
-    const handler = imported.default ?? imported.handler;
-    if (typeof handler !== 'function') return { name, ok: false, result: 'handler-export-missing' };
-    const request = {
-      method: 'GET',
-      url: name.startsWith('api/') ? `/${name}` : `/${name}`,
-      originalUrl: name.startsWith('api/') ? `/${name}` : `/${name}`,
+ const imported = await import(pathToFileURL(entry).href);
+ const handler = imported.default ?? imported.handler;
+ if (typeof handler !== 'function') return { name, ok: false, result: 'handler-export-missing' };
+ const probeRequest = vercelFunctionProbeRequest(name);
+ const request = {
+  method: 'GET',
+  url: probeRequest.path,
+  originalUrl: probeRequest.path,
       headers: { host: '127.0.0.1' },
       query: {},
       body: {},
@@ -790,9 +801,7 @@ export const invokeVercelFunction = async ({ name, entry, error: entryError, res
       if (timeoutHandle) globalThis.clearTimeout(timeoutHandle);
     }
     const completed = response.writableEnded || response.finished;
-    const acceptableStatus = Number.isInteger(response.statusCode)
-      && response.statusCode >= 200
-      && response.statusCode < 500;
+ const acceptableStatus = vercelFunctionResponseIsAcceptable(name, response.statusCode);
     if (!completed || !acceptableStatus) {
       return {
         name,
@@ -810,7 +819,8 @@ const VERCEL_FUNCTION_CHILD_CODE = String.raw`
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const [name, entry, timeoutArgument] = process.argv.slice(1);
+const [name, entry, requestPath, expectedStatusArgument, timeoutArgument] = process.argv.slice(1);
+const expectedStatus = expectedStatusArgument === '' ? undefined : Number(expectedStatusArgument);
 const responseTimeout = Number(timeoutArgument);
 const report = (result) => {
   fs.writeFileSync(3, JSON.stringify(result));
@@ -834,9 +844,9 @@ const response = {
   once() { return this; },
 };
 const request = {
-  method: 'GET',
-  url: '/' + name,
-  originalUrl: '/' + name,
+ method: 'GET',
+ url: requestPath,
+ originalUrl: requestPath,
   headers: { host: '127.0.0.1' },
   query: {},
   body: {},
@@ -867,7 +877,10 @@ try {
       if (timeoutHandle) clearTimeout(timeoutHandle);
     }
     const completed = response.writableEnded || response.finished;
-    const acceptableStatus = Number.isInteger(response.statusCode) && response.statusCode >= 200 && response.statusCode < 500;
+  const acceptableStatus = Number.isInteger(response.statusCode)
+   && (expectedStatus === undefined
+    ? response.statusCode >= 200 && response.statusCode < 500
+    : response.statusCode === expectedStatus);
     report(completed && acceptableStatus
       ? { name, ok: true, result: 'handler-response-completed' }
       : { name, ok: false, result: 'handler-response-invalid' });
@@ -915,16 +928,19 @@ export const invokeVercelFunctionInIsolatedChild = ({
   redactionEnvironment = process.env,
 }) => {
   if (entryError) return { name, ok: false, result: entryError };
-  if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
-  const cwd = isolatedFunctionCwd(directory, entry);
-  if (!cwd) return { name, ok: false, result: 'isolated-handler-invalid-working-directory' };
-  const result = spawnSync(process.execPath, [
+ if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
+ const cwd = isolatedFunctionCwd(directory, entry);
+ if (!cwd) return { name, ok: false, result: 'isolated-handler-invalid-working-directory' };
+ const probeRequest = vercelFunctionProbeRequest(name);
+ const result = spawnSync(process.execPath, [
     '--input-type=module',
     '--eval', VERCEL_FUNCTION_CHILD_CODE,
-    '--',
-    name,
-    entry,
-    String(responseTimeout),
+  '--',
+  name,
+  entry,
+  probeRequest.path,
+  String(probeRequest.expected_status ?? ''),
+  String(responseTimeout),
   ], {
     cwd,
     env: vercelFunctionProofEnvironment(),
@@ -1002,22 +1018,35 @@ const emittedSpaAssetPath = (html) => {
 };
 
 export const ML_SERVICE_PROBE_PATHS = Object.freeze([
-  { path: '/health', method: 'GET' },
-  { path: '/ready', method: 'GET' },
-  { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
-  { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
-  { path: '/model/info', method: 'GET' },
+ { path: '/health', method: 'GET' },
+ { path: '/ready', method: 'GET', expected_statuses: [503] },
+ { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
+ { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
+ { path: '/model/info', method: 'GET' },
 ]);
+
+export const mlColdStartReadinessProofIsValid = (status) => {
+ const detail = status?.body_json?.detail;
+ return status?.status === 503
+  && status?.ok === true
+  && Array.isArray(status.expected_statuses)
+  && status.expected_statuses.length === 1
+  && status.expected_statuses[0] === 503
+  && typeof detail === 'string'
+  && /model not ready/i.test(detail)
+  && /unavailable/i.test(detail);
+};
 
 const mlServiceProof = async () => {
   const command_or_artifact = 'Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088';
-  const probe = 'GET /health, GET /ready, and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
+ const probe = 'GET /health and GET /model/info expect 2xx; GET /ready expects 503 without a persisted model; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
   if (!dockerAvailable()) return evidence({ deployment: 'ml-service-local', boot_status: 'unproven', command_or_artifact, probe, result: 'docker unavailable' });
   const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], dockerProofEnvironment(), 300_000);
   if (!image.ok) return evidence({ deployment: 'ml-service-local', boot_status: 'failed', command_or_artifact, probe, result: 'ML service Docker image build failed' });
   const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: dockerProofEnvironment(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: ML_SERVICE_PROBE_PATHS });
-  const ok = run.proven;
-  return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI listener responded on all five paths' : 'FastAPI path probe failed' });
+ const readiness = run.statuses.find((status) => status.path === '/ready');
+ const ok = run.proven && mlColdStartReadinessProofIsValid(readiness);
+ return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI cold-start listener responded on all five paths; /ready reported persisted model unavailable' : 'FastAPI cold-start path probe failed' });
 };
 
 export const REQUIRED_G3_PROOF_KEYS = Object.freeze([
