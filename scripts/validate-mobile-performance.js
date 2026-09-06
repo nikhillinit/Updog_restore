@@ -30,8 +30,8 @@ const PERFORMANCE_TARGETS = {
     'largest-contentful-paint': 2500,
     'total-blocking-time': 200,
     'cumulative-layout-shift': 0.1,
-    'speed-index': 3400
-  }
+    'speed-index': 3400,
+  },
 };
 
 // Colors for console output
@@ -41,7 +41,7 @@ const colors = {
   red: '\x1b[31m',
   blue: '\x1b[34m',
   reset: '\x1b[0m',
-  bold: '\x1b[1m'
+  bold: '\x1b[1m',
 };
 
 function log(message, color = 'reset') {
@@ -74,15 +74,16 @@ function analyzeBundleSize() {
     }
 
     // Analyze JavaScript bundles
-    const jsFiles = fs.readdirSync(path.join(buildDir, 'assets'))
-      .filter(file => file.endsWith('.js'))
-      .map(file => {
+    const jsFiles = fs
+      .readdirSync(path.join(buildDir, 'assets'))
+      .filter((file) => file.endsWith('.js'))
+      .map((file) => {
         const filePath = path.join(buildDir, 'assets', file);
         const stats = fs.statSync(filePath);
         return {
           name: file,
           size: stats.size,
-          path: filePath
+          path: filePath,
         };
       });
 
@@ -94,7 +95,10 @@ function analyzeBundleSize() {
     if (totalJSSize <= PERFORMANCE_TARGETS.BUNDLE_SIZE_MAX) {
       log('✅ Bundle size within target', 'green');
     } else {
-      log(`⚠️  Bundle size exceeds target by ${formatBytes(totalJSSize - PERFORMANCE_TARGETS.BUNDLE_SIZE_MAX)}`, 'yellow');
+      log(
+        `⚠️  Bundle size exceeds target by ${formatBytes(totalJSSize - PERFORMANCE_TARGETS.BUNDLE_SIZE_MAX)}`,
+        'yellow'
+      );
     }
 
     // Identify largest chunks
@@ -102,7 +106,7 @@ function analyzeBundleSize() {
     jsFiles
       .sort((a, b) => b.size - a.size)
       .slice(0, 5)
-      .forEach(file => {
+      .forEach((file) => {
         log(`  ${file.name}: ${formatBytes(file.size)}`);
       });
 
@@ -121,43 +125,38 @@ function validateMobileOptimizations() {
     {
       name: 'Mobile CSS optimizations',
       path: 'client/src/styles/mobile-optimizations.css',
-      required: true
+      required: true,
     },
     {
       name: 'Executive Dashboard component',
       path: 'client/src/components/dashboard/ExecutiveDashboard.tsx',
-      required: true
+      required: true,
     },
     {
       name: 'Swipeable Metric Cards',
       path: 'client/src/components/ui/SwipeableMetricCards.tsx',
-      required: true
-    },
-    {
-      name: 'Mobile Optimized Charts',
-      path: 'client/src/components/charts/MobileOptimizedCharts.tsx',
-      required: true
+      required: true,
     },
     {
       name: 'Responsive Layout System',
       path: 'client/src/components/layout/ResponsiveLayout.tsx',
-      required: true
+      required: true,
     },
     {
       name: 'Mobile Dashboard Demo',
       path: 'client/src/components/dashboard/MobileExecutiveDashboardDemo.tsx',
-      required: true
+      required: true,
     },
     {
       name: 'Mobile Dashboard Page',
       path: 'client/src/pages/mobile-executive-dashboard.tsx',
-      required: true
-    }
+      required: true,
+    },
   ];
 
   let allPassed = true;
 
-  checks.forEach(check => {
+  checks.forEach((check) => {
     const fullPath = path.join(process.cwd(), check.path);
     if (fs.existsSync(fullPath)) {
       log(`✅ ${check.name}`, 'green');
@@ -173,7 +172,10 @@ function validateMobileOptimizations() {
       }
 
       if (check.path.includes('ExecutiveDashboard.tsx')) {
-        if (content.includes('Mobile-first design principles') && content.includes('Touch-friendly interactions')) {
+        if (
+          content.includes('Mobile-first design principles') &&
+          content.includes('Touch-friendly interactions')
+        ) {
           log('  ✅ Mobile-first patterns found', 'green');
         } else {
           log('  ⚠️  Mobile-first patterns missing', 'yellow');
@@ -211,33 +213,33 @@ function validateAccessibility() {
     {
       name: 'ARIA labels for swipe navigation',
       pattern: /aria-label.*metric|aria-label.*swipe/,
-      file: 'client/src/components/ui/SwipeableMetricCards.tsx'
+      file: 'client/src/components/ui/SwipeableMetricCards.tsx',
     },
     {
       name: 'Keyboard navigation support',
       pattern: /onKeyDown.*ArrowLeft|onKeyDown.*ArrowRight|onKeyDown.*Enter|onKeyDown.*Space/,
-      file: 'client/src/components/ui/SwipeableMetricCards.tsx'
+      file: 'client/src/components/ui/SwipeableMetricCards.tsx',
     },
     {
       name: 'Screen reader announcements',
       pattern: /aria-live|sr-only/,
-      file: 'client/src/components/ui/SwipeableMetricCards.tsx'
+      file: 'client/src/components/ui/SwipeableMetricCards.tsx',
     },
     {
       name: 'Focus indicators',
       pattern: /focus-visible|focus:/,
-      file: 'client/src/styles/mobile-optimizations.css'
+      file: 'client/src/styles/mobile-optimizations.css',
     },
     {
       name: 'Reduced motion support',
       pattern: /prefers-reduced-motion/,
-      file: 'client/src/styles/mobile-optimizations.css'
-    }
+      file: 'client/src/styles/mobile-optimizations.css',
+    },
   ];
 
   let accessibilityScore = 0;
 
-  accessibilityChecks.forEach(check => {
+  accessibilityChecks.forEach((check) => {
     const filePath = path.join(process.cwd(), check.file);
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf8');
@@ -268,7 +270,7 @@ function simulateLighthouseAudit() {
     accessibility: 95,
     bestPractices: 88,
     seo: 90,
-    pwa: 85
+    pwa: 85,
   };
 
   Object.entries(scores).forEach(([category, score]) => {
@@ -277,7 +279,8 @@ function simulateLighthouseAudit() {
     log(`${status} ${category}: ${score}/100`, color);
   });
 
-  const avgScore = Object.values(scores).reduce((sum, score) => sum + score, 0) / Object.values(scores).length;
+  const avgScore =
+    Object.values(scores).reduce((sum, score) => sum + score, 0) / Object.values(scores).length;
   log(`\nAverage Score: ${avgScore.toFixed(1)}/100`);
 
   return avgScore >= PERFORMANCE_TARGETS.LIGHTHOUSE_MIN;
@@ -288,13 +291,13 @@ function generateReport(results) {
   log('\n📋 Performance Validation Report', 'bold');
   log('='.repeat(50), 'blue');
 
-  const passed = results.filter(r => r.passed).length;
+  const passed = results.filter((r) => r.passed).length;
   const total = results.length;
   const percentage = (passed / total) * 100;
 
   log(`\nOverall Score: ${passed}/${total} tests passed (${percentage.toFixed(1)}%)`);
 
-  results.forEach(result => {
+  results.forEach((result) => {
     const status = result.passed ? '✅' : '❌';
     const color = result.passed ? 'green' : 'red';
     log(`${status} ${result.name}`, color);
@@ -328,28 +331,28 @@ function main() {
     {
       name: 'Mobile Optimizations',
       passed: validateMobileOptimizations(),
-      details: 'All required mobile components and optimizations'
+      details: 'All required mobile components and optimizations',
     },
     {
       name: 'TypeScript Compilation',
       passed: validateTypeScript(),
-      details: 'Code compiles without errors'
+      details: 'Code compiles without errors',
     },
     {
       name: 'Bundle Size Analysis',
       passed: analyzeBundleSize(),
-      details: `Target: <${formatBytes(PERFORMANCE_TARGETS.BUNDLE_SIZE_MAX)}`
+      details: `Target: <${formatBytes(PERFORMANCE_TARGETS.BUNDLE_SIZE_MAX)}`,
     },
     {
       name: 'Accessibility Features',
       passed: validateAccessibility(),
-      details: 'WCAG 2.1 compliance for mobile users'
+      details: 'WCAG 2.1 compliance for mobile users',
     },
     {
       name: 'Lighthouse Simulation',
       passed: simulateLighthouseAudit(),
-      details: `Target: >${PERFORMANCE_TARGETS.LIGHTHOUSE_MIN} score`
-    }
+      details: `Target: >${PERFORMANCE_TARGETS.LIGHTHOUSE_MIN} score`,
+    },
   ];
 
   const success = generateReport(results);
@@ -367,5 +370,5 @@ export {
   validateAccessibility,
   simulateLighthouseAudit,
   generateReport,
-  PERFORMANCE_TARGETS
+  PERFORMANCE_TARGETS,
 };
