@@ -38,6 +38,10 @@ interface ActualsDriftIndicatorState {
 
 function getActualsDriftIndicator(company: AllocationCompany): ActualsDriftIndicatorState {
   const drift = company.actuals_drift;
+  if (!drift) {
+    return { kind: 'unavailable', label: 'unavailable' };
+  }
+
   const hasUnavailableComparison = drift.comparisons.some(
     (comparison) => comparison.state === 'unavailable'
   );

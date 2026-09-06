@@ -2,6 +2,8 @@
 import type { ReserveCompanyInput, ReserveOutput, ReserveSummary } from '@shared/types';
 import { ConfidenceLevel, ReserveCompanyInputSchema, ReserveOutputSchema } from '@shared/types';
 import { PRNG } from '@shared/utils/prng';
+import { createCalculationContext } from '../calc-substrate';
+import { runReserveWithSubstrate, type ReserveAlgorithm } from './reserve-substrate-adapter';
 
 const prng = new PRNG(42);
 
@@ -90,7 +92,7 @@ function calculateMLBasedAllocation(company: ReserveCompanyInput): ReserveOutput
   });
 }
 
-export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
+export function ReserveEngine(portfolio: unknown[], algorithm?: ReserveAlgorithm): ReserveOutput[] {
   prng.reset(42);
 
   if (!Array.isArray(portfolio) || portfolio.length === 0) {
@@ -107,7 +109,7 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
     }
   });
 
-  const useAlgorithm = isAlgorithmModeEnabled();
+  const useAlgorithm = algorithm === undefined ? isAlgorithmModeEnabled() : algorithm === 'ml';
 
   return validatedPortfolio.map((company) => {
     if (useAlgorithm && prng.next() > 0.3) {
@@ -120,24 +122,34 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
 
 export function generateReserveSummary(
   fundId: number,
-  portfolio: ReserveCompanyInput[]
+  portfolio: ReserveCompanyInput[],
+  algorithm: ReserveAlgorithm = 'rule-based'
 ): ReserveSummary {
-  const allocations = ReserveEngine(portfolio);
-  const totalAllocation = allocations.reduce((sum, item) => sum + item.allocation, 0);
-  const avgConfidence =
-    allocations.length > 0
-      ? allocations.reduce((sum, item) => sum + item.confidence, 0) / allocations.length
-      : 0;
-  const highConfidenceCount = allocations.filter(
-    (item) => item.confidence >= ConfidenceLevel.MEDIUM
-  ).length;
-
+  const ctx = createCalculationContext({
+    calculationKey: 'reserve',
+    seed: 42,
+    asOf: new Date().toISOString(),
+  });
+  const result = runReserveWithSubstrate(ctx, portfolio, {
+    configuredMode: 'on',
+    killSwitchActive: false,
+    algorithm,
+  });
+  if (result.state !== 'available') {
+    throw new Error(`Reserve calculation unavailable: ${result.reasonCodes.join(', ')}`);
+  }
   return {
     fundId,
-    totalAllocation,
-    avgConfidence: Math.round(avgConfidence * 100) / 100,
-    highConfidenceCount,
-    allocations,
-    generatedAt: new Date(),
+    totalAllocation: Number(result.value.totalAllocation),
+    avgConfidence: Number(result.value.avgConfidence),
+    highConfidenceCount: result.value.highConfidenceCount,
+    allocations: result.value.allocations.map((entry) => ({
+      allocation: Number(entry.allocation),
+      confidence: Number(entry.confidence),
+      rationale: entry.rationale,
+    })),
+    generatedAt: new Date(result.value.asOfUtc),
+    basis: result.basis,
+    resultHash: result.resultHash,
   };
 }

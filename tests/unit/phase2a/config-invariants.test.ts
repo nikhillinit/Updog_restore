@@ -56,6 +56,8 @@ describe('Queue name consistency', () => {
     expect(cohortEntry).toBeDefined();
     expect(cohortEntry!.queueName).toBe('cohort-calc');
     expect(cohortEntry!.queueName).not.toContain(':');
+    expect(cohortEntry!.productionDisposition).toEqual({ mode: 'quarantined' });
+    expect(cohortEntry!.quarantined).toBe(true);
   });
 
   it('registry defines reserve-calc with hyphen', () => {
@@ -96,29 +98,29 @@ describe('Queue name consistency', () => {
 // ============================================================================
 
 describe('Worker queue names match registry', () => {
-  it('pacing worker uses pacing-calc (not pacing:calc)', async () => {
+  it('pacing legacy worker is retired without opening a queue', async () => {
     // Read the worker source and verify the queue name string
     const workerSource = await import('fs/promises').then((fs) =>
       fs.readFile('workers/pacing-worker.ts', 'utf-8')
     );
-    // The Worker constructor call must use 'pacing-calc'
-    expect(workerSource).toContain("'pacing-calc'");
-    expect(workerSource).not.toContain("'pacing:calc'");
+    expect(workerSource).toContain('PACING_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('new Worker');
   });
 
-  it('cohort worker uses cohort-calc (not cohort:calc)', async () => {
+  it('cohort legacy worker is retired without synthetic output', async () => {
     const workerSource = await import('fs/promises').then((fs) =>
       fs.readFile('workers/cohort-worker.ts', 'utf-8')
     );
-    expect(workerSource).toContain("'cohort-calc'");
-    expect(workerSource).not.toContain("'cohort:calc'");
+    expect(workerSource).toContain('COHORT_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('Math.random');
   });
 
-  it('reserve worker uses reserve-calc', async () => {
+  it('reserve legacy worker is retired without opening a queue', async () => {
     const workerSource = await import('fs/promises').then((fs) =>
       fs.readFile('workers/reserve-worker.ts', 'utf-8')
     );
-    expect(workerSource).toContain("'reserve-calc'");
+    expect(workerSource).toContain('RESERVE_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('new Worker');
   });
 
   it('fund scenario calc worker uses fund-scenario-calc', async () => {

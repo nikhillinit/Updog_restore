@@ -6,6 +6,7 @@ import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { Pool } from 'pg';
 import { logger } from '../lib/logger';
 import { TypedCircuitBreaker } from '../infra/circuit-breaker/typed-breaker';
+import { getRequestDatabaseScope } from './request-context';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 
 const log = logger.child({ module: 'db:pg-circuit' });
@@ -118,7 +119,7 @@ async function _query<T extends QueryResultRow = QueryResultRow>(
   let result: QueryResult<T> | undefined;
 
   try {
-    result = await pool.query<T>(text, params);
+    result = await (getRequestDatabaseScope()?.client ?? pool).query<T>(text, params);
     return result;
   } catch (err) {
     error = err as Error;
@@ -142,7 +143,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   params?: unknown[]
 ): Promise<QueryResult<T>> {
   // Skip circuit breaker if disabled
-  if (process.env['CB_DB_ENABLED'] === 'false') {
+  if (getRequestDatabaseScope() || process.env['CB_DB_ENABLED'] === 'false') {
     return _query<T>(text, params);
   }
 
@@ -193,6 +194,8 @@ export async function queryScalar<T = unknown>(
  * Execute multiple queries in a transaction
  */
 export async function transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+  const requestScope = getRequestDatabaseScope();
+  if (requestScope) return requestScope.runOwnedTransaction(callback);
   const client = await pool.connect();
 
   try {

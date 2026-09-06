@@ -118,13 +118,13 @@ npm run dev
 
 ### Node.js Compatibility
 
-- **Supported contract**: Node.js `>=20.19.0` and npm `>=10.8.0` per
-  `package.json engines`
-- **Preferred local baseline**: `.nvmrc` pins local development to `v20.19.5`
-- **Pinned automation/toolchain line**: `package.json volta` pins Node `20.19.0`
-  and npm `10.9.2`
-- **Tolerated but non-baseline**: newer Node lines such as Node 22 may satisfy
-  `engines`; re-verify with the doctor path before relying on them
+- **Supported contract**: Node.js `22.x` and npm `>=10.8.0` per
+  `package.json engines`.
+- **Local and automation baseline**: `.nvmrc` and `package.json volta` pin Node
+  `22.23.2`; Volta pins npm `10.9.2`.
+- **Frontend runtime**: development uses React 18; the production `build:web`
+  command runs Vite in Preact mode. Validate runtime-specific changes against
+  both paths.
 
 ## Validation
 

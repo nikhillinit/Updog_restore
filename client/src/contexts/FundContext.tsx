@@ -9,21 +9,9 @@ import {
   isFundResultsRoute,
 } from '@/lib/fund-routes';
 import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
+import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
 
-export interface Fund {
-  id: number;
-  name: string;
-  size: number;
-  managementFee: number;
-  carryPercentage: number;
-  vintageYear: number;
-  establishmentDate?: string; // ISO date string for fund establishment
-  deployedCapital: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  termYears?: number;
-}
+export type { Fund } from '@/lib/funds-query';
 
 interface FundContextType {
   currentFund: Fund | null;
@@ -72,7 +60,8 @@ export function FundProvider({ children }: FundProviderProps) {
     isLoading,
     error,
   } = useQuery<Fund[]>({
-    queryKey: ['/api/funds'],
+    queryKey: FUNDS_QUERY_KEY,
+    queryFn: fetchFundSummaries,
     enabled: true,
     retry: false, // Don't retry failed requests in demo mode
   });

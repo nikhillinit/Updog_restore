@@ -186,6 +186,8 @@ describe('route error contracts', () => {
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
     expect(response.body).toEqual({
       error: 'not_found',
+      code: 'NOT_FOUND',
+      requestId: response.headers['x-request-id'],
     });
   }, 30_000);
 

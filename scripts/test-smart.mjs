@@ -308,7 +308,8 @@ function isUnitTestPath(testPath) {
   return (
     testPath.startsWith('tests/unit/') ||
     testPath.startsWith('tests/perf/') ||
-    testPath.startsWith('tests/regressions/')
+    testPath.startsWith('tests/regressions/') ||
+    /^(client\/src|server|shared)\/.*\.(test|spec)\.[jt]sx?$/.test(testPath)
   );
 }
 

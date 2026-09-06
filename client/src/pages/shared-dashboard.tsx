@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoute } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,40 +6,34 @@ import { Button } from '@/components/ui/button';
 import { Shield, Eye, Clock, AlertCircle, CheckCircle, Printer } from 'lucide-react';
 import type {
   PublicMetricValue,
+  PublicShareResponse,
   PublicShareSnapshotPayload,
 } from '@shared/contracts/public-share-snapshot.contract';
+import { PublicShareResponseSchema } from '@shared/contracts/public-share-snapshot.contract';
 
-interface ShareData {
-  id: string;
-  requirePasskey: boolean;
-  customTitle?: string | null;
-  customMessage?: string | null;
-  expiresAt?: string | null;
-  snapshot?: PublicShareSnapshotPayload;
-}
-
-interface ShareApiResponse {
-  success?: boolean;
-  error?: string;
-  message?: string;
-  share?: ShareData;
-}
+type ShareData = PublicShareResponse['share'];
 
 type ShareResponseState =
   | { kind: 'error'; message: string }
   | { kind: 'passkey'; share: ShareData }
   | { kind: 'snapshot'; share: ShareData; snapshot: PublicShareSnapshotPayload };
 
-function shareResponseError(body: ShareApiResponse, fallback: string): string {
-  return body.message ?? body.error ?? fallback;
+function shareResponseError(body: unknown, fallback: string): string {
+  if (body && typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    if (typeof record['message'] === 'string') return record['message'];
+    if (typeof record['error'] === 'string') return record['error'];
+  }
+  return fallback;
 }
 
-function classifyShareResponse(body: ShareApiResponse): ShareResponseState {
-  if (!body.success || !body.share) {
-    return { kind: 'error', message: shareResponseError(body, 'Failed to load share') };
+function classifyShareResponse(body: unknown): ShareResponseState {
+  const parsed = PublicShareResponseSchema.safeParse(body);
+  if (!parsed.success) {
+    return { kind: 'error', message: 'Public share response is invalid' };
   }
 
-  const { share } = body;
+  const { share } = parsed.data;
   const { snapshot } = share;
 
   if (share.requirePasskey && !snapshot) {
@@ -53,14 +47,15 @@ function classifyShareResponse(body: ShareApiResponse): ShareResponseState {
   return { kind: 'snapshot', share, snapshot };
 }
 
-const useSharedDashboard = (shareId: string) => {
+export const useSharedDashboard = (shareId: string) => {
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [snapshot, setSnapshot] = useState<PublicShareSnapshotPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requiresPasskey, setRequiresPasskey] = useState(false);
+  const requestSequence = useRef(0);
 
-  const applyShareResponse = useCallback((body: ShareApiResponse) => {
+  const applyShareResponse = useCallback((body: unknown) => {
     const state = classifyShareResponse(body);
 
     if (state.kind === 'error') {
@@ -81,12 +76,18 @@ const useSharedDashboard = (shareId: string) => {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const requestId = ++requestSequence.current;
     const fetchShare = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch(`/api/public/shares/${shareId}`);
-        const body = (await response.json()) as ShareApiResponse;
+        const response = await fetch(`/api/public/shares/${shareId}`, {
+          signal: controller.signal,
+        });
+        const body: unknown = await response.json();
+
+        if (requestId !== requestSequence.current) return;
 
         if (!response.ok) {
           setError(shareResponseError(body, 'Failed to load share'));
@@ -95,19 +96,22 @@ const useSharedDashboard = (shareId: string) => {
 
         applyShareResponse(body);
       } catch {
+        if (controller.signal.aborted || requestId !== requestSequence.current) return;
         setError('Failed to connect to server');
       } finally {
-        setIsLoading(false);
+        if (requestId === requestSequence.current) setIsLoading(false);
       }
     };
 
     if (shareId) {
       fetchShare();
     }
+    return () => controller.abort();
   }, [applyShareResponse, shareId]);
 
   const verifyPasskey = useCallback(
     async (passkey: string): Promise<boolean> => {
+      const requestId = ++requestSequence.current;
       try {
         setIsLoading(true);
         setError(null);
@@ -118,7 +122,9 @@ const useSharedDashboard = (shareId: string) => {
           body: JSON.stringify({ passkey }),
         });
 
-        const body = (await response.json()) as ShareApiResponse;
+        const body: unknown = await response.json();
+
+        if (requestId !== requestSequence.current) return false;
 
         if (!response.ok) {
           setError(shareResponseError(body, 'Verification failed'));
@@ -127,10 +133,11 @@ const useSharedDashboard = (shareId: string) => {
 
         return applyShareResponse(body);
       } catch {
+        if (requestId !== requestSequence.current) return false;
         setError('Failed to verify passkey');
         return false;
       } finally {
-        setIsLoading(false);
+        if (requestId === requestSequence.current) setIsLoading(false);
       }
     },
     [applyShareResponse, shareId]

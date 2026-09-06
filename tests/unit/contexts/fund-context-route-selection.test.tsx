@@ -6,7 +6,8 @@ import { createWouterWrapper } from '../../utils/withWouter';
 
 const mockUseQuery = vi.fn();
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
 }));
 

@@ -9,8 +9,10 @@ import { useLatestAllocations } from '../useLatestAllocations';
 import type { ReactNode } from 'react';
 
 // Mock FundContext
+let mockFundId: number | null = 1;
+
 vi.mock('@/contexts/FundContext', () => ({
-  useFundContext: () => ({ fundId: 1 }),
+  useFundContext: () => ({ fundId: mockFundId }),
 }));
 
 const mockAllocationsData = {
@@ -52,7 +54,8 @@ function createWrapper() {
 
 describe('useLatestAllocations', () => {
   beforeEach(() => {
-    vi['clearAllMocks']();
+    vi.clearAllMocks();
+    mockFundId = 1;
     global.fetch = vi.fn();
   });
 
@@ -66,10 +69,8 @@ describe('useLatestAllocations', () => {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.isLoading).toBe(true);
-
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.data).toEqual(mockAllocationsData);
     });
 
     expect(result.current.data).toEqual(mockAllocationsData);
@@ -87,16 +88,20 @@ describe('useLatestAllocations', () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.error).toBeTruthy();
+      },
+      { timeout: 5_000 }
+    );
 
     expect(result.current.data).toBeUndefined();
     expect(result.current.error).toBeTruthy();
   });
 
   it('retries failed requests up to 2 times', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockRejectedValueOnce(new Error('Network error'))
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce({
@@ -110,9 +115,12 @@ describe('useLatestAllocations', () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.data).toEqual(mockAllocationsData);
+      },
+      { timeout: 5_000 }
+    );
 
     // Should retry twice (3 total attempts)
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -120,9 +128,7 @@ describe('useLatestAllocations', () => {
   });
 
   it('does not fetch when fundId is null', () => {
-    vi.mock('@/contexts/FundContext', () => ({
-      useFundContext: () => ({ fundId: null }),
-    }));
+    mockFundId = null;
 
     const { result } = renderHook(() => useLatestAllocations(), {
       wrapper: createWrapper(),

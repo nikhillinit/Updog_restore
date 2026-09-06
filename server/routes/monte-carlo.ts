@@ -33,6 +33,7 @@ import type { SimulationJobData } from '../queues/simulation-queue';
 import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
 import { getStageValidationMode } from '../lib/stage-validation-mode';
 import { logger } from '../lib/logger';
+import type { UserContext } from '../lib/secure-context';
 // import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
@@ -160,6 +161,22 @@ function getRequestCreatedBy(req: Request): number | undefined {
     toPositiveInteger(user?.userId) ??
     toPositiveInteger(req.context?.userId)
   );
+}
+
+function getQueuedUserContext(req: Request, fundId: number): UserContext | undefined {
+  const context = req.context;
+  if (!context?.userId || typeof context.orgId !== 'string' || !context.email || !context.role) {
+    return undefined;
+  }
+
+  return {
+    userId: context.userId,
+    orgId: context.orgId,
+    email: context.email,
+    role: context.role,
+    fundId: String(fundId),
+    ...(context.partnerId ? { partnerId: context.partnerId } : {}),
+  };
 }
 
 function toUnifiedSimulationConfig(
@@ -324,7 +341,7 @@ router['post'](
         '[MONTE_CARLO] Starting simulation'
       );
 
-      const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
+      const result = await unifiedMonteCarloService.runSimulation(simulationConfig, req.context);
 
       logger.info(
         {
@@ -398,7 +415,7 @@ router['post'](
           '[MONTE_CARLO] Queue not initialized, falling back to sync execution'
         );
 
-        const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
+        const result = await unifiedMonteCarloService.runSimulation(simulationConfig, req.context);
         return res.json({
           correlationId,
           mode: 'sync_fallback',
@@ -417,11 +434,21 @@ router['post'](
         '[MONTE_CARLO] Queuing async simulation'
       );
 
+      const context = getQueuedUserContext(req, simulationConfig.fundId);
+      if (!context) {
+        return res.status(403).json({
+          error: 'MISSING_TENANT_CONTEXT',
+          message: 'Validated tenant context is required for background simulations',
+          correlationId,
+        });
+      }
+
       const simulationJob: SimulationJobData = {
         fundId: simulationConfig.fundId,
         runs: simulationConfig.runs,
         timeHorizonYears: simulationConfig.timeHorizonYears,
         requestId: correlationId,
+        context,
         ...(simulationConfig.baselineId !== undefined
           ? { baselineId: simulationConfig.baselineId }
           : {}),
@@ -483,7 +510,7 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
       });
     }
 
-    const jobStatus = await getJobStatus(jobId);
+    const jobStatus = await getJobStatus(jobId, req.context);
 
     if (jobStatus.status === 'unknown') {
       return res.status(404).json({
@@ -532,6 +559,14 @@ router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
     return res.status(503).json({
       error: 'QUEUE_UNAVAILABLE',
       message: 'Background job queue is not available',
+    });
+  }
+
+  const jobStatus = await getJobStatus(jobId, req.context);
+  if (jobStatus.status === 'unknown') {
+    return res.status(404).json({
+      error: 'JOB_NOT_FOUND',
+      message: `Job ${jobId} not found`,
     });
   }
 
@@ -602,7 +637,10 @@ router['post'](
         '[MONTE_CARLO] Starting batch simulation'
       );
 
-      const results = await unifiedMonteCarloService.runBatchSimulations(normalizedConfigs);
+      const results = await unifiedMonteCarloService.runBatchSimulations(
+        normalizedConfigs,
+        req.context
+      );
 
       const totalExecutionTime = results.reduce((sum, r) => sum + r.executionTimeMs, 0);
       const engineUsage = results.reduce(
@@ -679,7 +717,8 @@ router['post'](
 
       const results = await unifiedMonteCarloService.runMultiEnvironmentSimulation(
         built.config,
-        parsedRequest.environments
+        parsedRequest.environments,
+        req.context
       );
 
       const environmentSummary = Object.entries(results).map(([scenario, result]) => ({
@@ -810,7 +849,7 @@ router['get'](
         ...(createdBy !== undefined ? { createdBy } : {}),
       };
 
-      const result = await unifiedMonteCarloService.runSimulation(config);
+      const result = await unifiedMonteCarloService.runSimulation(config, req.context);
 
       res.json({
         fundId,

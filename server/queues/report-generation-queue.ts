@@ -256,17 +256,12 @@ async function uploadReportFile(
     csv: 'text/csv',
   };
 
-  try {
-    const uploadResult = await storage.upload(
-      fileKey,
-      buffer,
-      contentTypes[format] || 'application/octet-stream'
-    );
-    return { url: uploadResult.url, size: uploadResult.size };
-  } catch (uploadError) {
-    console.error(`[ReportQueue] Failed to upload report ${reportId}:`, uploadError);
-    return { url: `/reports/${reportId}.${format}`, size: buffer.length };
-  }
+  const uploadResult = await storage.upload(
+    fileKey,
+    buffer,
+    contentTypes[format] || 'application/octet-stream'
+  );
+  return { url: uploadResult.url, size: uploadResult.size };
 }
 
 // Queue name
@@ -414,11 +409,7 @@ export async function initializeReportQueue(
               sanitizeQueueError(error)
             );
 
-            return {
-              success: false,
-              error: `[${errorCode}] ${errorMessage}`,
-              durationMs: Date.now() - startTime,
-            };
+            throw error;
           }
         },
         {

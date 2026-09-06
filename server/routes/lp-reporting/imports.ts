@@ -943,6 +943,7 @@ if (actualsPilotFundId !== null) {
           ifMatch: parsedIfMatch.data,
           request: parsedBody.data,
           requestId: actualsRequestId(req),
+          ...(req.context && { context: req.context }),
         });
         return res
           .status(result.statusCode)

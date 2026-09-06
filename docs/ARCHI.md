@@ -42,8 +42,8 @@ is Press On Ventures' internal VC fund-modeling and reporting platform (see root
   cut over (the actual Tailwind config is still standard v3, no
   `@import "tailwindcss"`). Design tokens: `client/src/theme/presson.tokens.ts`
   (single file, see `DESIGN.md` at repo root — read before any visual change).
-- **Backend**: Express `5.2.1`, Node `>=20.19.0 <23` / npm `>=10.8.0`
-  (Volta-pinned 20.19.0 / 10.9.2).
+- **Backend**: Express `5.2.1`, Node `22.x` / npm `>=10.8.0` (runtime pinned by
+  `.nvmrc` and `package.json` Volta settings).
 - **Data**: PostgreSQL via Drizzle ORM `^0.45.1` + drizzle-kit `0.31.10` +
   drizzle-zod `^0.8.3`. Validation: Zod `^3.25.76`. Financial precision:
   `decimal.js ^10.6.0`, `mathjs 15.2.0` — never raw float for money math (see

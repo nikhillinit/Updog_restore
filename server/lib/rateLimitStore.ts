@@ -13,14 +13,18 @@ function normalizeRedisResult(result: unknown): string | number | null {
  * Factory for rate limit stores
  * Allows switching between memory and Redis stores via environment
  */
-export async function createRateLimitStore(): Promise<Store | undefined> {
+export async function createRateLimitStore(required = false): Promise<Store | undefined> {
   const redisUrl = process.env['RATE_LIMIT_REDIS_URL'];
 
   if (!redisUrl) {
+    if (required) {
+      throw Object.assign(new Error('Shared rate-limit storage is required'), { status: 503 });
+    }
     // Use default memory store
     return undefined;
   }
 
+  let disconnect: (() => void) | undefined;
   try {
     // Dynamically import Redis store only if needed
     const { default: RedisStore } = await import('rate-limit-redis');
@@ -32,6 +36,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       lazyConnect: true,
     });
 
+    disconnect = () => client.disconnect();
     await client['ping']();
     logger.info('Rate limit Redis store connected');
 
@@ -45,7 +50,11 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       prefix: 'rate-limit:',
     }) as unknown as Store;
   } catch (error) {
-    console.warn('⚠️ Rate limit Redis unavailable, falling back to memory store:', error);
+    disconnect?.();
+    logger.warn({ err: error }, 'Rate-limit Redis unavailable');
+    if (required) {
+      throw Object.assign(new Error('Shared rate-limit storage is unavailable'), { status: 503 });
+    }
     return undefined;
   }
 }

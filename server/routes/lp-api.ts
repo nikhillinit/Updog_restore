@@ -1196,22 +1196,16 @@ router.get(
           timestamp: new Date().toISOString(),
         });
       } catch (storageError) {
-        // If storage service fails, fall back to direct URL
+        // No verifier-backed fallback URL exists.
         routeLog.warn(
-          'Storage signed URL generation failed, falling back to direct URL:',
+          'Storage signed URL generation unavailable:',
           sanitizeForLogging(storageError)
         );
-        res.json({
-          success: true,
-          data: {
-            reportId,
-            downloadUrl: reportData.fileUrl,
-            fileName: `${reportData.reportType}-${reportId}.${reportData.format}`,
-            contentType: getContentType(reportData.format),
-            fileSize: reportData.fileSize,
-          },
-          timestamp: new Date().toISOString(),
-        });
+        return res
+          .status(503)
+          .json(
+            createErrorResponse('REPORT_DOWNLOAD_UNAVAILABLE', 'Report downloads are unavailable')
+          );
       }
     } catch (error) {
       routeLog.error('Report download API error:', sanitizeForLogging(error));

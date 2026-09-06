@@ -172,88 +172,20 @@ describe('VarianceTrackingPage', () => {
     expect(screen.queryByText('Not Run')).not.toBeInTheDocument();
   });
 
-  it('has an explicit settings save action with feedback', async () => {
+  it('renders unsupported settings as unavailable without saving browser preferences', async () => {
     const user = userEvent.setup();
     const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
     render(<VarianceTrackingPage />);
 
     await user.click(screen.getByRole('tab', { name: 'Settings' }));
-    await user.click(screen.getByRole('button', { name: 'Save Settings' }));
-
-    expect(screen.getByText('Settings saved in this browser.')).toBeInTheDocument();
-    expect(mocks.toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Settings saved',
-      })
+    expect(screen.getByText(/configuration are unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Email Notifications' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Real-time Alerts' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Settings' })).toBeDisabled();
+    expect(window.localStorage.getItem('variance-tracking-settings')).toBeNull();
+    expect(mocks.toast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Settings saved' })
     );
-  });
-
-  it('persists settings locally with accessible control names', async () => {
-    const user = userEvent.setup();
-    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
-    const { unmount } = render(<VarianceTrackingPage />);
-
-    await user.click(screen.getByRole('tab', { name: 'Settings' }));
-
-    const dailyDigest = screen.getByRole('switch', { name: 'Daily Digest' });
-    const emailNotifications = screen.getByRole('switch', { name: 'Email Notifications' });
-    const realtimeAlerts = screen.getByRole('switch', { name: 'Real-time Alerts' });
-    const thresholdInput = screen.getByRole('spinbutton', {
-      name: 'Default Variance Threshold (%)',
-    });
-    const frequencySelect = screen.getByRole('combobox', { name: 'Analysis Frequency' });
-
-    expect(emailNotifications).toHaveAttribute('aria-checked', 'true');
-    expect(realtimeAlerts).toHaveAttribute('aria-checked', 'true');
-    expect(dailyDigest).toHaveAttribute('aria-checked', 'false');
-    expect(thresholdInput).toHaveValue(10);
-    expect(frequencySelect).toHaveTextContent('Daily');
-
-    await user.click(dailyDigest);
-    await user.clear(thresholdInput);
-    await user.type(thresholdInput, '15');
-    await user.click(screen.getByRole('button', { name: 'Save Settings' }));
-
-    unmount();
-    render(<VarianceTrackingPage />);
-
-    await user.click(screen.getByRole('tab', { name: 'Settings' }));
-
-    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    expect(screen.getByRole('spinbutton', { name: 'Default Variance Threshold (%)' })).toHaveValue(
-      15
-    );
-  });
-
-  it('preserves unsaved settings drafts per fund instead of discarding them on fund switch', async () => {
-    const user = userEvent.setup();
-    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
-    const { rerender } = render(<VarianceTrackingPage />);
-
-    await user.click(screen.getByRole('tab', { name: 'Settings' }));
-    await user.click(screen.getByRole('switch', { name: 'Daily Digest' }));
-    expect(screen.getByText('Unsaved changes.')).toBeInTheDocument();
-
-    mocks.currentFundId = 2;
-    mocks.currentFundName = 'Fund II';
-    rerender(<VarianceTrackingPage />);
-
-    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toHaveAttribute(
-      'aria-checked',
-      'false'
-    );
-
-    mocks.currentFundId = 1;
-    mocks.currentFundName = 'Fund I';
-    rerender(<VarianceTrackingPage />);
-
-    expect(screen.getByRole('switch', { name: 'Daily Digest' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    expect(screen.getByText('Unsaved changes.')).toBeInTheDocument();
   });
 });

@@ -17,6 +17,7 @@ import { StreamingMonteCarloEngine } from './streaming-monte-carlo-engine';
 import { databasePoolManager, type PoolMetrics } from './database-pool-manager';
 import { logger } from '../lib/logger';
 import type { SimulationConfig, SimulationResults, MarketEnvironment } from './monte-carlo-engine';
+import type { UserContext } from '../lib/secure-context';
 
 // Re-export types for external consumption
 export type { MarketEnvironment, SimulationConfig, SimulationResults };
@@ -90,7 +91,8 @@ export class UnifiedMonteCarloService {
    * Main simulation method with intelligent engine selection
    */
   async runSimulation(
-    config: UnifiedSimulationConfig
+    config: UnifiedSimulationConfig,
+    context?: UserContext
   ): Promise<SimulationResults & { performance: PerformanceMetrics }> {
     const startTime = Date.now();
     const selectionCriteria = await this.buildSelectionCriteria(config);
@@ -103,12 +105,12 @@ export class UnifiedMonteCarloService {
     try {
       // Execute with selected engine
       if (selectedEngine === 'streaming' && this.streamingEnabled) {
-        result = await this.executeStreamingSimulation(config);
+        result = await this.executeStreamingSimulation(config, context);
       } else {
         if (selectedEngine === 'streaming' && !this.streamingEnabled) {
           fallbackTriggered = true;
         }
-        result = await this.executeTraditionalSimulation(config);
+        result = await this.executeTraditionalSimulation(config, context);
       }
     } catch (error) {
       // Fallback logic
@@ -117,13 +119,13 @@ export class UnifiedMonteCarloService {
           `Streaming engine failed, falling back to traditional: ${error instanceof Error ? error.message : error}`
         );
         fallbackTriggered = true;
-        result = await this.executeTraditionalSimulation(config);
+        result = await this.executeTraditionalSimulation(config, context);
       } else if (config.enableFallback !== false && selectedEngine === 'traditional') {
         console.warn(
           `Traditional engine failed, falling back to streaming: ${error instanceof Error ? error.message : error}`
         );
         fallbackTriggered = true;
-        result = await this.executeStreamingSimulation(config);
+        result = await this.executeStreamingSimulation(config, context);
       } else {
         throw error;
       }
@@ -152,7 +154,8 @@ export class UnifiedMonteCarloService {
    * Batch simulation for multiple configurations
    */
   async runBatchSimulations(
-    configs: UnifiedSimulationConfig[]
+    configs: UnifiedSimulationConfig[],
+    context?: UserContext
   ): Promise<Array<SimulationResults & { performance: PerformanceMetrics }>> {
     // Optimize batch execution based on total workload
     const totalScenarios = configs.reduce((sum, config) => sum + config.runs, 0);
@@ -161,7 +164,9 @@ export class UnifiedMonteCarloService {
     if (shouldUseStreaming) {
       // Use streaming engine for all simulations in batch
       return Promise.all(
-        configs.map((config) => this.runSimulation({ ...config, forceEngine: 'streaming' }))
+        configs.map((config) =>
+          this.runSimulation({ ...config, forceEngine: 'streaming' }, context)
+        )
       );
     } else {
       // Parallel execution with traditional engine
@@ -170,7 +175,9 @@ export class UnifiedMonteCarloService {
 
       for (let i = 0; i < configs.length; i += batchSize) {
         const batch = configs.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map((config) => this.runSimulation(config)));
+        const batchResults = await Promise.all(
+          batch.map((config) => this.runSimulation(config, context))
+        );
         results.push(...batchResults);
       }
 
@@ -183,7 +190,8 @@ export class UnifiedMonteCarloService {
    */
   async runMultiEnvironmentSimulation(
     baseConfig: UnifiedSimulationConfig,
-    environments: MarketEnvironment[]
+    environments: MarketEnvironment[],
+    context?: UserContext
   ): Promise<Record<string, SimulationResults & { performance: PerformanceMetrics }>> {
     const results: Record<string, SimulationResults & { performance: PerformanceMetrics }> = {};
 
@@ -201,7 +209,7 @@ export class UnifiedMonteCarloService {
         runs: this.adjustRunsForEnvironment(baseConfig.runs, environment),
       };
 
-      results[environment.scenario] = await this.runSimulation(envConfig);
+      results[environment.scenario] = await this.runSimulation(envConfig, context);
     }
 
     return results;
@@ -419,13 +427,17 @@ export class UnifiedMonteCarloService {
   }
 
   private async executeStreamingSimulation(
-    config: UnifiedSimulationConfig
+    config: UnifiedSimulationConfig,
+    context?: UserContext
   ): Promise<SimulationResults> {
-    return await this.streamingEngine.runStreamingSimulation(config);
+    return await this.streamingEngine.runStreamingSimulation(config, context);
   }
 
-  private async executeTraditionalSimulation(config: SimulationConfig): Promise<SimulationResults> {
-    return await this.traditionalEngine.runPortfolioSimulation(config);
+  private async executeTraditionalSimulation(
+    config: SimulationConfig,
+    context?: UserContext
+  ): Promise<SimulationResults> {
+    return await this.traditionalEngine.runPortfolioSimulation(config, context);
   }
 
   private async calculatePerformanceMetrics(

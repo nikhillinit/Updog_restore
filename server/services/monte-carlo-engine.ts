@@ -11,7 +11,7 @@
  * @version 2.0
  */
 
-import { db } from '../db';
+import { db, runWithDatabaseContext } from '../db';
 import { funds, fundBaselines, monteCarloSimulations, varianceReports } from '@shared/schema';
 import type { InsertMonteCarloSimulation, FundBaseline } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -26,6 +26,7 @@ import type { MarketParameters } from '@shared/types/backtesting';
 import { applyMarketParametersOverride } from './lib/distribution-overrides';
 import { performance } from 'node:perf_hooks';
 import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
+import type { UserContext } from '../lib/secure-context';
 
 // ============================================================================
 // DEMO MODE CONFIGURATION
@@ -70,6 +71,11 @@ export interface SimulationConfig {
    */
   marketParameters?: MarketParameters;
 }
+
+export type MonteCarloContextRunner = <T>(
+  context: UserContext,
+  operation: (dataSource: MonteCarloDataSource) => Promise<T>
+) => Promise<T>;
 
 export interface MarketEnvironment {
   scenario: 'bull' | 'bear' | 'neutral';
@@ -275,16 +281,30 @@ export interface MonteCarloDataSource {
 export class MonteCarloEngine {
   private prng: PRNG;
   private dataSource: MonteCarloDataSource;
+  private contextRunner: MonteCarloContextRunner;
 
-  constructor(seed?: number, dataSource?: MonteCarloDataSource) {
+  constructor(
+    seed?: number,
+    dataSource?: MonteCarloDataSource,
+    contextRunner?: MonteCarloContextRunner
+  ) {
     this.prng = new PRNG(seed);
     this.dataSource = dataSource ?? (db as unknown as MonteCarloDataSource);
+    this.contextRunner =
+      contextRunner ??
+      ((context, operation) =>
+        runWithDatabaseContext(context, async (database) =>
+          operation(database as unknown as MonteCarloDataSource)
+        ));
   }
 
   /**
    * Run portfolio construction simulation
    */
-  async runPortfolioSimulation(config: SimulationConfig): Promise<SimulationResults> {
+  async runPortfolioSimulation(
+    config: SimulationConfig,
+    context?: UserContext
+  ): Promise<SimulationResults> {
     const startTime = performance.now();
     const simulationId = uuidv4();
 
@@ -297,9 +317,24 @@ export class MonteCarloEngine {
       this.validateConfig(config);
 
       // Get baseline data and historical patterns
-      const baseline = await this.getBaselineData(config.fundId, config.baselineId);
-      const portfolioInputs = await this.getPortfolioInputs(config.fundId, baseline);
-      const distributions = await this.calibrateDistributions(config.fundId, baseline, config);
+      const { baseline, portfolioInputs, distributions } = await this.withDataSource(
+        context,
+        async (dataSource) => {
+          const baseline = await this.getBaselineData(config.fundId, config.baselineId, dataSource);
+          const portfolioInputs = await this.getPortfolioInputs(
+            config.fundId,
+            baseline,
+            dataSource
+          );
+          const distributions = await this.calibrateDistributions(
+            config.fundId,
+            baseline,
+            config,
+            dataSource
+          );
+          return { baseline, portfolioInputs, distributions };
+        }
+      );
 
       // Set random seed for reproducibility using local PRNG
       if (config.randomSeed) {
@@ -355,7 +390,7 @@ export class MonteCarloEngine {
       };
 
       // Store results
-      await this.storeResults(results);
+      await this.storeResults(results, context);
 
       // Complete performance tracking
       const duration = timer['end']({
@@ -571,11 +606,22 @@ export class MonteCarloEngine {
     }
   }
 
-  private async getBaselineData(fundId: number, baselineId?: string): Promise<FundBaseline> {
+  private async withDataSource<T>(
+    context: UserContext | undefined,
+    operation: (dataSource: MonteCarloDataSource) => Promise<T>
+  ): Promise<T> {
+    return context ? this.contextRunner(context, operation) : operation(this.dataSource);
+  }
+
+  private async getBaselineData(
+    fundId: number,
+    baselineId?: string,
+    dataSource: MonteCarloDataSource = this.dataSource
+  ): Promise<FundBaseline> {
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await this.dataSource.query.fundBaselines.findFirst({
+      baseline = await dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(fundBaselines.id, baselineId),
           eq(fundBaselines.fundId, fundId),
@@ -583,7 +629,7 @@ export class MonteCarloEngine {
         ),
       });
     } else {
-      baseline = await this.dataSource.query.fundBaselines.findFirst({
+      baseline = await dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true),
@@ -601,10 +647,11 @@ export class MonteCarloEngine {
 
   private async getPortfolioInputs(
     fundId: number,
-    baseline: FundBaseline
+    baseline: FundBaseline,
+    dataSource: MonteCarloDataSource = this.dataSource
   ): Promise<PortfolioInputs> {
     // Get fund size
-    const fund = await this.dataSource.query.funds.findFirst({
+    const fund = await dataSource.query.funds.findFirst({
       where: eq(funds.id, fundId),
     });
 
@@ -653,10 +700,11 @@ export class MonteCarloEngine {
   private async calibrateDistributions(
     fundId: number,
     baseline: FundBaseline,
-    config?: SimulationConfig
+    config?: SimulationConfig,
+    dataSource: MonteCarloDataSource = this.dataSource
   ): Promise<DistributionParameters> {
     // Get historical variance data
-    const reports = await this.dataSource.query.varianceReports.findMany({
+    const reports = await dataSource.query.varianceReports.findMany({
       where: and(eq(varianceReports.fundId, fundId), eq(varianceReports.baselineId, baseline.id)),
       orderBy: desc(varianceReports.asOfDate),
       limit: 30, // Last 30 reports for calibration
@@ -1099,7 +1147,7 @@ export class MonteCarloEngine {
     };
   }
 
-  private async storeResults(results: SimulationResults): Promise<void> {
+  private async storeResults(results: SimulationResults, context?: UserContext): Promise<void> {
     const simulationData: InsertMonteCarloSimulation = {
       fundId: results.config.fundId,
       simulationName: `Monte Carlo Simulation ${new Date().toISOString()}`,
@@ -1110,7 +1158,9 @@ export class MonteCarloEngine {
       createdBy: results.config.createdBy ?? SYSTEM_ACTOR_ID,
     };
 
-    await this.dataSource.insert(monteCarloSimulations).values(simulationData);
+    await this.withDataSource(context, async (dataSource) => {
+      await dataSource.insert(monteCarloSimulations).values(simulationData);
+    });
   }
 
   // Utility functions using local PRNG (no global Math.random override)

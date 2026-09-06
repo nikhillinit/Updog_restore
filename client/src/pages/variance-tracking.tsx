@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { z } from 'zod';
+import { useEffect, useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { computeRemainingCapital } from '@/lib/variance-remaining-capital';
 import { deriveAlertSummaryState } from '@/lib/variance-alert-summary';
@@ -58,7 +57,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
@@ -87,8 +85,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
-import { loadFromStorage, saveToStorage } from '@/lib/storage';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
+import { VarianceTrackingSettings } from '@/pages/variance-tracking-settings';
 import {
   ALERT_METRIC_GROUPS,
   ALERT_METRIC_LABELS,
@@ -96,23 +94,6 @@ import {
 } from '@shared/variance-validation';
 
 type VarianceTab = 'overview' | 'baselines' | 'alerts' | 'reports' | 'settings';
-
-const VARIANCE_SETTINGS_STORAGE_KEY = 'variance-tracking-settings';
-
-const varianceSettingsSchema = z.object({
-  emailNotifications: z.boolean(),
-  realtimeAlerts: z.boolean(),
-  dailyDigest: z.boolean(),
-  defaultVarianceThreshold: z.string(),
-  analysisFrequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']),
-});
-
-const persistedVarianceSettingsSchema = z.object({
-  byFundId: z.record(z.string(), varianceSettingsSchema),
-});
-
-type VarianceSettings = z.infer<typeof varianceSettingsSchema>;
-type PersistedVarianceSettings = z.infer<typeof persistedVarianceSettingsSchema>;
 
 type ReconciliationAttempt =
   | {
@@ -137,24 +118,6 @@ type ReconciliationAttempt =
       message: string;
     }
   | null;
-
-const DEFAULT_VARIANCE_SETTINGS: VarianceSettings = {
-  emailNotifications: true,
-  realtimeAlerts: true,
-  dailyDigest: false,
-  defaultVarianceThreshold: '10',
-  analysisFrequency: 'daily',
-};
-
-function loadVarianceSettings(fundId: number | undefined): VarianceSettings {
-  if (fundId == null) {
-    return DEFAULT_VARIANCE_SETTINGS;
-  }
-
-  const persisted = loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema);
-
-  return persisted?.byFundId[String(fundId)] ?? DEFAULT_VARIANCE_SETTINGS;
-}
 
 function getInitialVarianceTab(): VarianceTab {
   if (typeof window === 'undefined') {
@@ -208,15 +171,10 @@ export default function VarianceTrackingPage() {
     reportType: 'periodic' as 'periodic' | 'milestone' | 'ad_hoc' | 'alert_triggered',
     reportPeriod: '' as '' | 'monthly' | 'quarterly' | 'annual',
   });
-  const [varianceSettings, setVarianceSettings] = useState<VarianceSettings>(() =>
-    loadVarianceSettings(currentFund?.id)
-  );
-  const [settingsSaveMessage, setSettingsSaveMessage] = useState<string | null>(null);
   const [reconciliationAttempt, setReconciliationAttempt] = useState<ReconciliationAttempt>(null);
   // Busy from click through the awaited GET-latest readback — mutation pending
   // alone re-enables the button mid-readback, allowing a duplicate-key POST.
   const [reconciliationBusy, setReconciliationBusy] = useState(false);
-  const settingsDraftsByFundId = useRef<Record<string, VarianceSettings>>({});
 
   // Form states
   const [baselineForm, setBaselineForm] = useState({
@@ -296,10 +254,6 @@ export default function VarianceTrackingPage() {
   const generateReportMutation = useGenerateVarianceReport();
 
   useEffect(() => {
-    const fundKey = currentFund?.id == null ? null : String(currentFund.id);
-    const draft = fundKey == null ? undefined : settingsDraftsByFundId.current[fundKey];
-    setVarianceSettings(draft ?? loadVarianceSettings(currentFund?.id));
-    setSettingsSaveMessage(draft ? 'Unsaved changes.' : null);
     setReconciliationAttempt(null);
   }, [currentFund?.id]);
 
@@ -548,57 +502,6 @@ export default function VarianceTrackingPage() {
         variant: 'destructive',
       });
     }
-  };
-
-  const updateVarianceSetting = <K extends keyof VarianceSettings>(
-    key: K,
-    value: VarianceSettings[K]
-  ) => {
-    setVarianceSettings((current) => {
-      const next = { ...current, [key]: value };
-      if (currentFund?.id != null) {
-        settingsDraftsByFundId.current[String(currentFund.id)] = next;
-      }
-      return next;
-    });
-    setSettingsSaveMessage('Unsaved changes.');
-  };
-
-  const handleSaveSettings = () => {
-    if (!currentFund) return;
-
-    const persisted =
-      loadFromStorage(VARIANCE_SETTINGS_STORAGE_KEY, persistedVarianceSettingsSchema) ??
-      ({
-        byFundId: {},
-      } satisfies PersistedVarianceSettings);
-    const saved = saveToStorage(
-      VARIANCE_SETTINGS_STORAGE_KEY,
-      {
-        byFundId: {
-          ...persisted.byFundId,
-          [String(currentFund.id)]: varianceSettings,
-        },
-      },
-      persistedVarianceSettingsSchema
-    );
-
-    if (!saved) {
-      setSettingsSaveMessage('Settings could not be saved in this browser.');
-      toast({
-        title: 'Settings not saved',
-        description: 'Variance tracking settings could not be saved in this browser.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSettingsSaveMessage('Settings saved in this browser.');
-    delete settingsDraftsByFundId.current[String(currentFund.id)];
-    toast({
-      title: 'Settings saved',
-      description: 'Variance tracking settings have been saved in this browser workspace.',
-    });
   };
 
   // Handle generate variance report
@@ -2599,114 +2502,8 @@ export default function VarianceTrackingPage() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-pov-charcoal">Variance Settings</h2>
-            <p className="text-charcoal-600">Configure variance tracking preferences</p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>Configure how you receive variance alerts</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="variance-email-notifications" className="text-base">
-                    Email Notifications
-                  </Label>
-                  <p className="text-sm text-charcoal-600">Receive alerts via email</p>
-                </div>
-                <Switch
-                  id="variance-email-notifications"
-                  checked={varianceSettings.emailNotifications}
-                  onCheckedChange={(checked) =>
-                    updateVarianceSetting('emailNotifications', checked)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="variance-realtime-alerts" className="text-base">
-                    Real-time Alerts
-                  </Label>
-                  <p className="text-sm text-charcoal-600">
-                    Immediate notifications for critical alerts
-                  </p>
-                </div>
-                <Switch
-                  id="variance-realtime-alerts"
-                  checked={varianceSettings.realtimeAlerts}
-                  onCheckedChange={(checked) => updateVarianceSetting('realtimeAlerts', checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="variance-daily-digest" className="text-base">
-                    Daily Digest
-                  </Label>
-                  <p className="text-sm text-charcoal-600">Summary of variance activity</p>
-                </div>
-                <Switch
-                  id="variance-daily-digest"
-                  checked={varianceSettings.dailyDigest}
-                  onCheckedChange={(checked) => updateVarianceSetting('dailyDigest', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Analysis Settings</CardTitle>
-              <CardDescription>Configure variance analysis parameters</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="variance-default-threshold">Default Variance Threshold (%)</Label>
-                <Input
-                  id="variance-default-threshold"
-                  type="number"
-                  value={varianceSettings.defaultVarianceThreshold}
-                  onChange={(event) =>
-                    updateVarianceSetting('defaultVarianceThreshold', event.target.value)
-                  }
-                  className="mt-1"
-                />
-                <p className="text-sm text-charcoal-600 mt-1">
-                  Default threshold for triggering variance alerts
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="variance-analysis-frequency">Analysis Frequency</Label>
-                <Select
-                  value={varianceSettings.analysisFrequency}
-                  onValueChange={(value: VarianceSettings['analysisFrequency']) =>
-                    updateVarianceSetting('analysisFrequency', value)
-                  }
-                >
-                  <SelectTrigger id="variance-analysis-frequency" className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="realtime">Real-time</SelectItem>
-                    <SelectItem value="hourly">Hourly</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-charcoal-600" aria-live="polite">
-              {settingsSaveMessage ??
-                'Save settings after changing alert delivery or analysis cadence.'}
-            </p>
-            <Button onClick={handleSaveSettings}>Save Settings</Button>
-          </div>
+        <TabsContent value="settings">
+          <VarianceTrackingSettings />
         </TabsContent>
       </Tabs>
     </div>

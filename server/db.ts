@@ -7,6 +7,13 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { Pool as NodePostgresPool, PoolClient as NodePostgresPoolClient } from 'pg';
 import { createRequire } from 'node:module';
+import {
+  applyRLSContext,
+  getRequestDatabaseScope,
+  requestDatabaseStorage,
+  type RequestDatabaseScope,
+} from './db/request-context';
+import type { UserContext } from './lib/secure-context';
 import { logger } from './lib/logger';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 import { combinedSchema, type CombinedSchema } from './db-schema';
@@ -22,6 +29,7 @@ const storageBootMode = resolveStorageBootMode(process.env);
 // Dynamic imports based on environment
 let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
+let createClientDatabase: (client: NodePostgresPoolClient) => NodePgDatabase<CombinedSchema>;
 let isClosingNodePostgresPool = false;
 
 function isExpectedNodePostgresCloseError(error: unknown): boolean {
@@ -57,6 +65,9 @@ async function loadDatabaseMock(): Promise<NodePgDatabase<CombinedSchema>> {
 if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory') {
   db = await loadDatabaseMock();
   pool = null;
+  createClientDatabase = () => {
+    throw new Error('No database driver in memory mode');
+  };
 } else if (isVercel) {
   // Use Neon WebSocket pool for Vercel transaction support.
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
@@ -81,6 +92,10 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   });
   pool = neonPool;
   db = drizzle(neonPool, { schema: combinedSchema });
+  createClientDatabase = (client) =>
+    drizzle(client as unknown as import('@neondatabase/serverless').PoolClient, {
+      schema: combinedSchema,
+    });
 } else {
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
   if (!connectionString) {
@@ -103,6 +118,7 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     pgPool.on('error', handleNodePostgresPoolError);
     pool = pgPool;
     db = drizzle(pgPool, { schema: combinedSchema });
+    createClientDatabase = (client) => drizzle(client, { schema: combinedSchema });
   } else {
     const { Pool, neonConfig } = await import('@neondatabase/serverless');
     const { drizzle } = await import('drizzle-orm/neon-serverless');
@@ -117,6 +133,48 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     });
     pool = neonPool;
     db = drizzle(neonPool, { schema: combinedSchema });
+    createClientDatabase = (client) =>
+      drizzle(client as unknown as import('@neondatabase/serverless').PoolClient, {
+        schema: combinedSchema,
+      });
+  }
+}
+
+const baseDatabase = db;
+db = new Proxy(baseDatabase, {
+  get(target, property) {
+    const database = getRequestDatabaseScope()?.db ?? target;
+    const value: unknown = Reflect.get(database, property, database);
+    return typeof value === 'function' ? (value.bind(database) as unknown) : value;
+  },
+});
+
+export { createClientDatabase };
+
+/** Own a durable transaction on the selected primary driver, including in background jobs. */
+export async function runWithDatabaseContext<T>(
+  context: UserContext,
+  callback: (database: NodePgDatabase<CombinedSchema>, client: NodePostgresPoolClient) => Promise<T>
+): Promise<T> {
+  if (!pool) throw new Error('A PostgreSQL connection is required');
+  const client = await (pool as NodePostgresPool).connect();
+  let scope: RequestDatabaseScope | undefined;
+  try {
+    return await createClientDatabase(client).transaction(async (tx) => {
+      await applyRLSContext(client, context);
+      scope = {
+        context: { ...context },
+        db: tx,
+        client,
+        completed: false,
+        runOwnedTransaction: (operation) =>
+          runWithDatabaseContext(context, (_db, owned) => operation(owned)),
+      };
+      return requestDatabaseStorage.run(scope, () => callback(tx, client));
+    });
+  } finally {
+    if (scope) scope.completed = true;
+    client.release();
   }
 }
 

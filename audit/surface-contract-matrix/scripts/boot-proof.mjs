@@ -1001,20 +1001,23 @@ const emittedSpaAssetPath = (html) => {
   return match?.[1] || undefined;
 };
 
+export const ML_SERVICE_PROBE_PATHS = Object.freeze([
+  { path: '/health', method: 'GET' },
+  { path: '/ready', method: 'GET' },
+  { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
+  { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
+  { path: '/model/info', method: 'GET' },
+]);
+
 const mlServiceProof = async () => {
   const command_or_artifact = 'Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088';
-  const probe = 'GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
+  const probe = 'GET /health, GET /ready, and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
   if (!dockerAvailable()) return evidence({ deployment: 'ml-service-local', boot_status: 'unproven', command_or_artifact, probe, result: 'docker unavailable' });
   const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], dockerProofEnvironment(), 300_000);
   if (!image.ok) return evidence({ deployment: 'ml-service-local', boot_status: 'failed', command_or_artifact, probe, result: 'ML service Docker image build failed' });
-  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: dockerProofEnvironment(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: [
-    { path: '/health', method: 'GET' },
-    { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
-    { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
-    { path: '/model/info', method: 'GET' },
-  ] });
+  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: dockerProofEnvironment(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: ML_SERVICE_PROBE_PATHS });
   const ok = run.proven;
-  return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI listener responded on all four paths' : 'FastAPI path probe failed' });
+  return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI listener responded on all five paths' : 'FastAPI path probe failed' });
 };
 
 export const REQUIRED_G3_PROOF_KEYS = Object.freeze([

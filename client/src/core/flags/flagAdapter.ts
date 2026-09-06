@@ -14,7 +14,8 @@ import {
   type FlagKey as GeneratedFlagKey,
   type FlagRecord,
 } from '@shared/generated/flag-types';
-import { FLAG_DEFINITIONS, resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
+import { resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
+import { getUnifiedFlagBaseState } from '@/core/flags/unifiedClientFlags';
 
 type LegacyCompatibilityFlagKey =
   | 'enable_wizard_step_sectors'
@@ -30,8 +31,6 @@ const LEGACY_FLAG_MAP: Partial<Record<LegacyCompatibilityFlagKey, ClientFlagKey>
   enable_wizard_step_allocations: 'enable_wizard_step_reserves',
   enable_wizard_step_recycling: 'enable_wizard_step_waterfall',
 };
-
-type RuntimeEnvironment = 'development' | 'staging' | 'production';
 
 // ============================================================================
 // ENV FLAG → COMPREHENSIVE FLAG MAPPING
@@ -103,49 +102,5 @@ function toCanonicalClientFlag(flagKey: FlagKey): ClientFlagKey | null {
 }
 
 function resolveBaseFlag(key: ClientFlagKey): boolean {
-  const envOverride = getEnvOverride(key);
-  if (envOverride !== undefined) {
-    return envOverride;
-  }
-
-  const definition = FLAG_DEFINITIONS[key];
-  return definition.environments[getRuntimeEnvironment()] ?? definition.default;
-}
-
-function getEnvOverride(key: ClientFlagKey): boolean | undefined {
-  const definition = FLAG_DEFINITIONS[key];
-  const envKeys = new Set<string>([
-    ...(definition.aliases ?? []).map((alias) => `VITE_${alias}`),
-    `VITE_${key.toUpperCase()}`,
-  ]);
-
-  for (const envKey of envKeys) {
-    const raw = import.meta.env[envKey] as string | undefined;
-    const parsed = parseBoolean(raw);
-    if (parsed !== undefined) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-}
-
-function parseBoolean(raw: string | undefined): boolean | undefined {
-  if (raw == null || raw === '') return undefined;
-  const normalized = raw.toLowerCase();
-  if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
-  if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
-  return undefined;
-}
-
-function getRuntimeEnvironment(): RuntimeEnvironment {
-  const explicit = String(import.meta.env['VITE_ENV'] ?? '').toLowerCase();
-  if (explicit === 'production' || explicit === 'staging' || explicit === 'development') {
-    return explicit;
-  }
-
-  const mode = String(import.meta.env['MODE'] ?? '').toLowerCase();
-  if (mode === 'production') return 'production';
-  if (mode === 'staging') return 'staging';
-  return 'development';
+  return getUnifiedFlagBaseState(key);
 }

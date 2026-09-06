@@ -4,7 +4,9 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { db, pool as dbPool } from '../db.js';
+import { db, pool as dbPool, runWithDatabaseContext } from '../db.js';
+import { getRequestDatabaseScope } from '../db/request-context.js';
+import { isPublicApiPath } from '../lib/public-api-boundary.js';
 import { logger } from '../lib/logger.js';
 import type { UserContext } from '../lib/secure-context.js';
 import type { Pool, PoolClient } from 'pg';
@@ -26,114 +28,107 @@ export interface RLSRequest extends Request {
  */
 export function withRLSTransaction() {
   return async (req: RLSRequest, res: Response, next: NextFunction) => {
-    // Require authenticated context
-    if (!req.context) {
-      return res.status(401).json({
-        error: 'unauthorized',
-        message: 'Authentication required',
-      });
-    }
-
-    const { userId, orgId, fundId, email, role, partnerId } = req.context;
-
-    // Require org context for tenant isolation
-    if (!orgId) {
-      return res.status(403).json({
-        error: 'missing_org_context',
-        message: 'Organization context is required',
-      });
-    }
-
-    // In memory/mock test mode there is no pg pool; skip transaction wrapping.
+    if (!req.context)
+      return res.status(401).json({ error: 'unauthorized', message: 'Authentication required' });
     const pool = dbPool as Pool | null;
     if (!pool || typeof pool.connect !== 'function') {
       req.tx = db;
       return next();
     }
 
-    // Get a dedicated connection from the pool
-    const client = await pool.connect();
+    const context = { ...req.context };
+    const originalEnd = res.end;
+    const originalWrite = res.write;
+    const originalWriteHead = res.writeHead;
+    const originalFlushHeaders = res.flushHeaders;
+    const rejectedResponse = new Error('Request returned an error status');
+    const disconnected = new Error('Request disconnected');
+    let pendingEnd: Parameters<Response['end']> | undefined;
+    let rejectResponse: (error: Error) => void = () => {};
+    const onClose = () => rejectResponse(disconnected);
+    const restoreResponse = () => {
+      res.end = originalEnd;
+      res.write = originalWrite;
+      res.writeHead = originalWriteHead;
+      res.flushHeaders = originalFlushHeaders;
+      res.off('close', onClose);
+    };
 
     try {
-      // Start transaction
-      await client.query('BEGIN');
-
-      // Set RLS context using LOCAL (scoped to this transaction)
-      await client.query(
-        `
-        SELECT 
-          set_config('app.current_user', $1, true),
-          set_config('app.current_email', $2, true),
-          set_config('app.current_org', $3, true),
-          set_config('app.current_fund', $4, true),
-          set_config('app.current_role', $5, true),
-          set_config('app.current_partner', $6, true)
-      `,
-        [userId, email, orgId, fundId || '', role, partnerId || '']
-      );
-
-      // Set safety timeouts to prevent long-running queries
-      await client.query(`SET LOCAL statement_timeout = '10s'`);
-      await client.query(`SET LOCAL lock_timeout = '2s'`);
-      await client.query(`SET LOCAL idle_in_transaction_session_timeout = '30s'`);
-
-      // Attach client and transaction-aware db to request
-      // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
-      req.pgClient = client;
-      // eslint-disable-next-line require-atomic-updates -- req is unique per Express request
-      req.tx = db;
-
-      // Track transaction completion
-      let transactionCompleted = false;
-
-      // Auto-commit on successful response
-      const originalEnd = res.end.bind(res);
-      res.end = function (this: Response, ...args: Parameters<Response['end']>) {
-        if (!transactionCompleted) {
-          transactionCompleted = true;
-
-          // Commit or rollback based on response status
-          const shouldCommit = res.statusCode < 400;
-
-          client
-            .query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
-            .catch((err) => log.error({ err }, 'Transaction finalization error'))
-            .finally(() => {
-              client.release();
-            });
-        }
-
-        return originalEnd(...args);
-      } as Response['end'];
-
-      // Handle premature close
-      res.on('close', () => {
-        if (!transactionCompleted) {
-          transactionCompleted = true;
-          client
-            .query('ROLLBACK')
-            .catch((err) => log.error({ err }, 'Rollback error on close'))
-            .finally(() => {
-              client.release();
-            });
-        }
+      await runWithDatabaseContext(context, async (tx, connection) => {
+        if (res.destroyed) throw disconnected;
+        req.pgClient = connection;
+        req.tx = tx;
+        const scope = getRequestDatabaseScope()!;
+        await new Promise<void>((resolve, reject) => {
+          rejectResponse = reject;
+          res.end = ((...args: Parameters<Response['end']>) => {
+            if (pendingEnd) return res;
+            pendingEnd = args;
+            if (res.statusCode >= 400) reject(rejectedResponse);
+            else resolve();
+            return res;
+          }) as Response['end'];
+          const denyEarlyWrite = () => {
+            throw new Error('Streaming is not supported inside a request transaction');
+          };
+          res.write = denyEarlyWrite as Response['write'];
+          res.writeHead = denyEarlyWrite as Response['writeHead'];
+          res.flushHeaders = denyEarlyWrite;
+          res.once('close', onClose);
+          try {
+            next();
+          } catch (error) {
+            reject(error);
+          }
+        });
+        scope.completed = true;
       });
-
-      // Continue to route handler
-      next();
+      restoreResponse();
+      if (!res.destroyed && pendingEnd) originalEnd.apply(res, pendingEnd);
     } catch (error) {
-      // Rollback and release on setup error
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        log.error({ err: rollbackError }, 'Rollback error');
-      } finally {
-        client.release();
+      restoreResponse();
+      if (error === disconnected || res.destroyed) return;
+      if (error === rejectedResponse && pendingEnd) {
+        originalEnd.apply(res, pendingEnd);
+      } else {
+        log.error({ err: error }, 'Request transaction failed');
+        res.removeHeader('Content-Length');
+        res.removeHeader('ETag');
+        res
+          .status(500)
+          .json({ error: 'internal_error', code: 'TRANSACTION_FAILED', requestId: req.requestId });
       }
-
-      // Pass error to Express error handler
-      next(error);
+    } finally {
+      restoreResponse();
     }
+  };
+}
+
+/** Both HTTP assemblies use this boundary; streaming routes retain their own authorization. */
+export function protectedRLSTransaction() {
+  const transaction = withRLSTransaction();
+  return (req: RLSRequest, res: Response, next: NextFunction) => {
+    if (
+      isPublicApiPath(req.method, req.path) ||
+      (req.method === 'POST' && req.path === '/auth/logout')
+    )
+      return next();
+    const streaming =
+      req.method === 'GET' &&
+      (/^\/(?:backtesting|monte-carlo)\/jobs\/[^/]+\/stream\/?$/i.test(req.path) ||
+        /^\/events\/(?:fund|simulation)\/[^/]+\/?$/i.test(req.path) ||
+        /^\/performance\/realtime\/?$/i.test(req.path));
+    if (streaming) return next();
+    // Explicit test/memory mode has no PostgreSQL connection to bind.
+    if (!dbPool) return next();
+    // These handlers carry verified context into short load/persist transactions around computation.
+    const managedSimulation =
+      (req.method === 'POST' &&
+        /^\/monte-carlo\/(?:simulate(?:\/async)?|batch|multi-environment)\/?$/i.test(req.path)) ||
+      (req.method === 'GET' && /^\/monte-carlo\/funds\/[^/]+\/simulate\/?$/i.test(req.path));
+    if (managedSimulation && req.context?.userId) return next();
+    return transaction(req, res, next);
   };
 }
 

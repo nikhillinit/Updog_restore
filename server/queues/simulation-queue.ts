@@ -8,12 +8,14 @@
 import type { Job } from 'bullmq';
 import { Queue, Worker, QueueEvents } from 'bullmq';
 import { EventEmitter } from 'events';
+import { randomUUID } from 'node:crypto';
 import type IORedis from 'ioredis';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry';
 import { getBullMQConnection } from './redis-connection.js';
 import { logger } from '../logger';
 import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 import type { UnifiedSimulationConfig } from '../services/monte-carlo-service-unified';
+import type { UserContext } from '../lib/secure-context';
 
 // Job types
 export interface SimulationJobData {
@@ -24,6 +26,7 @@ export interface SimulationJobData {
   portfolioSize?: number;
   userId?: number;
   requestId?: string;
+  context: UserContext;
 }
 
 export interface SimulationJobResult {
@@ -52,6 +55,28 @@ export function buildSimulationRunConfigFromJobData(
     ...(data.portfolioSize !== undefined ? { portfolioSize: data.portfolioSize } : {}),
     ...(data.userId !== undefined ? { createdBy: data.userId } : {}),
   };
+}
+
+export function assertSimulationJobContext(data: SimulationJobData): void {
+  const contextFundId = Number(data.context.fundId);
+  if (!Number.isSafeInteger(contextFundId) || contextFundId !== data.fundId) {
+    throw new Error('Simulation job fund does not match tenant context');
+  }
+}
+
+export function canAccessSimulationJob(
+  data: Partial<SimulationJobData>,
+  context: UserContext | undefined
+): boolean {
+  const jobContext = data.context;
+  if (!jobContext || !context) return false;
+  if (jobContext.userId !== context.userId || jobContext.orgId !== context.orgId) return false;
+  if (context.fundId !== undefined && jobContext.fundId !== context.fundId) return false;
+  return Number(jobContext.fundId) === data.fundId;
+}
+
+export function createSimulationJobId(): string {
+  return `sim-${randomUUID()}`;
 }
 
 export interface JobProgressEvent {
@@ -175,6 +200,7 @@ export async function initializeSimulationQueue(
           const startTime = Date.now();
 
           try {
+            assertSimulationJobContext(job.data);
             // Report initial progress
             await job.updateProgress(0);
             simulationEvents.emitProgress(job.id!, 0, 'Starting simulation...');
@@ -196,7 +222,8 @@ export async function initializeSimulationQueue(
 
               // Run batch
               const batchResult = await unifiedMonteCarloService.runSimulation(
-                buildSimulationRunConfigFromJobData(job.data, runsThisBatch)
+                buildSimulationRunConfigFromJobData(job.data, runsThisBatch),
+                job.data.context
               );
 
               // Collect results (simplified - actual implementation would aggregate)
@@ -310,7 +337,7 @@ export async function enqueueSimulation(
   }
 
   const job = await queue.add('simulation', data, {
-    jobId: data.requestId || `sim-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    jobId: createSimulationJobId(),
   });
 
   // Get queue metrics for wait time estimate
@@ -326,7 +353,10 @@ export async function enqueueSimulation(
 /**
  * Get job status and result
  */
-export async function getJobStatus(jobId: string): Promise<{
+export async function getJobStatus(
+  jobId: string,
+  context: UserContext | undefined
+): Promise<{
   status: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown';
   progress?: number | undefined;
   result?: SimulationJobResult | undefined;
@@ -337,7 +367,7 @@ export async function getJobStatus(jobId: string): Promise<{
   }
 
   const job = await queue.getJob(jobId);
-  if (!job) {
+  if (!job || !canAccessSimulationJob(job.data, context)) {
     return { status: 'unknown' };
   }
 

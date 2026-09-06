@@ -1055,7 +1055,7 @@ describe('route knowledge-graph generator contract', () => {
     }
   });
 
-  it('groups nineteen BullMQ constructor sites into ten catalog-backed worker nodes', async () => {
+it('groups active BullMQ constructor sites and excludes retired workers', async () => {
     // Reduced: `reduceWorkerFindings` over the real scanner's findings.
     // `scanBullmqConstructors` alone is a static AST scan (no build, no
     // inspector children) -- verified <5s in the cold timing at Step 3.
@@ -1068,10 +1068,13 @@ describe('route knowledge-graph generator contract', () => {
     const discoveredQueues = new Set(findings.map((finding) => finding.queue_name));
     const catalogQueues = new Set(QUEUE_CATALOG.map((entry) => entry.queueName));
 
-    expect(findings).toHaveLength(19);
-    expect(workerNodes).toHaveLength(10);
+    expect(findings).toHaveLength(16);
+    expect(workerNodes).toHaveLength(7);
     expect(new Set(workerNodes.map((record) => record.queue))).toEqual(discoveredQueues);
     expect([...discoveredQueues].every((queue) => catalogQueues.has(queue))).toBe(true);
+    expect(discoveredQueues).not.toContain('cohort-calc');
+    expect(discoveredQueues).not.toContain('pacing-calc');
+    expect(discoveredQueues).not.toContain('reserve-calc');
     expect(workerNodes.some((record) => record.queue === 'economics-calc')).toBe(false);
     for (const finding of findings) {
       const serialized = JSON.stringify(workerNodes.find((record) => record.queue === finding.queue_name));
