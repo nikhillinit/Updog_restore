@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:9eb9c664d39aa780ef7562668b8f170b806017679c1b402dbd48fef0f22f4134",
+  "snapshot_id": "snapshot:125b4cebf631635891cdd08dfe75b45ac3799f4658737b05e5c84727677df7cb",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -466,6 +466,7 @@
     "event:calc-run-completion",
     "listener:ml-reserve:GET:/health",
     "listener:ml-reserve:GET:/model/info",
+    "listener:ml-reserve:GET:/ready",
     "listener:ml-reserve:POST:/predict",
     "listener:ml-reserve:POST:/train",
     "listener:worker-health:GET:/health",
@@ -495,11 +496,11 @@
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
-    "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "53feb34d202edb0277fb015b89642b06eb4a7683aa87a6125abd0c358f009b52",
+    "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
+    "audit/surface-contract-matrix/boot-proofs.json": "7241db05bf46a260b9880860edf3af5600505552a2050ea0afd41b13f521fc2c",
     "audit/surface-contract-matrix/matrix-schema.mjs": "38940942cfad4fd6a2901805950b1a70f976918c01dd01c1c96d22919c87653c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
-    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
+    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
@@ -521,28 +522,29 @@
     "Dockerfile.railway": "76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b",
     "Dockerfile.simple": "bfcbd376504c160cac0e5200b46db48579d65e857eba61a558fdc196919c34b7",
     "Dockerfile.worker": "97dde98f194d12f1a9b523a90e395ab214946ba9ca6ca2f6dc674c3e10c15463",
-    "ml-service/app.py": "b5a0dc8e89f2c0faa68dd3b2489bb122608fac733412bcd095a1fc4f21e808b8",
-    "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
-    "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
+    "ml-service/app.py": "99f3c1b080d81b27297c2ab752ca3e8be25f37af5c1cd3b07d52712bde2a7739",
+    "ml-service/docker-compose.yml": "7b295e745eaf0e6a20924c1b50dd2f4eda3ad4bc2830b7db499e526a8821a600",
+    "ml-service/Dockerfile": "8ca23536edbf6d40989a24e2b7a1a192928674bc2ea02f2e759550b9d374d7df",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
-    "package-lock.json": "48521dd62ba4891a3aeb678cfcb7222ae128d734b9250c2648500dc844bf18b4",
-    "package.json": "80de8c02119bd47edbcb77241af229250c223cecb0b979b43f5dbad7e7a938b7",
+    "ml-service/test_app.py": "764c311665c4d24c79db1589374dbebb54b4c7055bc8e6c82b152bd1f3c4443b",
+    "package-lock.json": "7289bc639967c9fb9e169759d4f6e738d4feba86d0b34f6ced4184bf7f52e33f",
+    "package.json": "ae44df8bcefe1a891820c67fc8f1f6c1d87edae8144b49226b4fd3aea38ce0b3",
     "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
     "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
     "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
     "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
-    "server/app.ts": "3fe5b4338403eed27e7f1c957557fe55ca3675678c82097e1d70e8b0ffa8bf7a",
-    "server/bootstrap.ts": "ed2c60cb54c7e390c1425df897c6d3a65a6a89186808abc5c32602dac4018f0f",
-    "server/lib/auth/jwt.ts": "d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
+    "server/app.ts": "17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
+    "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
+    "server/lib/auth/jwt.ts": "b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
     "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
     "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
     "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
-    "server/queues/report-generation-queue.ts": "0e48ee156db7373d86cb3c9d612ddda1e51c6561fc1dd83e10f82f9502be668c",
-    "server/queues/simulation-queue.ts": "251caa4c7519ff63e073656b72340437bde5c0553a95626e777f19beed5f7689",
+    "server/queues/report-generation-queue.ts": "9c3792bb56f3849227c9f4cd33c7e5196abfdddd371b95833d48602d06a3947e",
+    "server/queues/simulation-queue.ts": "96e698444491fa4ab7118dccb17477a0c01ad4eeace6497789136d9b8ca8b980",
     "server/route-policy/api-route-policy-registry.ts": "f7df2fcc009e3748050c2907dbc82257baf66288b309d109b5f64a90600857d6",
-    "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
+    "server/routes.ts": "8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
     "server/routes/admin/circuit-admin.ts": "5b88cb992610388ea3bee4676d9c65b74a62e8aab65a7f2880980e88f5d54429",
@@ -584,13 +586,13 @@
     "server/routes/kpi-observations.ts": "331f41c54cff66e8ac5f0805457466be9783f8b0e1a4a994d4714449450a9ef4",
     "server/routes/liquidity.ts": "83a75a8c52ae79686f9ef8181b49623459c5954d80b746bded7c925684e33bfc",
     "server/routes/lp-api.schemas.ts": "e565fb68e8c4ce7316ddfe28b8d81a563b7a1b0d49da52d2d5d8a3e573ee0e41",
-    "server/routes/lp-api.ts": "4ecead531906e140d0763474e60e8da57a5fe6c555b995d4442e56e94a641513",
+    "server/routes/lp-api.ts": "2c51202f34ad55606c0705e2e3cedfeceb8bfc6fcc7cf3f0906855633c3ffacf",
     "server/routes/lp-capital-calls.ts": "73e84b4bca60ec796dd146ce24e321094a7bc1d979e6ed01600b63cb5ec7d0de",
     "server/routes/lp-distributions.ts": "a5ed58caf7836c4d29ca4a63eb602a29379a2d17c535a9aa5ad9ae60afb6e73f",
-    "server/routes/lp-documents.ts": "ac622b3d432f0f3512a08f481747b5132dabdc81123b10182c514b4c5bf0f9e9",
+    "server/routes/lp-documents.ts": "ed28997918c2599c63830ad25dc3668c958207841863e4452c88ca2d3152d839",
     "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
     "server/routes/lp-notifications.ts": "c88697c962a315edaa515f68ba44240d1334cf1e550aa63f220eb721cb848420",
-    "server/routes/lp-reporting/imports.ts": "a6bb721987842a3f45c6f3e82c156f2a2f06e772033715bd045a0d6cc9eb0183",
+    "server/routes/lp-reporting/imports.ts": "dd54199e4ae96eeac44376a7de298c93a9e8f11dffb012276f91b432a0b7d0c6",
     "server/routes/lp-reporting/metric-runs.ts": "828f977c82ef78fe5f468a0e9d72e3f5dc053d912ef982fd4eaa9dec8465336b",
     "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
     "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
@@ -598,7 +600,7 @@
     "server/routes/metrics-rum.guard.ts": "6b25c6e3b6baa551750dcb1691cbe731b15aed292d99d92883703dd50111a98b",
     "server/routes/metrics-rum.ts": "c00b18bf4726972719fd24c37fe863d9624688eac62cfe0ec50b53399ad03743",
     "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
-    "server/routes/monte-carlo.ts": "d4d9e87636ad1577f1a3ad3abff79e0c8816db6a9648515f58863b983ec59185",
+    "server/routes/monte-carlo.ts": "1298a814d0aa443ddbd1e0d6e85fb705d22ffa3ff7e65e13e41a7ac8a0d46a3f",
     "server/routes/mount-common-routes.ts": "ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb",
     "server/routes/operating-object-decisions.ts": "b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
     "server/routes/operating-object-tasks.ts": "e13d9ef5e23a94fe17978c20c97cab4d082e950d97d3f7e2d02e1cf5c49a6dbf",
@@ -625,7 +627,7 @@
     "server/routes/v1/reserves.ts": "8e916ae785b1edb3fe47626a853e3c241a312d583e3ff407219934bd3a7286e2",
     "server/routes/variance.ts": "fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
     "server/routes/variance/response-adapters.ts": "44e52dda21c7b440a5553f6eb619b4d1c71975e3dc33f8fe52ba3e21add8fe26",
-    "server/server.ts": "9c2425df84a9eaec58de7633bbcb7901ba0f1f9d1b8f833ea8a14f3629551190",
+    "server/server.ts": "27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
     "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
     "server/websocket.ts": "2ed29caee85bd6ac49ab9eefab8fb04fe0da5b20796d2a213fa4c6845b14acca",
     "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
@@ -642,24 +644,24 @@
     "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
     "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
-    "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
-    "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
+    "workers/cohort-worker.ts": "8cbd7f1e4852b2fd4f5c4d92a4eece06c69340547eea8e89ca2f3f404e0dfb0e",
+    "workers/dlq.ts": "d69b5c08fc509a71da7e5df9435c0d88d871619888a099bda1424a2c0be3f054",
     "workers/fund-scenario-calc-handler.ts": "7464f632bafb7ef6798020b770c33f593892b6d4ec8572a011b08fd6453487da",
     "workers/fund-scenario-calc-worker-harness.ts": "db610521a474e5e8c7747fff47e0f19d55197a1224911e47225c7cae7e1ddf7a",
     "workers/fund-scenario-calc-worker.ts": "1f243d772de22953a4f62db9372f9347f97986b0b04d981a26082ef57830e8ad",
     "workers/health-server.ts": "881023342c4eb7f7dd1b12b15f04da1eafef8887ccc3b3c7b1d20fcd85d16f1b",
     "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
-    "workers/pacing-worker.ts": "150b9639a3ad28e49023ac13489380d0c021120cfc17e750be9a4018d395d0d7",
+    "workers/pacing-worker.ts": "a8ea047baf42baff18adf306533839b9ae8330bb882266d90fb53af9617eff26",
     "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
-    "workers/reserve-worker.ts": "2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a",
+    "workers/reserve-worker.ts": "b54741aded0b8583ae3cc4398826cafd45dd7d0891dbbef9baee27499b2d38fd",
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
-    "package.json#scripts": "b5bb3ca77a11463c699d8cdc550e9c6ecb5dc49bd1a410aea22bb5fb09d1402c",
+    "package.json#scripts": "57ce3dccc45bc3c43a356c405fb51f923e3ffa283e9ac3fea31ed3c4ccdb1a93",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "2887c64f0284f5ed627a90d7d39f83942a8f3e7f9a1a7e2ae6a12326d1ee0dc3",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "96453ff629a87ed75abe3592154336b693f5b1193a39327bf05e8d8a86960294",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "edd2514885932b2e8d8f359897f125fbd431fdc429e7711e575544bdd5b47862",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
-    "server/queues/registry.ts": "1c62fc2dfb7bce4ec7101c0f66039f40953d2d9a477fae5c3bcf222e2fa01bf4"
+    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
   },
   "source_to_rows": {
     "api/telemetry/wizard.ts": [
@@ -4892,6 +4894,7 @@
     "ml-service/app.py": [
       "listener:ml-reserve:GET:/health",
       "listener:ml-reserve:GET:/model/info",
+      "listener:ml-reserve:GET:/ready",
       "listener:ml-reserve:POST:/predict",
       "listener:ml-reserve:POST:/train"
     ],
@@ -4930,9 +4933,6 @@
     "server/workers/capital-call-status-worker.ts": [
       "worker:capital-call-status"
     ],
-    "workers/cohort-worker.ts": [
-      "worker:cohort-calc"
-    ],
     "server/queues/fund-scenario-calc-worker-init.ts": [
       "worker:fund-scenario-calc"
     ],
@@ -4950,12 +4950,6 @@
     ],
     "server/queues/simulation-queue.ts": [
       "worker:monte-carlo-simulations"
-    ],
-    "workers/pacing-worker.ts": [
-      "worker:pacing-calc"
-    ],
-    "workers/reserve-worker.ts": [
-      "worker:reserve-calc"
     ],
     "server/services/CacheWarmingService.ts": [
       "worker:scenario-generation"
@@ -10961,6 +10955,9 @@
     "listener:ml-reserve:GET:/model/info": [
       "ml-service/app.py"
     ],
+    "listener:ml-reserve:GET:/ready": [
+      "ml-service/app.py"
+    ],
     "listener:ml-reserve:POST:/predict": [
       "ml-service/app.py"
     ],
@@ -11006,8 +11003,7 @@
     ],
     "worker:cohort-calc": [
       "QUEUE_CATALOG:cohort-calc",
-      "server/queues/registry.ts",
-      "workers/cohort-worker.ts"
+      "server/queues/registry.ts"
     ],
     "worker:economics-calc": [
       "QUEUE_CATALOG:economics-calc",
@@ -11037,13 +11033,11 @@
     ],
     "worker:pacing-calc": [
       "QUEUE_CATALOG:pacing-calc",
-      "server/queues/registry.ts",
-      "workers/pacing-worker.ts"
+      "server/queues/registry.ts"
     ],
     "worker:reserve-calc": [
       "QUEUE_CATALOG:reserve-calc",
-      "server/queues/registry.ts",
-      "workers/reserve-worker.ts"
+      "server/queues/registry.ts"
     ],
     "worker:scenario-generation": [
       "QUEUE_CATALOG:scenario-generation",
@@ -11191,10 +11185,7 @@
       "server/services/CacheWarmingService.ts",
       "server/workers/capital-call-status-worker.ts",
       "server/workers/lp-materialized-view-refresh.ts",
-      "shared/routes/app-route-definitions.ts",
-      "workers/cohort-worker.ts",
-      "workers/pacing-worker.ts",
-      "workers/reserve-worker.ts"
+      "shared/routes/app-route-definitions.ts"
     ],
     "client-pages-v2": [
       "client/src/pages/v2/cash.tsx",
@@ -11218,7 +11209,8 @@
       "ml-service/app.py",
       "ml-service/docker-compose.yml",
       "ml-service/Dockerfile",
-      "ml-service/requirements.txt"
+      "ml-service/requirements.txt",
+      "ml-service/test_app.py"
     ],
     "auth-truth": [
       "server/lib/auth/jwt.ts",
@@ -11349,13 +11341,13 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:9eb9c664d39aa780ef7562668b8f170b806017679c1b402dbd48fef0f22f4134"
+      "snapshot:125b4cebf631635891cdd08dfe75b45ac3799f4658737b05e5c84727677df7cb"
     ]
   },
   "kg_counts": {
     "APIEndpoint": 406,
     "ClientRoute": 44,
-    "WorkerJob": 10
+    "WorkerJob": 7
   },
   "runtime_observation_profiles": [
     "default",
