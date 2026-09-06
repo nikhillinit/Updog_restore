@@ -8,6 +8,7 @@
 import { loadEnv } from './config/index.js';
 import { buildProviders } from './providers.js';
 import { createServer } from './server.js';
+import { stopRouteServices } from './routes.js';
 import { setReady } from './health/state.js';
 import { logger } from './lib/logger.js';
 import fs from 'node:fs';
@@ -99,26 +100,39 @@ export async function bootstrap() {
     server.keepAliveTimeout = 61_000;
 
     // Graceful shutdown handling
+    let shuttingDown = false;
     async function gracefulShutdown(signal: string) {
+      if (shuttingDown) return;
+      shuttingDown = true;
       logger.info({ phase: 'shutdown', signal }, `Received ${signal}, shutting down gracefully...`);
 
       // Mark server as not ready
       setReady(false);
       logger.info({ phase: 'shutdown' }, 'Tearing down...');
 
+      const backgroundShutdown = Promise.allSettled([stopRouteServices()]);
+
       // Stop accepting new connections
       server.close(async () => {
         logger.info({ phase: 'shutdown' }, 'HTTP server closed');
 
-        // Close providers
+        const [background] = await backgroundShutdown;
+        let exitCode = 0;
+        if (background?.status === 'rejected') {
+          exitCode = 1;
+          logger.error({ err: background.reason }, 'Background service shutdown failed');
+        }
+
+        // Close providers after background jobs have stopped using them.
         try {
           await providers.teardown?.();
           logger.info({ phase: 'shutdown' }, 'Providers closed');
         } catch (error) {
+          exitCode = 1;
           logger.error({ phase: 'shutdown', err: error }, 'Error during provider cleanup');
         }
 
-        process.exit(0);
+        process.exit(exitCode);
       });
 
       // Force close sockets and exit after 10 seconds

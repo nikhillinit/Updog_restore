@@ -398,6 +398,17 @@ function mapJobRow(row: Record<string, unknown>): JobOutbox {
 export class ArtifactRetentionService {
   private plannerTimer: NodeJS.Timeout | null = null;
   private processorTimer: NodeJS.Timeout | null = null;
+  private readonly pendingCycles = new Set<Promise<unknown>>();
+
+  private trackCycle(cycle: Promise<unknown>): void {
+    this.pendingCycles.add(cycle);
+    void cycle
+      .finally(() => this.pendingCycles.delete(cycle))
+      .catch((error: unknown) => {
+        log.error({ err: error }, 'Background cycle failed');
+      });
+  }
+
   private plannerInFlight = false;
   private processorInFlight = false;
   private enabled = false;
@@ -432,16 +443,22 @@ export class ArtifactRetentionService {
         DEFAULT_PROCESSOR_INTERVAL_MS
       );
 
-    this.plannerTimer = setInterval(() => void this.runPlannerCycle(), plannerIntervalMs);
-    this.processorTimer = setInterval(() => void this.runProcessorCycle(), processorIntervalMs);
+    this.plannerTimer = setInterval(
+      () => this.trackCycle(this.runPlannerCycle()),
+      plannerIntervalMs
+    );
+    this.processorTimer = setInterval(
+      () => this.trackCycle(this.runProcessorCycle()),
+      processorIntervalMs
+    );
 
     // Startup catch-up: enqueue any missed daily windows immediately (R33-b).
-    void this.runPlannerCycle();
-    void this.runProcessorCycle();
+    this.trackCycle(this.runPlannerCycle());
+    this.trackCycle(this.runProcessorCycle());
     log.info({ plannerIntervalMs, processorIntervalMs }, 'Artifact retention sweep started');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.enabled = false;
     if (this.plannerTimer) {
       clearInterval(this.plannerTimer);
@@ -451,6 +468,7 @@ export class ArtifactRetentionService {
       clearInterval(this.processorTimer);
       this.processorTimer = null;
     }
+    await Promise.allSettled(this.pendingCycles);
   }
 
   /** Enqueue one job per missed UTC day within the catch-up bound (idempotent). */

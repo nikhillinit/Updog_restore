@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -168,6 +168,37 @@ afterEach(async () => {
 });
 
 describe('feature flags approval guard', () => {
+
+  it('permits removal of the exact legacy derived adapter snapshot', async () => {
+    const base = await readFile(path.join(process.cwd(), 'tests/fixtures/governance/adapter-preimage.txt'), 'utf8');
+    const repository = await makeRepository(base, '', 'client/src/core/flags/flagAdapter.ts');
+    const result = runGuard(repository.directory, ['--base', repository.baseSha, '--head', repository.headSha]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('No flag files changed');
+  });
+
+  it.each(['modified preimage', 'wrong path', 'candidate snapshot'])('keeps legacy compatibility closed for %s', async (scenario) => {
+    const legacy = await readFile(path.join(process.cwd(), 'tests/fixtures/governance/adapter-preimage.txt'), 'utf8');
+    const base = scenario === 'candidate snapshot' ? '' : scenario === 'modified preimage' ? legacy + '\n' : legacy;
+    const head = scenario === 'candidate snapshot' ? legacy : '';
+    const file = scenario === 'wrong path' ? 'src/feature-flags.ts' : 'client/src/core/flags/flagAdapter.ts';
+    const repository = await makeRepository(base, head, file);
+    const result = runGuard(repository.directory, ['--base', repository.baseSha, '--head', repository.headSha]);
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('failed closed');
+  });
+
+  it('still requires approvals for sensitive definitions replacing legacy aliases', async () => {
+    const base = await readFile(path.join(process.cwd(), 'tests/fixtures/governance/adapter-preimage.txt'), 'utf8');
+    const repository = await makeRepository(base, "export const FLAGS = { 'auth.bypass': { enabled: true } };\n", 'client/src/core/flags/flagAdapter.ts');
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const rejected = runGuard(repository.directory, args);
+    expect(rejected.status).toBe(1);
+    expect(`${rejected.stdout}\n${rejected.stderr}`).toContain('product-signoff');
+    expect(`${rejected.stdout}\n${rejected.stderr}`).toContain('approved:flags-change');
+    expect(runGuard(repository.directory, args, { PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']) }).status).toBe(0);
+  });
+
   it('fails closed instead of reporting no changes when changed-file diff retrieval fails', async () => {
     const repository = await makeRepository('key: test.flag\n', 'key: test.flag\n');
     const failingGitPath = await makeFailingGitPath();

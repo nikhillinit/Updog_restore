@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
 import { combinedSchema } from '../../db-schema';
-import { pool } from '../../db';
+import { pool, createClientDatabase } from '../../db';
+import { applyRLSContext, getRequestDatabaseScope } from '../../db/request-context';
+import type { UserContext } from '../../lib/secure-context';
 import { logger } from '../../lib/logger';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import {
@@ -64,7 +66,8 @@ const RETRYABLE_UNIQUE_CONSTRAINTS = new Set([
   'financial_facts_snapshots_fund_idempotency_unique',
   'financial_facts_snapshots_supersedes_unique',
 ]);
-const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const IDEMPOTENCY_KEY_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const PREFLIGHT_DATABASE_REACHED = Symbol('actuals-pilot-preflight-database-reached');
 const publishLog = logger.child({ service: 'actuals-pilot-publish' });
 
@@ -88,6 +91,7 @@ export interface ActualsPilotPublishInput {
   readonly ifMatch: string;
   readonly request: ActualsPublishRequestV1;
   readonly requestId?: string;
+  readonly context?: UserContext;
 }
 
 export interface ActualsPilotPublishResult {
@@ -202,11 +206,13 @@ function budgetedConnection(
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => {
               poisoned = true;
-              reject(new ActualsPilotPublishError(
-                503,
-                timeoutCode,
-                'Actuals publication deadline exhausted.'
-              ));
+              reject(
+                new ActualsPilotPublishError(
+                  503,
+                  timeoutCode,
+                  'Actuals publication deadline exhausted.'
+                )
+              );
             }, milliseconds);
           }),
         ]);
@@ -241,9 +247,8 @@ function sqlState(error: unknown): string | null {
 
 function sqlConstraint(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) return null;
-  const constraint = 'constraint' in error
-    ? (error as { constraint?: unknown }).constraint
-    : undefined;
+  const constraint =
+    'constraint' in error ? (error as { constraint?: unknown }).constraint : undefined;
   if (typeof constraint === 'string') return constraint;
   return 'cause' in error ? sqlConstraint((error as { cause?: unknown }).cause) : null;
 }
@@ -271,13 +276,16 @@ function parseStoredValuationPayload(value: string | null) {
 function ledgerEventType(row: BasisCashRow, expenseCategory: string | null) {
   if (row.eventType === 'lp_capital_call') return 'settled_contribution' as const;
   if (row.eventType === 'fund_expense') {
-    return expenseCategory === 'management_fee' ? 'management_fee' as const : 'fund_expense' as const;
+    return expenseCategory === 'management_fee'
+      ? ('management_fee' as const)
+      : ('fund_expense' as const);
   }
   if (
     row.eventType === 'lp_distribution' ||
     row.eventType === 'portfolio_investment' ||
     row.eventType === 'realized_proceeds'
-  ) return row.eventType;
+  )
+    return row.eventType;
   fail(422, 'SOURCE_FACT_CONTRADICTION', 'Stored pilot event type invalid.');
 }
 
@@ -307,26 +315,34 @@ function computeSourceFactsInputHash(
   });
 }
 
-function fail(status: number, code: ActualsPilotErrorCode, message: string, details?: unknown): never {
+function fail(
+  status: number,
+  code: ActualsPilotErrorCode,
+  message: string,
+  details?: unknown
+): never {
   throw new ActualsPilotPublishError(status, code, message, details);
 }
 
 function logSuccess(result: ActualsPilotPublishResult, requestId: string | undefined): void {
   try {
-    publishLog.info({
-      operation: 'actuals_pilot_publish',
-      ...(requestId === undefined ? {} : { requestId }),
-      fundId: result.receipt.fundId,
-      outcome: result.replayed ? 'replayed' : 'created',
-      replayed: result.replayed,
-      mutationAttempts: result.mutationAttempts,
-      durationMs: Math.round(result.durationMs),
-      approvedRowCount: result.receipt.admitted.ledger.approvedCount,
-      approvedMarkCount: result.receipt.admitted.valuation?.approvedCount ?? 0,
-      snapshotId: result.receipt.facts.snapshotId,
-      policyVersion: result.receipt.facts.policyVersion,
-      payloadSchemaId: result.receipt.facts.payloadSchemaId,
-    }, 'Actuals pilot publication completed');
+    publishLog.info(
+      {
+        operation: 'actuals_pilot_publish',
+        ...(requestId === undefined ? {} : { requestId }),
+        fundId: result.receipt.fundId,
+        outcome: result.replayed ? 'replayed' : 'created',
+        replayed: result.replayed,
+        mutationAttempts: result.mutationAttempts,
+        durationMs: Math.round(result.durationMs),
+        approvedRowCount: result.receipt.admitted.ledger.approvedCount,
+        approvedMarkCount: result.receipt.admitted.valuation?.approvedCount ?? 0,
+        snapshotId: result.receipt.facts.snapshotId,
+        policyVersion: result.receipt.facts.policyVersion,
+        payloadSchemaId: result.receipt.facts.payloadSchemaId,
+      },
+      'Actuals pilot publication completed'
+    );
   } catch {
     // Logging cannot change durable publication result.
   }
@@ -384,7 +400,9 @@ function defaultConnect(): Promise<PublishConnection> {
 }
 
 function databaseFor(connection: PublishConnection) {
-  return drizzle(connection as never, { schema: combinedSchema });
+  return pool
+    ? createClientDatabase(connection as never)
+    : drizzle(connection as never, { schema: combinedSchema });
 }
 
 export function computeActualsPilotOperationHash(input: {
@@ -404,12 +422,15 @@ export function computeActualsPilotOperationHash(input: {
       canonicalRowsHash: request.ledger.expectedCanonicalRowsHash,
       previewHash: request.ledger.expectedPreviewHash,
     },
-    valuation: request.valuation === null ? null : {
-      templateVersion: request.valuation.templateVersion,
-      payloadSha256: request.valuation.expectedPayloadSha256,
-      canonicalRowsHash: request.valuation.expectedCanonicalRowsHash,
-      previewHash: request.valuation.expectedPreviewHash,
-    },
+    valuation:
+      request.valuation === null
+        ? null
+        : {
+            templateVersion: request.valuation.templateVersion,
+            payloadSha256: request.valuation.expectedPayloadSha256,
+            canonicalRowsHash: request.valuation.expectedCanonicalRowsHash,
+            previewHash: request.valuation.expectedPreviewHash,
+          },
     coverage: request.coverage,
   });
 }
@@ -436,11 +457,23 @@ function frozenCommand(
   const startedAt = monotonicNow();
   const knowledgeCutoff = new Date(now().getTime());
   const request = parsed.data;
-  const frozenInput = Object.freeze({ ...input, request });
+  const context = input.context ?? getRequestDatabaseScope()?.context;
+  if (context && context.fundId && Number(context.fundId) !== input.fundId) {
+    fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
+  }
+  const frozenInput = Object.freeze({
+    ...input,
+    request,
+    ...(context && { context: Object.freeze({ ...context, fundId: String(input.fundId) }) }),
+  });
   return {
     input: frozenInput,
     request,
-    operationHash: computeActualsPilotOperationHash({ fundId: input.fundId, ifMatch: input.ifMatch, request }),
+    operationHash: computeActualsPilotOperationHash({
+      fundId: input.fundId,
+      ifMatch: input.ifMatch,
+      request,
+    }),
     knowledgeCutoff,
     knowledgeCutoffIso: knowledgeCutoff.toISOString(),
     startedAt,
@@ -468,13 +501,17 @@ async function configureTransaction(
   await withinBudget(
     command,
     monotonicNow,
-    connection.query(`SET LOCAL statement_timeout = ${fundLockAcquired ? Math.min(10_000, budget) : budget}`),
+    connection.query(
+      `SET LOCAL statement_timeout = ${fundLockAcquired ? Math.min(10_000, budget) : budget}`
+    ),
     timeoutCode
   );
   await withinBudget(
     command,
     monotonicNow,
-    connection.query(`SET LOCAL lock_timeout = ${fundLockAcquired ? Math.min(2_000, budget) : budget}`),
+    connection.query(
+      `SET LOCAL lock_timeout = ${fundLockAcquired ? Math.min(2_000, budget) : budget}`
+    ),
     timeoutCode
   );
   await withinBudget(
@@ -508,7 +545,11 @@ async function lockPublicationScope(
     [command.input.fundId]
   );
   if (vehicle.rows.length !== 1) {
-    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Pilot requires exactly one active USD main-fund vehicle.');
+    fail(
+      422,
+      'UNSUPPORTED_VEHICLE_SCOPE',
+      'Pilot requires exactly one active USD main-fund vehicle.'
+    );
   }
   const commitment = vehicle.rows[0]?.committedCapital;
   if (
@@ -560,18 +601,14 @@ async function authorizeActor(
       is_active: boolean;
       role: string;
       is_release_canary_principal: boolean;
-    }>('SELECT id, is_active, role, is_release_canary_principal FROM users WHERE id = $1 FOR SHARE', [
-      command.input.actorId,
-    ]),
+    }>(
+      'SELECT id, is_active, role, is_release_canary_principal FROM users WHERE id = $1 FOR SHARE',
+      [command.input.actorId]
+    ),
     timeoutCode
   );
   const row = actor.rows[0];
-  if (
-    !row ||
-    !row.is_active ||
-    row.is_release_canary_principal ||
-    row.role === 'service'
-  ) {
+  if (!row || !row.is_active || row.is_release_canary_principal || row.role === 'service') {
     fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
   }
   const grant = await withinBudget(
@@ -628,13 +665,15 @@ function receiptFromStored(
   const normalizedRow = {
     ...row,
     asOfDate: isoDay(row.asOfDate),
-    knowledgeCutoff: row.knowledgeCutoff instanceof Date
-      ? row.knowledgeCutoff
-      : new Date(row.knowledgeCutoff),
+    knowledgeCutoff:
+      row.knowledgeCutoff instanceof Date ? row.knowledgeCutoff : new Date(row.knowledgeCutoff),
     createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
   };
   const parsed = parsePersistedFactsRow(normalizedRow as never);
-  if (parsed.kind !== 'facts' || parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+  if (
+    parsed.kind !== 'facts' ||
+    parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+  ) {
     fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt is corrupt.');
   }
   const payload = parsed.snapshot.payload;
@@ -743,13 +782,22 @@ function expectedHeadTag(head: { id: number; snapshotInputHash: string } | null)
     : `"financial-facts:${head.id}:${head.snapshotInputHash}"`;
 }
 
-function validateHead(command: FrozenCommand, head: Awaited<ReturnType<typeof resolveTerminalFactsHead>>) {
-  if (head.kind === 'ambiguous') fail(409, 'FACTS_HEAD_AMBIGUOUS', 'Financial facts head ambiguous.');
-  if (head.kind === 'invalid') fail(409, 'FACTS_LINEAGE_INVALID', 'Financial facts lineage invalid.');
+function validateHead(
+  command: FrozenCommand,
+  head: Awaited<ReturnType<typeof resolveTerminalFactsHead>>
+) {
+  if (head.kind === 'ambiguous')
+    fail(409, 'FACTS_HEAD_AMBIGUOUS', 'Financial facts head ambiguous.');
+  if (head.kind === 'invalid')
+    fail(409, 'FACTS_LINEAGE_INVALID', 'Financial facts lineage invalid.');
   const row = head.kind === 'head' ? head.row : null;
   if (command.input.ifMatch !== expectedHeadTag(row)) {
-    fail(412, 'FACTS_HEAD_PRECONDITION_FAILED', 'Financial facts head changed.',
-      row === null ? undefined : { currentFactsSnapshotId: row.id });
+    fail(
+      412,
+      'FACTS_HEAD_PRECONDITION_FAILED',
+      'Financial facts head changed.',
+      row === null ? undefined : { currentFactsSnapshotId: row.id }
+    );
   }
   if (row && command.request.asOfDate < row.asOfDate) {
     fail(422, 'HISTORICAL_AS_OF_NOT_HEAD_ELIGIBLE', 'Historical as-of date cannot become head.');
@@ -766,19 +814,29 @@ function validateHead(command: FrozenCommand, head: Awaited<ReturnType<typeof re
       fail(422, 'INCOMPLETE_COVERAGE', 'Incremental coverage requires current policy-1.4 head.');
     }
     const predecessorPayload = FinancialFactsPayloadV5Schema.safeParse(row.payload);
-    if (!predecessorPayload.success || predecessorPayload.data.capitalActuals.ledgerCoverage !== 'complete') {
-      fail(422, 'INCOMPLETE_COVERAGE', 'Incremental coverage requires a complete predecessor basis.');
+    if (
+      !predecessorPayload.success ||
+      predecessorPayload.data.capitalActuals.ledgerCoverage !== 'complete'
+    ) {
+      fail(
+        422,
+        'INCOMPLETE_COVERAGE',
+        'Incremental coverage requires a complete predecessor basis.'
+      );
     }
   }
   return row;
 }
 
 async function assertPilotOwnership(connection: PublishConnection, fundId: number): Promise<void> {
-  const result = await connection.query<{ count: string }>(`
+  const result = await connection.query<{ count: string }>(
+    `
     SELECT (
       (SELECT count(*) FROM cash_flow_events WHERE fund_id = $1 AND imported_from IS DISTINCT FROM 'actuals_pilot_v1') +
       (SELECT count(*) FROM valuation_marks WHERE fund_id = $1 AND imported_from IS DISTINCT FROM 'actuals_pilot_v1')
-    )::text AS count`, [fundId]);
+    )::text AS count`,
+    [fundId]
+  );
   if (result.rows[0]?.count !== '0') {
     fail(409, 'FUND_LEDGER_NOT_PILOT_OWNED', 'Fund ledger is not pilot-owned.');
   }
@@ -855,15 +913,15 @@ async function insertArtifacts(
   for (const { kind, prepared, file } of files) {
     const idempotencyKey = `ap1:${kind}:${command.request.asOfDate}:${prepared.preview.previewHash}`;
     const requestHash = canonicalSha256({
-        contractVersion: 'actuals-pilot-source-artifact/1.0.0',
-        fundId: command.input.fundId,
-        asOfDate: command.request.asOfDate,
-        templateVersion: file.templateVersion,
-        payloadSha256: prepared.preview.payloadSha256,
-        byteCount: prepared.preview.byteCount,
-        canonicalRowsHash: prepared.preview.canonicalRowsHash,
-        previewHash: prepared.preview.previewHash,
-      });
+      contractVersion: 'actuals-pilot-source-artifact/1.0.0',
+      fundId: command.input.fundId,
+      asOfDate: command.request.asOfDate,
+      templateVersion: file.templateVersion,
+      payloadSha256: prepared.preview.payloadSha256,
+      byteCount: prepared.preview.byteCount,
+      canonicalRowsHash: prepared.preview.canonicalRowsHash,
+      previewHash: prepared.preview.previewHash,
+    });
     const existing = await connection.query<{
       id: number;
       sourceType: string;
@@ -873,16 +931,19 @@ async function insertArtifacts(
       payload: Buffer | null;
       purgedAt: Date | null;
       requestHash: string;
-    }>(`SELECT id, source_type AS "sourceType", media_type AS "mediaType",
+    }>(
+      `SELECT id, source_type AS "sourceType", media_type AS "mediaType",
       byte_count AS "byteCount", payload_sha256 AS "payloadSha256", payload,
       purged_at AS "purgedAt", request_hash AS "requestHash"
       FROM source_artifacts WHERE fund_id = $1 AND idempotency_key = $2`,
-    [command.input.fundId, idempotencyKey]);
+      [command.input.fundId, idempotencyKey]
+    );
     const prior = existing.rows[0];
     if (prior) {
-      const payloadStateCoherent = prior.purgedAt === null
-        ? prior.payload !== null && prior.payload.equals(Buffer.from(prepared.payload))
-        : prior.payload === null;
+      const payloadStateCoherent =
+        prior.purgedAt === null
+          ? prior.payload !== null && prior.payload.equals(Buffer.from(prepared.payload))
+          : prior.payload === null;
       if (
         prior.sourceType !== 'csv' ||
         prior.mediaType !== 'text/csv' ||
@@ -896,23 +957,26 @@ async function insertArtifacts(
       ids.set(kind, prior.id);
       continue;
     }
-    const inserted = await connection.query<{ id: number }>(`
+    const inserted = await connection.query<{ id: number }>(
+      `
       INSERT INTO source_artifacts
         (fund_id, source_type, file_name, media_type, byte_count, payload_sha256, payload,
          purge_after, created_by, idempotency_key, request_hash, created_at)
       VALUES ($1, 'csv', $2, 'text/csv', $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id`, [
-      command.input.fundId,
-      prepared.preview.sanitizedFileName,
-      prepared.preview.byteCount,
-      prepared.preview.payloadSha256,
-      Buffer.from(prepared.payload),
-      new Date(command.knowledgeCutoff.getTime() + 90 * 86_400_000),
-      command.input.actorId,
-      idempotencyKey,
-      requestHash,
-      command.knowledgeCutoff,
-    ]);
+      RETURNING id`,
+      [
+        command.input.fundId,
+        prepared.preview.sanitizedFileName,
+        prepared.preview.byteCount,
+        prepared.preview.payloadSha256,
+        Buffer.from(prepared.payload),
+        new Date(command.knowledgeCutoff.getTime() + 90 * 86_400_000),
+        command.input.actorId,
+        idempotencyKey,
+        requestHash,
+        command.knowledgeCutoff,
+      ]
+    );
     const id = inserted.rows[0]?.id;
     if (!id) fail(500, 'INTERNAL_ERROR', 'Source artifact insert failed.');
     ids.set(kind, id);
@@ -939,17 +1003,24 @@ async function insertCashRows(
     const fields = row.canonicalEconomicFields!;
     const offset = index * 12;
     const templateType = String(row.eventType);
-    const eventType = templateType === 'settled_contribution'
-      ? 'lp_capital_call'
-      : templateType === 'management_fee' || templateType === 'fund_expense'
-        ? 'fund_expense'
-        : templateType;
+    const eventType =
+      templateType === 'settled_contribution'
+        ? 'lp_capital_call'
+        : templateType === 'management_fee' || templateType === 'fund_expense'
+          ? 'fund_expense'
+          : templateType;
     const perspective = ['settled_contribution', 'lp_distribution'].includes(templateType)
       ? 'lp_net'
       : 'fund_gross';
     values.push(
-      command.input.fundId, row.vehicleId, row.companyId, eventType, row.canonicalAmount,
-      `${row.effectiveDate}T00:00:00.000Z`, perspective, fields['description'] ?? null,
+      command.input.fundId,
+      row.vehicleId,
+      row.companyId,
+      eventType,
+      row.canonicalAmount,
+      `${row.effectiveDate}T00:00:00.000Z`,
+      perspective,
+      fields['description'] ?? null,
       {
         contractVersion: 'actuals-pilot-cash-flow/1.0.0',
         sourceExternalRef: row.sourceExternalRef,
@@ -961,15 +1032,20 @@ async function insertCashRows(
         distributionType: fields['distributionType'] ?? null,
         recallable: fields['recallable'] ?? null,
       },
-      importBatchId, row.rowSourceHash, command.input.actorId
+      importBatchId,
+      row.rowSourceHash,
+      command.input.actorId
     );
     return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, 'approved', 'actuals_pilot_v1', $${offset + 10}, $${offset + 11}, $${offset + 12})`;
   });
-  const result = await connection.query<{ id: number }>(`
+  const result = await connection.query<{ id: number }>(
+    `
     INSERT INTO cash_flow_events
       (fund_id, vehicle_id, company_id, event_type, amount, currency, event_date, perspective,
        description, payload, status, imported_from, import_batch_id, source_hash, created_by)
-    VALUES ${tuples.join(', ')} RETURNING id`, values);
+    VALUES ${tuples.join(', ')} RETURNING id`,
+    values
+  );
   return result.rows.map(({ id }) => id).sort((a, b) => a - b);
 }
 
@@ -986,29 +1062,43 @@ async function insertMarks(
     const fields = row.canonicalEconomicFields!;
     const offset = index * 14;
     values.push(
-      command.input.fundId, row.vehicleId, row.companyId, row.effectiveDate, row.canonicalAmount,
-      fields['costBasis'] ?? null, fields['markSource'], fields['confidenceLevel'],
-      fields['valuationMethod'], command.input.actorId, importBatchId, row.rowSourceHash,
+      command.input.fundId,
+      row.vehicleId,
+      row.companyId,
+      row.effectiveDate,
+      row.canonicalAmount,
+      fields['costBasis'] ?? null,
+      fields['markSource'],
+      fields['confidenceLevel'],
+      fields['valuationMethod'],
+      command.input.actorId,
+      importBatchId,
+      row.rowSourceHash,
       JSON.stringify({
         contractVersion: 'actuals-pilot-valuation-mark/1.0.0',
         sourceExternalRef: row.sourceExternalRef,
         rowContentHash: row.rowContentHash,
         templateVersion: command.request.valuation?.templateVersion,
-      }), command.knowledgeCutoff
+      }),
+      command.knowledgeCutoff
     );
     return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, 'planning_company_fmv', $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 13}, 'approved', $${offset + 10}, $${offset + 14}, 'actuals_pilot_v1', $${offset + 11}, $${offset + 12})`;
   });
-  const result = await connection.query<{ id: number }>(`
+  const result = await connection.query<{ id: number }>(
+    `
     INSERT INTO valuation_marks
       (fund_id, vehicle_id, company_id, mark_date, as_of_date, fair_value, currency, cost_basis,
        mark_purpose, mark_source, confidence_level, valuation_method, methodology_notes, status,
        approved_by, approved_at, imported_from, import_batch_id, source_hash)
-    VALUES ${tuples.join(', ')} RETURNING id`, values);
+    VALUES ${tuples.join(', ')} RETURNING id`,
+    values
+  );
   return result.rows.map(({ id }) => id).sort((a, b) => a - b);
 }
 
 async function loadBasis(connection: PublishConnection, fundId: number, asOfDate: string) {
-  const cash = await connection.query<BasisCashRow>(`SELECT id, fund_id AS "fundId", vehicle_id AS "vehicleId",
+  const cash = await connection.query<BasisCashRow>(
+    `SELECT id, fund_id AS "fundId", vehicle_id AS "vehicleId",
       company_id AS "companyId", event_type AS "eventType", amount::text, currency,
       event_date AS "eventDate", perspective, description, payload, status,
       imported_from AS "importedFrom",
@@ -1016,8 +1106,10 @@ async function loadBasis(connection: PublishConnection, fundId: number, asOfDate
       reversal_of_event_id AS "reversalOfEventId"
       FROM cash_flow_events WHERE fund_id = $1 AND imported_from = 'actuals_pilot_v1'
         AND status IN ('approved','locked') AND event_date::date <= $2 ORDER BY event_date, id`,
-    [fundId, asOfDate]);
-  const marks = await connection.query<BasisMarkRow>(`SELECT id, fund_id AS "fundId", vehicle_id AS "vehicleId",
+    [fundId, asOfDate]
+  );
+  const marks = await connection.query<BasisMarkRow>(
+    `SELECT id, fund_id AS "fundId", vehicle_id AS "vehicleId",
       company_id AS "companyId", mark_date AS "markDate", as_of_date AS "asOfDate",
       fair_value::text AS "fairValue", currency, cost_basis::text AS "costBasis",
       mark_purpose AS "markPurpose", mark_source AS "markSource",
@@ -1026,17 +1118,25 @@ async function loadBasis(connection: PublishConnection, fundId: number, asOfDate
       source_hash AS "sourceHash"
       FROM valuation_marks WHERE fund_id = $1 AND imported_from = 'actuals_pilot_v1'
         AND status IN ('approved','locked') AND as_of_date <= $2 ORDER BY mark_date, id`,
-    [fundId, asOfDate]);
-  const vehicles = await connection.query<BasisVehicleRow>(`SELECT id AS "vehicleId", vehicle_type AS "vehicleType",
+    [fundId, asOfDate]
+  );
+  const vehicles = await connection.query<BasisVehicleRow>(
+    `SELECT id AS "vehicleId", vehicle_type AS "vehicleType",
       vehicle_slug AS "vehicleSlug", name, currency, committed_capital::text AS "committedCapital"
-      FROM vehicles WHERE fund_id = $1 AND status = 'active' ORDER BY id`, [fundId]);
+      FROM vehicles WHERE fund_id = $1 AND status = 'active' ORDER BY id`,
+    [fundId]
+  );
   return { cash: cash.rows, marks: marks.rows, vehicles: vehicles.rows };
 }
 
 function validateCumulativeBasisRows(basis: Awaited<ReturnType<typeof loadBasis>>): void {
   for (const row of basis.cash) {
     const payload = ActualsPilotCashFlowPayloadSchema.safeParse(row.payload);
-    if (!payload.success || row.sourceHash !== computeActualsPilotRowSourceHash(row.fundId, payload.data.sourceExternalRef)) {
+    if (
+      !payload.success ||
+      row.sourceHash !==
+        computeActualsPilotRowSourceHash(row.fundId, payload.data.sourceExternalRef)
+    ) {
       fail(409, 'FUND_LEDGER_NOT_PILOT_OWNED', 'Pilot cash-flow provenance is corrupt.');
     }
     const templateEventType = ledgerEventType(row, payload.data.expenseCategory);
@@ -1063,7 +1163,9 @@ function validateCumulativeBasisRows(basis: Awaited<ReturnType<typeof loadBasis>
   }
   for (const row of basis.marks) {
     const payload = parseStoredValuationPayload(row.methodologyNotes);
-    if (row.sourceHash !== computeActualsPilotRowSourceHash(row.fundId, payload.sourceExternalRef)) {
+    if (
+      row.sourceHash !== computeActualsPilotRowSourceHash(row.fundId, payload.sourceExternalRef)
+    ) {
       fail(409, 'FUND_LEDGER_NOT_PILOT_OWNED', 'Pilot valuation provenance is corrupt.');
     }
     const rowContentHash = computeActualsPilotRowContentHash({
@@ -1110,7 +1212,8 @@ async function assertCumulativeBasisMatchesReceipts(
     const visited = new Set<number>();
     let currentId: number | null = predecessorId;
     while (currentId !== null) {
-      if (visited.has(currentId)) fail(500, 'INTERNAL_ERROR', 'Pilot receipt lineage contains a cycle.');
+      if (visited.has(currentId))
+        fail(500, 'INTERNAL_ERROR', 'Pilot receipt lineage contains a cycle.');
       visited.add(currentId);
       const snapshot = byId.get(currentId);
       if (!snapshot) fail(500, 'INTERNAL_ERROR', 'Pilot receipt lineage is detached.');
@@ -1119,12 +1222,14 @@ async function assertCumulativeBasisMatchesReceipts(
         if (!payload.success) fail(500, 'INTERNAL_ERROR', 'Pilot predecessor payload is corrupt.');
         const core = payload.data.admissionReceiptCore;
         const normalizedAsOfDate = isoDay(snapshot.asOfDate);
-        const normalizedCutoff = snapshot.knowledgeCutoff instanceof Date
-          ? snapshot.knowledgeCutoff
-          : new Date(snapshot.knowledgeCutoff);
-        const predecessorHash = snapshot.supersedesSnapshotId === null
-          ? null
-          : byId.get(snapshot.supersedesSnapshotId)?.snapshotInputHash ?? null;
+        const normalizedCutoff =
+          snapshot.knowledgeCutoff instanceof Date
+            ? snapshot.knowledgeCutoff
+            : new Date(snapshot.knowledgeCutoff);
+        const predecessorHash =
+          snapshot.supersedesSnapshotId === null
+            ? null
+            : (byId.get(snapshot.supersedesSnapshotId)?.snapshotInputHash ?? null);
         const snapshotHash = buildSnapshotInputHash({
           fundId: snapshot.fundId,
           vehicleIds: snapshot.vehicleIds,
@@ -1138,7 +1243,8 @@ async function assertCumulativeBasisMatchesReceipts(
         if (
           snapshot.requestHash !== core.operationHash ||
           snapshot.snapshotInputHash !== snapshotHash ||
-          snapshot.sourceFactsInputHash !== computeSourceFactsInputHash(core, payload.data, predecessorHash) ||
+          snapshot.sourceFactsInputHash !==
+            computeSourceFactsInputHash(core, payload.data, predecessorHash) ||
           core.fundId !== snapshot.fundId ||
           core.asOfDate !== normalizedAsOfDate ||
           core.facts.supersedesSnapshotId !== snapshot.supersedesSnapshotId ||
@@ -1157,10 +1263,20 @@ async function assertCumulativeBasisMatchesReceipts(
     }
   }
   if (
-    !sameIds(basis.cash.map((row) => row.id), expectedRows) ||
-    !sameIds(basis.marks.map((row) => row.id), expectedMarks)
+    !sameIds(
+      basis.cash.map((row) => row.id),
+      expectedRows
+    ) ||
+    !sameIds(
+      basis.marks.map((row) => row.id),
+      expectedMarks
+    )
   ) {
-    fail(409, 'FUND_LEDGER_NOT_PILOT_OWNED', 'Pilot basis does not match admitted receipt lineage.');
+    fail(
+      409,
+      'FUND_LEDGER_NOT_PILOT_OWNED',
+      'Pilot basis does not match admitted receipt lineage.'
+    );
   }
 }
 
@@ -1193,7 +1309,8 @@ async function createPublication(
   }
   const vehicle = basis.vehicles[0]!;
   const committedCapital = vehicle.committedCapital;
-  if (committedCapital === null) fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Vehicle commitment unavailable.');
+  if (committedCapital === null)
+    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Vehicle commitment unavailable.');
   const ledgerRows: ActualsCalculatorLedgerRowV1[] = basis.cash.map((row) => {
     const storedPayload = ActualsPilotCashFlowPayloadSchema.parse(row.payload);
     return {
@@ -1205,21 +1322,31 @@ async function createPublication(
       resolvedVehicleId: row.vehicleId,
     };
   });
-  const roster = [...new Map(
-    ledgerRows.filter((row) => row.eventType === 'portfolio_investment')
-      .map((row) => [`${row.resolvedVehicleId}:${row.resolvedCompanyId}`, {
-        vehicleId: row.resolvedVehicleId, companyId: row.resolvedCompanyId,
-      }])
-  ).values()] as Array<{ vehicleId: number; companyId: number }>;
+  const roster = [
+    ...new Map(
+      ledgerRows
+        .filter((row) => row.eventType === 'portfolio_investment')
+        .map((row) => [
+          `${row.resolvedVehicleId}:${row.resolvedCompanyId}`,
+          {
+            vehicleId: row.resolvedVehicleId,
+            companyId: row.resolvedCompanyId,
+          },
+        ])
+    ).values(),
+  ] as Array<{ vehicleId: number; companyId: number }>;
   const currentValuationSourceHashes = new Set(
     valuation?.rows.flatMap((row) =>
       row.rowSourceHash !== null && (row.status === 'valid' || row.status === 'already_imported')
         ? [row.rowSourceHash]
-        : []) ?? []
+        : []
+    ) ?? []
   );
   const valuationMarks: ActualsCalculatorValuationMarkV1[] = basis.marks
-    .filter((row): row is BasisMarkRow & { vehicleId: number } =>
-      row.vehicleId !== null && currentValuationSourceHashes.has(row.sourceHash))
+    .filter(
+      (row): row is BasisMarkRow & { vehicleId: number } =>
+        row.vehicleId !== null && currentValuationSourceHashes.has(row.sourceHash)
+    )
     .map((row) => ({
       ...parseStoredValuationPayload(row.methodologyNotes),
       markId: row.id,
@@ -1228,9 +1355,10 @@ async function createPublication(
       positionFairValue: row.fairValue,
       markDate: isoDay(row.markDate),
       markSource: row.markSource,
-      confidenceLevel: row.confidenceLevel === 'high' || row.confidenceLevel === 'low'
-        ? row.confidenceLevel
-        : 'medium',
+      confidenceLevel:
+        row.confidenceLevel === 'high' || row.confidenceLevel === 'low'
+          ? row.confidenceLevel
+          : 'medium',
       externalRefHash: row.sourceHash,
     }));
   const calculator = calculateActualsV1({
@@ -1238,7 +1366,11 @@ async function createPublication(
     vehicleCommitment: {
       vehicleId: vehicle.vehicleId,
       amount: committedCapital,
-      sourceHash: canonicalSha256({ fundId: command.input.fundId, vehicleId: vehicle.vehicleId, amount: committedCapital }),
+      sourceHash: canonicalSha256({
+        fundId: command.input.fundId,
+        vehicleId: vehicle.vehicleId,
+        amount: committedCapital,
+      }),
     },
     roster,
     valuationMarks,
@@ -1278,16 +1410,17 @@ async function createPublication(
         approvedRowIds,
         approvedCount: approvedRowIds.length,
       },
-      valuation: valuation && artifacts.valuationId
-        ? {
-            sourceArtifactId: artifacts.valuationId,
-            payloadSha256: valuation.preview.payloadSha256,
-            canonicalRowsHash: valuation.preview.canonicalRowsHash,
-            previewHash: valuation.preview.previewHash,
-            approvedMarkIds,
-            approvedCount: approvedMarkIds.length,
-          }
-        : null,
+      valuation:
+        valuation && artifacts.valuationId
+          ? {
+              sourceArtifactId: artifacts.valuationId,
+              payloadSha256: valuation.preview.payloadSha256,
+              canonicalRowsHash: valuation.preview.canonicalRowsHash,
+              previewHash: valuation.preview.previewHash,
+              approvedMarkIds,
+              approvedCount: approvedMarkIds.length,
+            }
+          : null,
       importBatchId,
     },
     facts: {
@@ -1310,7 +1443,10 @@ async function createPublication(
   });
   const consumerEvaluations = evaluatePayload5Consumers(payload);
   const sourceFactsInputHash = canonicalSha256({
-    templateVersions: [command.request.ledger.templateVersion, command.request.valuation?.templateVersion ?? null],
+    templateVersions: [
+      command.request.ledger.templateVersion,
+      command.request.valuation?.templateVersion ?? null,
+    ],
     fundId: command.input.fundId,
     asOfDate: command.request.asOfDate,
     ledgerPayloadSha256: ledger.preview.payloadSha256,
@@ -1332,7 +1468,8 @@ async function createPublication(
     selectionSetHash: EMPTY_SELECTION_SET_HASH,
     payload,
   });
-  const inserted = await connection.query<SnapshotRow>(`
+  const inserted = await connection.query<SnapshotRow>(
+    `
     INSERT INTO financial_facts_snapshots
       (fund_id, policy_version, payload_schema_id, as_of_date, knowledge_cutoff, vehicle_scope,
        vehicle_ids, selection_set_hash, source_facts_input_hash, snapshot_input_hash, payload,
@@ -1346,11 +1483,24 @@ async function createPublication(
       payload, consumer_evaluations AS "consumerEvaluations", actor_id AS "actorId",
       idempotency_key AS "idempotencyKey", request_hash AS "requestHash",
       supersedes_snapshot_id AS "supersedesSnapshotId", created_at AS "createdAt"`,
-    [command.input.fundId, FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
-      FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5, command.request.asOfDate, command.knowledgeCutoff,
-      JSON.stringify([vehicle.vehicleId]), EMPTY_SELECTION_SET_HASH, sourceFactsInputHash, snapshotInputHash,
-      JSON.stringify(payload), JSON.stringify(consumerEvaluations), command.input.actorId, command.input.idempotencyKey,
-      command.operationHash, head?.id ?? null]);
+    [
+      command.input.fundId,
+      FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+      FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+      command.request.asOfDate,
+      command.knowledgeCutoff,
+      JSON.stringify([vehicle.vehicleId]),
+      EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash,
+      snapshotInputHash,
+      JSON.stringify(payload),
+      JSON.stringify(consumerEvaluations),
+      command.input.actorId,
+      command.input.idempotencyKey,
+      command.operationHash,
+      head?.id ?? null,
+    ]
+  );
   const row = inserted.rows[0];
   if (!row) fail(500, 'INTERNAL_ERROR', 'Financial facts insert failed.');
   return receiptFromStored(row, command, head?.snapshotInputHash ?? null);
@@ -1361,13 +1511,23 @@ async function mutationAttempt(
   command: FrozenCommand,
   monotonicNow: () => number
 ): Promise<AttemptResult> {
-  await withinBudget(command, monotonicNow,
-    connection.query('BEGIN ISOLATION LEVEL SERIALIZABLE'), 'PUBLISH_RETRY_EXHAUSTED');
+  await withinBudget(
+    command,
+    monotonicNow,
+    connection.query('BEGIN ISOLATION LEVEL SERIALIZABLE'),
+    'PUBLISH_RETRY_EXHAUSTED'
+  );
+  if (command.input.context) await applyRLSContext(connection as never, command.input.context);
   await configureTransaction(connection, command, monotonicNow);
   await acquireFundLock(connection, command, monotonicNow, 'PUBLISH_RETRY_EXHAUSTED');
   await configureTransaction(connection, command, monotonicNow, true);
   await authorizeActor(connection, command, monotonicNow, 'PUBLISH_RETRY_EXHAUSTED');
-  const candidate = await loadReceiptCandidate(connection, command, monotonicNow, 'PUBLISH_RETRY_EXHAUSTED');
+  const candidate = await loadReceiptCandidate(
+    connection,
+    command,
+    monotonicNow,
+    'PUBLISH_RETRY_EXHAUSTED'
+  );
   if (candidate) {
     return {
       kind: 'replay',
@@ -1382,37 +1542,56 @@ async function mutationAttempt(
   }
   const database = databaseFor(connection) as never;
   assertBudget(command, monotonicNow);
-  const head = validateHead(command, await resolveTerminalFactsHead(database, command.input.fundId));
+  const head = validateHead(
+    command,
+    await resolveTerminalFactsHead(database, command.input.fundId)
+  );
   await lockPublicationScope(connection, command);
   await assertPilotOwnership(connection, command.input.fundId);
   const preliminaryLedger = await prepareActualsPilotPreview(
-    { fundId: command.input.fundId, request: previewRequest(command.request.ledger, command.request.asOfDate) },
+    {
+      fundId: command.input.fundId,
+      request: previewRequest(command.request.ledger, command.request.asOfDate),
+    },
     { database }
   );
   const preliminaryValuation = command.request.valuation
     ? await prepareActualsPilotPreview(
-        { fundId: command.input.fundId, request: previewRequest(command.request.valuation, command.request.asOfDate) },
+        {
+          fundId: command.input.fundId,
+          request: previewRequest(command.request.valuation, command.request.asOfDate),
+        },
         { database }
       )
     : null;
   await lockPublicationScope(connection, command, [
-    ...preliminaryLedger.rows.flatMap((row) => row.companyId === null ? [] : [row.companyId]),
-    ...(preliminaryValuation?.rows.flatMap((row) => row.companyId === null ? [] : [row.companyId]) ?? []),
+    ...preliminaryLedger.rows.flatMap((row) => (row.companyId === null ? [] : [row.companyId])),
+    ...(preliminaryValuation?.rows.flatMap((row) =>
+      row.companyId === null ? [] : [row.companyId]
+    ) ?? []),
   ]);
   assertBudget(command, monotonicNow);
   const ledger = await prepareActualsPilotPreview(
-    { fundId: command.input.fundId, request: previewRequest(command.request.ledger, command.request.asOfDate) },
+    {
+      fundId: command.input.fundId,
+      request: previewRequest(command.request.ledger, command.request.asOfDate),
+    },
     { database }
   );
   validatePrepared('ledger', ledger, command.request.ledger);
   const valuation = command.request.valuation
     ? await prepareActualsPilotPreview(
-        { fundId: command.input.fundId, request: previewRequest(command.request.valuation, command.request.asOfDate) },
+        {
+          fundId: command.input.fundId,
+          request: previewRequest(command.request.valuation, command.request.asOfDate),
+        },
         { database }
       )
     : null;
-  if (valuation && command.request.valuation) validatePrepared('valuation', valuation, command.request.valuation);
-  const netNewCount = acceptedRows(ledger.rows).length + (valuation ? acceptedRows(valuation.rows).length : 0);
+  if (valuation && command.request.valuation)
+    validatePrepared('valuation', valuation, command.request.valuation);
+  const netNewCount =
+    acceptedRows(ledger.rows).length + (valuation ? acceptedRows(valuation.rows).length : 0);
   if (netNewCount === 0) fail(422, 'INVALID_CSV', 'Publish requires at least one net-new row.');
   if (
     command.request.coverage.ledger === 'incremental_since_prior_head' &&
@@ -1430,13 +1609,23 @@ async function reconciliationOracle(
   command: FrozenCommand,
   monotonicNow: () => number
 ): Promise<{ receipt: ActualsPublishReceiptV1 | null; destroyConnection: boolean }> {
-  await withinBudget(command, monotonicNow, connection.query('BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE'),
-    'MUTATION_OUTCOME_UNKNOWN');
+  await withinBudget(
+    command,
+    monotonicNow,
+    connection.query('BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE'),
+    'MUTATION_OUTCOME_UNKNOWN'
+  );
+  if (command.input.context) await applyRLSContext(connection as never, command.input.context);
   await configureTransaction(connection, command, monotonicNow, false, 'MUTATION_OUTCOME_UNKNOWN');
   await acquireFundLock(connection, command, monotonicNow, 'MUTATION_OUTCOME_UNKNOWN');
   await configureTransaction(connection, command, monotonicNow, true, 'MUTATION_OUTCOME_UNKNOWN');
   await authorizeActor(connection, command, monotonicNow, 'MUTATION_OUTCOME_UNKNOWN');
-  const candidate = await loadReceiptCandidate(connection, command, monotonicNow, 'MUTATION_OUTCOME_UNKNOWN');
+  const candidate = await loadReceiptCandidate(
+    connection,
+    command,
+    monotonicNow,
+    'MUTATION_OUTCOME_UNKNOWN'
+  );
   const receipt = candidate
     ? await projectStoredReceipt(
         connection,
@@ -1447,7 +1636,12 @@ async function reconciliationOracle(
       )
     : null;
   try {
-    await withinBudget(command, monotonicNow, connection.query('COMMIT'), 'MUTATION_OUTCOME_UNKNOWN');
+    await withinBudget(
+      command,
+      monotonicNow,
+      connection.query('COMMIT'),
+      'MUTATION_OUTCOME_UNKNOWN'
+    );
     return { receipt, destroyConnection: false };
   } catch {
     return { receipt, destroyConnection: true };
@@ -1475,8 +1669,13 @@ export async function publishActualsPilot(
 ): Promise<ActualsPilotPublishResult> {
   const now = options.now ?? (() => new Date());
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
-  const sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const sleep =
+    options.sleep ??
+    ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const command = frozenCommand(input, now, monotonicNow);
+  if (!command.input.context && !options.connect) {
+    fail(404, 'RESOURCE_NOT_FOUND', 'Organization context required.');
+  }
   await preflightFile(command.input.fundId, command.request.asOfDate, command.request.ledger);
   if (command.request.valuation) {
     await preflightFile(command.input.fundId, command.request.asOfDate, command.request.valuation);
@@ -1489,8 +1688,13 @@ export async function publishActualsPilot(
   while (mutationAttempts < MAX_MUTATION_ATTEMPTS) {
     mutationAttempts += 1;
     assertBudget(command, monotonicNow);
-    const rawConnection = await withinBudget(command, monotonicNow, connect(),
-      'PUBLISH_RETRY_EXHAUSTED', (late) => late.release(true));
+    const rawConnection = await withinBudget(
+      command,
+      monotonicNow,
+      connect(),
+      'PUBLISH_RETRY_EXHAUSTED',
+      (late) => late.release(true)
+    );
     const connection = budgetedConnection(
       rawConnection,
       command,
@@ -1506,7 +1710,9 @@ export async function publishActualsPilot(
         fail(503, 'PUBLISH_RETRY_EXHAUSTED', 'Post-ambiguity publication retry exhausted.');
       }
       if (isWholeTransactionRetry(error) && mutationAttempts < MAX_MUTATION_ATTEMPTS) {
-        await sleep(Math.min(25 * 2 ** (mutationAttempts - 1), Math.max(0, remaining(command, monotonicNow))));
+        await sleep(
+          Math.min(25 * 2 ** (mutationAttempts - 1), Math.max(0, remaining(command, monotonicNow)))
+        );
         continue;
       }
       if (isWholeTransactionRetry(error)) {
@@ -1516,7 +1722,12 @@ export async function publishActualsPilot(
     }
 
     try {
-      await withinBudget(command, monotonicNow, connection.query('COMMIT'), 'PUBLISH_RETRY_EXHAUSTED');
+      await withinBudget(
+        command,
+        monotonicNow,
+        connection.query('COMMIT'),
+        'PUBLISH_RETRY_EXHAUSTED'
+      );
       connection.release();
     } catch (commitError) {
       const state = sqlState(commitError);
@@ -1524,10 +1735,16 @@ export async function publishActualsPilot(
       if (RETRYABLE_SQLSTATES.has(state ?? '') && postAmbiguityMutationUsed) {
         fail(503, 'PUBLISH_RETRY_EXHAUSTED', 'Post-ambiguity publication retry exhausted.');
       }
-      if (RETRYABLE_SQLSTATES.has(state ?? '') && mutationAttempts < MAX_MUTATION_ATTEMPTS) continue;
+      if (RETRYABLE_SQLSTATES.has(state ?? '') && mutationAttempts < MAX_MUTATION_ATTEMPTS)
+        continue;
 
-      const rawOracleConnection = await withinBudget(command, monotonicNow, connect(),
-        'MUTATION_OUTCOME_UNKNOWN', (late) => late.release(true));
+      const rawOracleConnection = await withinBudget(
+        command,
+        monotonicNow,
+        connect(),
+        'MUTATION_OUTCOME_UNKNOWN',
+        (late) => late.release(true)
+      );
       const oracleConnection = budgetedConnection(
         rawOracleConnection,
         command,
@@ -1550,7 +1767,12 @@ export async function publishActualsPilot(
             if (remaining(command, monotonicNow) > 0) {
               const afterCommit = options.afterCommit?.(recovered);
               if (afterCommit) {
-              await withinBudget(command, monotonicNow, Promise.resolve(afterCommit), 'PUBLISH_RETRY_EXHAUSTED');
+                await withinBudget(
+                  command,
+                  monotonicNow,
+                  Promise.resolve(afterCommit),
+                  'PUBLISH_RETRY_EXHAUSTED'
+                );
               }
             }
           } catch {
@@ -1578,10 +1800,15 @@ export async function publishActualsPilot(
           oracleError instanceof ActualsPilotPublishError &&
           oracleError.code !== 'PUBLISH_RETRY_EXHAUSTED' &&
           oracleError.code !== 'MUTATION_OUTCOME_UNKNOWN'
-        ) throw oracleError;
+        )
+          throw oracleError;
         fail(503, 'MUTATION_OUTCOME_UNKNOWN', 'Publication outcome could not be proven.');
       }
-      if (postAmbiguityMutationUsed || mutationAttempts >= MAX_MUTATION_ATTEMPTS || remaining(command, monotonicNow) < 1_000) {
+      if (
+        postAmbiguityMutationUsed ||
+        mutationAttempts >= MAX_MUTATION_ATTEMPTS ||
+        remaining(command, monotonicNow) < 1_000
+      ) {
         fail(503, 'PUBLISH_RETRY_EXHAUSTED', 'Publication retry exhausted.');
       }
       postAmbiguityMutationUsed = true;
@@ -1599,7 +1826,12 @@ export async function publishActualsPilot(
       if (remaining(command, monotonicNow) > 0) {
         const afterCommit = options.afterCommit?.(response);
         if (afterCommit) {
-          await withinBudget(command, monotonicNow, Promise.resolve(afterCommit), 'PUBLISH_RETRY_EXHAUSTED');
+          await withinBudget(
+            command,
+            monotonicNow,
+            Promise.resolve(afterCommit),
+            'PUBLISH_RETRY_EXHAUSTED'
+          );
         }
       }
     } catch {
@@ -1629,6 +1861,7 @@ export async function publishActualsPilot(
 export const actualsPilotPublishTestSeams = {
   budgetedConnection,
   mutationAttempt,
+  reconciliationOracle,
   rollbackAndRelease,
   withinBudget,
 };

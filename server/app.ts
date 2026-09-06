@@ -17,6 +17,9 @@ import { cspDirectives, securityHeaders } from './config/csp.js';
 import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
+import { createErrorBody, sendApiError } from './lib/apiError.js';
+import { protectedRLSTransaction } from './middleware/with-rls-transaction.js';
+import { createRateLimitStore } from './lib/rateLimitStore.js';
 import { requireCsrf } from './lib/auth/csrf.js';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
 import {
@@ -105,6 +108,17 @@ export function makeApp() {
 
   const rateLimitWindowMs = Number(process.env['RATE_LIMIT_WINDOW_MS'] || '60000');
   const rateLimitMax = Number(process.env['RATE_LIMIT_MAX'] || '60');
+  const rateLimitExemptGetPaths = new Set([
+    '/healthz',
+    '/readyz',
+    '/health',
+    '/health/ready',
+    '/health/live',
+    '/api/health',
+    '/api/health/ready',
+    '/api/health/live',
+    '/api/version',
+  ]);
 
   const artifactRawParser = express.raw({
     type: [...ARTIFACT_RAW_MEDIA_TYPES],
@@ -146,7 +160,27 @@ export function makeApp() {
     res.setHeader('x-request-id', requestId);
     next();
   });
-  app.use(rateLimit({ windowMs: rateLimitWindowMs, max: rateLimitMax, standardHeaders: true }));
+  const limiter = createRateLimitStore(
+    process.env['NODE_ENV'] === 'production' ||
+      process.env['VERCEL'] === '1' ||
+      Boolean(process.env['VERCEL_ENV'])
+  ).then(
+    (store) =>
+      rateLimit({
+        windowMs: rateLimitWindowMs,
+        max: rateLimitMax,
+        standardHeaders: true,
+        ...(store && { store }),
+      }),
+    (error: unknown) => (_req: Request, _res: Response, next: NextFunction) => next(error)
+  );
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'GET' && rateLimitExemptGetPaths.has(req.path)) {
+      return next();
+    }
+
+    (await limiter)(req, res, next);
+  });
 
   // API Documentation landing page
   app['get']('/api-docs', (_req: Request, res: Response) => {
@@ -204,6 +238,7 @@ export function makeApp() {
   // authentication has identified the credential source and before any route.
   // Public unauthenticated routes pass here; login has its own pre-auth token.
   app.use('/api', requireCsrf);
+  app.use('/api', protectedRLSTransaction());
 
   mountCommonRoutes(app, { surface: 'make_app', group: 'pre_runtime' });
 
@@ -225,7 +260,9 @@ export function makeApp() {
   mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' });
 
   // 404 + error handler
-  app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
+  app.use((req: Request, res: Response) =>
+    sendApiError(res, 404, createErrorBody('not_found', req.requestId))
+  );
   app.use(errorHandler());
 
   return app;

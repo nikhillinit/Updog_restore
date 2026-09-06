@@ -226,10 +226,9 @@ export function selectNAV(data: FundData, asOf?: string): number {
   const relevantInvestments = filterByDate(data.investments, 'investmentDate', asOf);
 
   // Calculate portfolio value (sum of current investment values)
+  const valuationDate = asOf ? new Date(asOf) : new Date();
   const portfolioValue = relevantInvestments
-    .filter(
-      (inv) => inv.isActive || (inv.exitDate && (!asOf || new Date(inv.exitDate) <= new Date(asOf)))
-    )
+    .filter((inv) => !inv.exitDate || new Date(inv.exitDate) > valuationDate)
     .reduce((total, inv) => {
       return total + selectInvestmentValue(inv, data.valuations, asOf);
     }, 0);
@@ -238,6 +237,12 @@ export function selectNAV(data: FundData, asOf?: string): number {
   const called = selectCalled(data, asOf);
   const invested = selectInvested(data, asOf);
   const distributions = selectDistributions(data, asOf);
+  const realizedProceeds = relevantInvestments
+    .filter((investment) => {
+      if (!investment.exitDate || investment.exitAmount == null) return false;
+      return new Date(investment.exitDate) <= valuationDate;
+    })
+    .reduce((total, investment) => total + (investment.exitAmount ?? 0), 0);
 
   // Calculate fees paid
   const relevantFees = filterByDate(data.feeExpenses, 'expenseDate', asOf);
@@ -246,7 +251,7 @@ export function selectNAV(data: FundData, asOf?: string): number {
     .reduce((total, fee) => total + fee.amount, 0);
 
   // Cash = Called - Invested - Distributions - Fees Paid
-  const cash = called - invested - distributions - feesPaid;
+  const cash = called - invested + realizedProceeds - distributions - feesPaid;
 
   // For simplicity, we don't track liabilities separately
   // In production, you'd want to include accrued fees and other payables

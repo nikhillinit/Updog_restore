@@ -11,8 +11,7 @@
  * @version 3.0 - Streaming Architecture
  */
 
-import { Pool } from '@neondatabase/serverless';
-import { drizzle, type NeonDatabase } from 'drizzle-orm/neon-serverless';
+import { db, runWithDatabaseContext } from '../db';
 import * as schema from '@shared/schema';
 import type { InsertMonteCarloSimulation, FundBaseline } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -32,10 +31,13 @@ import type {
   ScenarioAnalysis,
   ActionableInsights,
   PerformanceDistribution,
+  MonteCarloDataSource,
+  MonteCarloContextRunner,
 } from './monte-carlo-engine';
+import type { UserContext } from '../lib/secure-context';
 import { applyMarketParametersOverride } from './lib/distribution-overrides';
 
-type StreamingDatabase = NeonDatabase<typeof schema> & { $client: Pool };
+type StreamingDatabase = MonteCarloDataSource;
 
 // ============================================================================
 // STREAMING TYPES & INTERFACES
@@ -225,73 +227,6 @@ export function calculateStreamingRiskMetricsFromDistributions(
 }
 
 // ============================================================================
-// CONNECTION POOL MANAGER
-// ============================================================================
-
-const DEFAULT_CONNECTION_TIMEOUT_MS = 5000;
-
-function resolveConnectionTimeoutMs(): number {
-  const timeout = Number(process.env['CONNECTION_TIMEOUT_MS']);
-
-  if (Number.isFinite(timeout) && timeout > 0) {
-    return timeout;
-  }
-
-  return DEFAULT_CONNECTION_TIMEOUT_MS;
-}
-
-class ConnectionPoolManager {
-  private pools: Map<string, Pool> = new Map();
-  private readonly maxPoolSize = 10;
-  private readonly idleTimeoutMs = 30000;
-  private readonly connectionTimeoutMs = resolveConnectionTimeoutMs();
-
-  async getPool(connectionString?: string): Promise<Pool> {
-    const connStr = connectionString || process.env['DATABASE_URL'];
-
-    if (!connStr) {
-      throw new Error(
-        'DATABASE_URL environment variable is not set. ' +
-          'StreamingMonteCarloEngine requires a database connection.'
-      );
-    }
-
-    const poolKey = this.hashConnectionString(connStr);
-
-    if (!this.pools.has(poolKey)) {
-      const pool = new Pool({
-        connectionString: connStr,
-        max: this.maxPoolSize,
-        idleTimeoutMillis: this.idleTimeoutMs,
-        connectionTimeoutMillis: this.connectionTimeoutMs,
-      });
-
-      this.pools['set'](poolKey, pool);
-    }
-
-    return this.pools['get'](poolKey)!;
-  }
-
-  async closeAll(): Promise<void> {
-    const closePromises = Array.from(this.pools.values()).map((pool) => pool['end']());
-    await Promise.all(closePromises);
-    this.pools.clear();
-  }
-
-  private hashConnectionString(connStr: string): string {
-    // Simple hash for connection string (remove sensitive parts)
-    return Buffer.from(connStr.split('@')[1] || connStr).toString('base64');
-  }
-
-  getStats() {
-    return {
-      activeConnections: this.pools.size,
-      pools: Array.from(this.pools.keys()),
-    };
-  }
-}
-
-// ============================================================================
 // STREAMING AGGREGATOR
 // ============================================================================
 
@@ -461,40 +396,30 @@ class StreamingAggregator {
 // ============================================================================
 
 export class StreamingMonteCarloEngine {
-  private connectionManager = new ConnectionPoolManager();
-  private db: StreamingDatabase | null = null;
-  private dbInitPromise: Promise<void> | null = null;
+  private dataSource: StreamingDatabase;
+  private contextRunner: MonteCarloContextRunner;
   private currentStats: StreamingStats | null = null;
 
-  constructor() {
-    // Lazy initialization - don't connect to DB until actually needed
-    // This allows the engine to be instantiated in test environments
-    // without requiring DATABASE_URL
-  }
-
-  private async ensureDatabase(): Promise<StreamingDatabase> {
-    if (this.db) {
-      return this.db;
-    }
-
-    // Prevent concurrent initialization
-    if (!this.dbInitPromise) {
-      this.dbInitPromise = this.initializeDatabase();
-    }
-
-    await this.dbInitPromise;
-    return this.db!;
-  }
-
-  private async initializeDatabase(): Promise<void> {
-    const pool = await this.connectionManager.getPool();
-    this.db = drizzle<typeof schema>({ client: pool, schema });
+  constructor(
+    dataSource: StreamingDatabase = db as unknown as StreamingDatabase,
+    contextRunner?: MonteCarloContextRunner
+  ) {
+    this.dataSource = dataSource;
+    this.contextRunner =
+      contextRunner ??
+      ((context, operation) =>
+        runWithDatabaseContext(context, async (database) =>
+          operation(database as unknown as MonteCarloDataSource)
+        ));
   }
 
   /**
    * Main streaming simulation method
    */
-  async runStreamingSimulation(config: StreamingConfig): Promise<SimulationResults> {
+  async runStreamingSimulation(
+    config: StreamingConfig,
+    context?: UserContext
+  ): Promise<SimulationResults> {
     const startTime = Date.now();
     const simulationId = uuidv4();
 
@@ -507,15 +432,27 @@ export class StreamingMonteCarloEngine {
       this.initializeStats(streamingConfig);
 
       // Get baseline data
-      const baseline = await this.getBaselineData(
-        streamingConfig.fundId,
-        streamingConfig.baselineId
-      );
-      const portfolioInputs = await this.getPortfolioInputs(streamingConfig.fundId, baseline);
-      const distributions = await this.calibrateDistributions(
-        streamingConfig.fundId,
-        baseline,
-        streamingConfig
+      const { baseline, portfolioInputs, distributions } = await this.withDataSource(
+        context,
+        async (dataSource) => {
+          const baseline = await this.getBaselineData(
+            streamingConfig.fundId,
+            streamingConfig.baselineId,
+            dataSource
+          );
+          const portfolioInputs = await this.getPortfolioInputs(
+            streamingConfig.fundId,
+            baseline,
+            dataSource
+          );
+          const distributions = await this.calibrateDistributions(
+            streamingConfig.fundId,
+            baseline,
+            streamingConfig,
+            dataSource
+          );
+          return { baseline, portfolioInputs, distributions };
+        }
       );
 
       // Set random seed for reproducibility
@@ -590,15 +527,12 @@ export class StreamingMonteCarloEngine {
       };
 
       // Store results
-      await this.storeResults(results);
+      await this.storeResults(results, context);
 
       return results;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Streaming Monte Carlo simulation failed: ${errorMessage}`);
-    } finally {
-      // Cleanup resources
-      await this.cleanup();
     }
   }
 
@@ -915,14 +849,24 @@ export class StreamingMonteCarloEngine {
     return result;
   }
 
+  private async withDataSource<T>(
+    context: UserContext | undefined,
+    operation: (dataSource: StreamingDatabase) => Promise<T>
+  ): Promise<T> {
+    return context ? this.contextRunner(context, operation) : operation(this.dataSource);
+  }
+
   // Reuse existing methods from the original engine
-  private async getBaselineData(fundId: number, baselineId?: string): Promise<FundBaseline> {
+  private async getBaselineData(
+    fundId: number,
+    baselineId?: string,
+    dataSource: StreamingDatabase = this.dataSource
+  ): Promise<FundBaseline> {
     // Implementation same as original engine
-    const db = await this.ensureDatabase();
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await db.query.fundBaselines.findFirst({
+      baseline = await dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.id, baselineId),
           eq(schema.fundBaselines.fundId, fundId),
@@ -930,7 +874,7 @@ export class StreamingMonteCarloEngine {
         ),
       });
     } else {
-      baseline = await db.query.fundBaselines.findFirst({
+      baseline = await dataSource.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isDefault, true),
@@ -948,11 +892,11 @@ export class StreamingMonteCarloEngine {
 
   private async getPortfolioInputs(
     fundId: number,
-    baseline: FundBaseline
+    baseline: FundBaseline,
+    dataSource: StreamingDatabase = this.dataSource
   ): Promise<PortfolioInputs> {
     // Implementation same as original engine
-    const db = await this.ensureDatabase();
-    const fund = await db.query.funds.findFirst({
+    const fund = await dataSource.query.funds.findFirst({
       where: eq(schema.funds.id, fundId),
     });
 
@@ -999,11 +943,11 @@ export class StreamingMonteCarloEngine {
   private async calibrateDistributions(
     fundId: number,
     baseline: FundBaseline,
-    config?: SimulationConfig
+    config?: SimulationConfig,
+    dataSource: StreamingDatabase = this.dataSource
   ): Promise<DistributionParameters> {
     // Implementation same as original engine
-    const db = await this.ensureDatabase();
-    const reports = await db.query.varianceReports.findMany({
+    const reports = await dataSource.query.varianceReports.findMany({
       where: and(
         eq(schema.varianceReports.fundId, fundId),
         eq(schema.varianceReports.baselineId, baseline.id)
@@ -1178,8 +1122,7 @@ export class StreamingMonteCarloEngine {
     };
   }
 
-  private async storeResults(results: SimulationResults): Promise<void> {
-    const db = await this.ensureDatabase();
+  private async storeResults(results: SimulationResults, context?: UserContext): Promise<void> {
     const simulationData: InsertMonteCarloSimulation = {
       fundId: results.config.fundId,
       simulationName: `Streaming Monte Carlo Simulation ${new Date().toISOString()}`,
@@ -1190,7 +1133,9 @@ export class StreamingMonteCarloEngine {
       createdBy: results.config.createdBy ?? SYSTEM_ACTOR_ID,
     };
 
-    await db.insert(schema.monteCarloSimulations).values(simulationData);
+    await this.withDataSource(context, async (dataSource) => {
+      await dataSource.insert(schema.monteCarloSimulations).values(simulationData);
+    });
   }
 
   private setRandomSeed(seed: number): void {
@@ -1208,10 +1153,6 @@ export class StreamingMonteCarloEngine {
     return mean + z0 * stdDev;
   }
 
-  private async cleanup(): Promise<void> {
-    await this.connectionManager.closeAll();
-  }
-
   /**
    * Get current streaming statistics
    */
@@ -1223,7 +1164,7 @@ export class StreamingMonteCarloEngine {
    * Get connection pool statistics
    */
   getConnectionStats() {
-    return this.connectionManager.getStats();
+    return null;
   }
 }
 

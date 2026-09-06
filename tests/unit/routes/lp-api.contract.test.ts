@@ -118,7 +118,19 @@ const calculatorState = vi.hoisted(() => ({
   calculatePerformance: vi.fn(),
 }));
 
+const storageState = vi.hoisted(() => ({
+  exists: vi.fn(async () => true),
+  getSignedUrl: vi.fn(async () => {
+    throw new Error('signed URLs unavailable');
+  }),
+}));
+
 const routeLoggerState = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn() }));
+const metricsState = vi.hoisted(() => ({ recordError: vi.fn() }));
+const auditState = vi.hoisted(() => ({
+  reportPersistenceFails: false,
+  logReportGeneration: vi.fn(),
+}));
 
 const lpAccessState = vi.hoisted(() => ({ mode: 'lp' as 'lp' | 'non-lp' }));
 
@@ -181,6 +193,10 @@ vi.mock('../../../server/services/lp-calculator', () => ({
   lpCalculator: calculatorState,
 }));
 
+vi.mock('../../../server/services/storage-service.js', () => ({
+  getStorageService: () => storageState,
+}));
+
 vi.mock('../../../server/queues/report-generation-queue', () => ({
   isReportQueueAvailable: vi.fn(() => true),
   enqueueReportGeneration: vi.fn(async () => ({ jobId: 'job-1', estimatedWaitMs: 0 })),
@@ -189,7 +205,7 @@ vi.mock('../../../server/queues/report-generation-queue', () => ({
 vi.mock('../../../server/observability/lp-metrics', () => ({
   recordLPRequest: vi.fn(),
   recordCacheHit: vi.fn(),
-  recordError: vi.fn(),
+  recordError: metricsState.recordError,
   recordDataPoints: vi.fn(),
   startTimer: vi.fn(() => () => 0),
 }));
@@ -205,7 +221,7 @@ vi.mock('../../../server/services/lp-audit-logger', () => {
       logHoldingsView: noop,
       logPerformanceView: noop,
       logBenchmarkView: noop,
-      logReportGeneration: noop,
+      logReportGeneration: auditState.logReportGeneration,
       logReportListView: noop,
       logReportStatusView: noop,
       logReportDownload: noop,
@@ -277,6 +293,16 @@ function resetState() {
   vi.mocked(enqueueReportGeneration).mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 0 });
   routeLoggerState.error.mockReset();
   routeLoggerState.warn.mockReset();
+  metricsState.recordError.mockReset();
+  auditState.reportPersistenceFails = false;
+  auditState.logReportGeneration.mockReset();
+  auditState.logReportGeneration.mockImplementation(async () => {
+    if (auditState.reportPersistenceFails) {
+      metricsState.recordError('lp_audit_logger', 'AUDIT_PERSISTENCE_FAILURE', 500);
+    }
+  });
+  storageState.exists.mockClear();
+  storageState.getSignedUrl.mockClear();
   lpAccessState.mode = 'lp';
 }
 
@@ -489,6 +515,28 @@ describe('LP API route contracts', () => {
     });
     expect(dbState.state.insertValues).toHaveLength(1);
     expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /api/lp/reports/generate remains 202 and signals audit persistence loss', async () => {
+    auditState.reportPersistenceFails = true;
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+        fundIds: [7],
+      });
+
+    expect(response.status).toBe(202);
+    expect(enqueueReportGeneration).toHaveBeenCalledTimes(1);
+    expect(auditState.logReportGeneration).toHaveBeenCalledTimes(1);
+    expect(metricsState.recordError).toHaveBeenCalledWith(
+      'lp_audit_logger',
+      'AUDIT_PERSISTENCE_FAILURE',
+      500
+    );
   });
 
   it('POST /api/lp/reports/generate accepts omitted fundIds as all LP-owned funds', async () => {
@@ -949,6 +997,26 @@ describe('LP API self-scoping negative controls', () => {
 
     expect(response.status).toBe(404);
     expectLpPredicateScope();
+  });
+
+  it('GET /api/lp/reports/report-123/download never falls back to an unsigned direct URL', async () => {
+    dbState.state.selectResults.push([
+      {
+        id: 'report-123',
+        lpId: 9001,
+        status: 'ready',
+        fileUrl: '/api/files/reports/report-123.pdf',
+        reportType: 'quarterly',
+        format: 'pdf',
+        fileSize: 1024,
+      },
+    ]);
+
+    const response = await request(makeApp()).get('/api/lp/reports/report-123/download');
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: 'REPORT_DOWNLOAD_UNAVAILABLE' });
+    expect(response.body).not.toHaveProperty('data.downloadUrl');
   });
 
   // Profile and settings are static/echo endpoints covered by the existing shape-lock tests.

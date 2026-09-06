@@ -12,102 +12,20 @@
 import { useMemo } from 'react';
 import type { FlagKey, ClientFlagKey, FlagRecord } from '@shared/generated/flag-types';
 import { isAdminFlag, isFlagKey, CLIENT_FLAG_KEYS } from '@shared/generated/flag-types';
-import { FLAG_DEFINITIONS, resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
-
-const FLAG_PREFIX = 'ff_';
-const ENV_PREFIX = 'VITE_';
-
-/**
- * Parse boolean from various string representations
- */
-function parseBoolean(value: string | null | undefined): boolean | null {
-  if (value === null || value === undefined) return null;
-  const lower = value.toLowerCase();
-  if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-  if (lower === 'false' || lower === '0' || lower === 'no') return false;
-  return null;
-}
-
-/**
- * Get URL parameter override
- */
-function getUrlOverride(key: FlagKey): boolean | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  return parseBoolean(params.get(`${FLAG_PREFIX}${key}`));
-}
-
-/**
- * Get localStorage override (blocked for admin flags)
- */
-function getLocalStorageOverride(key: FlagKey): boolean | null {
-  if (typeof window === 'undefined') return null;
-  if (isAdminFlag(key)) return null; // Admin flags cannot be overridden via localStorage
-
-  try {
-    return parseBoolean(localStorage.getItem(`${FLAG_PREFIX}${key}`));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Get environment variable value
- */
-function getEnvValue(key: FlagKey): boolean | null {
-  // Map flag key to env var name (e.g., enable_new_ia -> VITE_NEW_IA)
-  const def = FLAG_DEFINITIONS[key];
-  const aliases = def.aliases ?? [];
-
-  // Try direct env var mapping first (legacy support)
-  for (const alias of aliases) {
-    const envKey = `${ENV_PREFIX}${alias}`;
-    const envValue = import.meta.env[envKey] as string | undefined;
-    if (envValue !== undefined) {
-      return parseBoolean(envValue);
-    }
-  }
-
-  // Try snake_case to UPPER_SNAKE_CASE conversion
-  const standardEnvKey = `${ENV_PREFIX}${key.toUpperCase()}`;
-  const standardValue = import.meta.env[standardEnvKey] as string | undefined;
-  if (standardValue !== undefined) {
-    return parseBoolean(standardValue);
-  }
-
-  return null;
-}
-
-/**
- * Get environment-specific default
- */
-function getEnvironmentDefault(key: FlagKey): boolean {
-  const def = FLAG_DEFINITIONS[key];
-  const env = import.meta.env.MODE as 'development' | 'staging' | 'production';
-  return def.environments[env] ?? def.default;
-}
+import { FLAG_DEFINITIONS } from '@shared/generated/flag-defaults';
+import {
+  clearUnifiedFlagOverrides,
+  getClientRuntimeEnvironment,
+  isUnifiedFlagEnabled,
+  setUnifiedFlag,
+} from '@/core/flags/unifiedClientFlags';
 
 /**
  * Resolve a single flag value
  * Priority: URL param > localStorage (non-admin) > env var > environment default > default
  */
 export function resolveFlag(key: FlagKey): boolean {
-  // 1. URL param override (dev only for non-admin, blocked in production)
-  if (import.meta.env.DEV) {
-    const urlOverride = getUrlOverride(key);
-    if (urlOverride !== null) return urlOverride;
-  }
-
-  // 2. localStorage override (blocked for admin flags)
-  const localOverride = getLocalStorageOverride(key);
-  if (localOverride !== null) return localOverride;
-
-  // 3. Environment variable
-  const envValue = getEnvValue(key);
-  if (envValue !== null) return envValue;
-
-  // 4. Environment-specific default
-  return getEnvironmentDefault(key);
+  return isUnifiedFlagEnabled(key);
 }
 
 /**
@@ -142,8 +60,7 @@ export function useFlag(
     const value = resolveFlag(key);
 
     if (options?.withDependencies) {
-      const allFlags = resolveAllFlags();
-      return resolveFlagWithDependencies(key, allFlags);
+      return value;
     }
 
     return value;
@@ -175,19 +92,11 @@ export function useFlags(): {
         console.warn(`Cannot override admin flag: ${key}`);
         return;
       }
-      try {
-        localStorage.setItem(`${FLAG_PREFIX}${key}`, String(value));
-      } catch {
-        // localStorage may be unavailable
-      }
+      setUnifiedFlag(key, value);
     },
     clearOverrides: () => {
-      try {
-        for (const key of CLIENT_FLAG_KEYS) {
-          localStorage.removeItem(`${FLAG_PREFIX}${key}`);
-        }
-      } catch {
-        // localStorage may be unavailable
+      if (getClientRuntimeEnvironment() === 'development') {
+        clearUnifiedFlagOverrides();
       }
     },
   };

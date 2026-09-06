@@ -57,7 +57,7 @@ export function buildReserveOptimizationScenarioSetInput(input: {
 }): CreateFundScenarioSetV1 {
   assertOptimizableReservePortfolio(input.portfolio);
 
-  const allocations = ReserveEngine(input.portfolio);
+  const allocations = ReserveEngine(input.portfolio, 'rule-based');
   const generatedAt = input.generatedAt ?? new Date();
 
   return {

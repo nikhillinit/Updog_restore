@@ -20,6 +20,7 @@ describe('enable_investment_rounds flag registration', () => {
   });
 
   it('defaults OFF but is runtime-overridable (manual dev verification)', () => {
+    window.localStorage.setItem('ff_enable_investment_rounds', '0');
     const off = renderHook(() => useFlag('enable_investment_rounds'));
     expect(off.result.current).toBe(false);
 

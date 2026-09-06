@@ -222,7 +222,7 @@ describe('Division Edge Cases', () => {
 // ============================================================================
 
 describe('Null/Empty Edge Cases', () => {
-  it('should return 0 NAV when all investments exited before asOf date', () => {
+  it('should retain uninvested cash after all exit proceeds are distributed', () => {
     // Edge case: All portfolio companies have exited and proceeds distributed
     const data = createFundData({
       capitalCalls: [
@@ -277,9 +277,8 @@ describe('Null/Empty Edge Cases', () => {
 
     // Portfolio value: 0 (all exited before asOf)
     // Exit proceeds: 15M - this gets added back to the fund
-    // Called capital: 10M
-    // NAV includes exit amounts as available capital
-    // Actual behavior: NAV = 5M (exit proceeds - original investment + remaining value)
+    // Called capital: 10M, with 5M left uninvested
+    // Exit proceeds: 15M, fully distributed
     expect(nav).toBe(5_000_000);
 
     // Current NAV should match

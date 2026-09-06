@@ -1,6 +1,8 @@
 import type { PacingInput, PacingOutput, PacingSummary } from '@shared/types';
 import { PacingInputSchema, PacingOutputSchema } from '@shared/types';
 import { PRNG } from '@shared/utils/prng';
+import { createCalculationContext } from '../calc-substrate';
+import { runPacingWithSubstrate, type PacingAlgorithm } from './pacing-substrate-adapter';
 
 const prng = new PRNG(123);
 
@@ -98,18 +100,35 @@ export function PacingEngine(input: unknown): PacingOutput[] {
   return calculateRuleBasedPacing(validatedInput);
 }
 
-export function generatePacingSummary(input: PacingInput): PacingSummary {
-  const deployments = PacingEngine(input);
-  const totalQuarters = deployments.length;
-  const totalDeployment = deployments.reduce((sum, deployment) => sum + deployment.deployment, 0);
-  const avgQuarterlyDeployment = totalQuarters > 0 ? totalDeployment / totalQuarters : 0;
-
+export function generatePacingSummary(
+  input: PacingInput,
+  algorithm: PacingAlgorithm = 'rule-based'
+): PacingSummary {
+  const ctx = createCalculationContext({
+    calculationKey: 'pacing',
+    seed: 123,
+    asOf: new Date().toISOString(),
+  });
+  const result = runPacingWithSubstrate(ctx, input, {
+    configuredMode: 'on',
+    killSwitchActive: false,
+    algorithm,
+  });
+  if (result.state !== 'available') {
+    throw new Error(`Pacing calculation unavailable: ${result.reasonCodes.join(', ')}`);
+  }
   return {
     fundSize: input.fundSize,
-    totalQuarters,
-    avgQuarterlyDeployment: Math.round(avgQuarterlyDeployment),
+    totalQuarters: result.value.totalQuarters,
+    avgQuarterlyDeployment: Number(result.value.avgQuarterlyDeployment),
     marketCondition: input.marketCondition,
-    deployments,
-    generatedAt: new Date(),
+    deployments: result.value.schedule.map((entry) => ({
+      quarter: entry.quarter,
+      deployment: Number(entry.deployment),
+      note: entry.note,
+    })),
+    generatedAt: new Date(result.value.asOfUtc),
+    basis: result.basis,
+    resultHash: result.resultHash,
   };
 }

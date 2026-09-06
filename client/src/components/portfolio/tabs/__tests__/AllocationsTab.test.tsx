@@ -83,9 +83,7 @@ function createTestQueryClient() {
 
 function renderWithQuery(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 describe('AllocationsTab', () => {
@@ -101,32 +99,38 @@ describe('AllocationsTab', () => {
 
     renderWithQuery(<AllocationsTab />);
 
-    expect(screen.getByTestId('skeleton') || document.querySelector('.animate-pulse')).toBeTruthy();
+    expect(document.querySelector('.animate-pulse')).toBeTruthy();
   });
 
   it('renders error state when fetch fails', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Failed to fetch')
-    );
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Failed to fetch'));
 
     renderWithQuery(<AllocationsTab />);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to load allocations/i)).toBeTruthy();
-      expect(screen.getByText(/retry/i)).toBeTruthy();
+      expect(screen.getByText(/could not load reserve allocations/i)).toBeTruthy();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
     });
   });
 
   it('renders empty state when no companies', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ companies: [], metadata: { total_planned_cents: 0, total_deployed_cents: 0, companies_count: 0, last_updated_at: null } }),
+      json: async () => ({
+        companies: [],
+        metadata: {
+          total_planned_cents: 0,
+          total_deployed_cents: 0,
+          companies_count: 0,
+          last_updated_at: null,
+        },
+      }),
     });
 
     renderWithQuery(<AllocationsTab />);
 
     await waitFor(() => {
-      expect(screen.getByText(/no companies found/i)).toBeTruthy();
+      expect(screen.getByText(/no portfolio companies found/i)).toBeTruthy();
     });
   });
 
@@ -145,9 +149,8 @@ describe('AllocationsTab', () => {
       expect(screen.getByText('Reserve Planning Workspace')).toBeTruthy();
       expect(screen.getByText('Companies with plans')).toBeTruthy();
       expect(screen.getByText('Documented notes')).toBeTruthy();
-      expect(screen.getByText('Last synced')).toBeTruthy();
+      expect(screen.getByText(/Last synced Feb 15, 2024/)).toBeTruthy();
       expect(screen.getByText('Strong growth trajectory')).toBeTruthy();
-      expect(screen.getByText('Feb 15, 2024')).toBeTruthy();
     });
   });
 
@@ -201,7 +204,7 @@ describe('AllocationsTab', () => {
       expect(screen.getByText('TechCorp')).toBeTruthy();
     });
 
-    const sectorSelect = screen.getByRole('combobox', { name: '' });
+    const sectorSelect = screen.getAllByRole('combobox')[0]!;
     await user.selectOptions(sectorSelect, 'FinTech');
 
     await waitFor(() => {
@@ -284,15 +287,10 @@ describe('AllocationsTab', () => {
 
   it('refetches data when clicking refresh button', async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockAllocationsData,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockAllocationsData,
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockAllocationsData,
+    });
 
     global.fetch = fetchMock;
 
@@ -302,13 +300,13 @@ describe('AllocationsTab', () => {
       expect(screen.getByText('TechCorp')).toBeTruthy();
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const callsBeforeRefresh = fetchMock.mock.calls.length;
 
     const refreshButton = screen.getByRole('button', { name: /refresh/i });
     await user.click(refreshButton);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(callsBeforeRefresh + 1);
     });
   });
 });

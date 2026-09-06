@@ -156,7 +156,7 @@ vi.mock('../../../server/config/features.js', () => ({
   getQueueConnectionOptions: vi.fn(() => null),
 }));
 
-vi.mock('../../../server/db', () => ({ db: dbState.db }));
+vi.mock('../../../server/db', () => ({ db: dbState.db, pool: null }));
 
 vi.mock('../../../server/services/lp-calculator', () => ({
   lpCalculator: calculatorState,
@@ -189,6 +189,7 @@ vi.mock('../../../server/services/lp-audit-logger', () => {
       logCapitalCallsListView: noop,
       logDistributionsListView: noop,
       logDocumentsListView: noop,
+      logDocumentDownload: noop,
       logNotificationsView: noop,
     },
   };
@@ -196,12 +197,11 @@ vi.mock('../../../server/services/lp-audit-logger', () => {
 
 vi.mock('../../../server/lib/crypto/cursor-signing', () => ({
   createCursor: vi.fn(
-    ({ offset, limit }: { offset: number; limit: number }) => `cursor:${offset}:${limit}`
+    (payload: unknown) => `cursor:${encodeURIComponent(JSON.stringify(payload))}`
   ),
   verifyCursor: vi.fn((cursor: string) => {
-    const match = /^cursor:(\d+):(\d+)$/.exec(cursor);
-    if (!match) throw new Error('bad cursor');
-    return { offset: Number(match[1]), limit: Number(match[2]) };
+    if (!cursor.startsWith('cursor:')) throw new Error('bad cursor');
+    return JSON.parse(decodeURIComponent(cursor.slice('cursor:'.length)));
   }),
 }));
 
@@ -339,6 +339,7 @@ function distributionRow() {
 function documentRow() {
   return {
     id: 'doc-1',
+    lpId: 9001,
     fundId: 7,
     documentType: 'quarterly_report',
     title: 'Q4 Report',
@@ -349,6 +350,8 @@ function documentRow() {
     documentDate: '2025-12-31',
     publishedAt: new Date('2026-01-01T00:00:00.000Z'),
     accessLevel: 'standard',
+    storageKey: 'documents/doc-1.pdf',
+    status: 'available',
     fundName: 'Fund VII',
   };
 }
@@ -467,6 +470,61 @@ describe('LP dashboard runtime routes', () => {
         'error',
         'not_found'
       );
+    }
+  }, 30_000);
+
+  it('denies LP document download URLs after ownership checks', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([{ ...documentRow(), accessLevel: 'sensitive' }]);
+      const unavailable = await request(surface.app)
+        .get('/api/lp/documents/doc-1/download')
+        .set('x-reauth-token', 'arbitrary-proof');
+
+      expect(unavailable.status, surface.label).toBe(503);
+      expect(unavailable.body, surface.label).toMatchObject({
+        error: 'DOCUMENT_DOWNLOAD_UNAVAILABLE',
+      });
+      expect(unavailable.body, surface.label).not.toHaveProperty('downloadUrl');
+
+      resetState();
+      dbState.state.selectResults.push([{ ...documentRow(), lpId: 42 }]);
+      const forbidden = await request(surface.app).get('/api/lp/documents/doc-1/download');
+
+      expect(forbidden.status, surface.label).toBe(403);
+      expect(forbidden.body, surface.label).not.toHaveProperty('downloadUrl');
+    }
+  }, 30_000);
+
+  it('binds document keyset cursors to stable ordering and filters', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440003' },
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440002' },
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440001' },
+      ]);
+      const firstPage = await request(surface.app).get('/api/lp/documents?limit=2&fundId=7');
+
+      expect(firstPage.status, surface.label).toBe(200);
+      const cursor = String(firstPage.body.nextCursor);
+      const payload = JSON.parse(decodeURIComponent(cursor.slice('cursor:'.length)));
+      expect(payload, surface.label).toMatchObject({
+        id: '770e8400-e29b-41d4-a716-446655440002',
+        limit: 2,
+        filters: { type: null, fundId: 7, year: null },
+      });
+      expect(payload, surface.label).not.toHaveProperty('offset');
+
+      const changedFilter = await request(surface.app).get(
+        `/api/lp/documents?limit=2&fundId=8&cursor=${encodeURIComponent(cursor)}`
+      );
+      expect(changedFilter.status, surface.label).toBe(400);
+      expect(changedFilter.body, surface.label).toMatchObject({ error: 'INVALID_CURSOR' });
     }
   }, 30_000);
 });

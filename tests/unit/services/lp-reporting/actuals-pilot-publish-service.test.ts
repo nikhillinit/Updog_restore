@@ -256,3 +256,48 @@ describe('actuals pilot publisher command boundary', () => {
     expect(predecessorQueried).toBe(false);
   });
 });
+
+describe('actuals publication tenant context', () => {
+  it.each(['mutationAttempt', 'reconciliationOracle'] as const)(
+    'sets transaction-local identity before %s business reads, including retries',
+    async (operation) => {
+      const stop = new Error('stop before business read');
+      const query = vi.fn(async (statement: string) => {
+        if (
+          statement.startsWith('BEGIN') ||
+          statement.startsWith('SET LOCAL') ||
+          statement.includes('set_config(')
+        ) {
+          return { rows: [], rowCount: 0 };
+        }
+        throw stop;
+      });
+      const connection = { query, release: vi.fn() } as unknown as PublishConnection;
+      const input = command(10_000);
+      const context = {
+        userId: '9',
+        email: 'publisher@example.test',
+        orgId: 'org-a',
+        fundId: '7',
+        role: 'admin',
+      };
+      const scoped = { ...input, input: { ...input.input, context } };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        query.mockClear();
+        await expect(
+          actualsPilotPublishTestSeams[operation](connection, scoped, () => 0)
+        ).rejects.toBe(stop);
+        expect(query.mock.calls[0]?.[0]).toMatch(/^BEGIN /);
+        expect(query.mock.calls[1]?.[0]).toContain("set_config('app.current_org'");
+        expect(query).toHaveBeenNthCalledWith(2, expect.any(String), [
+          '9',
+          'publisher@example.test',
+          'org-a',
+          '7',
+          'admin',
+          '',
+        ]);
+      }
+    }
+  );
+});

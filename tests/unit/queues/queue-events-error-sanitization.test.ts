@@ -239,17 +239,19 @@ describe('QueueEvents error sanitization', () => {
 
     try {
       expect(processor).toEqual(expect.any(Function));
-      await processor?.({
-        id: 'job-1',
-        data: {
-          reportId: 'report-1',
-          lpId: 1,
-          reportType: 'quarterly',
-          format: 'pdf',
-          dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
-        },
-        updateProgress: async () => undefined,
-      });
+      await expect(
+        processor?.({
+          id: 'job-1',
+          data: {
+            reportId: 'report-1',
+            lpId: 1,
+            reportType: 'quarterly',
+            format: 'pdf',
+            dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+          },
+          updateProgress: async () => undefined,
+        })
+      ).rejects.toThrow('WRONGPASS');
 
       expectSanitizedBoundaryLog(consoleError);
     } finally {

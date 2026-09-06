@@ -30,7 +30,11 @@ export function httpCodeToAppCode(status: number): string {
  * Standardized API error response helper
  * Ensures consistent error shape across all endpoints
  */
-export function sendApiError(res: Response, status: number, body: ApiErrorBody) {
+export function sendApiError(
+  res: Response,
+  status: number,
+  body: ApiErrorBody & { message?: string }
+) {
   // Always include error code
   const finalBody = {
     ...body,

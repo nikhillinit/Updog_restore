@@ -160,6 +160,17 @@ export class VarianceAlertAutomationService {
   private plannerTimer: NodeJS.Timeout | null = null;
   private processorTimer: NodeJS.Timeout | null = null;
   private recoveryTimer: NodeJS.Timeout | null = null;
+  private readonly pendingCycles = new Set<Promise<unknown>>();
+
+  private trackCycle(cycle: Promise<unknown>): void {
+    this.pendingCycles.add(cycle);
+    void cycle
+      .finally(() => this.pendingCycles.delete(cycle))
+      .catch((error: unknown) => {
+        log.error({ err: error }, 'Background cycle failed');
+      });
+  }
+
   private plannerInFlight = false;
   private processorInFlight = false;
   private enabled = false;
@@ -221,13 +232,13 @@ export class VarianceAlertAutomationService {
       parsePositiveIntEnv('VARIANCE_ALERT_PROCESSOR_INTERVAL_MS', DEFAULT_PROCESSOR_INTERVAL_MS);
 
     this.plannerTimer = setInterval(() => {
-      void this.runPlannerCycle();
+      this.trackCycle(this.runPlannerCycle());
     }, plannerIntervalMs);
     this.processorTimer = setInterval(() => {
-      void this.runProcessorCycle();
+      this.trackCycle(this.runProcessorCycle());
     }, processorIntervalMs);
     this.recoveryTimer = setInterval(() => {
-      void this.recoverStaleProcessingJobs();
+      this.trackCycle(this.recoverStaleProcessingJobs());
     }, RECOVERY_SWEEP_MS);
 
     const leaderRenewalMs = parsePositiveIntEnv(
@@ -235,11 +246,11 @@ export class VarianceAlertAutomationService {
       DEFAULT_VARIANCE_PLANNER_RENEWAL_MS
     );
     this.leaderRenewalTimer = setInterval(() => {
-      void this.runLeaderRenewalCycle();
+      this.trackCycle(this.runLeaderRenewalCycle());
     }, leaderRenewalMs);
 
-    void this.runPlannerCycle();
-    void this.runProcessorCycle();
+    this.trackCycle(this.runPlannerCycle());
+    this.trackCycle(this.runProcessorCycle());
     log.info(
       {
         plannerIntervalMs,
@@ -272,6 +283,7 @@ export class VarianceAlertAutomationService {
       this.recoveryTimer = null;
     }
 
+    await Promise.allSettled(this.pendingCycles);
     await this.releaseLease();
   }
 

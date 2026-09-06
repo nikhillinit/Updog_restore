@@ -504,16 +504,14 @@ describe('runReserveCalculation ranked-reserve seam', () => {
     }
   );
 
-  it('keeps the worker and inline dispatch surfaces wired to the authoritative seam', async () => {
+  it('keeps inline dispatch wired while the legacy worker is retired', async () => {
     const [workerSource, persistenceSource] = await Promise.all([
       readFile('workers/reserve-worker.ts', 'utf8'),
       readFile('server/services/fund-persistence-service.ts', 'utf8'),
     ]);
 
-    expect(workerSource).toContain(
-      "import { runReserveCalculation } from '../server/services/reserve-calculation-service'"
-    );
-    expect(workerSource).toContain('const result = await runReserveCalculation({');
+    expect(workerSource).toContain('RESERVE_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('runReserveCalculation');
     expect(persistenceSource).toContain(
       "import { runReserveCalculation } from './reserve-calculation-service'"
     );

@@ -100,6 +100,17 @@ async function getSigningKey(kid: string): Promise<string> {
  * For HS256: Synchronous verification using JWT_SECRET
  * For RS256: Async verification using JWKS public keys
  */
+function validateVerifiedClaims(claims: string | JwtPayload): JWTClaims {
+  if (
+    typeof claims === 'string' ||
+    typeof claims.sub !== 'string' ||
+    claims.sub.trim().length === 0
+  ) {
+    throw new jwt.JsonWebTokenError('JWT subject is required');
+  }
+  return claims as JWTClaims;
+}
+
 export function verifyAccessToken(token: string): JWTClaims {
   const cfg = getJwtConfig();
   if (cfg.JWT_ALG === 'HS256') {
@@ -108,7 +119,7 @@ export function verifyAccessToken(token: string): JWTClaims {
       issuer: cfg.JWT_ISSUER,
       audience: cfg.JWT_AUDIENCE,
     });
-    return verified as JWTClaims;
+    return validateVerifiedClaims(verified);
   }
 
   // RS256: Need to handle async key retrieval
@@ -139,7 +150,7 @@ export async function verifyAccessTokenAsync(token: string): Promise<JWTClaims> 
       issuer: cfg.JWT_ISSUER,
       audience: cfg.JWT_AUDIENCE,
     });
-    claims = verified as JWTClaims;
+    claims = validateVerifiedClaims(verified);
   }
 
   // Keep the sync verifier crypto-only while every production enforcement
@@ -250,6 +261,14 @@ export function userFromClaims(req: Request, claims: JWTClaims): Express.User {
  */
 function assignUserFromClaims(req: Request, claims: JWTClaims): void {
   req.user = userFromClaims(req, claims);
+  req.context = {
+    userId: claims.sub,
+    email: req.user.email,
+    orgId: req.user.orgId ?? '',
+    role: typeof req.user.role === 'string' ? req.user.role : '',
+    ...(typeof claims['partner_id'] === 'string' && { partnerId: claims['partner_id'] }),
+    ...(typeof req.params?.['fundId'] === 'string' && { fundId: req.params['fundId'] }),
+  };
 }
 
 function getJwtErrorDetails(err: unknown): { name?: string; message: string } {
@@ -288,6 +307,13 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     if (!verified) {
       if (cfg.NODE_ENV === 'development' && !cfg.REQUIRE_AUTH) {
         assignDevelopmentUser(req);
+        req.context = {
+          userId: String(cfg.DEFAULT_USER_ID),
+          email: req.user!.email,
+          orgId: 'dev-org',
+          role: 'admin',
+          ...(typeof req.params?.['fundId'] === 'string' && { fundId: req.params['fundId'] }),
+        };
         req.principal = principalFromUser(req.user);
         return next();
       }

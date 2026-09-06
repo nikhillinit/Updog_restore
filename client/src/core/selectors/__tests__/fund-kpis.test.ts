@@ -47,7 +47,7 @@ function createFund(overrides?: Partial<Fund>): Fund {
     name: 'Test Fund I',
     size: 100_000_000, // $100M committed
     managementFee: 0.025, // 2.5%
-    carryPercentage: 0.20, // 20%
+    carryPercentage: 0.2, // 20%
     vintageYear: 2020,
     establishmentDate: '2020-01-01',
     deployedCapital: 0,
@@ -164,7 +164,7 @@ function createInvestments(): Investment[] {
       totalInvested: 20_000_000,
       stage: 'series_c',
       sector: 'Enterprise',
-      ownership: 0.10,
+      ownership: 0.1,
       isActive: true,
       createdAt: '2021-09-01T00:00:00Z',
       updatedAt: '2023-06-01T00:00:00Z',
@@ -543,24 +543,11 @@ describe('selectNAV', () => {
   it('should calculate NAV correctly', () => {
     const data = createFundData();
     // Portfolio value: 18M + 30M + 0 (exited) + 35M = 83M
-    // Cash: 65M called - 50M invested - 30M distributions - 5.1M fees = -20.1M (negative means we've distributed more than remaining)
-    // Actually: Should be 83M + (-20.1M) = 62.9M
-    // But let's recalculate precisely:
-    // Called: 65M
-    // Invested: 50M
-    // Distributions: 30M
-    // Fees: 2.5M + 2.5M + 0.1M = 5.1M
-    // Cash = 65 - 50 - 30 - 5.1 = -20.1M (this is expected - more distributed than cash on hand)
-    // Portfolio = 18M + 30M + 35M = 83M (ExitCo shows as exit, so value is 0 in portfolio)
-
-    // Let me recalculate: ExitCo exited in 2023-09-01 for 25M, which became a distribution
-    // So current portfolio should NOT include ExitCo
-    // Portfolio = 18M + 30M + 35M = 83M
-    // Cash = 65M - 50M - 30M - 5.1M = -20.1M
-    // NAV = 83M + (-20.1M) = 62.9M
+    // Cash: 65M called − 50M invested + 25M exit proceeds − 30M distributions − 5.1M fees = 4.9M
+    // NAV = 83M + 4.9M = 87.9M
 
     const nav = selectNAV(data);
-    expect(nav).toBeCloseTo(62_900_000, -4); // Within $10k
+    expect(nav).toBeCloseTo(87_900_000, -4); // Within $10k
   });
 
   it('should use latest valuations', () => {
@@ -641,7 +628,7 @@ describe('selectNAV', () => {
           totalInvested: 5_000_000,
           stage: 'seed',
           sector: 'Tech',
-          ownership: 0.20,
+          ownership: 0.2,
           isActive: true,
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
@@ -723,14 +710,14 @@ describe('selectNAV', () => {
       feeExpenses: [],
     });
 
-    // Portfolio: 0 (exited, proceeds distributed)
-    // Cash: 10M - 5M - 15M = -10M (negative because exit proceeds exceeded remaining cash)
-    // NAV = 0 + (-10M) = -10M (This represents that we distributed more than we had)
-    // Actually the math should be: we received 10M, invested 5M (cash = 5M), then distributed 15M from exit
-    // So cash = 5M - 15M = -10M, but that doesn't make sense
-    // Better: Cash = Called - Invested - Distributed = 10M - 5M - 15M = -10M
-    // This is correct but represents that exit proceeds (15M) were distributed beyond cash position
-    expect(selectNAV(data)).toBe(-10_000_000);
+    // Before exit: portfolio 5M cost basis + 5M cash = 10M NAV.
+    expect(selectNAV(data, '2023-05-31')).toBe(10_000_000);
+
+    // On exit date, 15M proceeds move from investment value into cash.
+    expect(selectNAV(data, '2023-06-01')).toBe(20_000_000);
+
+    // After distribution, 5M of unused called capital remains as cash.
+    expect(selectNAV(data)).toBe(5_000_000);
   });
 
   it('should filter by asOf date for historical NAV', () => {
@@ -829,9 +816,9 @@ describe('selectTVPI', () => {
   it('should calculate TVPI correctly', () => {
     const data = createFundData();
     const distributions = selectDistributions(data); // 30M
-    const nav = selectNAV(data); // ~62.9M
+    const nav = selectNAV(data); // 87.9M
     const called = selectCalled(data); // 65M
-    // TVPI = (30M + 62.9M) / 65M = 1.429...
+    // TVPI = (30M + 87.9M) / 65M = 1.814...
     const expectedTVPI = (distributions + nav) / called;
     expect(selectTVPI(data)).toBeCloseTo(expectedTVPI, 4);
   });
@@ -929,8 +916,8 @@ describe('selectIRR', () => {
     const irr = selectIRR(data);
     // Expected IRR ≈ 14.5% for 1.5x over 3 years
     // Exact: (1.5)^(1/3) - 1 = 0.1447... ≈ 14.47%
-    expect(irr).toBeGreaterThan(0.10);
-    expect(irr).toBeLessThan(0.20);
+    expect(irr).toBeGreaterThan(0.1);
+    expect(irr).toBeLessThan(0.2);
   });
 
   it('should return 0 for insufficient cash flows', () => {

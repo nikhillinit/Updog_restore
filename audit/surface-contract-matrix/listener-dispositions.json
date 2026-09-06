@@ -23,7 +23,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for dockerfile-root at Dockerfile records disposition product-surface; evidence=['Dockerfile:58', 'Dockerfile:67']; fingerprint=f557f7dd689a505a7c989723effe860d24d1fcd39f9e7a143d135bcd057a7dc8."
+    "decision_evidence": "UNAPPROVED proposal for listeners:dockerfile-root; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "Dockerfile.railway",
@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for legacy-dockerfile-railway at Dockerfile.railway records disposition non-product-tooling; evidence=['Dockerfile.railway:43', 'Dockerfile.railway:47']; fingerprint=ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4."
+    "decision_evidence": "UNAPPROVED proposal for listeners:legacy-dockerfile-railway; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -74,7 +74,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for dockerfile-simple at Dockerfile.simple records disposition product-surface; evidence=['Dockerfile.simple:32', 'Dockerfile.simple:36']; fingerprint=d242dc09029a44542b41578e5f35e1a1e77e6e53b1915dfc071af630b098439b."
+    "decision_evidence": "UNAPPROVED proposal for listeners:dockerfile-simple; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "Dockerfile.worker",
@@ -100,15 +100,14 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for dockerfile-worker at Dockerfile.worker records disposition product-surface; evidence=['Dockerfile.worker:165', 'Dockerfile.worker:177']; fingerprint=d34c0c0a79520e193bd7e392a398208f5d2bb825a8af98823e49741dfe5fa6a5."
+    "decision_evidence": "UNAPPROVED proposal for listeners:dockerfile-worker; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "ml-service/app.py",
     "listener_id": "ml-reserve",
-    "fingerprint": "a8be800a377a4f96aa032578e429958e0ed4200a47d79bdf2d1581712987433d",
+    "fingerprint": "446df66fd2b936926c348c7b0a960f545067d66cb53397491ba5a1c976e735b1",
     "evidence": [
-      "ml-service/app.py:26",
-      "ml-service/app.py:427"
+      "ml-service/app.py:26"
     ],
     "disposition": "product-surface",
     "row_namespace": "listener",
@@ -118,15 +117,10 @@
         "kind": "python-app-creation",
         "line": 26,
         "text": "app = FastAPI(title=\"Reserve ML Service\", version=\"1.0.0\")"
-      },
-      {
-        "kind": "uvicorn-run",
-        "line": 427,
-        "text": "uvicorn.run(app, host=host, port=port)"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for ml-reserve at ml-service/app.py records disposition product-surface; evidence=['ml-service/app.py:26', 'ml-service/app.py:427']; fingerprint=a8be800a377a4f96aa032578e429958e0ed4200a47d79bdf2d1581712987433d."
+    "decision_evidence": "UNAPPROVED proposal for listeners:ml-reserve; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "ml-service/Dockerfile",
@@ -146,7 +140,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for dockerfile-ml-reserve at ml-service/Dockerfile records disposition product-surface; evidence=['ml-service/Dockerfile:35']; fingerprint=47dffcac3e12c2defa74f8b271e8c1402f8681eac0fdcdab9e50ccdb48789d44."
+    "decision_evidence": "UNAPPROVED proposal for listeners:dockerfile-ml-reserve; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "scripts/ai-tools/metrics-server.js",
@@ -170,18 +164,18 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for tooling-scripts-ai-tools-metrics-server-js at scripts/ai-tools/metrics-server.js records disposition non-product-tooling; evidence=[{'file': 'scripts/ai-tools/metrics-server.js', 'line': 52, 'pattern': 'node-listen', 'text': 'const server = app.listen(PORT, () => {'}]; fingerprint=3c5bc504de7ebb48897e721524d44238545f20d67283e08366ef07174d6186b2."
+    "decision_evidence": "UNAPPROVED proposal for listeners:tooling-scripts-ai-tools-metrics-server-js; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "scripts/orchestrate.ts",
     "listener_id": "tooling-scripts-orchestrate-ts",
-    "fingerprint": "1644a5434ff023ed6bd50e1789ac07eedc9264ceb46042d50ee8757a2e24df3c",
+    "fingerprint": "2c9ddcc2f35c9b5b45ae0c39d6365fade55815fbf4e1c74cf474cf1dca2f8fdf",
     "evidence": [
       {
         "file": "scripts/orchestrate.ts",
-        "line": 54,
+        "line": 13,
         "pattern": "node-listen",
-        "text": "app.listen(PORT, () => {"
+        "text": "const server = app.listen(Number(process.env['ORCHESTRATOR_PORT'] ?? 3002), () => {"
       }
     ],
     "disposition": "non-product-tooling",
@@ -189,20 +183,20 @@
     "detected_listener_patterns": [
       {
         "kind": "node-listen",
-        "line": 54,
-        "text": "app.listen(PORT, () => {"
+        "line": 13,
+        "text": "const server = app.listen(Number(process.env['ORCHESTRATOR_PORT'] ?? 3002), () => {"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for tooling-scripts-orchestrate-ts at scripts/orchestrate.ts records disposition non-product-tooling; evidence=[{'file': 'scripts/orchestrate.ts', 'line': 54, 'pattern': 'node-listen', 'text': 'app.listen(PORT, () => {'}]; fingerprint=1644a5434ff023ed6bd50e1789ac07eedc9264ceb46042d50ee8757a2e24df3c."
+    "decision_evidence": "UNAPPROVED proposal for listeners:tooling-scripts-orchestrate-ts; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "server/bootstrap.ts",
     "listener_id": "server-bootstrap",
     "fingerprint": "ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0",
     "evidence": [
-      "server/bootstrap.ts:48",
-      "server/bootstrap.ts:55"
+      "server/bootstrap.ts:49",
+      "server/bootstrap.ts:56"
     ],
     "disposition": "product-surface",
     "row_namespace": "api",
@@ -210,17 +204,17 @@
     "detected_listener_patterns": [
       {
         "kind": "node-http-server-creation",
-        "line": 48,
+        "line": 49,
         "text": "const server = await createServer(cfg, providers);"
       },
       {
         "kind": "node-listen",
-        "line": 55,
+        "line": 56,
         "text": "server.listen(cfg.PORT, () => {"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for server-bootstrap at server/bootstrap.ts records disposition product-surface; evidence=['server/bootstrap.ts:48', 'server/bootstrap.ts:55']; fingerprint=ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0."
+    "decision_evidence": "UNAPPROVED proposal for listeners:server-bootstrap; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "server/index.ts",
@@ -240,7 +234,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for server-index at server/index.ts records disposition product-surface; evidence=['server/index.ts:13']; fingerprint=7ad04ea7635e25c9ee93679d250cb05d096b40c8fbca2c59620182e6c5bfa685."
+    "decision_evidence": "UNAPPROVED proposal for listeners:server-index; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "server/observability/metrics-demo.ts",
@@ -264,7 +258,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for tooling-server-observability-metrics-demo-ts at server/observability/metrics-demo.ts records disposition non-product-tooling; evidence=[{'file': 'server/observability/metrics-demo.ts', 'line': 16, 'pattern': 'node-listen', 'text': 'app.listen(port, () => {'}]; fingerprint=321b1185e3aba909f1205b0058b7b53e3a6ffdb2e539a5d630446e53d03a7059."
+    "decision_evidence": "UNAPPROVED proposal for listeners:tooling-server-observability-metrics-demo-ts; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
     "candidate_path": "workers/health-server.ts",
@@ -284,6 +278,6 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent review completed: current listener discovery for worker-health at workers/health-server.ts records disposition product-surface; evidence=['workers/health-server.ts:283']; fingerprint=e0e8dfe4c3d271eadcea25f6333f4dd066d65451131fa60879ce829283b78fe1."
+    "decision_evidence": "UNAPPROVED proposal for listeners:worker-health; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   }
 ]

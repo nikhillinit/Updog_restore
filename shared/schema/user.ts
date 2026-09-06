@@ -14,11 +14,10 @@ import {
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod/v4';
 
+import { USER_ROLES, type UserRole } from '../auth/effective-roles';
 import { funds } from './fund';
 
-export const USER_ROLES = ['admin', 'partner', 'analyst', 'operator', 'viewer', 'service'] as const;
-
-export type UserRole = (typeof USER_ROLES)[number];
+export { USER_ROLES, type UserRole } from '../auth/effective-roles';
 
 // Users table
 export const users = pgTable(

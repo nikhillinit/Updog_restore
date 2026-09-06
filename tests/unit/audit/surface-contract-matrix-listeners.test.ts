@@ -51,7 +51,7 @@ function createTrackedFixture(files: Record<string, string>) {
 }
 
 describe('surface contract matrix HTTP listener discovery', () => {
-  it('extracts all five worker-health and four FastAPI routes', () => {
+  it('extracts all five worker-health and five FastAPI routes', () => {
     const workerRoutes = extractProductRoutes(
       productDisposition('workers/health-server.ts', 'worker-health'),
       { rootDir: repoRoot }
@@ -69,6 +69,7 @@ describe('surface contract matrix HTTP listener discovery', () => {
     ]);
     expect(mlRoutes.map(({ method, path: routePath }) => `${method} ${routePath}`)).toEqual([
       'GET /health',
+      'GET /ready',
       'POST /train',
       'POST /predict',
       'GET /model/info',

@@ -2,6 +2,7 @@
 
 const ORPHAN_PATTERN = /(?:^|\/)__tests__\/.*\.(test|spec)\.(ts|tsx|js|jsx)$/;
 const ALLOWED_ROOTS = [
+  /^(?:client\/src|server|shared)\/.*\.(?:test|spec)\.(?:ts|tsx)$/,
   /^packages\/[^/]+\/src\//,
   /^archive\//,
   /^docs\//,
