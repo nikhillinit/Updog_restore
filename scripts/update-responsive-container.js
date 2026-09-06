@@ -21,7 +21,6 @@ const filesToUpdate = [
   'client/src/components/forecasting/construction-actual-comparison.tsx',
   'client/src/components/dashboard/portfolio-concentration.tsx',
   'client/src/components/dashboard/dual-forecast-dashboard.tsx',
-  'client/src/components/charts/performance-optimizer.tsx',
   'client/src/components/portfolio/moic-analysis.tsx',
   'client/src/components/charts/pacing-timeline-chart.tsx',
   'client/src/components/dashboard/tactyc-dashboard.tsx',
