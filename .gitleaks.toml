@@ -56,6 +56,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow deterministic database-health identity test fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?m)^const healthKey = 'health-route-test-key-32-characters';$'''
+]
+paths = [
+  '''^tests/unit/routes/database-health-identity\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Surface-contract-matrix generated artifacts store sha256 content digests of tracked source files; path-like keys (auth.ts, lp-api.ts) plus 64-hex values trip generic-api-key but are hashes, not credentials"
 targetRules = ["generic-api-key"]
 condition = "AND"
