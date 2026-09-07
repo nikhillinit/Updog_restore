@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "4efa00ee1775d15239bc26c8d2f4b2b528813543",
-    "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76"
+    "git_head": "27970f11085bc9ab0201952ed1ab6148a652a35b",
+    "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992"
   },
   "rows": [
     {
@@ -33058,11 +33058,11 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 220->235; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "4777278b628d727fd66a030a507c0cc9382c63434e7d3aeba2fa36903c542edf",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -33296,13 +33296,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 591->606; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "638d730514f87cfef3ff2d630cdcba00a94aeaf79316de0de1de05f5502748f4",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33538,13 +33538,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 427->442; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "4df7e8e2da2341df1d4842c2669f2559a7cc26789bb16f336e24df5e237b77a7",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33780,13 +33780,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 399->414; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "d708b54616cf15249352e5a3862955dc8420716f0a2c025327f97064c792fb98",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33994,11 +33994,11 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 232->247; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "61adf013db3b58c41a0936e9d3603990eb766c7f6ef71450117930dadb5b82b2",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -34232,13 +34232,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 536->551; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "04514d10625b03db72091f29164a761cfc4c5f24ceec8956ecda2f072c19c053",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -34474,13 +34474,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 447->462; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "74e67965de6566e13fe109d115a6ed83d12ea38fb552001ed5214587b8b3cdeb",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -34688,11 +34688,11 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 231->246; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "9259c065201cb700f12095f4ce397574fbad937493d7437f7b4cad289ff49748",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -34926,13 +34926,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 504->519; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "a549b9459999c469155c63969d1c16cdce48e23fe5af12e2c13029177d9345bf",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -35168,13 +35168,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 652->667; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "ce1fd7a2a2b0eb29eabdfbf6bbd0c51b6758bc323f6e9d23bdd763589f51525f",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -50508,13 +50508,13 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 573->588; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "contract_fingerprint": "381006bfbe5e4d952fb9951fe2630f17edefcd10b53cd6e582233961cc0f6d88",
       "approved_source_hashes": [
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -50723,7 +50723,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 209->224; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -50732,7 +50732,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -50942,7 +50942,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 346->361; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -50951,7 +50951,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51162,7 +51162,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 235->250; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -51171,7 +51171,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51382,7 +51382,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 388->403; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -51391,7 +51391,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51599,7 +51599,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 196->211; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -51608,7 +51608,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -52291,7 +52291,7 @@
       "decision": "keep-and-prove",
       "decision_suggestion": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md; Agent-observed CI maintenance: source 27970f11085bc9ab0201952ed1ab6148a652a35b; health SHA-256 9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187; current health line mapping 288->303; health validation 27 passed, log SHA-256 456fdcfe2bcea665719adb8cecf8d2218ad7f0b3211988fa3a42e718c027b4a4. Historical observations and semantic decisions retained; no G1 decision change.",
       "closure_owner": "WS5",
       "closure_gate": "WS5/G3",
       "closure_acceptance": "Prove exact intended runtime, ingress/path, authentication, protocol, and side effects; otherwise approve exclusion or removal before production promotion.",
@@ -52300,7 +52300,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -113671,7 +113671,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76",
+      "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992",
       "counts": {
         "APIEndpoint": 406,
         "ClientRoute": 44,
