@@ -7525,9 +7525,8 @@ describe('required CI fails closed', () => {
   });
 
   it('keeps the 35-minute Railway helper default inside the 45-minute job with gross reserve', async () => {
-    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } = await import(
-      '../../scripts/release/deploy-railway-workers.mjs'
-    );
+    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } =
+      await import('../../scripts/release/deploy-railway-workers.mjs');
     const workflow = await readWorkflow('release-production.yml');
     const railwayDeploy = workflow.jobs?.['railway-workers-deploy'];
     const helperBudgetMs = DEFAULT_DEPLOYMENT_TIMEOUT_MS;

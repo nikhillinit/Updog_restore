@@ -139,11 +139,7 @@ describe('surface contract matrix runtime inspector', () => {
     'scrubs ambient actuals selector and discovers configured routes in both app assemblies for %s',
     async (fsVariant) => {
       const [unsetRun, configuredRun] = await Promise.all([
-        runInspector(
-          fsVariant,
-          'selector:ACTUALS_PILOT_FUND_ID:unset',
-          '2147483647'
-        ),
+        runInspector(fsVariant, 'selector:ACTUALS_PILOT_FUND_ID:unset', '2147483647'),
         runInspector(fsVariant, 'selector:ACTUALS_PILOT_FUND_ID:configured'),
       ]);
       const unsetDocument = JSON.parse(unsetRun.stdout);

@@ -27,16 +27,15 @@ and this project adheres to
 - Internal Economics V2 now groups realization proceeds by the security proven
   by investment-lot relief and routes each group to its exact entitlement pool.
   Ambiguous generated IDs, nonpositive groups, and missing pools fail closed
-  before mutation. Receipt/implementation version changes are recorded in the
-  v3 changed-case manifest and ADR-099; source admission remains pending.
+  before mutation. Receipt/implementation version changes are recorded in the v3
+  changed-case manifest and ADR-099; source admission remains pending.
 
 ### Documentation (2026-09-06)
 
 - Reconciled Programs A-C with admitted PR #1484 and documented the default-off
   F_1.12.0 actuals pilot, payload-5 consumer limits, and separate trial and
-  activation gates. Decision-workspace specifications and companion plans
-  remain drafts pending exact-source review and owner approval.
-
+  activation gates. Decision-workspace specifications and companion plans remain
+  drafts pending exact-source review and owner approval.
 
 ### Added (2026-08-31)
 

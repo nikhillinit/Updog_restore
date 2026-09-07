@@ -71,10 +71,18 @@ describe('build-schema-reconcile-receipt', { retry: 0 }, () => {
 describe('build-schema-reconcile-receipt Current Forecast mode', () => {
   it('builds exact 0050-0055 range receipt', () => {
     const receipt = buildSchemaReconcileCurrentForecastReceipt({
-      repository: 'press-on/updog', runId: '123', runAttempt: 1,
+      repository: 'press-on/updog',
+      runId: '123',
+      runAttempt: 1,
       sourceSha: 'a'.repeat(40),
-      preState: { state: 'ready', appliedTargetCount: 4, lastAppliedTag: '0053_g3_release_gate_hardening' },
-      applied: true, startedAtMs: 100, completedAtMs: 150,
+      preState: {
+        state: 'ready',
+        appliedTargetCount: 4,
+        lastAppliedTag: '0053_g3_release_gate_hardening',
+      },
+      applied: true,
+      startedAtMs: 100,
+      completedAtMs: 150,
     });
     expect(receipt.mode).toBe('apply-current-forecast-0050-0055');
     expect(receipt.migrationRange).toHaveLength(6);
