@@ -129,11 +129,13 @@ export const SchemaReconcileCurrentForecastReceiptV1Schema = z
       z.literal('0054_operating_decisions_spine'),
       z.literal('0055_current_forecast_recompute_commands'),
     ]),
-    preState: z.object({
-      state: z.enum(['ready', 'complete']),
-      appliedTargetCount: z.number().int().min(0).max(6),
-      lastAppliedTag: z.string().min(1),
-    }).strict(),
+    preState: z
+      .object({
+        state: z.enum(['ready', 'complete']),
+        appliedTargetCount: z.number().int().min(0).max(6),
+        lastAppliedTag: z.string().min(1),
+      })
+      .strict(),
     postState: z.literal('complete'),
     applied: z.boolean(),
     buildTimeMs: z.number().int().min(0).max(900_000),
@@ -141,10 +143,9 @@ export const SchemaReconcileCurrentForecastReceiptV1Schema = z
   })
   .strict()
   .superRefine((receipt, ctx) => {
-    const expectedLastTag = [
-      '0049_kpi_observations',
-      ...CURRENT_FORECAST_MIGRATION_RANGE,
-    ][receipt.preState.appliedTargetCount];
+    const expectedLastTag = ['0049_kpi_observations', ...CURRENT_FORECAST_MIGRATION_RANGE][
+      receipt.preState.appliedTargetCount
+    ];
     if (receipt.preState.lastAppliedTag !== expectedLastTag) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

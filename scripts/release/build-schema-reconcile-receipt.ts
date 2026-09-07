@@ -41,7 +41,8 @@ export function buildSchemaReconcileCurrentForecastReceipt(input: {
 }): SchemaReconcileCurrentForecastReceiptV1 {
   assertTimestamp('startedAtMs', input.startedAtMs);
   assertTimestamp('completedAtMs', input.completedAtMs);
-  if (input.completedAtMs < input.startedAtMs) throw new Error('completedAtMs must not precede startedAtMs');
+  if (input.completedAtMs < input.startedAtMs)
+    throw new Error('completedAtMs must not precede startedAtMs');
   return SchemaReconcileCurrentForecastReceiptV1Schema.parse({
     repository: input.repository,
     workflowPath: '.github/workflows/prod-schema-reconcile.yml',
@@ -206,7 +207,10 @@ function parseOutputPath(argv: readonly string[]): string {
 
 export async function writeSchemaReconcileReceipt(
   outputPath: string,
-  receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1 | SchemaReconcileCurrentForecastReceiptV1
+  receipt:
+    | SchemaReconcileReceiptV1
+    | SchemaReconcileCatchupReceiptV1
+    | SchemaReconcileCurrentForecastReceiptV1
 ): Promise<void> {
   const directory = path.dirname(outputPath);
   await mkdir(directory, { recursive: true });
@@ -235,9 +239,14 @@ async function main(): Promise<void> {
     ? Number(process.env['SCHEMA_RECONCILE_BUILD_COMPLETED_AT_MS'])
     : Date.now();
   const mode = requiredEnvironment('SCHEMA_RECONCILE_MODE');
-  let receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1 | SchemaReconcileCurrentForecastReceiptV1;
+  let receipt:
+    | SchemaReconcileReceiptV1
+    | SchemaReconcileCatchupReceiptV1
+    | SchemaReconcileCurrentForecastReceiptV1;
   if (mode === 'apply-current-forecast-0050-0055') {
-    const result = JSON.parse(await readFile('reports/current-forecast-migration-result.json', 'utf8')) as {
+    const result = JSON.parse(
+      await readFile('reports/current-forecast-migration-result.json', 'utf8')
+    ) as {
       preState: SchemaReconcileCurrentForecastReceiptV1['preState'];
       applied: boolean;
     };

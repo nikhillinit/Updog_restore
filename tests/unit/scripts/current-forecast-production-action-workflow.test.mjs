@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 describe('Current Forecast production action workflow', { retry: 0 }, () => {
   it('is dispatch-only, attempt-one, protected, and identity fenced', async () => {
-    const source = await readFile('.github/workflows/current-forecast-production-action.yml', 'utf8');
+    const source = await readFile(
+      '.github/workflows/current-forecast-production-action.yml',
+      'utf8'
+    );
     const workflow = YAML.parse(source);
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch']);
     const job = workflow.jobs.action;
