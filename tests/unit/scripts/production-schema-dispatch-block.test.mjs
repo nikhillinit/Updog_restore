@@ -6,9 +6,7 @@ import process from 'node:process';
 import { describe, expect, it, vi } from 'vitest';
 import YAML from 'yaml';
 
-import {
-  assertApplyConfirmation,
-} from '../../../scripts/reconcile-prod-schema.mjs';
+import { assertApplyConfirmation } from '../../../scripts/reconcile-prod-schema.mjs';
 import {
   parseRecoveryArgs,
   runProdJournaledMigrationRecovery,
@@ -19,9 +17,14 @@ import { runDbStudioCli } from '../../../scripts/db-studio.mjs';
 
 describe('production schema dispatch block', () => {
   it('rejects reconcile apply even when confirmation flags are present', () => {
-    expect(() => assertApplyConfirmation({ apply: true, yes: true })).toThrow(
-      /production schema mutation is mechanically blocked/i
-    );
+    expect(() =>
+      assertApplyConfirmation({
+        apply: true,
+        yes: true,
+        apply0053G3ReleaseGateHardening: false,
+        applyG3Catchup0050To0053: false,
+      })
+    ).toThrow(/production schema mutation is mechanically blocked/i);
   });
 
   it('rejects journaled apply before constructing a database client', async () => {
@@ -102,6 +105,7 @@ describe('production schema dispatch block', () => {
       'audit',
       'apply',
       'apply-catchup-0050-0053',
+      'apply-current-forecast-0050-0055',
     ]);
     const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
     const applyStep = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
@@ -111,6 +115,9 @@ describe('production schema dispatch block', () => {
     );
     expect(applyStep?.run).toContain(
       'node scripts/reconcile-prod-schema.mjs --apply --yes --apply-g3-catchup-0050-0053'
+    );
+    expect(applyStep?.run).toContain(
+      'node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes'
     );
     const applyGates = [
       'Require first apply attempt',
@@ -146,7 +153,9 @@ describe('production schema dispatch block', () => {
       expect(blocker?.if).toContain("inputs.mode == 'apply'");
       expect(blocker?.run).toMatch(/exit 1/);
       expect(steps.indexOf(blocker)).toBeLessThan(
-        steps.findIndex((step) => /Apply (additive-safe reconciliation|journaled recovery)/.test(step.name))
+        steps.findIndex((step) =>
+          /Apply (additive-safe reconciliation|journaled recovery)/.test(step.name)
+        )
       );
     }
   });

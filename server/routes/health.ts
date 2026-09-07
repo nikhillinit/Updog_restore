@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { readinessCheck, livenessCheck } from '../health';
 import { getStorageRuntimeState, storage } from '../storage';
@@ -14,6 +15,7 @@ import {
 } from '../queues/registry';
 import { firstString } from '../lib/request-values';
 import { requireAuth } from '../lib/auth/jwt';
+import { queryScalar } from '../db/index';
 
 const router = Router();
 const authenticateHealthDiagnostics = requireAuth();
@@ -22,6 +24,19 @@ const authenticateHealthDiagnostics = requireAuth();
 const memoryKV = new MemoryKV();
 const healthCache = new TTLCache<Record<string, unknown>>(memoryKV);
 const HEALTH_CACHE_MS = 1500; // 1.5 second cache
+
+export function buildDatabaseHealthIdentity(databaseName: string, databaseUrl: string) {
+  const hostname = new URL(databaseUrl).hostname.toLowerCase();
+  if (hostname.includes('pooler')) throw new Error('Pooled DATABASE_URL is not permitted');
+  return {
+    database: 'connected' as const,
+    status: 'ok' as const,
+    databaseName,
+    databaseUrlHostFingerprint:
+      `sha256:${createHash('sha256').update(hostname).digest('hex')}` as const,
+    timestamp: new Date().toISOString(),
+  };
+}
 
 interface QueueHealthRecord {
   status: 'ok' | 'disabled' | 'not_applicable' | 'missing' | 'degraded' | 'error';
@@ -401,11 +416,11 @@ router['get']('/api/health/db', requireHealthKeyOrAuth, async (req: Request, res
     const dbHealthy = await storage['ping']();
 
     if (dbHealthy) {
-      res.json({
-        database: 'connected',
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-      });
+      const databaseUrl = process.env['DATABASE_URL'];
+      if (!databaseUrl) throw new Error('DATABASE_URL unavailable');
+      const databaseName = await queryScalar<string>('SELECT current_database()');
+      if (!databaseName) throw new Error('current_database() returned no value');
+      res.json(buildDatabaseHealthIdentity(databaseName, databaseUrl));
     } else {
       res.status(503).json({
         database: 'disconnected',
@@ -413,11 +428,11 @@ router['get']('/api/health/db', requireHealthKeyOrAuth, async (req: Request, res
         timestamp: new Date().toISOString(),
       });
     }
-  } catch (error: unknown) {
+  } catch {
     res.status(503).json({
       database: 'error',
       status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Database health check failed',
       timestamp: new Date().toISOString(),
     });
   }

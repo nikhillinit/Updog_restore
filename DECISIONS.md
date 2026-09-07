@@ -12056,8 +12056,9 @@ The isolated activation train (F_1.11.0 plan, "Solution Architecture" and "Phase
 1 — Candidate certification") certifies one exact `main` SHA and binds every
 downstream action to it:
 
-1. The candidate is the P0b hardening merge SHA on top of `12af67a4e`. #1294
-   records it; static gates, the #1295 deployed-identity binding (deployment
+1. The candidate is the exact `origin/main` SHA selected after complete Phase P
+   admission under ADR-098, amending the earlier P0b-hardening selection rule.
+   #1294 records it; static gates, the #1295 deployed-identity binding (deployment
    IDs, database and schema identity, target-fund mode rows), the #1296
    end-to-end proof, and all four #1298 soak windows run against exactly that
    SHA. The binding is to immutable deployment IDs and readbacks, never to the
@@ -12205,6 +12206,30 @@ the change surface the synthesis had deliberately fenced; the plan's per-reader
 codec and consumer evaluation gates are the compensating control and must ship
 before any consumer reads payload 5.
 
+## ADR-098: Guard Current Forecast Phase P Production Routes
+
+**Date:** 2026-09-06 **Status:** Proposed (owner ratification on merge)
+**Tags:** #current-forecast #schema #neon #release-governance
+
+### Decision
+
+Production migration 0050-0055 remains an action-specific mode of
+`prod-schema-reconcile.yml`. Isolated Neon rehearsal uses
+`current-forecast-neon-rehearsal.yml`. Current Forecast state changes use
+`current-forecast-production-action.yml`, which wraps only existing authenticated
+routes. `enter-shadow`, `activate`, `kill`, and `resume` are separate dispatches;
+`readback` is read-only. Evidence never supplies dispatch authority.
+
+This amends ADR-095 decision 1: candidate is the exact `origin/main` SHA selected
+after complete Phase P admission, not the P0b hardening merge. ADR-095 restart,
+hold-window, and identity-binding rules are unchanged.
+
+### Consequences
+
+All five Phase P tasks admit together or none becomes canonical. Rehearsal branch
+creation validates exact returned identity before dependent work. Production
+schema apply, deployment, shadow entry, activation, kill, and resume retain
+separate repository-owner dispatch boundaries.
 
 ## ADR-099: Internal Economics V2 Realization Security Lineage
 

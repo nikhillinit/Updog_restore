@@ -5,9 +5,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES,
+  CURRENT_FORECAST_MIGRATION_RANGE,
+  SchemaReconcileCurrentForecastReceiptV1Schema,
   SchemaReconcileCatchupReceiptV1Schema,
   SchemaReconcileReceiptV1Schema,
   type SchemaReconcileCatchupReceiptV1,
+  type SchemaReconcileCurrentForecastReceiptV1,
   type SchemaReconcileReceiptV1,
 } from '../../shared/contracts/schema-reconcile-receipt-v1.contract';
 
@@ -24,6 +27,35 @@ export interface BuildSchemaReconcileReceiptInput {
   postDecision: 'SKIP';
   startedAtMs: number;
   completedAtMs: number;
+}
+
+export function buildSchemaReconcileCurrentForecastReceipt(input: {
+  repository: string;
+  runId: string;
+  runAttempt: 1;
+  sourceSha: string;
+  preState: SchemaReconcileCurrentForecastReceiptV1['preState'];
+  applied: boolean;
+  startedAtMs: number;
+  completedAtMs: number;
+}): SchemaReconcileCurrentForecastReceiptV1 {
+  assertTimestamp('startedAtMs', input.startedAtMs);
+  assertTimestamp('completedAtMs', input.completedAtMs);
+  if (input.completedAtMs < input.startedAtMs) throw new Error('completedAtMs must not precede startedAtMs');
+  return SchemaReconcileCurrentForecastReceiptV1Schema.parse({
+    repository: input.repository,
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+    runId: input.runId,
+    runAttempt: input.runAttempt,
+    mode: 'apply-current-forecast-0050-0055',
+    sourceSha: input.sourceSha,
+    migrationRange: CURRENT_FORECAST_MIGRATION_RANGE,
+    preState: input.preState,
+    postState: 'complete',
+    applied: input.applied,
+    buildTimeMs: input.completedAtMs - input.startedAtMs,
+    result: 'applied_and_clean',
+  });
 }
 
 function assertTimestamp(name: string, value: number): void {
@@ -174,7 +206,7 @@ function parseOutputPath(argv: readonly string[]): string {
 
 export async function writeSchemaReconcileReceipt(
   outputPath: string,
-  receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1
+  receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1 | SchemaReconcileCurrentForecastReceiptV1
 ): Promise<void> {
   const directory = path.dirname(outputPath);
   await mkdir(directory, { recursive: true });
@@ -203,8 +235,23 @@ async function main(): Promise<void> {
     ? Number(process.env['SCHEMA_RECONCILE_BUILD_COMPLETED_AT_MS'])
     : Date.now();
   const mode = requiredEnvironment('SCHEMA_RECONCILE_MODE');
-  let receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1;
-  if (mode === 'apply-catchup-0050-0053') {
+  let receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1 | SchemaReconcileCurrentForecastReceiptV1;
+  if (mode === 'apply-current-forecast-0050-0055') {
+    const result = JSON.parse(await readFile('reports/current-forecast-migration-result.json', 'utf8')) as {
+      preState: SchemaReconcileCurrentForecastReceiptV1['preState'];
+      applied: boolean;
+    };
+    receipt = buildSchemaReconcileCurrentForecastReceipt({
+      repository: requiredEnvironment('GITHUB_REPOSITORY'),
+      runId: requiredEnvironment('GITHUB_RUN_ID'),
+      runAttempt: requiredPositiveIntegerEnvironment('GITHUB_RUN_ATTEMPT') as 1,
+      sourceSha: requiredEnvironment('SCHEMA_RECONCILE_SOURCE_SHA'),
+      preState: result.preState,
+      applied: result.applied,
+      startedAtMs,
+      completedAtMs,
+    });
+  } else if (mode === 'apply-catchup-0050-0053') {
     // Path is pinned: the vector file is written by the workflow's
     // "Validate lock-time apply vector" step, a hard predecessor of this one.
     const lockTimeVector: unknown = JSON.parse(

@@ -1,5 +1,10 @@
 # Current-Forecast V2 Shadow Soak Runbook
 
+Use `.github/workflows/current-forecast-production-action.yml` for separately
+authorized `enter-shadow`, `activate`, `kill`, and `resume` actions. Its
+`readback` action observes current identity, mode version, and activation pointer
+without mutation. Do not substitute ad hoc HTTP requests.
+
 Status: pre-activation operating procedure
 
 Scope: current-forecast V2 shadow observations only. This runbook records
@@ -41,6 +46,12 @@ automation identity. A missed checkpoint is evidence debt; do not silently
 backfill it with a fabricated clock or a latest-row query.
 
 ## ADR-057 green criteria
+
+When Window 4 becomes green, record the exact UTC eligibility time and a decision
+deadline 14 days later. If no terminal GO or NO-GO is recorded by that deadline,
+unchanged identity requires one new seven-day extension window. Any candidate,
+deployment, database, configuration, source, or corpus identity drift restarts
+Window 1.
 
 The governing decision is ADR-057 in `DECISIONS.md:8722`. A window is green only
 when all three criteria hold:

@@ -84,7 +84,7 @@ describe('surface contract matrix runtime inspector', () => {
       // The shadowed server/app.ts duplicate was deleted in F_1.2.5 Phase 3;
       // the health-router handler is the only /api/version registration.
       expect(versionRoutes.map((route) => `${route.role}:${route.site}`)).toEqual([
-        'handler:server/routes/health.ts:573',
+        'handler:server/routes/health.ts:588',
       ]);
 
       for (const routePath of ['/metrics/rum', '/api/metrics/rum']) {

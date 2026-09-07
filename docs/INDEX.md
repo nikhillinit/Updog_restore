@@ -163,6 +163,15 @@ not by number alone._
 
 ## Stabilization
 
+Active implementation plans:
+
+- [Reconciled Programs A-C](superpowers/plans/2026-09-03-updog-reconciled-program-plan.md):
+  release capabilities, security-lineage correction, and decision-workspace
+  specification gates; source admission and runtime actions remain separate.
+- [F_1.12.0 financial-facts publication](1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md):
+  default-off actuals pilot, policy 1.4 / payload 5, consumer basis identity,
+  and the separately authorized isolated Gate A trial.
+
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
 | Document                                             | Description                                       | When to Use                                    |

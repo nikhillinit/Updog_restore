@@ -103,3 +103,78 @@ export const SchemaReconcileCatchupReceiptV1Schema = z
   });
 
 export type SchemaReconcileCatchupReceiptV1 = z.infer<typeof SchemaReconcileCatchupReceiptV1Schema>;
+
+export const CURRENT_FORECAST_MIGRATION_RANGE = [
+  '0050_g3_portfolio_and_calculation_schema',
+  '0051_g3_canary_schema',
+  '0052_g3_capital_call_notification_outbox',
+  '0053_g3_release_gate_hardening',
+  '0054_operating_decisions_spine',
+  '0055_current_forecast_recompute_commands',
+] as const;
+
+export const SchemaReconcileCurrentForecastReceiptV1Schema = z
+  .object({
+    repository: GitHubRepositorySchema,
+    workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
+    runId: PositiveDecimalIdSchema,
+    runAttempt: z.literal(1),
+    mode: z.literal('apply-current-forecast-0050-0055'),
+    sourceSha: SourceShaSchema,
+    migrationRange: z.tuple([
+      z.literal('0050_g3_portfolio_and_calculation_schema'),
+      z.literal('0051_g3_canary_schema'),
+      z.literal('0052_g3_capital_call_notification_outbox'),
+      z.literal('0053_g3_release_gate_hardening'),
+      z.literal('0054_operating_decisions_spine'),
+      z.literal('0055_current_forecast_recompute_commands'),
+    ]),
+    preState: z.object({
+      state: z.enum(['ready', 'complete']),
+      appliedTargetCount: z.number().int().min(0).max(6),
+      lastAppliedTag: z.string().min(1),
+    }).strict(),
+    postState: z.literal('complete'),
+    applied: z.boolean(),
+    buildTimeMs: z.number().int().min(0).max(900_000),
+    result: z.literal('applied_and_clean'),
+  })
+  .strict()
+  .superRefine((receipt, ctx) => {
+    const expectedLastTag = [
+      '0049_kpi_observations',
+      ...CURRENT_FORECAST_MIGRATION_RANGE,
+    ][receipt.preState.appliedTargetCount];
+    if (receipt.preState.lastAppliedTag !== expectedLastTag) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['preState', 'lastAppliedTag'],
+        message: 'Last applied tag must match applied target count',
+      });
+    }
+    if (receipt.preState.state === 'complete' && receipt.preState.appliedTargetCount !== 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['preState'],
+        message: 'Complete pre-state requires all six target migrations',
+      });
+    }
+    if (receipt.preState.state === 'ready' && receipt.preState.appliedTargetCount === 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['preState'],
+        message: 'Ready pre-state cannot include all target migrations',
+      });
+    }
+    if (receipt.applied !== (receipt.preState.state === 'ready')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['applied'],
+        message: 'Applied flag must match pre-state',
+      });
+    }
+  });
+
+export type SchemaReconcileCurrentForecastReceiptV1 = z.infer<
+  typeof SchemaReconcileCurrentForecastReceiptV1Schema
+>;

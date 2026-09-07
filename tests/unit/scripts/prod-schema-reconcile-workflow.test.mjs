@@ -108,7 +108,11 @@ describe('prod-schema-reconcile workflow', () => {
       })
     ).toThrow(/lock-time apply vector/i);
     expect(() =>
-      parseG3CatchupLockTimeApplyVectorV1(marker, { preparedManifests, capability })
+      parseG3CatchupLockTimeApplyVectorV1(marker, {
+        preparedManifests,
+        capability,
+        expectedTargetActions: undefined,
+      })
     ).toThrow(/independent expected target actions/i);
 
     const nonTargetTamper = marker.replace(
@@ -151,7 +155,9 @@ describe('prod-schema-reconcile workflow', () => {
     const validateMode = steps.find((step) => step.name === 'Validate mode input');
     expect(validateMode).toBeDefined();
     expect(steps.indexOf(validateMode)).toBe(0);
-    expect(validateMode?.run).toContain('audit|apply|apply-catchup-0050-0053');
+    expect(validateMode?.run).toContain(
+      'audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055'
+    );
     expect(validateMode?.run).toMatch(/exit 1/);
 
     const receiptStep = steps.find((step) => step.name === 'Build schema reconcile receipt');
@@ -164,5 +170,27 @@ describe('prod-schema-reconcile workflow', () => {
     expect(applyStep?.run).toMatch(
       /"\$MODE" = "apply" \]; then\n\s+node scripts\/reconcile-prod-schema\.mjs --apply --yes --apply-0053-g3-release-gate-hardening/
     );
+    expect(applyStep?.run).toContain(
+      'node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes'
+    );
+
+    const serialized = JSON.stringify(workflow);
+    expect(serialized).toContain('SchemaReconcileCurrentForecastReceiptV1Schema');
+    expect(serialized).toContain('apply-current-forecast-0050-0055');
+    expect(serialized).toContain('current-forecast-migration-result.json');
+    expect(serialized).toContain("migration: currentForecast ? '0050-0055' : '0053'");
+
+    const historicalArtifactStep = steps.find(
+      (step) => step.name === 'Verify and download historical schema apply artifact by exact ID'
+    );
+    expect(historicalArtifactStep?.run).toContain(
+      'Historical schema apply artifact name does not match receipt mode'
+    );
+    expect(historicalArtifactStep?.run).toContain('artifact.name !== expectedArtifactName');
+
+    const fragmentStep = steps.find(
+      (step) => step.name === 'Build and upload schema evidence fragment'
+    );
+    expect(fragmentStep?.run).toContain('artifactName: artifact.name');
   });
 });

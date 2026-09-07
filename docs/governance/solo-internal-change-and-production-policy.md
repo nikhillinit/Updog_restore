@@ -102,6 +102,13 @@ scope; existing target identity; or machine-checkable prerequisite. A
 target-creating action validates intended scope before creation and validates
 the exact returned target ID before any dependent mutation or promotion.
 
+Routes admitted together under ADR-098 are `current-forecast-neon-rehearsal.yml`
+for isolated branch rehearsal, `prod-schema-reconcile.yml` mode
+`apply-current-forecast-0050-0055` for production schema work, and
+`current-forecast-production-action.yml` for separately dispatched
+`enter-shadow`, `activate`, `kill`, `resume`, or read-only `readback`. Evidence
+never supplies dispatch authority.
+
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or
 preview/restore-isolation evidence yields zero dispatch. A restore reference or

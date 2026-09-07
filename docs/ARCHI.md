@@ -549,6 +549,10 @@ re-deriving repo structure from scratch in future sessions**.
 
 ## 8. In-Flight Architecture Initiatives
 
+The historical `origin/main @ a3d0a6b6` key below predates F_1.11.0 candidate
+identity. Current candidate SHA and tree are selected only after complete Phase P
+source admission under the activation-train plan.
+
 Grounded from `docs/1-plans/F_1.0.0_current-forecast-activation.plan.md` (keyed
 to `origin/main @ a3d0a6b6`, Codex-Sol-reviewed) — any new plan touching these
 areas must not conflict with this DAG:

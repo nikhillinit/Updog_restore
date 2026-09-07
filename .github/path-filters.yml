@@ -311,6 +311,8 @@ schema_tests:
   - 'server/workers/**'
   - 'tests/helpers/apply-investment-round-constraints.ts'
   - 'tests/integration/migrations/**'
+  - 'tests/integration/current-forecast-journaled-migration-recovery.test.ts'
+  - 'tests/integration/current-forecast-reference.pg.test.ts'
   - 'server/migrations/**'
   - 'scripts/guardrails/server-migrations-new-file.mjs'
   - 'tests/helpers/testcontainers.ts'

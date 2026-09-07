@@ -9,6 +9,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/prod-schema-reconcile-0053-capability.test.ts',
   'tests/integration/prod-schema-reconcile-g3-catchup-capability.test.ts',
   'tests/integration/prod-journaled-migration-recovery.test.ts',
+  'tests/integration/current-forecast-journaled-migration-recovery.test.ts',
   'tests/integration/migrations/investment-rounds-schema.test.ts',
   'tests/integration/migrations/investments-id-fund-unique.test.ts',
   'tests/integration/investment-scenario-capability.test.ts',
@@ -34,4 +35,5 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts',
   'tests/integration/migrations/current-forecast-recompute-commands-schema.pg.test.ts',
   'tests/integration/current-forecast-manual-recompute.pg.test.ts',
+  'tests/integration/current-forecast-reference.pg.test.ts',
 ]);

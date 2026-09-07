@@ -72,6 +72,27 @@ inventory, routing mechanisms), see [docs/ARCHI.md](docs/ARCHI.md).
 
 ## Tech Stack
 
+### Fixed-template actuals pilot
+
+`ACTUALS_PILOT_FUND_ID` is unset by default. An empty value also disables the
+pilot; a configured value must be one positive PostgreSQL fund ID without
+leading zeros. Keep it unset in production until separately authorized
+activation through
+[the canonical procedure](docs/workflows/PRODUCTION_SCRIPTS.md).
+
+The pilot publishes fixed-template ledger and valuation imports as financial
+facts policy `1.4.0`, payload `5`. Forecast, reserve intelligence, and
+construction reconciliation carry the canonical eight-field
+`FinancialFactsBasisRef`; economics and periodic analysis refuse this policy.
+Valuation marks do not establish fund NAV, RVPI, or TVPI. Publication requires
+the authenticated organization/fund context and transaction-scoped RLS; its
+post-commit cache invalidation does not trigger organic Current Forecast soak.
+The isolated actuals Gate A trial remains separate from Current Forecast
+activation. See
+[F_1.12.0](docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md).
+
+### Runtime and libraries
+
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Shadcn/ui, TanStack
   Query, Recharts/Nivo, React Hook Form
 - **Backend**: Node.js, Express.js, TypeScript, PostgreSQL, Drizzle ORM,

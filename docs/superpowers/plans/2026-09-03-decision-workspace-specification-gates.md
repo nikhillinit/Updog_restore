@@ -1,13 +1,39 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-03
+last_updated: 2026-09-06
 owner: Repository Owner
 categories: [product-specification, decision-workspace]
 keywords: [forecast-variance, scenario-comparison, reserve-decision, ADR-033]
 ---
 
 # Decision Workspace Specification-Gate Implementation Plan
+
+## September 6, 2026 specification input amendment
+
+Re-pin each specification's source manifest to the inspected source at the time
+of authoring. This review used
+`origin/main@1cdef4f1bc24072742a2cd24349f04c6ec074f0f`; #1478/#1479 changed
+forecast, reserve, construction-reconciliation and analysis boundaries after the
+September 3 sketches below. No prior approval binds these new source bytes.
+
+Before approving C1-C3 specifications, inspect
+`shared/contracts/financial-facts-snapshot-v1.contract.ts`,
+`shared/contracts/current-forecast-v2.contract.ts`,
+`shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`,
+`shared/contracts/construction-reconciliation-v1.contract.ts`,
+`server/services/financial-facts/financial-facts-basis-ref.ts`, and
+`shared/lib/financial-facts/payload5-consumer-evaluator.ts`. Specify how
+`FinancialFactsBasisRef` participates in result identity, evidence links and
+same-head admission; retain legacy-policy behavior explicitly. Reconcile each C3
+hash/admission sketch with that decision before generating its implementation
+plan. Do not invent a parallel facts identity or infer availability from zero.
+
+Policy 1.4/payload 5 may support qualified forecast, reserve and reconciliation
+reads. Economics and periodic analysis refuse it; NAV/RVPI/TVPI remain typed
+unavailable. The specifications must preserve these boundaries or route any
+proposed widening through a separate decision and plan. Existing C1 -> C2, C3a
+-> C3b -> C3c, Program A activation and applicable Program B gates remain.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -33,11 +59,53 @@ Testcontainers, and Phoenix truth cases.
 existing dual-forecast/scenario/reserve contracts, and
 `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md`.
 
+## Local specification preparation
+
+The five specifications in `docs/specs/` now exist as `DRAFT` with explicit
+unapproved fields and exact source/body digests. Their five companion
+implementation plans are `PROPOSED` preparation only. Neither set establishes
+owner approval or permits product implementation. Task 6 remains open until its
+exact-source, reviewer, owner-approval, and implementation-entry gates are
+satisfied. Any source-path change during Programs A/B integration requires
+re-inspection and new digests before approval.
+
+## Canonical facts identity required by C3 specifications
+
+Use one `basisRef` representation throughout proposed C3a/C3b contracts. For
+policy 1.4/payload 5 it is the strict `FinancialFactsBasisRefSchema` value:
+`schemaId`, `fundId`, `snapshotId`, `snapshotInputHash`, `sourceFactsInputHash`,
+`policyVersion`, `asOfDate`, `knowledgeCutoff`. Copy persisted values unchanged;
+validate `fundId` and `snapshotId` against the operation's fund and
+`financialFactsSnapshotId`. Missing, malformed or mismatched payload-5 identity
+refuses before a run, snapshot, receipt or decision is written. For legacy
+policies 1.0-1.3 normalize absent `basisRef` to explicit `null`; do not
+synthesize a policy-1.4 reference. Existing legacy artifacts remain immutable.
+
+Include that complete object (or explicit legacy null) under `basisRef` in the
+new C3a/C3b input-hash preimage, result-hash projection and mutation
+request-hash preimage. Include it under `basis.basisRef` in the admission
+receipt; the existing receipt-hash preimage includes the whole `basis` object.
+Use existing `sha256CanonicalJson` serialization, with no second digest or
+partial projection. `asOfDate` and `knowledgeCutoff` are semantic identity and
+stay in these hashes; excluded request/creation timestamps do not include them.
+Replays, admission lookup and C3c evidence validation compare the full
+normalized reference and existing hashes. Equal snapshot IDs alone are
+insufficient.
+
+C3a/C3b same-basis selection, equivalence proof and C3c decision admission must
+validate equality among the proposed request, completed run, persisted result
+and accepted receipt. The specifications must enumerate regressions for every
+reference field, same-ID/different-hash substitution, missing payload-5
+identity, legacy null, and cross-fund substitution, all with zero durable writes
+on refusal. These requirements extend only the planned new C3 contracts;
+preserve legacy reader compatibility and obtain exact-spec approval before
+implementation.
+
 ## Global Constraints
 
 - Specification work may proceed before Program A activation. Program C product
-  implementation, merge, deployment, and serving admission wait for Program A
-  A4 GO, verified activation/containment, and final bound runtime identity.
+  implementation, merge, deployment, and serving admission wait for Program A A4
+  GO, verified activation/containment, and final bound runtime identity.
 - C3b implementation also waits for Program B's admitted exact-routing or typed-
   refusal contract.
 - This plan creates specifications and implementation plans only. It authorizes
@@ -45,8 +113,8 @@ existing dual-forecast/scenario/reserve contracts, and
   deployment, promotion, or production mutation.
 - A plan, review, approval, or evidence record is not implementation or
   production authority.
-- All mutations require idempotency. All updates require optimistic locking.
-  All cursors require validation. All queue jobs require timeouts.
+- All mutations require idempotency. All updates require optimistic locking. All
+  cursors require validation. All queue jobs require timeouts.
 - Every future test command runs with `TZ=UTC`. Financial implementation plans
   require `npm run phoenix:truth` and a named expected-output assertion.
 - Node/npm contract is Node 22.23.2 and npm 10.9.2.
@@ -84,8 +152,8 @@ approval:
 The body digest is SHA-256 of every byte after the closing `---` line and its
 newline, exactly the second capture of the Task 6 validator regex
 `^---\n([\s\S]*?)\n---\n([\s\S]*)$`. `approval_sha256` is SHA-256 of
-`JSON.stringify` over an object whose keys are inserted in this exact order
-with no whitespace: `source_sha`, `source_paths`, `scope`, `body_sha256`,
+`JSON.stringify` over an object whose keys are inserted in this exact order with
+no whitespace: `source_sha`, `source_paths`, `scope`, `body_sha256`,
 `reviewed_by`, `reviewed_at`, `approved_by`, `approved_at`, `approval_state`.
 Generation and validation share that one algorithm; the digest field itself is
 excluded, so it is not self-referential. Any body, source, scope, reviewer,
@@ -107,28 +175,41 @@ At approval time:
 
 Before Task 1 writes the first `docs/specs/*.md`, confirm
 `TZ=UTC npm run docs:routing:generate` and `docs:routing:check` accept these
-frontmatter keys under `docs/specs/`; if the router schema rejects
-`source_sha`, `body_sha256`, `approval_sha256`, `scope`, `source_paths`,
-`reviewed_by`, `reviewed_at`, `approved_by`, `approved_at`, or `approval`,
-extend the router schema in the same specification's implementation plan so
-Task 6 validation and routing agree.
+frontmatter keys under `docs/specs/`; if the router schema rejects `source_sha`,
+`body_sha256`, `approval_sha256`, `scope`, `source_paths`, `reviewed_by`,
+`reviewed_at`, `approved_by`, `approved_at`, or `approval`, extend the router
+schema in the same specification's implementation plan so Task 6 validation and
+routing agree.
 
 Every specification body contains these sections in order:
 
 ```markdown
 ## Goal
+
 ## Non-Goals
+
 ## Existing Surfaces and Actual Consumers
+
 ## Normative Product Decisions
+
 ## Request and Response Contracts
+
 ## Authoritative Inputs and Source Versions
+
 ## Persistence and Hash Semantics
+
 ## Idempotency, Concurrency, and Recovery
+
 ## Refusal Matrix
+
 ## Authorization and Fund Ownership
+
 ## UI States and Accessibility
+
 ## Exact File Manifest
+
 ## Exact Test Manifest
+
 ## Admission and Rollout Gates
 ```
 
@@ -164,8 +245,8 @@ replays; same-key/different-material conflicts. Creation has no
 The C1 implementation plan must create the shared contract/service, add the
 route to the existing decisions router, and update the repository's route
 manifest, mount/policy registry, the idempotency regex registry
-`server/lib/database-backed-idempotency-routes.ts`, and tests. C2 and C3c
-reuse the command without adding another route.
+`server/lib/database-backed-idempotency-routes.ts`, and tests. C2 and C3c reuse
+the command without adding another route.
 
 ---
 
@@ -207,12 +288,7 @@ Keep the contract axes separate:
 ```ts
 type ForecastVarianceState = {
   servingStatus: 'live' | 'held';
-  engineStatus:
-    | 'available'
-    | 'indicative'
-    | 'unavailable'
-    | 'failed'
-    | 'held';
+  engineStatus: 'available' | 'indicative' | 'unavailable' | 'failed' | 'held';
   basisStatus: 'current' | 'stale' | 'mixed_basis';
 };
 ```
@@ -227,8 +303,8 @@ Mapping rules:
 
 - [ ] **Step 3: Lock the authoritative driver contract**
 
-The server may emit only drivers backed by pinned source data: check size,
-entry valuation, ownership, pace, allocation mix, graduation/exit assumptions,
+The server may emit only drivers backed by pinned source data: check size, entry
+valuation, ownership, pace, allocation mix, graduation/exit assumptions,
 follow-on participation, deployed/remaining reserves, fees/expenses, recycling,
 and blockers. Each driver includes source reference, source version, before,
 after, delta, unit, and explanation. Unavailable drivers are omitted with a
@@ -244,16 +320,16 @@ table.
 - [ ] **Step 5: Specify decision creation and recovery**
 
 Use the shared atomic evidence-linked decision command. The target is the saved
-`analysis_reference`. Decision title/recommendation and optional follow-up fields
-remain existing contract fields. Any evidence validation or link insert failure
-returns zero decision/link rows.
+`analysis_reference`. Decision title/recommendation and optional follow-up
+fields remain existing contract fields. Any evidence validation or link insert
+failure returns zero decision/link rows.
 
 - [ ] **Step 6: Write exact C1 tests in the spec**
 
 Name unit/integration/Playwright files for serving/engine/basis mapping,
 source/hash verification, same-key replay, different-material conflict,
-cross-fund denial, inaccessible evidence denial, transactional rollback,
-client no-calculation assertion, and keyboard/screen-reader states.
+cross-fund denial, inaccessible evidence denial, transactional rollback, client
+no-calculation assertion, and keyboard/screen-reader states.
 
 - [ ] **Step 7: Review, approve, and generate the implementation plan**
 
@@ -268,14 +344,12 @@ and commits.
 **Files:**
 
 - Create: `docs/specs/C2-scenario-comparison-decision-workflow.md`
-- Modify in the specification:
-  `docs/adr/ADR-022-fund-scenario-architecture.md`
+- Modify in the specification: `docs/adr/ADR-022-fund-scenario-architecture.md`
 - Create later with `superpowers:writing-plans`:
   `docs/superpowers/plans/2026-09-03-scenario-comparison-decision-workflow.md`
 - Inspect and list as future implementation surfaces:
   `shared/contracts/fund-scenario-comparison-v1.contract.ts`,
-  `shared/contracts/fund-scenario-sets-v1.contract.ts`,
-  `shared/schema/fund.ts`,
+  `shared/contracts/fund-scenario-sets-v1.contract.ts`, `shared/schema/fund.ts`,
   `server/services/fund-scenario-comparison-service.ts`,
   `server/services/fund-scenario-comparison-lineage-service.ts`,
   `client/src/pages/fund-scenario-workspace.tsx`,
@@ -298,16 +372,16 @@ them. Do not add a requested-dimension parameter or a new
 - [ ] **Step 2: Lock exact source identity**
 
 Use scenario-set ID, source-config ID/version, comparison variant IDs,
-snapshot/run IDs, scenario snapshot state hash, input hash, and result hash.
-The baseline object has no variant ID in the current contract; identify it only
-as the comparison's `baseline` field. Do not invent a baseline ID or a
-scenario-set version column.
+snapshot/run IDs, scenario snapshot state hash, input hash, and result hash. The
+baseline object has no variant ID in the current contract; identify it only as
+the comparison's `baseline` field. Do not invent a baseline ID or a scenario-set
+version column.
 
 Reconcile `docs/adr/ADR-022-fund-scenario-architecture.md` with actual supported
 override types: `fee_profile`, `allocation`, `sector_profile`, and
-`methodology`. Resolve the current
-`shared/schema/fund.ts` TypeScript union omission for `methodology` explicitly
-in the future implementation file manifest.
+`methodology`. Resolve the current `shared/schema/fund.ts` TypeScript union
+omission for `methodology` explicitly in the future implementation file
+manifest.
 
 - [ ] **Step 3: Lock scenario comparison evidence persistence**
 
@@ -334,14 +408,14 @@ type ScenarioComparisonBasisV1 = {
 };
 ```
 
-The implementation plan must include a migration, contract version bump,
-Drizzle schema, analysis checkpoint/service/route changes, and real-PostgreSQL
-ownership/hash tests. Wire the existing lineage service into production code;
-it must not remain test-only. Define `comparisonResultHash` as the canonical hash
+The implementation plan must include a migration, contract version bump, Drizzle
+schema, analysis checkpoint/service/route changes, and real-PostgreSQL
+ownership/hash tests. Wire the existing lineage service into production code; it
+must not remain test-only. Define `comparisonResultHash` as the canonical hash
 of ordered variant IDs plus the server-owned economics comparison response.
-Require `scenarioSnapshotStateHash === inputHash`, matching the lineage service's
-existing `snapshot_hash_mismatch` refusal. Persist the exact literal source,
-lineage version, and hash kind already exported by
+Require `scenarioSnapshotStateHash === inputHash`, matching the lineage
+service's existing `snapshot_hash_mismatch` refusal. Persist the exact literal
+source, lineage version, and hash kind already exported by
 `fund-scenario-comparison-lineage-service.ts` and
 `shared/lib/scenarios/scenario-input-envelope.ts`.
 
@@ -376,27 +450,24 @@ the spec body has one normative evidence design and no open decision.
   `shared/contracts/reserve-intelligence-admission-v1.contract.ts`,
   `server/lib/database-backed-idempotency-routes.ts`,
   `server/config/reserve-intelligence-admission-identity.ts`,
-  `config/reserve-corpus-manifest.json`,
-  `scripts/build-server.mjs`,
+  `config/reserve-corpus-manifest.json`, `scripts/build-server.mjs`,
   `scripts/build-vercel-api.mjs`,
-  `shared/schema/reserve-intelligence-admission.ts`,
-  `shared/schema.ts`,
+  `shared/schema/reserve-intelligence-admission.ts`, `shared/schema.ts`,
   `server/services/reserves/reserve-intelligence-admission-service.ts`,
   `tests/unit/contracts/reserve-intelligence-admission-v1.contract.test.ts`,
   `tests/integration/reserve-intelligence-admission.pg.test.ts`, and one
-  additive journal migration whose exact next number is discovered at branch
-  cut and collision-checked again immediately before commit
+  additive journal migration whose exact next number is discovered at branch cut
+  and collision-checked again immediately before commit
 - Inspect and list as future implementation surfaces:
   `shared/core/moic/MarginalReserveMoic.ts`,
   `shared/contracts/marginal-reserve-moic-v1.contract.ts`,
   `shared/contracts/marginal-reserve-moic-v2.contract.ts`,
-  `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`,
-  create `shared/contracts/dynamic-reserve-intelligence-v2.contract.ts`,
+  `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`, create
+  `shared/contracts/dynamic-reserve-intelligence-v2.contract.ts`,
   `server/services/moic/marginal-reserve-moic-input-service.ts`,
   `server/services/reserves/dynamic-reserve-intelligence-service.ts`,
   `server/services/reserves/ranked-reserve-orchestrator.ts`,
-  `server/services/fund-moic-ranking-service.ts`,
-  `server/routes/fund-moic.ts`,
+  `server/services/fund-moic-ranking-service.ts`, `server/routes/fund-moic.ts`,
   `server/config/features.ts`, `flags/registry.yaml`,
   `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md`,
   `client/src/hooks/useReserveIntelligence.ts`,
@@ -414,8 +485,8 @@ Forecast's `held` state.
 - [ ] **Step 2: Lock provenance admission rule**
 
 Audit the input builder at `source_sha`. If explicit instrument type and
-conversion evidence are not carried end-to-end, the approved specification
-must require SAFE/note cases to return unavailable and remain excluded from
+conversion evidence are not carried end-to-end, the approved specification must
+require SAFE/note cases to return unavailable and remain excluded from
 authoritative ranking. Only source-proven conversion price, ownership, FX,
 timing, and partial-sale allocation may enter a counterfactual.
 
@@ -429,31 +500,20 @@ Feature remains default off. Introduce the exact payload/engine versions
 `RESERVE_INTELLIGENCE` snapshot family. Keep calculation output in
 `fund_snapshots`; persist serving admission separately in the one append-only
 `reserve_intelligence_admission_receipts` table defined below. V2 contains the
-existing planned-reserve section plus the admitted
-marginal section. Persist source/config hashes, paired-run IDs/hashes, delta
-capital/proceeds, nullable IRR reason, source/refusal fields, and output state.
+existing planned-reserve section plus the admitted marginal section. Persist
+source/config hashes, paired-run IDs/hashes, delta capital/proceeds, nullable
+IRR reason, source/refusal fields, and output state.
 
 `server/services/reserves/dynamic-reserve-intelligence-service.ts` is the only
 producer. It computes both sections from one pinned financial-facts/config basis
 and atomically writes the completed run plus one immutable snapshot. It never
 patches an earlier snapshot.
 
-The V2 spec must define one exact deterministic hash projection:
-
-```ts
-const resultHashProjection = {
-  schemaVersion: payload.schemaVersion,
-  engineVersion: payload.engineVersion,
-  financialFactsSnapshotId: payload.financialFactsSnapshotId,
-  sourceConfigId: payload.sourceConfigId,
-  sourceConfigVersion: payload.sourceConfigVersion,
-  modelInputAsOfDate: payload.modelInputAsOfDate,
-  inputHash: payload.inputHash,
-  configHash: payload.configHash,
-  planned: payload.planned,
-  marginal: payload.marginal,
-};
-```
+The V2 result-hash projection has exactly these keys: `schemaVersion`,
+`engineVersion`, `financialFactsSnapshotId`, `basisRef`, `sourceConfigId`,
+`sourceConfigVersion`, `modelInputAsOfDate`, `inputHash`, `configHash`, and
+`planned` and `marginal`. Values come from the persisted payload; `basisRef`
+follows the complete normalized representation above.
 
 `resultHash` is `sha256CanonicalJson(resultHashProjection)`. Snapshot/run IDs,
 creation or supply timestamps, actor/operator IDs, `suppliedBy`, `suppliedAt`,
@@ -507,8 +567,8 @@ same-fund self-FK `(predecessor_receipt_id, fund_id)`. Add unique constraints on
 Database checks must enforce only these two variants:
 
 - V2: payload `dynamic-reserve-intelligence-v2`, engine `reserve-intel-v2`,
-  `predecessor_receipt_id`, `predecessor_receipt_hash`, and
-  `equivalence_run_id` all null;
+  `predecessor_receipt_id`, `predecessor_receipt_hash`, and `equivalence_run_id`
+  all null;
 - V3: payload `dynamic-reserve-intelligence-v3`, engine `reserve-intel-v3`, all
   three predecessor/equivalence fields non-null.
 
@@ -520,18 +580,17 @@ The only writer is one guarded admin command,
 (`Idempotency-Key` required, `requireRole('admin')`, fund access checked,
 registered per ARCHI section 9), dispatched by the repository owner after the
 shadow-soak gate. The producer never self-admits. `request_hash` is SHA-256 of
-canonical JSON over `{fundId, snapshotId, payloadVersion, engineVersion,
-sourceSha, corpusRevision, predecessorReceiptId, equivalenceRunId, inputHash,
-configHash, resultHash, marginalInputHash, marginalConfigHash,
-marginalSectionHash}`; same key and same hash replays the stored receipt, same
-key and different hash returns 409. The insert transaction loads and
-strict-parses the same-fund snapshot by `(snapshot_id, fund_id, type)`, derives
-`basis` from its payload, recomputes `inputHash`, `configHash`, `resultHash`,
-and the three marginal hashes from that payload, requires each to equal the
-request material, and for V3 validates the predecessor and equivalence
-evidence exactly as specified below, all before inserting. `sourceSha` and
-`corpusRevision` are not trusted from the request: the C3a implementation plan
-adds one immutable identity module
+canonical JSON over
+`{fundId, snapshotId, basisRef, payloadVersion, engineVersion, sourceSha, corpusRevision, predecessorReceiptId, equivalenceRunId, inputHash, configHash, resultHash, marginalInputHash, marginalConfigHash, marginalSectionHash}`
+with the complete normalized `basisRef` or explicit legacy null defined above;
+same key and same hash replays the stored receipt, same key and different hash
+returns 409. The insert transaction loads and strict-parses the same-fund
+snapshot by `(snapshot_id, fund_id, type)`, derives `basis` from its payload,
+recomputes `inputHash`, `configHash`, `resultHash`, and the three marginal
+hashes from that payload, requires each to equal the request material, and for
+V3 validates the predecessor and equivalence evidence exactly as specified
+below, all before inserting. `sourceSha` and `corpusRevision` are not trusted
+from the request: the C3a implementation plan adds one immutable identity module
 `server/config/reserve-intelligence-admission-identity.ts` exporting the exact
 `{ sourceSha, corpusRevision }` the running engine was built from, and both the
 V2 and V3 admission transactions require the request pair to equal that module
@@ -563,8 +622,8 @@ Serving enforcement: `actionability: 'actionable'` and every ranking read
 require the exact `(fund_id, snapshot_id, payload_version)` accepted receipt
 joined at read time. Mode `on` alone no longer suffices; the C3a implementation
 plan changes `dynamic-reserve-intelligence-service.ts:383` and
-`fund-moic.ts:228` accordingly. An unreceipted snapshot is `non_actionable`,
-and `GET .../reserve-intelligence/latest` labels it so.
+`fund-moic.ts:228` accordingly. An unreceipted snapshot is `non_actionable`, and
+`GET .../reserve-intelligence/latest` labels it so.
 `GET /funds/:fundId/moic/marginal-rankings` (`fund-moic.ts:304`) today builds
 marginal inputs only (`buildMarginalReserveMoicInputs`) with no snapshot ID, so
 "resolve the accepted receipt" is underdetermined while multiple accepted
@@ -583,57 +642,20 @@ The wire contract is exact. Each variant pins its literal pair and nullability,
 mirroring the database checks; the Zod schema is a `z.union` of the two strict
 variant objects:
 
-```ts
-type ReserveIntelligenceAdmissionReceiptBase = {
-  receiptVersion: 'reserve-intelligence-admission/1.0.0';
-  receiptId: number;
-  fundId: number;
-  snapshotId: number;
-  snapshotType: 'RESERVE_INTELLIGENCE';
-  basis: {
-    financialFactsSnapshotId: number;
-    sourceConfigId: number;
-    sourceConfigVersion: number;
-    modelInputAsOfDate: string;
-  };
-  hashes: {
-    inputHash: string;
-    configHash: string;
-    resultHash: string;
-    marginalInputHash: string;
-    marginalConfigHash: string;
-    marginalSectionHash: string;
-  };
-  acceptance: {
-    state: 'accepted';
-    acceptedBy: number;
-    acceptedAt: string;
-  };
-  receiptHash: string;
-};
+The closed receipt schema has these fields and constraints:
 
-type ReserveIntelligenceAdmissionReceiptV1 =
-  | (ReserveIntelligenceAdmissionReceiptBase & {
-      versions: {
-        payloadVersion: 'dynamic-reserve-intelligence-v2';
-        engineVersion: 'reserve-intel-v2';
-        sourceSha: string;
-        corpusRevision: string;
-      };
-      predecessor: null;
-      equivalenceRunId: null;
-    })
-  | (ReserveIntelligenceAdmissionReceiptBase & {
-      versions: {
-        payloadVersion: 'dynamic-reserve-intelligence-v3';
-        engineVersion: 'reserve-intel-v3';
-        sourceSha: string;
-        corpusRevision: string;
-      };
-      predecessor: { receiptId: number; receiptHash: string };
-      equivalenceRunId: string;
-    });
-```
+| Object                | Required fields                                                                                                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root                  | `receiptVersion` = `reserve-intelligence-admission/1.0.0`; numeric `receiptId`, `fundId`, `snapshotId`; `snapshotType` = `RESERVE_INTELLIGENCE`; `basis`, `hashes`, `acceptance`, `versions`, `predecessor`, `equivalenceRunId`; string `receiptHash` |
+| `basis`               | numeric `financialFactsSnapshotId`, `sourceConfigId`, `sourceConfigVersion`; string `modelInputAsOfDate`; required `basisRef` containing the complete validated reference or explicit legacy null                                                     |
+| `hashes`              | string `inputHash`, `configHash`, `resultHash`, `marginalInputHash`, `marginalConfigHash`, `marginalSectionHash`                                                                                                                                      |
+| `acceptance`          | literal `state: accepted`; numeric `acceptedBy`; string `acceptedAt`                                                                                                                                                                                  |
+| V2 variant `versions` | `payloadVersion` = `dynamic-reserve-intelligence-v2`; `engineVersion` = `reserve-intel-v2`; string `sourceSha`, `corpusRevision`; root `predecessor` and `equivalenceRunId` both null                                                                 |
+| V3 variant `versions` | `payloadVersion` = `dynamic-reserve-intelligence-v3`; `engineVersion` = `reserve-intel-v3`; string `sourceSha`, `corpusRevision`; root `predecessor` contains numeric `receiptId` and string `receiptHash`; root `equivalenceRunId` is a string       |
+
+Retain a strict discriminated union of these two variants, including the
+existing literal-pair and nullability database checks. No extra fields or mixed
+V2/V3 pair are admitted.
 
 Compute `receiptHash = sha256CanonicalJson(receiptHashPreimage)` where the
 preimage is exactly:
@@ -655,17 +677,17 @@ const receiptHashPreimage = {
 };
 ```
 
-Exclude `receiptId`, `receiptHash`, idempotency key,
-request hash, command/run/correlation IDs, and request metadata. Never embed
-admission receipt ID/hash/acceptance fields in the calculation `resultHash`.
+Exclude `receiptId`, `receiptHash`, idempotency key, request hash,
+command/run/correlation IDs, and request metadata. Never embed admission receipt
+ID/hash/acceptance fields in the calculation `resultHash`.
 
 - [ ] **Step 4: Write exact C3a tests in the spec**
 
 Name expected-output cases for paired delta math, zero/negative delta capital,
 non-unique IRR, SAFE/note missing provenance, FX missing, terminal liquidation
-missing, partial-sale missing, feature off/shadow/on behavior, ranking exclusion,
-receipt hash replay, a real-PostgreSQL concurrent same-key admission race
-(two clients, one receipt row, one replay), and admission-identity cases: a
+missing, partial-sale missing, feature off/shadow/on behavior, ranking
+exclusion, receipt hash replay, a real-PostgreSQL concurrent same-key admission
+race (two clients, one receipt row, one replay), and admission-identity cases: a
 stamped module whose `sourceSha`/`corpusRevision` match the request admits, a
 mismatch refuses, an unstamped/placeholder identity refuses at command execution
 without crashing import, and with `NODE_ENV` unset/`production` the override
@@ -674,8 +696,8 @@ variables are ignored so admission uses the stamped identity only.
 - [ ] **Step 5: Review, approve, and generate the implementation plan**
 
 Run the common approval process. The implementation plan must include
-`TZ=UTC npm run phoenix:truth`, the named changed cases, feature-flag validation,
-and nonproduction shadow-soak gates.
+`TZ=UTC npm run phoenix:truth`, the named changed cases, feature-flag
+validation, and nonproduction shadow-soak gates.
 
 ---
 
@@ -691,8 +713,7 @@ and nonproduction shadow-soak gates.
   `shared/schema/reserve-intelligence-admission.ts`, and
   `server/services/reserves/reserve-intelligence-admission-service.ts`
 - Inspect and list as future implementation surfaces:
-  `shared/core/moic/MOICCalculator.ts`,
-  `shared/schema/investment-positions.ts`,
+  `shared/core/moic/MOICCalculator.ts`, `shared/schema/investment-positions.ts`,
   `shared/contracts/investment-ledger/position.contract.ts`,
   `shared/contracts/investment-ledger/current-position.contract.ts`,
   `server/services/investment-ledger/current-position-service.ts`,
@@ -700,21 +721,19 @@ and nonproduction shadow-soak gates.
   `server/services/investment-ledger/position-valuation-service.ts`,
   `server/services/investment-ledger/position-conversion-service.ts`,
   `server/services/investment-ledger/ledger-correction-service.ts`,
-  `server/services/fund-moic-ranking-service.ts`,
-  `server/routes/fund-moic.ts`,
+  `server/services/fund-moic-ranking-service.ts`, `server/routes/fund-moic.ts`,
   `client/src/components/fund-results/ReserveIntelligencePanel.tsx`,
   `client/src/pages/fund-model-results-moic-analysis.tsx`,
   `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts`,
-  `shared/contracts/dynamic-reserve-intelligence-v2.contract.ts`,
-  create `shared/contracts/dynamic-reserve-intelligence-v3.contract.ts`,
-  and Program B's admitted contract
+  `shared/contracts/dynamic-reserve-intelligence-v2.contract.ts`, create
+  `shared/contracts/dynamic-reserve-intelligence-v3.contract.ts`, and Program
+  B's admitted contract
 
 - [ ] **Step 1: Lock denominator and provenance**
 
 Current deployed-reserve MOIC denominator is attributable deployed follow-on
 capital for one security. Weighted acquisition price is separate provenance and
-output, calculated per security; never aggregate price across unlike
-securities.
+output, calculated per security; never aggregate price across unlike securities.
 
 Security identity crosswalk: Program B's `securityId` is an opaque string with
 no ledger producer today. C3b defines the canonical value as
@@ -755,28 +774,16 @@ and security-keyed deployed metrics before one atomic completed-run/snapshot
 write. Do not patch or reinterpret V1/V2 snapshots.
 
 All three V3 sections share one coherence envelope containing
-`financialFactsSnapshotId`, source config ID/version, model-input as-of date,
-`inputHash`, and `configHash`. Each section retains its own denominator,
-provenance, availability, and refusal reason. Mixed-basis inputs refuse before
-snapshot creation.
+`financialFactsSnapshotId`, full normalized `basisRef`, source config
+ID/version, model-input as-of date, `inputHash`, and `configHash`. Each section
+retains its own denominator, provenance, availability, and refusal reason.
+Mixed-basis inputs refuse before snapshot creation.
 
-V3 extends the V2 deterministic projection exactly:
-
-```ts
-const resultHashProjection = {
-  schemaVersion: payload.schemaVersion,
-  engineVersion: payload.engineVersion,
-  financialFactsSnapshotId: payload.financialFactsSnapshotId,
-  sourceConfigId: payload.sourceConfigId,
-  sourceConfigVersion: payload.sourceConfigVersion,
-  modelInputAsOfDate: payload.modelInputAsOfDate,
-  inputHash: payload.inputHash,
-  configHash: payload.configHash,
-  planned: payload.planned,
-  marginal: payload.marginal,
-  deployed: payload.deployed,
-};
-```
+The V3 result-hash projection has exactly these keys: `schemaVersion`,
+`engineVersion`, `financialFactsSnapshotId`, `basisRef`, `sourceConfigId`,
+`sourceConfigVersion`, `modelInputAsOfDate`, `inputHash`, `configHash`, and
+`planned`, `marginal` and `deployed`. Values come from the persisted payload;
+`basisRef` follows the complete normalized representation above.
 
 `resultHash` is `sha256CanonicalJson(resultHashProjection)` with the same
 command/operator/timestamp/request exclusions as V2.
@@ -784,11 +791,11 @@ command/operator/timestamp/request exclusions as V2.
 V3 receives no serving admission merely because V2 was admitted. Before C3b or
 C3c can consume V3, run named `reserve-intel-v2-v3-marginal-equivalence` proof
 over every committed V2 admission-corpus base. It must show identical marginal
-input/config hashes, availability/refusal state, canonical marginal section,
-and marginal section hash between admitted V2 and candidate V3. Publish a
-V3-specific admission receipt binding source SHA, engine/payload versions,
-V2 admission receipt ID, corpus revision, equivalence-run ID, and exact hashes.
-Any mismatch blocks V3 admission and requires a separately approved fresh V3
+input/config hashes, availability/refusal state, canonical marginal section, and
+marginal section hash between admitted V2 and candidate V3. Publish a
+V3-specific admission receipt binding source SHA, engine/payload versions, V2
+admission receipt ID, corpus revision, equivalence-run ID, and exact hashes. Any
+mismatch blocks V3 admission and requires a separately approved fresh V3
 admission plan; it cannot be waived inside C3b.
 
 V3 admission uses the same table and contract. Before inserting the V3 row,
@@ -846,31 +853,31 @@ dependency pinned.
 Reuse a saved `analysis_reference`; do not add a reserve-specific decision
 evidence target. Its `reserveReferenceId` must resolve to a same-fund
 `fund_snapshots` row with type `RESERVE_INTELLIGENCE`. That one versioned
-snapshot must parse as `dynamic-reserve-intelligence-v3` and contain the planned,
-C3a marginal, and C3b deployed-reserve metric sections created atomically by
-`dynamic-reserve-intelligence-service.ts`. Each section has independent
-availability/refusal provenance but shares the V3 coherence envelope. The
-checkpoint service verifies the immutable input/config/result hashes before
-save; any absent section, mixed basis, or older payload version refuses.
-It must also verify the V3-specific admission receipt from Task 4 binds the
-exact snapshot payload/engine versions, source SHA, corpus revision, and named
-V2-to-V3 marginal-equivalence run. A V2 admission receipt alone is insufficient.
+snapshot must parse as `dynamic-reserve-intelligence-v3` and contain the
+planned, C3a marginal, and C3b deployed-reserve metric sections created
+atomically by `dynamic-reserve-intelligence-service.ts`. Each section has
+independent availability/refusal provenance but shares the V3 coherence
+envelope. The checkpoint service verifies the immutable input/config/result
+hashes before save; any absent section, mixed basis, or older payload version
+refuses. It must also verify the V3-specific admission receipt from Task 4 binds
+the exact snapshot payload/engine versions, source SHA, corpus revision, and
+named V2-to-V3 marginal-equivalence run. A V2 admission receipt alone is
+insufficient.
 
 The same ordered verification runs at two entry points. At analysis-reference
 save, `analysis-checkpoint-service.ts` starts from the draft's
 `reserveReferenceId` (`readPinnedComponentBases`, the existing pre-insert basis
 check) and runs steps 2-7 before inserting the reference. At decision creation,
 the shared evidence-linked decision command starts from the saved reference and
-runs steps 1-7 inside the transaction that inserts the decision and its
-evidence link. Every failure refuses with a typed reason before any analysis,
-decision, or task mutation:
+runs steps 1-7 inside the transaction that inserts the decision and its evidence
+link. Every failure refuses with a typed reason before any analysis, decision,
+or task mutation:
 
 1. Take the per-fund advisory transaction lock
-   (`pg_advisory_xact_lock(class, fund_id)`, the
-   `current-forecast-fund-lock.ts` pattern with a new class constant), then
-   load `internal_analysis_references` by `(id, fund_id)`. Refuse when the row
-   is missing, belongs to another fund, has a null `reserve_reference_id`, or a
-   successor exists:
+   (`pg_advisory_xact_lock(class, fund_id)`, the `current-forecast-fund-lock.ts`
+   pattern with a new class constant), then load `internal_analysis_references`
+   by `(id, fund_id)`. Refuse when the row is missing, belongs to another fund,
+   has a null `reserve_reference_id`, or a successor exists:
    `EXISTS (SELECT 1 FROM internal_analysis_references s WHERE s.supersedes_reference_id = r.id)`.
    `supersedes_reference_id` lives on the successor and points backward; the
    loaded row's own field is not the staleness signal. The lock only serializes
@@ -888,12 +895,12 @@ decision, or task mutation:
    (`operating-objects.ts:201`), so the lock is the sole ordering mechanism.
 2. Load `fund_snapshots` by `(reserve_reference_id, fund_id)`. Refuse unless
    `type` is `RESERVE_INTELLIGENCE` and the payload parses as
-   `dynamic-reserve-intelligence-v3` with `engineVersion` `reserve-intel-v3`
-   and all three sections present.
+   `dynamic-reserve-intelligence-v3` with `engineVersion` `reserve-intel-v3` and
+   all three sections present.
 3. Load exactly one `reserve_intelligence_admission_receipts` row by
    `(fund_id, snapshot_id, payload_version = 'dynamic-reserve-intelligence-v3')`
-   with `acceptance_state = 'accepted'`. Zero rows refuse. Two rows cannot
-   exist under the unique constraint; treat that as an integrity refusal.
+   with `acceptance_state = 'accepted'`. Zero rows refuse. Two rows cannot exist
+   under the unique constraint; treat that as an integrity refusal.
 4. Recompute the V3 `receiptHash` from the stored columns and compare it to
    `receipt_hash`. Mismatch refuses.
 5. Load the predecessor by `(predecessor_receipt_id, fund_id)`. Refuse when
@@ -906,12 +913,11 @@ decision, or task mutation:
    `input_hash`, and `config_hash` must equal the payload coherence envelope,
    and `result_hash` must equal `resultHash` recomputed from the V3 projection
    over the stored payload.
-7. Bind the V3 receipt to the admission: `equivalence_run_id` must be
-   non-null; `source_sha` and `corpus_revision` must equal the admitted V3
-   serving pair the running service is configured with (the V3 admission plan
-   names that configuration surface); and `marginal_input_hash`,
-   `marginal_config_hash`, and `marginal_section_hash` must equal the
-   predecessor's stored values.
+7. Bind the V3 receipt to the admission: `equivalence_run_id` must be non-null;
+   `source_sha` and `corpus_revision` must equal the admitted V3 serving pair
+   the running service is configured with (the V3 admission plan names that
+   configuration surface); and `marginal_input_hash`, `marginal_config_hash`,
+   and `marginal_section_hash` must equal the predecessor's stored values.
 
 Any other outcome is `stale` or `mismatched` evidence and refuses. The lookup
 reads only; it never inserts, updates, or repairs a receipt.
@@ -939,11 +945,11 @@ decision-task or task-supersession field.
 - [ ] **Step 4: Write exact C3c tests in the spec**
 
 Name tests for same-fund `RESERVE_INTELLIGENCE` ownership/type/hash, wrong-type
-refusal, cross-fund denial, inaccessible evidence, superseded reference
-refusal, missing V3 receipt, V3 receipt hash mismatch, predecessor missing,
-cross-fund, or hash mismatch, marginal hash mismatch, source/corpus mismatch,
-same-key replay, different-material conflict, transactional rollback, optional
-task evidence linking, decision supersession, zero-mutation refusal, and a
+refusal, cross-fund denial, inaccessible evidence, superseded reference refusal,
+missing V3 receipt, V3 receipt hash mismatch, predecessor missing, cross-fund,
+or hash mismatch, marginal hash mismatch, source/corpus mismatch, same-key
+replay, different-material conflict, transactional rollback, optional task
+evidence linking, decision supersession, zero-mutation refusal, and a
 two-session real-PostgreSQL race of correction-draft save against decision
 creation proving the decision never links a reference that already has a
 committed successor (a supersession committing after the decision is allowed and
@@ -964,9 +970,8 @@ receipt and equivalence proof are accepted.
 
 **Files:**
 
-- Modify only through generator:
-  `docs/_generated/router-fast.json`, `docs/_generated/router-index.json`,
-  `docs/_generated/staleness-report.md`
+- Modify only through generator: `docs/_generated/router-fast.json`,
+  `docs/_generated/router-index.json`, `docs/_generated/staleness-report.md`
 
 - [ ] **Step 1: Validate every file independently**
 
@@ -1095,9 +1100,9 @@ NODE
 
 - [ ] **Step 2: Verify source baselines have not drifted**
 
-The Step 1 validator compares every declared `source_paths` entry to the approval
-head. Any product-path diff returns that spec to `DRAFT` for re-inspection and
-approval.
+The Step 1 validator compares every declared `source_paths` entry to the
+approval head. Any product-path diff returns that spec to `DRAFT` for
+re-inspection and approval.
 
 - [ ] **Step 3: Verify each implementation plan exists and is complete**
 
@@ -1123,9 +1128,9 @@ git diff --cached --check
 - [ ] **Step 5: Obtain fresh program-level review and commit**
 
 Reviewer checks source/body binding, no open decision, contract/type names,
-file/test completeness, atomic decision/link semantics, financial provenance, and
-Program A/B entry gates. Resolve blockers and rerun Steps 1-4. Commit with one
-conventional docs commit per approved specification plus its implementation
+file/test completeness, atomic decision/link semantics, financial provenance,
+and Program A/B entry gates. Resolve blockers and rerun Steps 1-4. Commit with
+one conventional docs commit per approved specification plus its implementation
 plan; do not combine five approvals into one ambiguous commit.
 
 ## Definition of Done
@@ -1144,14 +1149,14 @@ plan; do not combine five approvals into one ambiguous commit.
 6. C3b keeps denominator, weighted price, and security lineage distinct.
 7. C3c reuses a verified reserve-backed analysis reference and existing
    decision/task evidence APIs.
-8. Product implementation and serving remain blocked until applicable Program
-   A and Program B gates are satisfied.
+8. Product implementation and serving remain blocked until applicable Program A
+   and Program B gates are satisfied.
 
 ## Self-Review Record
 
 - **Spec coverage:** Forecast status, scenario scope/identity, reserve metric
-  semantics, evidence persistence, atomic decision/link behavior, approval binding, and
-  rollout gates each have explicit tasks.
+  semantics, evidence persistence, atomic decision/link behavior, approval
+  binding, and rollout gates each have explicit tasks.
 - **Placeholder boundary:** Audit-conditioned rules have deterministic fallback
   outcomes; approved specs cannot contain an unresolved normative choice.
 - **Authority boundary:** Specification approval does not authorize product
