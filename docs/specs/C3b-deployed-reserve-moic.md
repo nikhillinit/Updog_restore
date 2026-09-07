@@ -4,8 +4,8 @@ audience: agents
 last_updated: 2026-09-06
 owner: Repository Owner
 scope: deployed-reserve-moic-v3
-source_sha: 1cdef4f1bc24072742a2cd24349f04c6ec074f0f
-body_sha256: fd6a51505ddf87da075efa27d87cec8845237989354d377543dadecb1f15acfa
+source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
+body_sha256: 6751e21d292ea7fccec8f6b3b9a9ae77881c6e2f6a340101e545978863832c9b
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -246,14 +246,14 @@ prospective and intentionally have no baseline hash.
 | `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`                  | `c88a024ec102de1ad4273253af52b636757eb90e4660ed419fb983630d1e7f13` |
 | `shared/contracts/financial-facts-snapshot-v1.contract.ts`                      | `bdb763daa8a9ab0e62dadd47df9b4d165fcb5021d0ad73b04c82166fb1032a9e` |
 | `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts`   | `5ddeeee204e1af0b85034b155c882b831c483003a9a89efc032f97ea79cff6ca` |
-| `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts` | `182b6063d9f1a7c22823b1e0bcf7fd067382baa930b3a7fbded59faec1090d73` |
+| `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts` | `50f806a1eaf25fd1b74deb0f3bc0466f3c56f348cf30e4fab159ce89b0aae998` |
 | `shared/contracts/investment-ledger/current-position.contract.ts`               | `f63efd6e4e8fef39e307124a821bfaa46ce9d66fa2f2363e6b62c97eb191860b` |
 | `shared/contracts/investment-ledger/position.contract.ts`                       | `e83cfd9ca279028e8ee447eed1cf5e6d3f82a59d3a9faba4ebc5e29709166669` |
 | `shared/core/moic/MOICCalculator.ts`                                            | `b4040962c1c6b42238d6dc4cfa396231801e0effd9e3a02c8499ac49ac591515` |
-| `shared/lib/internal-economics/v2/derive-composite-v2.ts`                       | `1c95c110d76a057e9ad17b36e689547b5285d354c54100e01612b4e825f820a1` |
-| `shared/lib/internal-economics/v2/event-stream-engine-v2.ts`                    | `dd5ced945694dd988f3bf263eb8445f4ca223896769716a826d5bddbc7b9063d` |
-| `shared/lib/internal-economics/v2/liquidity-receipt-builder-v2.ts`              | `65282a29fb95448d0dcd51cc897b74b5079afe0064cf65988d9c3f57cceee8be` |
-| `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts`                 | `6c56303a7d011927aad9b65e5857a63ddd0758d2bddd71c9bce31cae20370453` |
+| `shared/lib/internal-economics/v2/derive-composite-v2.ts`                       | `8badbc3097febf3a38c061300b74f10e452aa368d0c9c1456cd83095f48d35c1` |
+| `shared/lib/internal-economics/v2/event-stream-engine-v2.ts`                    | `940e311a9cd9cabdf298bb4d28ac8bef3264e5155db18ad17acbb0422d6ea51f` |
+| `shared/lib/internal-economics/v2/liquidity-receipt-builder-v2.ts`              | `073d128966641e528f9fc959f3bf2083680ab89099ecaca555fe7caec138474f` |
+| `shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts`                 | `bd585df8081349b7d779a05ad53e645f31f50ba2baec7be112e89dcaab205ffa` |
 | `shared/schema/investment-positions.ts`                                         | `526efffd3d3ae2c9ae8a1e9ec5f485d0be8b91d6fb0fb912a56c51d9046cfb6e` |
 
 ## Exact Test Manifest

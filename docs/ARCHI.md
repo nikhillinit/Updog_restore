@@ -550,8 +550,8 @@ re-deriving repo structure from scratch in future sessions**.
 ## 8. In-Flight Architecture Initiatives
 
 The historical `origin/main @ a3d0a6b6` key below predates F_1.11.0 candidate
-identity. Current candidate SHA and tree are selected only after complete Phase P
-source admission under the activation-train plan.
+identity. Current candidate SHA and tree are selected only after complete Phase
+P source admission under the activation-train plan.
 
 Grounded from `docs/1-plans/F_1.0.0_current-forecast-activation.plan.md` (keyed
 to `origin/main @ a3d0a6b6`, Codex-Sol-reviewed) — any new plan touching these
@@ -670,8 +670,8 @@ review, `#1287` target naming, `#1299` activation flip.
    **Local Program B correction (2026-09-06; source admission pending):**
    realization relief resolves private cash-lot `securityId` before mutation.
    Deal-by-deal pools use exact JSON tuple keys, preserving delimiter-bearing
-   identities and refusing missing pools. Receipt, serializer, event-engine,
-   and composite move to 2.4.0; deal-by-deal moves to 2.3.0. Whole-fund and
+   identities and refusing missing pools. Receipt, serializer, event-engine, and
+   composite move to 2.4.0; deal-by-deal moves to 2.3.0. Whole-fund and
    normalizer/input versions remain unchanged. ADR-099 and the v3 changed-case
    manifest describe the compatibility boundary.
 
@@ -697,30 +697,30 @@ review, `#1287` target naming, `#1299` activation flip.
    `ACTUALS_PILOT_FUND_ID` disables the pilot endpoints. One configured fund
    uses ledger/valuation preview and idempotent publication inside the existing
    LP imports router. Publication validates organization/fund context and
-   applies RLS inside the SERIALIZABLE transaction. It publishes policy
-   `1.4.0` / payload `5`, with no new DDL; the migration journal still ends at
+   applies RLS inside the SERIALIZABLE transaction. It publishes policy `1.4.0`
+   / payload `5`, with no new DDL; the migration journal still ends at
    `0055_current_forecast_recompute_commands`.
 
    `parsePersistedFactsRow` is the reader codec. Forecast, reserve intelligence,
    and construction reconciliation propagate the full `FinancialFactsBasisRef`
-   (`version`, `fundId`, `snapshotId`, `snapshotInputHash`, `sourceFactsInputHash`,
-   `policyVersion`, `asOfDate`, `knowledgeCutoff`); legacy policies retain their
-   existing behavior. Economics and periodic analysis refuse payload 5.
-   Valuation marks establish position values, not fund NAV, RVPI, or TVPI.
-   Publication invalidates cache after commit but does not trigger organic
-   shadow soak. The isolated actuals Gate A trial remains separate from
-   Current Forecast activation. See
+   (`schemaId`, `fundId`, `snapshotId`, `snapshotInputHash`,
+   `sourceFactsInputHash`, `policyVersion`, `asOfDate`, `knowledgeCutoff`);
+   legacy policies retain their existing behavior. Economics and periodic
+   analysis refuse payload 5. Valuation marks establish position values, not
+   fund NAV, RVPI, or TVPI. Publication invalidates cache after commit but does
+   not trigger organic shadow soak. The isolated actuals Gate A trial remains
+   separate from Current Forecast activation. See
    `docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
 **Conditional registration inside an existing manifest router**: the actuals
 pilot adds fund-gated endpoints to `server/routes/lp-reporting/imports.ts`.
-Register them on both existing assemblies, preserve the manifest router ID,
-and extend route policy, database-backed idempotency, CSRF, and mount-parity
-coverage for the conditional endpoints. Do not invent another router solely
-for a conditional path. Validate configuration at startup; an invalid pilot
-fund ID fails closed.
+Register them on both existing assemblies, preserve the manifest router ID, and
+extend route policy, database-backed idempotency, CSRF, and mount-parity
+coverage for the conditional endpoints. Do not invent another router solely for
+a conditional path. Validate configuration at startup; an invalid pilot fund ID
+fails closed.
 
 **New API endpoint**: add to `shared/routes/api-route-manifest.ts` → impl entry
 in `server/routes/mount-common-routes.ts` → group-slice on **both** `make_app`

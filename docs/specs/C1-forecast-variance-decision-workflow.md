@@ -4,7 +4,7 @@ audience: agents
 last_updated: 2026-09-06
 owner: Repository Owner
 scope: forecast-variance-decision-workflow-v1
-source_sha: 1cdef4f1bc24072742a2cd24349f04c6ec074f0f
+source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
 body_sha256: a8e1a74647c8ed2781f9fee5b957ad12b3f084489b9d72a6f5179ea6a5ac1f93
 approval_sha256: null
 reviewed_by: null

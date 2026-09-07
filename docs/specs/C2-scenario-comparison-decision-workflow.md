@@ -4,8 +4,8 @@ audience: agents
 last_updated: 2026-09-06
 owner: Repository Owner
 scope: scenario-comparison-decision-workflow-v1
-source_sha: 1cdef4f1bc24072742a2cd24349f04c6ec074f0f
-body_sha256: 954d4111ae6b935c30d7786a7a78c11deb4e11303f3daca3c340a1097e2b7738
+source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
+body_sha256: 2f36c573d150549befbfa5b0aaee5df4303b6fdb45f064a455501af563063e65
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -95,8 +95,9 @@ contracts accept economics variants `fee_profile`, `allocation`,
 `sector_profile`, and `methodology`; `reserve_allocation` remains outside this
 comparison and uses existing `UNSUPPORTED_OVERRIDE_TYPE`. Historical text stays
 identified as original-baseline behavior. C2 approval must include the amended
-ADR bytes in its new source baseline; this draft's `source_sha` still identifies
-the pre-amendment inspected source.
+ADR bytes in its source baseline. This draft's `source_sha` includes that
+amendment and the integrated Program A/B source work; owner approval remains
+unapproved.
 
 ## Authoritative Inputs and Source Versions
 
@@ -159,7 +160,7 @@ prospective and intentionally have no baseline hash.
 | `client/src/components/fund-results/scenario-comparison-evidence.ts`            | `fc36907a02d70da71aedb439e019e4e9358f8daed22cb6289774eb1a5f546d61` |
 | `client/src/hooks/useDecisions.ts`                                              | `1ede4ffc07a385d0653c64f01a60d7f76bb44dcfb6e62c943cc25328ec4514dc` |
 | `client/src/pages/fund-scenario-workspace.tsx`                                  | `c8980cb6fc3219e708c580094b13e453424052f63e4d1fa0e26dc0a4d22c65c2` |
-| `docs/adr/ADR-022-fund-scenario-architecture.md`                                | `558d39f1521cc1e0fbb3f5f410baeaa2ed19a37ddbdf903a15d19b56053479e7` |
+| `docs/adr/ADR-022-fund-scenario-architecture.md`                                | `c26faa1bfbd8a18369e8011c9ede1fc39367e2408821d28bfae34c2694bdc644` |
 | `migrations/meta/_journal.json`                                                 | `b69d3827f712c6474738faa874c3bc0073e6fb444ef85a4a35ac2ea1867c82ef` |
 | `server/routes/fund-scenario-sets.ts`                                           | `efa164d51499fa72b0da1332bf04d61feb0e3732926ae1b092df943b33d9ff27` |
 | `server/routes/internal-analysis.ts`                                            | `884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9` |

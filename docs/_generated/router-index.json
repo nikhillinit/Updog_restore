@@ -12435,7 +12435,7 @@
           "shared/schema/fund.ts",
           "shared/schema/internal-analysis.ts"
         ],
-        "source_sha": "1cdef4f1bc24072742a2cd24349f04c6ec074f0f",
+        "source_sha": "38fa722d19d343d5485d935ef5bce4c74c3be770",
         "state": "unapproved",
         "status": "DRAFT"
       },
@@ -12455,7 +12455,7 @@
         "approved_at": null,
         "approved_by": null,
         "audience": "agents",
-        "body_sha256": "954d4111ae6b935c30d7786a7a78c11deb4e11303f3daca3c340a1097e2b7738",
+        "body_sha256": "2f36c573d150549befbfa5b0aaee5df4303b6fdb45f064a455501af563063e65",
         "last_updated": "2026-09-06",
         "owner": "Repository Owner",
         "reviewed_at": null,
@@ -12481,7 +12481,7 @@
           "shared/schema/internal-analysis.ts",
           "shared/schema/operating-objects.ts"
         ],
-        "source_sha": "1cdef4f1bc24072742a2cd24349f04c6ec074f0f",
+        "source_sha": "38fa722d19d343d5485d935ef5bce4c74c3be770",
         "state": "unapproved",
         "status": "DRAFT"
       },
@@ -12538,7 +12538,7 @@
           "shared/schema.ts",
           "shared/schema/fund.ts"
         ],
-        "source_sha": "1cdef4f1bc24072742a2cd24349f04c6ec074f0f",
+        "source_sha": "38fa722d19d343d5485d935ef5bce4c74c3be770",
         "state": "unapproved",
         "status": "DRAFT"
       },
@@ -12558,7 +12558,7 @@
         "approved_at": null,
         "approved_by": null,
         "audience": "agents",
-        "body_sha256": "fd6a51505ddf87da075efa27d87cec8845237989354d377543dadecb1f15acfa",
+        "body_sha256": "6751e21d292ea7fccec8f6b3b9a9ae77881c6e2f6a340101e545978863832c9b",
         "last_updated": "2026-09-06",
         "owner": "Repository Owner",
         "reviewed_at": null,
@@ -12588,7 +12588,7 @@
           "shared/lib/internal-economics/v2/waterfall-deal-by-deal-v2.ts",
           "shared/schema/investment-positions.ts"
         ],
-        "source_sha": "1cdef4f1bc24072742a2cd24349f04c6ec074f0f",
+        "source_sha": "38fa722d19d343d5485d935ef5bce4c74c3be770",
         "state": "unapproved",
         "status": "DRAFT"
       },
@@ -12634,7 +12634,7 @@
           "shared/schema/internal-analysis.ts",
           "shared/schema/operating-objects.ts"
         ],
-        "source_sha": "1cdef4f1bc24072742a2cd24349f04c6ec074f0f",
+        "source_sha": "38fa722d19d343d5485d935ef5bce4c74c3be770",
         "state": "unapproved",
         "status": "DRAFT"
       },

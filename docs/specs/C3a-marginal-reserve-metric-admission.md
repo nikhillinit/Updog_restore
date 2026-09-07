@@ -4,7 +4,7 @@ audience: agents
 last_updated: 2026-09-06
 owner: Repository Owner
 scope: marginal-reserve-metric-admission-v2
-source_sha: 1cdef4f1bc24072742a2cd24349f04c6ec074f0f
+source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
 body_sha256: cc3bd74aceb91b195473dbb9a45eb105a133da94483b0fe94c22d9c038266ed7
 approval_sha256: null
 reviewed_by: null
