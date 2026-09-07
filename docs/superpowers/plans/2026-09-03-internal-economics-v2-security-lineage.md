@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-03
+last_updated: 2026-09-06
 owner: Repository Owner
 categories: [financial-correctness, internal-economics-v2]
 keywords:
@@ -42,6 +42,20 @@ and Phoenix truth cases.
 `AGENT-SAFETY.md` financial-allocation rules,
 `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts`,
 and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
+
+## Local implementation status — September 6, 2026
+
+Source correction and independent financial review are complete locally. The
+reviewed source unit is `e2b083911d4cdad43622b3c00b1238f4ab4b0889`; the
+integration branch carries the identical thirteen source and test files. The
+public input and normalizer remain `2.0.1`; receipt, serializer, event engine,
+and composite are `2.4.0`; deal-by-deal waterfall is `2.3.0`; whole-fund
+waterfall remains `2.2.0`. ADR-099 records the proposed decision.
+
+Generated lot-ID collision refusal precedes total mismatch and is covered by an
+unchanged-full-state mixed-defect regression. Source admission, release
+certification and affected serving remain separate pending gates. The admission
+checklist below is not completed by this local result.
 
 ## Global Constraints
 
@@ -112,8 +126,13 @@ green baseline/decision commit. Program B may be implemented at any time but
 merges into `main` before Program A candidate selection, so the candidate
 includes and soaks the proceeds fix. It changes API-bundled `shared/lib` code
 and cannot satisfy the ADR-095 exception-merge proof, so it never lands inside
-the hold window. Assign the decision the next unused `DECISIONS.md` ADR number
-at branch cut instead of reserving ADR-098.
+the hold window. Before either Program A or B edits `DECISIONS.md`, one
+integration owner refreshes protected main and records two distinct unused ADR
+identifiers together in the execution handoff. Task 1 consumes Program B's
+assignment; neither lane independently selects the next number. Recheck
+assignments on rebase and before source admission, and reassign any collision
+consistently before proceeding. Preserve accepted ADR-097. Allocation
+coordinates the two writers and does not grant source-admission authority.
 
 ---
 
@@ -257,27 +276,14 @@ source behavior change.
 
 - [ ] **Step 4: Record the security-lineage ADR and changelog intent**
 
-Resolve the next unused ADR number from the branch-cut file before editing:
+Consume the Program B ADR identifier assigned in the shared integration-owner
+handoff. Confirm that the handoff binds the inspected protected-main SHA,
+contains distinct A/B assignments, and that neither identifier is occupied by
+another decision in refreshed `DECISIONS.md`. Missing or conflicting assignments
+block editing. Return any collision to the integration owner for coordinated
+reassignment; the lane must not choose another number itself.
 
-```bash
-UPDOG_LAST_ADR_NUMBER="$(
-  rg -o '^## ADR-[0-9]+' DECISIONS.md |
-    sed 's/^## ADR-//' |
-    awk '{ print $1 + 0 }' |
-    sort -n |
-    tail -n 1
-)"
-test -n "$UPDOG_LAST_ADR_NUMBER"
-UPDOG_SECURITY_ADR_NUMBER="$((UPDOG_LAST_ADR_NUMBER + 1))"
-UPDOG_SECURITY_ADR_PADDED="$(printf '%03d' "$UPDOG_SECURITY_ADR_NUMBER")"
-if rg -q "^## ADR-${UPDOG_SECURITY_ADR_PADDED}:" DECISIONS.md; then
-  echo "ADR-${UPDOG_SECURITY_ADR_PADDED} already exists; stop and refresh branch state."
-  exit 1
-fi
-printf 'Use ADR-%s\n' "$UPDOG_SECURITY_ADR_PADDED"
-```
-
-Use that exact number with title
+Use the assigned number with title
 `Internal Economics V2 Realization Security Lineage`. Its decision must state:
 
 ```markdown
@@ -292,35 +298,20 @@ Record the user-visible correction/refusal effect in `CHANGELOG.md`.
 
 - [ ] **Step 5: Commit the green decision and baseline fixture**
 
-Immediately before staging, refresh `origin/main`, recover the selected ADR
-number from the unique local title, and fail closed if the number now exists on
-`origin/main` or appears more than once locally:
+Immediately before staging, refresh protected main and verify that the local
+security-lineage title occurs exactly once, uses the handoff-assigned Program B
+identifier, and does not collide with a different main-tree decision or the
+assigned Phase P identifier. A missing, duplicate, changed or occupied
+assignment blocks staging. Rebase as needed, return collisions to the
+integration owner for coordinated reassignment, and update the handoff and all
+affected references before re-verification; never derive a replacement locally.
 
-```bash
-git fetch origin --prune
-UPDOG_SECURITY_ADR_HEADING="$(
-  rg '^## ADR-[0-9]+: Internal Economics V2 Realization Security Lineage$' \
-    DECISIONS.md
-)"
-test "$(printf '%s\n' "$UPDOG_SECURITY_ADR_HEADING" | sed '/^$/d' | wc -l | tr -d ' ')" = "1"
-UPDOG_SECURITY_ADR_PADDED="$(
-  printf '%s\n' "$UPDOG_SECURITY_ADR_HEADING" |
-    sed -E 's/^## ADR-([0-9]+):.*$/\1/'
-)"
-test "$(rg -c "^## ADR-${UPDOG_SECURITY_ADR_PADDED}:" DECISIONS.md)" = "1"
-if git show origin/main:DECISIONS.md |
-  rg -q "^## ADR-${UPDOG_SECURITY_ADR_PADDED}:"; then
-  echo "ADR-${UPDOG_SECURITY_ADR_PADDED} was consumed on origin/main; stop, rebase, and select the next unused number."
-  exit 1
-fi
-git add \
-  DECISIONS.md \
-  CHANGELOG.md \
-  tests/helpers/v2-input-builder.ts \
-  tests/unit/truth-cases/internal-economics-v2-multi-security-routing.test.ts
-git diff --cached --check
-git commit -m "test(economics): freeze multi-security realization baseline"
-```
+Once the baseline verification is green and the assignment checks pass, stage
+only `DECISIONS.md`, `CHANGELOG.md`, `tests/helpers/v2-input-builder.ts`, and
+`tests/unit/truth-cases/internal-economics-v2-multi-security-routing.test.ts`.
+Create the bounded conventional commit for this decision and baseline fixture;
+record its SHA and verification evidence. This commit does not admit Program B
+source to main or authorize any runtime action.
 
 ---
 

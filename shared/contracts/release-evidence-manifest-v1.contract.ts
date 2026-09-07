@@ -8,6 +8,7 @@ import {
   RELEASE_EVIDENCE_FRAGMENT_PRODUCER_JOBS,
   RailwayIdentitySchema,
   ResidueVectorSchema,
+  SchemaFragmentPayloadSchema,
   VercelIdentitySchema,
   vectorEqualsReserved,
   type ReleaseEvidenceFragmentKind,
@@ -172,40 +173,7 @@ const WorkflowSchema = z
   })
   .strict();
 
-const GitHubRunUrlSchema = z
-  .string()
-  .max(2048)
-  .regex(/^https:\/\/github\.com\/[^\s?#]{1,2000}$/, 'Run URL must be an https github.com URL');
-
-const SchemaSectionSchema = z
-  .object({
-    migration: z.literal('0053'),
-    precursorSha: SourceShaSchema,
-    apply: z
-      .object({
-        runId: PositiveDecimalIdSchema,
-        runAttempt: z.literal(1),
-        workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
-        sourceSha: SourceShaSchema,
-        runUrl: GitHubRunUrlSchema,
-        artifactId: PositiveDecimalIdSchema,
-        artifactName: ArtifactNameSchema,
-        artifactArchiveSha256: Sha256HexSchema,
-        receiptFileSha256: Sha256HexSchema,
-      })
-      .strict(),
-    audit: z
-      .object({
-        runId: PositiveDecimalIdSchema,
-        runAttempt: RunAttemptSchema,
-        workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
-        sourceSha: SourceShaSchema,
-        runUrl: GitHubRunUrlSchema,
-        result: z.literal('clean'),
-      })
-      .strict(),
-  })
-  .strict();
+const SchemaSectionSchema = SchemaFragmentPayloadSchema;
 
 const CharacterizationEvidenceSchema = z
   .object({
@@ -494,11 +462,12 @@ export const ReleaseEvidenceManifestV1Schema = z
           'schema.apply.sourceSha must equal schema.precursorSha'
         );
       }
-      const expectedApplyName = `prod-schema-reconcile-${schema.apply.runId}-1-apply-${schema.precursorSha}`;
+      const applyMode = schema.apply.mode ?? 'apply';
+      const expectedApplyName = `prod-schema-reconcile-${schema.apply.runId}-1-${applyMode}-${schema.precursorSha}`;
       if (schema.apply.artifactName !== expectedApplyName) {
         issue(
           ['schema', 'apply', 'artifactName'],
-          'schema.apply.artifactName must be prod-schema-reconcile-<runId>-1-apply-<precursorSha>'
+          'schema.apply.artifactName must bind run, attempt, mode, and precursor SHA'
         );
       }
       if (

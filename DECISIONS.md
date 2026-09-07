@@ -12056,12 +12056,13 @@ The isolated activation train (F_1.11.0 plan, "Solution Architecture" and "Phase
 1 — Candidate certification") certifies one exact `main` SHA and binds every
 downstream action to it:
 
-1. The candidate is the P0b hardening merge SHA on top of `12af67a4e`. #1294
-   records it; static gates, the #1295 deployed-identity binding (deployment
-   IDs, database and schema identity, target-fund mode rows), the #1296
-   end-to-end proof, and all four #1298 soak windows run against exactly that
-   SHA. The binding is to immutable deployment IDs and readbacks, never to the
-   SHA alone; a same-SHA redeploy or reconfiguration breaks it.
+1. The candidate is the exact `origin/main` SHA selected after complete Phase P
+   admission under ADR-098, amending the earlier P0b-hardening selection rule.
+   #1294 records it; static gates, the #1295 deployed-identity binding
+   (deployment IDs, database and schema identity, target-fund mode rows), the
+   #1296 end-to-end proof, and all four #1298 soak windows run against exactly
+   that SHA. The binding is to immutable deployment IDs and readbacks, never to
+   the SHA alone; a same-SHA redeploy or reconfiguration breaks it.
 2. Restart rule: any change to the candidate SHA makes all downstream evidence
    (#1295 onward) ineligible for the current action and restarts the soak from
    Window 1. One candidate serves all four windows, so no completed window
@@ -12204,3 +12205,69 @@ on Vercel until a separately authorized activation. Reopening D6 and D8 widens
 the change surface the synthesis had deliberately fenced; the plan's per-reader
 codec and consumer evaluation gates are the compensating control and must ship
 before any consumer reads payload 5.
+
+## ADR-098: Guard Current Forecast Phase P Production Routes
+
+**Date:** 2026-09-06 **Status:** Proposed (owner ratification on merge)
+**Tags:** #current-forecast #schema #neon #release-governance
+
+### Decision
+
+Production migration 0050-0055 remains an action-specific mode of
+`prod-schema-reconcile.yml`. Isolated Neon rehearsal uses
+`current-forecast-neon-rehearsal.yml`. Current Forecast state changes use
+`current-forecast-production-action.yml`, which wraps only existing
+authenticated routes. `enter-shadow`, `activate`, `kill`, and `resume` are
+separate dispatches; `readback` is read-only. Evidence never supplies dispatch
+authority.
+
+This amends ADR-095 decision 1: candidate is the exact `origin/main` SHA
+selected after complete Phase P admission, not the P0b hardening merge. ADR-095
+restart, hold-window, and identity-binding rules are unchanged.
+
+### Consequences
+
+All five Phase P tasks admit together or none becomes canonical. Rehearsal
+branch creation validates exact returned identity before dependent work.
+Production schema apply, deployment, shadow entry, activation, kill, and resume
+retain separate repository-owner dispatch boundaries.
+
+## ADR-099: Internal Economics V2 Realization Security Lineage
+
+**Date:** 2026-09-06 **Status:** Proposed (source admission pending) **Tags:**
+#internal-economics-v2 #financial-correctness #security-lineage
+
+### Decision
+
+A realization's security identity comes only from admitted
+`reliefRows[].investmentLotId` resolved to `InvestmentLot.securityId`. The event
+engine validates and groups all relief rows before mutating state. Each security
+group must have positive proceeds; group totals must equal the realization
+amount, and every generated cash-lot ID must be unused. Existing typed refusals
+leave the event and enclosing stream unchanged.
+
+Single-security events retain `proceeds:<eventId>`. Multi-security events create
+private `proceeds:<eventId>:<securityId>` lots carrying the resolved security
+identity. Generated-ID alias collisions fail closed. Entitlement pools use the
+collision-free `JSON.stringify([dealId, securityId])` key and exact lookup.
+Missing exact pools return `INVESTMENT_LOT_RELIEF_VIOLATION`; iteration order
+never selects a security.
+
+Receipt, serializer, event-engine, and composite implementation identities
+advance to `2.4.0`; deal-by-deal waterfall advances to `2.3.0`. Whole-fund
+waterfall `2.2.0` and normalizer/input `2.0.1` remain unchanged. Public inputs
+and receipt field shape remain unchanged; the changed-case v3 manifest binds the
+new output identities while preserving historical baseline hashes.
+
+### Validation and admission
+
+`internal-economics-v2-multi-security-routing.test.ts` names the S-0102
+expected-output case. Its regression matrix covers exact security routing,
+source/cash/tier/partner conservation, partial recycling, reversed order,
+delimiter collisions, and atomic refusal. Phoenix truth and the existing
+calculation gate remain required source evidence.
+
+Program B source must be admitted before selecting Program A's next candidate
+and before affected multi-security deal-by-deal serving. It cannot be added to
+an already frozen soak window. This ADR records rationale; it does not approve
+source admission, release, or a production action.

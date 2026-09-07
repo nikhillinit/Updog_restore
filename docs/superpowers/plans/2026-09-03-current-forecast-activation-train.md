@@ -1,13 +1,59 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-03
+last_updated: 2026-09-06
 owner: Repository Owner
 categories: [release, current-forecast, production-governance]
 keywords: [F_1.11.0, activation, shadow-soak, '0055', Vercel, Railway, Neon]
 ---
 
 # Current Forecast Capability-First Activation Train Implementation Plan
+
+## September 6, 2026 local implementation status
+
+Program A Phase P source work and Program B V2 security-lineage work are locally
+implemented. Local tests and independent source review are recorded outside the
+repository against exact commits and patch digests. Source admission remains
+pending; these observations do not certify a release candidate or runtime state.
+Program C has five drafted specifications and five proposed implementation
+plans; owner approval remains pending. C1 currently has no distinct persisted
+comparable after-assumption source, so its prepared contract returns no drivers
+and records all 12 ordered typed omissions instead of inventing attribution.
+
+The authenticated database-health correction requires fresh surface-matrix
+provenance. Matrix regeneration and independent review may be prepared locally;
+G1 owner closure remains pending. Candidate selection, provider operations,
+actuals trial, shadow entry, activation, and kill/resume remain separate gates.
+
+## September 6, 2026 planning amendment
+
+Source reviewed: `origin/main@1cdef4f1bc24072742a2cd24349f04c6ec074f0f`.
+F_1.11.0 P0b source hardening is already admitted through #1469/#1470; F_1.12.0
+publication is admitted through #1478/#1479. Neither admission proves Phase P
+implementation, a certified candidate, provider state or a soak window. The
+September 3 source snapshot below remains historical.
+
+Accepted ADR-097 now belongs to F_1.12.0 actuals publication. Before either
+Program A or B edits `DECISIONS.md`, one integration owner refreshes protected
+main and records two distinct unused identifiers together in the execution
+handoff. Task 1 consumes the assigned Phase P identifier for **Guarded Current
+Forecast Production Actions**, the ADR-095 item 1 amendment and matching
+assertions. Each lane rechecks its assignment on rebase and before admission;
+any collision blocks further editing/admission until reassigned consistently.
+Accepted ADR-097 must retain its actuals meaning. The allocation record is
+coordination only; the Phase P all-or-nothing admission boundary remains.
+
+Before Task 7 candidate selection, reconcile F_1.12.0's fact-source behavior,
+config and grant state with the intended soak corpus. Its isolated trial Gate A
+is separate from #1299; manual trial/recompute evidence cannot be counted as
+organic soak. Preserve typed refusal of payload 5 by economics and periodic
+analysis. Do not assume the publisher supplies qualifying automatic shadow
+activity. The publisher currently invalidates cache only, and both shipped
+organic trigger paths are downstream of the legacy builder's pilot-fund fence.
+Before selecting a shared pilot/soak target, demonstrate a qualifying organic
+event source; otherwise choose an eligible non-pilot target or separately plan
+and admit compatible trigger wiring. Trial runs cannot close this prerequisite.
+The schema journal still ends at 0055; publication introduced no DDL.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -40,15 +86,14 @@ Railway, and Neon.
 ## Global Constraints
 
 - `origin/main@6fd4ece89215b64f5a4f6bec25a26c512040ff4d`, tree
-  `07fbf4c42847b7b244f61e0f0496bf2c203ef6f8`, is the historical source
-  baseline inspected on 2026-09-03 UTC. It is not the post-Phase-P activation
-  candidate.
+  `07fbf4c42847b7b244f61e0f0496bf2c203ef6f8`, is the historical source baseline
+  inspected on 2026-09-03 UTC. It is not the post-Phase-P activation candidate.
 - A plan, test, review, receipt, issue, or provider observation never grants
   source admission or a production action.
-- Every provider, schema, deployment, promotion, shadow-entry, activation,
-  kill, and resume mutation requires its own repository-owner dispatch.
-- All mutations require idempotency. All updates require optimistic locking.
-  All cursors require validation. All queue jobs require timeouts.
+- Every provider, schema, deployment, promotion, shadow-entry, activation, kill,
+  and resume mutation requires its own repository-owner dispatch.
+- All mutations require idempotency. All updates require optimistic locking. All
+  cursors require validation. All queue jobs require timeouts.
 - Run every test command with `TZ=UTC`.
 - Schema migration and identity readback use a direct, non-pooled PostgreSQL
   URL. Reject a hostname containing `pooler`.
@@ -83,21 +128,20 @@ admission applies only to the complete unit after the Phase P matrix is green.
 
 A partial Task 1-5 result is local or unmerged work only. It cannot update the
 canonical production procedure, authorize the migration lane, or authorize a
-Current Forecast action. Any Phase P change after review requires the full
-Phase P matrix and a fresh source-admission review. Admission selects a new
-candidate SHA; no certification or soak evidence from `6fd4ece...` carries
-forward.
+Current Forecast action. Any Phase P change after review requires the full Phase
+P matrix and a fresh source-admission review. Admission selects a new candidate
+SHA; no certification or soak evidence from `6fd4ece...` carries forward.
 
 ## Phase and Authority Boundaries
 
-| Phase | Work | Authority boundary | Exit |
-| --- | --- | --- | --- |
-| P | Tasks 1-5 | Local implementation and review; one complete owner-admitted source unit | Phase P merge SHA on `origin/main` |
-| Readiness | Task 7 | Read-only evidence; owner records `READY_TO_CUT` or `DEFERRED` | No required `UNKNOWN` and owner `READY_TO_CUT` |
-| A1 | Task 8 | Candidate freeze is an owner decision, not a merge effect | Exact SHA/tree certification complete |
-| A2 | Tasks 9-10 | Every rehearsal, schema, deployment, and promotion mutation is separately dispatched | One bound canonical release identity |
-| A3 | Task 11 | Shadow entry separately dispatched | #1296 green and #1297 evidence complete |
-| A4 | Tasks 12-13 | Owner records GO/NO-GO; every post-GO action remains separate | NO-GO or verified activation, kill, resume, final mode `on` |
+| Phase     | Work        | Authority boundary                                                                   | Exit                                                        |
+| --------- | ----------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| P         | Tasks 1-5   | Local implementation and review; one complete owner-admitted source unit             | Phase P merge SHA on `origin/main`                          |
+| Readiness | Task 7      | Read-only evidence; owner records `READY_TO_CUT` or `DEFERRED`                       | No required `UNKNOWN` and owner `READY_TO_CUT`              |
+| A1        | Task 8      | Candidate freeze is an owner decision, not a merge effect                            | Exact SHA/tree certification complete                       |
+| A2        | Tasks 9-10  | Every rehearsal, schema, deployment, and promotion mutation is separately dispatched | One bound canonical release identity                        |
+| A3        | Task 11     | Shadow entry separately dispatched                                                   | #1296 green and #1297 evidence complete                     |
+| A4        | Tasks 12-13 | Owner records GO/NO-GO; every post-GO action remains separate                        | NO-GO or verified activation, kill, resume, final mode `on` |
 
 ---
 
@@ -114,8 +158,9 @@ forward.
 
 - Consumes: existing `prod-schema-reconcile.yml`, `release-production.yml`, and
   Current Forecast admin routes.
-- Produces: ADR-097 and exact canonical names for the Phase P workflows. This
-  task grants no authority until the whole Phase P unit is admitted.
+- Produces: the new Phase P ADR and exact canonical names for the Phase P
+  workflows. This task grants no authority until the whole Phase P unit is
+  admitted.
 
 - [ ] **Step 1: Add the failing governance-routing assertions**
 
@@ -128,10 +173,6 @@ expect(procedure).toContain('activate');
 expect(procedure).toContain('kill');
 expect(procedure).toContain('resume');
 expect(procedure).toContain('readback');
-expect(decisions).toContain(
-  '## ADR-097: Guarded Current Forecast Production Actions'
-);
-expect(decisions).toContain('Amended by ADR-097');
 ```
 
 - [ ] **Step 2: Run the focused test and confirm RED**
@@ -142,11 +183,12 @@ TZ=UTC npx vitest run \
   --config vitest.config.mjs --configLoader native --project=server
 ```
 
-Expected: FAIL because Phase P workflow names and ADR-097 are absent.
+Expected: FAIL because Phase P workflow names and the new Phase P ADR are
+absent.
 
-- [ ] **Step 3: Add ADR-097 and narrow canonical routing**
+- [ ] **Step 3: Add the new Phase P ADR and narrow canonical routing**
 
-ADR-097 must record:
+The new Phase P ADR must record:
 
 ```markdown
 Decision: production migration 0050-0055 remains an action-specific mode of
@@ -154,15 +196,17 @@ prod-schema-reconcile.yml. Isolated Neon rehearsal uses
 current-forecast-neon-rehearsal.yml. Current Forecast state changes use
 current-forecast-production-action.yml, which wraps only existing authenticated
 routes. enter-shadow, activate, kill, and resume are separate dispatches;
-readback is read-only. Evidence never supplies dispatch authority.
-Amends ADR-095 decision 1: the candidate is the exact origin/main SHA selected
-after complete Phase P admission, not the P0b hardening merge. ADR-095's
-restart, hold-window, and identity-binding rules are unchanged.
+readback is read-only. Evidence never supplies dispatch authority. Amends
+ADR-095 decision 1: the candidate is the exact origin/main SHA selected after
+complete Phase P admission, not the P0b hardening merge. ADR-095's restart,
+hold-window, and identity-binding rules are unchanged.
 ```
 
-Append under ADR-095 Decision item 1 the sentence `Amended by ADR-097: the
-candidate is selected after complete Phase P admission.` and mirror it in
-ADR-095 Consequences. ADR-095 is not rewritten; the amendment is additive.
+Append a sentence under ADR-095 Decision item 1 naming the newly allocated Phase
+P ADR identifier and stating that the candidate is selected after complete Phase
+P admission. Mirror that allocated identifier in ADR-095 Consequences and the
+governance-routing assertions. Preserve the rest of ADR-095; this is an additive
+amendment.
 
 Update `PRODUCTION_SCRIPTS.md` to state:
 
@@ -170,9 +214,9 @@ Update `PRODUCTION_SCRIPTS.md` to state:
 - `prod-schema-reconcile.yml` remains the only production schema workflow;
 - `current-forecast-neon-rehearsal.yml` is the guarded isolated-branch route;
 - `current-forecast-production-action.yml` wraps existing HTTP routes and owns
-  only action-time identity fencing, protected session credentials, the
-  initial request plus same-key replay, the activation-only fresh-key conflict
-  probe, and post-state readback;
+  only action-time identity fencing, protected session credentials, the initial
+  request plus same-key replay, the activation-only fresh-key conflict probe,
+  and post-state readback;
 - none becomes canonical before the complete Phase P unit is admitted.
 
 - [ ] **Step 4: Run the focused and policy checks**
@@ -206,10 +250,11 @@ Do not merge or dispatch from this partial Phase P state.
 ### Task 2: Add a Bounded Journaled 0050-0055 Schema Lane
 
 **Premise (verified):** the existing production schema workflow cannot apply
-migrations 0054-0055 today. `.github/workflows/prod-schema-reconcile.yml:118-122`
-accepts only `audit`, `apply`, and `apply-catchup-0050-0053` and exits 1 on any
-other mode. `scripts/reconcile-prod-schema.mjs:37-41` documents that the single
-governed catch-up capability covers exactly the four G3 manifests 0050-0053, and
+migrations 0054-0055 today.
+`.github/workflows/prod-schema-reconcile.yml:118-122` accepts only `audit`,
+`apply`, and `apply-catchup-0050-0053` and exits 1 on any other mode.
+`scripts/reconcile-prod-schema.mjs:37-41` documents that the single governed
+catch-up capability covers exactly the four G3 manifests 0050-0053, and
 `:2234-2238` shows the apply selector resolves only the G3-catchup or 0053-only
 capability. Manifests 31 and 32 (0054, 0055) have no sanctioned apply path, so a
 bounded journaled lane is a real prerequisite, not scope drift. Task 2 adds that
@@ -224,8 +269,10 @@ lane; it does not reinterpret the 0050-0053 reconcile ledger.
 - Modify: `scripts/release/build-schema-reconcile-receipt.ts:1-240`
 - Modify: `tests/unit/scripts/prod-schema-reconcile-workflow.test.mjs`
 - Modify: `tests/unit/scripts/production-schema-dispatch-block.test.mjs`
-- Create: `tests/unit/scripts/current-forecast-journaled-migration-range.test.mjs`
-- Create: `tests/integration/current-forecast-journaled-migration-recovery.test.ts`
+- Create:
+  `tests/unit/scripts/current-forecast-journaled-migration-range.test.mjs`
+- Create:
+  `tests/integration/current-forecast-journaled-migration-recovery.test.ts`
 - Modify: `tests/config/testcontainers-test-paths.mjs`
 - Modify: `tests/unit/contracts/schema-reconcile-receipt-v1.contract.test.ts`
 - Modify: `tests/unit/scripts/build-schema-reconcile-receipt.test.ts`
@@ -272,28 +319,34 @@ expect(entries.map(({ tag }) => tag)).toEqual([
   '0055_current_forecast_recompute_commands',
 ]);
 expect(entries.map(({ when }) => when)).toEqual([
-  1785800400000,
-  1785886800000,
-  1785973200000,
-  1786059600000,
-  1788161773455,
+  1785800400000, 1785886800000, 1785973200000, 1786059600000, 1788161773455,
   1788235843534,
 ]);
 expect(entries.every(({ hash }) => /^[a-f0-9]{64}$/.test(hash))).toBe(true);
-expect(classifyCurrentForecastLedgerState({
-  ledgerRows: [expectedLedgerRow('0049_kpi_observations')],
-  targetEntries: entries,
-})).toEqual({ state: 'ready', appliedTargetCount: 0,
-  lastAppliedTag: '0049_kpi_observations' });
-expect(classifyCurrentForecastLedgerState({
-  ledgerRows: expectedLedgerRowsThrough('0053_g3_release_gate_hardening'),
-  targetEntries: entries,
-})).toEqual({ state: 'ready', appliedTargetCount: 4,
-  lastAppliedTag: '0053_g3_release_gate_hardening' });
+expect(
+  classifyCurrentForecastLedgerState({
+    ledgerRows: [expectedLedgerRow('0049_kpi_observations')],
+    targetEntries: entries,
+  })
+).toEqual({
+  state: 'ready',
+  appliedTargetCount: 0,
+  lastAppliedTag: '0049_kpi_observations',
+});
+expect(
+  classifyCurrentForecastLedgerState({
+    ledgerRows: expectedLedgerRowsThrough('0053_g3_release_gate_hardening'),
+    targetEntries: entries,
+  })
+).toEqual({
+  state: 'ready',
+  appliedTargetCount: 4,
+  lastAppliedTag: '0053_g3_release_gate_hardening',
+});
 ```
 
-`loadCurrentForecastMigrationRange` computes each expected ledger hash exactly as
-Drizzle does: SHA-256 of the SQL file bytes. Also assert a mismatched hash,
+`loadCurrentForecastMigrationRange` computes each expected ledger hash exactly
+as Drizzle does: SHA-256 of the SQL file bytes. Also assert a mismatched hash,
 duplicate row, gap, reorder, unknown timestamp, or post-0055 row fails closed.
 
 - [ ] **Step 2: Run the range test and confirm RED**
@@ -306,12 +359,13 @@ TZ=UTC npx vitest run \
 
 Expected: FAIL because the bounded helper does not exist.
 
-- [ ] **Step 3: Implement the bounded migration slice and pre-mutation catalog fence**
+- [ ] **Step 3: Implement the bounded migration slice and pre-mutation catalog
+      fence**
 
 Copy only the six target journal entries and SQL files into a temporary Drizzle
-migrations directory. Preserve source journal version/dialect. Use
-`mkdtemp`, validate exact adjacency and timestamps, and always remove the
-temporary directory in `finally`.
+migrations directory. Preserve source journal version/dialect. Use `mkdtemp`,
+validate exact adjacency and timestamps, and always remove the temporary
+directory in `finally`.
 
 `classifyCurrentForecastLedgerState` accepts only:
 
@@ -335,8 +389,7 @@ const CREATED_TABLE_BY_MIGRATION = Object.freeze({
   '0051_g3_canary_schema': 'release_canary_runs',
   '0052_g3_capital_call_notification_outbox':
     'capital_call_notification_outbox',
-  '0053_g3_release_gate_hardening':
-    'fund_scenario_calculation_commands',
+  '0053_g3_release_gate_hardening': 'fund_scenario_calculation_commands',
   '0054_operating_decisions_spine': 'operating_decisions',
   '0055_current_forecast_recompute_commands':
     'current_forecast_recompute_commands',
@@ -344,11 +397,11 @@ const CREATED_TABLE_BY_MIGRATION = Object.freeze({
 ```
 
 `catalog` carries the raw `pg_get_constraintdef` and `pg_get_indexdef` rows for
-each sentinel table. The fence compares every constraint and index definition
-to the exact definition its migration file creates; a same-named object with a
+each sentinel table. The fence compares every constraint and index definition to
+the exact definition its migration file creates; a same-named object with a
 different definition refuses before `migrate`. The reconcile auditor checks
-names only unless a manifest pins definitions (`reconcile-prod-schema.mjs:2350`),
-which manifests 27-32 do not.
+names only unless a manifest pins definitions
+(`reconcile-prod-schema.mjs:2350`), which manifests 27-32 do not.
 
 For an already-ledgered migration, require the corresponding whole manifest to
 be exact `SKIP`. For a not-yet-ledgered migration, its sentinel table must be
@@ -360,8 +413,8 @@ mismatch is an unsafe partial table and must refuse before `migrate`.
 
 For non-sentinel objects, allow only exact `(kind, name)` deltas implemented by
 that migration's `ALTER TABLE ... ADD ... IF NOT EXISTS` or guarded `DO` block.
-Keep a migration-specific allowlist covered by real-PostgreSQL pristine-0049
-and every-prefix tests. Any extra delta or `REFUSE-FOR-HUMAN` refuses before
+Keep a migration-specific allowlist covered by real-PostgreSQL pristine-0049 and
+every-prefix tests. Any extra delta or `REFUSE-FOR-HUMAN` refuses before
 mutation.
 
 Do not call the custom `apply-catchup-0050-0053` path from this lane and never
@@ -394,9 +447,8 @@ it('serializes concurrent runs with the schema advisory lock');
 
 Before apply, a not-yet-ledgered migration may return `SKIP` or
 `APPLY-MISSING-DDL`; an already-ledgered one must return `SKIP`; any other
-action blocks. After apply, all six must
-return `SKIP`. The post-apply test also asserts exact ordered timestamp/hash rows
-through 0055.
+action blocks. After apply, all six must return `SKIP`. The post-apply test also
+asserts exact ordered timestamp/hash rows through 0055.
 
 The action-level `SKIP`/`APPLY-MISSING-DDL` check is necessary but not
 sufficient. Orders 27-30 must also pass
@@ -437,8 +489,8 @@ post-audit, and attempt-qualified receipt artifact remain mandatory.
 
 - [ ] **Step 7: Extend the existing workflow and receipt union minimally**
 
-Add only the new mode branch. Do not generalize the existing 0045-0049 helper
-or change 0050-0053 semantics. Add a dedicated receipt variant with:
+Add only the new mode branch. Do not generalize the existing 0045-0049 helper or
+change 0050-0053 semantics. Add a dedicated receipt variant with:
 
 ```ts
 {
@@ -449,13 +501,13 @@ or change 0050-0053 semantics. Add a dedicated receipt variant with:
     '0052_g3_capital_call_notification_outbox',
     '0053_g3_release_gate_hardening',
     '0054_operating_decisions_spine',
-    '0055_current_forecast_recompute_commands'
+    '0055_current_forecast_recompute_commands',
   ];
   preState: {
     state: 'ready' | 'complete';
     appliedTargetCount: 0 | 1 | 2 | 3 | 4 | 5 | 6;
     lastAppliedTag: string;
-  };
+  }
   postState: 'complete';
   applied: boolean;
 }
@@ -512,8 +564,7 @@ type RehearsalInput = {
   parentBranchId: string;
   databaseName: string;
   expectedParentMigrationTail:
-    | '0049_kpi_observations'
-    | '0053_g3_release_gate_hardening';
+    '0049_kpi_observations' | '0053_g3_release_gate_hardening';
 };
 
 type RehearsalRunOutputs = {
@@ -537,8 +588,8 @@ Assert the workflow:
 
 - runs only on `workflow_dispatch` and `github.run_attempt == 1`;
 - uses protected environment `production-schema`;
-- requires exact candidate SHA, project ID, parent branch ID, database name,
-  and expected parent migration tail;
+- requires exact candidate SHA, project ID, parent branch ID, database name, and
+  expected parent migration tail;
 - re-fetches live `refs/heads/main` before branch creation;
 - rejects missing `NEON_API_KEY`, pooled connection hosts, and malformed IDs;
 - invokes Task 2's one bounded `apply-current-forecast-0050-0055` runner;
@@ -575,7 +626,8 @@ Use Node 22 `fetch` and `node:crypto`; add no dependency. The helper must:
    once; Task 2 resumes an exact contiguous Drizzle prefix from 0049 through
    0055 without using the custom 0050-0053 reconcile ledger;
 7. run clean post-audit and complete-state replay/no-op checks;
-8. run `tests/integration/current-forecast-journaled-migration-recovery.test.ts`,
+8. run
+   `tests/integration/current-forecast-journaled-migration-recovery.test.ts`,
    `tests/integration/current-forecast-manual-recompute.pg.test.ts`, and
    `tests/integration/current-forecast-reference.pg.test.ts` through
    `vitest.config.testcontainers.ts` inside the protected job with
@@ -628,7 +680,8 @@ Expected: PASS. Do not merge or dispatch from this partial Phase P state.
 - Create: `.github/workflows/current-forecast-production-action.yml`
 - Modify: `server/routes/health.ts:399-425`
 - Create: `tests/unit/scripts/current-forecast-production-action.test.mjs`
-- Create: `tests/unit/scripts/current-forecast-production-action-workflow.test.mjs`
+- Create:
+  `tests/unit/scripts/current-forecast-production-action-workflow.test.mjs`
 - Create: `tests/unit/routes/database-health-identity.test.ts`
 - Modify: `tests/regressions/ci-fail-closed.test.ts`
 
@@ -673,13 +726,13 @@ type DatabaseHealthIdentity = {
 
 Exact route mapping:
 
-| Action | Method and path | Body | Required post-state |
-| --- | --- | --- | --- |
-| `enter-shadow` | `PUT /api/admin/funds/:fundId/calculation-modes/current-forecast` | `{ expectedVersion, configuredMode: 'shadow', killSwitchActive: false }` | `configuredMode=shadow`, `effectiveMode=shadow`, non-null `shadowStartedAt` |
-| `activate` | `POST /api/admin/funds/:fundId/current-forecast/activate` | `{ referenceId, expectedVersion }` | `configuredMode=on`, `effectiveMode=on`, served reference equals `referenceId` |
-| `kill` | `PUT /api/admin/funds/:fundId/calculation-modes/current-forecast` | `{ expectedVersion, configuredMode: 'off', killSwitchActive: true }` | mode-row API and database: `configuredMode=off`, `effectiveMode=off`, `killSwitchActive=true`; serving resolver: `mode=held`; activation pointer unchanged |
-| `resume` | `POST /api/admin/funds/:fundId/calculation-modes/current-forecast/resume` | `{ expectedVersion }` | `configuredMode=on`, `killSwitchActive=false`, activation pointer unchanged |
-| `readback` | none (reads only): the same direct-database mode-row/version/activation-pointer/serving-resolver reads the four actions already perform, plus `GET /api/health/db` | none | emits the observed post-state, mode-row version, and database identity; mutates nothing |
+| Action         | Method and path                                                                                                                                                    | Body                                                                     | Required post-state                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enter-shadow` | `PUT /api/admin/funds/:fundId/calculation-modes/current-forecast`                                                                                                  | `{ expectedVersion, configuredMode: 'shadow', killSwitchActive: false }` | `configuredMode=shadow`, `effectiveMode=shadow`, non-null `shadowStartedAt`                                                                                |
+| `activate`     | `POST /api/admin/funds/:fundId/current-forecast/activate`                                                                                                          | `{ referenceId, expectedVersion }`                                       | `configuredMode=on`, `effectiveMode=on`, served reference equals `referenceId`                                                                             |
+| `kill`         | `PUT /api/admin/funds/:fundId/calculation-modes/current-forecast`                                                                                                  | `{ expectedVersion, configuredMode: 'off', killSwitchActive: true }`     | mode-row API and database: `configuredMode=off`, `effectiveMode=off`, `killSwitchActive=true`; serving resolver: `mode=held`; activation pointer unchanged |
+| `resume`       | `POST /api/admin/funds/:fundId/calculation-modes/current-forecast/resume`                                                                                          | `{ expectedVersion }`                                                    | `configuredMode=on`, `killSwitchActive=false`, activation pointer unchanged                                                                                |
+| `readback`     | none (reads only): the same direct-database mode-row/version/activation-pointer/serving-resolver reads the four actions already perform, plus `GET /api/health/db` | none                                                                     | emits the observed post-state, mode-row version, and database identity; mutates nothing                                                                    |
 
 `readback` adds no HTTP route. It reuses the identity and mode-row reads the
 unsafe actions already run (Step 4 items 1-5) plus `GET /api/health/db`, carries
@@ -698,9 +751,13 @@ expected response, and invalid-field refusal; `referenceId` is required only for
 body).
 
 ```js
-expect(buildActionRequest({
-  action: 'kill', fundId: 7, expectedVersion: 4,
-})).toMatchObject({
+expect(
+  buildActionRequest({
+    action: 'kill',
+    fundId: 7,
+    expectedVersion: 4,
+  })
+).toMatchObject({
   method: 'PUT',
   path: '/api/admin/funds/7/calculation-modes/current-forecast',
   body: { expectedVersion: 4, configuredMode: 'off', killSwitchActive: true },
@@ -761,10 +818,9 @@ The wrapper must complete this machine fence before any unsafe action request:
 
 1. require dispatch database identity equals the two protected environment
    variables;
-2. connect through `PRODUCTION_DATABASE_URL` and prove that direct database
-   name and host fingerprint equal those protected values;
-3. authenticate to the canonical deployment with the existing cookie/CSRF
-   flow;
+2. connect through `PRODUCTION_DATABASE_URL` and prove that direct database name
+   and host fingerprint equal those protected values;
+3. authenticate to the canonical deployment with the existing cookie/CSRF flow;
 4. call authenticated `GET /api/health/db` on that deployment and require its
    database name and live `DATABASE_URL` host fingerprint equal the same
    protected values and direct-connection observations;
@@ -788,11 +844,11 @@ dependency. Complete these fences before any mutation:
    `verifyVercelEvidence`; do not create another provider verifier;
 4. call canonical `/api/version` with the existing Vercel protection-bypass
    header and require exact commit SHA and production environment;
-5. reject pooled database URLs, require `current_database()` equals the
-   expected database name, require
-   `sha256(lowercase(new URL(DATABASE_URL).hostname))` equals the supplied
-   direct-host fingerprint, require migration tail 0055, then read the fund
-   mode row, version, activation pointer, and serving resolver state;
+5. reject pooled database URLs, require `current_database()` equals the expected
+   database name, require `sha256(lowercase(new URL(DATABASE_URL).hostname))`
+   equals the supplied direct-host fingerprint, require migration tail 0055,
+   then read the fund mode row, version, activation pointer, and serving
+   resolver state;
 6. for the four unsafe actions, require the database mode-row version equals
    `expectedVersion` before any request; a mismatch fails the workflow closed
    here, so no mutation request is ever sent on stale state;
@@ -806,8 +862,8 @@ dependency. Complete these fences before any mutation:
 8. (unsafe actions only) generate one run-scoped idempotency key internally,
    send the mapped request, then replay the same request with the same key
    inside the same workflow and require status 200 with `replayed: true`;
-9. for `activate` only, generate a fresh key, repeat the activation request,
-   and require status 409 without state change;
+9. for `activate` only, generate a fresh key, repeat the activation request, and
+   require status 409 without state change;
 10. (unsafe actions only) validate the mapped response schema, direct-database
     post-state, and serving resolver state. For `kill`, the direct-database mode
     row must report `configuredMode=off`, `effectiveMode=off`,
@@ -843,8 +899,8 @@ workflow. The idempotency key lives only in job memory.
 Add a call-order assertion proving release manifest, provider identity,
 `/api/version`, direct database identity, authenticated `/api/health/db`, mode
 row/version, CSRF refresh, initial request, and same-key replay occur in that
-order. For each database mismatch, assert the unsafe action mock has zero
-calls. The fresh-key activation conflict remains after the successful replay.
+order. For each database mismatch, assert the unsafe action mock has zero calls.
+The fresh-key activation conflict remains after the successful replay.
 
 Mock only I/O boundaries. Prove release-manifest, Vercel, `/api/version`,
 database-name, host-fingerprint, migration-tail, and expected-version mismatch
@@ -907,8 +963,8 @@ candidate_tree_sha: recorded_at_candidate_selection
 historical_review_baseline: 6fd4ece89215b64f5a4f6bec25a26c512040ff4d
 ```
 
-Mark landed work complete only where exact source and named tests prove it.
-Move obsolete instructions to a completed-evidence table.
+Mark landed work complete only where exact source and named tests prove it. Move
+obsolete instructions to a completed-evidence table.
 
 - [ ] **Step 2: Replace conflicting execution order**
 
@@ -1049,12 +1105,12 @@ authorization.
 
 `READY_TO_CUT` requires every F_1.11.0 P0a GitHub-only correction to be recorded
 first, because soak evidence otherwise cites issues that misdescribe the tree
-(F_1.11.0 problem 1). Confirm and link in #1171: #1467 retirement wording
-scoped to handler/policy/tests/matrix row only; #1171 body refreshed to this
-baseline; #1294 gate statement rewritten with the candidate-SHA placeholder,
-ten-surface enumeration, and restart rule; #1298 reconciled to the
-single-SHA-across-soak contract and the `current-forecast-shadow-soak.md`
-runbook; #1283 runbook citation corrected; #1295 amended additively with
+(F_1.11.0 problem 1). Confirm and link in #1171: #1467 retirement wording scoped
+to handler/policy/tests/matrix row only; #1171 body refreshed to this baseline;
+#1294 gate statement rewritten with the candidate-SHA placeholder, ten-surface
+enumeration, and restart rule; #1298 reconciled to the single-SHA-across-soak
+contract and the `current-forecast-shadow-soak.md` runbook; #1283 runbook
+citation corrected; #1295 amended additively with
 candidate/deployment/database/config binding fields; #1292 rubric corrected
 (drop legacy parity, containment drill post-GO, manifest reference to the #1295
 binding record); #1297 reconciled to four windows with the evidence-readiness
@@ -1079,15 +1135,42 @@ shell reports another allowed Node 22/npm 10 version, do not use that shell for
 certification: enter the repository-pinned `.nvmrc` or Volta toolchain and rerun
 the commands. If `origin/main` changed after readiness began, restart Task 7.
 
+- [ ] **Step 1a: Prove both source prerequisites are admitted**
+
+Record the exact Phase P and Program B merge SHAs, source-admission evidence
+handles, and the refreshed main SHA/tree. Confirm each admitted SHA is an
+ancestor of that main SHA. An absent, unmerged, different or non-ancestor
+Program B/Phase P result yields `DEFERRED`; PR descriptions and branch heads do
+not substitute for admitted commits. Re-run these checks if main changes.
+
+- [ ] **Step 1b: Prove target and organic-event-source compatibility**
+
+For every proposed soak fund, record its ID, intended fact policy/producer,
+`ACTUALS_PILOT_FUND_ID` configuration match, and the exact source entrypoint
+that will create qualifying automatic shadow execution. Retain a source trace
+and an isolated, non-production proof that the named path reaches shadow
+execution without manual recompute or an unsupported facts-policy/writer
+refusal. This compatibility proof is readiness evidence only, never a soak
+window. Deployed identity and actual organic activity still require Tasks 10-12.
+Consume retained proof from prerequisite local verification; Task 7 itself
+performs no database writes or provider actions. If new proof is needed, return
+to the prerequisite source/verification lane before completing readiness.
+
+A configured pilot fund is `DEFERRED` with current publication wiring. Admit and
+prove a separately scoped compatible trigger change before selecting it, or
+select an eligible non-pilot fund with a demonstrated qualifying path. Unknown
+fund/config/producer identity, missing proof, a writer/policy refusal or
+reliance on manual trial/recompute runs blocks `READY_TO_CUT`.
+
 - [ ] **Step 2: Record current authenticated provider topology**
 
 Record in #1283:
 
 - Vercel team/project, canonical hostname, deployment ID/SHA, runtime, aliases,
   and environment designation;
-- Railway project/environment and exact service IDs for `fund-scenario-calc`
-  and `capital-call-status`, including deployment IDs/SHAs, replicas, health,
-  and autodeploy readback;
+- Railway project/environment and exact service IDs for `fund-scenario-calc` and
+  `capital-call-status`, including deployment IDs/SHAs, replicas, health, and
+  autodeploy readback;
 - Neon project, intended production branch, database, direct-host fingerprint,
   PostgreSQL version, migration tail, branch limit, and isolation state;
 - Redis/queue identity used by API and both workers;
@@ -1095,11 +1178,12 @@ Record in #1283:
 
 Any required unresolved field is literal `UNKNOWN` and yields `DEFERRED`.
 
-- [ ] **Step 3: Record backup, restore, credential, custody, and calendar proof**
+- [ ] **Step 3: Record backup, restore, credential, custody, and calendar
+      proof**
 
 Record managed backup/PITR, isolated restore freshness and digest, custody
-roles, preview/restore isolation, protected-environment secret availability,
-and named operator coverage for certification, four windows, decision, and
+roles, preview/restore isolation, protected-environment secret availability, and
+named operator coverage for certification, four windows, decision, and
 containment. Missing evidence yields `DEFERRED`.
 
 - [ ] **Step 4: Reconcile trackers if separately authorized**
@@ -1110,9 +1194,11 @@ cleanup conditional on observed orphan risk. Record exact edit timestamps.
 
 - [ ] **Step 5: Record candidate freeze**
 
-Owner records `READY_TO_CUT`, candidate SHA/tree, migration tail, provider
-readback timestamp, dependency disposition, and admission hold. Any later
-admitted commit selects a new candidate and invalidates downstream evidence.
+Only after Steps 0-4 pass, owner records `READY_TO_CUT`, both prerequisite
+admission SHAs, target/organic-source evidence handles, candidate SHA/tree,
+migration tail, provider readback timestamp, dependency disposition, and
+admission hold. Any later admitted commit selects a new candidate and
+invalidates downstream evidence.
 
 ---
 
@@ -1176,8 +1262,8 @@ disposition. Close #1294 only if every required gate is green on this SHA.
 
 - Consumes: Task 8 certification and Task 7 exact Neon/restore identities.
 - Produces: rehearsal GitHub run/attempt outputs and summary, then one
-  separately authorized production schema-reconcile receipt proving the
-  intended target reaches migration tail 0055.
+  separately authorized production schema-reconcile receipt proving the intended
+  target reaches migration tail 0055.
 
 - [ ] **Step 1: Dispatch isolated Neon rehearsal**
 
@@ -1203,13 +1289,13 @@ Any mismatch stops with zero mutation.
 
 - [ ] **Step 4: Apply the bounded journaled range through one owner dispatch**
 
-Dispatch `prod-schema-reconcile.yml` once in
-`apply-current-forecast-0050-0055` mode. The Task 2 ledger classifier may start
-only from exact 0049 or an exact contiguous, hash-matching Drizzle prefix
-through 0055; it applies only missing migrations and records their canonical
-Drizzle hashes. Any gap, duplicate, reorder, hash mismatch, unknown row, later
-row, or non-direct host stops before mutation. Do not call the custom
-`apply-catchup-0050-0053` route and do not split 0050-0055 across dispatches.
+Dispatch `prod-schema-reconcile.yml` once in `apply-current-forecast-0050-0055`
+mode. The Task 2 ledger classifier may start only from exact 0049 or an exact
+contiguous, hash-matching Drizzle prefix through 0055; it applies only missing
+migrations and records their canonical Drizzle hashes. Any gap, duplicate,
+reorder, hash mismatch, unknown row, later row, or non-direct host stops before
+mutation. Do not call the custom `apply-catchup-0050-0053` route and do not
+split 0050-0055 across dispatches.
 
 - [ ] **Step 5: Publish immutable database binding evidence**
 
@@ -1276,9 +1362,9 @@ CSV artifact -> observation -> reconciliation -> working selection
 ```
 
 Exercise one alias write-back, one bulk accept, one default working selection,
-and one reasoned operator override. Keep reserve reference nullable and economics
-reference pinned. Create no official report, public share, delivery, notice,
-payment, or legal/tax artifact.
+and one reasoned operator override. Keep reserve reference nullable and
+economics reference pinned. Create no official report, public share, delivery,
+notice, payment, or legal/tax artifact.
 
 - [ ] **Step 3: Prove concurrency and temporal boundaries**
 
@@ -1289,9 +1375,9 @@ boundaries, and no activation race with terminal recompute write.
 
 - [ ] **Step 4: Prove deployed boundaries**
 
-Against canonical candidate ingress, accept 4 MiB and reject 4 MiB + 1 byte with
-413. Run bidirectional internal-source boundary tests. Verify runtime identities
-before and after. Confirm served production value remains unchanged.
+Against canonical candidate ingress, accept 4 MiB and reject 4 MiB + 1 byte
+with 413. Run bidirectional internal-source boundary tests. Verify runtime
+identities before and after. Confirm served production value remains unchanged.
 
 - [ ] **Step 5: Assemble existing evidence surfaces**
 
@@ -1308,10 +1394,10 @@ containment readiness links. Do not create another evidence document.
 - [ ] **Step 1: Enforce formal soak controls**
 
 Prohibit manual recompute for soak-target funds. Each window records exact UTC
-interval, identity checks at both boundaries, at least one facts-commit-triggered
-run, complete committed corpus evaluation, result/reference hashes, outcome
-counts, reconciliation IDs, latest decisive observation, manual-row audit, and
-operator/automation identity.
+interval, identity checks at both boundaries, at least one
+facts-commit-triggered run, complete committed corpus evaluation,
+result/reference hashes, outcome counts, reconciliation IDs, latest decisive
+observation, manual-row audit, and operator/automation identity.
 
 - [ ] **Step 2: Apply the green predicate to every window**
 
@@ -1352,11 +1438,10 @@ Create the GO/NO-GO `operating_decisions` row through the existing decision API.
 Link it through the existing decision-evidence-link API to the exact same-fund
 `analysis_reference` produced in Task 11; that immutable analysis reference
 already pins the economics evidence used for the decision. Do not put a GitHub
-issue URL or issue number into a nonexistent database evidence field. Record
-the decision row ID, evidence-link ID, and linked analysis-reference ID in
-#1297 and #1299 as external navigation. On NO-GO, keep current serving mode and
-record the smallest corrective program. Do not leave an indefinite `READY`
-state.
+issue URL or issue number into a nonexistent database evidence field. Record the
+decision row ID, evidence-link ID, and linked analysis-reference ID in #1297 and
+#1299 as external navigation. On NO-GO, keep current serving mode and record the
+smallest corrective program. Do not leave an indefinite `READY` state.
 
 - [ ] **Step 2: Re-fence immediately before activation**
 
@@ -1399,8 +1484,8 @@ same-key replay returns 200 with `replayed: true`.
 Record post-action runtime identities, every workflow run/attempt/artifact,
 database versions, cutover reference, containment result, final serving state,
 and owner decision in #1299. Then delete the rehearsal branch by its exact
-recorded branch ID and read back its absence, or record owner-named,
-date-bound retention custody in #1299.
+recorded branch ID and read back its absence, or record owner-named, date-bound
+retention custody in #1299.
 
 ## Definition of Done
 

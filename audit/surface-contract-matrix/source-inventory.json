@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76",
+  "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -578,7 +578,7 @@
     "server/routes/fund-scenario-sets.ts": "efa164d51499fa72b0da1332bf04d61feb0e3732926ae1b092df943b33d9ff27",
     "server/routes/funds.ts": "6d712d6b211eda9ee05fde7cbfff7bca162c8d59ecb3e6ccad416b1889571393",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
-    "server/routes/health.ts": "008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+    "server/routes/health.ts": "9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
     "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
     "server/routes/internal-economics.ts": "47372521fcf9c7bde371d66b8bf340ef40afe127879bbb0cd3f963a513e03dc8",
     "server/routes/investment-ledger.ts": "68b56315d15faf54501540805dc855d6d01606a8e5dad2f8860aaac60a2bbe12",
@@ -11341,7 +11341,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76"
+      "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992"
     ]
   },
   "kg_counts": {

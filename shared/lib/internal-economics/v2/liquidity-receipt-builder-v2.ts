@@ -46,7 +46,7 @@ import { INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION } from './waterfal
 import { INTERNAL_ECONOMICS_WATERFALL_WHOLE_FUND_V2_VERSION } from './waterfall-whole-fund-v2';
 
 export const INTERNAL_ECONOMICS_RECEIPT_SERIALIZER_V2_VERSION =
-  'internal-economics-receipt-serializer/2.3.0' as const;
+  'internal-economics-receipt-serializer/2.4.0' as const;
 
 const ZERO = new Decimal(0);
 const FIX6 = 6;

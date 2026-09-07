@@ -1,0 +1,125 @@
+name: Current Forecast Production Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha: { required: true, type: string }
+      fund_id: { required: true, type: string }
+      action:
+        required: true
+        type: choice
+        options: [readback, enter-shadow, activate, kill, resume]
+      expected_version: { required: false, type: string }
+      reference_id: { required: false, type: string }
+      vercel_project_id: { required: true, type: string }
+      vercel_deployment_id: { required: true, type: string }
+      canonical_hostname: { required: true, type: string }
+      release_manifest_run_id: { required: true, type: string }
+      release_manifest_run_attempt: { required: true, type: string }
+      release_manifest_artifact_id: { required: true, type: string }
+      release_manifest_artifact_name: { required: true, type: string }
+      release_manifest_artifact_archive_sha256: { required: true, type: string }
+      release_manifest_file_sha256: { required: true, type: string }
+      database_name: { required: true, type: string }
+      direct_host_fingerprint: { required: true, type: string }
+
+concurrency:
+  group: current-forecast-production-${{ inputs.fund_id }}
+  cancel-in-progress: false
+
+jobs:
+  action:
+    if: ${{ github.run_attempt == 1 }}
+    environment: production-current-forecast
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with: { ref: '${{ inputs.expected_sha }}', fetch-depth: 0 }
+      - uses: ./.github/actions/setup-node-env
+      - name: Validate dispatch and protected identities
+        env:
+          ACTION: ${{ inputs.action }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          REFERENCE_ID: ${{ inputs.reference_id }}
+          DISPATCH_PROJECT: ${{ inputs.vercel_project_id }}
+          DISPATCH_HOSTNAME: ${{ inputs.canonical_hostname }}
+          PROTECTED_PROJECT: ${{ vars.VERCEL_PROJECT_ID }}
+          PROTECTED_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
+          DISPATCH_DATABASE: ${{ inputs.database_name }}
+          DISPATCH_DATABASE_FINGERPRINT: ${{ inputs.direct_host_fingerprint }}
+          PROTECTED_DATABASE: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          PROTECTED_DATABASE_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_DIRECT_HOST_SHA256 }}
+          MANIFEST_ATTEMPT: ${{ inputs.release_manifest_run_attempt }}
+        run: |
+          set -euo pipefail
+          test "$MANIFEST_ATTEMPT" = 1
+          test "$DISPATCH_PROJECT" = "$PROTECTED_PROJECT"
+          test "$DISPATCH_HOSTNAME" = "$PROTECTED_HOSTNAME"
+          test "$DISPATCH_DATABASE" = "$PROTECTED_DATABASE"
+          test "$DISPATCH_DATABASE_FINGERPRINT" = "$PROTECTED_DATABASE_FINGERPRINT"
+          if [ "$ACTION" = readback ]; then
+            test -z "$EXPECTED_VERSION"
+            test -z "$REFERENCE_ID"
+          else
+            test "$EXPECTED_VERSION" -ge 0
+            if [ "$ACTION" = activate ]; then test "$REFERENCE_ID" -gt 0; else test -z "$REFERENCE_ID"; fi
+          fi
+      - name: Re-fence live main
+        env:
+          {
+            GH_TOKEN: '${{ github.token }}',
+            EXPECTED_SHA: '${{ inputs.expected_sha }}',
+            REPO: '${{ github.repository }}',
+          }
+        run: test "$(gh api "repos/$REPO/commits/main" --jq .sha)" = "$EXPECTED_SHA"
+      - name: Download exact release manifest artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.release_manifest_run_id }}
+          ARTIFACT_ID: ${{ inputs.release_manifest_artifact_id }}
+          ARTIFACT_NAME: ${{ inputs.release_manifest_artifact_name }}
+          ARCHIVE_SHA256: ${{ inputs.release_manifest_artifact_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-manifest"
+          META="$RUNNER_TEMP/release-manifest-artifact.json"
+          ZIP="$RUNNER_TEMP/release-manifest.zip"
+          gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID" > "$META"
+          test "$(jq -r .workflow_run.id "$META")" = "$RUN_ID"
+          test "$(jq -r .name "$META")" = "$ARTIFACT_NAME"
+          gh api "repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP"
+          test "sha256:$(sha256sum "$ZIP" | awk '{print $1}')" = "$ARCHIVE_SHA256"
+          unzip -q "$ZIP" -d "$RUNNER_TEMP/release-manifest"
+          test "$(find "$RUNNER_TEMP/release-manifest" -type f | wc -l)" = 1
+      - name: Execute fenced action
+        env:
+          ACTION: ${{ inputs.action }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          FUND_ID: ${{ inputs.fund_id }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          REFERENCE_ID: ${{ inputs.reference_id }}
+          VERCEL_PROJECT_ID: ${{ inputs.vercel_project_id }}
+          VERCEL_DEPLOYMENT_ID: ${{ inputs.vercel_deployment_id }}
+          CANONICAL_HOSTNAME: ${{ inputs.canonical_hostname }}
+          RELEASE_MANIFEST_FILE_SHA256: ${{ inputs.release_manifest_file_sha256 }}
+          RELEASE_MANIFEST_RUN_ID: ${{ inputs.release_manifest_run_id }}
+          RELEASE_MANIFEST_RUN_ATTEMPT: ${{ inputs.release_manifest_run_attempt }}
+          RELEASE_MANIFEST_ARTIFACT_ID: ${{ inputs.release_manifest_artifact_id }}
+          RELEASE_MANIFEST_ARTIFACT_NAME: ${{ inputs.release_manifest_artifact_name }}
+          RELEASE_MANIFEST_ARTIFACT_ARCHIVE_SHA256: ${{ inputs.release_manifest_artifact_archive_sha256 }}
+          DATABASE_NAME: ${{ inputs.database_name }}
+          DIRECT_HOST_FINGERPRINT: ${{ inputs.direct_host_fingerprint }}
+          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          PRODUCTION_DATABASE_DIRECT_HOST_SHA256: ${{ vars.PRODUCTION_DATABASE_DIRECT_HOST_SHA256 }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          CANARY_RECONCILER_USERNAME: ${{ secrets.CANARY_RECONCILER_USERNAME }}
+          CANARY_RECONCILER_PASSWORD: ${{ secrets.CANARY_RECONCILER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          export RELEASE_MANIFEST_PATH
+          RELEASE_MANIFEST_PATH="$(find "$RUNNER_TEMP/release-manifest" -type f -print -quit)"
+          node scripts/release/current-forecast-production-action.mjs

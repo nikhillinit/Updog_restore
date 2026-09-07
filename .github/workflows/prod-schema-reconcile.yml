@@ -71,6 +71,7 @@ on:
           - audit
           - apply
           - apply-catchup-0050-0053
+          - apply-current-forecast-0050-0055
         default: audit
       expected_sha:
         description: Full commit SHA expected to be checked out
@@ -115,7 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$MODE" in
-            audit|apply|apply-catchup-0050-0053) ;;
+            audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055) ;;
             *)
               echo "Unsupported mode: $MODE"
               exit 1
@@ -312,12 +313,15 @@ jobs:
           const artifact = JSON.parse(
             fs.readFileSync(`${process.env.RUNNER_TEMP}/historical-apply-artifact.json`, 'utf8')
           );
-          const expectedName = `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`;
+          const expectedNames = [
+            `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`,
+            `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-current-forecast-0050-0055-${process.env.SCHEMA_PRECURSOR_SHA}`,
+          ];
           const valid =
             String(artifact.id) === process.env.SCHEMA_APPLY_ARTIFACT_ID &&
             String(artifact.workflow_run?.id) === process.env.SCHEMA_APPLY_RUN_ID &&
             artifact.expired === false &&
-            artifact.name === expectedName &&
+            expectedNames.includes(artifact.name) &&
             artifact.digest === process.env.SCHEMA_APPLY_ARTIFACT_DIGEST;
           if (!valid) {
             console.error('Historical schema apply artifact does not match the recorded identity.');
@@ -336,21 +340,26 @@ jobs:
           zipinfo -1 "$EVIDENCE_DIR/archive.zip" | LC_ALL=C sort > "$EVIDENCE_DIR/entries.txt"
           printf '%s\n' \
             'apply.txt' \
+            'current-forecast-migration-result.json' \
             'lock-time-apply-vector.json' \
             'post-apply-audit.txt' \
             'pre-apply-audit.txt' \
             'schema-reconcile-receipt.json' \
             | LC_ALL=C sort > "$EVIDENCE_DIR/expected-entries.txt"
           if ! diff -u "$EVIDENCE_DIR/expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
-            echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
-            exit 1
+            grep -v '^current-forecast-migration-result.json$' \
+              "$EVIDENCE_DIR/expected-entries.txt" > "$EVIDENCE_DIR/legacy-expected-entries.txt"
+            if ! diff -u "$EVIDENCE_DIR/legacy-expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
+              echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
+              exit 1
+            fi
           fi
           unzip -o "$EVIDENCE_DIR/archive.zip" -d "$EVIDENCE_DIR/extracted"
           if find "$EVIDENCE_DIR/extracted" -type l | grep -q .; then
             echo "::error::Historical apply archive contains symlinks."
             exit 1
           fi
-          if [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -ne 5 ]; then
+          if [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -lt 5 ] || [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -gt 6 ]; then
             echo "::error::Historical apply archive extracted an unexpected file count."
             exit 1
           fi
@@ -364,26 +373,46 @@ jobs:
           # against the checkout, never RUNNER_TEMP.
           cat > ./validate-historical-receipt.tmp.mts <<'VALIDATE'
           import { readFile } from 'node:fs/promises';
-          import { SchemaReconcileReceiptV1Schema } from './shared/contracts/schema-reconcile-receipt-v1.contract';
+          import {
+            SchemaReconcileCurrentForecastReceiptV1Schema,
+            SchemaReconcileReceiptV1Schema,
+          } from './shared/contracts/schema-reconcile-receipt-v1.contract';
 
-          const raw: unknown = JSON.parse(
-            await readFile(process.env['RECEIPT_PATH'] as string, 'utf8')
-          );
-          const receipt = SchemaReconcileReceiptV1Schema.parse(raw);
+          const raw = JSON.parse(
+            await readFile(process.env['RECEIPT_PATH']!, 'utf8')
+          ) as Record<string, unknown>;
+          const receipt = raw.mode === 'apply-current-forecast-0050-0055'
+            ? SchemaReconcileCurrentForecastReceiptV1Schema.parse(raw)
+            : SchemaReconcileReceiptV1Schema.parse(raw);
+          const artifact = JSON.parse(
+            await readFile(process.env['ARTIFACT_METADATA_PATH']!, 'utf8')
+          ) as Record<string, unknown>;
           if (receipt.runId !== process.env['SCHEMA_APPLY_RUN_ID']) {
-            throw new Error('Receipt run ID does not match the recorded apply run');
+            throw new Error('Receipt run ID does not match dispatched schema apply run ID');
           }
           if (receipt.sourceSha !== process.env['SCHEMA_PRECURSOR_SHA']) {
-            throw new Error('Receipt source SHA does not match the recorded precursor');
+            throw new Error('Receipt source SHA does not match schema precursor SHA');
           }
-          if (receipt.manifest !== '30-g3-release-gate-hardening' || receipt.migration !== '0053') {
-            throw new Error('Receipt does not bind the 0053 release-gate-hardening manifest');
+          if (receipt.mode === 'apply-current-forecast-0050-0055') {
+            if (receipt.postState !== 'complete' || receipt.migrationRange.length !== 6) {
+              throw new Error('Receipt does not prove complete Current Forecast migration range');
+            }
+          } else if (
+            receipt.manifest !== '30-g3-release-gate-hardening'
+            || receipt.migration !== '0053'
+            || receipt.preDecision !== 'APPLY-MISSING-DDL'
+            || receipt.postDecision !== 'SKIP'
+          ) {
+            throw new Error('Receipt does not prove exact legacy 0053 transition');
           }
-          if (receipt.preDecision !== 'APPLY-MISSING-DDL' || receipt.postDecision !== 'SKIP') {
-            throw new Error('Receipt does not prove the APPLY-MISSING-DDL to SKIP transition');
+          const expectedArtifactName = `prod-schema-reconcile-${receipt.runId}-1-${receipt.mode}-${receipt.sourceSha}`;
+          if (artifact.name !== expectedArtifactName) {
+            throw new Error('Historical schema apply artifact name does not match receipt mode');
           }
           VALIDATE
-          RECEIPT_PATH="$RECEIPT_PATH" npx tsx ./validate-historical-receipt.tmp.mts
+          ARTIFACT_METADATA_PATH="$RUNNER_TEMP/historical-apply-artifact.json" \
+            RECEIPT_PATH="$RECEIPT_PATH" \
+            npx tsx ./validate-historical-receipt.tmp.mts
           rm -f ./validate-historical-receipt.tmp.mts
 
       - name: Run pre-apply audit
@@ -455,17 +484,30 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const digest = process.env.SCHEMA_APPLY_ARTIFACT_DIGEST.replace(/^sha256:/, '');
+          const receipt = JSON.parse(
+            fs.readFileSync(
+              `${process.env.RUNNER_TEMP}/historical-apply-evidence/extracted/schema-reconcile-receipt.json`,
+              'utf8'
+            )
+          );
+          const artifact = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/historical-apply-artifact.json`, 'utf8')
+          );
+          const currentForecast = receipt.mode === 'apply-current-forecast-0050-0055';
+          const applyMode = currentForecast ? receipt.mode : 'apply';
           const payload = {
-            migration: '0053',
+            migration: currentForecast ? '0050-0055' : '0053',
+            ...(currentForecast ? { migrationRange: receipt.migrationRange } : {}),
             precursorSha: process.env.SCHEMA_PRECURSOR_SHA,
             apply: {
+              ...(currentForecast ? { mode: applyMode } : {}),
               runId: process.env.SCHEMA_APPLY_RUN_ID,
               runAttempt: 1,
               workflowPath: '.github/workflows/prod-schema-reconcile.yml',
               sourceSha: process.env.SCHEMA_PRECURSOR_SHA,
               runUrl: process.env.APPLY_RUN_URL,
               artifactId: process.env.SCHEMA_APPLY_ARTIFACT_ID,
-              artifactName: `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`,
+              artifactName: artifact.name,
               artifactArchiveSha256: digest,
               receiptFileSha256: process.env.SCHEMA_APPLY_RECEIPT_FILE_SHA256,
             },
@@ -605,6 +647,10 @@ jobs:
           if [ "$MODE" = "apply-catchup-0050-0053" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-g3-catchup-0050-0053 > reports/apply.raw 2>&1
             STATUS=$?
+          elif [ "$MODE" = "apply-current-forecast-0050-0055" ]; then
+            CURRENT_FORECAST_MIGRATION_RESULT_PATH=reports/current-forecast-migration-result.json \
+              node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes > reports/apply.raw 2>&1
+            STATUS=$?
           elif [ "$MODE" = "apply" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
             STATUS=$?
@@ -640,7 +686,9 @@ jobs:
           const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
           const report = fs.readFileSync('reports/apply.txt', 'utf8');
           let vector;
-          if (process.env.MODE === 'apply-catchup-0050-0053') {
+          if (process.env.MODE === 'apply-current-forecast-0050-0055') {
+            vector = JSON.parse(fs.readFileSync('reports/current-forecast-migration-result.json', 'utf8'));
+          } else if (process.env.MODE === 'apply-catchup-0050-0053') {
             const capability = await prepareG3Catchup0050To0053Capability();
             const targetNames = new Set(capability.targets.map((target) => target.manifestName));
             const expectedTargetActions = parseAuditDecisionLines(
@@ -723,7 +771,9 @@ jobs:
           SCHEMA_RECONCILE_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          if [ "$SCHEMA_RECONCILE_MODE" = "apply-catchup-0050-0053" ]; then
+          if [ "$SCHEMA_RECONCILE_MODE" = "apply-current-forecast-0050-0055" ]; then
+            test -s reports/current-forecast-migration-result.json
+          elif [ "$SCHEMA_RECONCILE_MODE" = "apply-catchup-0050-0053" ]; then
             if ! grep -Eq '^g3-(portfolio-and-calculation|canary|capital-call-notification-outbox|release-gate-hardening): APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
               echo "Catch-up receipt requires at least one APPLY-MISSING-DDL predecision."
               exit 1

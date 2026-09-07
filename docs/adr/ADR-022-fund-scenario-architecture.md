@@ -9,6 +9,12 @@ last_updated: 2026-05-29
 
 Implemented (2026-05-29)
 
+Proposed documentation reconciliation (2026-09-06): current contracts and
+comparison service accept economics comparison variants with override types
+`fee_profile`, `allocation`, `sector_profile`, and `methodology`. This note
+updates recorded current-source behavior only; it does not approve C2, change
+runtime behavior, or authorize deployment.
+
 This ADR records the current implementation on `main` at `55985b44`
 (`Keep cohort out of authoritative readiness until evidence exists (#735)`). It
 is no longer a future implementation proposal.
@@ -139,7 +145,7 @@ The comparison endpoint is:
 
 `GET /api/funds/:fundId/scenario-sets/:scenarioSetId/comparison`
 
-Current behavior:
+Behavior recorded at the original ADR baseline:
 
 - loads the latest `SCENARIOS` snapshot for the scenario set;
 - supports `fee_profile` variants only;
@@ -151,6 +157,15 @@ Current behavior:
   and `sector_profile` scenario sets;
 - returns `baseline_unavailable` when the authoritative economics baseline is
   missing.
+
+Current-source reconciliation proposed 2026-09-06:
+
+- `ScenarioComparisonVariantV1Schema` accepts `fee_profile`, `allocation`,
+  `sector_profile`, and `methodology`;
+- scenario-set contracts produce economics summaries for those four types;
+- `reserve_allocation` remains outside economics V1 comparison and retains the
+  existing typed unsupported-override refusal;
+- baseline remains the response's `baseline` object and has no variant ID.
 
 The original publish-comparison contract remains scope-limited and is not
 extended for scenario comparison.
@@ -232,7 +247,9 @@ planning, and result-contract support for that boundary.
 
 ### Current limitations
 
-- Scenario comparison is fee-profile only.
+- Original ADR baseline was fee-profile only. Current-source comparison
+  contracts cover the four economics override types above; C2 approval binds
+  exact source and persistence design separately.
 - The calculation-status endpoint is reserve-async focused.
 - `STALE_CONFIG` is contract-supported and preserved, but current calculation
   code does not prove override-entity reference validation.

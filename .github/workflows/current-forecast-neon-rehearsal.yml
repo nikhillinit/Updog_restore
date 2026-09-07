@@ -1,0 +1,44 @@
+name: Current Forecast Neon Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha: { description: Exact admitted main SHA, required: true, type: string }
+      project_id: { description: Exact Neon project ID, required: true, type: string }
+      parent_branch_id: { description: Exact Neon parent branch ID, required: true, type: string }
+      database_name: { description: Exact database name, required: true, type: string }
+      expected_parent_migration_tail:
+        description: Expected parent Drizzle tail
+        required: true
+        type: choice
+        options: [0049_kpi_observations, 0053_g3_release_gate_hardening]
+
+concurrency:
+  group: current-forecast-neon-${{ inputs.project_id }}-${{ inputs.parent_branch_id }}
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    if: ${{ github.run_attempt == 1 }}
+    environment: production-schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with: { ref: '${{ inputs.expected_sha }}', fetch-depth: 0 }
+      - name: Fence live main
+        env: { EXPECTED_SHA: '${{ inputs.expected_sha }}' }
+        run: |
+          git fetch origin refs/heads/main
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: ./.github/actions/setup-node-env
+      - name: Rehearse bounded migration and tests
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          NEON_PROJECT_ID: ${{ inputs.project_id }}
+          NEON_PARENT_BRANCH_ID: ${{ inputs.parent_branch_id }}
+          NEON_DATABASE_NAME: ${{ inputs.database_name }}
+          EXPECTED_PARENT_MIGRATION_TAIL: ${{ inputs.expected_parent_migration_tail }}
+        run: node scripts/release/rehearse-current-forecast-neon.mjs

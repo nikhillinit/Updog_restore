@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "4efa00ee1775d15239bc26c8d2f4b2b528813543",
-    "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76"
+    "git_head": "27970f11085bc9ab0201952ed1ab6148a652a35b",
+    "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992"
   },
   "rows": [
     {
@@ -33062,7 +33062,7 @@
       "contract_fingerprint": "4777278b628d727fd66a030a507c0cc9382c63434e7d3aeba2fa36903c542edf",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -33302,7 +33302,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33544,7 +33544,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33786,7 +33786,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -33998,7 +33998,7 @@
       "contract_fingerprint": "61adf013db3b58c41a0936e9d3603990eb766c7f6ef71450117930dadb5b82b2",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -34238,7 +34238,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -34480,7 +34480,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -34692,7 +34692,7 @@
       "contract_fingerprint": "9259c065201cb700f12095f4ce397574fbad937493d7437f7b4cad289ff49748",
       "approved_source_hashes": [
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -34932,7 +34932,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -35174,7 +35174,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -50514,7 +50514,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -50732,7 +50732,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -50951,7 +50951,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51171,7 +51171,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51391,7 +51391,7 @@
         "server/lib/auth/jwt.ts=b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
@@ -51608,7 +51608,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -52300,7 +52300,7 @@
         "server/app.ts=17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes.ts=8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
-        "server/routes/health.ts=008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14"
+        "server/routes/health.ts=9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -113671,7 +113671,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:fe5e22d61a692429de9ffc7d15af25a3943648fe6c3719274abeb33582bbec76",
+      "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992",
       "counts": {
         "APIEndpoint": 406,
         "ClientRoute": 44,

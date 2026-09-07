@@ -7525,9 +7525,8 @@ describe('required CI fails closed', () => {
   });
 
   it('keeps the 35-minute Railway helper default inside the 45-minute job with gross reserve', async () => {
-    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } = await import(
-      '../../scripts/release/deploy-railway-workers.mjs'
-    );
+    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } =
+      await import('../../scripts/release/deploy-railway-workers.mjs');
     const workflow = await readWorkflow('release-production.yml');
     const railwayDeploy = workflow.jobs?.['railway-workers-deploy'];
     const helperBudgetMs = DEFAULT_DEPLOYMENT_TIMEOUT_MS;
@@ -7536,5 +7535,18 @@ describe('required CI fails closed', () => {
     expect(helperBudgetMs).toBe(35 * 60_000);
     expect(railwayDeploy?.['timeout-minutes']).toBe(45);
     expect(jobBudgetMs - helperBudgetMs).toBe(10 * 60_000);
+  });
+
+  it('keeps Current Forecast production workflows manual, attempt-one, and protected', async () => {
+    const rehearsal = await readWorkflow('current-forecast-neon-rehearsal.yml');
+    const action = await readWorkflow('current-forecast-production-action.yml');
+    for (const workflow of [rehearsal, action]) {
+      expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+      const job = Object.values(workflow.jobs ?? {})[0];
+      expect(job?.if).toContain('github.run_attempt == 1');
+      expect(job?.environment).toMatch(/^production-/);
+    }
+    expect(JSON.stringify(rehearsal)).not.toContain('upload-artifact');
+    expect(JSON.stringify(action)).toContain('PRODUCTION_DATABASE_DIRECT_HOST_SHA256');
   });
 });

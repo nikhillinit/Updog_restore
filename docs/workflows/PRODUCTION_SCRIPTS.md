@@ -22,6 +22,17 @@ cannot override a machine failure.
 
 ## Guarded order
 
+### Fixed-template actuals pilot configuration
+
+`ACTUALS_PILOT_FUND_ID` is not set by any production script. Keep it unset on
+Vercel until a separate action-scoped activation is authorized and validated.
+Source admission of F_1.12.0, its isolated Gate A STOP/GO record, and Current
+Forecast's #1299 GO/NO-GO are separate gates. The pilot publishes policy `1.4.0`
+/ payload `5`; it does not enter shadow mode or trigger organic soak. Economics
+and periodic analysis remain unavailable for that facts policy.
+
+### Validation sequence
+
 Before first mutation, a retained entrypoint must validate all applicable
 conditions in this order:
 
@@ -56,6 +67,20 @@ Retained entrypoints are not an authority or coverage claim. Any retained
 entrypoint whose current targeted order proof or action evidence is absent,
 stale, or mismatched remains blocked. Repository activation does not make an
 entrypoint production-ready.
+
+## Current Forecast Phase P routes
+
+These routes become canonical only after complete Phase P source admission.
+`release-production.yml` remains the only deployment and promotion workflow.
+`prod-schema-reconcile.yml` remains the only production schema workflow; mode
+`apply-current-forecast-0050-0055` applies only the exact journaled range.
+`current-forecast-neon-rehearsal.yml` validates one isolated Neon branch before
+dependent action. `current-forecast-production-action.yml` wraps existing
+authenticated routes for separate `enter-shadow`, `activate`, `kill`, and
+`resume` dispatches. `readback` performs identity and state reads only. The
+wrapper owns action-time source, release-manifest, provider, direct-database,
+deployed API, protected-session, replay, conflict-probe, and post-state fences.
+No workflow authorizes another dispatch.
 
 ## Immutable certification and action-time eligibility
 
