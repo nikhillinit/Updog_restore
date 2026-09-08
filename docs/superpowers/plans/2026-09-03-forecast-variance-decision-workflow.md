@@ -1,211 +1,208 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-08
 owner: Repository Owner
 categories: [product-implementation, decision-workspace]
 ---
 
 # Forecast Variance Decision Workflow Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> superpowers:subagent-driven-development (recommended) or
-> superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+**Goal:** Deliver the selected After-assumption comparison with persisted
+forecast attribution, immutable analysis evidence, and atomic evidence-linked
+decisions.
 
-**Goal:** Add source-verified forecast variance evidence and atomic
-evidence-linked decision creation.
+**Spec:** `docs/specs/C1-forecast-variance-decision-workflow.md`, source-pinned
+to `c9361248a486a346f3b32b5212cad582373b3b3a`. The spec is DRAFT and this plan
+is PROPOSED. The source-contract revision is documentation work; the product
+tasks below are not authorized until their gates pass.
 
-**Architecture:** Extend dual-forecast with a server-authored variance contract,
-persist it through the existing analysis-reference basis, and compose existing
-decision/link persistence inside one transaction. Reuse `forecastFundSnapshotId`
-where the revised source contract supports it. Prefer existing versioned
-persistence; any additional schema surface requires approval.
+**Architecture:** Reuse `current_plan_versions`, `current_forecast_references`,
+`fund_snapshots`, and analysis draft/reference persistence. Load explicit before
+and after plans and their persisted forecast outputs. Reuse existing
+decision/link services inside a shared transaction; no new forecast-reference
+table, client financial calculation, implicit plan mint, or pointer advance.
 
-**Tech Stack:** TypeScript, Zod, Express, Drizzle/PostgreSQL, React/Preact,
-Vitest, Playwright.
+## Gates Before Product Work
 
-**Spec:** `docs/specs/C1-forecast-variance-decision-workflow.md` after
-repository-owner exact-body approval.
+- [x] Replace the old same-plan comparison with an explicit direct-successor
+      before/after contract, full facts basis, source/head validation, and
+      refusal rules.
+- [x] Propose a versioned attribution method with disjoint groups, persisted
+      counterfactuals, endpoint reproduction, interaction disclosure, and
+      residual reconciliation. Keep all twelve taxonomy categories and concrete
+      source gaps.
+- [x] Regenerate interfaces, source manifest, and prospective
+      test/implementation scope around the selected contract. Baseline omissions
+      remain characterization.
+- [x] Independently review this exact source-contract body and resolve findings.
+- [ ] Obtain named repository-owner exact-body approval; validate source/body
+      and approval digests. Keep approval metadata unset until that approval
+      occurs.
+- [ ] Prove Program A GO and final runtime identity for the implementation gate.
+      Source CI and document review do not replace these predicates.
+- [ ] Establish qualifying pre-existing after plan/snapshot/accepted-reference
+      evidence, or complete a separately approved pinned producer contract and
+      its behavioral proofs. Current latest-config/latest-facts minting is
+      insufficient.
+- [ ] Approve the attribution methodology and resolve unsupported input mapping
+      choices through exact-body review. Implementation and persisted-evidence
+      proofs are completion requirements for Tasks 1-2, not entry prerequisites;
+      never reduce the product to input differences or a four-category cap.
 
-## Global Constraints
+No product task starts while a prerequisite is unresolved. Refresh the inspected
+source commit at execution time and reapprove any body/source drift. Use an
+isolated dedicated branch and preserve unrelated work. Existing route
+registration, fund authorization, idempotency, optimistic locking, transaction
+support, additive migration, and Phoenix calculation gates apply.
 
-- Stop unless spec frontmatter is `APPROVED`, `approval.state` is `approved`,
-  and source/body/approval digests validate.
-- No client financial calculation; no task creation in atomic decision command.
-- New route requires manifest, implementation map, both common-route group
-  slices, route-policy entry, and
-  `server/lib/database-backed-idempotency-routes.ts` regex.
-- Any schema change uses fresh journal-discovered additive migration number and
-  pins its own journal entry.
-- Product implementation, merge, deployment and serving wait for Program A A4 GO
-  and verified final runtime identity. Specification preparation may proceed.
+### Task 1: Source Pair and Forecast Attribution
 
-## Inspected Baseline and Required Source-Identity Revision
+**Create:**
 
-The following source findings describe the inspected baseline. Regenerate its
-interfaces and selected-delivery expectations from the approved after-source
-contract before execution. Baseline characterization is not feature completion.
+- `shared/contracts/forecast-variance-v1.contract.ts`
+- `server/services/forecast-variance-service.ts`
+- `tests/unit/contracts/forecast-variance-v1.contract.test.ts`
+- `tests/unit/server/forecast-variance-service.test.ts`
 
-- Live serving resolves `getAcceptedCurrentForecastReferenceHead({ fundId })`;
-  held serving resolves exact `held.referenceId` through
-  `getCurrentForecastReferenceById`. Never select latest snapshot.
-- `fundSnapshotId` comes from resolved reference, because wire response lacks
-  it.
-- Strict full `ForecastVarianceV1`, fixed omission order, canonical
-  `evidenceHash`, paired JSONB/hash columns, and wire/reference/snapshot
-  equality are required deliverables.
-- Add `server/services/current-forecast-reference-service.ts`,
-  `server/services/current-forecast-serving-seam.ts`, and
-  `server/services/metrics-aggregator.ts` to implementation/review scope.
-- Load `CurrentPlanVersionV1` once as the pinned before identity and load the
-  accepted/held V2 after payload from its verified persisted `fundSnapshotId`.
-  V2 carries the same plan ID/hash and no distinct assumption snapshot; never
-  reload that plan as after data or invent a delta.
-- Treat current `drivers: []` and twelve typed omissions as inspected baseline
-  characterization only, not selected delivery. Revise the source contract
-  first; prefer existing persistence and make no new-table commitment.
+**Modify only as required by the approved contract:**
 
-## First Source-Contract Revision Gate
+- `shared/contracts/dual-forecast/dual-forecast-response.contract.ts`
+- `server/routes/dual-forecast.ts`
+- `server/services/current-forecast-reference-service.ts`
+- `server/services/current-forecast-serving-seam.ts`
+- `server/services/metrics-aggregator.ts`
 
-- [ ] Revise and independently review the source-admission requirements in the
-      C1 spec: explicit before/after pairing, pinned production, comparability,
-      atomic validation, idempotency and optimistic locking.
-- [ ] Define attribution semantics and supporting persisted output evidence: the
-      method, treatment of interactions and reconciliation of attributed effects
-      plus any disclosed residual to the total forecast change. Possible
-      plan-field changes in four categories are research observations, not an
-      approved delivery limit or a substitute for forecast-effect evidence.
-- [ ] Regenerate the interfaces, source/test manifests and implementation steps
-      from that reviewed contract; retain current omissions as baseline tests
-      only.
-- [ ] Refresh source/body digests and obtain named exact-body approval. Keep
-      approval metadata unset until that approval; Program A GO/final-runtime
-      requirements separately continue to block product implementation and
-      serving.
+**Grounding sources:** Current-plan schema/contract/service and
+`shared/lib/current-plan/derive-current-plan-v1.ts`; V2 schema/service and
+`shared/core/cohorts/CohortProjectionV2.ts`; qualified financial-facts contract,
+parser, basis-ref helper, and snapshot service; canonical hashing; the C1 exact
+source manifest. Existing construction forecast output is not the before source.
 
-### Task 1: Forecast Variance Contract and Server Derivation
+**Interface:** A strict `ForecastVarianceV1Schema` containing both complete
+source references, independent serving/engine/basis/attribution states,
+observations, ordered drivers and omissions, forecast changes, full versioned
+attribution proof, action eligibility, and canonical evidence hash. The service
+receives explicit pair IDs, expected hashes/versions, and a full qualified facts
+basis. It never re-resolves missing IDs to latest, mints a plan, or changes
+serving mode.
 
-**Files:**
-
-- Create: `shared/contracts/forecast-variance-v1.contract.ts`
-- Create: `server/services/forecast-variance-service.ts`
-- Modify:
-  `shared/contracts/dual-forecast/dual-forecast-response.contract.ts:240-270`
-- Modify: `server/routes/dual-forecast.ts`
-- Read: `server/services/current-plan-version-service.ts`
-- Read: `server/services/current-forecast-v2-service.ts`
-- Modify: `server/services/current-forecast-reference-service.ts:240-280`
-- Modify: `server/services/current-forecast-serving-seam.ts`
-- Modify: `server/services/metrics-aggregator.ts:1030-1135`
-- Read: `shared/contracts/current-plan-version-v1.contract.ts`
-- Read: `shared/contracts/current-forecast-v2.contract.ts`
-- Read: `shared/core/cohorts/CohortProjectionV2.ts`
-- Read: `server/services/construction-forecast-calculator.ts`
-- Test: `tests/unit/contracts/forecast-variance-v1.contract.test.ts`
-- Test: `tests/unit/server/forecast-variance-service.test.ts`
-
-**Interfaces:**
-
-- Produces: strict `ForecastVarianceV1Schema` and
-  `deriveForecastVariance({ fundId, served, reference, snapshot })`.
-- Consumes: served V2 block, live accepted-head or exact held reference, and its
-  verified `CURRENT_FORECAST_V2` `fundSnapshotId`.
-
-- [ ] Write failing contract tests for all serving/engine/basis mappings, absent
-      V2, structural refusal precedence, and exact omission object shape.
-- [ ] Characterize the current baseline: `drivers: []` and twelve omissions in
-      taxonomy order with the exact existing reasons. Regenerate selected-
-      delivery assertions from the approved after-source and attribution
-      contract; this baseline test alone does not satisfy the selected feature.
-- [ ] Prove `afterSource` is the persisted current-forecast reference/snapshot:
-      assert its reference ID, `fundSnapshotId`, `resultHash`, and plan ID/hash
-      match the stored row; assert plan loading occurs only for `beforeSource`.
-- [ ] Add cases showing same-plan check size, graduation, follow-on, and other
-      assumptions cannot yield deltas; V2 cumulative deployed series, residual
-      capital, and projected fee dollars remain omitted because no matching
-      persisted construction field/measure/horizon exists.
+- [ ] Write a positive direct-successor fixture with matching full facts basis,
+      distinct persisted plan assumptions derived with `deriveCurrentPlanV1`
+      from pinned source configurations, both forecast endpoint reproductions,
+      and a measured effect. Verify all twelve category entries appear once
+      across drivers and omissions, including a mixed effect/omission entry for
+      different quarters.
+- [ ] Exercise independently changed allocation checks, investment horizons, and
+      capital weights. Use complete derived plans to verify the approved
+      economic projection covers every changed aggregate without treating
+      authenticated observation rows as unmapped inputs. Require
+      source-integrity refusal for a changed observation row with an unchanged
+      source hash.
+- [ ] Add exact link/head/version/hash and full-basis mismatch refusals; include
+      expected before supersession as a passing case and cross-fund zero
+      disclosure.
+- [ ] Cover source gaps, placeholder exit assumptions, ownership/recycling
+      absence, unused follow-on inputs, and reserve versus total-capital measure
+      distinctions. Keep the same-plan empty-driver/twelve-omission case only as
+      a baseline test.
+- [ ] Test the approved disjoint mapping and deterministic substitution order:
+      endpoint reproduction, valid hybrid inputs, interactions assigned to later
+      groups, a proven zero effect, unmapped capital inputs, and nonzero
+      residuals.
+- [ ] Verify exact measure/period matching, USD/ratio/count precision, null IRR,
+      duplicate/unmatched periods, flow/stock/cumulative distinctions, and no
+      arbitrary tolerance. Incomplete attribution cannot enable the decision
+      action.
+- [ ] Implement source admission and attribution using the approved producer and
+      existing engine/hash conventions. Persist proof through Task 2; do not
+      publish an attribution claim backed only by transient calculations or
+      input deltas.
 - [ ] Run
-      `TZ=UTC npx vitest run tests/unit/contracts/forecast-variance-v1.contract.test.ts tests/unit/server/forecast-variance-service.test.ts --retry=0`;
-      expect failures for missing exports.
-- [ ] After source-contract approval and the Program A gates, implement the
-      explicit source bindings and only the driver/omission semantics admitted
-      by that contract. Do not ship the omissions-only baseline or a
-      four-category proposal as the selected feature by default.
-- [ ] Re-run the same tests; expect PASS. Verify dual-forecast response omits
-      the variance object only when the V2 block itself is absent.
-- [ ] Re-run targeted tests; expect PASS.
-- [ ] Commit `feat: add source-verified forecast variance evidence`.
+      `TZ=UTC npx vitest run tests/unit/contracts/forecast-variance-v1.contract.test.ts tests/unit/server/forecast-variance-service.test.ts --retry=0`.
+      Run applicable lint/typecheck and Phoenix truth checks for calculation
+      changes.
 
-### Task 2: Immutable Reference and Atomic Decision Link
+### Task 2: Evidence Persistence and Atomic Decision Link
 
-**Files:**
+**Create:**
 
-- Create:
-  `shared/contracts/operating-objects/evidence-linked-decision.contract.ts`
-- Create:
-  `server/services/operating-objects/evidence-linked-decision-service.ts`
-- Modify:
-  `shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts:190-231`
-- Modify: `shared/schema/internal-analysis.ts:136-216`
-- Modify:
-  `server/services/internal-analysis/analysis-checkpoint-service.ts:644-800`
-- Modify: `server/routes/operating-object-decisions.ts:150-210`
-- Modify: `shared/routes/api-route-manifest.ts`
-- Modify: `server/routes/mount-common-routes.ts`
-- Modify: `server/route-policy/api-route-policy-registry.ts`
-- Modify: `server/lib/database-backed-idempotency-routes.ts`
-- Create: next journal-discovered additive migration with suffix
-  `_forecast_variance_reference.sql`; record the exact filename in the execution
-  checkpoint before editing schema.
-- Modify: `migrations/meta/_journal.json`
-- Test:
-  `tests/integration/internal-analysis/forecast-variance-reference.pg.test.ts`
-- Test:
-  `tests/integration/operating-decisions/evidence-linked-decision.pg.test.ts`
+- `shared/contracts/operating-objects/evidence-linked-decision.contract.ts`
+- `server/services/operating-objects/evidence-linked-decision-service.ts`
+- `tests/integration/internal-analysis/forecast-variance-reference.pg.test.ts`
+- `tests/integration/operating-decisions/evidence-linked-decision.pg.test.ts`
 
-**Interfaces:**
+**Modify:**
 
-- Produces:
-  `createEvidenceLinkedDecision({ fundId, actorId, idempotencyKey, request, database })`
-  returning `{ decision, evidenceLink, replayed }`.
-- Consumes: Task 1 evidence and existing `createDecisionCommand`/decision-link
-  storage inside caller transaction.
+- `shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts`
+- `shared/schema/internal-analysis.ts`
+- `server/services/internal-analysis/analysis-checkpoint-service.ts`
+- `server/routes/operating-object-decisions.ts`
+- `shared/routes/api-route-manifest.ts`
+- `server/routes/mount-common-routes.ts`
+- `server/route-policy/api-route-policy-registry.ts`
+- `server/lib/database-backed-idempotency-routes.ts`
+- Next journal-discovered additive migration and
+  `migrations/meta/_journal.json`. Record the actual migration filename before
+  editing; never use a stale index.
 
-- [ ] Write real-PostgreSQL failures for wrong type/fund/hash, inaccessible
-      reference, replay, material conflict, and forced link-insert rollback with
-      zero decision/link rows.
-- [ ] Run both test files with
-      `TZ=UTC npx vitest run --config vitest.config.int.ts ... --retry=0`;
-      expect failures for missing schema/service.
-- [ ] Persist the exact variance evidence on analysis reference, bump contract
-      version, and add replay-safe migration using current `_journal.json` next
-      index.
-- [ ] Implement one transaction: validate target, insert/replay decision,
-      insert/replay evidence link, store one durable response; map failures
-      without partial writes.
-- [ ] Register route on manifest, implementation map, both group slices, policy
-      registry, and database-idempotency regex.
-- [ ] Re-run integration tests and `TZ=UTC npm run policy:verify`; expect PASS.
-- [ ] Commit `feat: create evidence-linked decisions atomically`.
+**Interface:**
+`createEvidenceLinkedDecision({ fundId, actorId, idempotencyKey, request, database })`
+returns `{ decision, evidenceLink }` from one transaction. Request pins the
+saved analysis reference and expected evidence hash. Analysis save remains its
+own atomic command with source validation, evidence, draft close, and receipt.
+Reuse the basis's forecast snapshot field for after and store the complete
+before/after proof through the approved additive persistence.
 
-### Task 3: Client Display and Verification
+- [ ] Check existing dedicated columns before adding paired nullable variance
+      JSONB/hash fields. Strict-parse and verify stored evidence on every
+      save/load. Counterfactual records are analysis evidence, never accepted
+      forecast pointers.
+- [ ] Move complete pair/head/hash checks into the write transaction. Lock the
+      rows used by existing source/head writers in deterministic order; preserve
+      version/CAS predicates and draft `If-Match`. Prove compatibility with
+      those writers; serializable isolation alone is not a head-change fence.
+- [ ] Add real PostgreSQL tests racing after-plan supersession, pointer advance,
+      mode/draft version changes, and concurrent identical/conflicting commands.
+      Assert no stale acceptance or orphan/duplicate decision/link/evidence
+      rows.
+- [ ] Verify key-first replay after head movement, different-material conflicts,
+      mixed-basis acknowledgement refusal for C1, wrong snapshot type/fund/hash,
+      and rollback on evidence/reference/link/receipt insert failures. A failed
+      decision command must preserve an already saved immutable reference.
+- [ ] Add the route manifest, implementation map, both common-route group
+      slices, policy entry, and database-idempotency registration; retain
+      fund/write-role auth.
+- [ ] Run affected integration tests with `TZ=UTC`,
+      `--config vitest.config.int.ts --retry=0`; run
+      `TZ=UTC npm run policy:verify` and the applicable real-driver lane for
+      both production surfaces. If a serialization failure is retried, retry the
+      complete command transaction and its decisions, never only the failed
+      statement.
 
-**Files:**
+### Task 3: Client Display and Final Verification
 
-- Modify: `client/src/components/dashboard/dual-forecast-dashboard.tsx`
-- Modify: `client/src/hooks/useDecisions.ts`
-- Test: `tests/unit/client/forecast-variance-display.test.tsx`
-- Test: `tests/e2e/forecast-variance-decision.spec.ts`
+**Modify:** `client/src/components/dashboard/dual-forecast-dashboard.tsx` and
+`client/src/hooks/useDecisions.ts`.
 
-**Interfaces:**
+**Create:** `tests/unit/client/forecast-variance-display.test.tsx` and
+`tests/e2e/forecast-variance-decision.spec.ts`.
 
-- Consumes: Task 1 response and Task 2 command.
-
-- [ ] Write tests proving no client delta calculation, textual statuses,
-      keyboard order, polite announcement, and disabled action explanation.
-- [ ] Implement display and mutation hook using server fields unchanged.
-- [ ] Run targeted unit/E2E tests, then `TZ=UTC npm run lint`,
+- [ ] Trace the actual route to the dashboard; read `DESIGN.md` before visual
+      changes. Display server values, both sources, units/horizons, method,
+      interaction limitation, omissions, residual, and eligibility without
+      client financial math.
+- [ ] Verify textual status, keyboard order, polite announcements, associated
+      disabled-action reasons, historical-source labels, and live/held behavior.
+- [ ] Exercise the full qualifying comparison -> immutable reference -> atomic
+      decision/link flow. An input-only report or baseline omissions cannot
+      satisfy the success case. Exercise stale evidence and
+      incomplete-attribution refusals.
+- [ ] Run affected unit/E2E tests, `TZ=UTC npm run lint`,
       `TZ=UTC npm run check`, `TZ=UTC npm run docs:routing:check`, and
-      `git diff --check`.
-- [ ] Commit `feat: add forecast variance decision workflow`.
+      `git diff --check`; retain exact command results and distinguish local
+      checks from hosted CI and production evidence.
+- [ ] Review the full feature diff independently after the testing gate, correct
+      legitimate findings, and rerun affected checks. Record a durable scoped
+      checkpoint according to session authority; publication/release remains
+      separate.

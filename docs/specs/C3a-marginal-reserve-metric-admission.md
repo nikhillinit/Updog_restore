@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-08
 owner: Repository Owner
 scope: marginal-reserve-metric-admission-v2
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: cc3bd74aceb91b195473dbb9a45eb105a133da94483b0fe94c22d9c038266ed7
+source_sha: c9361248a486a346f3b32b5212cad582373b3b3a
+body_sha256: 925160c3c978d60da564ef3bb3fad063bd6b960fecf5629f04a6a973a426cd02
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -15,10 +15,10 @@ approval:
   state: unapproved
 source_paths:
   - .dockerignore
-  - Dockerfile.railway
   - client/src/components/fund-results/ReserveIntelligencePanel.tsx
   - client/src/hooks/useReserveIntelligence.ts
   - client/src/pages/fund-model-results-moic-analysis.tsx
+  - Dockerfile.railway
   - docs/runbooks/marginal-moic-nonproduction-shadow-soak.md
   - flags/registry.yaml
   - migrations/meta/_journal.json
@@ -77,6 +77,52 @@ exists on this source baseline.
 4. A metric may be unavailable with a typed reason; it is never synthesized.
 5. Serving requires an accepted admission receipt bound to exact source SHA,
    corpus revision, calculation identities, and hashes.
+
+### Metric meaning and instrument completeness
+
+Marginal next-dollar MOIC is `deltaExpectedProceeds / deltaExpectedCapital`,
+where each delta is the with-decision expected amount minus the without-decision
+expected amount. The denominator is expected incremental capital, not the
+nominal `incrementCents` request or total planned reserves. Both legs use the
+same currency, valuation horizon, probabilities, timing, full financial-facts
+basis, and source config; only the named security's reserve decision differs.
+
+Reuse `shared/core/moic/MarginalReserveMoic.ts` and its existing contract:
+amounts are USD Decimal values, request cents convert exactly once, and the
+ratio and denominator checks use unrounded values before six-place output
+formatting. Nonpositive delta capital yields `NON_POSITIVE_DELTA_CAPITAL`;
+positive delta capital below
+`max(USD 1000, 1% of with-decision expected capital)` yields
+`MIN_DENOMINATOR_FLOOR`. Both make the metric unavailable. MOIC above 100x
+remains indicative with `IMPLAUSIBLE_MAGNITUDE`; an admission receipt cannot
+promote an indicative metric to actionable.
+
+Marginal IRR uses the dated incremental expected cash flows, with incremental
+capital negative and proceeds positive. It is nullable with `IRR_UNAVAILABLE`
+when no defensible unique bounded root exists, including multiple sign changes
+or a failed solve. A valid MOIC does not require an available IRR; neither
+metric may be substituted for the other. Retain metric statuses
+`actionable | indicative | unavailable` separately from admission state.
+
+At `source_sha`, `MarginalReserveCompanySource` in the marginal input service
+contains company ownership and allocation data, not security instrument type or
+conversion evidence. A complete `basisRef` does not fill that gap. Require
+source-proven security identity and instrument type before either leg is
+eligible. SAFE/note cases without end-to-end conversion-price and ownership
+lineage are unavailable and excluded from authoritative ranking. Require
+source-proven currency/FX, cash-flow timing, terminal-liquidation treatment, and
+partial-sale allocation wherever applicable. Missing or ambiguous evidence
+produces a typed unavailable reason; never infer conversion terms, allocate
+company totals to a guessed security, or substitute modeled evidence for
+actuals. The existing USD-only input boundary remains; missing FX or unsupported
+currency must not be normalized into invented USD cash flows.
+
+Persist both counterfactual summaries, expected capital/proceeds and their
+deltas, nullable marginal IRR, security/increment identity, source/config and
+leg input/result hashes, plus availability/refusal reasons in the new V2
+snapshot. Persist paired-run IDs as provenance outside the deterministic
+calculation projection; fresh run IDs must not change `resultHash`. Preserve the
+planned-reserve section and leave V1 snapshots unchanged.
 
 ## Request and Response Contracts
 
@@ -202,16 +248,18 @@ receipt.
 
 ## Refusal Matrix
 
-| Condition                                             | Result                               | Durable writes      |
-| ----------------------------------------------------- | ------------------------------------ | ------------------- |
-| Policy 1.4 basis missing/malformed                    | `BASIS_REF_REQUIRED`                 | 0                   |
-| Any of eight fields differs across request/run/result | `BASIS_REF_MISMATCH`                 | 0                   |
-| Same snapshot ID, different input/source hash         | `BASIS_REF_MISMATCH`                 | 0                   |
-| Cross-fund basis                                      | fund-scope refusal                   | 0                   |
-| Legacy policy with non-null synthesized basis         | `LEGACY_BASIS_INVALID`               | 0                   |
-| Counterfactual source/config differs                  | `COUNTERFACTUAL_PROVENANCE_MISMATCH` | 0                   |
-| One leg unavailable                                   | typed unavailable metric             | 0 admission receipt |
-| Corpus/hash/source identity mismatch                  | admission refused                    | 0 receipt           |
+| Condition                                                      | Result                                                 | Durable writes      |
+| -------------------------------------------------------------- | ------------------------------------------------------ | ------------------- |
+| Policy 1.4 basis missing/malformed                             | `BASIS_REF_REQUIRED`                                   | 0                   |
+| Any of eight fields differs across request/run/result          | `BASIS_REF_MISMATCH`                                   | 0                   |
+| Same snapshot ID, different input/source hash                  | `BASIS_REF_MISMATCH`                                   | 0                   |
+| Cross-fund basis                                               | fund-scope refusal                                     | 0                   |
+| Legacy policy with non-null synthesized basis                  | `LEGACY_BASIS_INVALID`                                 | 0                   |
+| Counterfactual source/config differs                           | `COUNTERFACTUAL_PROVENANCE_MISMATCH`                   | 0                   |
+| One leg unavailable                                            | typed unavailable metric                               | 0 admission receipt |
+| Required instrument/conversion or cash-flow provenance missing | typed unavailable; excluded from authoritative ranking | 0 admission receipt |
+| Nonpositive or sub-floor delta capital                         | typed unavailable metric with denominator reason       | 0 admission receipt |
+| Corpus/hash/source identity mismatch                           | admission refused                                      | 0 receipt           |
 
 Every actionable serving boundary joins the exact accepted receipt by
 `(fund_id, snapshot_id, payload_version)`. This includes latest reserve
@@ -221,6 +269,25 @@ snapshots are `non_actionable` and excluded. `off` hides the feature; `shadow`
 records comparisons without actionable output; `on` still requires receipt. The
 nonproduction runbook requires stable paired replay before owner dispatches the
 admin admission command.
+
+For each actionable read, use the shared full-V2 projection computation to
+resolve the current `financialFactsSnapshotId`, complete normalized `basisRef`
+(or legacy `null`), `sourceConfigId`, `sourceConfigVersion`,
+`modelInputAsOfDate`, `inputHash`, `configHash`, `resultHash`, and all three
+marginal-section hashes. Select only accepted receipts whose bound snapshots
+match that full tuple and every hash, plus the running source/corpus identity
+and exact payload/engine pair. Matching a snapshot ID alone is insufficient.
+
+Among candidates already identical on that basis and those hashes, select the
+latest `acceptedAt`. If no candidate matches or the latest timestamp leaves an
+unresolved tie, return non-actionable output (indicative when the metric itself
+is available) and no authoritative ranking. Do not choose a receipt by recency
+before proving equality. Changed facts, config, model date, or calculation
+hashes invalidate an older receipt for the current ranking even when its
+snapshot is still readable. Read-only projection computation does not persist a
+new snapshot or self-admit; snapshot persistence remains on the explicit
+producer command. Latest, ranking, and UI consumers must apply the same
+admission predicate.
 
 ## Authorization and Fund Ownership
 
@@ -290,6 +357,21 @@ behavior, accepted-receipt serving/ranking, ranking exclusion, stamped
 match/mismatch, placeholder refusal without import crash, ignored production
 environment overrides, and a two-client same-key PostgreSQL race that yields one
 row plus one replay.
+
+Named expected-output cases must cover with/without expected proceeds of USD
+30000/22000 and expected capital of USD 10000/8000 yielding 4x; zero/negative
+capital; below-floor and exact-floor boundaries; above-100x indicative output; a
+valid MOIC with non-unique IRR remaining null; and paired-run IDs changing
+without changing `resultHash`. Exercise missing security/instrument identity,
+SAFE/note conversion evidence, FX, timing, terminal-liquidation treatment, and
+partial-sale allocation as separate unavailable/ranking-exclusion cases. Verify
+expected leg amounts and persisted provenance, not only final ratio or
+conservation.
+
+Serving cases must change each current basis/config/date/hash field while an old
+accepted snapshot remains present and prove it cannot authorize rankings. Cover
+zero matches, equal-basis/equal-hash latest-acceptance selection, and an
+unresolved timestamp tie; GET reads create no snapshot or admission receipt.
 
 ## Admission and Rollout Gates
 

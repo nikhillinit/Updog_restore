@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-08
 owner: Repository Owner
 categories: [product-implementation, reserve-intelligence]
 ---
@@ -62,6 +62,7 @@ repository-owner exact-body approval.
 - Create: `shared/contracts/dynamic-reserve-intelligence-v2.contract.ts`
 - Modify:
   `server/services/reserves/dynamic-reserve-intelligence-service.ts:350-590`
+- Modify: `server/services/moic/marginal-reserve-moic-input-service.ts`
 - Test: `tests/unit/contracts/dynamic-reserve-intelligence-v2.contract.test.ts`
 - Test: `tests/unit/reserves/marginal-reserve-v2.test.ts`
 - Test: `tests/regressions/financial-facts-basis-ref-consumers.test.ts`
@@ -77,10 +78,22 @@ repository-owner exact-body approval.
 
 - [ ] Test paired source/config equality, all eight basis substitutions, legacy
       null, same-ID/different-hash, unavailable leg, and zero snapshot writes.
+- [ ] Lock delta-proceeds/delta-capital semantics and existing USD Decimal
+      floor/100x behavior; cover 4x expected output, zero/negative and
+      floor-boundary capital, valid MOIC with unavailable/non-unique IRR, and
+      fresh paired-run IDs preserving the calculation hash.
+- [ ] Test missing security/instrument identity, SAFE/note conversion price and
+      ownership, FX, timing, terminal-liquidation treatment, and partial-sale
+      lineage independently: typed unavailable, no guessed source, no
+      authoritative ranking.
 - [ ] Run targeted tests; expect missing V2 exports.
 - [ ] Add strict V2 schemas and canonical preimages; reuse existing source
       pinning and calculation helpers for both legs.
-- [ ] Persist completed V2 run/snapshot only after both legs validate.
+- [ ] Persist completed V2 run/snapshot only after both legs validate. Include
+      both leg summaries and hashes, expected capital/proceeds and deltas,
+      nullable IRR, source/config/security identity, and refusal state; keep
+      paired-run IDs outside the calculation hash and preserve the
+      planned-reserve section.
 - [ ] Re-run tests and `TZ=UTC npm run phoenix:truth`; expect PASS.
 - [ ] Commit `feat: add marginal reserve intelligence v2`.
 
@@ -170,6 +183,16 @@ repository-owner exact-body approval.
       identity and typed non-actionable reason.
 - [ ] Route rankings through the same full-V2 producer that persists the
       snapshot; remove standalone ranking input path without snapshot identity.
+      Reuse its read-only projection computation: no snapshot creation on GET.
+      Match current full basis, config ID/version, model date, all calculation
+      and marginal hashes, source/corpus identity, and exact version pair before
+      receipt selection. Apply latest `acceptedAt` only among identical
+      candidates; zero matches or unresolved timestamp ties remain
+      non-actionable.
+- [ ] Test each stale basis/config/date/hash substitution with the old accepted
+      snapshot retained, equal-basis latest-acceptance selection, ambiguous
+      ties, and zero snapshot/admission writes on reads across serving
+      consumers.
 - [ ] Update flag wiring and shadow-soak runbook to require stable paired replay
       before the admin admission command.
 - [ ] Run targeted tests, flag generation/check, both-surface route tests,
