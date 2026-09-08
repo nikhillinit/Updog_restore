@@ -667,7 +667,7 @@ review, `#1287` target naming, `#1299` activation flip.
    `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`,
    `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md`.
 
-   **Local Program B correction (2026-09-06; source admission pending):**
+   **Local Program B correction (source admitted 2026-09-07 via PR #1486):**
    realization relief resolves private cash-lot `securityId` before mutation.
    Deal-by-deal pools use exact JSON tuple keys, preserving delimiter-bearing
    identities and refusing missing pools. Receipt, serializer, event-engine, and

@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 categories: [release, current-forecast, production-governance]
 keywords: [F_1.11.0, activation, shadow-soak, '0055', Vercel, Railway, Neon]
@@ -9,23 +9,29 @@ keywords: [F_1.11.0, activation, shadow-soak, '0055', Vercel, Railway, Neon]
 
 # Current Forecast Capability-First Activation Train Implementation Plan
 
-## September 6, 2026 local implementation status
+## September 7, 2026 post-merge planning status
 
-Program A Phase P source work and Program B V2 security-lineage work are locally
-implemented. Local tests and independent source review are recorded outside the
-repository against exact commits and patch digests. Source admission remains
-pending; these observations do not certify a release candidate or runtime state.
-Program C has five drafted specifications and five proposed implementation
-plans; owner approval remains pending. C1 currently has no distinct persisted
-comparable after-assumption source, so its prepared contract returns no drivers
-and records all 12 ordered typed omissions instead of inventing attribution.
+PR #1486 merged at 09:22:22 UTC as `2a6372557a3dd1ba8a13e99c6867434ede3f9299`.
+Its terminal head `6e7afdba643354f18b0d347d6a46b975d09344ab` passed
+`CI Gate Status` at 09:19:33 UTC. Source admission is complete; runtime state,
+activation-candidate certification and product approval remain separate.
 
-The authenticated database-health correction requires fresh surface-matrix
-provenance. Matrix regeneration and independent review may be prepared locally;
-G1 owner closure remains pending. Candidate selection, provider operations,
-actuals trial, shadow entry, activation, and kill/resume remain separate gates.
+Phase P Tasks 1-5 shipped in #1486 together with Program B. Reconcile Task 6
+admission evidence, then resume at Task 7 readiness/candidate freeze and Task 8
+exact-candidate certification; do not rebuild their source or repeat ADR
+allocation. ADR-097 remains the actuals decision; the merged Phase P/B entries
+are ADR-098/ADR-099. Older implementation checkboxes below describe the original
+procedure, not a new source backlog. Inspect action-specific evidence records
+without treating historical G1-pending language as another aggregate merge gate.
 
-## September 6, 2026 planning amendment
+Use the September 7 reconciled roadmap for current priorities. Resolve the
+organic producer for the selected target before candidate selection. An eligible
+non-pilot target can proceed independently of F_1.12.0's Gate A; a shared
+pilot/soak target needs its applicable trial and admitted compatible
+organic-trigger wiring. Manual pilot/recompute runs never count as soak.
+Provider operations, shadow entry, activation and kill/resume remain gated.
+
+## Historical September 6 planning amendment
 
 Source reviewed: `origin/main@1cdef4f1bc24072742a2cd24349f04c6ec074f0f`.
 F_1.11.0 P0b source hardening is already admitted through #1469/#1470; F_1.12.0
@@ -1044,6 +1050,25 @@ Do not merge or dispatch from this partial Phase P state.
 - Produces: one owner-admitted Phase P merge SHA on `origin/main`, or a bounded
   source-admission blocker. It performs no provider or database mutation.
 
+#### September 7, 2026 current evidence disposition
+
+- [x] **Source-admission receipt:** PR #1486 merged on September 7, 2026 at
+      09:22:22 UTC. Terminal PR head was
+      `6e7afdba643354f18b0d347d6a46b975d09344ab`; merge commit is
+      `2a6372557a3dd1ba8a13e99c6867434ede3f9299`.
+- [x] **Hosted check receipt:** `CI Gate Status` passed at 09:19:33 UTC in
+      [run 34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+- [x] **Scope receipt:** Phase P Tasks 1-5 and Program B entered together in
+      #1486. This closes source admission. Candidate certification,
+      deployed-state evidence, and action-scoped production dispatch remain
+      separate requirements.
+- [x] **Next-gate receipt:** Resume at Task 7 readiness and candidate freeze.
+      ADR-097 remains the F_1.12.0 actuals decision; ADR-098 and ADR-099 record
+      the merged Phase P and Program B source decisions.
+
+The procedural Steps 1-4 below remain historical re-run instructions. This
+current disposition does not claim fresh local execution of their full matrix.
+
 - [ ] **Step 1: Run the complete Phase P matrix**
 
 ```bash
@@ -1130,10 +1155,15 @@ TZ=UTC npm run verify:node-parity
 ```
 
 Expected: Phase P merge is an ancestor of `origin/main`; controlled runtime
-parity reports Node 22.23.2 and package manager npm 10.9.2. If the interactive
-shell reports another allowed Node 22/npm 10 version, do not use that shell for
-certification: enter the repository-pinned `.nvmrc` or Volta toolchain and rerun
-the commands. If `origin/main` changed after readiness began, restart Task 7.
+parity reports Node 22.23.2 and package manager npm 10.9.2. Explicitly select
+the pinned Node toolchain and record actual `node --version` output of
+`v22.23.2` before `READY_TO_CUT`. Tracked `.node-version` (`20`) is stale and
+non-authoritative for this train; it must not select the runtime. The parity
+checker omits that file, and npm engine enforcement is disabled, so a parity
+pass alone is insufficient. Missing or different Node readback yields
+`DEFERRED`. Align the stale selector and parity coverage only in a separately
+scoped source change; any admitted change requires fresh candidate selection
+under the existing freeze/restart rules.
 
 - [ ] **Step 1a: Prove both source prerequisites are admitted**
 
@@ -1215,6 +1245,13 @@ invalidates downstream evidence.
 
 Use `superpowers:using-git-worktrees` at execution time. Confirm `HEAD` and
 `HEAD^{tree}` equal Task 7. Record OS, architecture, Docker, Node, and npm.
+
+At the start of certification in each local or hosted execution environment,
+explicitly select the pinned Node toolchain and record `node --version` as
+`v22.23.2` before running any check. Missing or different readback blocks
+certification. Neither `.node-version` nor a parity-check pass substitutes for
+actual readback; a Task 7 shell result does not certify a different Task 8
+environment.
 
 - [ ] **Step 2: Install without dependency mutation**
 

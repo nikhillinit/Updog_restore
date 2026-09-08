@@ -12208,8 +12208,19 @@ before any consumer reads payload 5.
 
 ## ADR-098: Guard Current Forecast Phase P Production Routes
 
-**Date:** 2026-09-06 **Status:** Proposed (owner ratification on merge)
+**Date:** 2026-09-06 **Status:** Source admitted (PR #1486, 2026-09-07)
 **Tags:** #current-forecast #schema #neon #release-governance
+
+### Source-admission record
+
+PR #1486 merged on September 7, 2026 at 09:22:22 UTC. Terminal PR head was
+`6e7afdba643354f18b0d347d6a46b975d09344ab`; merge commit is
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`. `CI Gate Status` passed at 09:19:33
+UTC in run
+[34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+This records source admission. Candidate certification, deployed-state evidence,
+and action-scoped production dispatch remain separate requirements. See
+[PR #1486](https://github.com/nikhillinit/Updog_restore/pull/1486).
 
 ### Decision
 
@@ -12234,8 +12245,19 @@ retain separate repository-owner dispatch boundaries.
 
 ## ADR-099: Internal Economics V2 Realization Security Lineage
 
-**Date:** 2026-09-06 **Status:** Proposed (source admission pending) **Tags:**
+**Date:** 2026-09-06 **Status:** Source admitted (PR #1486, 2026-09-07)
 #internal-economics-v2 #financial-correctness #security-lineage
+
+### Source-admission record
+
+PR #1486 merged on September 7, 2026 at 09:22:22 UTC. Terminal PR head was
+`6e7afdba643354f18b0d347d6a46b975d09344ab`; merge commit is
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`. `CI Gate Status` passed at 09:19:33
+UTC in run
+[34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+This records source admission. Candidate certification, deployed-state evidence,
+and action-scoped production dispatch remain separate requirements. See
+[PR #1486](https://github.com/nikhillinit/Updog_restore/pull/1486).
 
 ### Decision
 
@@ -12267,7 +12289,8 @@ source/cash/tier/partner conservation, partial recycling, reversed order,
 delimiter collisions, and atomic refusal. Phoenix truth and the existing
 calculation gate remain required source evidence.
 
-Program B source must be admitted before selecting Program A's next candidate
-and before affected multi-security deal-by-deal serving. It cannot be added to
-an already frozen soak window. This ADR records rationale; it does not approve
-source admission, release, or a production action.
+Program B source was admitted before selecting Program A's next candidate and
+before affected multi-security deal-by-deal serving. It cannot be added to an
+already frozen soak window. This ADR records rationale for source admission in
+#1486; it does not certify a new candidate, deployment, serving state, release,
+or production action.

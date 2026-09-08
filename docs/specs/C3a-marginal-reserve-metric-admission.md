@@ -1,10 +1,10 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 scope: marginal-reserve-metric-admission-v2
-source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
+source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
 body_sha256: cc3bd74aceb91b195473dbb9a45eb105a133da94483b0fe94c22d9c038266ed7
 approval_sha256: null
 reviewed_by: null

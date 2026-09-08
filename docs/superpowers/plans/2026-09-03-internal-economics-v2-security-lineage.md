@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 categories: [financial-correctness, internal-economics-v2]
 keywords:
@@ -43,19 +43,26 @@ and Phoenix truth cases.
 `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts`,
 and `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
 
-## Local implementation status — September 6, 2026
+## September 7, 2026 post-merge planning status
 
-Source correction and independent financial review are complete locally. The
-reviewed source unit is `e2b083911d4cdad43622b3c00b1238f4ab4b0889`; the
-integration branch carries the identical thirteen source and test files. The
-public input and normalizer remain `2.0.1`; receipt, serializer, event engine,
-and composite are `2.4.0`; deal-by-deal waterfall is `2.3.0`; whole-fund
-waterfall remains `2.2.0`. ADR-099 records the proposed decision.
+PR #1486 merged at 09:22:22 UTC as `2a6372557a3dd1ba8a13e99c6867434ede3f9299`.
+Its terminal head `6e7afdba643354f18b0d347d6a46b975d09344ab` passed
+`CI Gate Status` at 09:19:33 UTC. Source admission is complete; runtime state,
+activation-candidate certification and product approval remain separate.
 
-Generated lot-ID collision refusal precedes total mismatch and is covered by an
-unchanged-full-state mixed-defect regression. Source admission, release
-certification and affected serving remain separate pending gates. The admission
-checklist below is not completed by this local result.
+The semantic correction and source admission are complete. Input/normalizer
+remains `2.0.1`; receipt/serializer/event/composite are `2.4.0`, deal-by-deal is
+`2.3.0`, whole-fund remains `2.2.0`. Manifest v3 records the bounded
+2.3.0-to-2.4.0 receipt changes. Existing multi-security truth cases cover the
+routing, conservation, order-invariance and atomic-refusal boundary.
+
+Original implementation checkboxes below are historical procedure. Remaining
+work is exact-candidate compatibility/release evidence, inclusion in Program A's
+selected candidate/soak, and factual #1458/ADR-099 status reconciliation. The
+source prerequisite before A candidate selection is satisfied by #1486; no new
+ADR assignment or repeated source-admission decision is required. Affected
+serving and downstream C3b still need their own applicable evidence. No new test
+execution or runtime certification is claimed by this refresh.
 
 ## Global Constraints
 
@@ -89,6 +96,11 @@ checklist below is not completed by this local result.
   add a new refusal code.
 - Never choose the first matching pool or infer security from iteration order,
   amount similarity, or chronology.
+- Stop condition: refuse any requested shortcut that would infer security
+  ownership, preference order, SAFE/convertible conversion, FX, terminal
+  liquidation, or source-lot ownership. Multi-security proceeds without exact
+  relief-row lineage return the existing typed refusal; callers that cannot
+  accept that refusal stop the affected action.
 - Prove source-proceeds, cash-lot, tier, partner, and whole-fund conservation.
 - Preserve existing correction, write-off, conversion, and cross-pool preference
   refusal behavior.

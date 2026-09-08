@@ -22,13 +22,33 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Documentation (2026-09-07)
+
+- Close the local roadmap documentation and scanner-configuration review: Task 6
+  admission evidence, Task 7 navigation, C1 After-assumption source
+  requirements, C3a/C3b corrections, and synthetic-fixture scanner boundaries.
+  Package version remains `1.6.0`; specification approvals and runtime gates
+  remain open. [Changelog](docs/2-changelog/w8_program-roadmap-closeout.md) and
+  [consolidated review](docs/3-code-review/CR_w8_program-roadmap-closeout.md).
+
+- PR #1486 was admitted to protected `main` on September 7, 2026 at 09:22:22
+  UTC. Terminal PR head was `6e7afdba643354f18b0d347d6a46b975d09344ab`, merge
+  commit is `2a6372557a3dd1ba8a13e99c6867434ede3f9299`, and `CI Gate Status`
+  passed in run
+  [34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+  This records Phase P and Program B source admission. Candidate certification,
+  deployed-state evidence, and action-scoped production dispatch remain separate
+  requirements.
+
 ### Fixed (2026-09-06)
 
 - Internal Economics V2 now groups realization proceeds by the security proven
   by investment-lot relief and routes each group to its exact entitlement pool.
   Ambiguous generated IDs, nonpositive groups, and missing pools fail closed
   before mutation. Receipt/implementation version changes are recorded in the v3
-  changed-case manifest and ADR-099; source admission remains pending.
+  changed-case manifest and ADR-099; source admission was completed with PR
+  #1486 on September 7, 2026, while activation-candidate certification,
+  deployment, and runtime state remain separate.
 
 ### Documentation (2026-09-06)
 

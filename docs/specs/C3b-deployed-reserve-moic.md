@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 scope: deployed-reserve-moic-v3
-source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
-body_sha256: 6751e21d292ea7fccec8f6b3b9a9ae77881c6e2f6a340101e545978863832c9b
+source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
+body_sha256: cd09f63bef8eb698266f92c5a42d4791b7563ab2c42342772d1b80ecb21baa2a
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -158,13 +158,15 @@ entries and return unavailable entries separately.
 
 ## Authoritative Inputs and Source Versions
 
-The currently inspected Program B candidate is local commit
-`2dcede86f62446bd2d988cfb1819f54158300c71`, including receipt version
-`internal-economics-receipt/2.4.0` and deal-waterfall version `2.3.0`. This is
-inspection evidence only, not source admission. Before C3b review or approval,
-replace this candidate note with the accepted Program B receipt ID, source SHA,
-payload/engine/receipt versions, and corpus revision, and prove that admitted
-SHA is an ancestor of the C3b source baseline.
+Program B source was admitted by PR #1486 on September 7, 2026 at
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`, which is the protected-main source
+baseline pinned above. Receipt version is `internal-economics-receipt/2.4.0`;
+deal-waterfall version is `2.3.0`. Source admission does not supply an accepted
+runtime receipt or corpus revision. Before C3b review or approval, record the
+accepted Program B receipt ID, exact source SHA, payload/engine/receipt
+versions, and corpus revision, and prove that the admitted SHA is an ancestor of
+the C3b source baseline. These receipt and corpus evidence requirements remain
+unresolved.
 
 The sole deployed-reserve source is Program B's admitted exact security-lineage
 receipt/version.
