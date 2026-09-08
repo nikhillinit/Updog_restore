@@ -1,10 +1,10 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 scope: scenario-comparison-decision-workflow-v1
-source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
+source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
 body_sha256: 2f36c573d150549befbfa5b0aaee5df4303b6fdb45f064a455501af563063e65
 approval_sha256: null
 reviewed_by: null

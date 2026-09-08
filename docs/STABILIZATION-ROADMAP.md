@@ -20,6 +20,15 @@ Milestone 0A is now landed on `main`. The canonical validation command is
 `npm run validate:core`, and the integration harness now coordinates startup
 through a machine-readable ready-file contract instead of human log parsing.
 
+## Current Program Navigation (2026-09-07)
+
+PR #1486 admitted Phase P and Program B source to protected `main` at merge
+commit `2a6372557a3dd1ba8a13e99c6867434ede3f9299` (terminal PR head
+`6e7afdba643354f18b0d347d6a46b975d09344ab`). Task 6 evidence reconciliation is
+complete. Next gate is Program A Task 7 readiness and candidate freeze.
+Candidate certification, provider binding, deployment, shadow entry, activation,
+and F_1.12.0 Gate A remain separate; Program C specifications remain drafts.
+
 ## Global Rules
 
 1. **Do not start milestone N+1 until milestone N is merged and

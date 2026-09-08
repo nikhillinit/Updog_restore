@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 categories: [product-implementation, decision-workspace]
 ---
@@ -18,8 +18,9 @@ evidence-linked decision creation.
 
 **Architecture:** Extend dual-forecast with a server-authored variance contract,
 persist it through the existing analysis-reference basis, and compose existing
-decision/link persistence inside one transaction. Reuse
-`forecastFundSnapshotId`; add no forecast table.
+decision/link persistence inside one transaction. Reuse `forecastFundSnapshotId`
+where the revised source contract supports it. Prefer existing versioned
+persistence; any additional schema surface requires approval.
 
 **Tech Stack:** TypeScript, Zod, Express, Drizzle/PostgreSQL, React/Preact,
 Vitest, Playwright.
@@ -37,9 +38,14 @@ repository-owner exact-body approval.
   `server/lib/database-backed-idempotency-routes.ts` regex.
 - Any schema change uses fresh journal-discovered additive migration number and
   pins its own journal entry.
-- Program A A4 GO and runtime identity gates still block serving/release.
+- Product implementation, merge, deployment and serving wait for Program A A4 GO
+  and verified final runtime identity. Specification preparation may proceed.
 
-## Required Source-Identity Decisions
+## Inspected Baseline and Required Source-Identity Revision
+
+The following source findings describe the inspected baseline. Regenerate its
+interfaces and selected-delivery expectations from the approved after-source
+contract before execution. Baseline characterization is not feature completion.
 
 - Live serving resolves `getAcceptedCurrentForecastReferenceHead({ fundId })`;
   held serving resolves exact `held.referenceId` through
@@ -56,10 +62,27 @@ repository-owner exact-body approval.
   accepted/held V2 after payload from its verified persisted `fundSnapshotId`.
   V2 carries the same plan ID/hash and no distinct assumption snapshot; never
   reload that plan as after data or invent a delta.
-- Under the inspected contracts, emit `drivers: []` and all twelve taxonomy
-  omissions with exact reason, before/after identity, and fixed order. Do not
-  widen current-plan or current-forecast persistence/contracts for hypothetical
-  after assumptions.
+- Treat current `drivers: []` and twelve typed omissions as inspected baseline
+  characterization only, not selected delivery. Revise the source contract
+  first; prefer existing persistence and make no new-table commitment.
+
+## First Source-Contract Revision Gate
+
+- [ ] Revise and independently review the source-admission requirements in the
+      C1 spec: explicit before/after pairing, pinned production, comparability,
+      atomic validation, idempotency and optimistic locking.
+- [ ] Define attribution semantics and supporting persisted output evidence: the
+      method, treatment of interactions and reconciliation of attributed effects
+      plus any disclosed residual to the total forecast change. Possible
+      plan-field changes in four categories are research observations, not an
+      approved delivery limit or a substitute for forecast-effect evidence.
+- [ ] Regenerate the interfaces, source/test manifests and implementation steps
+      from that reviewed contract; retain current omissions as baseline tests
+      only.
+- [ ] Refresh source/body digests and obtain named exact-body approval. Keep
+      approval metadata unset until that approval; Program A GO/final-runtime
+      requirements separately continue to block product implementation and
+      serving.
 
 ### Task 1: Forecast Variance Contract and Server Derivation
 
@@ -91,8 +114,10 @@ repository-owner exact-body approval.
 
 - [ ] Write failing contract tests for all serving/engine/basis mappings, absent
       V2, structural refusal precedence, and exact omission object shape.
-- [ ] Assert current baseline returns `drivers: []` and twelve omissions in
-      taxonomy order with exact reason mapping from the spec.
+- [ ] Characterize the current baseline: `drivers: []` and twelve omissions in
+      taxonomy order with the exact existing reasons. Regenerate selected-
+      delivery assertions from the approved after-source and attribution
+      contract; this baseline test alone does not satisfy the selected feature.
 - [ ] Prove `afterSource` is the persisted current-forecast reference/snapshot:
       assert its reference ID, `fundSnapshotId`, `resultHash`, and plan ID/hash
       match the stored row; assert plan loading occurs only for `beforeSource`.
@@ -103,8 +128,10 @@ repository-owner exact-body approval.
 - [ ] Run
       `TZ=UTC npx vitest run tests/unit/contracts/forecast-variance-v1.contract.test.ts tests/unit/server/forecast-variance-service.test.ts --retry=0`;
       expect failures for missing exports.
-- [ ] Implement accepted/held wire/reference/snapshot fund/hash/version checks,
-      persisted after-source loading, empty drivers, and ordered omissions.
+- [ ] After source-contract approval and the Program A gates, implement the
+      explicit source bindings and only the driver/omission semantics admitted
+      by that contract. Do not ship the omissions-only baseline or a
+      four-category proposal as the selected feature by default.
 - [ ] Re-run the same tests; expect PASS. Verify dual-forecast response omits
       the variance object only when the V2 block itself is absent.
 - [ ] Re-run targeted tests; expect PASS.

@@ -69,7 +69,11 @@ repository-owner exact-body approval.
 **Interfaces:**
 
 - Produces:
-  `runMarginalReserveV2({ fundId, financialFactsSnapshotId, securityId, incrementCents, sourceConfigId, sourceConfigVersion, modelInputAsOfDate })`.
+  `runMarginalReserveV2({ fundId, financialFactsSnapshotId, basisRef, securityId, incrementCents, sourceConfigId, sourceConfigVersion, modelInputAsOfDate })`.
+- `basisRef` is the required expected `FinancialFactsBasisRef` (all eight
+  fields) for policy 1.4/payload 5, or explicit `null` for legacy policy.
+  Compare it against the loaded persisted facts before calculation; any mismatch
+  refuses.
 
 - [ ] Test paired source/config equality, all eight basis substitutions, legacy
       null, same-ID/different-hash, unavailable leg, and zero snapshot writes.

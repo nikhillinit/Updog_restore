@@ -61,6 +61,25 @@ when all three criteria hold:
 - At least 90 percent of evaluated bases produce an `available` value.
 - There are zero UNEXPLAINED divergences.
 
+Program A Task 12 in
+`docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md` adds
+four window predicates on top of ADR-057. A window is not green unless these
+also hold:
+
+- The evaluation is non-empty; a probe-only or empty window does not count.
+- At least one organic facts-commit-triggered shadow run occurred inside the
+  window. Manual trial or recompute runs never satisfy this predicate.
+- No prohibited manual recompute row exists for any soak-target fund (see the
+  per-window manual-row audit below).
+- Candidate, deployments, database, migration tail, accepted source, corpus, and
+  relevant environment are unchanged at both window boundaries.
+
+Across the full four-window soak, at least two distinct accepted facts bases
+must be evaluated. `evaluateCurrentForecastShadowGreen` enforces the three
+ADR-057 criteria and rejects empty evaluations. Organic-run, manual-row, and
+unchanged-identity checks require separate per-window evidence; record the
+two-distinct-bases check across the complete soak.
+
 Legacy numeric parity is explicitly not a criterion. The legacy lane is
 nondeterministic by design and its divergence from V2 is expected and auditable.
 Do not add a legacy-number comparison to the evidence or to the green decision.

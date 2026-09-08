@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 categories: [product-specification, decision-workspace]
 keywords: [forecast-variance, scenario-comparison, reserve-decision, ADR-033]
@@ -9,7 +9,48 @@ keywords: [forecast-variance, scenario-comparison, reserve-decision, ADR-033]
 
 # Decision Workspace Specification-Gate Implementation Plan
 
-## September 6, 2026 specification input amendment
+## September 7, 2026 review priority and source freshness
+
+PR #1486 admitted the five existing draft specifications and proposed plans; it
+did not approve them or implement C product workflows. All approval fields
+remain unset. Program A Phase P and Program B source are also admitted in
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`; their former source-pending text is
+historical, not a remaining prerequisite.
+
+All 116 manifest rows across C1/C2/C3a/C3b/C3c match both the original source
+`38fa722d19d343d5485d935ef5bce4c74c3be770` and inspected main. However, #1486
+squash admission left that source outside main ancestry, so Task 6's ancestry
+check would fail. The five draft source pins now bind
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`; that source-pin refresh kept
+specification bodies, body hashes, and unapproved fields unchanged. The
+subsequent C3b source-admission clarification updates its body and hash;
+approvals remain unset. Recheck ancestry, source and body hashes before
+approval. The September 6 input amendment records authoring history.
+
+Next: implement owner-selected C1 direction: first revise and review a source
+contract admitting a distinct persisted comparable after-assumption source. The
+inspected empty-drivers/twelve-omission result is baseline only, not selected
+delivery. Review exact bodies and obtain named approval before updating existing
+implementation plans. C2 follows C1's admitted atomic
+`createEvidenceLinkedDecision` command; the reserve lane remains C3a -> C3b ->
+C3c, with admitted B lineage and C3c's accepted reserve V3 and equivalence
+prerequisites. Specification work may run alongside A; product
+implementation/merge/deployment/serving still waits A GO/final runtime identity
+and each approved workstream's prerequisites. NO-GO does not unlock C.
+
+### September 7 target-binding status
+
+The owner selected F1 / Fund One from the supplied ledger (10 companies, 11
+transactions). F1 was absent from the inspected Railway-bound database, which
+contained Phase 0 Integration Fund (ID 1). Vercel's database binding remains
+unknown. Establish the serving API's actual database and fund context before
+deciding whether import is necessary; this inspection does not establish that
+requirement. Do not map ID 1 to F1. The inspected pilot-variable inventories
+were unconfigured, and authenticated runtime/fund binding and organic-source
+eligibility remain unresolved. These runtime gates remain separate from C
+specification approval and Program A GO/final-runtime gates.
+
+## Historical September 6 specification input amendment
 
 Re-pin each specification's source manifest to the inspected source at the time
 of authoring. This review used
@@ -161,7 +202,10 @@ owner, or timestamp edit invalidates approval.
 
 At approval time:
 
-1. `source_sha` equals the exact product-source baseline used for inspection;
+1. `source_sha` equals the exact product-source baseline used for inspection and
+   is a commit reachable from protected `origin/main`. Never pin a branch or PR
+   head: squash admission orphans that commit, and Task 6's ancestry check then
+   fails even when every inspected byte matches;
 2. every `source_paths` entry is a unique, lexicographically sorted,
    placeholder-free repository-relative tracked file that exists at both
    `source_sha` and the approval head;
@@ -250,6 +294,19 @@ the command without adding another route.
 
 ---
 
+### C1 source-contract revision prerequisite
+
+- [ ] Revise and review the C1 spec for the owner-selected after-assumption
+      direction. Its source-admission section is canonical for explicit
+      historical before/after pairing, pinned production,
+      same-fund/facts/methodology and horizon checks, atomic validation and
+      typed refusals.
+- [ ] Define the attribution method and its persisted evidence. Possible input
+      changes do not approve a four-category product or prove forecast effects.
+- [ ] Regenerate source/body digests and the existing C1 implementation plan;
+      retain baseline omissions as characterization only. Exact-body approval
+      and Program A GO/final-runtime requirements remain separate gates.
+
 ### Task 1: Specify Forecast Variance Explanation to Decision
 
 **Files:**
@@ -310,12 +367,24 @@ and blockers. Each driver includes source reference, source version, before,
 after, delta, unit, and explanation. Unavailable drivers are omitted with a
 top-level typed omission list; the client never estimates a delta.
 
+For the selected After-assumption direction, revise the source and driver
+contract before approval. Explicit persisted identities, comparable units and
+horizons, atomic validation and a reviewed attribution method, explicit
+treatment of interactions and reconciliation of effects plus any disclosed
+residual to the total forecast change are required. Current-plan field
+differences alone cannot establish forecast effects.
+
 - [ ] **Step 4: Lock forecast evidence persistence**
 
 Reuse `forecastFundSnapshotId`. The analysis checkpoint service must load the
 same-fund `CURRENT_FORECAST_V2` snapshot and verify `inputHash`, `resultHash`,
 and `assumptionsHash` before save. Do not introduce another forecast-reference
 table.
+
+Prefer existing versioned current-plan, current-forecast, and analysis-reference
+persistence. The source revision makes no new-table commitment. Stale expected
+version/head or source-identity mismatch is a typed optimistic refusal with zero
+partial decision/link writes.
 
 - [ ] **Step 5: Specify decision creation and recovery**
 
@@ -330,6 +399,11 @@ Name unit/integration/Playwright files for serving/engine/basis mapping,
 source/hash verification, same-key replay, different-material conflict,
 cross-fund denial, inaccessible evidence denial, transactional rollback, client
 no-calculation assertion, and keyboard/screen-reader states.
+
+Also gate source admission on same-fund/facts/methodology checks, explicit
+before/after units and horizon, typed omissions and attribution semantics, the
+reviewed attribution method, interaction treatment, reconciliation to the total
+forecast change, and SHA-256 over canonical UTF-8 source bytes.
 
 - [ ] **Step 7: Review, approve, and generate the implementation plan**
 
@@ -974,6 +1048,15 @@ receipt and equivalence proof are accepted.
   `docs/_generated/router-index.json`, `docs/_generated/staleness-report.md`
 
 - [ ] **Step 1: Validate every file independently**
+
+Before running this validator, fetch protected `origin/main` and record its
+resolved full commit SHA in the Task 6 evidence. For each of the five
+specifications, record an explicit ancestry check proving `source_sha` is
+reachable from that captured main SHA. Missing or stale main evidence, or a
+branch-only source pin, blocks approval and Task 6 completion. Retain all five
+results alongside the validator output; its `HEAD` ancestry and source-byte
+checks do not replace this prerequisite. Repeat the prerequisite if main or any
+source pin changes before approval.
 
 Run this Node/YAML validation from repository root:
 

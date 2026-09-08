@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 owner: Repository Owner
 scope: forecast-variance-decision-workflow-v1
-source_sha: 38fa722d19d343d5485d935ef5bce4c74c3be770
-body_sha256: a8e1a74647c8ed2781f9fee5b957ad12b3f084489b9d72a6f5179ea6a5ac1f93
+source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
+body_sha256: bb0b40d181cdbac3aae645e00e0365a4e4269b1238c433af3def88980757ce16
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -78,13 +78,46 @@ transaction around both existing operations.
 2. Preserve serving status and engine status independently.
 3. `mixedBasisAtSave` maps to `basisStatus: mixed_basis`; stale source or hash
    maps to `stale`; otherwise `current`.
-4. `mixed_basis`, `stale`, `unavailable`, `failed`, and `held` are displayable
-   evidence states but cannot enable decision creation.
-5. Retain the required taxonomy: check size, entry valuation, ownership, pace,
-   allocation mix, graduation/exit assumptions, follow-on participation,
-   deployed/remaining reserves, fees/expenses, recycling, and blockers. Emit a
-   driver only when both sides are distinct persisted fields with matching
-   meaning and horizon. Otherwise emit an ordered typed omission.
+
+### Owner-selected source direction (September 7, 2026)
+
+The owner selected `After-assumption`: first admit a distinct persisted
+comparable after-assumption source. The empty-driver/twelve-omission contract
+below records the inspected baseline. It is not the selected shipping contract
+or an approval-ready definition of the after-source feature.
+
+The source-contract revision must define and independently review:
+
+- Explicit persisted before/after identities and their producer. If distinct
+  current-plan versions are reused, pin `beforeReferenceId` and
+  `afterPlanVersionId`; load the historical before reference by ID rather than
+  re-resolving the current accepted head.
+- Reference/plan/snapshot hashes, same fund and qualified facts basis,
+  methodology, units and comparable horizons. A direct-successor design must
+  validate both successor links and the after head at save time, treating the
+  intended predecessor's supersession as expected rather than automatically
+  stale. Validate the complete pair atomically before related writes.
+- A pre-existing after row or a separately approved pinned mint contract.
+  Current minting selects latest configuration and facts; it cannot establish
+  pinned same-facts production by assumption. Admission requires idempotent
+  canonical replay and expected-version/head refusal without partial writes.
+- Driver and typed-omission semantics. An exploratory current-plan reuse
+  proposal identifies possible input changes for check size, pace, allocation
+  mix and follow-on participation; it does not approve a four-category product.
+  Input differences alone are not forecast-effect attribution. That claim
+  additionally requires persisted after-forecast evidence and an approved
+  attribution method, explicit treatment of interactions and reconciliation of
+  attributed effects plus any disclosed residual to the total forecast change.
+  An input-difference report does not satisfy the selected scope.
+- Source and test manifests covering missing/incomparable values, stale or
+  cross-fund evidence, source/head races, replay/conflict and rollback. Prefer
+  existing versioned persistence; no new-table design is admitted here.
+
+The supplied F1 transaction ledger is actuals context, not persisted forecast
+assumptions. Do not fill its unknowns or derive after assumptions from it.
+Refresh the body hash after revision. This spec remains `DRAFT` with all review
+and approval metadata unset pending exact-body approval. Program A GO and final
+runtime identity separately gate implementation and serving.
 
 ## Request and Response Contracts
 
@@ -168,6 +201,11 @@ structural verification, omissions use the taxonomy order above, independent of
 object iteration order. Each omission carries both pinned source identities and
 its exact reason. No literal available-driver example is valid at this source
 baseline.
+
+The twelve-omission behavior above is inspected baseline characterization only.
+It is not the selected shipping contract or approval-ready after-source
+admission. Revise and regenerate this interface after the source-contract
+revision/review gate before selected delivery.
 
 ### Served-reference resolution
 
