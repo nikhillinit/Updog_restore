@@ -55,6 +55,7 @@ export * from './schema/investment-rounds';
 export * from './schema/investment-round-model-overrides';
 export * from './schema/current-forecast-references';
 export * from './schema/financial-observations';
+export * from './schema/actuals-draft-revisions';
 export * from './schema/investment-ledger';
 export * from './schema/investment-positions';
 export * from './schema/vehicle-financing-participations';

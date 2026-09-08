@@ -647,6 +647,151 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
   );
 
   it(
+    'PG-1 publishes corrected preview values with new provenance and refuses rewriting their external reference',
+    async () => {
+      const row = (date: string, amount: string) => [
+        'settled_contribution',
+        date,
+        amount,
+        'USD',
+        '',
+        'main',
+        '',
+        'Correctable contribution',
+        '',
+        '',
+        '',
+        'pg-corrected-contribution',
+      ];
+      const beforePreview = await tableCounts();
+      const initial = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [row('2026-03-01', '100000.00')])
+      );
+      const correctedRows = [row('2026-03-02', '125000.00')];
+      const correctedPayload = csv(ACTUALS_LEDGER_TEMPLATE_HEADER, correctedRows);
+      const corrected = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        correctedPayload
+      );
+      const fixture = await publishFixture({ ledgerRows: correctedRows, valuationRows: null });
+      expect(initial.canPublish).toBe(true);
+      expect(corrected.canPublish).toBe(true);
+      expect(await tableCounts()).toEqual(beforePreview);
+      expect(corrected.payloadSha256).not.toBe(initial.payloadSha256);
+      expect(corrected.canonicalRowsHash).not.toBe(initial.canonicalRowsHash);
+      expect(corrected.previewHash).not.toBe(initial.previewHash);
+      expect(corrected.rows[0]!.rowSourceHash).toBe(initial.rows[0]!.rowSourceHash);
+      expect(corrected.rows[0]!.rowContentHash).not.toBe(initial.rows[0]!.rowContentHash);
+      expect(corrected.rows[0]).toMatchObject({
+        effectiveDate: '2026-03-02',
+        canonicalAmount: '125000.000000',
+      });
+
+      const created = await publish(fixture);
+      expect(created.statusCode).toBe(201);
+      const events = await adminPool.query<{
+        id: number;
+        amount: string;
+        event_date: Date;
+        source_hash: string;
+        import_batch_id: string;
+        payload: Record<string, unknown>;
+      }>('SELECT * FROM cash_flow_events WHERE fund_id = $1 ORDER BY id', [seeded.fundId]);
+      expect(events.rows).toHaveLength(1);
+      expect(events.rows[0]).toMatchObject({
+        amount: '125000.000000',
+        source_hash: corrected.rows[0]!.rowSourceHash,
+        import_batch_id: created.receipt.admitted.importBatchId,
+        payload: {
+          sourceExternalRef: 'pg-corrected-contribution',
+          rowContentHash: corrected.rows[0]!.rowContentHash,
+        },
+      });
+      expect(events.rows[0]!.event_date.toISOString()).toBe('2026-03-02T00:00:00.000Z');
+      expect(created.receipt.admitted.ledger).toMatchObject({
+        payloadSha256: corrected.payloadSha256,
+        canonicalRowsHash: corrected.canonicalRowsHash,
+        previewHash: corrected.previewHash,
+        approvedRowIds: [events.rows[0]!.id],
+        approvedCount: 1,
+      });
+      const artifacts = await adminPool.query<{
+        id: number;
+        payload_sha256: string;
+        payload: Buffer;
+      }>('SELECT * FROM source_artifacts WHERE fund_id = $1 ORDER BY id', [seeded.fundId]);
+      expect(artifacts.rows).toHaveLength(1);
+      expect(artifacts.rows[0]).toMatchObject({
+        id: created.receipt.admitted.ledger.sourceArtifactId,
+        payload_sha256: corrected.payloadSha256,
+        payload: correctedPayload,
+      });
+      const snapshots = await adminPool.query<{ payload: Record<string, unknown> }>(
+        'SELECT * FROM financial_facts_snapshots WHERE fund_id = $1 ORDER BY id',
+        [seeded.fundId]
+      );
+      expect(snapshots.rows).toHaveLength(1);
+      expect(snapshots.rows[0]!.payload).toMatchObject({
+        capitalActuals: { paidInCapital: { value: '125000.000000' } },
+        cashFlowSeries: { totals: { contributions: '125000.000000' } },
+        admissionReceiptCore: {
+          operationHash: created.receipt.operationHash,
+          admitted: created.receipt.admitted,
+        },
+      });
+
+      const beforeRejectedChange = await tableCounts();
+      const changedPayload = csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [row('2026-03-03', '150000.00')]);
+      const changed = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        changedPayload
+      );
+      expect(changed.canPublish).toBe(false);
+      expect(changed.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'EXTERNAL_REF_REUSE_CONFLICT' })])
+      );
+      await expect(
+        publish({
+          idempotencyKey: '20000000-0000-4000-8000-000000000002',
+          ifMatch: created.receipt.facts.etag,
+          request: {
+            ...fixture.request,
+            ledger: {
+              ...fixture.request.ledger,
+              payload: changedPayload.toString('base64'),
+              expectedPayloadSha256: changed.payloadSha256,
+              expectedCanonicalRowsHash: changed.canonicalRowsHash,
+              expectedPreviewHash: changed.previewHash,
+            },
+            coverage: {
+              ledger: 'incremental_since_prior_head',
+              priorFactsSnapshotId: created.receipt.facts.snapshotId,
+              evidenceNote: 'Published external references cannot be rewritten.',
+            },
+          },
+        })
+      ).rejects.toMatchObject({ statusCode: 422, code: 'INVALID_CSV' });
+      expect(await tableCounts()).toEqual(beforeRejectedChange);
+      for (const [table, rows] of [
+        ['cash_flow_events', events.rows],
+        ['source_artifacts', artifacts.rows],
+        ['financial_facts_snapshots', snapshots.rows],
+      ] as const) {
+        const after = await adminPool.query(
+          `SELECT * FROM ${table} WHERE fund_id = $1 ORDER BY id`,
+          [seeded.fundId]
+        );
+        expect(after.rows).toEqual(rows);
+      }
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
     'PG-1 reuses coherent same-as-of ledger artifacts before and after payload purge',
     async () => {
       for (const purgeLedgerArtifact of [false, true]) {

@@ -337,11 +337,29 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
 }
 
 /** Convenience entry point: build the DB-backed ports and run a full sweep. */
-export function runRetentionSweep(
+export async function runRetentionSweep(
   now: Date,
   database: RetentionDatabase = db
 ): Promise<RetentionSweepSummary> {
-  return sweepDueBatches(createRetentionSweepPorts(database), now);
+  const summary = await sweepDueBatches(createRetentionSweepPorts(database), now);
+  // Keep the existing sweep usable before the additive draft migration lands.
+  const draftTable = toRows(await database.execute(sql`SELECT to_regclass('public.actuals_draft_revisions') AS relation`));
+  if (draftTable[0]?.['relation']) {
+    // Caller-selected upload keys alone cannot establish draft ownership.
+    await database.execute(sql`
+      UPDATE source_artifacts AS artifact
+      SET payload = NULL, purged_at = ${now}
+      WHERE artifact.idempotency_key LIKE 'ad1:%'
+        AND artifact.purged_at IS NULL AND artifact.purge_after <= ${now}
+        AND EXISTS (
+          SELECT 1 FROM actuals_draft_revisions AS revision
+          WHERE revision.fund_id = artifact.fund_id
+            AND (revision.ledger_source_artifact_id = artifact.id
+              OR revision.valuation_source_artifact_id = artifact.id)
+        )
+    `);
+  }
+  return summary;
 }
 
 // ---------------------------------------------------------------------------

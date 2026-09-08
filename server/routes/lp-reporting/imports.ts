@@ -83,6 +83,20 @@ import { isReconciliationApiError } from '../../services/financial-observations/
 import { recordV1ImportInvocation } from '../../services/lp-reporting/v1-import-telemetry';
 import { readActualsPilotFundId } from '../../config/actuals-pilot-env';
 import {
+  ActualsDraftSaveRequestV1Schema,
+  ActualsDraftIfMatchSchema,
+  ActualsDraftIdempotencyKeySchema,
+  ActualsDraftHistoryQuerySchema,
+  ActualsDraftRevisionParamSchema,
+} from '@shared/contracts/lp-reporting/actuals-draft.contract';
+import {
+  ActualsDraftError,
+  actualsDraftETag,
+  saveActualsDraftRevision,
+  listActualsDraftRevisions,
+  getActualsDraftRevision,
+} from '../../services/lp-reporting/actuals-draft-service';
+import {
   ActualMetricsV2Schema,
   ActualsPreviewRequestV1Schema,
   ActualsPreviewResponseV1Schema,
@@ -346,11 +360,15 @@ function requireActualsJson(req: Request, res: Response, next: NextFunction): vo
 }
 
 function sendActualsError(req: Request, res: Response, error: unknown): Response {
-  if (error instanceof ActualsPilotPreviewError || error instanceof ActualsPilotPublishError) {
+  if (
+    error instanceof ActualsPilotPreviewError ||
+    error instanceof ActualsPilotPublishError ||
+    error instanceof ActualsDraftError
+  ) {
     return res.status(error.statusCode).json({
       error: error.message,
       code: error.code,
-      ...(error.details !== undefined && { details: error.details }),
+      ...('details' in error && error.details !== undefined && { details: error.details }),
     });
   }
   return res.status(500).json({
@@ -871,6 +889,96 @@ if (actualsPilotFundId !== null) {
     actualsGrant,
     requireFundAccess,
   ] as const;
+
+  router.post(
+    '/api/funds/:fundId/imports/actuals/draft-revisions',
+    ...actualsCommon,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const rawIfMatch = requestHeader(req, 'if-match');
+      if (rawIfMatch === undefined)
+        return res
+          .status(428)
+          .json({ error: 'If-Match is required.', code: 'PRECONDITION_REQUIRED' });
+      const ifMatch = ActualsDraftIfMatchSchema.safeParse(rawIfMatch);
+      if (!ifMatch.success)
+        return res.status(400).json({ error: 'If-Match is invalid.', code: 'INVALID_IF_MATCH' });
+      const key = ActualsDraftIdempotencyKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
+      if (!key.success)
+        return res
+          .status(400)
+          .json({
+            error: 'Idempotency-Key must be a lowercase UUID.',
+            code: 'INVALID_IDEMPOTENCY_KEY',
+          });
+      const body = ActualsDraftSaveRequestV1Schema.safeParse(req.body);
+      if (!body.success)
+        return res
+          .status(400)
+          .json({ error: 'Draft save request is invalid.', code: 'INVALID_BODY' });
+      try {
+        const result = await saveActualsDraftRevision({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: key.data,
+          ifMatch: ifMatch.data,
+          request: body.data,
+          ...(req.context && { context: req.context }),
+        });
+        res.setHeader('ETag', result.revision.etag);
+        return res.status(result.replayed ? 200 : 201).json(result);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+  router.get(
+    '/api/funds/:fundId/imports/actuals/draft-revisions',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      const query = ActualsDraftHistoryQuerySchema.safeParse(req.query);
+      if (!query.success)
+        return res
+          .status(400)
+          .json({ error: 'Invalid draft history cursor.', code: 'INVALID_CURSOR' });
+      try {
+        const result = await listActualsDraftRevisions({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          ...(query.data.beforeRevision !== undefined && {
+            beforeRevision: query.data.beforeRevision,
+          }),
+          ...(req.context && { context: req.context }),
+        });
+        res.setHeader('ETag', actualsDraftETag(actualsPilotFundId, result.head));
+        return res.status(200).json(result);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+  router.get(
+    '/api/funds/:fundId/imports/actuals/draft-revisions/:revision',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      const revision = ActualsDraftRevisionParamSchema.safeParse(req.params['revision']);
+      if (!revision.success || Object.keys(req.query).length !== 0)
+        return res.status(400).json({ error: 'Invalid draft revision.', code: 'INVALID_CURSOR' });
+      try {
+        const result = await getActualsDraftRevision({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          revision: revision.data,
+          ...(req.context && { context: req.context }),
+        });
+        res.setHeader('ETag', result.revision.etag);
+        return res.status(200).json(result);
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
 
   router.post(
     '/api/funds/:fundId/imports/actuals/dry-run',

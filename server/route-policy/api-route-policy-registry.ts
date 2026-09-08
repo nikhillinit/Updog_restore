@@ -723,6 +723,28 @@ const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] =
 const ACTUALS_PILOT_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = ([
   {
     method: 'POST',
+    path: '/api/funds/:fundId/imports/actuals/draft-revisions',
+    workflowRequirement: 'actuals_draft_if_match_idempotency_and_explicit_fund_grant_verified',
+    exportPolicy: 'not_exportable',
+    performanceBudgetMs: 30_000,
+    notes: 'Append-only provisional upload revision; no canonical financial writes.',
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/:fundId/imports/actuals/draft-revisions',
+    workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+    exportPolicy: 'not_exportable',
+    performanceBudgetMs: null,
+  },
+  {
+    method: 'GET',
+    path: '/api/funds/:fundId/imports/actuals/draft-revisions/:revision',
+    workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+    exportPolicy: 'not_exportable',
+    performanceBudgetMs: null,
+  },
+  {
+    method: 'POST',
     path: '/api/funds/:fundId/imports/actuals/dry-run',
     workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
     exportPolicy: 'preview_only',

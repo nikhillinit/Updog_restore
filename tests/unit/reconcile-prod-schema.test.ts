@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
+import { normalizePostgresLiteralTextArrayCasts } from '../../scripts/lib/postgres-catalog-definition.mjs';
 
 import {
   ACTION_APPLY_MISSING_DDL,
@@ -2660,5 +2661,152 @@ describe('g3 catch-up 0050-0053 capability', () => {
     expect(clientFactory).toHaveBeenCalledWith({
       connectionString: 'postgres://operator:secret@localhost/updog',
     });
+  });
+});
+
+describe('PostgreSQL literal-array cast spellings', () => {
+  const wholeArray =
+    "(ARRAY['analysis_reference'::character varying, 'internal_economics_run'::character varying])::text[]";
+  const elementArray =
+    "ARRAY[('analysis_reference'::character varying)::text, ('internal_economics_run'::character varying)::text]";
+  const literals = ['analysis_reference', 'internal_economics_run'];
+
+  it('preserves original literal bytes and the pinned whole-array spelling', () => {
+    const actual =
+      "CHECK ((kind)::text = ANY (ARRAY[('MiXeD'::character varying)::text, ('two  spaces'::character varying)::text]))";
+    const expected =
+      "CHECK ((kind)::text = ANY ((ARRAY['MiXeD'::character varying, 'two  spaces'::character varying])::text[]))";
+    expect(normalizePostgresLiteralTextArrayCasts(actual)).toBe(expected);
+    expect(normalizePostgresLiteralTextArrayCasts(expected)).toBe(expected);
+  });
+
+  it.each([
+    `'${elementArray.replaceAll("'", "''")}'`,
+    `E'${elementArray.replaceAll("'", "\\'")}'`,
+    `e'${elementArray.replaceAll("'", "\\'")}'`,
+    `"${elementArray}"`,
+    `$$${elementArray}$$`,
+    `$body$${elementArray}$body$`,
+  ])('preserves quoted SQL-looking content %s', (definition) => {
+    expect(normalizePostgresLiteralTextArrayCasts(definition)).toBe(definition);
+  });
+
+  it('accepts the observed PostgreSQL index spelling without changing its predicate', async () => {
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'fund_scenario_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef:
+            "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, COALESCE(hash_kind, 'scenario-input-hash-v1'::character varying), input_hash) WHERE ((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('completed'::character varying)::text]))",
+        },
+      ],
+    });
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects[0]?.deltas).toEqual([]);
+  });
+
+  it.each([
+    {
+      name: 'observed PostgreSQL constraint spelling',
+      expected: wholeArray,
+      actual: elementArray,
+      literals,
+      action: ACTION_SKIP,
+    },
+    {
+      name: 'changed literal',
+      expected: wholeArray,
+      actual: elementArray.replace('analysis_reference', 'different'),
+      literals,
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'reordered literals',
+      expected: wholeArray,
+      actual:
+        "ARRAY[('internal_economics_run'::character varying)::text, ('analysis_reference'::character varying)::text]",
+      literals,
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'nonliteral expression',
+      expected: wholeArray.replace("'analysis_reference'", 'target_kind'),
+      actual: elementArray.replace("'analysis_reference'", 'target_kind'),
+      literals: ['internal_economics_run'],
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'NULL element',
+      expected: wholeArray.replace("'analysis_reference'", 'NULL'),
+      actual: elementArray.replace("'analysis_reference'", 'NULL'),
+      literals: ['internal_economics_run'],
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'varchar typmod',
+      expected: wholeArray.replaceAll('character varying', 'character varying(30)'),
+      actual: elementArray.replaceAll('character varying', 'character varying(30)'),
+      literals,
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'different cast type',
+      expected: wholeArray,
+      actual: elementArray.replaceAll('::text', '::name'),
+      literals,
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'escaped literal',
+      expected: wholeArray.replace('analysis_reference', "owner''s_reference"),
+      actual: elementArray.replace('analysis_reference', "owner''s_reference"),
+      literals: ["owner's_reference", 'internal_economics_run'],
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+    {
+      name: 'different operator',
+      expected: wholeArray,
+      actual: elementArray,
+      literals,
+      operator: '<>',
+      action: ACTION_REFUSE_FOR_HUMAN,
+    },
+  ])('$name', async ({ expected, actual, literals: values, action, operator = '=' }) => {
+    const table = 'task_evidence_links';
+    const name = 'task_evidence_links_target_kind_check';
+    const client = createMockClient({
+      presentTables: [table],
+      constraints: [
+        {
+          table_name: table,
+          conname: name,
+          definition: `CHECK (((target_kind)::text ${operator} ANY (${actual})))`,
+        },
+      ],
+    });
+    const audit = await auditManifest(
+      client,
+      definitionAwareConstraintManifest(table, name, {
+        exactDefinition: `CHECK (((target_kind)::text = ANY (${expected})))`,
+        orderedFragments: ['CHECK', '(target_kind)::text', 'ANY'],
+        stringLiterals: values,
+      })
+    );
+    expect(audit.action).toBe(action);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual(
+      action === ACTION_SKIP ? [] : ['constraint-definition-mismatch']
+    );
   });
 });

@@ -104,6 +104,9 @@ const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'POST /api/funds/:fundId/reconciliation/cases/:caseId/resolve',
   'POST /api/funds/:fundId/reconciliation/cases/bulk-resolve',
   'POST /api/funds/:fundId/imports/batches/:batchId/commit',
+  'POST /api/funds/:fundId/imports/actuals/draft-revisions',
+  'GET /api/funds/:fundId/imports/actuals/draft-revisions',
+  'GET /api/funds/:fundId/imports/actuals/draft-revisions/:revision',
   'POST /api/funds/:fundId/imports/actuals/dry-run',
   'POST /api/funds/:fundId/imports/actuals/publish',
   'GET /api/funds/:fundId/financial-facts/latest-reference',
@@ -148,11 +151,21 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
   },
   {
     keys: [
+      'GET /api/funds/:fundId/imports/actuals/draft-revisions',
+      'GET /api/funds/:fundId/imports/actuals/draft-revisions/:revision',
       'GET /api/funds/:fundId/financial-facts/latest-reference',
       'GET /api/funds/:fundId/actuals/metrics',
     ],
     expected: {
       workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/draft-revisions'],
+    expected: {
+      workflowRequirement: 'actuals_draft_if_match_idempotency_and_explicit_fund_grant_verified',
       exportPolicy: 'not_exportable',
       provenanceRequired: true,
     },
@@ -602,7 +615,7 @@ describe('route policy coverage', () => {
   });
 
   it('covers every LP-reporting metric-run and import route', () => {
-    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(40);
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(43);
 
     const declaredRoutes = [
       ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),

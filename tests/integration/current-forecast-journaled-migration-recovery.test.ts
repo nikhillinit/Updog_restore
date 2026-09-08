@@ -144,7 +144,37 @@ describe.skipIf(skipIfNoDocker)(
       }
     }, 180_000);
 
-    it.each([
+  it('preserves the ADR-074 sparse baseline while journaled target apply remains replay-safe', async () => {
+    const url = await databaseAt('0049_kpi_observations');
+    const pool = new Pool({ connectionString: url, max: 1 });
+    try {
+      // Reproduce the accepted recovery history in this disposable test fixture.
+      await pool.query(
+        'DELETE FROM public.drizzle_migrations WHERE created_at > $1 AND created_at < $2',
+        [1775356800000, 1785368400000]
+      );
+      const original = await snapshot(pool);
+      expect(original.ledger).toHaveLength(14);
+      await expect(
+        runCurrentForecastJournaledMigrationRecovery({ connectionString: url, apply: true })
+      ).resolves.toMatchObject({
+        preState: { state: 'ready', appliedTargetCount: 0 },
+        postState: 'complete',
+        applied: true,
+      });
+      const applied = await snapshot(pool);
+      expect(applied.ledger).toHaveLength(20);
+      expect(applied.ledger.slice(0, 14)).toEqual(original.ledger);
+      await expect(
+        runCurrentForecastJournaledMigrationRecovery({ connectionString: url, apply: true })
+      ).resolves.toMatchObject({ postState: 'complete', applied: false });
+      expect(await snapshot(pool)).toEqual(applied);
+    } finally {
+      await pool.end();
+    }
+  }, 180_000);
+
+  it.each([
       ['0050_g3_portfolio_and_calculation_schema', 1],
       ['0051_g3_canary_schema', 2],
       ['0052_g3_capital_call_notification_outbox', 3],

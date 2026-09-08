@@ -16,6 +16,7 @@ import {
   matchesDbError,
   pgIdentifier,
 } from './db-push-core.mjs';
+import { normalizePostgresLiteralTextArrayCasts } from './lib/postgres-catalog-definition.mjs';
 
 const { Client } = pg;
 
@@ -2599,7 +2600,7 @@ function findIndexTableMismatches(expectedTable, indexes) {
 }
 
 function normalizeSqlDefinition(definition) {
-  return definition
+  return normalizePostgresLiteralTextArrayCasts(definition)
     .toLowerCase()
     .replace(/"/g, '')
     .replace(/\s+/g, ' ')

@@ -1,4 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import {
+  ActualsDraftRevisionV1Schema,
+  ActualsDraftSaveRequestV1Schema,
+  type ActualsDraftRevisionV1,
+  type ActualsDraftSaveRequestV1,
+} from '../../shared/contracts/lp-reporting/actuals-draft.contract';
 import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
 import actualsFixture from './fixtures/actuals-publish.json' with { type: 'json' };
 import {
@@ -761,6 +768,254 @@ test.describe('Actuals publication smoke', () => {
     expect(receiptOverflow.width).toBeLessThanOrEqual(receiptOverflow.available);
 
     await page.screenshot({ path: 'test-results/actuals-publish-mobile.png', fullPage: true });
+  });
+
+  test('actuals correction requires a fresh preview and publishes the corrected file identity', async ({
+    page,
+  }) => {
+    const enteredCsv = actualsFixture.ledgerCsv.replace(
+      '2026-03-01,100000.00',
+      '2026-02-28,90000.00'
+    );
+    const enteredPreview = ActualsPreviewResponseV1Schema.parse({
+      ...actualsPreviews.ledger,
+      payloadSha256: createHash('sha256').update(enteredCsv).digest('hex'),
+      canonicalRowsHash: createHash('sha256').update('synthetic-entered-rows').digest('hex'),
+      previewHash: createHash('sha256').update('synthetic-entered-preview').digest('hex'),
+      byteCount: Buffer.byteLength(enteredCsv),
+      fileTotals: { ...actualsPreviews.ledger.fileTotals, settledPaidIn: '90000.000000' },
+      netNewEffectTotals: {
+        ...actualsPreviews.ledger.netNewEffectTotals,
+        settledPaidIn: '90000.000000',
+      },
+      rows: actualsPreviews.ledger.rows.map((row) =>
+        row.rowNumber === 1
+          ? { ...row, canonicalAmount: '90000.000000', effectiveDate: '2026-02-28' }
+          : row
+      ),
+    });
+    const previewPayloads: string[] = [];
+    const commands: unknown[] = [];
+    await page.route('**/api/funds/1/financial-facts/latest-reference', async (route) => {
+      await route.fulfill({ json: { ...actualsLatest, head: null } });
+    });
+    await page.route('**/api/funds/1/imports/actuals/dry-run', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.templateVersion !== 'actuals-ledger/1.0.0') {
+        await route.fulfill({ json: actualsPreviews.valuation });
+        return;
+      }
+      const csv = Buffer.from(body.payload, 'base64').toString('utf8');
+      previewPayloads.push(csv);
+      expect([enteredCsv, actualsFixture.ledgerCsv]).toContain(csv);
+      await route.fulfill({
+        json: csv === enteredCsv ? enteredPreview : actualsPreviews.ledger,
+      });
+    });
+    await page.route('**/api/funds/1/imports/actuals/publish', async (route) => {
+      commands.push(route.request().postDataJSON());
+      await route.fulfill({ status: 201, json: actualsReceipt });
+    });
+    await page.route('**/api/funds/1/actuals/metrics?*', async (route) => {
+      await route.fulfill({ json: actualsMetrics });
+    });
+    await page.goto('/lp-reporting/imports', { waitUntil: 'domcontentloaded' });
+    await page
+      .getByLabel('Reporting cutoff', { exact: true })
+      .fill(actualsFixture.publishRequest.asOfDate);
+    await selectActualsFiles(page, enteredCsv);
+    await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
+    await expect(page.getByTestId('actuals-preview-ledger-row-1')).toContainText('90,000.00');
+    await expect(page.getByTestId('actuals-preview-ledger-row-1')).toContainText('2026-02-28');
+
+    await page.getByLabel('Ledger CSV', { exact: true }).setInputFiles({
+      name: actualsFixture.publishRequest.ledger.fileName,
+      mimeType: 'text/csv',
+      buffer: Buffer.from(actualsFixture.ledgerCsv),
+    });
+    await expect(page.getByTestId('actuals-preview-summary')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Publish actuals', exact: true })).toHaveCount(0);
+    expect(commands).toHaveLength(0);
+    await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
+    await expect(page.getByTestId('actuals-preview-ledger-row-1')).toContainText('100,000.00');
+    await expect(page.getByTestId('actuals-preview-ledger-row-1')).toContainText('2026-03-01');
+    await page
+      .getByLabel('Coverage evidence note')
+      .fill(actualsFixture.publishRequest.coverage.evidenceNote);
+    await page.getByRole('button', { name: 'Publish actuals', exact: true }).click();
+    await expect(page.getByTestId('actuals-publish-receipt')).toBeVisible();
+    expect(previewPayloads).toEqual([enteredCsv, actualsFixture.ledgerCsv]);
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({ ledger: actualsFixture.publishRequest.ledger });
+    expect(actualsReceipt.admitted.ledger.payloadSha256).not.toBe(enteredPreview.payloadSha256);
+  });
+
+  test('actuals draft corrections preserve versions and require preview after restore', async ({
+    page,
+  }, testInfo) => {
+    const drafts: Array<{ body: ActualsDraftSaveRequestV1; revision: ActualsDraftRevisionV1 }> = [];
+    const publishCommands: unknown[] = [];
+    const enteredCsv = actualsFixture.ledgerCsv.replace('2026-03-01,100000.00', ',90000.00');
+    await page.route(
+      /\/api\/funds\/1\/imports\/actuals\/draft-revisions(?:\/\d+)?(?:\?.*)?$/,
+      async (route) => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+          const body = ActualsDraftSaveRequestV1Schema.parse(request.postDataJSON());
+          const prior = drafts.at(-1)?.revision;
+          expect(request.headers()['if-match']).toBe(prior?.etag ?? '"actuals-draft:1:none"');
+          expect(request.headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
+          const version = drafts.length + 1;
+          const revisionHash = createHash('sha256')
+            .update(`${version}:${request.postData()}`)
+            .digest('hex');
+          const describeFile = (
+            file:
+              | ActualsDraftSaveRequestV1['ledger']
+              | NonNullable<ActualsDraftSaveRequestV1['valuation']>,
+            offset: number
+          ) => {
+            const bytes = Buffer.from(file.payload, 'base64');
+            return {
+              templateVersion: file.templateVersion,
+              fileName: file.fileName,
+              payloadSha256: createHash('sha256').update(bytes).digest('hex'),
+              byteCount: bytes.length,
+              sourceArtifactId: version * 2 + offset,
+              purgeAfter: '2027-12-31T00:00:00.000Z',
+            };
+          };
+          const revision = ActualsDraftRevisionV1Schema.parse({
+            fundId: 1,
+            revision: version,
+            revisionHash,
+            etag: `"actuals-draft:1:${version}:${revisionHash}"`,
+            priorRevision: prior?.revision ?? null,
+            priorRevisionHash: prior?.revisionHash ?? null,
+            classification: body.classification,
+            asOfDate: body.asOfDate,
+            sourceNote: body.sourceNote,
+            correctionReason: body.correctionReason,
+            createdBy: 7,
+            createdAt: '2026-09-08T12:00:00.000Z',
+            ledger: describeFile(body.ledger, 0),
+            valuation: body.valuation ? describeFile(body.valuation, 1) : null,
+          });
+          drafts.push({ body, revision });
+          await route.fulfill({
+            status: 201,
+            json: {
+              contractVersion: 'actuals-draft-save-result/1.0.0',
+              revision,
+              replayed: false,
+              idempotencyKey: request.headers()['idempotency-key'],
+              requestHash: createHash('sha256').update(request.postData()!).digest('hex'),
+            },
+          });
+          return;
+        }
+        if (new URL(request.url()).pathname.endsWith('/1')) {
+          const original = drafts[0]!;
+          await route.fulfill({
+            json: {
+              contractVersion: 'actuals-draft-detail/1.0.0',
+              revision: original.revision,
+              ledger: { payload: original.body.ledger.payload, payloadAvailable: true },
+              valuation: original.body.valuation
+                ? { payload: original.body.valuation.payload, payloadAvailable: true }
+                : null,
+            },
+          });
+          return;
+        }
+        const head = drafts.at(-1)?.revision;
+        await route.fulfill({
+          json: {
+            contractVersion: 'actuals-draft-history/1.0.0',
+            fundId: 1,
+            head: head
+              ? { revision: head.revision, revisionHash: head.revisionHash, etag: head.etag }
+              : null,
+            revisions: drafts.map((draft) => draft.revision).reverse(),
+            nextBeforeRevision: null,
+          },
+        });
+      }
+    );
+    await page.route('**/api/funds/1/financial-facts/latest-reference', async (route) => {
+      await route.fulfill({ json: { ...actualsLatest, head: null } });
+    });
+    await page.route('**/api/funds/1/imports/actuals/dry-run', async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.templateVersion === 'actuals-ledger/1.0.0') {
+        expect(Buffer.from(body.payload, 'base64').toString('utf8')).toBe(actualsFixture.ledgerCsv);
+      }
+      await route.fulfill({
+        json:
+          body.templateVersion === 'actuals-ledger/1.0.0'
+            ? actualsPreviews.ledger
+            : actualsPreviews.valuation,
+      });
+    });
+    await page.route('**/api/funds/1/imports/actuals/publish', async (route) => {
+      publishCommands.push(route.request().postDataJSON());
+      await route.fulfill({ status: 201, json: actualsReceipt });
+    });
+    await page.route('**/api/funds/1/actuals/metrics?*', async (route) =>
+      route.fulfill({ json: actualsMetrics })
+    );
+    await page.goto('/lp-reporting/imports', { waitUntil: 'domcontentloaded' });
+    await selectActualsFiles(page, enteredCsv);
+    await page.getByText('Draft versions and corrections', { exact: true }).click();
+    await page.getByLabel('Draft data qualification').selectOption('synthetic');
+    await page.getByLabel('Draft source note').fill('Synthetic browser fixture; no F1 actuals.');
+    await page.getByLabel('Reason for this version').fill('Initial incomplete upload.');
+    await page.getByRole('button', { name: 'Save draft revision', exact: true }).click();
+    await expect(page.getByText('Saved draft version 1.', { exact: true })).toBeVisible();
+    expect(drafts[0]!.body.asOfDate).toBeNull();
+    expect(publishCommands).toHaveLength(0);
+    const original = JSON.stringify(drafts[0]);
+    await page.getByLabel('Ledger CSV', { exact: true }).setInputFiles({
+      name: actualsFixture.publishRequest.ledger.fileName,
+      mimeType: 'text/csv',
+      buffer: Buffer.from(actualsFixture.ledgerCsv),
+    });
+    await page
+      .getByLabel('Reporting cutoff', { exact: true })
+      .fill(actualsFixture.publishRequest.asOfDate);
+    await page.getByLabel('Reason for this version').fill('Correct contribution date and amount.');
+    await page.getByRole('button', { name: 'Save draft revision', exact: true }).click();
+    await expect(page.getByText('Saved draft version 2.', { exact: true })).toBeVisible();
+    expect(drafts).toHaveLength(2);
+    expect(JSON.stringify(drafts[0])).toBe(original);
+    expect(drafts[1]!.revision.priorRevisionHash).toBe(drafts[0]!.revision.revisionHash);
+    await page.getByRole('button', { name: 'Use version 1', exact: true }).click();
+    await expect(page.getByLabel('Reporting cutoff', { exact: true })).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Preview actuals', exact: true })).toBeDisabled();
+    expect(drafts).toHaveLength(2);
+    await selectActualsFiles(page);
+    await page
+      .getByLabel('Reporting cutoff', { exact: true })
+      .fill(actualsFixture.publishRequest.asOfDate);
+    await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
+    await page
+      .getByLabel('Coverage evidence note')
+      .fill(actualsFixture.publishRequest.coverage.evidenceNote);
+    await page.getByRole('button', { name: 'Publish actuals', exact: true }).click();
+    await expect(page.getByTestId('actuals-publish-receipt')).toBeVisible();
+    expect(publishCommands).toHaveLength(1);
+    expect(publishCommands[0]).toMatchObject({ ledger: actualsFixture.publishRequest.ledger });
+    expect(JSON.stringify(drafts[0])).toBe(original);
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      )
+    ).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath('draft-versions-mobile.png'),
+      fullPage: true,
+    });
   });
 
   test('actuals publish hides publication when preview is blocked', async ({ page }) => {
