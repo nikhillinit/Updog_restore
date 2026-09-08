@@ -93,6 +93,7 @@
     "test:smoke": "npm run build && cross-env CI=1 node scripts/run-playwright-smoke.mjs",
     "test:e2e:smoke": "playwright test --project=smoke",
     "test:e2e:lp-reporting": "node scripts/run-lp-reporting-e2e.mjs",
+    "demo:actuals:connected": "node scripts/run-connected-actuals-demo.mjs",
     "test:security": "vitest run -c vitest.config.int.ts tests/integration/security",
     "ai": "node scripts/ai-tools/index.js",
     "hermes": "node orchestrate.js",

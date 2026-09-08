@@ -654,6 +654,28 @@ describe.skipIf(!runDocker)('payload-5 PostgreSQL consumer proofs', () => {
     await seedPublishedConfig();
   });
 
+  it.skipIf(process.env['RUN_CONNECTED_ACTUALS_DEMO'] !== '1')(
+    'connected browser actuals publication and forecast',
+    async () => {
+      const artifactDir = process.env['CONNECTED_DEMO_ARTIFACT_DIR'];
+      if (!artifactDir) throw new Error('CONNECTED_DEMO_ARTIFACT_DIR is required');
+      const fixture = await publishFixture();
+      // The initial test-mode db import registers database-mock's module-level mock.
+      vi.doUnmock('../../server/db');
+      vi.resetModules();
+      const { runConnectedActualsDemo } = await import('../helpers/connected-actuals-demo');
+
+      await runConnectedActualsDemo({
+        pool: adminPool,
+        fundId: seeded.fundId,
+        actorId: seeded.actorId,
+        fixture,
+        artifactDir,
+      });
+    },
+    STARTUP_TIMEOUT_MS
+  );
+
   it(
     'propagates one publisher-created payload-5 basis through supported persisted consumers',
     async () => {
@@ -1013,7 +1035,7 @@ describe.skipIf(!runDocker)('payload-5 PostgreSQL consumer proofs', () => {
         statusCode: 422,
         code: 'UNSUPPORTED_FACTS_POLICY',
       } satisfies Partial<AnalysisCheckpointServiceError>);
-      expect(parsedUnsupportedReason(created.receipt.facts.snapshotId)).resolves.toEqual(
+      await expect(parsedUnsupportedReason(created.receipt.facts.snapshotId)).resolves.toEqual(
         'unsupported_payload_policy'
       );
 
