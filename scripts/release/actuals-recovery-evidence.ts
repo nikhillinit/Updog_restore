@@ -305,6 +305,9 @@ export async function collectActualsRecoveryEvidence({
   if (!Number.isFinite(collectedAt)) throw new Error('collector clock invalid');
   const set = (observation: Observation) => {
     const index = observations.findIndex((item) => item.predicate === observation.predicate);
+    if (index === -1) {
+      throw new Error(`recovery observation predicate missing: ${observation.predicate}`);
+    }
     observations[index] = observation;
   };
   const neonHeaders = { Authorization: `Bearer ${credentials.neonApiKey}` };

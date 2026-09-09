@@ -214,6 +214,19 @@ describe('actuals recovery evidence contract', () => {
 });
 
 describe('collectActualsRecoveryEvidence', () => {
+  it('rejects when an observation predicate is missing', async () => {
+    vi.spyOn(Array.prototype, 'findIndex').mockReturnValue(-1);
+
+    await expect(
+      collectActualsRecoveryEvidence({
+        binding,
+        credentials,
+        fetchImpl: transport(),
+        now: () => now,
+      })
+    ).rejects.toThrow('recovery observation predicate missing: backup-and-pitr-recoverability');
+  });
+
   it.each([
     ['missing recovery references', { ...binding, recovery: undefined }, credentials],
     ['missing GitHub credential', binding, { ...credentials, githubToken: '' }],
