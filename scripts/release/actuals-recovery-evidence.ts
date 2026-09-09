@@ -127,9 +127,8 @@ async function boundedBytes(response: Response, limit: number): Promise<Uint8Arr
     let result: ReadableStreamReadResult<Uint8Array>;
     try {
       result = await reader.read();
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') throw new MissingLiveEvidence();
-      throw error;
+    } catch {
+      throw new MissingLiveEvidence();
     }
     const { done, value } = result;
     if (done) break;

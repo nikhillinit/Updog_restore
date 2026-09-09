@@ -244,7 +244,7 @@ function installTransport(mode = input.mode, alter: Alter = (_url, fixture) => f
     const changed = alter(url, { body });
     return new Response(JSON.stringify(changed.body), {
       status: changed.status ?? 200,
-      headers: changed.headers,
+      headers: changed.headers ?? {},
     });
   });
   vi.stubGlobal('fetch', transport);
@@ -677,6 +677,173 @@ describe('immediate actuals pre-apply revalidation', () => {
       },
     });
   });
+
+  it.each([
+    { mode: 'apply-actuals-draft-0056', change: 'bytes' },
+    { mode: 'apply-actuals-draft-0056', change: 'run ID' },
+    { mode: 'apply-actuals-restatement-0057', change: 'bytes' },
+    { mode: 'apply-actuals-restatement-0057', change: 'run ID' },
+  ] as const)(
+    'freshly refuses changed artifact $change before $mode apply',
+    async ({ mode, change }) => {
+      const collectedAt = Date.now();
+      const recoveryPoint = new Date(collectedAt - 60_000).toISOString();
+      const expiresAt = new Date(collectedAt + 86_400_000).toISOString();
+      const originalBytes = new TextEncoder().encode('synthetic recovery proof');
+      const artifactSha256 = createHash('sha256').update(originalBytes).digest('hex');
+      const selectedInput: ActualsMigrationPreflightInput = {
+        ...inputWithRecovery,
+        mode,
+        recovery: {
+          source: { ...inputWithRecovery.recovery!.source!, recoveryPoint },
+          restoreTarget: {
+            ...input.provider,
+            branchId: 'branch-restore',
+            endpointId: 'endpoint-restore',
+          },
+          proof: { ...inputWithRecovery.recovery!.proof!, artifactSha256 },
+        },
+      };
+      const artifact = {
+        id: 789,
+        name: 'actuals-isolated-restore-proof',
+        expired: false,
+        digest: `sha256:${artifactSha256}`,
+        created_at: recoveryPoint,
+        expires_at: expiresAt,
+        size_in_bytes: originalBytes.byteLength,
+        workflow_run: { id: 456, head_sha: input.candidateSha },
+      };
+      const providerRoot = '/api/v2/projects/project-target';
+      const githubRoot = `/repos/${input.repository}/actions`;
+      const responses: Record<string, unknown> = {
+        [providerRoot]: { project: { id: 'project-target', history_retention_seconds: 86_400 } },
+        [`${providerRoot}/snapshots`]: {
+          snapshots: [
+            {
+              id: 'snapshot-source',
+              source_branch_id: input.provider.branchId,
+              created_at: recoveryPoint,
+              timestamp: recoveryPoint,
+              expires_at: expiresAt,
+            },
+          ],
+        },
+        [`${providerRoot}/branches/branch-restore`]: {
+          branch: { id: 'branch-restore', project_id: 'project-target' },
+        },
+        [`${providerRoot}/endpoints/endpoint-restore`]: {
+          endpoint: {
+            id: 'endpoint-restore',
+            project_id: 'project-target',
+            branch_id: 'branch-restore',
+          },
+        },
+        [`${providerRoot}/branches/branch-restore/databases/updog`]: {
+          database: { name: 'updog', branch_id: 'branch-restore', owner_name: 'migration_owner' },
+        },
+        [`${providerRoot}/branches/branch-restore/roles/migration_owner`]: {
+          role: { name: 'migration_owner', branch_id: 'branch-restore' },
+        },
+        [`${githubRoot}/runs/456`]: {
+          id: 456,
+          run_attempt: 1,
+          name: 'actuals-isolated-restore-proof',
+          path: '.github/workflows/actuals-isolated-restore-proof.yml',
+          head_sha: input.candidateSha,
+          status: 'completed',
+          conclusion: 'success',
+          updated_at: recoveryPoint,
+          repository: { full_name: input.repository },
+        },
+        [`${githubRoot}/artifacts/789`]: artifact,
+      };
+      let downloadedBytes = originalBytes;
+      let metadataReads = 0;
+      let downloads = 0;
+      const baseTransport = installTransport(mode);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (rawUrl: string | URL | Request, init: RequestInit = {}) => {
+          const url = new URL(rawUrl instanceof Request ? rawUrl.url : String(rawUrl));
+          expect(init.method ?? 'GET').toBe('GET');
+          expect(init.signal).toBeDefined();
+          if (url.hostname === 'productionresultssa1.blob.core.windows.net') {
+            expect(init.headers).toEqual({});
+            expect(init.redirect).toBe('error');
+            downloads++;
+            return new Response(downloadedBytes);
+          }
+          if (url.pathname === `${githubRoot}/artifacts/789/zip`) {
+            expect(init.headers).toMatchObject({
+              Authorization: `Bearer ${credentials.githubToken}`,
+            });
+            expect(init.redirect).toBe('manual');
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location: 'https://productionresultssa1.blob.core.windows.net/results/proof.zip',
+              },
+            });
+          }
+          if (Object.hasOwn(responses, url.pathname)) {
+            if (url.pathname === `${githubRoot}/artifacts/789`) metadataReads++;
+            expect(init.redirect).toBe('error');
+            expect(init.headers).toMatchObject({
+              Authorization: `Bearer ${url.hostname === 'api.github.com' ? credentials.githubToken : credentials.neonApiKey}`,
+            });
+            return new Response(JSON.stringify(responses[url.pathname]));
+          }
+          return baseTransport(url.href, init);
+        })
+      );
+      const prior = await collectActualsMigrationPreflight(selectedInput, credentials);
+      for (const predicate of [
+        'backup-and-pitr-recoverability',
+        'isolated-restore-evidence',
+        'exact-live-digest-and-evidence-custody',
+        'migration-isolation-containment-and-residue',
+      ]) {
+        expect(prior.observations.find((item) => item.predicate === predicate)?.status).toBe(
+          'missing_collector_engineering'
+        );
+      }
+      expect(metadataReads).toBe(1);
+      expect(downloads).toBe(1);
+      vi.clearAllMocks();
+      if (change === 'bytes') {
+        downloadedBytes = originalBytes.slice();
+        downloadedBytes[0] = downloadedBytes[0]! ^ 1;
+      } else artifact.workflow_run.id = 457;
+
+      await expect(
+        revalidateActualsMigrationBeforeApply(prior, selectedInput, credentials)
+      ).rejects.toMatchObject({
+        stage: 'recovery-and-admission',
+        report: {
+          evaluation: 'blocked',
+          observations: expect.arrayContaining([
+            expect.objectContaining({
+              predicate: 'exact-live-digest-and-evidence-custody',
+              status: 'failed',
+              code: 'RESTORE_DIGEST_EVIDENCE_CONTRADICTS_BINDING',
+            }),
+          ]),
+        },
+      });
+      expect(metadataReads).toBe(2);
+      expect(downloads).toBe(change === 'bytes' ? 2 : 1);
+      const selected = mode.endsWith('0056') ? mocks.draft : mocks.restatement;
+      const other = mode.endsWith('0056') ? mocks.restatement : mocks.draft;
+      expect(selected).toHaveBeenCalledExactlyOnceWith({
+        connectionString: input.databaseUrl,
+        apply: false,
+        localTestCapability: undefined,
+        stdout: expect.any(Object),
+      });
+      expect(other).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([
     ['mode', { mode: 'apply-actuals-draft-0056' }],

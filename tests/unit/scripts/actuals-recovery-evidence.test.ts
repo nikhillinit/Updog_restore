@@ -413,6 +413,47 @@ describe('collectActualsRecoveryEvidence', () => {
   });
 
   it.each([
+    {
+      path: '/snapshots',
+      predicate: 'backup-and-pitr-recoverability',
+      code: 'BACKUP_PITR_LIVE_EVIDENCE_MISSING',
+    },
+    {
+      path: '/proof.zip',
+      predicate: 'exact-live-digest-and-evidence-custody',
+      code: 'RESTORE_DIGEST_LIVE_EVIDENCE_MISSING',
+    },
+  ])(
+    'treats $path body interruption as missing live evidence',
+    async ({ path, predicate, code }) => {
+      for (const error of [
+        new TypeError('connection reset with private-response-details'),
+        new DOMException('private-response-details', 'TimeoutError'),
+        new DOMException('private-response-details', 'AbortError'),
+      ]) {
+        const fetchImpl = transport((url, _init, response) =>
+          url.pathname.endsWith(path)
+            ? new Response(new ReadableStream({ start: (controller) => controller.error(error) }))
+            : response
+        );
+        const observations = await collectActualsRecoveryEvidence({
+          binding,
+          credentials,
+          fetchImpl,
+          now: () => now,
+        });
+
+        expect(observation(observations, predicate)).toMatchObject({
+          status: 'missing_live_evidence',
+          code,
+        });
+        expect(JSON.stringify(observations)).not.toContain('private-response-details');
+        expect(fetchImpl.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+      }
+    }
+  );
+
+  it.each([
     ['malformed snapshot time', { timestamp: 'not-a-date' }],
     ['malformed expiry time', { expires_at: 'not-a-date' }],
     ['expired snapshot', { expires_at: '2026-09-08T00:00:00.000Z' }],
