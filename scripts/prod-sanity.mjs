@@ -61,7 +61,7 @@ async function validateProduction() {
           { timeout: 5000, encoding: 'utf8' }
         );
         const health = JSON.parse(result);
-        if (health.status !== 'healthy') {
+        if (health.status !== 'ok') {
           throw new Error(`API unhealthy: ${health.status}`);
         }
         return health;
