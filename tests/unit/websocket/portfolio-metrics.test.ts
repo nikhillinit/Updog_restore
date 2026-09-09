@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'node:http';
 import type { IncomingHttpHeaders, IncomingMessage, Server as HTTPServer } from 'http';
 import type PortfolioMetricsWebSocket from '../../../server/websocket/portfolio-metrics';
 
@@ -156,6 +157,8 @@ const SCOPED_CLAIMS = {
   fundIds: [7],
 };
 
+vi.mock('../../../server/websocket/dev-dashboard.js', () => ({ default: vi.fn() }));
+
 describe('PortfolioMetricsWebSocket', () => {
   let service: PortfolioMetricsWebSocket | null = null;
 
@@ -208,6 +211,50 @@ describe('PortfolioMetricsWebSocket', () => {
     if (result.verified) connectionHandlerRef.current?.(socket, request);
     return { request, result, socket };
   }
+
+  it('cleans each HTTP server heartbeat once, including repeated and partial cleanup', async () => {
+    const { setupWebSocketServers, cleanupWebSocketServers } =
+      await import('../../../server/websocket/index');
+    vi.useRealTimers();
+    const intervals = vi.spyOn(globalThis, 'setInterval');
+    const clear = vi.spyOn(globalThis, 'clearInterval');
+    const first = createServer();
+    const second = createServer();
+    const firstMetrics = setupWebSocketServers(first).portfolioMetrics!;
+    const firstCleanup = vi.spyOn(firstMetrics, 'cleanup');
+    const secondMetrics = setupWebSocketServers(second).portfolioMetrics!;
+    const secondCleanup = vi.spyOn(secondMetrics, 'cleanup');
+    const heartbeats = intervals.mock.results.map((result) => result.value as NodeJS.Timeout);
+    const close = (server: HTTPServer) =>
+      new Promise<void>((resolve) => server.close(() => resolve()));
+
+    try {
+      expect(heartbeats).toHaveLength(2);
+      expect(heartbeats.every((timer) => timer.hasRef())).toBe(true);
+      await new Promise<void>((resolve) => first.listen(0, '127.0.0.1', resolve));
+      await close(first);
+      expect(firstCleanup).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledWith(heartbeats[0]);
+      expect(secondCleanup).not.toHaveBeenCalled();
+      expect(clear).not.toHaveBeenCalledWith(heartbeats[1]);
+
+      // The second server has never listened and has no development WebSocket.
+      cleanupWebSocketServers();
+      cleanupWebSocketServers();
+      await close(second);
+      await close(first);
+      expect(firstCleanup).toHaveBeenCalledTimes(1);
+      expect(secondCleanup).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledWith(heartbeats[1]);
+      expect(clear).toHaveBeenCalledTimes(2);
+    } finally {
+      // Keep the deliberately failing pre-fix run free of referenced timers.
+      firstMetrics.cleanup();
+      secondMetrics.cleanup();
+      await close(first);
+      await close(second);
+    }
+  });
 
   it('sends connection, subscription, ping, and broadcast envelopes after authenticated upgrade', async () => {
     verifyAccessTokenAsyncMock.mockResolvedValue(AUTH_CLAIMS);

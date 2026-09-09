@@ -100,7 +100,7 @@ import {
   ActualMetricsV2Schema,
   ActualsPreviewRequestV1Schema,
   ActualsPreviewResponseV1Schema,
-  ActualsPublishReceiptV1Schema,
+  ActualsPublishReceiptSchema,
   ActualsPublishRequestV1Schema,
   FinancialFactsLatestReferenceV1Schema,
   IfMatchSchema,
@@ -1099,7 +1099,7 @@ if (actualsPilotFundId !== null) {
         });
         return res
           .status(result.statusCode)
-          .json(ActualsPublishReceiptV1Schema.parse(result.receipt));
+          .json(ActualsPublishReceiptSchema.parse(result.receipt));
       } catch (error) {
         return sendActualsError(req, res, error);
       }

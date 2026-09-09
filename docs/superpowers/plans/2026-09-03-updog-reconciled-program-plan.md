@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 categories: [release, current-forecast, economics, decision-workspace]
 keywords:
@@ -91,6 +91,24 @@ C specification approvals (parallel with A; product work waits A GO)
 Fee/economics (separate lane): #1337 -> #1338/#1321 -> #1318/#1339/#1320
 Waterfall (governance-blocked): #1305 -> (#1306, #1307); #1321 also gates #1307
 ```
+
+### Proposed narrow C1 exception (inactive, September 9, 2026)
+
+Proposed amendment to the C implementation entry rule: after exact-body review
+of the revised C1 source/attribution specification and explicit approval of this
+exception by the named repository owner, C1 Task 1 source-contract
+implementation and isolated synthetic tests may proceed before Program A GO.
+This is the exact proposed scope; it excludes Tasks 2-3 persistence, decision
+commands and UI, C2/C3 implementation, canonical financial claims and all
+production actions.
+
+Exception approval is not recorded. Reviewer, owner identity, approval timestamp
+and approved body digest remain unset; approval of F_1.14.0 does not activate
+this text. Until those approvals exist, the existing rule above applies. Source
+admission/merge, candidate freeze, deployment, serving, activation and
+financial-claim requirements remain unchanged. Independent work cannot replace
+or alter A's frozen candidate. C1 -> C2 and C3a -> C3b -> C3c dependencies
+remain.
 
 ## Reprioritized remaining work
 

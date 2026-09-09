@@ -659,6 +659,117 @@ describe.skipIf(!runDocker)('payload-5 PostgreSQL consumer proofs', () => {
     await seedPublishedConfig();
   });
 
+  it.skipIf(process.env['RUN_CONNECTED_ACTUALS_DEMO'] !== '1')(
+    'connected browser actuals publication and forecast',
+    async () => {
+      const artifactDir = process.env['CONNECTED_DEMO_ARTIFACT_DIR'];
+      if (!artifactDir) throw new Error('CONNECTED_DEMO_ARTIFACT_DIR is required');
+      // Independent oracle: 100k paid in; 40k initial + 10k follow-on deployed;
+      // 2k fees; 8k proceeds; 3k distributed; 55k FMV. NAV remains unavailable.
+      const fixture = await publishFixture({
+        ledgerRows: [
+          [
+            'settled_contribution',
+            '2026-03-01',
+            '100000.00',
+            'USD',
+            '',
+            'main',
+            '',
+            'Synthetic contribution',
+            '',
+            '',
+            '',
+            'pg-contribution-1',
+          ],
+          [
+            'portfolio_investment',
+            '2026-03-15',
+            '40000.00',
+            'USD',
+            'Acme Labs',
+            'main',
+            'initial',
+            'Synthetic initial',
+            '',
+            '',
+            '',
+            'pg-investment-1',
+          ],
+          [
+            'portfolio_investment',
+            '2026-03-16',
+            '10000.00',
+            'USD',
+            'Acme Labs',
+            'main',
+            'follow_on',
+            'Synthetic follow-on',
+            '',
+            '',
+            '',
+            'connected-follow-on',
+          ],
+          [
+            'management_fee',
+            '2026-03-17',
+            '2000.00',
+            'USD',
+            '',
+            'main',
+            '',
+            'Synthetic fee',
+            'management_fee',
+            '',
+            '',
+            'connected-fee',
+          ],
+          [
+            'realized_proceeds',
+            '2026-03-18',
+            '8000.00',
+            'USD',
+            'Acme Labs',
+            'main',
+            '',
+            'Synthetic proceeds',
+            '',
+            '',
+            '',
+            'connected-proceeds',
+          ],
+          [
+            'lp_distribution',
+            '2026-03-19',
+            '3000.00',
+            'USD',
+            '',
+            'main',
+            '',
+            'Synthetic distribution',
+            '',
+            'return_of_capital',
+            'false',
+            'connected-distribution',
+          ],
+        ],
+      });
+      // test-mode registers a module-level database mock. This case uses the container.
+      vi.doUnmock('../../server/db');
+      vi.resetModules();
+      const { runConnectedActualsDemo } = await import('../helpers/connected-actuals-demo');
+      await runConnectedActualsDemo({
+        pool: adminPool,
+        connectionString: container!.getConnectionUri(),
+        fundId: seeded.fundId,
+        actorId: seeded.actorId,
+        fixture,
+        artifactDir,
+      });
+    },
+    STARTUP_TIMEOUT_MS
+  );
+
   it(
     'requires an explicit successor plan after restatement and preserves every consumer basis',
     async () => {

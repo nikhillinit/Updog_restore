@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 scope: deployed-reserve-moic-v3
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: cd09f63bef8eb698266f92c5a42d4791b7563ab2c42342772d1b80ecb21baa2a
+source_sha: 8eac03568cd40bc4a00c21648a873badfc582b45
+body_sha256: 228e10b7f9e188e5dcbd4c535a1030d35427b21dd65f04dd381240ee3a8cd0cc
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -56,9 +56,10 @@ Program B admits exact security-lineage routing.
 
 The current reserve producer emits V1 planned-reserve intelligence. Internal
 Economics V2 contains event-stream, liquidity receipt, composite, and
-deal-by-deal waterfall surfaces. Program B is separately specifying exact
-`dealId:securityId` proceeds routing; C3b cannot consume it before its source
-contract is admitted.
+deal-by-deal waterfall surfaces. Program B source admits exact security-keyed
+proceeds routing; C3b still requires the accepted receipt/corpus evidence below
+and a proved participation loader. Source admission alone does not supply
+either.
 
 ## Normative Product Decisions
 
@@ -74,6 +75,39 @@ contract is admitted.
 7. V3 contains planned, C3a marginal, and deployed sections in one atomic
    snapshot.
 
+### Metric and independently specified cases
+
+For each security,
+`deployed MOIC = (realized reserve-lot proceeds + remaining reserve-lot fair value) / cumulative reserve-lot acquisition cost`.
+All values are USD at the same effective date/knowledge cutoff.
+Initial-investment cost, initial-lot proceeds/value and unfunded commitments are
+excluded from both sides. The denominator is historical deployed reserve cost:
+partial sale and write-off do not shrink it; corrections replace only the
+superseded event. Conversion transfers lineage once without recording a new cash
+deployment. Zero denominator, unknown classification or missing current value is
+unavailable, not 0x. A fully realized or explicitly fully written-off lot may
+have verified zero remaining value; a missing valuation is not that evidence.
+
+Weighted acquisition price is total admitted reserve acquisition cost divided by
+acquired reserve units on one evidenced conversion-adjusted unit basis. Missing
+share quantities or conversion ratios (including unresolved SAFEs) make that
+price unavailable; do not infer units from check amount. The proposed
+available-result contract requires that evidence as well as the MOIC inputs. A
+unique participation mapping alone does not apportion a mixed initial/reserve
+position's mark. Require exact reserve-lot attribution or proof that all valued
+remaining units are reserve-origin; otherwise refuse. No proportional fallback.
+
+Synthetic security S has reserve lots USD 100000/10000 units and USD
+200000/10000 units: denominator 300000, weighted acquisition price 15 USD/unit.
+Exact reserve-lot sale proceeds 150000 and remaining value 450000 yield
+2.000000x. An additional USD 500000 initial investment does not change that
+denominator or numerator. An explicit full write-off with no proceeds gives
+0.000000x on 300000, while a missing mark gives null. Conversion with an
+evidenced 2-for-1 unit mapping doubles 20000 units to 40000 and halves price to
+7.5; it leaves cost and MOIC unchanged and cannot count the predecessor twice.
+Each example requires persisted event/relief identities and global proceeds
+conservation.
+
 ## Request and Response Contracts
 
 V3 coherence envelope contains `financialFactsSnapshotId`, complete normalized
@@ -85,8 +119,9 @@ input/result/request/receipt identity includes all eight
 `knowledgeCutoff`.
 
 Each section has its own denominator, provenance, availability, and refusal
-reason. Payload-5 consumers may use qualified reserve reconciliation; missing
-NAV/RVPI/TVPI remain typed unavailable.
+reason. Payload-5/policy-1.4 and payload-6/policy-1.5 consumers may use
+qualified reserve reconciliation; missing NAV/RVPI/TVPI remain typed
+unavailable.
 
 ### Participation-to-security source contract
 
@@ -159,14 +194,14 @@ entries and return unavailable entries separately.
 ## Authoritative Inputs and Source Versions
 
 Program B source was admitted by PR #1486 on September 7, 2026 at
-`2a6372557a3dd1ba8a13e99c6867434ede3f9299`, which is the protected-main source
-baseline pinned above. Receipt version is `internal-economics-receipt/2.4.0`;
-deal-waterfall version is `2.3.0`. Source admission does not supply an accepted
-runtime receipt or corpus revision. Before C3b review or approval, record the
-accepted Program B receipt ID, exact source SHA, payload/engine/receipt
-versions, and corpus revision, and prove that the admitted SHA is an ancestor of
-the C3b source baseline. These receipt and corpus evidence requirements remain
-unresolved.
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`, an ancestor of the protected-main
+source baseline pinned above. Receipt version is
+`internal-economics-receipt/2.4.0`; deal-waterfall version is `2.3.0`. Source
+admission does not supply an accepted runtime receipt or corpus revision. Before
+C3b review or approval, record the accepted Program B receipt ID, exact source
+SHA, payload/engine/receipt versions, and corpus revision, and prove that the
+admitted SHA is an ancestor of the C3b source baseline. These receipt and corpus
+evidence requirements remain unresolved.
 
 The sole deployed-reserve source is Program B's admitted exact security-lineage
 receipt/version.
@@ -195,6 +230,18 @@ same admitted snapshot used by C3a. They do not rebuild values from legacy
 company MOIC inputs. `ReserveIntelligencePanel` and MOIC analysis page render
 server ranking and typed unavailable entries, including participation ID,
 denominator, weighted price, and lineage receipt identity.
+
+### V2-to-V3 equivalence evidence
+
+Run both versions from the same accepted C3a corpus, complete basis, source
+config/date and marginal inputs. Canonical marginal input/config/section hashes
+must match exactly, including security order, availability, refusal reasons and
+Decimal strings; numeric tolerance or selecting only available cases is not
+proof. V3's new deployed section must not alter C3a's 3x, negative, floor or
+missing-input outcomes. Same fund/snapshot IDs with a changed policy/source
+hash, one omitted unavailable security or a different predecessor hash refuse
+admission. Source/corpus/run identity and accepted V2 receipt stay unresolved
+until observed; the synthetic cases do not issue a receipt.
 
 ## Idempotency, Concurrency, and Recovery
 
@@ -244,9 +291,9 @@ prospective and intentionally have no baseline hash.
 | `server/services/investment-ledger/position-conversion-service.ts`              | `ff43280abadf6b222787cc3b5d8b9d8480efd16f0aea772c5133dfac9a6ba114` |
 | `server/services/investment-ledger/position-service.ts`                         | `c136ba0132d9c92e68d68fe43dd1b32b9a25e8fa7b5bb4ceda8b698ab17ff2f0` |
 | `server/services/investment-ledger/position-valuation-service.ts`               | `0c3339e2cde82b36e0f308537302757174892f9fa1840c99dfecbb16ded69b97` |
-| `server/services/reserves/dynamic-reserve-intelligence-service.ts`              | `d50bb673f895fcca93a9f90b366e9790fe410ff5bbb852c65410d2c5875eccfc` |
-| `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`                  | `c88a024ec102de1ad4273253af52b636757eb90e4660ed419fb983630d1e7f13` |
-| `shared/contracts/financial-facts-snapshot-v1.contract.ts`                      | `bdb763daa8a9ab0e62dadd47df9b4d165fcb5021d0ad73b04c82166fb1032a9e` |
+| `server/services/reserves/dynamic-reserve-intelligence-service.ts`              | `c6a66f8d26048d8d5b6ac640c5d73585c8cd85f95c26f08db1189788d110d061` |
+| `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`                  | `09ae6f05ead10badfa9bf60f0205c9d2c0c11c2ce522a426c68bb8a93972ab2e` |
+| `shared/contracts/financial-facts-snapshot-v1.contract.ts`                      | `eb8280651669b9cc63b53a44d8cd01068f522a0f695405a80313c41a4bf52e1e` |
 | `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts`   | `5ddeeee204e1af0b85034b155c882b831c483003a9a89efc032f97ea79cff6ca` |
 | `shared/contracts/internal-economics/internal-economics-receipt-v2.contract.ts` | `50f806a1eaf25fd1b74deb0f3bc0466f3c56f348cf30e4fab159ce89b0aae998` |
 | `shared/contracts/investment-ledger/current-position.contract.ts`               | `f63efd6e4e8fef39e307124a821bfaa46ce9d66fa2f2363e6b62c97eb191860b` |

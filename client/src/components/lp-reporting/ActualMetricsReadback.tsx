@@ -37,9 +37,38 @@ export interface ActualMetricsReadbackProps {
   errorMessage?: string;
 }
 
+const reasonDescriptions: Record<string, string> = {
+  SOURCE_NOT_SUPPLIED: 'The required source evidence has not been supplied.',
+  COVERAGE_PARTIAL: 'The ledger does not establish complete inception-to-cutoff coverage.',
+  SCOPE_UNPROVEN: 'The source scope has not been established.',
+  COMMITTED_CAPITAL_UNAVAILABLE: 'Committed capital is not available from the supplied evidence.',
+  CALL_NOTICE_NOT_IMPORTED: 'Call notices have not been imported.',
+  DEPLOYMENT_CATEGORY_PARTIAL: 'Deployment categories are incomplete.',
+  VALUATION_NOT_SUPPLIED: 'Valuation evidence has not been supplied.',
+  VALUATION_COVERAGE_PARTIAL: 'Valuation evidence does not cover the full portfolio roster.',
+  RECALL_LIFECYCLE_UNAVAILABLE: 'The recall lifecycle is not available.',
+  NAV_UNAVAILABLE: 'Fund NAV is unavailable; portfolio marks alone do not establish it.',
+  PAID_IN_ZERO: 'The ratio cannot be calculated with zero paid-in capital.',
+  SETTLED_PAID_IN_UNAVAILABLE: 'Settled paid-in capital is unavailable.',
+  unsupported_payload_policy: 'This consumer does not support this facts policy.',
+  ledger_coverage_partial: 'The ledger does not establish complete inception-to-cutoff coverage.',
+  position_valuation_incomplete: 'Valuation evidence does not cover the full portfolio roster.',
+  investment_lineage_unresolved: 'Investment ownership or conversion lineage is unresolved.',
+  period_nav_unavailable: 'Period NAV is unavailable; portfolio marks alone do not establish it.',
+  company_monetary_facts_unavailable: 'Required company investment amounts are unavailable.',
+};
+
+function reasonText(code: string): string {
+  const description = Object.prototype.hasOwnProperty.call(reasonDescriptions, code)
+    ? reasonDescriptions[code]
+    : undefined;
+  return `${code}: ${description ?? 'No further explanation is available for this reason.'}`;
+}
+
 function valueText(row: ReadbackRow, currency: string): string {
   if (row.governed.availability !== 'available' || row.governed.value === null) {
-    const reasons = row.governed.reasonCodes.join(', ') || 'VALUE_UNAVAILABLE';
+    const reasons =
+      row.governed.reasonCodes.map(reasonText).join('; ') || reasonText('VALUE_UNAVAILABLE');
     return `Unavailable — ${reasons}`;
   }
   return row.kind === 'money'
@@ -123,6 +152,7 @@ export function ActualMetricsReadback({
 
   return (
     <section className="space-y-4" aria-label="Published actuals readback">
+      <h3 className="font-semibold text-presson-text">Publication receipt metrics</h3>
       <div className="flex flex-wrap gap-2 text-xs text-charcoal/70">
         <Badge variant="outline" className="whitespace-normal break-all text-left">
           Snapshot {receipt.facts.snapshotId}
@@ -138,14 +168,9 @@ export function ActualMetricsReadback({
         </Badge>
       </div>
       <p className="break-all font-mono text-xs text-charcoal/70" data-testid="actuals-basis-line">
-        Basis {receipt.basisRef.schemaId} · snapshot {receipt.basisRef.snapshotId} · hash{' '}
+        Receipt basis {receipt.basisRef.schemaId} · snapshot {receipt.basisRef.snapshotId} · hash{' '}
         {receipt.basisRef.snapshotInputHash}
       </p>
-      {latestReference?.head ? (
-        <p className="text-xs text-charcoal/70" data-testid="actuals-latest-reference-line">
-          Current head snapshot {latestReference.head.snapshotId} · {latestReference.head.asOfDate}
-        </p>
-      ) : null}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -160,12 +185,12 @@ export function ActualMetricsReadback({
               <TableRow key={row.label} data-availability={row.governed.availability}>
                 <TableCell>{row.label}</TableCell>
                 <TableCell
-                  className="tabular-nums"
+                  className="min-w-0 break-words tabular-nums"
                   data-testid={`actuals-metric-${row.label.toLowerCase().replaceAll(' ', '-')}`}
                 >
                   {valueText(row, metrics.currency)}
                 </TableCell>
-                <TableCell className="text-xs text-charcoal/70">
+                <TableCell className="break-all text-xs text-charcoal/70">
                   {row.governed.sourceRefs.join(', ') || 'No source reference'}
                 </TableCell>
               </TableRow>
@@ -176,9 +201,76 @@ export function ActualMetricsReadback({
       <p className="text-sm text-charcoal/70">
         Reporting status: {metrics.actionability.status}
         {metrics.actionability.reasonCodes.length > 0
-          ? ` — ${metrics.actionability.reasonCodes.join(', ')}`
+          ? ` — ${metrics.actionability.reasonCodes.map(reasonText).join('; ')}`
           : ''}
       </p>
+      <section className="min-w-0 space-y-2" aria-label="Current-head consumer availability">
+        <h3 className="font-semibold text-presson-text">Current-head consumer availability</h3>
+        {latestReference?.head ? (
+          <>
+            <p className="break-words text-sm text-presson-textMuted">
+              {latestReference.head.snapshotId !== receipt.facts.snapshotId ||
+              latestReference.head.snapshotInputHash !== receipt.facts.snapshotInputHash
+                ? 'Current head differs from this publication receipt. '
+                : ''}
+              These evaluations belong to the current head. Metrics above belong to receipt snapshot{' '}
+              {receipt.facts.snapshotId}.
+            </p>
+            <p
+              className="break-all text-xs text-presson-textMuted"
+              data-testid="actuals-latest-reference-line"
+            >
+              Current head snapshot {latestReference.head.snapshotId} · as of{' '}
+              {latestReference.head.asOfDate} · known through {latestReference.head.knowledgeCutoff}
+              {' · '}Policy {latestReference.head.policyVersion} · Payload{' '}
+              {latestReference.head.payloadSchemaId}
+            </p>
+            <p
+              className="break-all font-mono text-xs text-presson-textMuted"
+              data-testid="actuals-current-basis-line"
+            >
+              {latestReference.head.basisRef ? (
+                <>
+                  Current-head basis {latestReference.head.basisRef.schemaId} · fund{' '}
+                  {latestReference.head.basisRef.fundId} · snapshot{' '}
+                  {latestReference.head.basisRef.snapshotId} · hash{' '}
+                  {latestReference.head.basisRef.snapshotInputHash} · source hash{' '}
+                  {latestReference.head.basisRef.sourceFactsInputHash} · policy{' '}
+                  {latestReference.head.basisRef.policyVersion} · as of{' '}
+                  {latestReference.head.basisRef.asOfDate} · known through{' '}
+                  {latestReference.head.basisRef.knowledgeCutoff}
+                </>
+              ) : (
+                'Current-head basis unavailable.'
+              )}
+            </p>
+            {latestReference.head.consumerEvaluations?.length > 0 ? (
+              <ul className="space-y-2 text-sm">
+                {latestReference.head.consumerEvaluations.map((evaluation) => (
+                  <li key={evaluation.consumer} className="min-w-0 break-words">
+                    <span className="capitalize">{evaluation.consumer.replaceAll('_', ' ')}</span>
+                    {' — '}
+                    <Badge variant="outline">
+                      {evaluation.status === 'accepted' ? 'Accepted' : 'Blocked'}
+                    </Badge>
+                    <p className="break-words text-presson-textMuted">
+                      {evaluation.reasons.map(reasonText).join('; ') || 'No reasons reported.'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-presson-textMuted">
+                Consumer evaluations unavailable for this head.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-presson-textMuted">
+            Current head and consumer evaluations unavailable.
+          </p>
+        )}
+      </section>
     </section>
   );
 }

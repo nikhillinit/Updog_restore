@@ -9,6 +9,7 @@
   },
   "packageManager": "npm@10.9.2",
   "scripts": {
+    "demo:actuals:connected": "node scripts/run-connected-actuals-demo.mjs",
     "preinstall": "node scripts/check-package-manager.mjs",
     "postinstall": "node scripts/patch-vitest-sourcemap.mjs && node scripts/patch-brace-expansion-exports.mjs",
     "doctor": "node scripts/doctor.mjs",

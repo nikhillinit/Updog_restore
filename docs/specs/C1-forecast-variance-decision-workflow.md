@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 scope: forecast-variance-decision-workflow-v1
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: bb0b40d181cdbac3aae645e00e0365a4e4269b1238c433af3def88980757ce16
+source_sha: 8eac03568cd40bc4a00c21648a873badfc582b45
+body_sha256: 77bdfbf12158e05bbb85458b3a580bea72423a4902ce02b5baba6add6dc8653e
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -26,6 +26,7 @@ source_paths:
   - server/routes/mount-common-routes.ts
   - server/routes/operating-object-decisions.ts
   - server/services/construction-forecast-calculator.ts
+  - server/services/current-forecast-fund-lock.ts
   - server/services/current-forecast-reference-service.ts
   - server/services/current-forecast-serving-seam.ts
   - server/services/current-forecast-v2-service.ts
@@ -37,10 +38,12 @@ source_paths:
   - shared/contracts/current-forecast-v2.contract.ts
   - shared/contracts/current-plan-version-v1.contract.ts
   - shared/contracts/dual-forecast/dual-forecast-response.contract.ts
+  - shared/contracts/financial-facts-snapshot-v1.contract.ts
   - shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts
   - shared/core/cohorts/CohortProjectionV2.ts
   - shared/routes/api-route-manifest.ts
   - shared/schema/current-forecast-references.ts
+  - shared/schema/current-plans.ts
   - shared/schema/fund.ts
   - shared/schema/internal-analysis.ts
 ---
@@ -86,40 +89,93 @@ comparable after-assumption source. The empty-driver/twelve-omission contract
 below records the inspected baseline. It is not the selected shipping contract
 or an approval-ready definition of the after-source feature.
 
-The source-contract revision must define and independently review:
+### Proposed pinned-pair contract (inactive pending exact-body review)
 
-- Explicit persisted before/after identities and their producer. If distinct
-  current-plan versions are reused, pin `beforeReferenceId` and
-  `afterPlanVersionId`; load the historical before reference by ID rather than
-  re-resolving the current accepted head.
-- Reference/plan/snapshot hashes, same fund and qualified facts basis,
-  methodology, units and comparable horizons. A direct-successor design must
-  validate both successor links and the after head at save time, treating the
-  intended predecessor's supersession as expected rather than automatically
-  stale. Validate the complete pair atomically before related writes.
-- A pre-existing after row or a separately approved pinned mint contract.
-  Current minting selects latest configuration and facts; it cannot establish
-  pinned same-facts production by assumption. Admission requires idempotent
-  canonical replay and expected-version/head refusal without partial writes.
-- Driver and typed-omission semantics. An exploratory current-plan reuse
-  proposal identifies possible input changes for check size, pace, allocation
-  mix and follow-on participation; it does not approve a four-category product.
-  Input differences alone are not forecast-effect attribution. That claim
-  additionally requires persisted after-forecast evidence and an approved
-  attribution method, explicit treatment of interactions and reconciliation of
-  attributed effects plus any disclosed residual to the total forecast change.
-  An input-difference report does not satisfy the selected scope.
-- Source and test manifests covering missing/incomparable values, stale or
-  cross-fund evidence, source/head races, replay/conflict and rollback. Prefer
-  existing versioned persistence; no new-table design is admitted here.
+Reuse `current_plan_versions`, `current_forecast_references`, and typed
+`fund_snapshots`; no new source table is proposed. The request pins
+`beforeReferenceId`, `beforePlanVersionId`, `afterPlanVersionId`,
+`afterForecastFundSnapshotId`, and `expectedServedReferenceId`. Persist those
+identities with both plans' source-config ID/version, assumptions hashes, both
+forecast input/result hashes, and the normalized eight-field facts basis. The
+before forecast snapshot comes only from `beforeReferenceId.fundSnapshotId`; the
+after snapshot must already exist as `CURRENT_FORECAST_V2` and name the
+requested after plan. The request never supplies financial output values.
+
+The after plan must directly supersede the before plan: both reciprocal links
+must agree, and the after plan must remain the unique current plan head. The
+before reference is loaded by ID even after supersession. The served pointer
+must equal `expectedServedReferenceId`: either the before reference, or its
+explicit direct successor whose snapshot is the pinned after snapshot. This
+permits the intended predecessor transition, but refuses an intervening plan,
+facts, or served-reference change. A held pointer is resolved by its held ID; no
+latest-snapshot substitution or promotion is part of source resolution.
+
+Both snapshots must be completed, hash-valid and comparable: same fund, full
+facts basis (including policy, input/source hashes, as-of date and knowledge
+cutoff), engine/methodology and plan-transformation versions, USD measure and
+units, forecast as-of date, ordered quarter boundaries, and actual/projected
+classification. Source config versions and assumptions hashes may differ only as
+recorded assumptions changes. An unavailable/indicative leg, missing field,
+different horizon or mixed legacy-null/qualified basis refuses an actionable
+comparison; do not trim horizons, convert ratios into dollars, or fill zeros.
+
+The permitted producer in this proposal is an already persisted matching after
+row from existing plan/forecast services, with its completed run identity. C1
+never calls mint/recompute during comparison or save. `mintCurrentPlanVersion`
+currently selects latest config/facts; its existing idempotency does not make
+that a pinned mint contract. If the pair is absent, return source-unavailable. A
+future pinned producer needs separate review of expected config/facts/plan
+heads, canonical replay, completion identity and rollback before it is allowed.
+
+For a new save, acquire the shared fund transaction lock, re-read facts/plan/
+served heads and immutable rows, validate the whole pair, then save reference
+and evidence material atomically with the existing draft version check. Plan,
+facts and served-head writers must share that serialization boundary or provide
+an equivalent database fence proven by a two-client race. A reader-only lock is
+insufficient. Decision/link creation rechecks the saved pair and absence of an
+analysis-reference successor under the same lock. Any losing head/version check
+or insert failure leaves zero reference/decision/link rows. After current
+authorization and same-fund checks, same-key/same-material replay returns the
+committed response even if heads later advance; changed material conflicts. A
+new key must pass current-head checks. Uncertain commit recovery reads the
+existing command outcome; it never silently rebases or remints.
+
+### Proposed attribution and reconciliation
+
+Input changes and forecast effects are separate fields. A driver effect requires
+persisted output evidence under a reviewed method: baseline one-factor changes
+with an explicit residual. For each admitted driver group, hold the pinned
+before input fixed except that group's after values; persist the completed
+counterfactual identity/hash under the same comparable basis. Its effect is
+counterfactual output minus before output for the named measure/period. The
+residual is paired total change minus the sum of admitted driver effects; it
+contains interactions and any unattributed change, never an invented driver.
+Display it even when zero, with its measure/unit and method version. A missing
+counterfactual produces a typed omission, not a zero effect. No counterfactual
+producer or category-to-engine mapping is admitted by this draft.
+
+Synthetic acceptance arithmetic: before output USD 100, after USD 125, two
+independently specified counterfactual outputs USD 110 and USD 112 give effects
+10 and 12, residual 3, total 25. This checks reconciliation, not an economic
+mapping. Store Decimal strings, compute before rounding and reconcile emitted
+units; do not hide rounding in a driver. The twelve baseline omissions and four
+observed input categories below establish neither shipping scope nor completed
+attribution. Exact-body review must approve each delivered mapping and its
+independent economic example before that driver is implemented.
 
 The supplied F1 transaction ledger is actuals context, not persisted forecast
 assumptions. Do not fill its unknowns or derive after assumptions from it.
 Refresh the body hash after revision. This spec remains `DRAFT` with all review
-and approval metadata unset pending exact-body approval. Program A GO and final
-runtime identity separately gate implementation and serving.
+and approval metadata unset pending exact-body approval. The inactive sequencing
+exception in the reconciled program plan could permit only source-contract work
+and isolated synthetic tests after its own named owner approval. All other
+Program A and runtime gates remain in force.
 
 ## Request and Response Contracts
+
+The wire sketches below characterize the earlier same-plan baseline. They must
+be replaced with the reviewed pinned-pair and attribution contract above before
+Task 1; they are not an alternative shipping contract.
 
 ```ts
 type ForecastVarianceState = {
@@ -156,7 +212,7 @@ Decision creation uses `POST /api/funds/:fundId/evidence-linked-decisions` with
 required `Idempotency-Key`, existing decision fields, and target
 `{ kind: 'analysis_reference', id }`.
 
-### Comparison sources and current-baseline omissions
+### Historical comparison sources and baseline omissions
 
 `beforeSource` is the pinned `CurrentPlanVersionV1` ID and `assumptionsHash`.
 `afterSource` is the accepted or held current-forecast reference plus its
@@ -335,9 +391,9 @@ prospective and intentionally have no baseline hash.
 | `client/src/components/dashboard/dual-forecast-dashboard.tsx`                   | `9243e503d9784df8ca4d7c94ff8099396e8322b05ef55ca10f31335c1b1567ce` |
 | `client/src/hooks/useDecisions.ts`                                              | `1ede4ffc07a385d0653c64f01a60d7f76bb44dcfb6e62c943cc25328ec4514dc` |
 | `client/src/pages/forecasting.tsx`                                              | `f51c4964a7faf197a1da57d5861aa430e8aaa401ee55a2398940d445ae702b95` |
-| `migrations/meta/_journal.json`                                                 | `b69d3827f712c6474738faa874c3bc0073e6fb444ef85a4a35ac2ea1867c82ef` |
-| `server/lib/database-backed-idempotency-routes.ts`                              | `75e6a6f11aa71a16f35dbbbea7348572dbc097af46736813a8d27910a0e57743` |
-| `server/route-policy/api-route-policy-registry.ts`                              | `f7df2fcc009e3748050c2907dbc82257baf66288b309d109b5f64a90600857d6` |
+| `migrations/meta/_journal.json`                                                 | `5df1a9a2bb3eeb29f4c815df0f93b826c61b917fd9a6a9e66e75f336914a41d7` |
+| `server/lib/database-backed-idempotency-routes.ts`                              | `68291c7e21953f01c345d43594d28aa4394fe43c7129a231d48a037ba3743346` |
+| `server/route-policy/api-route-policy-registry.ts`                              | `c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd` |
 | `server/routes/dual-forecast.ts`                                                | `a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289` |
 | `server/routes/internal-analysis.ts`                                            | `884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9` |
 | `server/routes/mount-common-routes.ts`                                          | `ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb` |
@@ -345,9 +401,9 @@ prospective and intentionally have no baseline hash.
 | `server/services/construction-forecast-calculator.ts`                           | `70c09e63729d4eb3c634e2075b7e6fc1c6fb1341803786e8de529ff8be0219c2` |
 | `server/services/current-forecast-reference-service.ts`                         | `46f047d740834e9338bf65226470c203117394136cd98b99cb15bdf0e8cb5211` |
 | `server/services/current-forecast-serving-seam.ts`                              | `40cdfe4c0c19afcb4e81249f230448ca7dced6e8afa1296be7c19c838a394e0b` |
-| `server/services/current-forecast-v2-service.ts`                                | `ce5af51a8a2ba186d553a971e2bc9caf47e98c3d0ae2c0336f6d11bf875cc4c5` |
-| `server/services/current-plan-version-service.ts`                               | `240100391f5bdfc2a429b3d0e2f4df7f69447f062aa994612c4877e8c6dc22da` |
-| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `a4c6cfec3a9d289c33eea5394163cac857464142b85f164c7c357d1eadb01b92` |
+| `server/services/current-forecast-v2-service.ts`                                | `b30e600d84194e20beaa455b1c5f7baadc559855c2e8abdc58bd57abedca3845` |
+| `server/services/current-plan-version-service.ts`                               | `9c34411eb59afe150131cf84bdd996f9c95b00ac26371d450ac1edbcca0556f9` |
+| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `ead85eec1340799ab9811b0279fbbb5aa8ec494e823299d8e6ec0d70de874a1d` |
 | `server/services/metrics-aggregator.ts`                                         | `5e0bb33bae27ce90f6f4b1f8b4fdfb9668bf35a3d57971039052b6687a4d9273` |
 | `server/services/operating-objects/decision-evidence-link-service.ts`           | `a3e0c8407ed074bcac79e1bedd484454541f3a5528a8c4e6c72fac93bf775d1d` |
 | `server/services/operating-objects/decision-service.ts`                         | `75cbe9387a3545a2b4cf14fd3a966413704c31d066e6b72e17ae7b087791ed4c` |
@@ -356,19 +412,25 @@ prospective and intentionally have no baseline hash.
 | `shared/contracts/dual-forecast/dual-forecast-response.contract.ts`             | `3be6f63fbb01d16c67e17c3b6fb2c55f88d62c8d1b78f66f2e31539a5dbc165b` |
 | `shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts` | `172784d4420a642ea7fd1598f3bc94b94290ce078913fcfdf6f1957cbafb5c8a` |
 | `shared/core/cohorts/CohortProjectionV2.ts`                                     | `f26413186d775215c4898173284e628db3d102fb2f468d2623103c211ab4ee7a` |
-| `shared/routes/api-route-manifest.ts`                                           | `ad48e3d01c876ba54850d47b8c5f9645c3ac80a16a7f86d4598a1ccbf7d604f0` |
+| `shared/routes/api-route-manifest.ts`                                           | `c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0` |
 | `shared/schema/current-forecast-references.ts`                                  | `5b99f2d81c0e296e011f10389dc086dcfff4e734848db1dcbf56e415c8c1811e` |
 | `shared/schema/fund.ts`                                                         | `d7be982c71e9b5155877599fc91d00f9a550f256d11082c31b76cfea88ffb42e` |
 | `shared/schema/internal-analysis.ts`                                            | `cec76ded14bacadaed806859ebfc890902462e95dabb50c74b08ef900dd40b01` |
+| `server/services/current-forecast-fund-lock.ts`                                 | `d1173cc630a88b50a4512d8a76ec3c77820fb50f10d49eb0bc2b97212f9e60a3` |
+| `shared/contracts/financial-facts-snapshot-v1.contract.ts`                      | `eb8280651669b9cc63b53a44d8cd01068f522a0f695405a80313c41a4bf52e1e` |
+| `shared/schema/current-plans.ts`                                                | `bfb75d0bf6e7eaaec5b3bfeefbcdbdb019334faedc6801cd32a554a6ac3cb37b` |
 
 ## Exact Test Manifest
 
-- `tests/unit/contracts/forecast-variance-v1.contract.test.ts`: all
-  serving/engine/basis mappings and omitted V2 block.
+- `tests/unit/contracts/forecast-variance-v1.contract.test.ts`: pinned pairs,
+  every comparability mismatch, driver omissions and 10 + 12 + 3 = 25 residual;
+  all serving/engine/basis mappings and omitted V2 block.
 - `tests/unit/client/forecast-variance-display.test.tsx`: display only, no
   derived delta, keyboard and screen-reader states.
 - `tests/integration/internal-analysis/forecast-variance-reference.pg.test.ts`:
-  snapshot type/fund/hash verification and zero-write refusal.
+  snapshot type/fund/hash verification, reciprocal successor links, all eight
+  facts fields, plan/facts/served-head races, stale draft version, replay after
+  head advance, uncertain commit recovery and zero-write rollback.
 - `tests/integration/operating-decisions/evidence-linked-decision.pg.test.ts`:
   replay, conflict, cross-fund, inaccessible evidence, rollback.
 - `tests/e2e/forecast-variance-decision.spec.ts`: actionable and non-actionable
@@ -376,7 +438,11 @@ prospective and intentionally have no baseline hash.
 
 ## Admission and Rollout Gates
 
-Draft completion is not approval. Product implementation waits exact-body owner
-approval, Program A A4 GO, verified activation/containment, and final bound
-runtime identity. Source admission, deployment, serving, and production action
-remain separate gates.
+Draft completion is not approval. The proposed narrow Task 1 exception remains
+inactive until exact-body specification review and explicit named repository
+owner approval of that exception. Without both, Program A A4 GO, verified
+activation/containment and final bound runtime identity still gate all product
+implementation. The exception would cover only source-contract implementation
+and isolated synthetic tests; persistence/decision/UI Tasks 2-3 remain gated.
+Source admission, deployment, serving and production action remain separate
+gates.

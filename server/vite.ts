@@ -127,6 +127,6 @@ export function serveStatic(app: Express, distPath?: string) {
 
   // fall through to index.html if the file doesn't exist
   app.use('/{*splat}', (_req: Request, res: Response) => {
-    res.sendFile(path.resolve(resolvedDistPath, 'index.html'));
+    res.sendFile('index.html', { root: resolvedDistPath });
   });
 }
