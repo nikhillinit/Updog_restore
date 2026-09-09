@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { fileURLToPath, URL } from 'node:url';
 
-const script = fileURLToPath(new URL('./smoke.sh', import.meta.url));
+const script = fileURLToPath(new URL('../../scripts/smoke.sh', import.meta.url));
 let healthBody;
 let healthStatus;
 const server = createServer((request, response) => {
