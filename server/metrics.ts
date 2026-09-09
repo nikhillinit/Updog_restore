@@ -135,7 +135,7 @@ export function recordHttpMetrics(
 export const healthStatus = getOrCreateGauge(
   'povc_fund_health_status',
   'Health status of the application (1 = healthy, 0 = unhealthy)',
-  ['component'] // 'database', 'redis', 'overall'
+  ['component'] // 'database', 'overall'
 );
 
 // Business logic metrics recording
