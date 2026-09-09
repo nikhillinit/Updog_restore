@@ -749,7 +749,7 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
   });
 
-  it('declares frozen legacy routes plus four conditional actuals-pilot routes', () => {
+  it('declares legacy, draft revision, publication, and restatement routes', () => {
     const paths = [
       ...routerSource.matchAll(/router\.(?:post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g),
     ].map((match) => match[1]);
@@ -766,8 +766,15 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
       '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
       '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
       '/api/funds/:fundId/imports/batches/:batchId/commit',
+      '/api/funds/:fundId/imports/actuals/draft-revisions',
+      '/api/funds/:fundId/imports/actuals/draft-revisions',
+      '/api/funds/:fundId/imports/actuals/draft-revisions/:revision',
       '/api/funds/:fundId/imports/actuals/dry-run',
       '/api/funds/:fundId/imports/actuals/publish',
+      '/api/funds/:fundId/imports/actuals/restatements/targets',
+      '/api/funds/:fundId/imports/actuals/restatements/history',
+      '/api/funds/:fundId/imports/actuals/restatements/dry-run',
+      '/api/funds/:fundId/imports/actuals/restatements/publish',
       '/api/funds/:fundId/financial-facts/latest-reference',
       '/api/funds/:fundId/actuals/metrics',
     ]);

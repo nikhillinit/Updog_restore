@@ -12,8 +12,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import type {
   ActualsPreviewResponseV1,
+  ActualsPublishReceipt,
   ActualsPublishRequestV1,
 } from '../../shared/contracts/lp-reporting/actuals-pilot.contract';
+import type {
+  ActualsRestatementPreviewRequestV1,
+  ActualsRestatementPublishRequestV1,
+} from '../../shared/contracts/lp-reporting/actuals-restatement.contract';
+import { FinancialFactsPayloadV6Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
   ACTUALS_LEDGER_TEMPLATE_HEADER,
   ACTUALS_LEDGER_TEMPLATE_VERSION,
@@ -74,6 +80,7 @@ const originalEnv = {
   NEON_DATABASE_URL: process.env['NEON_DATABASE_URL'],
   USE_REAL_DB_IN_VITEST: process.env['USE_REAL_DB_IN_VITEST'],
   ACTUALS_PILOT_FUND_ID: process.env['ACTUALS_PILOT_FUND_ID'],
+  ACTUALS_PILOT_PUBLISH_ENABLED: process.env['ACTUALS_PILOT_PUBLISH_ENABLED'],
 };
 
 function restoreEnvironment(): void {
@@ -140,6 +147,7 @@ async function seedPilot(): Promise<SeededPilot> {
   const companyId = company.rows[0]!.id;
 
   process.env['ACTUALS_PILOT_FUND_ID'] = String(fundId);
+  process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'true';
   return { fundId, actorId, vehicleId, companyId };
 }
 
@@ -406,6 +414,149 @@ function pgError(code: '40001' | '40P01', message: string): Error & { code: stri
   return Object.assign(new Error(message), { code });
 }
 
+function correctionOptions(): Parameters<PublishModule['publishActualsPilot']>[1] {
+  return {
+    connect: connectWith(() => async (_text, _params, next) => next()),
+    invalidateAfterCommit: async () => undefined,
+  };
+}
+
+async function correctionFixture(
+  receipt: ActualsPublishReceipt,
+  amount = '25000.00',
+  externalRef = 'pg-correction-1',
+  kind: 'ledger' | 'valuation' = 'ledger',
+  companyName = 'Acme Labs'
+): Promise<ActualsRestatementPublishRequestV1> {
+  const targets = await publishModule.readActualsRestatementTargets(
+    {
+      fundId: seeded.fundId,
+      actorId: seeded.actorId,
+      request: { expectedBasis: receipt.basisRef, limit: 100, cursor: null },
+    },
+    correctionOptions()
+  );
+  const target = targets.targets.find((row) =>
+    kind === 'valuation'
+      ? row.fields.kind === 'valuation'
+      : row.fields.kind === 'ledger' && row.fields.eventType === 'portfolio_investment'
+  );
+  if (!target) throw new Error(`Missing ${kind} correction target`);
+  const templateVersion =
+    kind === 'ledger' ? ACTUALS_LEDGER_TEMPLATE_VERSION : ACTUALS_VALUATION_TEMPLATE_VERSION;
+  const fields = target.fields;
+  const replacement =
+    fields.kind === 'ledger'
+      ? [
+          fields.eventType,
+          fields.effectiveDate,
+          amount,
+          fields.currency,
+          fields.companyId === null ? '' : companyName,
+          'main',
+          fields.deploymentCategory ?? '',
+          fields.description ?? '',
+          fields.expenseCategory ?? '',
+          fields.distributionType ?? '',
+          fields.recallable === null ? '' : String(fields.recallable),
+          externalRef,
+        ]
+      : [
+          companyName,
+          'main',
+          fields.markDate,
+          amount,
+          fields.currency,
+          fields.markSource,
+          fields.confidenceLevel,
+          fields.valuationMethod,
+          fields.costBasis ?? '',
+          externalRef,
+        ];
+  const bytes = csv(
+    kind === 'ledger' ? ACTUALS_LEDGER_TEMPLATE_HEADER : ACTUALS_VALUATION_TEMPLATE_HEADER,
+    [replacement]
+  );
+  const fileName = `correction-${kind}.csv`;
+  const filePreview = await previewFile(
+    templateVersion,
+    fileName,
+    bytes,
+    receipt.basisRef.asOfDate
+  );
+  if (kind === 'valuation') {
+    expect(filePreview.issues.map((issue) => issue.code)).toEqual([
+      'VALUATION_MARK_ALREADY_EXISTS',
+    ]);
+    expect(filePreview.canPublish).toBe(false);
+  } else {
+    expect(filePreview.canPublish).toBe(true);
+  }
+  const file = {
+    templateVersion,
+    fileName,
+    payload: bytes.toString('base64'),
+    expectedPayloadSha256: filePreview.payloadSha256,
+    expectedCanonicalRowsHash: filePreview.canonicalRowsHash,
+    expectedPreviewHash: filePreview.previewHash,
+  };
+  const request: ActualsRestatementPreviewRequestV1 = {
+    contractVersion: 'actuals-restatement/1.0.0',
+    expectedBasis: receipt.basisRef,
+    expectedETag: receipt.facts.etag,
+    ledger:
+      kind === 'ledger' ? { ...file, templateVersion: ACTUALS_LEDGER_TEMPLATE_VERSION } : null,
+    valuation:
+      kind === 'valuation'
+        ? { ...file, templateVersion: ACTUALS_VALUATION_TEMPLATE_VERSION }
+        : null,
+    items: [
+      {
+        target: target.identity,
+        originalPublication: target.originalPublication,
+        replacementExternalRef: externalRef,
+        expectedReplacementContentHash: filePreview.rows[0]!.rowContentHash!,
+      },
+    ],
+    reason: 'Correct the source amount after reconciliation.',
+  };
+  const before = await tableCounts();
+  const preview = await publishModule.previewActualsRestatement(
+    { fundId: seeded.fundId, actorId: seeded.actorId, request },
+    correctionOptions()
+  );
+  expect(preview.errors).toEqual([]);
+  expect(preview.canPublish).toBe(true);
+  expect(await tableCounts()).toEqual(before);
+  return { ...request, expectedPreviewHash: preview.previewHash };
+}
+
+async function restate(
+  request: ActualsRestatementPublishRequestV1,
+  idempotencyKey = '91000000-0000-4000-8000-000000000001',
+  options: Parameters<PublishModule['publishActualsPilot']>[1] = {}
+) {
+  return publishModule.publishActualsRestatement(
+    {
+      fundId: seeded.fundId,
+      actorId: seeded.actorId,
+      idempotencyKey,
+      ifMatch: request.expectedETag,
+      request,
+      requestId: 'req_restatement_pg',
+    },
+    { ...correctionOptions(), ...options }
+  );
+}
+
+async function correctionPayload(receipt: ActualsPublishReceipt) {
+  const result = await adminPool.query<{ payload: unknown }>(
+    'SELECT payload FROM financial_facts_snapshots WHERE id = $1',
+    [receipt.facts.snapshotId]
+  );
+  return FinancialFactsPayloadV6Schema.parse(result.rows[0]!.payload);
+}
+
 describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () => {
   beforeAll(async () => {
     const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
@@ -447,6 +598,738 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
 
   beforeEach(async () => {
     await resetPilot();
+  });
+
+  it.each(['20000.00', '60000.00'])(
+    'restates investment to %s with effective totals and byte-preserved history',
+    async (amount) => {
+      const original = await publish(await publishFixture());
+      const historyBefore = await adminPool.query(
+        'SELECT id, payload::text, snapshot_input_hash FROM financial_facts_snapshots ORDER BY id'
+      );
+      const eventsBefore = await adminPool.query(
+        'SELECT id, row_to_json(cash_flow_events)::text AS body FROM cash_flow_events ORDER BY id'
+      );
+      const request = await correctionFixture(original.receipt, amount);
+      const result = await restate(request);
+      expect(result.statusCode).toBe(201);
+      expect(result.receipt).toMatchObject({
+        contractVersion: 'actuals-pilot-publish/2.0.0',
+        operationKind: 'restatement',
+        basisRef: { policyVersion: 'financial-facts-policy/1.5.0' },
+      });
+      const payload = await correctionPayload(result.receipt);
+      expect(payload.capitalActuals.deployedCapital.value).toBe(`${amount}0000`);
+      expect(payload.capitalActuals.paidInCapital.value).toBe('100000.000000');
+      expect(payload.companyActuals.facts[0]).toMatchObject({
+        companyId: seeded.companyId,
+        initialInvestmentAmount: `${amount}0000`,
+        followOnInvestmentAmount: '0.000000',
+        monetaryFacts: { availability: 'available' },
+      });
+      expect(payload.effectiveBasis.ledgerRecordIds).toHaveLength(2);
+      expect(payload.effectiveBasis.ledgerRecordIds).not.toContain(
+        request.items[0]!.target.recordId
+      );
+      expect(payload.effectiveBasis.corrections).toHaveLength(1);
+      expect(payload.capitalActuals.nav).toMatchObject({
+        availability: 'unavailable',
+        value: null,
+      });
+      expect(
+        (
+          await adminPool.query(
+            'SELECT id, payload::text, snapshot_input_hash FROM financial_facts_snapshots WHERE id = $1',
+            [original.receipt.facts.snapshotId]
+          )
+        ).rows
+      ).toEqual(historyBefore.rows);
+      expect(
+        (
+          await adminPool.query(
+            'SELECT id, row_to_json(cash_flow_events)::text AS body FROM cash_flow_events WHERE id = ANY($1::int[]) ORDER BY id',
+            [eventsBefore.rows.map((row) => row.id)]
+          )
+        ).rows
+      ).toEqual(eventsBefore.rows);
+      const counts = await tableCounts();
+      expect(counts['cash_flow_events']).toBe(3);
+      expect(counts['actuals_restatement_commands']).toBe(1);
+      expect(counts['actuals_restatement_items']).toBe(1);
+      const history = await publishModule.readActualsRestatementHistory(
+        {
+          fundId: seeded.fundId,
+          actorId: seeded.actorId,
+          request: { expectedBasis: result.receipt.basisRef, limit: 100, cursor: null },
+        },
+        correctionOptions()
+      );
+      expect(history.history).toHaveLength(1);
+      expect(history.history[0]!.correction.items[0]!.originalPublication.snapshotId).toBe(
+        original.receipt.facts.snapshotId
+      );
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'restates a replacement and then ordinary-appends without double counting',
+    async () => {
+      const original = await publish(await publishFixture());
+      const first = await restate(await correctionFixture(original.receipt));
+      const second = await restate(
+        await correctionFixture(first.receipt, '30000.00', 'pg-correction-2'),
+        '91000000-0000-4000-8000-000000000002'
+      );
+      const append = await publish(
+        await publishFixture({
+          ledgerRows: [
+            [
+              'settled_contribution',
+              '2026-03-30',
+              '5000.00',
+              'USD',
+              '',
+              'main',
+              '',
+              '',
+              '',
+              '',
+              '',
+              'pg-after-correction',
+            ],
+          ],
+          valuationRows: null,
+          ifMatch: second.receipt.facts.etag,
+          idempotencyKey: '91000000-0000-4000-8000-000000000003',
+          coverage: {
+            ledger: 'incremental_since_prior_head',
+            priorFactsSnapshotId: second.receipt.facts.snapshotId,
+            evidenceNote: 'Append after two explicit corrections.',
+          },
+        })
+      );
+      expect(append.receipt).toMatchObject({
+        contractVersion: 'actuals-pilot-publish/2.0.0',
+        operationKind: 'append',
+      });
+      const payload = await correctionPayload(append.receipt);
+      expect(payload.capitalActuals.paidInCapital.value).toBe('105000.000000');
+      expect(payload.capitalActuals.deployedCapital.value).toBe('30000.000000');
+      expect(payload.effectiveBasis.ledgerRecordIds).toHaveLength(3);
+      expect(payload.effectiveBasis.corrections).toHaveLength(2);
+      expect((await tableCounts())['cash_flow_events']).toBe(5);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'restates only the current valuation while preserving effective cash',
+    async () => {
+      const original = await publish(await publishFixture());
+      const result = await restate(
+        await correctionFixture(original.receipt, '70000.00', 'pg-mark-correction', 'valuation')
+      );
+      const payload = await correctionPayload(result.receipt);
+      expect(payload.capitalActuals.portfolioFmv.value).toBe('70000.000000');
+      expect(payload.capitalActuals.deployedCapital.value).toBe('40000.000000');
+      expect(payload.effectiveBasis.ledgerRecordIds).toHaveLength(2);
+      expect(payload.effectiveBasis.valuationRecordIds).toHaveLength(1);
+      expect((await tableCounts())['valuation_marks']).toBe(2);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'publishes ledger and valuation replacements in one atomic command',
+    async () => {
+      const original = await publish(await publishFixture());
+      const ledger = await correctionFixture(original.receipt, '25000.00', 'pg-combined-ledger');
+      const valuation = await correctionFixture(
+        original.receipt,
+        '70000.00',
+        'pg-combined-mark',
+        'valuation'
+      );
+      const { expectedPreviewHash: _previousPreviewHash, ...base } = ledger;
+      const request = {
+        ...base,
+        valuation: valuation.valuation,
+        items: [...ledger.items, ...valuation.items],
+      };
+      const preview = await publishModule.previewActualsRestatement(
+        { fundId: seeded.fundId, actorId: seeded.actorId, request },
+        correctionOptions()
+      );
+      expect(preview.canPublish).toBe(true);
+      const result = await restate({ ...request, expectedPreviewHash: preview.previewHash });
+      const payload = await correctionPayload(result.receipt);
+      expect(payload.capitalActuals.deployedCapital.value).toBe('25000.000000');
+      expect(payload.capitalActuals.portfolioFmv.value).toBe('70000.000000');
+      expect(payload.effectiveBasis.corrections).toHaveLength(1);
+      expect(payload.effectiveBasis.corrections[0]!.items).toHaveLength(2);
+      expect((await tableCounts())['actuals_restatement_commands']).toBe(1);
+      expect((await tableCounts())['actuals_restatement_items']).toBe(2);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'replays correction after disabling publication and rejects changed-body key reuse',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      const result = await restate(request);
+      const before = await tableCounts();
+      process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+      const replay = await restate(request);
+      expect(replay.statusCode).toBe(200);
+      expect(replay.receipt).toEqual(result.receipt);
+      await expect(
+        restate({ ...request, reason: 'Changed command reason.' })
+      ).rejects.toMatchObject({ statusCode: 409, code: 'IDEMPOTENCY_KEY_REUSED' });
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'refuses disabled or stale correction and leaked cross-fund targets without writes',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      const before = await tableCounts();
+      process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+      await expect(restate(request)).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'ACTUALS_PUBLICATION_DISABLED',
+      });
+      expect(await tableCounts()).toEqual(before);
+      process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'true';
+      await restate(request);
+      const after = await tableCounts();
+      await expect(restate(request, '91000000-0000-4000-8000-000000000004')).rejects.toMatchObject({
+        statusCode: 412,
+      });
+      await expect(
+        publishModule.readActualsRestatementTargets(
+          {
+            fundId: seeded.fundId + 1,
+            actorId: seeded.actorId,
+            request: {
+              expectedBasis: { ...original.receipt.basisRef, fundId: seeded.fundId + 1 },
+              limit: 100,
+              cursor: null,
+            },
+          },
+          correctionOptions()
+        )
+      ).rejects.toMatchObject({ statusCode: 404 });
+      expect(await tableCounts()).toEqual(after);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'recovers a correction after committed-but-unacknowledged COMMIT exactly once',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      let dropped = false;
+      const result = await restate(request, undefined, {
+        connect: connectWith(() => async (text, _params, next) => {
+          if (!dropped && /^COMMIT\b/i.test(text)) {
+            dropped = true;
+            await next();
+            process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+            throw new Error('Lost correction COMMIT acknowledgement');
+          }
+          return next();
+        }),
+      });
+      expect(result.statusCode).toBe(200);
+      expect((await tableCounts())['actuals_restatement_commands']).toBe(1);
+      expect((await tableCounts())['financial_facts_snapshots']).toBe(2);
+      expect((await correctionPayload(result.receipt)).capitalActuals.deployedCapital.value).toBe(
+        '25000.000000'
+      );
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'rolls back replacement records and commands if snapshot insertion fails',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      const before = await tableCounts();
+      await expect(
+        restate(request, undefined, {
+          connect: connectWith(() => async (text, _params, next) => {
+            if (/INSERT\s+INTO\s+financial_facts_snapshots/i.test(text))
+              throw new Error('Injected successor failure');
+            return next();
+          }),
+        })
+      ).rejects.toThrow('Injected successor failure');
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'serializes competing corrections to one committed successor',
+    async () => {
+      const original = await publish(await publishFixture());
+      const left = await correctionFixture(original.receipt, '20000.00', 'pg-race-left');
+      const right = await correctionFixture(original.receipt, '30000.00', 'pg-race-right');
+      const connect = advisoryBarrierConnect();
+      const outcomes = await Promise.allSettled([
+        restate(left, '91000000-0000-4000-8000-000000000005', { connect }),
+        restate(right, '91000000-0000-4000-8000-000000000006', { connect }),
+      ]);
+      expect(outcomes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(outcomes.find((result) => result.status === 'rejected')).toMatchObject({
+        reason: { statusCode: 412 },
+      });
+      expect((await tableCounts())['actuals_restatement_commands']).toBe(1);
+      expect((await tableCounts())['cash_flow_events']).toBe(3);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'rejects cursor drift and unmatched targets without leaking or changing history',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      const firstPage = await publishModule.readActualsRestatementTargets(
+        {
+          fundId: seeded.fundId,
+          actorId: seeded.actorId,
+          request: { expectedBasis: original.receipt.basisRef, limit: 1, cursor: null },
+        },
+        correctionOptions()
+      );
+      expect(firstPage.targets).toHaveLength(1);
+      expect(firstPage.nextCursor).not.toBeNull();
+      const invalidRequest = {
+        ...request,
+        items: [
+          { ...request.items[0]!, target: { ...request.items[0]!.target, recordId: 2147483647 } },
+        ],
+      };
+      const before = await tableCounts();
+      await expect(restate(invalidRequest)).rejects.toMatchObject({ statusCode: 409 });
+      await expect(
+        restate({ ...request, expectedPreviewHash: 'f'.repeat(64) })
+      ).rejects.toMatchObject({ code: 'PREVIEW_HASH_MISMATCH' });
+      expect(await tableCounts()).toEqual(before);
+      const result = await restate(request);
+      const after = await tableCounts();
+      await expect(
+        publishModule.readActualsRestatementTargets(
+          {
+            fundId: seeded.fundId,
+            actorId: seeded.actorId,
+            request: {
+              expectedBasis: result.receipt.basisRef,
+              limit: 1,
+              cursor: firstPage.nextCursor,
+            },
+          },
+          correctionOptions()
+        )
+      ).rejects.toMatchObject({ code: 'INVALID_CURSOR' });
+      await adminPool.query('DELETE FROM user_fund_grants WHERE user_id = $1 AND fund_id = $2', [
+        seeded.actorId,
+        seeded.fundId,
+      ]);
+      await expect(restate(request)).rejects.toMatchObject({ statusCode: 404 });
+      expect((await tableCounts())['actuals_restatement_commands']).toBe(
+        after['actuals_restatement_commands']
+      );
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'enforces immutable correction command and item rows in PostgreSQL',
+    async () => {
+      const original = await publish(await publishFixture());
+      await restate(await correctionFixture(original.receipt));
+      const before = await tableCounts();
+      for (const table of ['actuals_restatement_commands', 'actuals_restatement_items']) {
+        await expect(adminPool.query(`UPDATE ${table} SET id = id`)).rejects.toThrow();
+        await expect(adminPool.query(`DELETE FROM ${table}`)).rejects.toThrow();
+      }
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'preserves historical membership after a company rename and reuse of its original label',
+    async () => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      const before = await adminPool.query(
+        'SELECT id, company_id, source_hash, payload::text, amount FROM cash_flow_events ORDER BY id'
+      );
+      const renamed = 'Renamed Acme Labs';
+      await adminPool.query('UPDATE portfoliocompanies SET name = $1 WHERE id = $2', [
+        renamed,
+        seeded.companyId,
+      ]);
+      const newCompany = await adminPool.query<{ id: number }>(
+        `INSERT INTO portfoliocompanies
+          (fund_id, name, sector, stage, investment_amount, status)
+          VALUES ($1, 'Acme Labs', 'Technology', 'Seed', 0.00, 'active') RETURNING id`,
+        [seeded.fundId]
+      );
+      const request = await correctionFixture(
+        original.receipt,
+        '25000.00',
+        'pg-renamed-correction',
+        'ledger',
+        renamed
+      );
+      expect(request.items[0]!.originalPublication.snapshotId).toBe(
+        original.receipt.facts.snapshotId
+      );
+      const corrected = await restate(request);
+      const payload = await correctionPayload(corrected.receipt);
+      expect(payload.capitalActuals.deployedCapital.value).toBe('25000.000000');
+      expect(
+        payload.companyActuals.facts.find((fact) => fact.companyId === seeded.companyId)
+      ).toMatchObject({ initialInvestmentAmount: '25000.000000' });
+      expect(
+        (
+          await adminPool.query(
+            'SELECT id, company_id, source_hash, payload::text, amount FROM cash_flow_events WHERE id = ANY($1::int[]) ORDER BY id',
+            [before.rows.map((row) => row.id)]
+          )
+        ).rows
+      ).toEqual(before.rows);
+      const replacement = await adminPool.query<{ company_id: number }>(
+        'SELECT company_id FROM cash_flow_events WHERE supersedes_event_id = $1',
+        [request.items[0]!.target.recordId]
+      );
+      expect(replacement.rows).toEqual([{ company_id: seeded.companyId }]);
+      expect(replacement.rows[0]!.company_id).not.toBe(newCompany.rows[0]!.id);
+      const after = await tableCounts();
+      const replay = await publish(fixture);
+      expect(replay.replayed).toBe(true);
+      expect(JSON.stringify(replay.receipt)).toBe(JSON.stringify(original.receipt));
+      expect(await tableCounts()).toEqual(after);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'admits repeated cumulative imports only once and retains the original correction publication',
+    async () => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      const repeatedRows = Buffer.from(fixture.request.ledger.payload, 'base64')
+        .toString('utf8')
+        .trimEnd()
+        .split('\n')
+        .slice(1)
+        .map((row) => row.split(','));
+      const cumulativeFixture = await publishFixture({
+        ledgerRows: [
+          ...repeatedRows,
+          [
+            'settled_contribution',
+            '2026-03-30',
+            '5000.00',
+            'USD',
+            '',
+            'main',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'pg-cumulative-contribution',
+          ],
+        ],
+        ifMatch: original.receipt.facts.etag,
+        idempotencyKey: '91000000-0000-4000-8000-000000000020',
+        coverage: {
+          ledger: 'inception_to_date',
+          priorFactsSnapshotId: original.receipt.facts.snapshotId,
+          evidenceNote: 'Cumulative source repeats prior rows and adds one contribution.',
+        },
+      });
+      const cumulative = await publish(cumulativeFixture);
+      expect(cumulative.receipt.admitted.ledger?.approvedCount).toBe(1);
+      expect(cumulative.receipt.admitted.valuation?.approvedCount).toBe(0);
+      for (const id of cumulative.receipt.admitted.ledger?.approvedRowIds ?? [])
+        expect(original.receipt.admitted.ledger?.approvedRowIds).not.toContain(id);
+      const request = await correctionFixture(
+        cumulative.receipt,
+        '25000.00',
+        'pg-cumulative-correction'
+      );
+      expect(request.items[0]!.originalPublication).toMatchObject({
+        snapshotId: original.receipt.facts.snapshotId,
+        snapshotInputHash: original.receipt.facts.snapshotInputHash,
+        operationHash: original.receipt.operationHash,
+      });
+      const corrected = await restate(request);
+      const payload = await correctionPayload(corrected.receipt);
+      expect(payload.capitalActuals.paidInCapital.value).toBe('105000.000000');
+      expect(payload.capitalActuals.deployedCapital.value).toBe('25000.000000');
+      expect(payload.effectiveBasis.ledgerRecordIds).toHaveLength(3);
+      expect(payload.effectiveBasis.valuationRecordIds).toHaveLength(1);
+      expect((await tableCounts())['cash_flow_events']).toBe(4);
+      const after = await tableCounts();
+      for (const [source, receipt] of [
+        [fixture, original.receipt],
+        [cumulativeFixture, cumulative.receipt],
+      ] as const) {
+        const replay = await publish(source);
+        expect(replay.replayed).toBe(true);
+        expect(JSON.stringify(replay.receipt)).toBe(JSON.stringify(receipt));
+      }
+      expect(await tableCounts()).toEqual(after);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'refuses incremental duplicate imports before they can repeat historical membership',
+    async () => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      const repeatedRows = Buffer.from(fixture.request.ledger.payload, 'base64')
+        .toString('utf8')
+        .trimEnd()
+        .split('\n')
+        .slice(1)
+        .map((row) => row.split(','));
+      const incremental = await publishFixture({
+        ledgerRows: [
+          ...repeatedRows,
+          [
+            'settled_contribution',
+            '2026-03-30',
+            '5000.00',
+            'USD',
+            '',
+            'main',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'pg-incremental-duplicate',
+          ],
+        ],
+        valuationRows: null,
+        ifMatch: original.receipt.facts.etag,
+        idempotencyKey: '91000000-0000-4000-8000-000000000021',
+        coverage: {
+          ledger: 'incremental_since_prior_head',
+          priorFactsSnapshotId: original.receipt.facts.snapshotId,
+          evidenceNote: 'An incremental source must not include already admitted rows.',
+        },
+      });
+      const before = await tableCounts();
+      await expect(publish(incremental)).rejects.toMatchObject({
+        statusCode: 422,
+        code: 'INCOMPLETE_COVERAGE',
+      });
+      expect(await tableCounts()).toEqual(before);
+      const request = await correctionFixture(original.receipt);
+      expect(request.items[0]!.originalPublication.snapshotId).toBe(
+        original.receipt.facts.snapshotId
+      );
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'uses persisted V6 membership after artifact purge and rename while replaying authenticated old receipts',
+    async () => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      const firstRequest = await correctionFixture(original.receipt);
+      const first = await restate(firstRequest);
+      await adminPool.query(
+        'UPDATE source_artifacts SET payload = NULL, purged_at = now() WHERE fund_id = $1',
+        [seeded.fundId]
+      );
+      const renamed = 'Acme After Restatement';
+      await adminPool.query('UPDATE portfoliocompanies SET name = $1 WHERE id = $2', [
+        renamed,
+        seeded.companyId,
+      ]);
+      const nextRequest = await correctionFixture(
+        first.receipt,
+        '30000.00',
+        'pg-retained-membership-correction',
+        'ledger',
+        renamed
+      );
+      expect(nextRequest.items[0]!.originalPublication.snapshotId).toBe(
+        first.receipt.facts.snapshotId
+      );
+      const next = await restate(nextRequest, '91000000-0000-4000-8000-000000000022');
+      expect((await correctionPayload(next.receipt)).capitalActuals.deployedCapital.value).toBe(
+        '30000.000000'
+      );
+      const beforeReplay = await tableCounts();
+      const originalReplay = await publish(fixture);
+      const correctionReplay = await restate(firstRequest);
+      expect(originalReplay.replayed).toBe(true);
+      expect(correctionReplay.replayed).toBe(true);
+      expect(JSON.stringify(originalReplay.receipt)).toBe(JSON.stringify(original.receipt));
+      expect(JSON.stringify(correctionReplay.receipt)).toBe(JSON.stringify(first.receipt));
+      expect(await tableCounts()).toEqual(beforeReplay);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it.each(['ledger', 'valuation'] as const)(
+    'refuses a first correction after legacy %s source purge while preserving authenticated receipt replay',
+    async (kind) => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      const request = await correctionFixture(original.receipt);
+      const artifact = original.receipt.admitted[kind];
+      if (!artifact) throw new Error(`Missing original ${kind} artifact`);
+      await adminPool.query(
+        'UPDATE source_artifacts SET payload = NULL, purged_at = now() WHERE fund_id = $1 AND id = $2',
+        [seeded.fundId, artifact.sourceArtifactId]
+      );
+      const before = await tableCounts();
+      await expect(restate(request)).rejects.toMatchObject({ code: 'EFFECTIVE_BASIS_INVALID' });
+      const replay = await publish(fixture);
+      expect(replay.statusCode).toBe(200);
+      expect(replay.receipt).toEqual(original.receipt);
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'refuses unauthenticated legacy row hashes before admitting a replacement',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      await adminPool.query(
+        `UPDATE cash_flow_events SET payload = jsonb_set(payload, '{rowContentHash}', to_jsonb($1::text))
+         WHERE id = $2`,
+        ['f'.repeat(64), request.items[0]!.target.recordId]
+      );
+      const before = await tableCounts();
+      await expect(restate(request)).rejects.toMatchObject({ code: 'FUND_LEDGER_NOT_PILOT_OWNED' });
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'rejects a correction when live commitment changes after its reviewed preview',
+    async () => {
+      const original = await publish(await publishFixture());
+      const request = await correctionFixture(original.receipt);
+      await adminPool.query(
+        'UPDATE vehicles SET committed_capital = committed_capital + 1 WHERE fund_id = $1',
+        [seeded.fundId]
+      );
+      const before = await tableCounts();
+      await expect(restate(request)).rejects.toMatchObject({ code: 'PREVIEW_HASH_MISMATCH' });
+      expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'refuses a superseded reference in ordinary preview after a correction',
+    async () => {
+      const fixture = await publishFixture();
+      const original = await publish(fixture);
+      await restate(await correctionFixture(original.receipt));
+      const preview = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        fixture.request.ledger.fileName,
+        Buffer.from(fixture.request.ledger.payload, 'base64')
+      );
+      expect(preview.canPublish).toBe(false);
+      expect(preview.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'EXISTING_IMPORT_PROVENANCE_CONFLICT' }),
+        ])
+      );
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it('allows preview but refuses new publication while disabled without changing any table', async () => {
+    delete process.env['ACTUALS_PILOT_PUBLISH_ENABLED'];
+    const fixture = await publishFixture();
+    const before = await tableCounts();
+
+    await expect(publish(fixture)).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'ACTUALS_PUBLICATION_DISABLED',
+    });
+    expect(await tableCounts()).toEqual(before);
+  });
+
+  it('replays a committed receipt while disabled without admitting new writes', async () => {
+    const fixture = await publishFixture();
+    const first = await publish(fixture);
+    const before = await tableCounts();
+    process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+
+    const replay = await publish(fixture);
+    expect(first.statusCode).toBe(201);
+    expect(replay.statusCode).toBe(200);
+    expect(await tableCounts()).toEqual(before);
+  });
+
+  it('recovers a committed receipt after disable and lost COMMIT acknowledgement', async () => {
+    const fixture = await publishFixture();
+    let firstCommit = true;
+    const connect = connectWith(() => async (text, _params, next) => {
+      if (firstCommit && /^COMMIT\b/i.test(text)) {
+        firstCommit = false;
+        await next();
+        process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+        throw new Error('simulated lost COMMIT acknowledgement');
+      }
+      return next();
+    });
+
+    const recovered = await publish(fixture, { connect });
+    expect(recovered.statusCode).toBe(200);
+    expect((await tableCounts())['financial_facts_snapshots']).toBe(1);
+  });
+
+  it('refuses a second mutation after proven absence when publication becomes disabled', async () => {
+    const fixture = await publishFixture();
+    const before = await tableCounts();
+    let firstCommit = true;
+    const connect = connectWith(() => async (text, _params, next, execute) => {
+      if (firstCommit && /^COMMIT\b/i.test(text)) {
+        firstCommit = false;
+        await execute('ROLLBACK');
+        process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'false';
+        throw new Error('simulated rolled-back COMMIT acknowledgement loss');
+      }
+      return next();
+    });
+
+    await expect(publish(fixture, { connect })).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'ACTUALS_PUBLICATION_DISABLED',
+    });
+    expect(await tableCounts()).toEqual(before);
   });
 
   it(
@@ -569,9 +1452,7 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
         expect(created.receipt.facts).toMatchObject(receiptCore.facts);
         expect(receiptCore.admitted.ledger.approvedRowIds).not.toContain(futureRowId);
         expect(utcRead.knowledgeCutoff).toBe('2026-03-31T12:00:00.000Z');
-        expect(utcRead.sourceFactsInputHash).toBe(
-          created.receipt.basisRef.sourceFactsInputHash
-        );
+        expect(utcRead.sourceFactsInputHash).toBe(created.receipt.basisRef.sourceFactsInputHash);
         expect(utcRead.snapshotInputHash).toBe(created.receipt.basisRef.snapshotInputHash);
       } finally {
         reader.release();
@@ -630,10 +1511,9 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
     'PG-1 refuses a non-cent-exact database commitment before publication writes',
     async () => {
       const fixture = await publishFixture();
-      await adminPool.query(
-        'UPDATE vehicles SET committed_capital = 1000000.001 WHERE id = $1',
-        [seeded.vehicleId]
-      );
+      await adminPool.query('UPDATE vehicles SET committed_capital = 1000000.001 WHERE id = $1', [
+        seeded.vehicleId,
+      ]);
       const before = await tableCounts();
 
       await expect(publish(fixture)).rejects.toMatchObject({
@@ -642,6 +1522,151 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
       });
 
       expect(await tableCounts()).toEqual(before);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'PG-1 publishes corrected preview values with new provenance and refuses rewriting their external reference',
+    async () => {
+      const row = (date: string, amount: string) => [
+        'settled_contribution',
+        date,
+        amount,
+        'USD',
+        '',
+        'main',
+        '',
+        'Correctable contribution',
+        '',
+        '',
+        '',
+        'pg-corrected-contribution',
+      ];
+      const beforePreview = await tableCounts();
+      const initial = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [row('2026-03-01', '100000.00')])
+      );
+      const correctedRows = [row('2026-03-02', '125000.00')];
+      const correctedPayload = csv(ACTUALS_LEDGER_TEMPLATE_HEADER, correctedRows);
+      const corrected = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        correctedPayload
+      );
+      const fixture = await publishFixture({ ledgerRows: correctedRows, valuationRows: null });
+      expect(initial.canPublish).toBe(true);
+      expect(corrected.canPublish).toBe(true);
+      expect(await tableCounts()).toEqual(beforePreview);
+      expect(corrected.payloadSha256).not.toBe(initial.payloadSha256);
+      expect(corrected.canonicalRowsHash).not.toBe(initial.canonicalRowsHash);
+      expect(corrected.previewHash).not.toBe(initial.previewHash);
+      expect(corrected.rows[0]!.rowSourceHash).toBe(initial.rows[0]!.rowSourceHash);
+      expect(corrected.rows[0]!.rowContentHash).not.toBe(initial.rows[0]!.rowContentHash);
+      expect(corrected.rows[0]).toMatchObject({
+        effectiveDate: '2026-03-02',
+        canonicalAmount: '125000.000000',
+      });
+
+      const created = await publish(fixture);
+      expect(created.statusCode).toBe(201);
+      const events = await adminPool.query<{
+        id: number;
+        amount: string;
+        event_date: Date;
+        source_hash: string;
+        import_batch_id: string;
+        payload: Record<string, unknown>;
+      }>('SELECT * FROM cash_flow_events WHERE fund_id = $1 ORDER BY id', [seeded.fundId]);
+      expect(events.rows).toHaveLength(1);
+      expect(events.rows[0]).toMatchObject({
+        amount: '125000.000000',
+        source_hash: corrected.rows[0]!.rowSourceHash,
+        import_batch_id: created.receipt.admitted.importBatchId,
+        payload: {
+          sourceExternalRef: 'pg-corrected-contribution',
+          rowContentHash: corrected.rows[0]!.rowContentHash,
+        },
+      });
+      expect(events.rows[0]!.event_date.toISOString()).toBe('2026-03-02T00:00:00.000Z');
+      expect(created.receipt.admitted.ledger).toMatchObject({
+        payloadSha256: corrected.payloadSha256,
+        canonicalRowsHash: corrected.canonicalRowsHash,
+        previewHash: corrected.previewHash,
+        approvedRowIds: [events.rows[0]!.id],
+        approvedCount: 1,
+      });
+      const artifacts = await adminPool.query<{
+        id: number;
+        payload_sha256: string;
+        payload: Buffer;
+      }>('SELECT * FROM source_artifacts WHERE fund_id = $1 ORDER BY id', [seeded.fundId]);
+      expect(artifacts.rows).toHaveLength(1);
+      expect(artifacts.rows[0]).toMatchObject({
+        id: created.receipt.admitted.ledger.sourceArtifactId,
+        payload_sha256: corrected.payloadSha256,
+        payload: correctedPayload,
+      });
+      const snapshots = await adminPool.query<{ payload: Record<string, unknown> }>(
+        'SELECT * FROM financial_facts_snapshots WHERE fund_id = $1 ORDER BY id',
+        [seeded.fundId]
+      );
+      expect(snapshots.rows).toHaveLength(1);
+      expect(snapshots.rows[0]!.payload).toMatchObject({
+        capitalActuals: { paidInCapital: { value: '125000.000000' } },
+        cashFlowSeries: { totals: { contributions: '125000.000000' } },
+        admissionReceiptCore: {
+          operationHash: created.receipt.operationHash,
+          admitted: created.receipt.admitted,
+        },
+      });
+
+      const beforeRejectedChange = await tableCounts();
+      const changedPayload = csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [row('2026-03-03', '150000.00')]);
+      const changed = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'actuals-ledger.csv',
+        changedPayload
+      );
+      expect(changed.canPublish).toBe(false);
+      expect(changed.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'EXTERNAL_REF_REUSE_CONFLICT' })])
+      );
+      await expect(
+        publish({
+          idempotencyKey: '20000000-0000-4000-8000-000000000002',
+          ifMatch: created.receipt.facts.etag,
+          request: {
+            ...fixture.request,
+            ledger: {
+              ...fixture.request.ledger,
+              payload: changedPayload.toString('base64'),
+              expectedPayloadSha256: changed.payloadSha256,
+              expectedCanonicalRowsHash: changed.canonicalRowsHash,
+              expectedPreviewHash: changed.previewHash,
+            },
+            coverage: {
+              ledger: 'incremental_since_prior_head',
+              priorFactsSnapshotId: created.receipt.facts.snapshotId,
+              evidenceNote: 'Published external references cannot be rewritten.',
+            },
+          },
+        })
+      ).rejects.toMatchObject({ statusCode: 422, code: 'INVALID_CSV' });
+      expect(await tableCounts()).toEqual(beforeRejectedChange);
+      for (const [table, rows] of [
+        ['cash_flow_events', events.rows],
+        ['source_artifacts', artifacts.rows],
+        ['financial_facts_snapshots', snapshots.rows],
+      ] as const) {
+        const after = await adminPool.query(
+          `SELECT * FROM ${table} WHERE fund_id = $1 ORDER BY id`,
+          [seeded.fundId]
+        );
+        expect(after.rows).toEqual(rows);
+      }
     },
     TEST_TIMEOUT_MS
   );
@@ -1389,10 +2414,10 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
     async () => {
       const first = await publish(await publishFixture());
       const missingRowId = first.receipt.admitted.ledger.approvedRowIds[0]!;
-      await adminPool.query(
-        'DELETE FROM cash_flow_events WHERE id = $1 AND fund_id = $2',
-        [missingRowId, seeded.fundId]
-      );
+      await adminPool.query('DELETE FROM cash_flow_events WHERE id = $1 AND fund_id = $2', [
+        missingRowId,
+        seeded.fundId,
+      ]);
       const before = await tableCounts();
       const successor = await publishFixture({
         idempotencyKey: '71000000-0000-4000-8000-000000000003',
@@ -1555,9 +2580,7 @@ describe.skipIf(!runDocker)('actuals-pilot publisher PostgreSQL schedules', () =
           cashFlowSeries: cash,
           paidInCapital: governedMetric(capital['paidInCapital']!),
           deployedCapital: governedMetric(capital['deployedCapital']!),
-          distributionsToPartners: governedMetric(
-            capital['distributionsToPartners']!
-          ),
+          distributionsToPartners: governedMetric(capital['distributionsToPartners']!),
           portfolioFmv: governedMetric(capital['portfolioFmv']!),
         };
       };

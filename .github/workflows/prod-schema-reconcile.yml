@@ -1,4 +1,5 @@
 name: Production Schema Reconcile
+run-name: actuals-schema:${{ inputs.mode }}:${{ inputs.expected_sha }}
 
 on:
   workflow_call:
@@ -72,6 +73,8 @@ on:
           - apply
           - apply-catchup-0050-0053
           - apply-current-forecast-0050-0055
+          - apply-actuals-draft-0056
+          - apply-actuals-restatement-0057
         default: audit
       expected_sha:
         description: Full commit SHA expected to be checked out
@@ -116,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$MODE" in
-            audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055) ;;
+            audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055|apply-actuals-draft-0056|apply-actuals-restatement-0057) ;;
             *)
               echo "Unsupported mode: $MODE"
               exit 1
@@ -296,6 +299,7 @@ jobs:
           NODE
 
       - name: Verify and download historical schema apply artifact by exact ID
+        id: historical_receipt
         if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -316,6 +320,7 @@ jobs:
           const expectedNames = [
             `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`,
             `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-current-forecast-0050-0055-${process.env.SCHEMA_PRECURSOR_SHA}`,
+            `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-actuals-draft-0056-${process.env.SCHEMA_PRECURSOR_SHA}`,
           ];
           const valid =
             String(artifact.id) === process.env.SCHEMA_APPLY_ARTIFACT_ID &&
@@ -346,23 +351,37 @@ jobs:
             'pre-apply-audit.txt' \
             'schema-reconcile-receipt.json' \
             | LC_ALL=C sort > "$EVIDENCE_DIR/expected-entries.txt"
-          if ! diff -u "$EVIDENCE_DIR/expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
-            grep -v '^current-forecast-migration-result.json$' \
-              "$EVIDENCE_DIR/expected-entries.txt" > "$EVIDENCE_DIR/legacy-expected-entries.txt"
-            if ! diff -u "$EVIDENCE_DIR/legacy-expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
-              echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
-              exit 1
-            fi
+          grep -v '^current-forecast-migration-result.json$' \
+            "$EVIDENCE_DIR/expected-entries.txt" > "$EVIDENCE_DIR/legacy-expected-entries.txt"
+          printf '%s\n' \
+            'actuals-draft-after.json' \
+            'actuals-draft-before.json' \
+            'actuals-draft-migration-result.json' \
+            'actuals-draft-preflight-result.json' \
+            'actuals-draft-preapply-result.json' \
+            'actuals-draft-preflight.txt' \
+            'apply.txt' \
+            'lock-time-apply-vector.json' \
+            'post-apply-audit.txt' \
+            'pre-apply-audit.txt' \
+            'schema-reconcile-receipt.json' \
+            | LC_ALL=C sort > "$EVIDENCE_DIR/actuals-draft-expected-entries.txt"
+          if ! diff -u "$EVIDENCE_DIR/expected-entries.txt" "$EVIDENCE_DIR/entries.txt" \
+            && ! diff -u "$EVIDENCE_DIR/legacy-expected-entries.txt" "$EVIDENCE_DIR/entries.txt" \
+            && ! diff -u "$EVIDENCE_DIR/actuals-draft-expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
+            echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
+            exit 1
           fi
           unzip -o "$EVIDENCE_DIR/archive.zip" -d "$EVIDENCE_DIR/extracted"
           if find "$EVIDENCE_DIR/extracted" -type l | grep -q .; then
             echo "::error::Historical apply archive contains symlinks."
             exit 1
           fi
-          if [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -lt 5 ] || [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -gt 6 ]; then
-            echo "::error::Historical apply archive extracted an unexpected file count."
-            exit 1
-          fi
+          FILE_COUNT="$(find "$EVIDENCE_DIR/extracted" -type f | wc -l | tr -d ' ')"
+          case "$FILE_COUNT" in
+            5|6|11) ;;
+            *) echo "::error::Historical apply archive extracted an unexpected file count."; exit 1 ;;
+          esac
           RECEIPT_PATH="$EVIDENCE_DIR/extracted/schema-reconcile-receipt.json"
           RECOMPUTED_RECEIPT_SHA256="$(sha256sum "$RECEIPT_PATH" | cut -d' ' -f1)"
           if [ "$RECOMPUTED_RECEIPT_SHA256" != "$SCHEMA_APPLY_RECEIPT_FILE_SHA256" ]; then
@@ -372,8 +391,13 @@ jobs:
           # Workspace-resident helper: relative contract imports must resolve
           # against the checkout, never RUNNER_TEMP.
           cat > ./validate-historical-receipt.tmp.mts <<'VALIDATE'
-          import { readFile } from 'node:fs/promises';
+          import { deepStrictEqual } from 'node:assert';
+          import { appendFile, readFile, readdir } from 'node:fs/promises';
+          import path from 'node:path';
+          import { assertActualsDraftProductionPrerequisites } from './scripts/release/actuals-draft-prerequisites.mjs';
           import {
+            ActualsDraftMigrationResultV1Schema,
+            SchemaReconcileActualsDraftReceiptV1Schema,
             SchemaReconcileCurrentForecastReceiptV1Schema,
             SchemaReconcileReceiptV1Schema,
           } from './shared/contracts/schema-reconcile-receipt-v1.contract';
@@ -381,9 +405,14 @@ jobs:
           const raw = JSON.parse(
             await readFile(process.env['RECEIPT_PATH']!, 'utf8')
           ) as Record<string, unknown>;
-          const receipt = raw.mode === 'apply-current-forecast-0050-0055'
-            ? SchemaReconcileCurrentForecastReceiptV1Schema.parse(raw)
-            : SchemaReconcileReceiptV1Schema.parse(raw);
+          if (raw.mode === 'apply-actuals-restatement-0057') {
+            throw new Error('0057 historical receipt reuse is not admitted; action-specific authoritative verification is unavailable');
+          }
+          const receipt = raw.mode === 'apply-actuals-draft-0056'
+            ? SchemaReconcileActualsDraftReceiptV1Schema.parse(raw)
+            : raw.mode === 'apply-current-forecast-0050-0055'
+              ? SchemaReconcileCurrentForecastReceiptV1Schema.parse(raw)
+              : SchemaReconcileReceiptV1Schema.parse(raw);
           const artifact = JSON.parse(
             await readFile(process.env['ARTIFACT_METADATA_PATH']!, 'utf8')
           ) as Record<string, unknown>;
@@ -393,7 +422,49 @@ jobs:
           if (receipt.sourceSha !== process.env['SCHEMA_PRECURSOR_SHA']) {
             throw new Error('Receipt source SHA does not match schema precursor SHA');
           }
-          if (receipt.mode === 'apply-current-forecast-0050-0055') {
+          if (receipt.mode === 'apply-actuals-draft-0056') {
+            const evidenceDir = path.dirname(process.env['RECEIPT_PATH']!);
+            const before = ActualsDraftMigrationResultV1Schema.parse(JSON.parse(
+              await readFile(path.join(evidenceDir, 'actuals-draft-before.json'), 'utf8')
+            ));
+            const after = ActualsDraftMigrationResultV1Schema.parse(JSON.parse(
+              await readFile(path.join(evidenceDir, 'actuals-draft-after.json'), 'utf8')
+            ));
+            const result = ActualsDraftMigrationResultV1Schema.parse(JSON.parse(
+              await readFile(path.join(evidenceDir, 'actuals-draft-migration-result.json'), 'utf8')
+            ));
+            if (before.applied || before.preState.state !== before.postState) {
+              throw new Error('0056 before-state evidence is not a read-only observation');
+            }
+            if (after.applied || after.postState !== 'complete'
+              || after.preState.baselineKind !== receipt.preState.baselineKind
+              || after.targetFingerprint !== receipt.targetFingerprint) {
+              throw new Error('0056 after-state does not prove a clean read-only target observation');
+            }
+            deepStrictEqual(before.preState, receipt.preState);
+            if (before.targetFingerprint !== receipt.targetFingerprint) {
+              throw new Error('0056 before-state target differs from receipt target');
+            }
+            deepStrictEqual(result, {
+              preState: receipt.preState,
+              postState: receipt.postState,
+              applied: receipt.applied,
+              migration: receipt.migration,
+              targetFingerprint: receipt.targetFingerprint,
+            });
+            const preflight: unknown = JSON.parse(await readFile(
+              path.join(evidenceDir, 'actuals-draft-preflight-result.json'), 'utf8'
+            ));
+            if (typeof preflight === 'object' && preflight !== null
+              && (('status' in preflight && preflight.status === 'blocked')
+                || ('blocked' in preflight && preflight.blocked === true)
+                || ('evaluation' in preflight && preflight.evaluation === 'blocked'))) {
+              throw new Error('0056 completed receipt contradicts blocked production prerequisites');
+            }
+            // There is no admitted production prerequisite evidence format yet.
+            // A caller-created JSON value cannot authorize historical admission.
+            assertActualsDraftProductionPrerequisites();
+          } else if (receipt.mode === 'apply-current-forecast-0050-0055') {
             if (receipt.postState !== 'complete' || receipt.migrationRange.length !== 6) {
               throw new Error('Receipt does not prove complete Current Forecast migration range');
             }
@@ -409,6 +480,25 @@ jobs:
           if (artifact.name !== expectedArtifactName) {
             throw new Error('Historical schema apply artifact name does not match receipt mode');
           }
+          const expectedEntries = [
+            'apply.txt', 'lock-time-apply-vector.json', 'post-apply-audit.txt',
+            'pre-apply-audit.txt', 'schema-reconcile-receipt.json',
+          ];
+          if (receipt.mode === 'apply-current-forecast-0050-0055') {
+            expectedEntries.push('current-forecast-migration-result.json');
+          } else if (receipt.mode === 'apply-actuals-draft-0056') {
+            expectedEntries.push(
+              'actuals-draft-after.json', 'actuals-draft-before.json',
+              'actuals-draft-migration-result.json', 'actuals-draft-preflight-result.json',
+              'actuals-draft-preflight.txt', 'actuals-draft-preapply-result.json',
+            );
+          }
+          deepStrictEqual(
+            (await readdir(path.dirname(process.env['RECEIPT_PATH']!))).sort(),
+            expectedEntries.sort(),
+            'Historical schema apply archive inventory does not match receipt mode',
+          );
+          await appendFile(process.env['GITHUB_OUTPUT']!, `mode=${receipt.mode}\n`);
           VALIDATE
           ARTIFACT_METADATA_PATH="$RUNNER_TEMP/historical-apply-artifact.json" \
             RECEIPT_PATH="$RECEIPT_PATH" \
@@ -466,7 +556,7 @@ jobs:
           NODE
 
       - name: Build and upload schema evidence fragment
-        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' && steps.historical_receipt.outputs.mode != 'apply-actuals-draft-0056' }}
         id: build_schema_fragment
         env:
           GITHUB_SERVER_URL: ${{ github.server_url }}
@@ -540,7 +630,7 @@ jobs:
           ' "$BUILD_OUTPUT"
 
       - name: Name attempt-qualified schema fragment artifact
-        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' && steps.historical_receipt.outputs.mode != 'apply-actuals-draft-0056' }}
         id: schema_fragment_meta
         env:
           FRAGMENT_SOURCE_SHA: ${{ inputs.expected_sha }}
@@ -549,7 +639,7 @@ jobs:
           echo "artifact_name=release-evidence-fragment-v1-schema-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${FRAGMENT_SOURCE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable schema evidence fragment
-        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' && steps.historical_receipt.outputs.mode != 'apply-actuals-draft-0056' }}
         id: upload_schema_fragment
         uses: actions/upload-artifact@v7
         with:
@@ -558,12 +648,70 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Archive verified actuals draft receipt separately
+        if: ${{ inputs.mode == 'audit' && steps.historical_receipt.outputs.mode == 'apply-actuals-draft-0056' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: actuals-draft-schema-receipt-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.expected_sha }}
+          path: |
+            ${{ runner.temp }}/historical-apply-evidence/extracted/schema-reconcile-receipt.json
+            ${{ runner.temp }}/historical-apply-run.json
+            ${{ runner.temp }}/historical-apply-artifact.json
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Remove historical apply evidence
         if: always()
         run: rm -rf -- "$RUNNER_TEMP/historical-apply-evidence" "$RUNNER_TEMP/historical-apply-run.json" "$RUNNER_TEMP/historical-apply-artifact.json" "$RUNNER_TEMP/schema-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-schema.json" ./validate-historical-receipt.tmp.mts
 
+      - name: Read bounded actuals draft migration state
+        if: inputs.mode == 'apply-actuals-draft-0056'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_DRAFT_MIGRATION_RESULT_PATH: reports/actuals-draft-before.json
+        run: node scripts/run-actuals-draft-journaled-migration.mjs > reports/actuals-draft-preflight.txt
+
+      - name: Evaluate action-specific actuals draft production prerequisites
+        if: inputs.mode == 'apply-actuals-draft-0056'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          ACTUALS_PREFLIGHT_SOURCE_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_BRANCH_ID }}
+          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
+          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
+        run: >-
+          npx tsx scripts/release/actuals-draft-production-preflight.ts
+          reports/actuals-draft-before.json reports/actuals-draft-preflight-result.json
+
+      - name: Read bounded actuals restatement migration state
+        if: inputs.mode == 'apply-actuals-restatement-0057'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_RESTATEMENT_MIGRATION_RESULT_PATH: reports/actuals-restatement-before.json
+        run: node scripts/run-actuals-restatement-journaled-migration.mjs > reports/actuals-restatement-preflight.txt
+
+      - name: Evaluate action-specific actuals restatement production prerequisites
+        if: inputs.mode == 'apply-actuals-restatement-0057'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          ACTUALS_PREFLIGHT_SOURCE_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_BRANCH_ID }}
+          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
+          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
+        run: >-
+          npx tsx scripts/release/actuals-restatement-production-preflight.ts
+          reports/actuals-restatement-before.json reports/actuals-restatement-preflight-result.json
+
       - name: Require additive-safe apply decision
-        if: startsWith(inputs.mode, 'apply')
+        if: ${{ startsWith(inputs.mode, 'apply') && inputs.mode != 'apply-actuals-draft-0056' && inputs.mode != 'apply-actuals-restatement-0057' }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -642,6 +790,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           MODE: ${{ inputs.mode }}
+          GH_TOKEN: ${{ github.token }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          ACTUALS_PREFLIGHT_SOURCE_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_BRANCH_ID }}
+          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
+          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
         run: |
           set +e
           if [ "$MODE" = "apply-catchup-0050-0053" ]; then
@@ -651,6 +808,24 @@ jobs:
             CURRENT_FORECAST_MIGRATION_RESULT_PATH=reports/current-forecast-migration-result.json \
               node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes > reports/apply.raw 2>&1
             STATUS=$?
+          elif [ "$MODE" = "apply-actuals-draft-0056" ]; then
+            npx tsx scripts/release/actuals-migration-preapply.ts "$MODE" \
+              reports/actuals-draft-preflight-result.json reports/actuals-draft-preapply-result.json > reports/apply.raw 2>&1
+            STATUS=$?
+            if [ "$STATUS" -eq 0 ]; then
+              ACTUALS_DRAFT_MIGRATION_RESULT_PATH=reports/actuals-draft-migration-result.json \
+                node scripts/run-actuals-draft-journaled-migration.mjs --apply --yes >> reports/apply.raw 2>&1
+              STATUS=$?
+            fi
+          elif [ "$MODE" = "apply-actuals-restatement-0057" ]; then
+            npx tsx scripts/release/actuals-migration-preapply.ts "$MODE" \
+              reports/actuals-restatement-preflight-result.json reports/actuals-restatement-preapply-result.json > reports/apply.raw 2>&1
+            STATUS=$?
+            if [ "$STATUS" -eq 0 ]; then
+              ACTUALS_RESTATEMENT_MIGRATION_RESULT_PATH=reports/actuals-restatement-migration-result.json \
+                node scripts/run-actuals-restatement-journaled-migration.mjs --apply --yes >> reports/apply.raw 2>&1
+              STATUS=$?
+            fi
           elif [ "$MODE" = "apply" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
             STATUS=$?
@@ -686,7 +861,15 @@ jobs:
           const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
           const report = fs.readFileSync('reports/apply.txt', 'utf8');
           let vector;
-          if (process.env.MODE === 'apply-current-forecast-0050-0055') {
+          if (process.env.MODE === 'apply-actuals-restatement-0057') {
+            const result = JSON.parse(fs.readFileSync('reports/actuals-restatement-migration-result.json', 'utf8'));
+            if (result.postState !== 'complete') throw new Error('0057 post-state is not complete');
+            vector = result;
+          } else if (process.env.MODE === 'apply-actuals-draft-0056') {
+            const result = JSON.parse(fs.readFileSync('reports/actuals-draft-migration-result.json', 'utf8'));
+            if (result.postState !== 'complete') throw new Error('0056 post-state is not complete');
+            vector = result;
+          } else if (process.env.MODE === 'apply-current-forecast-0050-0055') {
             vector = JSON.parse(fs.readFileSync('reports/current-forecast-migration-result.json', 'utf8'));
           } else if (process.env.MODE === 'apply-catchup-0050-0053') {
             const capability = await prepareG3Catchup0050To0053Capability();
@@ -715,9 +898,18 @@ jobs:
         if: ${{ !cancelled() && startsWith(inputs.mode, 'apply') && (steps.apply.outcome == 'success' || steps.apply.outcome == 'failure') }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          MODE: ${{ inputs.mode }}
         run: |
           set +e
-          node scripts/reconcile-prod-schema.mjs > reports/post-apply-audit.raw 2>&1
+          if [ "$MODE" = "apply-actuals-restatement-0057" ]; then
+            ACTUALS_RESTATEMENT_MIGRATION_RESULT_PATH=reports/actuals-restatement-after.json \
+              node scripts/run-actuals-restatement-journaled-migration.mjs > reports/post-apply-audit.raw 2>&1
+          elif [ "$MODE" = "apply-actuals-draft-0056" ]; then
+            ACTUALS_DRAFT_MIGRATION_RESULT_PATH=reports/actuals-draft-after.json \
+              node scripts/run-actuals-draft-journaled-migration.mjs > reports/post-apply-audit.raw 2>&1
+          else
+            node scripts/reconcile-prod-schema.mjs > reports/post-apply-audit.raw 2>&1
+          fi
           STATUS=$?
           set -e
           sed -E \
@@ -730,7 +922,50 @@ jobs:
       - name: Require clean post-apply audit
         id: require_post_apply_clean
         if: ${{ !cancelled() && startsWith(inputs.mode, 'apply') && (steps.post_audit.outcome == 'success' || steps.post_audit.outcome == 'failure') }}
+        env:
+          MODE: ${{ inputs.mode }}
         run: |
+          set -euo pipefail
+          if [ "$MODE" = "apply-actuals-draft-0056" ]; then
+            cat > ./validate-actuals-draft-after.tmp.mts <<'VALIDATE'
+          import { readFile } from 'node:fs/promises';
+          import { ActualsDraftMigrationResultV1Schema } from './shared/contracts/schema-reconcile-receipt-v1.contract';
+          const after = ActualsDraftMigrationResultV1Schema.parse(JSON.parse(
+            await readFile('reports/actuals-draft-after.json', 'utf8')
+          ));
+          const applied = ActualsDraftMigrationResultV1Schema.parse(JSON.parse(
+            await readFile('reports/actuals-draft-migration-result.json', 'utf8')
+          ));
+          if (after.applied || after.postState !== 'complete' || applied.postState !== 'complete'
+            || after.preState.baselineKind !== applied.preState.baselineKind
+            || after.targetFingerprint !== applied.targetFingerprint) {
+            throw new Error('0056 post-apply audit does not prove the same complete target');
+          }
+          VALIDATE
+            npx tsx ./validate-actuals-draft-after.tmp.mts
+            rm -f ./validate-actuals-draft-after.tmp.mts
+            exit 0
+          fi
+          if [ "$MODE" = "apply-actuals-restatement-0057" ]; then
+            cat > ./validate-actuals-restatement-after.tmp.mts <<'VALIDATE'
+          import { readFile } from 'node:fs/promises';
+          import { ActualsRestatementMigrationResultV1Schema } from './shared/contracts/schema-reconcile-receipt-v1.contract';
+          const after = ActualsRestatementMigrationResultV1Schema.parse(JSON.parse(
+            await readFile('reports/actuals-restatement-after.json', 'utf8')
+          ));
+          const applied = ActualsRestatementMigrationResultV1Schema.parse(JSON.parse(
+            await readFile('reports/actuals-restatement-migration-result.json', 'utf8')
+          ));
+          if (after.applied || after.postState !== 'complete' || applied.postState !== 'complete'
+            || after.preState.baselineKind !== applied.preState.baselineKind
+            || after.targetFingerprint !== applied.targetFingerprint) {
+            throw new Error('0057 post-apply audit does not prove the same complete target');
+          }
+          VALIDATE
+            npx tsx ./validate-actuals-restatement-after.tmp.mts
+            rm -f ./validate-actuals-restatement-after.tmp.mts
+            exit 0
+          fi
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
@@ -771,7 +1006,11 @@ jobs:
           SCHEMA_RECONCILE_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          if [ "$SCHEMA_RECONCILE_MODE" = "apply-current-forecast-0050-0055" ]; then
+          if [ "$SCHEMA_RECONCILE_MODE" = "apply-actuals-restatement-0057" ]; then
+            test -s reports/actuals-restatement-migration-result.json
+          elif [ "$SCHEMA_RECONCILE_MODE" = "apply-actuals-draft-0056" ]; then
+            test -s reports/actuals-draft-migration-result.json
+          elif [ "$SCHEMA_RECONCILE_MODE" = "apply-current-forecast-0050-0055" ]; then
             test -s reports/current-forecast-migration-result.json
           elif [ "$SCHEMA_RECONCILE_MODE" = "apply-catchup-0050-0053" ]; then
             if ! grep -Eq '^g3-(portfolio-and-calculation|canary|capital-call-notification-outbox|release-gate-hardening): APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
@@ -801,6 +1040,16 @@ jobs:
             reports/*.txt
             reports/lock-time-apply-vector.json
             reports/schema-reconcile-receipt.json
+            reports/actuals-draft-before.json
+            reports/actuals-draft-after.json
+            reports/actuals-draft-preflight-result.json
+            reports/actuals-draft-preapply-result.json
+            reports/actuals-draft-migration-result.json
+            reports/actuals-restatement-before.json
+            reports/actuals-restatement-after.json
+            reports/actuals-restatement-preflight-result.json
+            reports/actuals-restatement-preapply-result.json
+            reports/actuals-restatement-migration-result.json
           if-no-files-found: error
           retention-days: 90
 

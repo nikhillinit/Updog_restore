@@ -2296,6 +2296,7 @@ export function mergeMatrix(previousDocument, seededDocument) {
   }
   const output = {
     ...cloneJson(seeded),
+    ...(previous.g1_closure ? { g1_closure: cloneJson(previous.g1_closure) } : {}),
     phase: previous.phase === 'closed' ? 'closed' : seeded.phase,
     rows: rows.sort((left, right) => left.id.localeCompare(right.id)),
     coverage_review: coverageReview,

@@ -12294,3 +12294,57 @@ before affected multi-security deal-by-deal serving. It cannot be added to an
 already frozen soak window. This ADR records rationale for source admission in
 #1486; it does not certify a new candidate, deployment, serving state, release,
 or production action.
+
+## ADR-100: Explicit Published-Actual Restatement Preserves Source History
+
+**Date:** 2026-09-09
+
+**Status:** Proposed; local implementation authorized under F_1.13.0, source
+admission pending
+
+**Tags:** #financial-facts #actuals #restatement #idempotency
+
+### Decision
+
+F_1.13.0 extends ADR-097 with an explicit correction command. Ordinary uploads
+continue to reject changed content under an existing external reference. A
+restatement binds the full current facts basis, ETag, preview hash, exact target
+identities and original publication, fresh replacement references, and a reason.
+It appends one replacement per target and immutable command/item records inside
+the existing serialized publication transaction. Historical rows, source files,
+snapshots, and receipt bytes remain unchanged. Authenticated receipt replay
+precedes the independent default-disabled publication control.
+
+Policy `financial-facts-policy/1.5.0`, payload `financial-facts-payload/6`,
+admission `actuals-admission/2.0.0`, and outcome `actuals-pilot-publish/2.0.0`
+explicitly distinguish append from restatement. Policy 1.4 and earlier retain
+their original codecs and hash preimages. One verified projection of
+receipt-backed terminal replacement rows supplies cash, capital, valuation, and
+company monetary facts. Later ordinary appends retain correction ancestry.
+Initial valuation corrections preserve company, vehicle, mark type, and the
+current head's as-of date; earlier mark dates remain unsupported.
+
+The first policy-1.4 to policy-1.5 transition authenticates original row content
+against retained source bytes and the legacy receipt's aggregate canonical hash.
+Legacy receipts do not authenticate individual row hashes by themselves. Missing
+required source bytes therefore refuse that transition with
+`EFFECTIVE_BASIS_INVALID`, while committed receipt replay remains available.
+
+Company initial and follow-on amounts come from their corresponding effective
+ledger categories. Secondary and other deployment categories have no established
+non-equity mapping; affected company amounts remain unavailable, with explicit
+reasons. Aggregate economics remain attributable. Consumers validate
+availability before arithmetic, retain complete basis references, and require
+explicit plan acceptance and recompute where applicable. Internal economics and
+periodic analysis continue to reject unsupported facts policies.
+
+### Consequences
+
+The 0056 draft migration and later restatement migration require separate schema
+admission. Each production procedure must prove its exact source, target,
+authority, recovery, custody, isolation, containment, and residue prerequisites
+before mutation. Missing proof blocks application. Local disposable-database
+tests prove behavior only. This proposal does not amend the protected governing
+policy, authorize production actions, create Fund One identities, publish
+guessed actuals, rebase plans, recompute forecasts, enter shadow, or activate
+serving.

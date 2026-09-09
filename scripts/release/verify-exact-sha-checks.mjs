@@ -40,7 +40,8 @@ function fail(message) {
   throw new Error(`Exact-SHA evidence failed: ${message}`);
 }
 function requireSha(value, label) {
-  if (typeof value !== 'string' || !SHA.test(value)) fail(`${label} must be a lowercase 40-character SHA`);
+  if (typeof value !== 'string' || !SHA.test(value))
+    fail(`${label} must be a lowercase 40-character SHA`);
   return value;
 }
 
@@ -62,25 +63,34 @@ function parseUtc(value, label) {
 
 function parseActionsDetailsUrl(detailsUrl, repository) {
   if (typeof detailsUrl !== 'string') fail('check details_url is required');
-  const match = detailsUrl.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)(?:[?#].*)?$/);
+  const match = detailsUrl.match(
+    /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)(?:[?#].*)?$/
+  );
   if (!match) fail('check details_url must identify an Actions run and job');
-  if (match[1] !== repository) fail('check details_url repository does not match evidence repository');
+  if (match[1] !== repository)
+    fail('check details_url repository does not match evidence repository');
   return { runId: Number(match[2]), jobId: Number(match[3]) };
 }
 
 function requirementContexts(protection) {
   const requirements = assertBranchProtectionReadable(protection);
-  const ciAppRequirements = requirements.filter((requirement) => requirement.context === 'CI Gate Status');
+  const ciAppRequirements = requirements.filter(
+    (requirement) => requirement.context === 'CI Gate Status'
+  );
   if (ciAppRequirements.length !== 1 || ciAppRequirements[0].appId === undefined) {
     fail('CI Gate Status must be exactly one app-bound branch-protection check');
   }
   for (const requirement of requirements) {
-    if (requirement.context === SELF_REFERENCE) fail('branch protection has a self-reference to G3 Exact-SHA Verdict');
+    if (requirement.context === SELF_REFERENCE)
+      fail('branch protection has a self-reference to G3 Exact-SHA Verdict');
     if (!Object.hasOwn(LOCKED_CONTEXT_WORKFLOW_ALLOWLIST, requirement.context)) {
       fail(`unknown required context ${requirement.context}`);
     }
   }
-  return { contexts: [...LOCKED_G3_CONTEXTS].sort(), githubActionsAppId: ciAppRequirements[0].appId };
+  return {
+    contexts: [...LOCKED_G3_CONTEXTS].sort(),
+    githubActionsAppId: ciAppRequirements[0].appId,
+  };
 }
 
 export function assertBranchProtectionReadable(protection) {
@@ -90,7 +100,9 @@ export function assertBranchProtectionReadable(protection) {
   const statusChecks = protection.required_status_checks;
   const contexts = Array.isArray(statusChecks?.contexts) ? statusChecks.contexts : [];
   const checks = Array.isArray(statusChecks?.checks) ? statusChecks.checks : [];
-  const requirements = new Map(contexts.map((context) => [`${String(context)}:unbound`, { context: String(context) }]));
+  const requirements = new Map(
+    contexts.map((context) => [`${String(context)}:unbound`, { context: String(context) }])
+  );
   for (const check of checks) {
     const context = String(check?.context ?? '');
     if (!context) continue;
@@ -144,33 +156,54 @@ function workflowDefinitionForPath(workflows, workflowPath) {
   const matching = evidenceArray(workflows, 'workflow definition').filter(
     (workflow) => workflow?.path === workflowPath && workflow?.state === 'active'
   );
-  if (matching.length !== 1) fail(`workflow definition for ${workflowPath} must be exactly one active workflow`);
+  if (matching.length !== 1)
+    fail(`workflow definition for ${workflowPath} must be exactly one active workflow`);
   return matching[0];
 }
 
-function workflowEvidenceForContext({ context, check, candidateSha, repository, githubActionsAppId, workflows, runsById, jobsById }) {
+function workflowEvidenceForContext({
+  context,
+  check,
+  candidateSha,
+  repository,
+  githubActionsAppId,
+  workflows,
+  runsById,
+  jobsById,
+}) {
   if (check?.head_sha !== candidateSha) fail(`check ${context} does not match candidate SHA`);
-  if (check?.app?.id !== githubActionsAppId) fail(`check ${context} is not owned by GitHub Actions App`);
+  if (check?.app?.id !== githubActionsAppId)
+    fail(`check ${context} is not owned by GitHub Actions App`);
   const expectedPath = LOCKED_CONTEXT_WORKFLOW_ALLOWLIST[context];
   const details = parseActionsDetailsUrl(check?.details_url, repository);
   const job = jobsById.get(details.jobId);
   if (!job) fail(`workflow job ${details.jobId} for ${context} was not fetched`);
-  if (job.run_id !== details.runId) fail(`workflow job run ID does not match details_url for ${context}`);
+  if (job.run_id !== details.runId)
+    fail(`workflow job run ID does not match details_url for ${context}`);
   if (job.name !== context) fail(`workflow job name does not match required context ${context}`);
   if (job.head_sha !== candidateSha) fail(`workflow job ${context} does not match candidate SHA`);
   const run = runsById.get(details.runId);
   if (!run) fail(`workflow run ${details.runId} for ${context} was not fetched`);
   if (run.head_sha !== candidateSha) fail(`workflow run ${context} does not match candidate SHA`);
-  if (run.repository?.full_name !== repository) fail(`workflow run repository does not match evidence repository for ${context}`);
+  if (run.repository?.full_name !== repository)
+    fail(`workflow run repository does not match evidence repository for ${context}`);
   if (run.path !== expectedPath) fail(`workflow path does not match allowlist for ${context}`);
   const workflow = workflowDefinitionForPath(workflows, expectedPath);
   if (run.workflow_id !== workflow.id) fail(`workflow ID does not match definition for ${context}`);
-  if (!ALLOWED_EVENTS_BY_WORKFLOW[expectedPath]?.has(run.event)) fail(`workflow event is not allowed for ${context}`);
-  const jobAttempt = exactPositiveInteger(job.run_attempt, `workflow job run attempt for ${context}`);
+  if (!ALLOWED_EVENTS_BY_WORKFLOW[expectedPath]?.has(run.event))
+    fail(`workflow event is not allowed for ${context}`);
+  const jobAttempt = exactPositiveInteger(
+    job.run_attempt,
+    `workflow job run attempt for ${context}`
+  );
   const runAttempt = exactPositiveInteger(run.run_attempt, `workflow run attempt for ${context}`);
-  if (jobAttempt > runAttempt) fail(`workflow job attempt exceeds workflow run attempt for ${context}`);
+  if (jobAttempt > runAttempt)
+    fail(`workflow job attempt exceeds workflow run attempt for ${context}`);
   if (jobAttempt < runAttempt) return null;
-  const attemptStartedAt = parseUtc(check.started_at ?? job.started_at ?? run.created_at ?? run.updated_at, `attempt start timestamp for ${context}`);
+  const attemptStartedAt = parseUtc(
+    check.started_at ?? job.started_at ?? run.created_at ?? run.updated_at,
+    `attempt start timestamp for ${context}`
+  );
   return {
     context,
     checkRunId: exactPositiveInteger(check.id, `check run ID for ${context}`),
@@ -185,33 +218,70 @@ function workflowEvidenceForContext({ context, check, candidateSha, repository, 
   };
 }
 
-export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns, workflows, workflowRuns, workflowJobs }) {
+export function aggregateExactShaEvidence({
+  candidateSha,
+  protection,
+  checkRuns,
+  workflows,
+  workflowRuns,
+  workflowJobs,
+}) {
   const exactSha = requireSha(candidateSha, 'candidate SHA');
   if (Array.isArray(arguments[0]?.statuses) && arguments[0].statuses.length > 0) {
     fail('legacy commit statuses cannot satisfy locked contexts');
   }
-  const repository = String(arguments[0]?.repository ?? workflows?.[0]?.repository?.full_name ?? workflowRuns?.[0]?.repository?.full_name ?? '');
+  const repository = String(
+    arguments[0]?.repository ??
+      workflows?.[0]?.repository?.full_name ??
+      workflowRuns?.[0]?.repository?.full_name ??
+      ''
+  );
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) fail('repository is required');
   const { contexts, githubActionsAppId } = requirementContexts(protection);
-  if (contexts.includes(SELF_REFERENCE)) fail('branch protection has a self-reference to G3 Exact-SHA Verdict');
+  if (contexts.includes(SELF_REFERENCE))
+    fail('branch protection has a self-reference to G3 Exact-SHA Verdict');
   const checks = evidenceArray(checkRuns, 'check run');
   const runsById = indexById(workflowRuns, 'workflow run');
   const jobsById = indexById(workflowJobs, 'workflow job');
-  const workflowEvidence = contexts.map((context) => {
-    const matching = checks.filter((check) => check?.name === context && check?.head_sha === exactSha);
-    if (matching.length === 0) fail(`missing required context ${context} on candidate SHA`);
-    const candidates = matching
-      .map((check) => workflowEvidenceForContext({ context, check, candidateSha: exactSha, repository, githubActionsAppId, workflows, runsById, jobsById }))
-      .filter((candidate) => candidate !== null);
-    if (candidates.length === 0) fail(`missing current workflow attempt for ${context}`);
-    candidates.sort((left, right) => left.attemptStartedAt - right.attemptStartedAt || left.checkRunId - right.checkRunId || left.workflowJobId - right.workflowJobId || left.workflowRunId - right.workflowRunId);
-    const chosen = candidates.at(-1);
-    if (!chosen?.trustedSuccess) fail(`latest trusted check result for ${context} is not terminal success`);
-    const identity = { ...chosen };
-    delete identity.attemptStartedAt;
-    delete identity.trustedSuccess;
-    return identity;
-  }).sort((left, right) => (left.context < right.context ? -1 : left.context > right.context ? 1 : 0));
+  const workflowEvidence = contexts
+    .map((context) => {
+      const matching = checks.filter(
+        (check) => check?.name === context && check?.head_sha === exactSha
+      );
+      if (matching.length === 0) fail(`missing required context ${context} on candidate SHA`);
+      const candidates = matching
+        .map((check) =>
+          workflowEvidenceForContext({
+            context,
+            check,
+            candidateSha: exactSha,
+            repository,
+            githubActionsAppId,
+            workflows,
+            runsById,
+            jobsById,
+          })
+        )
+        .filter((candidate) => candidate !== null);
+      if (candidates.length === 0) fail(`missing current workflow attempt for ${context}`);
+      candidates.sort(
+        (left, right) =>
+          left.attemptStartedAt - right.attemptStartedAt ||
+          left.checkRunId - right.checkRunId ||
+          left.workflowJobId - right.workflowJobId ||
+          left.workflowRunId - right.workflowRunId
+      );
+      const chosen = candidates.at(-1);
+      if (!chosen?.trustedSuccess)
+        fail(`latest trusted check result for ${context} is not terminal success`);
+      const identity = { ...chosen };
+      delete identity.attemptStartedAt;
+      delete identity.trustedSuccess;
+      return identity;
+    })
+    .sort((left, right) =>
+      left.context < right.context ? -1 : left.context > right.context ? 1 : 0
+    );
   return {
     repository,
     githubActionsAppId,
@@ -220,13 +290,176 @@ export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns,
   };
 }
 
+// F1 follows the live protected-branch contract; G3's eight-context certificate stays separate.
+export function aggregateProtectedBranchEvidence(evidence) {
+  const candidateSha = requireSha(evidence.candidateSha, 'candidate SHA');
+  const repository = evidence.repository;
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? '')) fail('repository is required');
+  const requirements = assertBranchProtectionReadable(evidence.protection);
+  if (
+    requirements.length !== 1 ||
+    requirements[0].context !== 'CI Gate Status' ||
+    requirements[0].appId !== 15368
+  ) {
+    fail('protected branch must require exactly GitHub Actions App 15368 CI Gate Status');
+  }
+  if (evidence.statuses?.length) fail('legacy commit statuses cannot satisfy protected context');
+  const runsById = indexById(evidence.workflowRuns, 'workflow run');
+  const jobsById = indexById(evidence.workflowJobs, 'workflow job');
+  const candidates = evidenceArray(evidence.checkRuns, 'check run')
+    .filter((check) => check.name === 'CI Gate Status' && check.head_sha === candidateSha)
+    .map((check) =>
+      workflowEvidenceForContext({
+        context: 'CI Gate Status',
+        check,
+        candidateSha,
+        repository,
+        githubActionsAppId: 15368,
+        workflows: evidence.workflows,
+        runsById,
+        jobsById,
+      })
+    )
+    .filter((candidate) => candidate !== null)
+    .sort(
+      (left, right) =>
+        left.attemptStartedAt - right.attemptStartedAt ||
+        left.checkRunId - right.checkRunId ||
+        left.workflowJobId - right.workflowJobId ||
+        left.workflowRunId - right.workflowRunId
+    );
+  const chosen = candidates.at(-1);
+  if (!chosen?.trustedSuccess) fail('latest protected CI Gate Status is not terminal success');
+  const identity = { ...chosen };
+  delete identity.attemptStartedAt;
+  delete identity.trustedSuccess;
+  return { repository, githubActionsAppId: 15368, candidateSha, workflows: [identity] };
+}
+
+export class AuthenticatedGithubEvidenceUnavailable extends Error {
+  constructor() {
+    super('Authenticated GitHub evidence unavailable');
+    this.name = 'AuthenticatedGithubEvidenceUnavailable';
+  }
+}
+
+export async function readAuthenticatedGithubJson({ repository, resource, githubToken }) {
+  if (
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? '') ||
+    typeof resource !== 'string' ||
+    (resource !== '' && !resource.startsWith('/')) ||
+    resource.startsWith('//') ||
+    !githubToken
+  )
+    throw new AuthenticatedGithubEvidenceUnavailable();
+  const url = new URL(`https://api.github.com/repos/${repository}${resource}`);
+  if (
+    url.origin !== 'https://api.github.com' ||
+    (url.pathname !== `/repos/${repository}` && !url.pathname.startsWith(`/repos/${repository}/`))
+  ) {
+    throw new AuthenticatedGithubEvidenceUnavailable();
+  }
+  let response;
+  try {
+    response = await fetch(url.href, {
+      headers: {
+        Authorization: `Bearer ${githubToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      signal: AbortSignal.timeout(10_000),
+      redirect: 'error',
+    });
+  } catch {
+    throw new AuthenticatedGithubEvidenceUnavailable();
+  }
+  if (!response.ok) throw new AuthenticatedGithubEvidenceUnavailable();
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    fail('GitHub response is malformed JSON');
+  }
+  return { body, link: response.headers.get('link') };
+}
+
+async function collectAuthenticatedGithubPages({ repository, resource, field, githubToken }) {
+  const expectedPath = new URL(`https://api.github.com/repos/${repository}${resource}`).pathname;
+  let count = 0;
+  return collectPaginated(async (next) => {
+    if (++count > 100) fail('GitHub pagination exceeded bounded collection');
+    const current = next ?? `${resource}${resource.includes('?') ? '&' : '?'}per_page=100`;
+    const { body, link } = await readAuthenticatedGithubJson({
+      repository,
+      resource: current,
+      githubToken,
+    });
+    const match = link?.match(/<([^>]+)>;\s*rel="next"/);
+    let following = null;
+    if (match) {
+      const url = new URL(match[1]);
+      if (url.origin !== 'https://api.github.com' || url.pathname !== expectedPath)
+        fail('GitHub pagination target changed');
+      following = `${url.pathname.slice(`/repos/${repository}`.length)}${url.search}`;
+    }
+    return { items: body[field], next: following };
+  });
+}
+
+export async function collectProtectedBranchEvidence({ repository, candidateSha, githubToken }) {
+  requireSha(candidateSha, 'candidate SHA');
+  const get = async (resource) =>
+    (await readAuthenticatedGithubJson({ repository, resource, githubToken })).body;
+  const main = await get('/commits/main');
+  if (main.sha !== candidateSha) fail('live protected main SHA mismatch');
+  const protection = await get('/branches/main/protection');
+  const checkRuns = await collectAuthenticatedGithubPages({
+    repository,
+    resource: `/commits/${candidateSha}/check-runs`,
+    field: 'check_runs',
+    githubToken,
+  });
+  const workflows = await collectAuthenticatedGithubPages({
+    repository,
+    resource: '/actions/workflows',
+    field: 'workflows',
+    githubToken,
+  });
+  const identities = checkRuns
+    .filter((check) => check.name === 'CI Gate Status' && check.head_sha === candidateSha)
+    .map((check) => parseActionsDetailsUrl(check.details_url, repository));
+  const workflowRuns = [];
+  const workflowJobs = [];
+  for (const id of new Set(identities.map(({ runId }) => runId)))
+    workflowRuns.push(await get(`/actions/runs/${id}`));
+  for (const id of new Set(identities.map(({ jobId }) => jobId)))
+    workflowJobs.push(await get(`/actions/jobs/${id}`));
+  const result = aggregateProtectedBranchEvidence({
+    repository,
+    candidateSha,
+    protection,
+    checkRuns,
+    workflows,
+    workflowRuns,
+    workflowJobs,
+  });
+  if ((await get('/commits/main')).sha !== candidateSha)
+    fail('live protected main SHA changed during collection');
+  return result;
+}
+
 export function redactSecretShapedValues(value, key = '') {
   if (/token|secret|password|authorization|cookie|api.?key/i.test(key)) return '[REDACTED]';
   if (Array.isArray(value)) return value.map((item) => redactSecretShapedValues(item));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redactSecretShapedValues(item, name)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([name, item]) => [name, redactSecretShapedValues(item, name)])
+    );
   }
-  if (typeof value === 'string' && /:\/\/[^/\s:@]+:[^/\s@]+@|[?&](?:token|secret|key|password)=/i.test(value)) {
+  if (
+    typeof value === 'string' &&
+    /:\/\/[^/\s:@]+:[^/\s@]+@|[?&](?:token|secret|key|password)=/i.test(value)
+  ) {
     return '[REDACTED]';
   }
   return value;

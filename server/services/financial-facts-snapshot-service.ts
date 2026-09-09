@@ -313,7 +313,7 @@ export function buildCashFlowSeries(
       isPerspective(row.perspective) &&
       isoDay(row.eventDate) <= asOfDate &&
       row.reversalOfEventId === null &&
-      row.supersedesEventId === null &&
+      (policyVersion === 'financial-facts-policy/1.5.0' || row.supersedesEventId === null) &&
       !referencedIds.has(row.id)
   );
 

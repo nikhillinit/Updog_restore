@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992",
+  "snapshot_id": "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -72,6 +72,10 @@
     "api:GET:/api/funds/:fundId/dual-forecast",
     "api:GET:/api/funds/:fundId/financial-facts/latest",
     "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
     "api:GET:/api/funds/:fundId/imports/batches/:batchId",
     "api:GET:/api/funds/:fundId/internal-analysis/drafts",
     "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -297,8 +301,11 @@
     "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
     "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
     "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+    "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
     "api:POST:/api/funds/:fundId/imports/actuals/publish",
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
     "api:POST:/api/funds/:fundId/imports/artifacts",
     "api:POST:/api/funds/:fundId/imports/batches",
     "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -497,15 +504,15 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "7241db05bf46a260b9880860edf3af5600505552a2050ea0afd41b13f521fc2c",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "16a75e450c8c64f287cbd780cc49bdc5573f07d1ae18ddb2d1a23b0b79514e35",
-    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
+    "audit/surface-contract-matrix/boot-proofs.json": "c01a4d582e4e6abaa517a32cebd3d3b026766a6776a0f5e108dd9acab8c82522",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "f5d4abcb0042f175fd5d0505b5d5b39c537bc04bb99ca9ff3913d41bb26c4f2f",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
     "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "255d1e86de3b371c3d79cc03a92e25b307636f29678a0230bd7e2396a33925ba",
-    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "9bc0ac0cb7832dd74a1b86f657ccd2d4827aa7bf550bf51787bceb6947718dde",
+    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
     "client/src/app/app-router.tsx": "365f5db9d9c824a7531351047ace1c56c70656b97e635498c90ea67c880dcf11",
@@ -534,7 +541,7 @@
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
     "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
     "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
-    "server/app.ts": "17b3c7dd29be9ccaec239ab0bf3ab51b459926969d9b1aaf664d6fe8af172f48",
+    "server/app.ts": "5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
     "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
     "server/lib/auth/jwt.ts": "b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
     "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -543,8 +550,8 @@
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
     "server/queues/report-generation-queue.ts": "9c3792bb56f3849227c9f4cd33c7e5196abfdddd371b95833d48602d06a3947e",
     "server/queues/simulation-queue.ts": "96e698444491fa4ab7118dccb17477a0c01ad4eeace6497789136d9b8ca8b980",
-    "server/route-policy/api-route-policy-registry.ts": "f7df2fcc009e3748050c2907dbc82257baf66288b309d109b5f64a90600857d6",
-    "server/routes.ts": "8892933ff93402dd44e9103cb099ff21554a516b93efb6ec174f4e7091a2ab1c",
+    "server/route-policy/api-route-policy-registry.ts": "c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd",
+    "server/routes.ts": "a0d63d861318a77af77c14dc97183d7960a1ee41afb4358f5a13d3f69a2ac407",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
     "server/routes/admin/circuit-admin.ts": "5b88cb992610388ea3bee4676d9c65b74a62e8aab65a7f2880980e88f5d54429",
@@ -568,7 +575,7 @@
     "server/routes/dual-forecast.ts": "a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289",
     "server/routes/engine-summaries.ts": "cf715d70953aa7b50034aa193e248e0745ca3774b67d342bbdf30c4c6e94b12b",
     "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
-    "server/routes/financial-facts.ts": "8bf9f4dbc731c9943e405a1c6d7b11a09aeafa3030755a5c376f14def7ae304c",
+    "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
     "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
     "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
     "server/routes/fund-config.ts": "15e4a190caa51bb96243bbb4e11775c732f8855dbe4991fa9c4261d9a77b9e44",
@@ -592,7 +599,7 @@
     "server/routes/lp-documents.ts": "ed28997918c2599c63830ad25dc3668c958207841863e4452c88ca2d3152d839",
     "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
     "server/routes/lp-notifications.ts": "c88697c962a315edaa515f68ba44240d1334cf1e550aa63f220eb721cb848420",
-    "server/routes/lp-reporting/imports.ts": "dd54199e4ae96eeac44376a7de298c93a9e8f11dffb012276f91b432a0b7d0c6",
+    "server/routes/lp-reporting/imports.ts": "ef66fcccd30ed369513821025f5e28a2fe9a3c6f8b518e05f2bbc47ed0e507f2",
     "server/routes/lp-reporting/metric-runs.ts": "828f977c82ef78fe5f468a0e9d72e3f5dc053d912ef982fd4eaa9dec8465336b",
     "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
     "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
@@ -637,7 +644,7 @@
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
-    "shared/routes/api-route-manifest.ts": "ad48e3d01c876ba54850d47b8c5f9645c3ac80a16a7f86d4598a1ccbf7d604f0",
+    "shared/routes/api-route-manifest.ts": "c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
     "shared/routes/app-route-definitions.ts": "77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
@@ -656,9 +663,9 @@
     "workers/reserve-worker.ts": "b54741aded0b8583ae3cc4398826cafd45dd7d0891dbbef9baee27499b2d38fd",
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
     "package.json#scripts": "57ce3dccc45bc3c43a356c405fb51f923e3ffa283e9ac3fea31ed3c4ccdb1a93",
-    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "2887c64f0284f5ed627a90d7d39f83942a8f3e7f9a1a7e2ae6a12326d1ee0dc3",
+    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "862dc89343ae59f9c80b20e4fb51bc091cc5054d7288c8e0f52881e156202c89",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
-    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "96453ff629a87ed75abe3592154336b693f5b1193a39327bf05e8d8a86960294",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "edd2514885932b2e8d8f359897f125fbd431fdc429e7711e575544bdd5b47862",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
     "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
@@ -733,6 +740,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -908,8 +919,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -1069,6 +1083,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -1280,8 +1298,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -1456,6 +1477,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -1667,8 +1692,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -1843,6 +1871,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -2054,8 +2086,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -2235,6 +2270,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -2454,8 +2493,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -2654,6 +2696,10 @@
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts",
       "api:GET:/api/funds/:fundId/internal-analysis/drafts/:draftId",
@@ -2846,8 +2892,11 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -3253,10 +3302,17 @@
     "server/routes/lp-reporting/imports.ts": [
       "api:GET:/api/funds/:fundId/actuals/metrics",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/reconciliation/cases",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -3369,6 +3425,18 @@
     ],
     "api:GET:/api/funds/:fundId/financial-facts/latest-reference": [
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/history": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets"
     ],
     "api:GET:/api/funds/:fundId/imports/batches/:batchId": [
       "api:GET:/api/funds/:fundId/imports/batches/:batchId"
@@ -4328,11 +4396,20 @@
     "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede": [
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede"
     ],
+    "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions"
+    ],
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run": [
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run"
     ],
     "api:POST:/api/funds/:fundId/imports/actuals/publish": [
       "api:POST:/api/funds/:fundId/imports/actuals/publish"
+    ],
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run"
+    ],
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish"
     ],
     "api:POST:/api/funds/:fundId/imports/artifacts": [
       "api:POST:/api/funds/:fundId/imports/artifacts"
@@ -5395,10 +5472,17 @@
     "manifest:lp-reporting-imports": [
       "api:GET:/api/funds/:fundId/actuals/metrics",
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
       "api:GET:/api/funds/:fundId/imports/batches/:batchId",
       "api:GET:/api/funds/:fundId/reconciliation/cases",
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
       "api:POST:/api/funds/:fundId/imports/artifacts",
       "api:POST:/api/funds/:fundId/imports/batches",
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -5935,11 +6019,32 @@
     "policy:api:post:/api/funds/:fundId/imports/batches/:batchId/commit": [
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit"
     ],
+    "policy:api:post:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions"
+    ],
+    "policy:api:get:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions"
+    ],
+    "policy:api:get:/api/funds/:fundId/imports/actuals/draft-revisions/:revision": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision"
+    ],
     "policy:api:post:/api/funds/:fundId/imports/actuals/dry-run": [
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run"
     ],
     "policy:api:post:/api/funds/:fundId/imports/actuals/publish": [
       "api:POST:/api/funds/:fundId/imports/actuals/publish"
+    ],
+    "policy:api:get:/api/funds/:fundId/imports/actuals/restatements/targets": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets"
+    ],
+    "policy:api:get:/api/funds/:fundId/imports/actuals/restatements/history": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history"
+    ],
+    "policy:api:post:/api/funds/:fundId/imports/actuals/restatements/dry-run": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run"
+    ],
+    "policy:api:post:/api/funds/:fundId/imports/actuals/restatements/publish": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish"
     ],
     "policy:api:get:/api/funds/:fundId/financial-facts/latest-reference": [
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference"
@@ -7017,6 +7122,54 @@
       "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
       "manifest:lp-reporting-imports",
       "policy:api:get:/api/funds/:fundId/financial-facts/latest-reference",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "manifest:lp-reporting-imports",
+      "policy:api:get:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision": [
+      "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "manifest:lp-reporting-imports",
+      "policy:api:get:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/history": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
+      "manifest:lp-reporting-imports",
+      "policy:api:get:/api/funds/:fundId/imports/actuals/restatements/history",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets": [
+      "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
+      "manifest:lp-reporting-imports",
+      "policy:api:get:/api/funds/:fundId/imports/actuals/restatements/targets",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
       "server/lib/auth/revocation.ts",
@@ -9410,6 +9563,18 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
+    "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions": [
+      "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "manifest:lp-reporting-imports",
+      "policy:api:post:/api/funds/:fundId/imports/actuals/draft-revisions",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run": [
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
       "manifest:lp-reporting-imports",
@@ -9426,6 +9591,30 @@
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "manifest:lp-reporting-imports",
       "policy:api:post:/api/funds/:fundId/imports/actuals/publish",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "manifest:lp-reporting-imports",
+      "policy:api:post:/api/funds/:fundId/imports/actuals/restatements/dry-run",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish": [
+      "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
+      "manifest:lp-reporting-imports",
+      "policy:api:post:/api/funds/:fundId/imports/actuals/restatements/publish",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
       "server/lib/auth/revocation.ts",
@@ -11341,11 +11530,11 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:499ca7f02149275805c2b6e2bd3abe99536e84dceae74aa4200de52095f03992"
+      "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f"
     ]
   },
   "kg_counts": {
-    "APIEndpoint": 406,
+    "APIEndpoint": 413,
     "ClientRoute": 44,
     "WorkerJob": 7
   },

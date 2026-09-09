@@ -85,6 +85,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "F1 runtime review records SHA-256 digests of these eight tracked source files"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*"(?:scripts/build-vercel-api\.mjs|server/lib/public-api-boundary\.ts|server/routes/(?:auth|lp-api(?:\.schemas)?|performance-api(?:\.schemas)?)\.ts|shared/routes/api-route-manifest\.ts)(?:":\s*"|=)[0-9a-f]{64}",?\s*$'''
+]
+paths = [
+  '''^audit/surface-contract-matrix/f1-runtime-review-20260908\.json$'''
+]
+
+[[allowlists]]
 description = "Allow historical negative-control fixture template from blocking repo-history scans"
 targetRules = ["updog-negative-control-token"]
 condition = "AND"

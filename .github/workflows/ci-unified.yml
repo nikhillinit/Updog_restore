@@ -190,7 +190,7 @@ jobs:
               npm run baseline:check
               ;;
             lint)
-              npm run lint
+              NODE_OPTIONS=--max-old-space-size=6144 npm run lint
               ;;
             unit-fast)
               npm run test:unit -- --bail=1 --reporter=dot

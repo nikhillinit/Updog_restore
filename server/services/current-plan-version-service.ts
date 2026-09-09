@@ -9,6 +9,8 @@ import {
   type CurrentPlanVersionV1,
 } from '../../shared/contracts/current-plan-version-v1.contract';
 import { deriveCurrentPlanV1 } from '../../shared/lib/current-plan/derive-current-plan-v1';
+import { FINANCIAL_FACTS_POLICY_VERSION_1_5_0 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import { hasAvailableCompanyMonetaryFacts } from '../../shared/lib/financial-facts/payload5-consumer-evaluator';
 import { currentPlanVersions, type CurrentPlanVersionRow } from '../../shared/schema/current-plans';
 import { fundConfigs } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
@@ -59,7 +61,7 @@ export interface GetCurrentPlanVersionsInput {
 }
 
 function factsSnapshotFromRow(row: FactsSnapshotRow) {
-  const parsed = parsePersistedFactsRow(row);
+  const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
   if (parsed.kind === 'unsupported') {
     throw new CurrentPlanVersionServiceError(
       422,
@@ -128,6 +130,23 @@ export async function mintCurrentPlanVersion(
   });
 
   const factsSnapshot = factsSnapshotFromRow(factsRow);
+  if (factsSnapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0) {
+    const unavailableFacts = factsSnapshot.payload.companyActuals.facts.filter(
+      (fact) => !hasAvailableCompanyMonetaryFacts(fact)
+    );
+    if (unavailableFacts.length > 0) {
+      throw new CurrentPlanVersionServiceError(
+        422,
+        'PLAN_DERIVATION_INCOMPLETE',
+        'Company monetary facts must be available before deriving a current plan.',
+        {
+          missingFields: unavailableFacts.map(
+            (fact) => `companyActuals.company[${fact.companyId}].monetaryFacts`
+          ),
+        }
+      );
+    }
+  }
   const derivation = deriveCurrentPlanV1({
     config: FundDraftWriteV1Schema.parse(publishedConfig.config),
     sourceConfigId: publishedConfig.id,

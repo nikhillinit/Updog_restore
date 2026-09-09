@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-28
+last_updated: 2026-09-09
 ---
 
 # Canonical Production-Action Procedure
@@ -24,12 +24,88 @@ cannot override a machine failure.
 
 ### Fixed-template actuals pilot configuration
 
+`ACTUALS_PILOT_PUBLISH_ENABLED` independently defaults to disabled. Registering
+the pilot for draft/preview access does not authorize new canonical publication.
+Enable it only for the independently verified pilot fund through an admitted
+configuration rollout. Missing/false allows authenticated committed-command
+replay but refuses new writes; invalid values or enablement without a fund fail
+startup. Changing this setting is not an atomic revocation of in-flight
+commands.
+
 `ACTUALS_PILOT_FUND_ID` is not set by any production script. Keep it unset on
 Vercel until a separate action-scoped activation is authorized and validated.
 Source admission of F_1.12.0, its isolated Gate A STOP/GO record, and Current
 Forecast's #1299 GO/NO-GO are separate gates. The pilot publishes policy `1.4.0`
 / payload `5`; it does not enter shadow mode or trigger organic soak. Economics
 and periodic analysis remain unavailable for that facts policy.
+
+### F1 candidate schema and application order
+
+F_1.13.0 is a local candidate. Source admission still requires current-head
+`CI Gate Status`; local tests, this procedure, and a receipt do not grant
+dispatch authority. Preserve existing 0050–0055 modes and receipts.
+
+1. Prove the complete through-0055 ledger and catalog. If legacy recovery is
+   needed, use its separately admitted procedure and authentic history; never
+   synthesize journal rows or run a later source tree through an older boundary.
+2. Rehearse unchanged 0056 SQL against an owned disposable database. Manifest 33
+   and the bounded runner verify pristine apply, exact completed replay,
+   rollback, predecessor history, and immutable catalog wiring. The new
+   `apply-actuals-draft-0056` schema mode has its own dry-run/result contract;
+   generic missing-DDL and all-SKIP checks are not its admission test.
+3. Before any production apply, satisfy every canonical prerequisite below. Both
+   actuals preflights collect authenticated protected-source/CI, exact
+   owner-dispatch, and Neon/database identity observations. Their reports
+   distinguish failed checks, missing live evidence, undefined owner criteria,
+   and missing collector engineering. Immediately before either bounded apply,
+   `actuals-migration-preapply.ts` compares the exact mode/source/run/target
+   binding and freshly revalidates source, dispatch authority, then target
+   identity, stopping on the first refusal. Prior report JSON supplies no
+   authority. Backup/PITR, isolated restore, custody, and migration isolation
+   collectors, successful runtime admission, and live restore-digest
+   revalidation remain unimplemented. The owner-defined requirements below do
+   not supply exact evidence bindings or live proof. Production apply remains
+   blocked. Report JSON, a connection URL, an environment flag, local rehearsal,
+   or a schema receipt cannot grant runtime admission.
+4. A draft-feature application artifact requires admitted 0056 first. Keep
+   `ACTUALS_PILOT_PUBLISH_ENABLED=false`; bind API, worker, database, queue, and
+   configuration identities to the exact admitted release. Verify save, history,
+   restore, fresh preview, and disabled-publication refusal on authorized
+   fixtures.
+5. The full correction artifact additionally requires separately admitted 0057
+   and manifest 34 before exposing restatement endpoints. A 0056 receipt does
+   not admit 0057. Use the separate `apply-actuals-restatement-0057` schema mode
+   and `actuals-restatement-0057` rehearsal mode. The bounded runner pins its
+   own SQL, journal and manifest identities, requires exact completed 0056, and
+   produces a distinct 0057 apply/replay receipt. Its action-specific production
+   preflight refuses missing authoritative prerequisite verifiers; its owned
+   disposable test capability cannot authorize a production target. Corrections
+   and subsequent appends emit policy 1.5/payload 6; old policy 1.4/payload 5
+   remains immutable and readable. Schema/data history has no destructive down
+   migration; containment requires a compatible reader and separately authorized
+   configuration or release action.
+6. Exact F1 identity and inception-to-cutoff actuals must independently pass
+   reconciliation before canonical publication is enabled. Missing F1 inputs do
+   not prevent synthetic feature validation. Plan acceptance, forecast
+   recompute, shadow entry, and activation remain separate explicit actions.
+
+### Actuals recovery evidence requirements
+
+For a high-risk production actuals data or schema change, a successful isolated
+restore must have completed during the preceding **72 hours**. The exact
+`actuals-isolated-restore-proof` workflow run produces the evidence, stored in
+**GitHub Actions**, protected from modification, and retained for the defined
+period. The repository owner is accountable for custody; repository
+administrators hold administrative custody. The production workflow
+independently retrieves the artifact by ID and verifies its digest and bindings.
+That separately recorded verification must confirm identity and integrity before
+production use.
+
+The retention duration and exact execution, artifact, restore, and verification
+bindings remain unresolved. Bind those identifiers and observations before
+admission; missing bindings remain blocked. Naming the workflow and defining its
+requirements does not prove successful recovery or authorize a production
+action.
 
 ### Validation sequence
 

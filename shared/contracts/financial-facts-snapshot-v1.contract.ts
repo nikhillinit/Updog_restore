@@ -7,7 +7,10 @@
  */
 import { z } from 'zod';
 
-import { FundCompanyActualsFactsResponseSchema } from './fund-actuals/fund-company-actuals-fact.contract';
+import {
+  FundCompanyActualsFactsResponseSchema,
+  FundCompanyActualsMonetaryFactsV1Schema,
+} from './fund-actuals/fund-company-actuals-fact.contract';
 import {
   ConsumerEvaluationSchema,
   ConsumerEvaluationV2Schema,
@@ -25,12 +28,14 @@ export const FINANCIAL_FACTS_POLICY_VERSION_1_1_0 = 'financial-facts-policy/1.1.
 export const FINANCIAL_FACTS_POLICY_VERSION_1_2_0 = 'financial-facts-policy/1.2.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_3_0 = 'financial-facts-policy/1.3.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_4_0 = 'financial-facts-policy/1.4.0' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION_1_5_0 = 'financial-facts-policy/1.5.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_3_0;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1 = 'financial-facts-payload/1' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2 = 'financial-facts-payload/2' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3 = 'financial-facts-payload/3' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4 = 'financial-facts-payload/4' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5 = 'financial-facts-payload/5' as const;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6 = 'financial-facts-payload/6' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4;
 
 const SelectionIdSchema = z.union([z.number().int().positive(), z.string().min(1)]);
@@ -565,6 +570,129 @@ export const FinancialFactsPayloadV5Schema = FinancialFactsPayloadV4Schema.exten
   admissionReceiptCore: AdmissionReceiptCoreV1Schema,
 }).strict();
 
+export const ActualsRecordIdentityV1Schema = z
+  .object({
+    kind: z.enum(['ledger', 'valuation']),
+    recordId: z.number().int().positive(),
+    sourceHash: Sha256Schema,
+    contentHash: Sha256Schema,
+  })
+  .strict();
+
+export const ActualsOriginalPublicationV1Schema = z
+  .object({
+    snapshotId: z.number().int().positive(),
+    snapshotInputHash: Sha256Schema,
+    operationHash: Sha256Schema,
+  })
+  .strict();
+
+export const ActualsReplacementLinkV1Schema = z
+  .object({
+    target: ActualsRecordIdentityV1Schema,
+    replacement: ActualsRecordIdentityV1Schema,
+    originalPublication: ActualsOriginalPublicationV1Schema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      value.target.kind !== value.replacement.kind ||
+      value.target.recordId === value.replacement.recordId ||
+      value.target.sourceHash === value.replacement.sourceHash
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Replacement must have the same kind and fresh record and source identities.',
+      });
+    }
+  });
+
+export const ActualsCorrectionProvenanceV1Schema = z
+  .object({
+    commandId: z.string().uuid(),
+    asOfDate: z.string().date(),
+    reason: z.string().trim().min(1).max(500),
+    actor: AdmissionReceiptCoreV1Schema.shape.actor,
+    createdAt: z.string().datetime(),
+    items: z.array(ActualsReplacementLinkV1Schema).min(1).max(1000),
+  })
+  .strict();
+
+export const ActualsEffectiveBasisV1Schema = z
+  .object({
+    ledgerRecordIds: z.array(z.number().int().positive()),
+    valuationRecordIds: z.array(z.number().int().positive()),
+    recordsHash: Sha256Schema,
+    predecessorSnapshotInputHash: Sha256Schema,
+    corrections: z.array(ActualsCorrectionProvenanceV1Schema),
+  })
+  .strict();
+
+const AdmissionReceiptCoreV2BaseSchema = AdmissionReceiptCoreV1Schema.extend({
+  contractVersion: z.literal('actuals-admission/2.0.0'),
+  facts: AdmissionReceiptCoreV1Schema.shape.facts
+    .extend({
+      policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_5_0),
+      payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6),
+    })
+    .strict(),
+  effectiveBasis: ActualsEffectiveBasisV1Schema,
+}).strict();
+
+export const AdmissionReceiptAppendCoreV2Schema = AdmissionReceiptCoreV2BaseSchema.extend({
+  operationKind: z.literal('append'),
+  restatement: z.null(),
+}).strict();
+
+export const AdmissionReceiptRestatementCoreV2Schema = AdmissionReceiptCoreV2BaseSchema.extend({
+  operationKind: z.literal('restatement'),
+  admitted: AdmissionReceiptCoreV1Schema.shape.admitted
+    .extend({
+      ledger: AdmissionReceiptCoreV1Schema.shape.admitted.shape.ledger.nullable(),
+    })
+    .strict(),
+  restatement: ActualsCorrectionProvenanceV1Schema,
+}).strict();
+
+export const AdmissionReceiptCoreV2Schema = z.discriminatedUnion('operationKind', [
+  AdmissionReceiptAppendCoreV2Schema,
+  AdmissionReceiptRestatementCoreV2Schema,
+]);
+
+const VolatileStrippedActualsFactV2Schema = VolatileStrippedActualsFactSchema.extend({
+  initialInvestmentAmount:
+    VolatileStrippedActualsFactSchema.shape.initialInvestmentAmount.nullable(),
+  followOnInvestmentAmount:
+    VolatileStrippedActualsFactSchema.shape.followOnInvestmentAmount.nullable(),
+  amountOnlyNonEquityAmount:
+    VolatileStrippedActualsFactSchema.shape.amountOnlyNonEquityAmount.nullable(),
+  monetaryFacts: FundCompanyActualsMonetaryFactsV1Schema,
+})
+  .strict()
+  .superRefine((value, ctx) => {
+    const available = value.monetaryFacts.availability === 'available';
+    const amounts = [
+      value.initialInvestmentAmount,
+      value.followOnInvestmentAmount,
+      value.amountOnlyNonEquityAmount,
+    ];
+    if (amounts.some((amount) => (available ? amount === null : amount !== null))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['monetaryFacts'],
+        message: 'Company monetary amounts must match availability.',
+      });
+    }
+  });
+
+export const FinancialFactsPayloadV6Schema = FinancialFactsPayloadV5Schema.extend({
+  companyActuals: VolatileStrippedFundCompanyActualsFactsResponseSchema.extend({
+    facts: z.array(VolatileStrippedActualsFactV2Schema),
+  }).strict(),
+  admissionReceiptCore: AdmissionReceiptCoreV2Schema,
+  effectiveBasis: ActualsEffectiveBasisV1Schema,
+}).strict();
+
 export const FinancialFactsBasisRefSchema = z
   .object({
     schemaId: z.literal('financial-facts-basis-ref/1.0.0'),
@@ -572,11 +700,22 @@ export const FinancialFactsBasisRefSchema = z
     snapshotId: z.number().int().positive(),
     snapshotInputHash: Sha256Schema,
     sourceFactsInputHash: Sha256Schema,
-    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_4_0),
+    policyVersion: z.enum([
+      FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+      FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+    ]),
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
   })
   .strict();
+
+export const FinancialFactsBasisRefV1Schema = FinancialFactsBasisRefSchema.extend({
+  policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_4_0),
+}).strict();
+
+export const FinancialFactsBasisRefV2Schema = FinancialFactsBasisRefSchema.extend({
+  policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_5_0),
+}).strict();
 
 export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
@@ -590,6 +729,13 @@ export type FinancialCapitalActualsV1 = z.infer<typeof FinancialCapitalActualsV1
 export type FinancialValuationActualsV1 = z.infer<typeof FinancialValuationActualsV1Schema>;
 export type AdmissionReceiptCoreV1 = z.infer<typeof AdmissionReceiptCoreV1Schema>;
 export type FinancialFactsPayloadV5 = z.infer<typeof FinancialFactsPayloadV5Schema>;
+export type FinancialFactsPayloadV6 = z.infer<typeof FinancialFactsPayloadV6Schema>;
+export type AdmissionReceiptCoreV2 = z.infer<typeof AdmissionReceiptCoreV2Schema>;
+export type ActualsRecordIdentityV1 = z.infer<typeof ActualsRecordIdentityV1Schema>;
+export type ActualsOriginalPublicationV1 = z.infer<typeof ActualsOriginalPublicationV1Schema>;
+export type ActualsReplacementLinkV1 = z.infer<typeof ActualsReplacementLinkV1Schema>;
+export type ActualsCorrectionProvenanceV1 = z.infer<typeof ActualsCorrectionProvenanceV1Schema>;
+export type ActualsEffectiveBasisV1 = z.infer<typeof ActualsEffectiveBasisV1Schema>;
 export type FinancialFactsBasisRef = z.infer<typeof FinancialFactsBasisRefSchema>;
 
 export const FinancialFactsSnapshotInputHashPreimageV1_0_0Schema = z
@@ -670,6 +816,17 @@ export const FinancialFactsSnapshotInputHashPreimageV5Schema = z
   })
   .strict();
 
+export const FinancialFactsSnapshotInputHashPreimageV6Schema =
+  FinancialFactsSnapshotInputHashPreimageV5Schema.extend({
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_5_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6),
+    payload: FinancialFactsPayloadV6Schema,
+  }).strict();
+
+export type FinancialFactsSnapshotInputHashPreimageV6 = z.infer<
+  typeof FinancialFactsSnapshotInputHashPreimageV6Schema
+>;
+
 export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discriminatedUnion(
   'policyVersion',
   [
@@ -679,6 +836,7 @@ export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discrimi
     FinancialFactsSnapshotInputHashPreimageV3Schema,
     FinancialFactsSnapshotInputHashPreimageV4Schema,
     FinancialFactsSnapshotInputHashPreimageV5Schema,
+    FinancialFactsSnapshotInputHashPreimageV6Schema,
   ]
 );
 
@@ -818,6 +976,12 @@ export const FinancialFactsSnapshotV5Schema = z
   })
   .strict();
 
+export const FinancialFactsSnapshotV6Schema = FinancialFactsSnapshotV5Schema.extend({
+  policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_5_0),
+  payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6),
+  payload: FinancialFactsPayloadV6Schema,
+}).strict();
+
 export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
@@ -825,6 +989,7 @@ export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('pol
   FinancialFactsSnapshotV3Schema,
   FinancialFactsSnapshotV4Schema,
   FinancialFactsSnapshotV5Schema,
+  FinancialFactsSnapshotV6Schema,
 ]);
 
 export type FinancialFactsSnapshotV1_0_0 = z.infer<typeof FinancialFactsSnapshotV1_0_0Schema>;
@@ -833,6 +998,7 @@ export type FinancialFactsSnapshotV2 = z.infer<typeof FinancialFactsSnapshotV2Sc
 export type FinancialFactsSnapshotV3 = z.infer<typeof FinancialFactsSnapshotV3Schema>;
 export type FinancialFactsSnapshotV4 = z.infer<typeof FinancialFactsSnapshotV4Schema>;
 export type FinancialFactsSnapshotV5 = z.infer<typeof FinancialFactsSnapshotV5Schema>;
+export type FinancialFactsSnapshotV6 = z.infer<typeof FinancialFactsSnapshotV6Schema>;
 export type PersistedFinancialFactsSnapshotV1 = z.infer<
   typeof PersistedFinancialFactsSnapshotV1Schema
 >;

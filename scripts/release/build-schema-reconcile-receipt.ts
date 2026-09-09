@@ -4,6 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  ActualsDraftMigrationResultV1Schema,
+  ActualsRestatementMigrationResultV1Schema,
+  SchemaReconcileActualsRestatementReceiptV1Schema,
+  type SchemaReconcileActualsRestatementReceiptV1,
+  SchemaReconcileActualsDraftReceiptV1Schema,
   SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES,
   CURRENT_FORECAST_MIGRATION_RANGE,
   SchemaReconcileCurrentForecastReceiptV1Schema,
@@ -12,6 +17,7 @@ import {
   type SchemaReconcileCatchupReceiptV1,
   type SchemaReconcileCurrentForecastReceiptV1,
   type SchemaReconcileReceiptV1,
+  type SchemaReconcileActualsDraftReceiptV1,
 } from '../../shared/contracts/schema-reconcile-receipt-v1.contract';
 
 export interface BuildSchemaReconcileReceiptInput {
@@ -54,6 +60,58 @@ export function buildSchemaReconcileCurrentForecastReceipt(input: {
     preState: input.preState,
     postState: 'complete',
     applied: input.applied,
+    buildTimeMs: input.completedAtMs - input.startedAtMs,
+    result: 'applied_and_clean',
+  });
+}
+
+export function buildSchemaReconcileActualsDraftReceipt(input: {
+  repository: string;
+  runId: string;
+  runAttempt: 1;
+  sourceSha: string;
+  result: unknown;
+  startedAtMs: number;
+  completedAtMs: number;
+}): SchemaReconcileActualsDraftReceiptV1 {
+  assertTimestamp('startedAtMs', input.startedAtMs);
+  assertTimestamp('completedAtMs', input.completedAtMs);
+  if (input.completedAtMs < input.startedAtMs)
+    throw new Error('completedAtMs must not precede startedAtMs');
+  return SchemaReconcileActualsDraftReceiptV1Schema.parse({
+    ...ActualsDraftMigrationResultV1Schema.parse(input.result),
+    repository: input.repository,
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+    runId: input.runId,
+    runAttempt: input.runAttempt,
+    mode: 'apply-actuals-draft-0056',
+    sourceSha: input.sourceSha,
+    buildTimeMs: input.completedAtMs - input.startedAtMs,
+    result: 'applied_and_clean',
+  });
+}
+
+export function buildSchemaReconcileActualsRestatementReceipt(input: {
+  repository: string;
+  runId: string;
+  runAttempt: 1;
+  sourceSha: string;
+  result: unknown;
+  startedAtMs: number;
+  completedAtMs: number;
+}): SchemaReconcileActualsRestatementReceiptV1 {
+  assertTimestamp('startedAtMs', input.startedAtMs);
+  assertTimestamp('completedAtMs', input.completedAtMs);
+  if (input.completedAtMs < input.startedAtMs)
+    throw new Error('completedAtMs must not precede startedAtMs');
+  return SchemaReconcileActualsRestatementReceiptV1Schema.parse({
+    ...ActualsRestatementMigrationResultV1Schema.parse(input.result),
+    repository: input.repository,
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+    runId: input.runId,
+    runAttempt: input.runAttempt,
+    mode: 'apply-actuals-restatement-0057',
+    sourceSha: input.sourceSha,
     buildTimeMs: input.completedAtMs - input.startedAtMs,
     result: 'applied_and_clean',
   });
@@ -211,6 +269,8 @@ export async function writeSchemaReconcileReceipt(
     | SchemaReconcileReceiptV1
     | SchemaReconcileCatchupReceiptV1
     | SchemaReconcileCurrentForecastReceiptV1
+    | SchemaReconcileActualsDraftReceiptV1
+    | SchemaReconcileActualsRestatementReceiptV1
 ): Promise<void> {
   const directory = path.dirname(outputPath);
   await mkdir(directory, { recursive: true });
@@ -242,8 +302,36 @@ async function main(): Promise<void> {
   let receipt:
     | SchemaReconcileReceiptV1
     | SchemaReconcileCatchupReceiptV1
-    | SchemaReconcileCurrentForecastReceiptV1;
-  if (mode === 'apply-current-forecast-0050-0055') {
+    | SchemaReconcileCurrentForecastReceiptV1
+    | SchemaReconcileActualsDraftReceiptV1
+    | SchemaReconcileActualsRestatementReceiptV1;
+  if (mode === 'apply-actuals-restatement-0057') {
+    const result: unknown = JSON.parse(
+      await readFile('reports/actuals-restatement-migration-result.json', 'utf8')
+    );
+    receipt = buildSchemaReconcileActualsRestatementReceipt({
+      repository: requiredEnvironment('GITHUB_REPOSITORY'),
+      runId: requiredEnvironment('GITHUB_RUN_ID'),
+      runAttempt: requiredPositiveIntegerEnvironment('GITHUB_RUN_ATTEMPT') as 1,
+      sourceSha: requiredEnvironment('SCHEMA_RECONCILE_SOURCE_SHA'),
+      result,
+      startedAtMs,
+      completedAtMs,
+    });
+  } else if (mode === 'apply-actuals-draft-0056') {
+    const result: unknown = JSON.parse(
+      await readFile('reports/actuals-draft-migration-result.json', 'utf8')
+    );
+    receipt = buildSchemaReconcileActualsDraftReceipt({
+      repository: requiredEnvironment('GITHUB_REPOSITORY'),
+      runId: requiredEnvironment('GITHUB_RUN_ID'),
+      runAttempt: requiredPositiveIntegerEnvironment('GITHUB_RUN_ATTEMPT') as 1,
+      sourceSha: requiredEnvironment('SCHEMA_RECONCILE_SOURCE_SHA'),
+      result,
+      startedAtMs,
+      completedAtMs,
+    });
+  } else if (mode === 'apply-current-forecast-0050-0055') {
     const result = JSON.parse(
       await readFile('reports/current-forecast-migration-result.json', 'utf8')
     ) as {

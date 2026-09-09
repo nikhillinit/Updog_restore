@@ -14,7 +14,11 @@ import {
 import {
   ActualsAvailabilityReasonV1Schema,
   AdmissionReceiptCoreV1Schema,
+  AdmissionReceiptAppendCoreV2Schema,
+  AdmissionReceiptRestatementCoreV2Schema,
   FinancialFactsBasisRefSchema,
+  FinancialFactsBasisRefV1Schema,
+  FinancialFactsBasisRefV2Schema,
   GovernedMoneyV1Schema,
   GovernedRatioV1Schema,
 } from '../financial-facts-snapshot-v1.contract';
@@ -421,10 +425,45 @@ export const ActualsPublishReceiptV1Schema = z
       .strict(),
     admitted: AdmissionReceiptCoreV1Schema.shape.admitted,
     facts: ActualsReceiptFactsSchema,
-    basisRef: FinancialFactsBasisRefSchema,
+    basisRef: FinancialFactsBasisRefV1Schema,
   })
   .strict();
 export type ActualsPublishReceiptV1 = z.infer<typeof ActualsPublishReceiptV1Schema>;
+
+const ActualsReceiptFactsV2Schema = AdmissionReceiptAppendCoreV2Schema.shape.facts
+  .extend({
+    snapshotId: z.number().int().positive().max(INT32_MAX),
+    snapshotInputHash: z.string().regex(/^[a-f0-9]{64}$/),
+    etag: FinancialFactsETagSchema,
+  })
+  .strict();
+
+const ActualsPublishReceiptV2BaseSchema = ActualsPublishReceiptV1Schema.extend({
+  contractVersion: z.literal('actuals-pilot-publish/2.0.0'),
+  facts: ActualsReceiptFactsV2Schema,
+  basisRef: FinancialFactsBasisRefV2Schema,
+  effectiveBasis: AdmissionReceiptAppendCoreV2Schema.shape.effectiveBasis,
+}).strict();
+
+export const ActualsPublishReceiptV2Schema = z.discriminatedUnion('operationKind', [
+  ActualsPublishReceiptV2BaseSchema.extend({
+    operationKind: z.literal('append'),
+    admitted: AdmissionReceiptAppendCoreV2Schema.shape.admitted,
+    restatement: z.null(),
+  }).strict(),
+  ActualsPublishReceiptV2BaseSchema.extend({
+    operationKind: z.literal('restatement'),
+    admitted: AdmissionReceiptRestatementCoreV2Schema.shape.admitted,
+    restatement: AdmissionReceiptRestatementCoreV2Schema.shape.restatement,
+  }).strict(),
+]);
+
+export const ActualsPublishReceiptSchema = z.union([
+  ActualsPublishReceiptV1Schema,
+  ActualsPublishReceiptV2Schema,
+]);
+export type ActualsPublishReceiptV2 = z.infer<typeof ActualsPublishReceiptV2Schema>;
+export type ActualsPublishReceipt = z.infer<typeof ActualsPublishReceiptSchema>;
 
 const FinancialFactsConsumerEvaluationSchema = z
   .object({
@@ -566,6 +605,7 @@ export const ActualsPilotErrorCodeSchema = z.enum([
   'FACTS_HEAD_AMBIGUOUS',
   'FACTS_LINEAGE_INVALID',
   'PILOT_FACTS_WRITER_ONLY',
+  'ACTUALS_PUBLICATION_DISABLED',
   'FUND_LEDGER_NOT_PILOT_OWNED',
   'FACTS_HEAD_PRECONDITION_FAILED',
   'PAYLOAD_TOO_LARGE',
@@ -698,6 +738,7 @@ const ActualsPilotNoDetailsErrorCodeSchema = z.enum([
   'FACTS_HEAD_AMBIGUOUS',
   'FACTS_LINEAGE_INVALID',
   'PILOT_FACTS_WRITER_ONLY',
+  'ACTUALS_PUBLICATION_DISABLED',
   'FUND_LEDGER_NOT_PILOT_OWNED',
   'PAYLOAD_TOO_LARGE',
   'INCOMPLETE_COVERAGE',

@@ -5,6 +5,8 @@ import { appendFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import pg from 'pg';
+import { assertActualsDraftProductionPrerequisites } from './actuals-draft-prerequisites.mjs';
+import { assertActualsRestatementProductionPrerequisites } from './actuals-restatement-prerequisites.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const NEON_ID = /^[a-z0-9-]{1,60}$/;
@@ -19,12 +21,25 @@ function required(value, label, pattern) {
 }
 
 export function validateRehearsalInput(input) {
+  const mode = input.mode ?? 'current-forecast-0050-0055';
+  if (
+    !['current-forecast-0050-0055', 'actuals-draft-0056', 'actuals-restatement-0057'].includes(mode)
+  ) {
+    throw new Error('Rehearsal mode is invalid');
+  }
+  const expectedTailAllowed =
+    mode === 'actuals-restatement-0057'
+      ? input.expectedParentMigrationTail === '0056_actuals_draft_revisions'
+      : mode === 'actuals-draft-0056'
+        ? input.expectedParentMigrationTail === '0055_current_forecast_recompute_commands'
+        : EXPECTED_TAILS.has(input.expectedParentMigrationTail);
   return {
+    ...(input.mode === undefined ? {} : { mode }),
     expectedSha: required(input.expectedSha, 'expectedSha', SHA),
     projectId: required(input.projectId, 'projectId', NEON_ID),
     parentBranchId: required(input.parentBranchId, 'parentBranchId', NEON_ID),
     databaseName: required(input.databaseName, 'databaseName', DATABASE),
-    expectedParentMigrationTail: EXPECTED_TAILS.has(input.expectedParentMigrationTail)
+    expectedParentMigrationTail: expectedTailAllowed
       ? input.expectedParentMigrationTail
       : (() => {
           throw new Error('expectedParentMigrationTail is invalid');
@@ -69,7 +84,10 @@ function oneReadWriteEndpoint(endpoints, identity) {
   return matches[0];
 }
 
-function validateEndpoint(endpoint, { projectId, branchId, identity, requireReady = false }) {
+export function validateEndpoint(
+  endpoint,
+  { projectId, branchId, identity, requireReady = false }
+) {
   const endpointId = required(endpoint?.id, `${identity} endpoint ID`, NEON_ID);
   if (
     endpoint.project_id !== projectId ||
@@ -87,7 +105,7 @@ function validateEndpoint(endpoint, { projectId, branchId, identity, requireRead
   };
 }
 
-function validateDatabase(database, { branchId, databaseName, identity }) {
+export function validateDatabase(database, { branchId, databaseName, identity }) {
   if (database?.branch_id !== branchId || database.name !== databaseName) {
     throw new Error(`${identity} database identity mismatch`);
   }
@@ -98,7 +116,7 @@ function validateDatabase(database, { branchId, databaseName, identity }) {
  * @param {string} uri
  * @param {{ databaseName: string, roleName: string, endpointHost: string, forbiddenHost?: string, identity: string }} identity
  */
-function validateConnectionUri(
+export function validateConnectionUri(
   uri,
   { databaseName, roleName, endpointHost, forbiddenHost, identity }
 ) {
@@ -167,6 +185,7 @@ async function readMigrationTail(connectionString) {
       ['1785714000000', '0049_kpi_observations'],
       ['1786059600000', '0053_g3_release_gate_hardening'],
       ['1788235843534', '0055_current_forecast_recompute_commands'],
+      ['1788825600000', '0056_actuals_draft_revisions'],
     ]);
     return byWhen.get(String(ledger.rows[0]?.created_at)) ?? 'unknown';
   } finally {
@@ -208,6 +227,13 @@ export async function rehearseCurrentForecastNeon({
   sleepImpl = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
 }) {
   const value = validateRehearsalInput(input);
+  if (value.mode === 'actuals-draft-0056') {
+    // The local owned-container proof does not authorize creating or mutating a provider branch.
+    assertActualsDraftProductionPrerequisites();
+  }
+  if (value.mode === 'actuals-restatement-0057') {
+    assertActualsRestatementProductionPrerequisites();
+  }
   if (!apiKey) throw new Error('NEON_API_KEY is required');
   if (githubRunAttempt !== 1) throw new Error('Rehearsal requires GitHub run attempt 1');
 
@@ -420,6 +446,7 @@ export async function rehearseCurrentForecastNeon({
 async function main() {
   const result = await rehearseCurrentForecastNeon({
     input: {
+      mode: process.env.ACTUALS_MIGRATION_REHEARSAL_MODE,
       expectedSha: process.env.EXPECTED_SHA,
       projectId: process.env.NEON_PROJECT_ID,
       parentBranchId: process.env.NEON_PARENT_BRANCH_ID,

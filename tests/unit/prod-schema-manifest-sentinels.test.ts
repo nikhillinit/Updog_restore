@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
 import {
   loadManifests,
+  isPinnedActualsDraftMigrationSource,
   readManifestSql,
   validateManifestSql,
 } from '../../scripts/reconcile-prod-schema.mjs';
@@ -112,6 +113,13 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
       ) {
         surviving.add(pgIdentifier(`${tableName}_pkey`));
       }
+      for (const column of tableBody.matchAll(
+        /^\s*(?!CONSTRAINT\b)([a-z0-9_]+)\s+[^\n]*\bCHECK\s*\(/gim
+      )) {
+        if (!/\bCONSTRAINT\b/i.test(column[0])) {
+          surviving.add(pgIdentifier(`${tableName}_${column[1]}_check`));
+        }
+      }
     }
 
     const pattern = new RegExp(SQL_NAME_EVENT.source, 'gi');
@@ -168,6 +176,8 @@ describe('prod-schema manifest sentinels', () => {
       '30-g3-release-gate-hardening.json',
       '31-operating-decisions-spine.json',
       '32-current-forecast-recompute-commands.json',
+      '33-actuals-draft-revisions.json',
+      '34-actuals-restatement-commands.json',
     ]);
   });
 
@@ -328,19 +338,55 @@ describe('prod-schema manifest sentinels', () => {
     expect(foundationSql).not.toMatch(/^\s*(?:DROP|DELETE|TRUNCATE)\b/im);
   });
 
-  it('every manifest SQL file begins with a -- @generated or -- @drift-patch marker', () => {
+  it('every manifest SQL file has marked ownership or exact immutable provenance', async () => {
     const offenders: string[] = [];
+    const loadedManifests = await loadManifests();
 
     for (const { file, manifest } of manifests) {
       for (const sqlFile of manifest.sqlFiles ?? []) {
         const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
-        if (!/^--\s*@(generated|drift-patch)\b/m.test(sql)) {
+        const source = (await readManifestSql(manifest)).find(
+          (entry: { path: string }) => entry.path === sqlFile
+        );
+        if (
+          !/^--\s*@(generated|drift-patch)\b/m.test(sql) &&
+          !isPinnedActualsDraftMigrationSource(
+            loadedManifests.find((entry: { name: string }) => entry.name === manifest.name),
+            source
+          )
+        ) {
           offenders.push(`${file} -> ${sqlFile}`);
         }
       }
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  it('accepts unmarked 0056 only with its exact manifest, bytes and journal provenance', async () => {
+    const manifest = (await loadManifests()).find((entry: { order: number }) => entry.order === 33);
+    expect(manifest).toBeDefined();
+    const [source] = await readManifestSql(manifest);
+    expect(isPinnedActualsDraftMigrationSource(manifest, source)).toBe(true);
+    expect(isPinnedActualsDraftMigrationSource({ ...manifest, name: 'other' }, source)).toBe(false);
+    expect(isPinnedActualsDraftMigrationSource({ ...manifest, order: 34 }, source)).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, path: 'migrations/other.sql' })
+    ).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, sql: `${source.sql}\n-- changed` })
+    ).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, checksum: '0'.repeat(64) })
+    ).toBe(false);
+    const journal = structuredClone(source.sourceJournal);
+    journal.entries.find((entry: { idx: number }) => entry.idx === 57).when += 1;
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, sourceJournal: journal })
+    ).toBe(false);
+    expect(() =>
+      validateManifestSql(manifest, [{ ...source, sql: `${source.sql}\n-- changed` }])
+    ).toThrow();
   });
 
   it('every manifest passes production SQL ownership validation', async () => {

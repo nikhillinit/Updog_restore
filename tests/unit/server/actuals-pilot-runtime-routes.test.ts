@@ -82,8 +82,19 @@ vi.mock(
 const originalEnvironment = { ...process.env };
 const ORIGIN = 'http://localhost:5173';
 const PREFIX = '/api/funds/1';
-const MUTATIONS = ['/imports/actuals/dry-run', '/imports/actuals/publish'];
-const READS = ['/financial-facts/latest-reference', '/actuals/metrics'];
+const MUTATIONS = [
+  '/imports/actuals/dry-run',
+  '/imports/actuals/publish',
+  '/imports/actuals/draft-revisions',
+  '/imports/actuals/restatements/dry-run',
+  '/imports/actuals/restatements/publish',
+];
+const READS = [
+  '/financial-facts/latest-reference',
+  '/actuals/metrics',
+  '/imports/actuals/restatements/targets',
+  '/imports/actuals/restatements/history',
+];
 const KEY = 'c2c1984c-7382-4ff5-9f18-1fa89fbba54c';
 let server: Server | undefined;
 let teardown: (() => Promise<void>) | undefined;
@@ -192,7 +203,7 @@ afterEach(async () => {
 });
 
 describe('actuals pilot through both application assemblies', () => {
-  it('registers none of the four routes when the pilot is unset', async () => {
+  it('registers no publication, draft, or restatement routes when the pilot is unset', async () => {
     const { surfaces, token } = await boot(false);
     for (const { name, app } of surfaces) {
       for (const path of READS) {
@@ -253,27 +264,29 @@ describe('actuals pilot through both application assemblies', () => {
   it('enforces cookie CSRF and permits a matching session token', async () => {
     const { surfaces, token, csrfToken } = await boot();
     for (const { name, app } of surfaces) {
-      const path = `${PREFIX}/imports/actuals/publish`;
-      const rejected = await request(app)
-        .post(path)
-        .set('Cookie', `updog.session=${token}`)
-        .send({});
-      expect(rejected.status, `${name} missing CSRF`).toBe(403);
-      const accepted = await request(app)
-        .post(path)
-        .set('Cookie', `updog.session=${token}; updog.csrf=${csrfToken}`)
-        .set('X-CSRF-Token', csrfToken)
-        .set('If-Match', '"financial-facts:none"')
-        .set('Idempotency-Key', KEY)
-        .send({});
-      expect(accepted.status, `${name} matching CSRF reaches body validation`).toBe(400);
-      const crossSite = await request(app)
-        .post(path)
-        .set('Cookie', `updog.session=${token}; updog.csrf=${csrfToken}`)
-        .set('X-CSRF-Token', csrfToken)
-        .set('Sec-Fetch-Site', 'cross-site')
-        .send({});
-      expect(crossSite.status, `${name} cross-site CSRF`).toBe(403);
+      for (const suffix of MUTATIONS) {
+        const path = `${PREFIX}${suffix}`;
+        const rejected = await request(app)
+          .post(path)
+          .set('Cookie', `updog.session=${token}`)
+          .send({});
+        expect(rejected.status, `${name} missing CSRF`).toBe(403);
+        const accepted = await request(app)
+          .post(path)
+          .set('Cookie', `updog.session=${token}; updog.csrf=${csrfToken}`)
+          .set('X-CSRF-Token', csrfToken)
+          .set('If-Match', '"financial-facts:none"')
+          .set('Idempotency-Key', KEY)
+          .send({});
+        expect(accepted.status, `${name} matching CSRF reaches body validation`).toBe(400);
+        const crossSite = await request(app)
+          .post(path)
+          .set('Cookie', `updog.session=${token}; updog.csrf=${csrfToken}`)
+          .set('X-CSRF-Token', csrfToken)
+          .set('Sec-Fetch-Site', 'cross-site')
+          .send({});
+        expect(crossSite.status, `${name} cross-site CSRF ${suffix}`).toBe(403);
+      }
     }
     assertNoPublisherEffects();
   });

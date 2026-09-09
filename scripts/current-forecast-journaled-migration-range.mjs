@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { access, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { normalizePostgresLiteralTextArrayCasts } from './lib/postgres-catalog-definition.mjs';
 
 /**
  * @typedef {{ idx: number, version: string, when: number, tag: string, breakpoints: boolean }} JournalEntry
@@ -27,6 +28,24 @@ export const CURRENT_FORECAST_BASELINE = Object.freeze({
   when: 1785714000000,
   hash: 'ae4d86c638118049a89b7c238ee04a38566ad029651db1f17c522d4a062cd3c7',
 });
+
+// ADR-074 preserved these exact journaled rows; 0008-0044 were reconciled separately.
+const ADR074_BASELINE_TAGS = Object.freeze([
+  '0000_quick_vivisector',
+  '0001_certain_miracleman',
+  '0002_phase0_variance_automation',
+  '0003_phase0_runtime_alignment',
+  '0004_phase1a1c_company_snapshots',
+  '0005_phase1c2_alert_automation',
+  '0005b_create_backtest_results',
+  '0006_phase2_backtest_scenario_comparison_summary',
+  '0007_phase2_retire_dormant_saved_comparison_persistence',
+  '0045_internal_economics_policy_runs',
+  '0046_internal_economics_certification',
+  '0047_internal_economics_linkage',
+  '0048_quarterly_review_workflow',
+  '0049_kpi_observations',
+]);
 
 /** @type {readonly Readonly<CurrentForecastSentinel>[]} */
 export const CURRENT_FORECAST_SENTINELS = Object.freeze([
@@ -227,7 +246,7 @@ export async function loadCurrentForecastBaselineLedger({ migrationsDir }) {
  * }} options
  */
 export function classifyCurrentForecastLedgerState({ ledgerRows, baselineEntries, targetEntries }) {
-  if (!Array.isArray(baselineEntries) || baselineEntries.length === 0) {
+  if (!Array.isArray(baselineEntries) || baselineEntries.length !== 51) {
     throw new Error('Canonical migration ledger through 0049 is required');
   }
   const baseline = baselineEntries.at(-1);
@@ -240,7 +259,6 @@ export function classifyCurrentForecastLedgerState({ ledgerRows, baselineEntries
     throw new Error('Canonical migration ledger does not end at required 0049 baseline');
   }
 
-  const expected = [...baselineEntries, ...targetEntries];
   const ledger = ledgerRows.map((row) => ({
     created_at: Number(row.created_at),
     hash: String(row.hash ?? ''),
@@ -248,7 +266,21 @@ export function classifyCurrentForecastLedgerState({ ledgerRows, baselineEntries
   if (ledger.some((row) => !Number.isFinite(row.created_at))) {
     throw new Error('Migration ledger contains invalid timestamp');
   }
-  if (ledger.length < baselineEntries.length) {
+  const baselineKind =
+    ledger[9]?.created_at === baselineEntries[46]?.when ? 'adr074-reconciled' : 'canonical';
+  const expectedBaseline =
+    baselineKind === 'canonical'
+      ? baselineEntries
+      : ADR074_BASELINE_TAGS.map((tag, index) => {
+          const idx = index < 9 ? index : index + 37;
+          const entry = baselineEntries[idx];
+          if (entry?.idx !== idx || entry.tag !== tag) {
+            throw new Error(`Canonical migration ledger does not match ADR-074 identity ${tag}`);
+          }
+          return entry;
+        });
+  const expected = [...expectedBaseline, ...targetEntries];
+  if (ledger.length < expectedBaseline.length) {
     throw new Error('Migration ledger is missing canonical history through 0049');
   }
 
@@ -266,20 +298,24 @@ export function classifyCurrentForecastLedgerState({ ledgerRows, baselineEntries
     }
   }
 
-  const appliedTargetCount = ledger.length - baselineEntries.length;
+  const appliedTargetCount = ledger.length - expectedBaseline.length;
   const lastAppliedTag =
     appliedTargetCount === 0
       ? CURRENT_FORECAST_BASELINE.tag
       : targetEntries[appliedTargetCount - 1].tag;
   if (appliedTargetCount === targetEntries.length) {
-    return { state: 'complete', appliedTargetCount, lastAppliedTag };
+    return { baselineKind, state: 'complete', appliedTargetCount, lastAppliedTag };
   }
-  return { state: 'ready', appliedTargetCount, lastAppliedTag };
+  return { baselineKind, state: 'ready', appliedTargetCount, lastAppliedTag };
 }
 
 function catalogDigest(rows, nameKey) {
   return createHash('sha256')
-    .update(rows.map((row) => `${row[nameKey]}\0${row.definition}`).join('\n'))
+    .update(
+      rows
+        .map((row) => `${row[nameKey]}\0${normalizePostgresLiteralTextArrayCasts(row.definition)}`)
+        .join('\n')
+    )
     .digest('hex');
 }
 
@@ -392,7 +428,10 @@ export async function createCurrentForecastMigrationFolder({ migrationsDir }) {
         {
           version: sourceJournal.version,
           dialect: sourceJournal.dialect,
-          entries: entries.map(({ hash: _hash, ...entry }) => entry),
+          entries: entries.map(({ hash, ...entry }) => {
+            void hash;
+            return entry;
+          }),
         },
         null,
         2

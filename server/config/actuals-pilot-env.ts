@@ -18,3 +18,18 @@ export function readActualsPilotFundId(): number | null {
 
   return fundId;
 }
+
+export function readActualsPilotPublishFundId(): number | null {
+  const fundId = readActualsPilotFundId();
+  const raw = process.env['ACTUALS_PILOT_PUBLISH_ENABLED'];
+  if (raw === undefined || raw === '' || raw === 'false') {
+    return null;
+  }
+  if (raw !== 'true') {
+    throw new Error('ACTUALS_PILOT_PUBLISH_ENABLED must be true or false.');
+  }
+  if (fundId === null) {
+    throw new Error('ACTUALS_PILOT_PUBLISH_ENABLED requires ACTUALS_PILOT_FUND_ID.');
+  }
+  return fundId;
+}

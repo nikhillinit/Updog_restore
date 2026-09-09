@@ -911,6 +911,10 @@ export const COMMON_API_ROUTE_MANIFEST = [
       ],
     },
     schemaTables: [
+      'actuals_draft_revisions',
+      'actuals_restatement_commands',
+      'actuals_restatement_items',
+      'financial_facts_snapshots',
       'cash_flow_events',
       'valuation_marks',
       'vehicles',

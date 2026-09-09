@@ -399,23 +399,28 @@ the modules + `Decimal`) has **zero importers** — dead.
 | `index.ts`                    | Barrel — dead                                                     | 0                            |
 | `examples/standard-fund.ts`   | $100M example-fund fixture (not a schema)                         | 0                            |
 
-### Migration tail — **verified 2026-09-01 in the F_1.10.0 candidate based on `main @ a972a5f7`**
+### Migration tail — F_1.13.0 local candidate, September 9, 2026
 
-Read directly from `migrations/meta/_journal.json` (the authoritative source —
-never infer the tail from a doc's claim or "last file alphabetically"):
+`migrations/meta/_journal.json` remains authoritative. The candidate adds
+journal idx 57, `0056_actuals_draft_revisions`, and idx 58,
+`0057_actuals_restatement_commands`, after the admitted 0055 predecessor. These
+source entries do not prove application to any provider database. Manifest 33
+pins unchanged 0056 SQL; its bounded runner validates complete ordered history,
+exact predecessor catalog, immutable draft wiring, and apply/no-op outcomes.
+Unknown later history remains refused by the older 0050–0055 runner. Manifest 34
+pins the separate 0057 restatement schema.
+`scripts/run-actuals-restatement-journaled-migration.mjs` accepts only the exact
+0056 predecessor or exact completed 0057 history, verifies parent constraints
+and immutable metadata, and emits its own apply/replay result. Its disposable
+apply capability is separate from 0056; neither capability authorizes a
+production target. The shared actuals preflight collects authenticated
+protected-source/CI, exact owner-dispatch, and Neon/database identity evidence.
+Its report separates failed checks, missing live evidence, undefined owner
+criteria, and missing engineering. Recovery, custody, migration isolation, and
+final runtime admission remain incomplete, so production application is blocked.
 
-- **True tail: journal idx 56, tag `0055_current_forecast_recompute_commands`**
-  (57 journal entries). The immediately preceding entries are
-  `0054_operating_decisions_spine` and the G3 `0050`-`0053` sequence.
-- 61 `.sql` files exist vs. 57 journal entries; the 4 extras remain **tracked
-  outside the journal**: `0002_add_organizations.sql`,
-  `0002_multi_tenant_rls_setup.sql` (+ `_ROLLBACK`),
-  `0008_demo_profile_import_rows_rollback.sql` — committed duplicate/rollback
-  files outside the journal; they don't affect the tail.
-
-The next free index is `0056` **as of this refresh only** — always re-read the
-journal at dispatch time before minting a migration; never assume the index from
-a doc's claimed tail (this section has caught drift twice).
+Re-read journal entries and all worktrees before allocating another migration.
+Tracked duplicate/rollback SQL outside the journal does not define its tail.
 
 ## 5. Client Architecture
 
@@ -692,25 +697,35 @@ review, `#1287` target naming, `#1299` activation flip.
    loads via GET only and refreshes via explicit POST with an awaited labeled
    readback. Plan: `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
-8. **Fixed-template actuals publication** (F_1.12.0; source inspected September
-   6, 2026 at `1cdef4f1bc24072742a2cd24349f04c6ec074f0f`). An unset or empty
-   `ACTUALS_PILOT_FUND_ID` disables the pilot endpoints. One configured fund
-   uses ledger/valuation preview and idempotent publication inside the existing
-   LP imports router. Publication validates organization/fund context and
-   applies RLS inside the SERIALIZABLE transaction. It publishes policy `1.4.0`
-   / payload `5`, with no new DDL; the migration journal still ends at
-   `0055_current_forecast_recompute_commands`.
+8. **Canonical publication control (F_1.13.0 local candidate):**
+   `ACTUALS_PILOT_PUBLISH_ENABLED` independently defaults to disabled. Both
+   server assemblies validate configuration. The publisher checks the selected
+   fund under its existing transaction lock after authenticated receipt replay,
+   before any new canonical write. Draft/preview/readback routes stay
+   registered; proven-absence retry rechecks the guard. This source change is
+   not deployment or enablement proof.
 
-   `parsePersistedFactsRow` is the reader codec. Forecast, reserve intelligence,
-   and construction reconciliation propagate the full `FinancialFactsBasisRef`
-   (`schemaId`, `fundId`, `snapshotId`, `snapshotInputHash`,
-   `sourceFactsInputHash`, `policyVersion`, `asOfDate`, `knowledgeCutoff`);
-   legacy policies retain their existing behavior. Economics and periodic
-   analysis refuse payload 5. Valuation marks establish position values, not
-   fund NAV, RVPI, or TVPI. Publication invalidates cache after commit but does
-   not trigger organic shadow soak. The isolated actuals Gate A trial remains
-   separate from Current Forecast activation. See
-   `docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md`.
+**Fixed-template actuals publication and correction** (F_1.13.0 local
+candidate). One configured pilot fund uses the existing LP imports router for
+draft history, restore, preview, publication, and explicit restatement.
+Organization/fund context and transaction-scoped RLS are revalidated inside the
+shared SERIALIZABLE publication transaction. Authenticated receipt replay, the
+independent publication control, fresh basis/ETag checks, replacement writes,
+snapshot creation, and ambiguous-COMMIT reconciliation use one transaction
+engine.
+
+Policy `1.5.0` / payload `6` records immutable command/item correction lineage
+and a validated effective-row basis. That projection feeds capital, cash flows,
+valuation selection, and company money; old policy `1.4.0` / payload `5` bytes
+and hash semantics remain unchanged. Current-mark corrections preserve company,
+vehicle, date, and mark type. Later ordinary appends retain correction ancestry.
+The persisted-row codec dispatches explicitly by policy. Forecast, reserve,
+current-plan, and construction readers carry all eight `FinancialFactsBasisRef`
+fields and reject unavailable company monetary facts before arithmetic.
+Economics and periodic analysis reject both policies. Valuation marks do not
+establish fund NAV, RVPI, or TVPI. Publication does not accept plans, recompute
+forecasts, trigger organic shadow soak, or activate serving. See ADR-100 and
+`docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 

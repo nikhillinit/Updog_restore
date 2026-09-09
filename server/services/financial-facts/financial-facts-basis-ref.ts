@@ -1,5 +1,6 @@
 import {
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   FinancialFactsBasisRefSchema,
   type FinancialFactsBasisRef,
   type PersistedFinancialFactsSnapshotV1,
@@ -9,7 +10,11 @@ export function basisRefFromPersistedSnapshot(
   snapshot: PersistedFinancialFactsSnapshotV1,
   snapshotId: number
 ): FinancialFactsBasisRef | undefined {
-  if (snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0) return undefined;
+  if (
+    snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+    snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+  )
+    return undefined;
 
   return FinancialFactsBasisRefSchema.parse({
     schemaId: 'financial-facts-basis-ref/1.0.0',

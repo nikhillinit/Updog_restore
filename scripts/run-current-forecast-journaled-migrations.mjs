@@ -80,7 +80,8 @@ export async function runCurrentForecastJournaledMigrationRecovery({
 
     const baselineEntries = await loadCurrentForecastBaselineLedger({ migrationsDir });
     const targetEntries = await loadCurrentForecastMigrationRange({ migrationsDir });
-    const manifests = (await loadManifests()).filter(({ order }) => order >= 27 && order <= 32);
+    const allManifests = await loadManifests();
+    const manifests = allManifests.filter(({ order }) => order >= 27 && order <= 32);
     if (manifests.length !== 6)
       throw new CurrentForecastMigrationError('Expected schema manifests 27-32');
     const preState = classifyCurrentForecastLedgerState({
@@ -88,6 +89,37 @@ export async function runCurrentForecastJournaledMigrationRecovery({
       baselineEntries,
       targetEntries,
     });
+    if (preState.baselineKind === 'adr074-reconciled') {
+      const baselineManifests = allManifests.filter(({ order }) => order >= 1 && order <= 26);
+      if (
+        baselineManifests.length !== 26 ||
+        baselineManifests.some(({ order }, index) => order !== index + 1)
+      ) {
+        throw new CurrentForecastMigrationError('ADR-074 baseline catalog requires manifests 1-26');
+      }
+      const { audits } = await auditTargetManifests(client, baselineManifests);
+      if (
+        !Array.isArray(audits) ||
+        audits.length !== 26 ||
+        audits.some(
+          (audit, index) =>
+            audit.manifest !== baselineManifests[index].name ||
+            audit.action !== 'SKIP' ||
+            !Array.isArray(audit.objects) ||
+            audit.objects.some(
+              (object) =>
+                object.action !== 'SKIP' ||
+                !Array.isArray(object.deltas) ||
+                object.deltas.length !== 0
+            )
+        )
+      ) {
+        throw new CurrentForecastMigrationError(
+          'Unsafe ADR-074 baseline catalog; every manifest must be SKIP without object deltas'
+        );
+      }
+      writeSummary({ stdout, label: 'baseline', state: preState, audits });
+    }
     const preAudit = await auditTargetManifests(client, manifests);
     assertCurrentForecastRawMigrationSafeCatalog({
       appliedTargetCount: preState.appliedTargetCount,
@@ -138,14 +170,14 @@ export async function runCurrentForecastJournaledMigrationRecovery({
   }
 }
 
-async function readMigrationLedger(client) {
+export async function readMigrationLedger(client) {
   const result = await client.query(
     'SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at'
   );
   return result.rows;
 }
 
-async function readCurrentForecastSentinelCatalog(client) {
+export async function readCurrentForecastSentinelCatalog(client) {
   /** @type {Array<{ table: string, present: boolean, constraints: Array<Record<string, unknown>>, indexes: Array<Record<string, unknown>> }>} */
   const catalog = [];
   for (const sentinel of CURRENT_FORECAST_SENTINELS) {

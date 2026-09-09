@@ -22,6 +22,7 @@ import { protectedRLSTransaction } from './middleware/with-rls-transaction.js';
 import { createRateLimitStore } from './lib/rateLimitStore.js';
 import { requireCsrf } from './lib/auth/csrf.js';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
+import { readActualsPilotPublishFundId } from './config/actuals-pilot-env.js';
 import {
   assertQueueRuntimePolicy,
   type QueueRuntimePolicyEnv,
@@ -33,6 +34,7 @@ import {
 } from './services/financial-observations/source-artifact-service.js';
 
 export function makeApp() {
+  readActualsPilotPublishFundId();
   assertQueueRuntimePolicy({
     NODE_ENV: process.env['NODE_ENV'] as QueueRuntimePolicyEnv['NODE_ENV'],
     VERCEL: process.env['VERCEL'],

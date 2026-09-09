@@ -65,6 +65,7 @@ describe('Current Forecast journaled migration range', { retry: 0 }, () => {
         targetEntries: entries,
       })
     ).toEqual({
+      baselineKind: 'canonical',
       state: 'ready',
       appliedTargetCount: 0,
       lastAppliedTag: CURRENT_FORECAST_BASELINE.tag,
@@ -76,6 +77,7 @@ describe('Current Forecast journaled migration range', { retry: 0 }, () => {
         targetEntries: entries,
       })
     ).toEqual({
+      baselineKind: 'canonical',
       state: 'ready',
       appliedTargetCount: 4,
       lastAppliedTag: CURRENT_FORECAST_MIGRATION_TAGS[3],
@@ -87,6 +89,7 @@ describe('Current Forecast journaled migration range', { retry: 0 }, () => {
         targetEntries: entries,
       })
     ).toEqual({
+      baselineKind: 'canonical',
       state: 'complete',
       appliedTargetCount: 6,
       lastAppliedTag: CURRENT_FORECAST_MIGRATION_TAGS[5],
@@ -121,6 +124,71 @@ describe('Current Forecast journaled migration range', { retry: 0 }, () => {
         targetEntries: entries,
       })
     ).toThrow(/unknown|post-0055/);
+  });
+
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    'accepts the exact ADR-074 ledger with %i target entries',
+    async (count) => {
+      const baselineEntries = await loadCurrentForecastBaselineLedger({ migrationsDir });
+      const targetEntries = await loadCurrentForecastMigrationRange({ migrationsDir });
+      expect(baselineEntries).toHaveLength(51);
+      const row = ({ when, hash }) => ({ created_at: String(when), hash });
+      const reconciled = [...baselineEntries.slice(0, 9), ...baselineEntries.slice(46)];
+      expect(reconciled).toHaveLength(14);
+      expect(
+        classifyCurrentForecastLedgerState({
+          ledgerRows: [...reconciled, ...targetEntries.slice(0, count)].map(row),
+          baselineEntries,
+          targetEntries,
+        })
+      ).toEqual({
+        baselineKind: 'adr074-reconciled',
+        state: count === 6 ? 'complete' : 'ready',
+        appliedTargetCount: count,
+        lastAppliedTag: count === 0 ? CURRENT_FORECAST_BASELINE.tag : targetEntries[count - 1].tag,
+      });
+    }
+  );
+
+  it('rejects any corruption or deviation from the exact ADR-074 history', async () => {
+    const baselineEntries = await loadCurrentForecastBaselineLedger({ migrationsDir });
+    const targetEntries = await loadCurrentForecastMigrationRange({ migrationsDir });
+    const row = ({ when, hash }) => ({ created_at: String(when), hash });
+    const valid = [...baselineEntries.slice(0, 9), ...baselineEntries.slice(46)].map(row);
+    const invalid = [
+      ...valid.map((_, index) => valid.filter((_, candidate) => candidate !== index)),
+      ...valid.map((entry, index) =>
+        valid.map((value, candidate) =>
+          candidate === index ? { ...entry, hash: '0'.repeat(64) } : value
+        )
+      ),
+      ...valid.map((entry, index) => [...valid.slice(0, index), entry, ...valid.slice(index)]),
+      [valid[1], valid[0], ...valid.slice(2)],
+      [...valid.slice(0, 9), valid[10], valid[9], ...valid.slice(11)],
+      [...valid.slice(0, 9), row(baselineEntries[9]), ...valid.slice(9)],
+      [...valid.slice(0, 10), row(baselineEntries[45]), ...valid.slice(10)],
+      [...valid, row(targetEntries[1])],
+      [...valid, row(targetEntries[0]), row(targetEntries[2])],
+      ...targetEntries.map((entry, index) => [
+        ...valid,
+        ...targetEntries.slice(0, index).map(row),
+        { ...row(entry), hash: '0'.repeat(64) },
+      ]),
+      [...valid, ...targetEntries.map(row), { created_at: '9999999999999', hash: '0'.repeat(64) }],
+      [{ ...valid[0], created_at: 'invalid' }, ...valid.slice(1)],
+    ];
+    for (const ledgerRows of invalid) {
+      expect(() =>
+        classifyCurrentForecastLedgerState({ ledgerRows, baselineEntries, targetEntries })
+      ).toThrow();
+    }
+    expect(() =>
+      classifyCurrentForecastLedgerState({
+        ledgerRows: valid,
+        baselineEntries: [...baselineEntries.slice(0, 9), ...baselineEntries.slice(46)],
+        targetEntries,
+      })
+    ).toThrow(/Canonical migration ledger/);
   });
 
   it('creates an isolated six-migration Drizzle folder', async () => {

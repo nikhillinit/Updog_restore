@@ -74,22 +74,35 @@ inventory, routing mechanisms), see [docs/ARCHI.md](docs/ARCHI.md).
 
 ### Fixed-template actuals pilot
 
-`ACTUALS_PILOT_FUND_ID` is unset by default. An empty value also disables the
-pilot; a configured value must be one positive PostgreSQL fund ID without
-leading zeros. Keep it unset in production until separately authorized
-activation through
+`ACTUALS_PILOT_FUND_ID` is unset by default. An empty value disables the pilot;
+a configured value must be one positive PostgreSQL fund ID without leading
+zeros. `ACTUALS_PILOT_PUBLISH_ENABLED=true` independently permits new
+publication for that fund. It defaults disabled: drafts, immutable revision
+history, restore, preview, readbacks, and authenticated replay of committed
+commands remain available. New writes return `ACTUALS_PUBLICATION_DISABLED`
+until explicitly enabled. Production enablement follows
 [the canonical procedure](docs/workflows/PRODUCTION_SCRIPTS.md).
 
-The pilot publishes fixed-template ledger and valuation imports as financial
-facts policy `1.4.0`, payload `5`. Forecast, reserve intelligence, and
-construction reconciliation carry the canonical eight-field
-`FinancialFactsBasisRef`; economics and periodic analysis refuse this policy.
-Valuation marks do not establish fund NAV, RVPI, or TVPI. Publication requires
-the authenticated organization/fund context and transaction-scoped RLS; its
-post-commit cache invalidation does not trigger organic Current Forecast soak.
-The isolated actuals Gate A trial remains separate from Current Forecast
-activation. See
-[F_1.12.0](docs/1-plans/F_1.12.0_fixed-template-financial-facts-publication.plan.md).
+Persisted drafts require migration 0056. The F_1.13.0 candidate adds explicit
+published-actual corrections with migration 0057. Corrections bind exact
+targets, fresh references, a reason, and a reviewed preview; they preserve
+original rows and receipts. New correction-aware publications use financial
+facts policy `1.5.0`, payload `6`; historical policy `1.4.0`, payload `5`
+remains readable. Ordinary uploads still refuse changed content under an
+existing reference.
+
+The first correction of a policy-1.4 publication requires its retained source
+bytes to authenticate the original admitted rows. Purged required source files
+block that transition with `EFFECTIVE_BASIS_INVALID`; replay of an already
+committed publication remains available.
+
+Forecast, reserve intelligence, and construction reconciliation retain the full
+`FinancialFactsBasisRef` and refuse unavailable company monetary inputs before
+arithmetic. Economics and periodic analysis reject both policies. Valuation
+marks do not establish fund NAV, RVPI, or TVPI. Publication requires
+authenticated organization/fund context and transaction-scoped RLS. It does not
+accept a new plan, recompute forecasts, enter shadow, or activate serving. See
+[F_1.13.0](docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md).
 
 ### Runtime and libraries
 

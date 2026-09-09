@@ -66,6 +66,7 @@ const expectedJournaledDriftPatchFiles = [
   '0053_g3_release_gate_hardening.sql',
   '0054_operating_decisions_spine.sql',
   '0055_current_forecast_recompute_commands.sql',
+  '0057_actuals_restatement_commands.sql',
 ].sort();
 
 afterEach(() => {

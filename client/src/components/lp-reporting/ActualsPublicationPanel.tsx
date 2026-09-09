@@ -32,6 +32,8 @@ import {
 import { sha256Bytes, sha256Hash } from '@/lib/hash';
 import { formatDecimalCurrency } from '@/lib/format/lp-reporting/decimal';
 import { ActualMetricsReadback } from './ActualMetricsReadback';
+import { ActualsDraftHistory } from './ActualsDraftHistory';
+import { ActualsRestatementReview } from './ActualsRestatementReview';
 
 const STORAGE_PREFIX = 'actuals-publish:v1:';
 const LEDGER_MAX_BYTES = 120 * 1024;
@@ -428,6 +430,10 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const [localError, setLocalError] = useState<string | null>(null);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const [isPreparingPublish, setIsPreparingPublish] = useState(false);
+  const [draftLocked, setDraftLocked] = useState(false);
+  const [draftPending, setDraftPending] = useState(false);
+  const [restatementLocked, setRestatementLocked] = useState(false);
+  const [restatementPending, setRestatementPending] = useState(false);
   const receipt = publishMutation.data;
   const metricsQuery = useActualsMetrics(
     fundId,
@@ -453,7 +459,11 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   }, [fundId]);
 
   const publishNavigationFrozen =
-    isPreparingPublish || publishMutation.isPending || storedCommand?.status === 'uncertain';
+    draftPending ||
+    restatementPending ||
+    isPreparingPublish ||
+    publishMutation.isPending ||
+    storedCommand?.status === 'uncertain';
 
   useEffect(() => {
     if (!publishNavigationFrozen) return;
@@ -505,11 +515,12 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const issues = useMemo(() => issueRows(preview), [preview]);
   const previewCanPublish =
     preview !== null && preview.ledger.canPublish && (preview.valuation?.canPublish ?? true);
-  const commandFrozen =
+  const ordinaryCommandFrozen =
     isPreparingPublish ||
     publishMutation.isPending ||
     storedCommand !== null ||
     corruptStorageKeys.length > 0;
+  const commandFrozen = ordinaryCommandFrozen || restatementLocked;
   const retryReady =
     storedCommand !== null &&
     frozenBody !== null &&
@@ -586,7 +597,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   }, [ledgerFile, reconstructStoredBody, storedCommand, valuationFile]);
 
   const handlePreview = useCallback(async () => {
-    if (!ledgerFile || !asOfDate) return;
+    if (draftPending || !ledgerFile || !asOfDate) return;
     setLocalError(null);
     publishMutation.reset();
     try {
@@ -632,6 +643,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   }, [
     asOfDate,
     ledgerFile,
+    draftPending,
     ledgerPreviewMutation,
     publishMutation,
     valuationFile,
@@ -696,6 +708,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const handlePublish = useCallback(async () => {
     if (
       preparingPublishRef.current ||
+      draftPending ||
       !preview ||
       !previewCanPublish ||
       !latestQuery.data ||
@@ -769,6 +782,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   }, [
     asOfDate,
     coverageKind,
+    draftPending,
     evidenceNote,
     finishPreparingPublish,
     fundId,
@@ -960,7 +974,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
             type="date"
             className="min-h-11"
             value={asOfDate}
-            disabled={commandFrozen}
+            disabled={commandFrozen || draftLocked}
             onChange={(event) => {
               setAsOfDate(event.target.value);
               setPreview(null);
@@ -976,6 +990,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
             className="min-h-11"
             disabled={
               isPreparingPublish ||
+              draftLocked ||
               publishMutation.isPending ||
               (storedCommand !== null && frozenBody !== null)
             }
@@ -984,6 +999,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
               if (!commandFrozen) setPreview(null);
             }}
           />
+          {ledgerFile ? <p className="text-xs">Selected ledger: {ledgerFile.name}</p> : null}
           {!commandFrozen ? (
             <a
               className="inline-flex min-h-11 items-center text-sm font-medium text-charcoal underline"
@@ -1003,6 +1019,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
             className="min-h-11"
             disabled={
               isPreparingPublish ||
+              draftLocked ||
               publishMutation.isPending ||
               (storedCommand !== null && frozenBody !== null)
             }
@@ -1023,6 +1040,59 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
         </div>
       </div>
 
+      <ActualsDraftHistory
+        key={fundId}
+        fundId={fundId}
+        asOfDate={asOfDate}
+        disabled={
+          commandFrozen || ledgerPreviewMutation.isPending || valuationPreviewMutation.isPending
+        }
+        hasLedger={ledgerFile !== null}
+        onLockChange={setDraftLocked}
+        onPendingChange={setDraftPending}
+        prepareFiles={async () => {
+          if (!ledgerFile) throw new Error('Select a ledger CSV first.');
+          const ledger = await prepareFile(ledgerFile, LEDGER_MAX_BYTES);
+          const valuation = valuationFile
+            ? await prepareFile(valuationFile, VALUATION_MAX_BYTES)
+            : null;
+          return {
+            ledger: {
+              templateVersion: ACTUALS_LEDGER_TEMPLATE_VERSION,
+              fileName: ledgerFile.name,
+              payload: ledger.payload,
+            },
+            valuation: valuation
+              ? {
+                  templateVersion: ACTUALS_VALUATION_TEMPLATE_VERSION,
+                  fileName: valuation.file.name,
+                  payload: valuation.payload,
+                }
+              : null,
+          };
+        }}
+        onRestore={(detail) => {
+          if (commandFrozen) return;
+          const restoredFile = (payload: string, name: string) =>
+            new File(
+              [Uint8Array.from(atob(payload), (character) => character.charCodeAt(0))],
+              name,
+              { type: 'text/csv' }
+            );
+          setLedgerFile(restoredFile(detail.ledger.payload!, detail.revision.ledger.fileName));
+          setValuationFile(
+            detail.valuation && detail.revision.valuation
+              ? restoredFile(detail.valuation.payload!, detail.revision.valuation.fileName)
+              : null
+          );
+          setAsOfDate(detail.revision.asOfDate ?? '');
+          setPreview(null);
+          setEvidenceNote('');
+          setLocalError(null);
+          publishMutation.reset();
+        }}
+      />
+
       {!commandFrozen ? (
         <Button
           type="button"
@@ -1030,6 +1100,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
           onClick={() => void handlePreview()}
           disabled={
             !ledgerFile ||
+            draftPending ||
             !asOfDate ||
             ledgerPreviewMutation.isPending ||
             valuationPreviewMutation.isPending
@@ -1181,7 +1252,12 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
             type="button"
             className="min-h-11"
             onClick={() => void handlePublish()}
-            disabled={isPreparingPublish || publishMutation.isPending || evidenceNote.trim() === ''}
+            disabled={
+              draftPending ||
+              isPreparingPublish ||
+              publishMutation.isPending ||
+              evidenceNote.trim() === ''
+            }
           >
             Publish actuals
           </Button>
@@ -1268,6 +1344,21 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
           </div>
         </div>
       ) : null}
+      <ActualsRestatementReview
+        key={`restatement:${fundId}`}
+        fundId={fundId}
+        {...(latestQuery.data ? { latestReference: latestQuery.data.reference } : {})}
+        disabled={
+          ordinaryCommandFrozen ||
+          draftLocked ||
+          draftPending ||
+          ledgerPreviewMutation.isPending ||
+          valuationPreviewMutation.isPending
+        }
+        onLockChange={setRestatementLocked}
+        onPendingChange={setRestatementPending}
+        onRefreshBasis={() => latestQuery.refetch()}
+      />
     </section>
   );
 }

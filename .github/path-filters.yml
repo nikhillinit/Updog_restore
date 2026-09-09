@@ -352,6 +352,11 @@ schema_tests:
   - 'tests/integration/fund-company-actuals-facts-transaction.pg.test.ts'
   - 'tests/integration/financial-facts-payload5-consumers.pg.test.ts'
   - 'tests/integration/lp-reporting-actuals-pilot-publish.pg.test.ts'
+  - 'tests/integration/actuals-draft-journaled-migration.pg.test.ts'
+  - 'tests/integration/actuals-restatement-journaled-migration.pg.test.ts'
+  - 'scripts/run-actuals-draft-journaled-migration.mjs'
+  - 'scripts/run-actuals-restatement-journaled-migration.mjs'
+  - 'tests/integration/actuals-draft-revisions.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # F_1.12.0 financial-facts terminal-head proof
   - 'tests/integration/financial-facts-terminal-head.pg.test.ts'

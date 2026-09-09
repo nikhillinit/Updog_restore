@@ -476,6 +476,47 @@ describe('ActualsPublicationPanel lifecycle', () => {
     expect(screen.getByText('Page 2 of 2 · rows 101–101 of 101')).toBeVisible();
   });
 
+  it('shows disabled publication as a known refusal and leaves draft editing available', async () => {
+    const publishCalls: Array<{ key: string; body: string }> = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('latest-reference')) return response(noHead);
+      if (url.includes('/actuals/dry-run')) return response(preview);
+      if (url.includes('/actuals/publish')) {
+        publishCalls.push({
+          key: (init?.headers as Record<string, string>)['Idempotency-Key'],
+          body: String(init?.body),
+        });
+        return response(
+          { code: 'ACTUALS_PUBLICATION_DISABLED', message: 'Canonical publication is disabled.' },
+          409
+        );
+      }
+      return response({}, 500);
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await advanceToPublish(user);
+    await user.click(screen.getByRole('button', { name: 'Publish actuals' }));
+
+    expect(await screen.findByTestId('actuals-publish-error')).toHaveTextContent(
+      'ACTUALS_PUBLICATION_DISABLED'
+    );
+    expect(screen.queryByTestId('actuals-unknown-outcome')).toBeNull();
+    const storedKey = Object.keys(sessionStorage).find((key) =>
+      key.startsWith('actuals-publish:v1:7:')
+    );
+    expect(storedKey).toBeDefined();
+    expect(JSON.parse(sessionStorage.getItem(storedKey!) ?? 'null')).toMatchObject({
+      idempotencyKey: publishCalls[0]?.key,
+      status: 'refused',
+    });
+    await user.click(screen.getByRole('button', { name: 'Discard command' }));
+    expect(screen.getByLabelText('Reporting cutoff')).toBeEnabled();
+    expect(screen.getByLabelText('Ledger CSV')).toBeEnabled();
+  });
+
   it('persists uncertain recovery state before a pending POST and enables discard after proven refusal', async () => {
     const publishCalls: Array<{ key: string; body: string }> = [];
     let resolvePublish!: (value: Response) => void;
