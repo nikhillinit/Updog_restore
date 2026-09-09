@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
+import { isDeepStrictEqual } from 'node:util';
 import pg from 'pg';
 import YAML from 'yaml';
 import { z } from 'zod';
@@ -45,10 +46,39 @@ export const ACTUALS_SCHEMA_RUN_NAME =
 type Credentials = { githubToken: string; neonApiKey: string };
 type Observation = ActualsMigrationPredicateObservation;
 type Binding = ActualsMigrationPreflightReport['binding'];
+type PreApplyStage = 'binding' | 'source' | 'authority' | 'target' | 'recovery-and-admission';
 const sha256 = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const quiet = { write: () => true };
+const migrationBindingSchema = ActualsMigrationPreflightReportSchema.shape.binding.shape.migration;
+const migrationSourceSchema = migrationBindingSchema
+  .omit({ sqlSha256: true })
+  .extend({ hash: migrationBindingSchema.shape.sqlSha256 })
+  .strip();
 
-const incomplete: Observation[] = [
+export class ActualsMigrationPreApplyRefusal extends Error {
+  readonly code = 'ACTUALS_MIGRATION_PRE_APPLY_REFUSED';
+  readonly stage: PreApplyStage;
+  readonly observation: Observation | undefined;
+  readonly report: ActualsMigrationPreflightReport | undefined;
+
+  constructor(
+    stage: PreApplyStage,
+    evidence: { observation?: Observation; report?: ActualsMigrationPreflightReport } = {}
+  ) {
+    super(`Actuals migration pre-apply refused at ${stage}`);
+    this.name = 'ActualsMigrationPreApplyRefusal';
+    this.stage = stage;
+    this.observation = evidence.observation;
+    this.report = evidence.report;
+  }
+}
+
+// Candidate policy defines requirements only; it is neither live recovery evidence nor action authority.
+const recoveryPolicyRef = {
+  source: 'candidate-owner-policy-definition',
+  id: 'docs/workflows/PRODUCTION_SCRIPTS.md#actuals-recovery-evidence-requirements',
+};
+const recoveryAndAdmissionObservations: Observation[] = [
   {
     predicate: 'backup-and-pitr-recoverability',
     status: 'missing_collector_engineering',
@@ -57,9 +87,9 @@ const incomplete: Observation[] = [
   },
   {
     predicate: 'restore-freshness-window-definition',
-    status: 'unavailable_owner_definition',
-    code: 'RESTORE_FRESHNESS_WINDOW_UNDEFINED',
-    evidenceRefs: [],
+    status: 'verified',
+    code: 'SUCCESSFUL_ISOLATED_RESTORE_WITHIN_PRECEDING_72_HOURS_REQUIRED',
+    evidenceRefs: [recoveryPolicyRef],
   },
   {
     predicate: 'isolated-restore-evidence',
@@ -70,8 +100,8 @@ const incomplete: Observation[] = [
   {
     predicate: 'custody-role-definitions',
     status: 'unavailable_owner_definition',
-    code: 'CUSTODY_ROLES_UNDEFINED',
-    evidenceRefs: [],
+    code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
+    evidenceRefs: [recoveryPolicyRef],
   },
   {
     predicate: 'exact-live-digest-and-evidence-custody',
@@ -113,9 +143,11 @@ export function evaluateActualsMigrationAdmission(observations: unknown): 'pass'
 async function deriveBinding(input: ActualsMigrationPreflightInput): Promise<Binding> {
   assertDirectDatabaseUrl(input.databaseUrl);
   const restatement = input.mode === 'apply-actuals-restatement-0057';
-  const migration = await (
-    restatement ? loadActualsRestatementMigration : loadActualsDraftMigration
-  )({ migrationsDir: path.join(root, 'migrations') });
+  const migration = migrationSourceSchema.parse(
+    await (restatement ? loadActualsRestatementMigration : loadActualsDraftMigration)({
+      migrationsDir: path.join(root, 'migrations'),
+    })
+  );
   const manifestPath = restatement
     ? ACTUALS_RESTATEMENT_MANIFEST_IDENTITY.path
     : 'scripts/prod-schema-manifests/33-actuals-draft-revisions.json';
@@ -150,11 +182,12 @@ const githubContent = z
   .object({ type: z.literal('file'), encoding: z.literal('base64'), content: z.string() })
   .passthrough();
 async function githubFile(binding: Binding, githubToken: string, sourcePath: string) {
-  const { body } = await readAuthenticatedGithubJson({
+  const response = await readAuthenticatedGithubJson({
     repository: binding.repository,
     resource: `/contents/${sourcePath}?ref=${binding.candidateSha}`,
     githubToken,
   });
+  const body: unknown = response.body;
   return Buffer.from(githubContent.parse(body).content, 'base64');
 }
 
@@ -212,7 +245,7 @@ const runSchema = z
   .passthrough();
 
 async function collectDispatch(binding: Binding, credentials: Credentials): Promise<Observation> {
-  const get = async (resource: string) =>
+  const get = async (resource: string): Promise<unknown> =>
     (
       await readAuthenticatedGithubJson({
         repository: binding.repository,
@@ -349,7 +382,12 @@ async function collectTarget(
     input.mode === 'apply-actuals-draft-0056'
       ? runActualsDraftJournaledMigration
       : runActualsRestatementJournaledMigration
-  )({ connectionString: input.databaseUrl, apply: false, stdout: quiet });
+  )({
+    connectionString: input.databaseUrl,
+    apply: false,
+    localTestCapability: undefined,
+    stdout: quiet,
+  });
   const result = (
     input.mode === 'apply-actuals-draft-0056'
       ? ActualsDraftMigrationResultV1Schema
@@ -406,6 +444,22 @@ async function observe(
   }
 }
 
+function buildPreflightReport(binding: Binding, available: Observation[]) {
+  const observations = [
+    ...available,
+    ...recoveryAndAdmissionObservations.map((item) => ({
+      ...item,
+      evidenceRefs: item.evidenceRefs.map((reference) => ({ ...reference })),
+    })),
+  ];
+  return ActualsMigrationPreflightReportSchema.parse({
+    schemaVersion: 'actuals-migration-preflight/1.0.0',
+    binding,
+    evaluation: evaluateActualsMigrationAdmission(observations),
+    observations,
+  });
+}
+
 // Production/default transports only. No caller proof JSON, collector ports, or apply handle accepted.
 export async function collectActualsMigrationPreflight(
   rawInput: ActualsMigrationPreflightInput,
@@ -419,14 +473,58 @@ export async function collectActualsMigrationPreflight(
     await observe('protected-provider-and-database-identity', () =>
       collectTarget(input, binding, credentials)
     ),
-    ...incomplete.map((item) => ({ ...item, evidenceRefs: [] })),
   ];
-  return ActualsMigrationPreflightReportSchema.parse({
-    schemaVersion: 'actuals-migration-preflight/1.0.0',
-    binding,
-    evaluation: evaluateActualsMigrationAdmission(observations),
-    observations,
-  });
+  return buildPreflightReport(binding, observations);
+}
+
+// The prior report supplies an identity to compare, never authority. Every available
+// predicate is freshly collected in mutation-guard order and stops on its first refusal.
+// This function issues no apply capability and cannot waive missing recovery evidence.
+export async function revalidateActualsMigrationBeforeApply(
+  rawPriorReport: unknown,
+  rawInput: ActualsMigrationPreflightInput,
+  credentials: Credentials
+): Promise<ActualsMigrationPreflightReport> {
+  let input: ActualsMigrationPreflightInput;
+  let binding: Binding;
+  try {
+    input = ActualsMigrationPreflightInputSchema.parse(rawInput);
+    binding = await deriveBinding(input);
+    const prior = ActualsMigrationPreflightReportSchema.parse(rawPriorReport);
+    if (!isDeepStrictEqual(prior.binding, binding)) throw new Error('Binding changed');
+  } catch {
+    throw new ActualsMigrationPreApplyRefusal('binding');
+  }
+  const observations: Observation[] = [];
+  const stages = [
+    {
+      stage: 'source',
+      predicate: 'current-protected-source-and-ci',
+      collect: () => collectSource(binding, credentials),
+    },
+    {
+      stage: 'authority',
+      predicate: 'exact-body-migration-authority',
+      collect: () => collectDispatch(binding, credentials),
+    },
+    {
+      stage: 'target',
+      predicate: 'protected-provider-and-database-identity',
+      collect: () => collectTarget(input, binding, credentials),
+    },
+  ] as const;
+  for (const { stage, predicate, collect } of stages) {
+    const observation = await observe(predicate, collect);
+    if (observation.status !== 'verified') {
+      throw new ActualsMigrationPreApplyRefusal(stage, { observation });
+    }
+    observations.push(observation);
+  }
+  const report = buildPreflightReport(binding, observations);
+  if (report.evaluation !== 'pass') {
+    throw new ActualsMigrationPreApplyRefusal('recovery-and-admission', { report });
+  }
+  return report;
 }
 
 export function actualsMigrationInputFromEnvironment(

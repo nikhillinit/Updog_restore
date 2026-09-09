@@ -57,11 +57,16 @@ dispatch authority. Preserve existing 0050–0055 modes and receipts.
    actuals preflights collect authenticated protected-source/CI, exact
    owner-dispatch, and Neon/database identity observations. Their reports
    distinguish failed checks, missing live evidence, undefined owner criteria,
-   and missing collector engineering. Backup/PITR, isolated restore, custody,
-   migration isolation, and final runtime admission remain unimplemented;
-   restore freshness and custody roles still need owner definitions. Production
-   apply remains blocked. Report JSON, a connection URL, an environment flag,
-   local rehearsal, or a schema receipt cannot grant runtime admission.
+   and missing collector engineering. Immediately before either bounded apply,
+   `actuals-migration-preapply.ts` compares the exact mode/source/run/target
+   binding and freshly revalidates source, dispatch authority, then target
+   identity, stopping on the first refusal. Prior report JSON supplies no
+   authority. Backup/PITR, isolated restore, custody, and migration isolation
+   collectors, successful runtime admission, and live restore-digest
+   revalidation remain unimplemented. The owner-defined requirements below do
+   not supply exact evidence bindings or live proof. Production apply remains
+   blocked. Report JSON, a connection URL, an environment flag, local rehearsal,
+   or a schema receipt cannot grant runtime admission.
 4. A draft-feature application artifact requires admitted 0056 first. Keep
    `ACTUALS_PILOT_PUBLISH_ENABLED=false`; bind API, worker, database, queue, and
    configuration identities to the exact admitted release. Verify save, history,
@@ -83,6 +88,24 @@ dispatch authority. Preserve existing 0050–0055 modes and receipts.
    reconciliation before canonical publication is enabled. Missing F1 inputs do
    not prevent synthetic feature validation. Plan acceptance, forecast
    recompute, shadow entry, and activation remain separate explicit actions.
+
+### Actuals recovery evidence requirements
+
+For a high-risk production actuals data or schema change, a successful isolated
+restore must have completed during the preceding **72 hours**. The exact
+`actuals-isolated-restore-proof` workflow run produces the evidence, stored in
+**GitHub Actions**, protected from modification, and retained for the defined
+period. The repository owner is accountable for custody; repository
+administrators hold administrative custody. The production workflow
+independently retrieves the artifact by ID and verifies its digest and bindings.
+That separately recorded verification must confirm identity and integrity before
+production use.
+
+The retention duration and exact execution, artifact, restore, and verification
+bindings remain unresolved. Bind those identifiers and observations before
+admission; missing bindings remain blocked. Naming the workflow and defining its
+requirements does not prove successful recovery or authorize a production
+action.
 
 ### Validation sequence
 

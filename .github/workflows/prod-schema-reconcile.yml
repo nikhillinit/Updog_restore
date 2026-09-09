@@ -358,6 +358,7 @@ jobs:
             'actuals-draft-before.json' \
             'actuals-draft-migration-result.json' \
             'actuals-draft-preflight-result.json' \
+            'actuals-draft-preapply-result.json' \
             'actuals-draft-preflight.txt' \
             'apply.txt' \
             'lock-time-apply-vector.json' \
@@ -378,7 +379,7 @@ jobs:
           fi
           FILE_COUNT="$(find "$EVIDENCE_DIR/extracted" -type f | wc -l | tr -d ' ')"
           case "$FILE_COUNT" in
-            5|6|10) ;;
+            5|6|11) ;;
             *) echo "::error::Historical apply archive extracted an unexpected file count."; exit 1 ;;
           esac
           RECEIPT_PATH="$EVIDENCE_DIR/extracted/schema-reconcile-receipt.json"
@@ -489,7 +490,7 @@ jobs:
             expectedEntries.push(
               'actuals-draft-after.json', 'actuals-draft-before.json',
               'actuals-draft-migration-result.json', 'actuals-draft-preflight-result.json',
-              'actuals-draft-preflight.txt',
+              'actuals-draft-preflight.txt', 'actuals-draft-preapply-result.json',
             );
           }
           deepStrictEqual(
@@ -789,6 +790,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           MODE: ${{ inputs.mode }}
+          GH_TOKEN: ${{ github.token }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          ACTUALS_PREFLIGHT_SOURCE_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_BRANCH_ID }}
+          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
+          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
         run: |
           set +e
           if [ "$MODE" = "apply-catchup-0050-0053" ]; then
@@ -799,13 +809,23 @@ jobs:
               node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes > reports/apply.raw 2>&1
             STATUS=$?
           elif [ "$MODE" = "apply-actuals-draft-0056" ]; then
-            ACTUALS_DRAFT_MIGRATION_RESULT_PATH=reports/actuals-draft-migration-result.json \
-              node scripts/run-actuals-draft-journaled-migration.mjs --apply --yes > reports/apply.raw 2>&1
+            npx tsx scripts/release/actuals-migration-preapply.ts "$MODE" \
+              reports/actuals-draft-preflight-result.json reports/actuals-draft-preapply-result.json > reports/apply.raw 2>&1
             STATUS=$?
+            if [ "$STATUS" -eq 0 ]; then
+              ACTUALS_DRAFT_MIGRATION_RESULT_PATH=reports/actuals-draft-migration-result.json \
+                node scripts/run-actuals-draft-journaled-migration.mjs --apply --yes >> reports/apply.raw 2>&1
+              STATUS=$?
+            fi
           elif [ "$MODE" = "apply-actuals-restatement-0057" ]; then
-            ACTUALS_RESTATEMENT_MIGRATION_RESULT_PATH=reports/actuals-restatement-migration-result.json \
-              node scripts/run-actuals-restatement-journaled-migration.mjs --apply --yes > reports/apply.raw 2>&1
+            npx tsx scripts/release/actuals-migration-preapply.ts "$MODE" \
+              reports/actuals-restatement-preflight-result.json reports/actuals-restatement-preapply-result.json > reports/apply.raw 2>&1
             STATUS=$?
+            if [ "$STATUS" -eq 0 ]; then
+              ACTUALS_RESTATEMENT_MIGRATION_RESULT_PATH=reports/actuals-restatement-migration-result.json \
+                node scripts/run-actuals-restatement-journaled-migration.mjs --apply --yes >> reports/apply.raw 2>&1
+              STATUS=$?
+            fi
           elif [ "$MODE" = "apply" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
             STATUS=$?
@@ -1023,10 +1043,12 @@ jobs:
             reports/actuals-draft-before.json
             reports/actuals-draft-after.json
             reports/actuals-draft-preflight-result.json
+            reports/actuals-draft-preapply-result.json
             reports/actuals-draft-migration-result.json
             reports/actuals-restatement-before.json
             reports/actuals-restatement-after.json
             reports/actuals-restatement-preflight-result.json
+            reports/actuals-restatement-preapply-result.json
             reports/actuals-restatement-migration-result.json
           if-no-files-found: error
           retention-days: 90

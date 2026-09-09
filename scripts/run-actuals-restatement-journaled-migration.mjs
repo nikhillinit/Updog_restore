@@ -343,7 +343,7 @@ export async function runActualsRestatementJournaledMigration({
   connectionString,
   apply,
   localTestCapability,
-  stdout = process.stdout,
+  stdout = /** @type {{ write(message: string): boolean }} */ (process.stdout),
   clientFactory = ({ connectionString: target }) => new Client({ connectionString: target }),
 }) {
   if (apply) assertApplyCapability(connectionString, localTestCapability);

@@ -34,6 +34,9 @@ and this project adheres to
   observations into both actuals preflights. Reports separate missing
   engineering, missing live evidence, and undefined owner criteria; they do not
   grant production admission.
+- Revalidate exact actuals mode/source/run/target bindings immediately before
+  either migration apply. Failed revalidation stops before runner dispatch;
+  unresolved recovery and custody prerequisites still block admission.
 - Add candidate published-actual restatement contracts, immutable command/item
   lineage, and policy 1.5/payload 6 consumer handling. Historical payload 5
   stays readable; unmapped company monetary facts remain explicitly unavailable.

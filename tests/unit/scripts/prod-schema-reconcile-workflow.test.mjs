@@ -1,4 +1,5 @@
 import { deepStrictEqual } from 'node:assert';
+import { spawnSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -29,6 +30,7 @@ describe('prod-schema-reconcile workflow', () => {
       'actuals-schema:${{ inputs.mode }}:${{ inputs.expected_sha }}'
     );
     const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
+    const apply = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
     for (const kind of ['draft', 'restatement']) {
       const step = steps.find(
         (candidate) =>
@@ -46,6 +48,10 @@ describe('prod-schema-reconcile workflow', () => {
         ACTUALS_PREFLIGHT_DATABASE_ROLE: '${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}',
       });
       expect(step?.run).toContain(`scripts/release/actuals-${kind}-production-preflight.ts`);
+      expect(apply?.env).toMatchObject(step.env);
+      expect(apply?.run).toContain(
+        `reports/actuals-${kind}-preflight-result.json reports/actuals-${kind}-preapply-result.json`
+      );
     }
   });
 
@@ -66,6 +72,11 @@ describe('prod-schema-reconcile workflow', () => {
     const guard = ts.transpileModule(step.run.slice(start, end), {
       compilerOptions: { target: ts.ScriptTarget.ESNext },
     }).outputText;
+    const countStart = step.run.indexOf('case "$FILE_COUNT" in');
+    const countEnd = step.run.indexOf('esac', countStart) + 'esac'.length;
+    expect(countStart).toBeGreaterThan(0);
+    expect(countEnd).toBeGreaterThan(countStart);
+    const countGuard = step.run.slice(countStart, countEnd);
     const base = [
       'apply.txt',
       'lock-time-apply-vector.json',
@@ -82,13 +93,45 @@ describe('prod-schema-reconcile workflow', () => {
         'actuals-draft-after.json',
         'actuals-draft-migration-result.json',
         'actuals-draft-preflight-result.json',
+        'actuals-draft-preapply-result.json',
         'actuals-draft-preflight.txt',
       ],
     };
+    const allowlistItem = step.run.indexOf("'actuals-draft-after.json'");
+    const allowlistStart = step.run.lastIndexOf("printf '%s\\n'", allowlistItem);
+    const allowlistEnd = step.run.indexOf(
+      ' > "$EVIDENCE_DIR/actuals-draft-expected-entries.txt"',
+      allowlistStart
+    );
+    expect(allowlistStart).toBeGreaterThan(0);
+    expect(allowlistEnd).toBeGreaterThan(allowlistStart);
+    const allowlist = spawnSync('bash', ['-c', step.run.slice(allowlistStart, allowlistEnd)], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    expect(allowlist.status).toBe(0);
+    expect(allowlist.stdout.trim().split('\n')).toEqual(
+      [...inventories['apply-actuals-draft-0056']].sort()
+    );
+    const upload = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find((candidate) => candidate.id === 'upload_evidence');
+    const uploadPaths = upload.with.path.trim().split(/\s+/);
+    for (const entry of inventories['apply-actuals-draft-0056']) {
+      expect(uploadPaths).toContain(entry.endsWith('.txt') ? 'reports/*.txt' : `reports/${entry}`);
+    }
     for (const [layoutMode, entries] of Object.entries(inventories)) {
       const directory = await mkdtemp(path.join(os.tmpdir(), 'schema-archive-mode-'));
       try {
         await Promise.all(entries.map((entry) => writeFile(path.join(directory, entry), '')));
+        const extractedCount = String((await readdir(directory)).length);
+        const countResult = spawnSync('bash', ['-c', countGuard], {
+          env: { FILE_COUNT: extractedCount },
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        expect(countResult.error).toBeUndefined();
+        expect(countResult.status, countResult.stdout).toBe(0);
         for (const mode of Object.keys(inventories)) {
           const result = runInNewContext(`(async () => { ${guard} })()`, {
             receipt: { mode },

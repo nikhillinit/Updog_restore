@@ -11,6 +11,7 @@ import {
   ACTUALS_SCHEMA_RUN_NAME,
   collectActualsMigrationPreflight,
   evaluateActualsMigrationAdmission,
+  revalidateActualsMigrationBeforeApply,
 } from '../../../scripts/release/actuals-migration-preflight';
 import { aggregateProtectedBranchEvidence } from '../../../scripts/release/verify-exact-sha-checks.mjs';
 
@@ -60,6 +61,10 @@ const input: ActualsMigrationPreflightInput = {
   },
 };
 const credentials = { githubToken: 'private-github-token', neonApiKey: 'private-neon-token' };
+const recoveryPolicyRef = {
+  source: 'candidate-owner-policy-definition',
+  id: 'docs/workflows/PRODUCTION_SCRIPTS.md#actuals-recovery-evidence-requirements',
+};
 const repository = { id: 1, full_name: input.repository, owner: { id: 7, login: 'fixture-owner' } };
 const targetFingerprint = createHash('sha256')
   .update(
@@ -262,11 +267,25 @@ describe('authenticated available actuals migration verifiers', () => {
           }),
           expect.objectContaining({
             predicate: 'restore-freshness-window-definition',
-            status: 'unavailable_owner_definition',
+            status: 'verified',
+            code: 'SUCCESSFUL_ISOLATED_RESTORE_WITHIN_PRECEDING_72_HOURS_REQUIRED',
+            evidenceRefs: [recoveryPolicyRef],
           }),
           expect.objectContaining({
             predicate: 'custody-role-definitions',
             status: 'unavailable_owner_definition',
+            code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
+            evidenceRefs: [recoveryPolicyRef],
+          }),
+          expect.objectContaining({
+            predicate: 'isolated-restore-evidence',
+            status: 'missing_collector_engineering',
+            evidenceRefs: [],
+          }),
+          expect.objectContaining({
+            predicate: 'exact-live-digest-and-evidence-custody',
+            status: 'missing_collector_engineering',
+            evidenceRefs: [],
           }),
           expect.objectContaining({
             predicate: 'final-runtime-admission',
@@ -285,6 +304,51 @@ describe('authenticated available actuals migration verifiers', () => {
       expect(transport).toHaveBeenCalled();
     }
   );
+
+  it('references the supplied recovery window and custody duties without treating policy as live evidence', async () => {
+    installTransport();
+    const report = await collectActualsMigrationPreflight(input, credentials);
+    const policyPath = recoveryPolicyRef.id.split('#')[0]!;
+    const document = await readFile(new URL(`../../../${policyPath}`, import.meta.url), 'utf8');
+    const policy = document
+      .split('### Actuals recovery evidence requirements')[1]!
+      .split('\n### ')[0]!
+      .replace(/[`*]/g, '')
+      .replace(/\s+/g, ' ');
+    for (const requirement of [
+      'successful isolated restore must have completed during the preceding 72 hours',
+      'actuals-isolated-restore-proof',
+      'GitHub Actions',
+      'protected from modification',
+      'retained for the defined period',
+      'repository owner is accountable for custody',
+      'repository administrators',
+      'retrieves the artifact by ID',
+      'identity and integrity',
+    ]) {
+      expect(policy).toContain(requirement);
+    }
+    expect(policy).toMatch(/production workflow[^.]*independent[^.]*artifact by ID/);
+    expect(policy).toMatch(/verif[^.]*digest[^.]*bindings/);
+    expect(policy).toContain(
+      'retention duration and exact execution, artifact, restore, and verification bindings remain unresolved'
+    );
+    expect(policy).toContain('does not prove successful recovery or authorize a production action');
+    expect(
+      report.observations
+        .filter((item) =>
+          item.evidenceRefs.some((reference) => reference.source === recoveryPolicyRef.source)
+        )
+        .map((item) => item.predicate)
+    ).toEqual(['restore-freshness-window-definition', 'custody-role-definitions']);
+    expect(report.evaluation).toBe('blocked');
+    expect(
+      report.observations.find((item) => item.predicate === 'custody-role-definitions')?.status
+    ).toBe('unavailable_owner_definition');
+    expect(mocks.restatement).toHaveBeenCalledWith(
+      expect.objectContaining({ apply: false, localTestCapability: undefined })
+    );
+  });
 
   it.each([
     ['source head', '/commits/main', { sha: 'b'.repeat(40) }, 'current-protected-source-and-ci'],
@@ -491,6 +555,199 @@ describe('authenticated available actuals migration verifiers', () => {
       )
     ).rejects.toThrow();
     expect(transport).not.toHaveBeenCalled();
+  });
+});
+
+describe('immediate actuals pre-apply revalidation', () => {
+  async function priorReport(mode = input.mode) {
+    installTransport(mode);
+    const report = await collectActualsMigrationPreflight({ ...input, mode }, credentials);
+    vi.clearAllMocks();
+    return report;
+  }
+
+  it.each(['apply-actuals-draft-0056', 'apply-actuals-restatement-0057'] as const)(
+    'freshly checks %s in order and stops at the unresolved recovery gate',
+    async (mode) => {
+      const prior = await priorReport(mode);
+      const transport = installTransport(mode);
+      await expect(
+        revalidateActualsMigrationBeforeApply(prior, { ...input, mode }, credentials)
+      ).rejects.toMatchObject({
+        stage: 'recovery-and-admission',
+        report: {
+          binding: prior.binding,
+          evaluation: 'blocked',
+          observations: expect.arrayContaining([
+            expect.objectContaining({
+              predicate: 'backup-and-pitr-recoverability',
+              status: 'missing_collector_engineering',
+            }),
+            expect.objectContaining({
+              predicate: 'restore-freshness-window-definition',
+              status: 'verified',
+              code: 'SUCCESSFUL_ISOLATED_RESTORE_WITHIN_PRECEDING_72_HOURS_REQUIRED',
+              evidenceRefs: [recoveryPolicyRef],
+            }),
+            expect.objectContaining({
+              predicate: 'custody-role-definitions',
+              status: 'unavailable_owner_definition',
+              code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
+              evidenceRefs: [recoveryPolicyRef],
+            }),
+            expect.objectContaining({
+              predicate: 'isolated-restore-evidence',
+              status: 'missing_collector_engineering',
+              evidenceRefs: [],
+            }),
+            expect.objectContaining({
+              predicate: 'exact-live-digest-and-evidence-custody',
+              status: 'missing_collector_engineering',
+              evidenceRefs: [],
+            }),
+          ]),
+        },
+      });
+      const urls = transport.mock.calls.map(([url]) => new URL(url));
+      expect(urls[0]?.pathname).toContain('/commits/main');
+      const dispatchIndex = urls.findIndex((url) => url.pathname.endsWith('/actions/runs/123'));
+      const targetIndex = urls.findIndex((url) => url.hostname === 'console.neon.tech');
+      expect(dispatchIndex).toBeGreaterThan(0);
+      expect(targetIndex).toBeGreaterThan(dispatchIndex);
+      const selected = mode.endsWith('0056') ? mocks.draft : mocks.restatement;
+      const other = mode.endsWith('0056') ? mocks.restatement : mocks.draft;
+      expect(selected).toHaveBeenCalledExactlyOnceWith({
+        connectionString: input.databaseUrl,
+        apply: false,
+        localTestCapability: undefined,
+        stdout: expect.any(Object),
+      });
+      expect(other).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['mode', { mode: 'apply-actuals-draft-0056' }],
+    ['source', { candidateSha: 'b'.repeat(40) }],
+    ['repository', { repository: 'other/repository' }],
+    ['run', { runId: '124' }],
+    ['project', { provider: { ...input.provider, projectId: 'other-project' } }],
+    ['branch', { provider: { ...input.provider, branchId: 'other-branch' } }],
+    ['endpoint', { provider: { ...input.provider, endpointId: 'other-endpoint' } }],
+    ['database', { provider: { ...input.provider, databaseName: 'other_database' } }],
+    ['role', { provider: { ...input.provider, roleName: 'other_role' } }],
+    ['connection target', { databaseUrl: input.databaseUrl.replace('ep-target', 'ep-other') }],
+  ])(
+    'refuses changed %s binding before collecting or reaching a runner',
+    async (_label, change) => {
+      const prior = await priorReport();
+      const transport = installTransport();
+      await expect(
+        revalidateActualsMigrationBeforeApply(
+          prior,
+          { ...input, ...(change as object) },
+          credentials
+        )
+      ).rejects.toMatchObject({ stage: 'binding' });
+      expect(transport).not.toHaveBeenCalled();
+      expect(mocks.draft).not.toHaveBeenCalled();
+      expect(mocks.restatement).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['source', '/commits/main', { sha: 'b'.repeat(40) }, 'source'],
+    [
+      'mode',
+      '/actions/runs/123',
+      { display_title: `actuals-schema:apply-actuals-draft-0056:${input.candidateSha}` },
+      'authority',
+    ],
+    ['run', '/actions/runs/123', { id: 124 }, 'authority'],
+    ['attempt', '/actions/runs/123', { run_attempt: 2 }, 'authority'],
+    [
+      'target',
+      '/branches/branch-target',
+      { branch: { id: 'other-branch', project_id: 'project-target' } },
+      'target',
+    ],
+  ])(
+    'refuses authenticated %s drift before mutation and later stages',
+    async (_label, suffix, change, stage) => {
+      const prior = await priorReport();
+      const transport = installTransport(input.mode, (url, fixture) =>
+        url.pathname.endsWith(suffix as string)
+          ? { body: { ...(fixture.body as object), ...(change as object) } }
+          : fixture
+      );
+      await expect(
+        revalidateActualsMigrationBeforeApply(prior, input, credentials)
+      ).rejects.toMatchObject({ stage });
+      expect(mocks.connect).not.toHaveBeenCalled();
+      expect(mocks.draft).not.toHaveBeenCalled();
+      expect(mocks.restatement).not.toHaveBeenCalled();
+      if (stage !== 'target') {
+        expect(
+          transport.mock.calls.some(([url]) => new URL(url).hostname === 'console.neon.tech')
+        ).toBe(false);
+      }
+      if (stage === 'source') {
+        expect(
+          transport.mock.calls.some(([url]) => new URL(url).pathname.endsWith('/actions/runs/123'))
+        ).toBe(false);
+      }
+    }
+  );
+
+  it('refuses changed live database identity before the bounded schema reader', async () => {
+    const prior = await priorReport();
+    installTransport();
+    mocks.identity.database = 'other_database';
+    await expect(
+      revalidateActualsMigrationBeforeApply(prior, input, credentials)
+    ).rejects.toMatchObject({ stage: 'target' });
+    expect(mocks.query).toHaveBeenCalled();
+    expect(mocks.restatement).not.toHaveBeenCalled();
+    expect(mocks.draft).not.toHaveBeenCalled();
+  });
+
+  it('refuses copied source identity fields before transport', async () => {
+    const prior = await priorReport();
+    const transport = installTransport();
+    await expect(
+      revalidateActualsMigrationBeforeApply(
+        {
+          ...prior,
+          binding: {
+            ...prior.binding,
+            migration: { ...prior.binding.migration, sqlSha256: 'b'.repeat(64) },
+          },
+        },
+        input,
+        credentials
+      )
+    ).rejects.toMatchObject({ stage: 'binding' });
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('never promotes caller JSON pass or verified observations into apply authority', async () => {
+    const prior = await priorReport();
+    installTransport();
+    const claimed = {
+      ...prior,
+      evaluation: 'pass',
+      observations: prior.observations.map((observation) => ({
+        ...observation,
+        status: 'verified',
+        code: 'VERIFIED',
+        evidenceRefs: [{ source: 'caller', id: 'claimed-authority' }],
+      })),
+    };
+    await expect(
+      revalidateActualsMigrationBeforeApply(claimed, input, credentials)
+    ).rejects.toMatchObject({ stage: 'recovery-and-admission', report: { evaluation: 'blocked' } });
+    expect(mocks.restatement.mock.calls.every(([options]) => options.apply === false)).toBe(true);
+    expect(mocks.draft).not.toHaveBeenCalled();
   });
 });
 
