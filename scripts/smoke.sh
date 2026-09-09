@@ -38,7 +38,7 @@ fi
 
 # API health check  
 echo -n "Testing /api/health... "
-if curl -fsSL "$BASE_URL/api/health" | grep -q '"ok":true' 2>/dev/null; then
+if curl -fsSL "$BASE_URL/api/health" | grep -q '"status":"ok"' 2>/dev/null; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
