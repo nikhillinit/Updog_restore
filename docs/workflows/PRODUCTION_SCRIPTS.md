@@ -107,6 +107,19 @@ admission; missing bindings remain blocked. Naming the workflow and defining its
 requirements does not prove successful recovery or authorize a production
 action.
 
+The actuals preflight collects explicitly selected recovery references through
+read-only provider and GitHub requests and checks downloaded artifact bytes
+against their SHA-256 digest. These observations do not establish successful
+restore, exact PITR coverage, custody compliance, or migration containment and
+residue. Missing references or live records remain missing live evidence;
+authenticated records without an admitted producer/proof contract remain missing
+collector engineering. Missing retention duration remains an owner-definition
+blocker. Artifact metadata does not establish which rerun attempt produced the
+bytes; that binding requires qualifying producer evidence. Neither a locator nor
+a prior report grants admission. Pre-apply validation collects the references
+again; the production apply guards remain closed pending qualifying proof
+contracts and final runtime admission.
+
 ### Validation sequence
 
 Before first mutation, a retained entrypoint must validate all applicable

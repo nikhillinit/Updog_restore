@@ -60,6 +60,24 @@ const input: ActualsMigrationPreflightInput = {
     roleName: 'migration_owner',
   },
 };
+const inputWithRecovery: ActualsMigrationPreflightInput = {
+  ...input,
+  recovery: {
+    source: {
+      snapshotId: 'snapshot-source',
+      branchId: input.provider.branchId,
+      recoveryPoint: '2026-09-09T06:00:00.000Z',
+    },
+    restoreTarget: { ...input.provider },
+    proof: {
+      runId: '456',
+      runAttempt: 1,
+      artifactId: '789',
+      artifactName: 'actuals-isolated-restore-proof',
+      artifactSha256: 'c'.repeat(64),
+    },
+  },
+};
 const credentials = { githubToken: 'private-github-token', neonApiKey: 'private-neon-token' };
 const recoveryPolicyRef = {
   source: 'candidate-owner-policy-definition',
@@ -263,7 +281,7 @@ describe('authenticated available actuals migration verifiers', () => {
         expect.arrayContaining([
           expect.objectContaining({
             predicate: 'backup-and-pitr-recoverability',
-            status: 'missing_collector_engineering',
+            status: 'missing_live_evidence',
           }),
           expect.objectContaining({
             predicate: 'restore-freshness-window-definition',
@@ -274,17 +292,17 @@ describe('authenticated available actuals migration verifiers', () => {
           expect.objectContaining({
             predicate: 'custody-role-definitions',
             status: 'unavailable_owner_definition',
-            code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
+            code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_MISSING',
             evidenceRefs: [recoveryPolicyRef],
           }),
           expect.objectContaining({
             predicate: 'isolated-restore-evidence',
-            status: 'missing_collector_engineering',
+            status: 'missing_live_evidence',
             evidenceRefs: [],
           }),
           expect.objectContaining({
             predicate: 'exact-live-digest-and-evidence-custody',
-            status: 'missing_collector_engineering',
+            status: 'missing_live_evidence',
             evidenceRefs: [],
           }),
           expect.objectContaining({
@@ -572,7 +590,11 @@ describe('immediate actuals pre-apply revalidation', () => {
       const prior = await priorReport(mode);
       const transport = installTransport(mode);
       await expect(
-        revalidateActualsMigrationBeforeApply(prior, { ...input, mode }, credentials)
+        revalidateActualsMigrationBeforeApply(
+          JSON.parse(JSON.stringify(prior)),
+          { ...input, mode },
+          credentials
+        )
       ).rejects.toMatchObject({
         stage: 'recovery-and-admission',
         report: {
@@ -581,7 +603,7 @@ describe('immediate actuals pre-apply revalidation', () => {
           observations: expect.arrayContaining([
             expect.objectContaining({
               predicate: 'backup-and-pitr-recoverability',
-              status: 'missing_collector_engineering',
+              status: 'missing_live_evidence',
             }),
             expect.objectContaining({
               predicate: 'restore-freshness-window-definition',
@@ -592,17 +614,17 @@ describe('immediate actuals pre-apply revalidation', () => {
             expect.objectContaining({
               predicate: 'custody-role-definitions',
               status: 'unavailable_owner_definition',
-              code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
+              code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_MISSING',
               evidenceRefs: [recoveryPolicyRef],
             }),
             expect.objectContaining({
               predicate: 'isolated-restore-evidence',
-              status: 'missing_collector_engineering',
+              status: 'missing_live_evidence',
               evidenceRefs: [],
             }),
             expect.objectContaining({
               predicate: 'exact-live-digest-and-evidence-custody',
-              status: 'missing_collector_engineering',
+              status: 'missing_live_evidence',
               evidenceRefs: [],
             }),
           ]),
@@ -625,6 +647,36 @@ describe('immediate actuals pre-apply revalidation', () => {
       expect(other).not.toHaveBeenCalled();
     }
   );
+
+  it('round-trips persisted recovery selectors before fresh recovery refusal', async () => {
+    installTransport();
+    const prior = await collectActualsMigrationPreflight(inputWithRecovery, credentials);
+    vi.clearAllMocks();
+    installTransport();
+
+    await expect(
+      revalidateActualsMigrationBeforeApply(
+        JSON.parse(JSON.stringify(prior)),
+        inputWithRecovery,
+        credentials
+      )
+    ).rejects.toMatchObject({
+      stage: 'recovery-and-admission',
+      report: {
+        binding: prior.binding,
+        observations: expect.arrayContaining([
+          expect.objectContaining({
+            predicate: 'backup-and-pitr-recoverability',
+            status: 'failed',
+          }),
+          expect.objectContaining({
+            predicate: 'isolated-restore-evidence',
+            status: 'failed',
+          }),
+        ]),
+      },
+    });
+  });
 
   it.each([
     ['mode', { mode: 'apply-actuals-draft-0056' }],

@@ -33,6 +33,7 @@ import {
   collectProtectedBranchEvidence,
   readAuthenticatedGithubJson,
 } from './verify-exact-sha-checks.mjs';
+import { collectActualsRecoveryEvidence } from './actuals-recovery-evidence';
 import {
   validateConnectionUri,
   validateDatabase,
@@ -73,55 +74,12 @@ export class ActualsMigrationPreApplyRefusal extends Error {
   }
 }
 
-// Candidate policy defines requirements only; it is neither live recovery evidence nor action authority.
-const recoveryPolicyRef = {
-  source: 'candidate-owner-policy-definition',
-  id: 'docs/workflows/PRODUCTION_SCRIPTS.md#actuals-recovery-evidence-requirements',
+const finalRuntimeAdmissionObservation: Observation = {
+  predicate: 'final-runtime-admission',
+  status: 'missing_collector_engineering',
+  code: 'RUNTIME_ADMISSION_NOT_IMPLEMENTED',
+  evidenceRefs: [],
 };
-const recoveryAndAdmissionObservations: Observation[] = [
-  {
-    predicate: 'backup-and-pitr-recoverability',
-    status: 'missing_collector_engineering',
-    code: 'BACKUP_PITR_COLLECTOR_NOT_IMPLEMENTED',
-    evidenceRefs: [],
-  },
-  {
-    predicate: 'restore-freshness-window-definition',
-    status: 'verified',
-    code: 'SUCCESSFUL_ISOLATED_RESTORE_WITHIN_PRECEDING_72_HOURS_REQUIRED',
-    evidenceRefs: [recoveryPolicyRef],
-  },
-  {
-    predicate: 'isolated-restore-evidence',
-    status: 'missing_collector_engineering',
-    code: 'ISOLATED_RESTORE_COLLECTOR_NOT_IMPLEMENTED',
-    evidenceRefs: [],
-  },
-  {
-    predicate: 'custody-role-definitions',
-    status: 'unavailable_owner_definition',
-    code: 'CUSTODY_POLICY_DEFINED_RETENTION_DURATION_AND_LIVE_RUN_ARTIFACT_BINDINGS_MISSING',
-    evidenceRefs: [recoveryPolicyRef],
-  },
-  {
-    predicate: 'exact-live-digest-and-evidence-custody',
-    status: 'missing_collector_engineering',
-    code: 'RESTORE_DIGEST_CUSTODY_COLLECTOR_NOT_IMPLEMENTED',
-    evidenceRefs: [],
-  },
-  {
-    predicate: 'migration-isolation-containment-and-residue',
-    status: 'missing_collector_engineering',
-    code: 'MIGRATION_ISOLATION_COLLECTOR_NOT_IMPLEMENTED',
-    evidenceRefs: [],
-  },
-  {
-    predicate: 'final-runtime-admission',
-    status: 'missing_collector_engineering',
-    code: 'RUNTIME_ADMISSION_NOT_IMPLEMENTED',
-    evidenceRefs: [],
-  },
-];
 
 // A reachable positive evaluation is useful for contract tests. It is not an apply capability.
 export function evaluateActualsMigrationAdmission(observations: unknown): 'pass' | 'blocked' {
@@ -445,13 +403,7 @@ async function observe(
 }
 
 function buildPreflightReport(binding: Binding, available: Observation[]) {
-  const observations = [
-    ...available,
-    ...recoveryAndAdmissionObservations.map((item) => ({
-      ...item,
-      evidenceRefs: item.evidenceRefs.map((reference) => ({ ...reference })),
-    })),
-  ];
+  const observations = [...available, { ...finalRuntimeAdmissionObservation, evidenceRefs: [] }];
   return ActualsMigrationPreflightReportSchema.parse({
     schemaVersion: 'actuals-migration-preflight/1.0.0',
     binding,
@@ -473,6 +425,7 @@ export async function collectActualsMigrationPreflight(
     await observe('protected-provider-and-database-identity', () =>
       collectTarget(input, binding, credentials)
     ),
+    ...(await collectActualsRecoveryEvidence({ binding, credentials })),
   ];
   return buildPreflightReport(binding, observations);
 }
@@ -520,6 +473,7 @@ export async function revalidateActualsMigrationBeforeApply(
     }
     observations.push(observation);
   }
+  observations.push(...(await collectActualsRecoveryEvidence({ binding, credentials })));
   const report = buildPreflightReport(binding, observations);
   if (report.evaluation !== 'pass') {
     throw new ActualsMigrationPreApplyRefusal('recovery-and-admission', { report });
@@ -531,6 +485,21 @@ export function actualsMigrationInputFromEnvironment(
   mode: ActualsMigrationPreflightInput['mode'],
   environment: NodeJS.ProcessEnv
 ): ActualsMigrationPreflightInput {
+  const hasRecoverySelectors = [
+    'ACTUALS_RECOVERY_SNAPSHOT_ID',
+    'ACTUALS_RECOVERY_SOURCE_BRANCH_ID',
+    'ACTUALS_RECOVERY_POINT',
+    'ACTUALS_RESTORE_PROJECT_ID',
+    'ACTUALS_RESTORE_BRANCH_ID',
+    'ACTUALS_RESTORE_ENDPOINT_ID',
+    'ACTUALS_RESTORE_DATABASE_NAME',
+    'ACTUALS_RESTORE_DATABASE_ROLE',
+    'ACTUALS_RESTORE_PROOF_RUN_ID',
+    'ACTUALS_RESTORE_PROOF_RUN_ATTEMPT',
+    'ACTUALS_RESTORE_PROOF_ARTIFACT_ID',
+    'ACTUALS_RESTORE_PROOF_ARTIFACT_NAME',
+    'ACTUALS_RESTORE_PROOF_ARTIFACT_SHA256',
+  ].some((name) => environment[name] !== undefined);
   return ActualsMigrationPreflightInputSchema.parse({
     mode,
     repository: environment['GITHUB_REPOSITORY'],
@@ -545,5 +514,30 @@ export function actualsMigrationInputFromEnvironment(
       databaseName: environment['PRODUCTION_DATABASE_NAME'],
       roleName: environment['ACTUALS_PREFLIGHT_DATABASE_ROLE'],
     },
+    ...(hasRecoverySelectors
+      ? {
+          recovery: {
+            source: {
+              snapshotId: environment['ACTUALS_RECOVERY_SNAPSHOT_ID'],
+              branchId: environment['ACTUALS_RECOVERY_SOURCE_BRANCH_ID'],
+              recoveryPoint: environment['ACTUALS_RECOVERY_POINT'],
+            },
+            restoreTarget: {
+              projectId: environment['ACTUALS_RESTORE_PROJECT_ID'],
+              branchId: environment['ACTUALS_RESTORE_BRANCH_ID'],
+              endpointId: environment['ACTUALS_RESTORE_ENDPOINT_ID'],
+              databaseName: environment['ACTUALS_RESTORE_DATABASE_NAME'],
+              roleName: environment['ACTUALS_RESTORE_DATABASE_ROLE'],
+            },
+            proof: {
+              runId: environment['ACTUALS_RESTORE_PROOF_RUN_ID'],
+              runAttempt: Number(environment['ACTUALS_RESTORE_PROOF_RUN_ATTEMPT']),
+              artifactId: environment['ACTUALS_RESTORE_PROOF_ARTIFACT_ID'],
+              artifactName: environment['ACTUALS_RESTORE_PROOF_ARTIFACT_NAME'],
+              artifactSha256: environment['ACTUALS_RESTORE_PROOF_ARTIFACT_SHA256'],
+            },
+          },
+        }
+      : {}),
   });
 }
