@@ -154,3 +154,15 @@ regexes = [
 paths = [
   '''^tests/unit/server/actuals-pilot-runtime-routes\.test\.ts$'''
 ]
+
+[[allowlists]]
+description = "Allow connected actuals demo synthetic JWT fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?m)^[ \t]*JWT_SECRET:[ \t]*'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation',[ \t]*$'''
+]
+paths = [
+  '''^scripts/run-connected-actuals-demo\.mjs$'''
+]
