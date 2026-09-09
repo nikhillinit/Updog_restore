@@ -61,10 +61,11 @@ dispatch authority. Preserve existing 0050–0055 modes and receipts.
    `actuals-migration-preapply.ts` compares the exact mode/source/run/target
    binding and freshly revalidates source, dispatch authority, then target
    identity, stopping on the first refusal. Prior report JSON supplies no
-   authority. Backup/PITR, isolated restore, custody, and migration isolation
-   collectors, successful runtime admission, and live restore-digest
-   revalidation remain unimplemented. The owner-defined requirements below do
-   not supply exact evidence bindings or live proof. Production apply remains
+   authority. Read-only recovery reference/artifact-byte collection and
+   immediate pre-apply revalidation exist. Qualifying backup/PITR, restore,
+   custody, isolation/containment/residue producer proofs and final runtime
+   admission remain incomplete. The owner-defined requirements below do not
+   supply exact evidence bindings or live proof. Production apply remains
    blocked. Report JSON, a connection URL, an environment flag, local rehearsal,
    or a schema receipt cannot grant runtime admission.
 4. A draft-feature application artifact requires admitted 0056 first. Keep
@@ -119,6 +120,22 @@ bytes; that binding requires qualifying producer evidence. Neither a locator nor
 a prior report grants admission. Pre-apply validation collects the references
 again; the production apply guards remain closed pending qualifying proof
 contracts and final runtime admission.
+
+The named restore producer is absent from the inspected source. The current
+forecast rehearsal's actuals selectors still encounter production-prerequisite
+refusal before provider creation; that rehearsal does not substitute for a
+successful actuals restore producer. The remaining payload, authenticated
+producer-attempt/digest binding, independent verifier and follow-on refusal
+tests are proposed in
+[the F1 release plan](../1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md#remaining-recovery-producer-and-admission-specification).
+Its design must establish restore completion time, the actual recovered source,
+returned isolated target, exact migration and manifest hashes, target
+fingerprint, containment/residue and custody evidence. A payload's own attempt
+or timestamp cannot establish those facts. Retention duration still requires an
+owner definition. Specification completion, producer/validator implementation,
+synthetic validation, live qualified restore evidence and final runtime
+admission remain separate; none supplies action-scoped production authority by
+itself.
 
 ### Validation sequence
 

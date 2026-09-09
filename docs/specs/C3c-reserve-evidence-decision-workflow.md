@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 scope: reserve-evidence-decision-workflow-v1
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: 08e4529f973c0d248b3ef49985a16eb291b438529e583b01cd0ececeffcfed6c
+source_sha: 8eac03568cd40bc4a00c21648a873badfc582b45
+body_sha256: c6fdde008d313cefe73c40e7beaf4931541a164613e6d72605fc6453292152b9
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -73,9 +73,9 @@ do not serialize a correction save against decision creation.
 C1's evidence-linked decision command is reused. V3 evidence comparison includes
 the complete `FinancialFactsBasisRef`: `schemaId`, `fundId`, `snapshotId`,
 `snapshotInputHash`, `sourceFactsInputHash`, `policyVersion`, `asOfDate`,
-`knowledgeCutoff`, or explicit legacy `null`. Policy 1.4/payload 5 requires
-non-null exact identity. Missing NAV/RVPI/TVPI stay typed unavailable and cannot
-be filled from another source.
+`knowledgeCutoff`, or explicit legacy `null`. Policy 1.4/payload 5 and policy
+1.5/payload 6 require non-null exact identity. Missing NAV/RVPI/TVPI stay typed
+unavailable and cannot be filled from another source.
 
 ## Authoritative Inputs and Source Versions
 
@@ -175,6 +175,31 @@ fund lock before terminal-state recheck and successor insert. A correction
 committed first causes decision refusal; a decision committed first may later be
 superseded while its immutable link remains valid point-in-time evidence.
 
+### Missing-data and decision acceptance examples
+
+These examples require an eligible analysis basis. Neither actuals policy gains
+periodic-analysis eligibility; its existing refusal cannot be bypassed by a
+reserve pin or a decision about missing data.
+
+A verified partial V3 snapshot may be saved and linked as evidence of a blocked
+reserve decision. Its unavailable securities/sections and reasons must remain
+visible; the record does not approve allocation, rank excluded securities or
+execute a trade. Available entries use only the exact admitted snapshot. Missing
+ownership, SAFE conversion, dates, reserve-origin classification or marks stay
+explicit gaps; no aggregate mark or planned budget fills them. Unreceipted or
+incoherent snapshots cannot be saved as qualified reserve evidence at all.
+
+Synthetic acceptance: admitted security S at 2x plus security T unavailable for
+missing conversion produces one ranked entry and one visible refusal in the same
+reference. A decision to obtain T's conversion evidence may link that reference;
+no numeric T value or authority to deploy is created. Missing V2
+predecessor/equivalence evidence yields zero new reference/decision/link rows.
+If correction commits first, new decision creation on the old reference refuses;
+if the decision commits first, later correction preserves its point-in-time
+link. An authenticated exact replay after correction returns the original
+outcome without another decision/link; a new key must pass successor checks.
+Task creation remains a subsequent explicit action through existing APIs.
+
 ## Refusal Matrix
 
 | Condition                                    | Result                      | Durable writes           |
@@ -213,16 +238,16 @@ prospective and intentionally have no baseline hash.
 | `client/src/hooks/useInternalAnalysis.ts`                                       | `a4d7be9c493c431edcd44dc9be642109386d0793a449911ff3a2edb7c616a15b` |
 | `client/src/hooks/useTasks.ts`                                                  | `46670c398bb6c23bba5493ecb9562b8ede0eb90bbb586a272e0b7d8bcc0064bc` |
 | `client/src/pages/fund-model-results-operations.tsx`                            | `f0ee531edf65cd347ab7cc13365f789c9a015bcf09b39f6acbd241ff2d2140ca` |
-| `migrations/meta/_journal.json`                                                 | `b69d3827f712c6474738faa874c3bc0073e6fb444ef85a4a35ac2ea1867c82ef` |
+| `migrations/meta/_journal.json`                                                 | `5df1a9a2bb3eeb29f4c815df0f93b826c61b917fd9a6a9e66e75f336914a41d7` |
 | `server/routes/fund-moic.ts`                                                    | `2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba` |
 | `server/routes/internal-analysis.ts`                                            | `884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9` |
 | `server/routes/operating-object-decisions.ts`                                   | `b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c` |
 | `server/routes/operating-object-tasks.ts`                                       | `e13d9ef5e23a94fe17978c20c97cab4d082e950d97d3f7e2d02e1cf5c49a6dbf` |
 | `server/services/current-forecast-fund-lock.ts`                                 | `d1173cc630a88b50a4512d8a76ec3c77820fb50f10d49eb0bc2b97212f9e60a3` |
-| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `a4c6cfec3a9d289c33eea5394163cac857464142b85f164c7c357d1eadb01b92` |
+| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `ead85eec1340799ab9811b0279fbbb5aa8ec494e823299d8e6ec0d70de874a1d` |
 | `server/services/operating-objects/decision-evidence-link-service.ts`           | `a3e0c8407ed074bcac79e1bedd484454541f3a5528a8c4e6c72fac93bf775d1d` |
 | `server/services/operating-objects/task-evidence-link-service.ts`               | `53f9a69abc7aa81eb18da30264e9d95680f589025203696292075a660d8f61d6` |
-| `server/services/reserves/dynamic-reserve-intelligence-service.ts`              | `d50bb673f895fcca93a9f90b366e9790fe410ff5bbb852c65410d2c5875eccfc` |
+| `server/services/reserves/dynamic-reserve-intelligence-service.ts`              | `c6a66f8d26048d8d5b6ac640c5d73585c8cd85f95c26f08db1189788d110d061` |
 | `shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts` | `172784d4420a642ea7fd1598f3bc94b94290ce078913fcfdf6f1957cbafb5c8a` |
 | `shared/schema/fund.ts`                                                         | `d7be982c71e9b5155877599fc91d00f9a550f256d11082c31b76cfea88ffb42e` |
 | `shared/schema/internal-analysis.ts`                                            | `cec76ded14bacadaed806859ebfc890902462e95dabb50c74b08ef900dd40b01` |

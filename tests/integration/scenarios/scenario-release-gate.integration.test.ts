@@ -15,6 +15,13 @@ import type {
   FundScenarioSetDetailV1,
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
+import { FundScenarioComparisonV1Schema } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
+import {
+  FundScenarioCalculationPayloadV1Schema,
+  FundScenarioCalculationResponseV1Schema,
+  FundScenarioSetDetailV1Schema,
+} from '../../../shared/contracts/fund-scenario-sets-v1.contract';
+import { EconomicsResultV1Schema } from '../../../shared/contracts/economics-v1.contract';
 import type { FundDraftWriteV1 } from '../../../shared/contracts/fund-draft-write-v1.contract';
 import {
   FundResultsReadV1Schema,
@@ -49,6 +56,10 @@ interface ActiveFund {
 let runtime: Runtime | null = null;
 let skipReason: string | null = null;
 let isStoppingPostgres = false;
+let startedPostgres: StartedPostgreSqlContainer | undefined;
+let startedRedis: StartedTestContainer | undefined;
+let startedPool: Pool | undefined;
+let runtimeImportsStarted = false;
 
 function visibleLocalSkip(ctx: TestContextWithSkip): boolean {
   if (!skipReason) return false;
@@ -119,22 +130,9 @@ async function tolerateExpectedPostgresStop(
   }
 }
 
-async function stopPostgresContainer(
-  postgres: StartedPostgreSqlContainer | undefined
-): Promise<void> {
-  if (!postgres) return;
-  if (process.env.CI === 'true') {
-    console.warn(
-      '[scenario-release-gate] Postgres container left for CI cleanup after pg pools close'
-    );
-    return;
-  }
-  await postgres.stop();
-}
-
 function baseDraft(): FundDraftWriteV1 {
   return {
-    fundName: 'Scenario Release Gate Fund',
+    fundName: 'Synthetic hypothetical scenario comparison fund',
     fundSize: 100_000_000,
     managementFeeRate: 2,
     carriedInterest: 20,
@@ -197,15 +195,18 @@ async function startRuntime(): Promise<Runtime> {
     .withPassword('test_password')
     .withStartupTimeout(STARTUP_TIMEOUT_MS)
     .start();
+  startedPostgres = postgres;
   const redis = await new GenericContainer('redis:7-alpine')
     .withExposedPorts(6379)
     .withWaitStrategy(Wait.forLogMessage(/.*Ready to accept connections.*/))
     .withStartupTimeout(STARTUP_TIMEOUT_MS)
     .start();
+  startedRedis = redis;
 
   const connectionString = postgres.getConnectionUri();
   const redisUrl = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
   const pool = createRuntimePool(connectionString);
+  startedPool = pool;
 
   await runMigrationsWithConnectionString(connectionString);
   await applyScenarioMigrations(pool);
@@ -231,16 +232,19 @@ async function startRuntime(): Promise<Runtime> {
   process.env.JWT_ALG = 'HS256';
   process.env._EXPLICIT_JWT_ALG = 'HS256';
   process.env.FUND_SCENARIO_HARD_TIMEOUT_MS = '30000';
+  process.env.ENABLE_GP_ECONOMICS_ENGINE = '1';
 
+  runtimeImportsStarted = true;
   const { default: scenarioRoutes } = await import('../../../server/routes/fund-scenario-sets');
   const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
-  const { signToken } = await import('../../../server/lib/auth/jwt');
+  const { signToken, requireAuth } = await import('../../../server/lib/auth/jwt');
   const { getRegisteredQueueRuntime } = await import('../../../server/queues/registry');
   const { startInProcessFundScenarioCalcWorkerHarness } =
     await import('../../../workers/fund-scenario-calc-worker-harness');
 
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  app.use('/api', requireAuth());
   app.use('/api', scenarioRoutes);
   registerFundConfigRoutes(app);
 
@@ -264,7 +268,7 @@ async function seedPublishedFundConfig(active: Runtime): Promise<ActiveFund> {
     `INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
-    ['Scenario Release Gate Fund', '100000000.00', '0.0200', '0.2000', 2026]
+    ['Synthetic hypothetical scenario comparison fund', '100000000.00', '0.0200', '0.2000', 2026]
   );
   const fundId = fund.rows[0]!.id;
 
@@ -306,7 +310,7 @@ async function seedPublishedFundConfig(active: Runtime): Promise<ActiveFund> {
 
 function feeProfileScenarioInput(): CreateFundScenarioSetV1 {
   return {
-    name: 'Fee profile hardening gate',
+    name: 'Hypothetical management fee comparison',
     variants: [
       {
         name: 'Higher management fee',
@@ -370,7 +374,7 @@ async function createScenarioSet(
     .send(input);
 
   expect(response.status, JSON.stringify(response.body)).toBe(201);
-  return response.body as FundScenarioSetDetailV1;
+  return FundScenarioSetDetailV1Schema.parse(response.body);
 }
 
 async function calculateFeeProfileScenario(
@@ -384,7 +388,7 @@ async function calculateFeeProfileScenario(
     .send({});
 
   expect(response.status, JSON.stringify(response.body)).toBe(200);
-  return response.body as FundScenarioCalculationResponseV1;
+  return FundScenarioCalculationResponseV1Schema.parse(response.body);
 }
 
 async function readScenarioComparison(
@@ -397,7 +401,7 @@ async function readScenarioComparison(
     .set('Authorization', fund.authHeader);
 
   expect(response.status, JSON.stringify(response.body)).toBe(200);
-  return response.body as FundScenarioComparisonV1;
+  return FundScenarioComparisonV1Schema.parse(response.body);
 }
 
 async function enqueueReserveScenarioCalculation(
@@ -458,7 +462,10 @@ async function archiveScenarioSet(
 }
 
 describe('scenario release gate integration', () => {
-  const originalEnv = { ...process.env };
+  const originalEnv = {
+    ...process.env,
+    ENABLE_GP_ECONOMICS_ENGINE: process.env.ENABLE_GP_ECONOMICS_ENGINE,
+  };
 
   beforeAll(async () => {
     try {
@@ -480,57 +487,281 @@ describe('scenario release gate integration', () => {
   afterAll(async () => {
     isStoppingPostgres = true;
     const active = runtime;
+    runtime = null;
+    const cleanupErrors: unknown[] = [];
     let closePgCircuitPool: (() => Promise<void>) | null = null;
     let closePrimaryDatabasePool: (() => Promise<void>) | null = null;
-
-    await active?.workerHarness.close();
-    for (const queue of active?.queues ?? []) {
-      await queue.close();
-    }
     try {
-      const db = await import('../../../server/db/pg-circuit');
-      closePgCircuitPool = db.closePool;
-    } catch {
-      // The pg-circuit module may never load if startup failed before route import.
+      await tolerateExpectedPostgresStop([
+        active?.workerHarness.close(),
+        ...(active?.queues ?? []).map((queue) => queue.close()),
+      ]).catch((error: unknown) => cleanupErrors.push(error));
+      if (runtimeImportsStarted) {
+        try {
+          const db = await import('../../../server/db/pg-circuit');
+          closePgCircuitPool = db.closePool;
+        } catch {
+          // The module may never load if startup failed before route import.
+        }
+        try {
+          const db = await import('../../../server/db');
+          closePrimaryDatabasePool = db.closeDatabasePool;
+        } catch {
+          // The module may never load if startup failed before route import.
+        }
+        try {
+          const registry = await import('../../../server/queues/registry');
+          registry.resetQueueRegistry();
+        } catch {
+          // The registry may never load if startup failed before route import.
+        }
+      }
+      await tolerateExpectedPostgresStop([
+        closePgCircuitPool?.(),
+        closePrimaryDatabasePool?.(),
+        (active?.pool ?? startedPool)?.end(),
+      ]).catch((error: unknown) => cleanupErrors.push(error));
+      const containers = await Promise.allSettled([
+        (active?.redis ?? startedRedis)?.stop(),
+        (active?.postgres ?? startedPostgres)?.stop(),
+      ]);
+      for (const result of containers) {
+        if (result.status === 'rejected') cleanupErrors.push(result.reason);
+      }
+    } finally {
+      restoreEnv(originalEnv);
+      vi.resetModules();
     }
-    try {
-      const db = await import('../../../server/db');
-      closePrimaryDatabasePool = db.closeDatabasePool;
-    } catch {
-      // The primary db module may never load if startup failed before route import.
-    }
-    try {
-      const registry = await import('../../../server/queues/registry');
-      registry.resetQueueRegistry();
-    } catch {
-      // Queue registry may never load if startup failed before route import.
-    }
-    await tolerateExpectedPostgresStop([
-      closePgCircuitPool?.(),
-      closePrimaryDatabasePool?.(),
-      active?.pool.end(),
-    ]);
-    await active?.redis.stop();
-    await stopPostgresContainer(active?.postgres);
-    restoreEnv(originalEnv);
-    vi.resetModules();
-  });
+    if (cleanupErrors.length > 0)
+      throw new AggregateError(cleanupErrors, 'Scenario runtime cleanup failed');
+  }, STARTUP_TIMEOUT_MS);
 
   it('proves the ADR-022 scenario lifecycle with Postgres, Redis, worker, results, and archive behavior', async (ctx) => {
     if (visibleLocalSkip(ctx)) return;
     expect(runtime).not.toBeNull();
     const active = runtime!;
     const fund = await seedPublishedFundConfig(active);
+    const sourceBefore = await active.pool.query(
+      'SELECT id, fund_id, version, config, is_draft, is_published FROM fundconfigs WHERE id = $1',
+      [fund.configId]
+    );
+    expect(sourceBefore.rows).toEqual([
+      {
+        id: fund.configId,
+        fund_id: fund.fundId,
+        version: 1,
+        config: baseDraft(),
+        is_draft: false,
+        is_published: true,
+      },
+    ]);
 
     const feeScenarioSet = await createScenarioSet(active, fund, feeProfileScenarioInput());
     const feeResult = await calculateFeeProfileScenario(active, fund, feeScenarioSet.id);
     expect(feeResult.snapshotId).toEqual(expect.any(Number));
 
+    const missingBaseline = await readScenarioComparison(active, fund, feeScenarioSet.id);
+    expect(missingBaseline).toMatchObject({
+      comparisonStatus: 'baseline_unavailable',
+      unavailableReason: 'BASELINE_ECONOMICS_SNAPSHOT_MISSING',
+      baseline: null,
+    });
+
+    const baselineRun = await request(active.app)
+      .post(`/api/funds/${fund.fundId}/recalculate`)
+      .set('Authorization', fund.authHeader)
+      .send({});
+    expect(baselineRun.status, JSON.stringify(baselineRun.body)).toBe(200);
+    expect(baselineRun.body).toMatchObject({
+      success: true,
+      dispatchState: 'dispatched',
+      correlationId: expect.any(String),
+      runId: expect.any(Number),
+    });
+    const baselineRows = await active.pool.query<{
+      id: number;
+      run_id: number;
+      config_id: number;
+      config_version: number;
+      correlation_id: string;
+      scenario_set_id: string | null;
+      payload: unknown;
+      run_fund_id: number;
+      run_config_id: number;
+      run_config_version: number;
+      run_correlation_id: string;
+      dispatch_state: string;
+      economics_requested: boolean;
+    }>(
+      `SELECT s.id, s.run_id, s.config_id, s.config_version, s.correlation_id,
+              s.scenario_set_id, s.payload, r.fund_id AS run_fund_id,
+              r.config_id AS run_config_id, r.config_version AS run_config_version,
+              r.correlation_id AS run_correlation_id, r.dispatch_state,
+              r.engines @> '["economics"]'::jsonb AS economics_requested
+       FROM fund_snapshots s JOIN calc_runs r ON r.id = s.run_id
+       WHERE s.fund_id = $1 AND s.type = 'ECONOMICS'`,
+      [fund.fundId]
+    );
+    expect(baselineRows.rows).toHaveLength(1);
+    const baselineRow = baselineRows.rows[0]!;
+    expect(baselineRow).toMatchObject({
+      run_id: baselineRun.body.runId,
+      config_id: fund.configId,
+      config_version: 1,
+      correlation_id: baselineRun.body.correlationId,
+      scenario_set_id: null,
+      run_fund_id: fund.fundId,
+      run_config_id: fund.configId,
+      run_config_version: 1,
+      run_correlation_id: baselineRun.body.correlationId,
+      dispatch_state: 'dispatched',
+      economics_requested: true,
+    });
+    // Independent oracle: $100m * ten years * 2% = $20m; 2.1% = $21m.
+    expect(EconomicsResultV1Schema.parse(baselineRow.payload).summary.totalManagementFees).toBe(
+      20_000_000
+    );
+    const scenarioRows = await active.pool.query<{
+      id: number;
+      type: string;
+      fund_id: number;
+      scenario_set_id: string;
+      config_id: number;
+      config_version: number;
+      correlation_id: string;
+      state_hash: string;
+      metadata_input_hash: string;
+      payload: unknown;
+      calculation_run_id: string;
+      run_snapshot_id: number;
+      run_fund_id: number;
+      source_config_id: number;
+      source_config_version: number;
+      input_hash: string;
+      run_correlation_id: string;
+      status: string;
+      completed: boolean;
+    }>(
+      `SELECT s.id, s.type, s.fund_id, s.scenario_set_id, s.config_id,
+              s.config_version, s.correlation_id, s.state_hash, s.payload,
+              s.metadata->>'input_hash' AS metadata_input_hash,
+              r.id AS calculation_run_id, r.snapshot_id AS run_snapshot_id,
+              r.fund_id AS run_fund_id, r.source_config_id, r.source_config_version,
+              r.input_hash, r.correlation_id AS run_correlation_id, r.status,
+              r.completed_at IS NOT NULL AS completed
+       FROM fund_snapshots s JOIN fund_scenario_calculation_runs r ON r.snapshot_id = s.id
+       WHERE s.id = $1 AND r.scenario_set_id = $2`,
+      [feeResult.snapshotId, feeScenarioSet.id]
+    );
+    expect(scenarioRows.rows).toHaveLength(1);
+    const scenarioRow = scenarioRows.rows[0]!;
+    expect(scenarioRow).toMatchObject({
+      id: feeResult.snapshotId,
+      type: 'SCENARIOS',
+      fund_id: fund.fundId,
+      scenario_set_id: feeScenarioSet.id,
+      config_id: fund.configId,
+      config_version: 1,
+      correlation_id: feeResult.correlationId,
+      run_snapshot_id: feeResult.snapshotId,
+      run_fund_id: fund.fundId,
+      source_config_id: fund.configId,
+      source_config_version: 1,
+      run_correlation_id: feeResult.correlationId,
+      status: 'completed',
+      completed: true,
+    });
+    expect(scenarioRow.state_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(scenarioRow.input_hash).toBe(scenarioRow.state_hash);
+    expect(scenarioRow.metadata_input_hash).toBe(scenarioRow.state_hash);
+    const persistedScenario = FundScenarioCalculationPayloadV1Schema.parse(scenarioRow.payload);
+    expect(persistedScenario).toEqual(feeResult.payload);
+    expect(persistedScenario).toMatchObject({
+      fundId: fund.fundId,
+      scenarioSetId: feeScenarioSet.id,
+      sourceConfigId: fund.configId,
+      sourceConfigVersion: 1,
+      calculationMode: 'sync_fee_profile',
+      variants: [
+        {
+          variantId: feeScenarioSet.variants[0]!.id,
+          scenarioSetId: feeScenarioSet.id,
+          overrideType: 'fee_profile',
+          economics: { summary: { totalManagementFees: 21_000_000 } },
+        },
+      ],
+    });
     const comparison = await readScenarioComparison(active, fund, feeScenarioSet.id);
-    expect(['comparable', 'baseline_unavailable']).toContain(comparison.comparisonStatus);
-    if (comparison.comparisonStatus === 'baseline_unavailable') {
-      expect(comparison.unavailableReason).toEqual(expect.any(String));
-    }
+    expect(comparison).toMatchObject({
+      fundId: fund.fundId,
+      comparisonStatus: 'comparable',
+      scenarioSet: {
+        scenarioSetId: feeScenarioSet.id,
+        sourceConfigId: fund.configId,
+        sourceConfigVersion: 1,
+      },
+      baseline: { metrics: { totalManagementFees: 20_000_000 } },
+      variants: [
+        { variantId: feeScenarioSet.variants[0]!.id, metrics: { totalManagementFees: 21_000_000 } },
+      ],
+    });
+    expect(comparison.unavailableReason).toBeUndefined();
+    expect(
+      comparison.variants[0]!.metricDeltas.find((delta) => delta.metric === 'totalManagementFees')
+    ).toMatchObject({
+      baselineValue: 20_000_000,
+      scenarioValue: 21_000_000,
+      absoluteDelta: 1_000_000,
+      percentageDelta: 5,
+    });
+    const detailResponse = await request(active.app)
+      .get(`/api/funds/${fund.fundId}/scenario-sets/${feeScenarioSet.id}`)
+      .set('Authorization', fund.authHeader)
+      .expect(200);
+    const reopened = FundScenarioSetDetailV1Schema.parse(detailResponse.body);
+    expect(reopened).toMatchObject({
+      id: feeScenarioSet.id,
+      sourceConfigId: fund.configId,
+      sourceConfigVersion: 1,
+      variants: feeScenarioSet.variants,
+    });
+    const replay = await calculateFeeProfileScenario(active, fund, feeScenarioSet.id);
+    expect(replay).toEqual(feeResult);
+    const detailAfterReplay = await request(active.app)
+      .get(`/api/funds/${fund.fundId}/scenario-sets/${feeScenarioSet.id}`)
+      .set('Authorization', fund.authHeader)
+      .expect(200);
+    expect(FundScenarioSetDetailV1Schema.parse(detailAfterReplay.body)).toEqual(reopened);
+    const reopenedComparison = await readScenarioComparison(active, fund, feeScenarioSet.id);
+    expect({ ...reopenedComparison, calculatedAt: null }).toEqual({
+      ...comparison,
+      calculatedAt: null,
+    });
+    const retainedRuns = await active.pool.query<{
+      id: string;
+      snapshot_id: number;
+      correlation_id: string;
+    }>(
+      'SELECT id, snapshot_id, correlation_id FROM fund_scenario_calculation_runs WHERE scenario_set_id = $1',
+      [feeScenarioSet.id]
+    );
+    expect(retainedRuns.rows).toEqual([
+      {
+        id: scenarioRow.calculation_run_id,
+        snapshot_id: feeResult.snapshotId,
+        correlation_id: feeResult.correlationId,
+      },
+    ]);
+    const retainedSnapshots = await active.pool.query<{ id: number }>(
+      'SELECT id FROM fund_snapshots WHERE scenario_set_id = $1',
+      [feeScenarioSet.id]
+    );
+    expect(retainedSnapshots.rows).toEqual([{ id: feeResult.snapshotId }]);
+    const sourceAfter = await active.pool.query(
+      'SELECT id, fund_id, version, config, is_draft, is_published FROM fundconfigs WHERE id = $1',
+      [fund.configId]
+    );
+    expect(sourceAfter.rows).toEqual(sourceBefore.rows);
 
     const reserveScenarioSet = await createScenarioSet(active, fund, reserveScenarioInput(fund));
     await enqueueReserveScenarioCalculation(active, fund, reserveScenarioSet.id);

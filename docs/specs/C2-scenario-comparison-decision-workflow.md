@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 scope: scenario-comparison-decision-workflow-v1
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: 2f36c573d150549befbfa5b0aaee5df4303b6fdb45f064a455501af563063e65
+source_sha: 8eac03568cd40bc4a00c21648a873badfc582b45
+body_sha256: e61c311e40aa4ec8b2468ec8ab1436594724c8ee3ef6ef3b1a9b09cb3373a731
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -29,6 +29,7 @@ source_paths:
   - shared/contracts/fund-scenario-comparison-v1.contract.ts
   - shared/contracts/fund-scenario-sets-v1.contract.ts
   - shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract.ts
+  - shared/lib/financial-facts/payload5-consumer-evaluator.ts
   - shared/schema/fund.ts
   - shared/schema/internal-analysis.ts
   - shared/schema/operating-objects.ts
@@ -107,9 +108,18 @@ hash, input hash, and result hash. Require
 `scenarioSnapshotStateHash === inputHash`. The result hash covers the ordered
 variant IDs and exact server-owned economics response.
 
-Policy 1.4/payload 5 may qualify forecast/reserve inputs but does not supply
-economics periodic analysis. NAV, RVPI, and TVPI are typed unavailable when
-absent; they are never inferred.
+Policy 1.4/payload 5 and policy 1.5/payload 6 may qualify forecast/reserve
+inputs; both remain blocked for economics and periodic analysis with consumer
+reason `unsupported_payload_policy` (periodic analysis preserves
+`UNSUPPORTED_FACTS_POLICY`). A correction successor does not upgrade consumer
+eligibility. NAV, RVPI and TVPI remain typed unavailable when absent.
+
+Admitting either actuals policy to C2 is an unresolved owner/domain policy
+decision requiring its own source/input contract and tests; this draft does not
+choose it. A saved hypothetical construction/economics comparison is not actual
+fund reporting. Supported allocation/sector override shapes do not establish
+modeled sensitivity: persist source identity and disclose unconsumed knobs. C1
+remains the predecessor for the atomic evidence-linked decision command.
 
 ## Persistence and Hash Semantics
 
@@ -161,12 +171,12 @@ prospective and intentionally have no baseline hash.
 | `client/src/hooks/useDecisions.ts`                                              | `1ede4ffc07a385d0653c64f01a60d7f76bb44dcfb6e62c943cc25328ec4514dc` |
 | `client/src/pages/fund-scenario-workspace.tsx`                                  | `c8980cb6fc3219e708c580094b13e453424052f63e4d1fa0e26dc0a4d22c65c2` |
 | `docs/adr/ADR-022-fund-scenario-architecture.md`                                | `c26faa1bfbd8a18369e8011c9ede1fc39367e2408821d28bfae34c2694bdc644` |
-| `migrations/meta/_journal.json`                                                 | `b69d3827f712c6474738faa874c3bc0073e6fb444ef85a4a35ac2ea1867c82ef` |
+| `migrations/meta/_journal.json`                                                 | `5df1a9a2bb3eeb29f4c815df0f93b826c61b917fd9a6a9e66e75f336914a41d7` |
 | `server/routes/fund-scenario-sets.ts`                                           | `efa164d51499fa72b0da1332bf04d61feb0e3732926ae1b092df943b33d9ff27` |
 | `server/routes/internal-analysis.ts`                                            | `884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9` |
 | `server/services/fund-scenario-comparison-lineage-service.ts`                   | `e53fb753dc82de521a41088271a25d2e57546edf3cb8ed42e598fb8a16bb72c1` |
 | `server/services/fund-scenario-comparison-service.ts`                           | `bd37ae2f85a2b36674f89cb1a4f467c709b5516e6be1b7d2e96ec7d007e61d52` |
-| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `a4c6cfec3a9d289c33eea5394163cac857464142b85f164c7c357d1eadb01b92` |
+| `server/services/internal-analysis/analysis-checkpoint-service.ts`              | `ead85eec1340799ab9811b0279fbbb5aa8ec494e823299d8e6ec0d70de874a1d` |
 | `server/services/operating-objects/decision-evidence-link-service.ts`           | `a3e0c8407ed074bcac79e1bedd484454541f3a5528a8c4e6c72fac93bf775d1d` |
 | `shared/contracts/fund-scenario-comparison-v1.contract.ts`                      | `4c5b61ecc04336f23a389b91c2bf1dc0eb3e7e01aae55aa3bc6910b5a059a432` |
 | `shared/contracts/fund-scenario-sets-v1.contract.ts`                            | `b60dff76ac8ebac27dd50d2f75b619b8274572df6a8e2afc06ba634e157aeee3` |
@@ -174,6 +184,7 @@ prospective and intentionally have no baseline hash.
 | `shared/schema/fund.ts`                                                         | `d7be982c71e9b5155877599fc91d00f9a550f256d11082c31b76cfea88ffb42e` |
 | `shared/schema/internal-analysis.ts`                                            | `cec76ded14bacadaed806859ebfc890902462e95dabb50c74b08ef900dd40b01` |
 | `shared/schema/operating-objects.ts`                                            | `b0416757ac7090a4a0394e9f9a56234d65b84f22cad87636f3fff3900a9c68b7` |
+| `shared/lib/financial-facts/payload5-consumer-evaluator.ts`                     | `25d5b8501c60f01b9eb1cc173efcdd77f074bfd910c9898bf01ec6ec59442934` |
 
 ## Exact Test Manifest
 

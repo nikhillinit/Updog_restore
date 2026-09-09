@@ -13,7 +13,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CreateAllocationScenarioModal } from '@/components/scenarios/CreateAllocationScenarioModal';
+import {
+  ALLOCATION_MODEL_LIMITATION,
+  CreateAllocationScenarioModal,
+} from '@/components/scenarios/CreateAllocationScenarioModal';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
 import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
@@ -450,7 +453,9 @@ function ScenarioSetActionCard({
               <span aria-hidden="true" className="text-charcoal-300">
                 ·
               </span>
-              <span>Source config v{summary.sourceConfigVersion}</span>
+              <span>
+                Source config {summary.sourceConfigId} · v{summary.sourceConfigVersion}
+              </span>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -472,6 +477,11 @@ function ScenarioSetActionCard({
           {isPending ? 'Submitting' : actionButtonText(detail)}
         </Button>
       </div>
+      {overrideType === 'allocation' && (
+        <p className="mt-3 text-sm font-poppins text-presson-textMuted" role="note">
+          {ALLOCATION_MODEL_LIMITATION}
+        </p>
+      )}
       {status?.lastError && (
         <p className="mt-3 text-sm text-error-dark font-poppins">{status.lastError}</p>
       )}
@@ -561,15 +571,24 @@ function ScenarioComparisonWorkspace({
       <div>
         <h2 className="text-lg font-medium text-charcoal">Comparisons</h2>
         <p className="mt-1 text-sm text-charcoal-500 font-poppins">
-          Variant deltas against the authoritative baseline.
+          Hypothetical variant deltas against the baseline for each pinned source configuration.
         </p>
       </div>
       <div className="space-y-6">
         {comparisons.map((comparison) => (
-          <ScenarioComparisonTable
+          <div
             key={comparison.scenarioSet.scenarioSetId}
-            comparison={comparison}
-          />
+            className="space-y-3"
+            role="group"
+            aria-label={`${comparison.scenarioSet.name} comparison`}
+          >
+            {comparison.variants.some((variant) => variant.overrideType === 'allocation') && (
+              <p className="text-sm font-poppins text-presson-textMuted" role="note">
+                {ALLOCATION_MODEL_LIMITATION}
+              </p>
+            )}
+            <ScenarioComparisonTable comparison={comparison} />
+          </div>
         ))}
       </div>
     </section>
@@ -893,7 +912,8 @@ function FundScenarioWorkspacePage() {
               <div>
                 <h2 className="text-lg font-medium text-charcoal">Calculated Results</h2>
                 <p className="mt-1 text-sm text-charcoal-500 font-poppins">
-                  Scenario outputs from the latest calculated results.
+                  Hypothetical scenario outputs from the latest calculated results; these are not
+                  verified actuals.
                 </p>
               </div>
               {scenarioPayload ? (

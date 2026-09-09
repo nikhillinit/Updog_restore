@@ -25,6 +25,7 @@ import {
   getAllScenarioResultsForFund,
   getScenarioResults,
 } from '../../../server/services/fund-scenario-calculation-service';
+import { FundDraftWriteV1Schema } from '../../../shared/contracts/fund-draft-write-v1.contract';
 import { createScenarioInputHash } from '../../../server/lib/scenarios/scenario-input-hash';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 import {
@@ -869,8 +870,141 @@ describe('fund scenario calculation service', () => {
 
     const result = await calculateFundScenarioSet(1, scenarioSetId);
 
-    expect(result.payload.variants[0]?.economics.summary.totalManagementFees).toBe(15_000_000);
+    const feeVariant = result.payload.variants[0]!;
+    if (!('economics' in feeVariant)) throw new Error('Expected a fee economics result');
+    expect(feeVariant.economics.summary.totalManagementFees).toBe(15_000_000);
+    const baseline = actualEconomics.runEconomicsModel(
+      FundDraftWriteV1Schema.parse({
+        ...baseConfig,
+        fundLife: 10,
+        investmentPeriod: 5,
+        gpCommitment: 10_000_000,
+        economicsAssumptions: explicitFeeTierEconomicsAssumptions,
+      })
+    );
+    // $100m x 2% x 10 years versus 1.5%: $20m baseline, $15m scenario, -$5m.
+    expect(baseline.summary.totalManagementFees).toBe(20_000_000);
+    expect(
+      feeVariant.economics.summary.totalManagementFees - baseline.summary.totalManagementFees
+    ).toBe(-5_000_000);
+    expect(result.payload).toMatchObject({
+      scenarioSetId,
+      sourceConfigId: 12,
+      sourceConfigVersion: 4,
+      variants: [{ variantId, overrideType: 'fee_profile' }],
+    });
+    const feeInput = FundDraftWriteV1Schema.parse(runEconomicsModelMock.mock.calls[0]![0]);
+    expect(actualEconomics.normalizeEconomicsConfig(feeInput).feeTiers).toMatchObject([
+      { rate: 0.015 },
+    ]);
   });
+
+  it.each([
+    ['initial check size', { initialCheckAmount: 2_000_000 }],
+    ['capital allocation', { capitalAllocationPct: 80 }],
+    ['follow-on amount', { followOnAmount: 750_000 }],
+    ['follow-on participation', { followOnParticipationPct: 50 }],
+    ['deployment horizon and pacing', { investmentHorizonMonths: 72 }],
+  ])(
+    'saves %s assumptions without treating them as consumed economics inputs',
+    async (_label, change) => {
+      const actualEconomics = await vi.importActual<
+        typeof import('@shared/lib/economics/economics-engine')
+      >('@shared/lib/economics/economics-engine');
+      runEconomicsModelMock.mockImplementation(actualEconomics.runEconomicsModel);
+      const sourceConfig = FundDraftWriteV1Schema.parse({
+        ...baseConfig,
+        ...allocationOverride.payload,
+        fundLife: 10,
+        investmentPeriod: 5,
+        economicsAssumptions: explicitFeeTierEconomicsAssumptions,
+      });
+      const originalSource = structuredClone(sourceConfig);
+      const sourceEconomics = actualEconomics.runEconomicsModel(sourceConfig);
+      const override = {
+        overrideType: 'allocation' as const,
+        payload: {
+          allocations: sourceConfig.allocations!,
+          capitalPlanAllocations: [{ ...sourceConfig.capitalPlanAllocations![0]!, ...change }],
+        },
+      };
+      const inputHash = createScenarioInputHash({
+        version: SCENARIO_INPUT_HASH_VERSION,
+        contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
+        scenarioSetId,
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        calculationMode: 'sync_allocation',
+        overrideType: 'allocation',
+        engineVersion: 'fund-scenarios-v1',
+        modelInputsAsOfDate: '2026-06-30',
+        variants: [{ variantId, sortOrder: 0, override }],
+      });
+      const runOptions = {
+        calculationMode: 'sync_allocation' as const,
+        overrideType: 'allocation' as const,
+        inputHash,
+      };
+      queryMock
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+        .mockResolvedValueOnce({
+          rows: [scenarioSetRow({ name: 'Hypothetical allocation variation' })],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { ...variantRow(), override_type: 'allocation', override_payload: override.payload },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: sourceConfig }] })
+        .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [calculationRunRow('queued', null, runOptions)] })
+        .mockResolvedValueOnce({ rows: [calculationRunRow('running', null, runOptions)] })
+        .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+          rows: [
+            {
+              id: 58,
+              payload: params[1],
+              correlation_id: params[3],
+              created_at: new Date('2026-05-26T12:05:00.000Z'),
+              snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+            },
+          ],
+        }))
+        .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 58, runOptions)] })
+        .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000127' }] });
+
+      const result = await calculateFundScenarioSet(1, scenarioSetId);
+      const engineInput = FundDraftWriteV1Schema.parse(runEconomicsModelMock.mock.calls[0]![0]);
+      expect(engineInput.capitalPlanAllocations?.[0]).toEqual({
+        ...originalSource.capitalPlanAllocations![0],
+        ...change,
+      });
+      expect(engineInput.capitalPlanAllocations?.[0]?.id).toBe('seed-plan');
+      expect(engineInput.allocations).toEqual(originalSource.allocations);
+      expect(sourceConfig).toEqual(originalSource);
+      // Equality alone is not sensitivity evidence: the changed rows never reach normalized economics.
+      expect(actualEconomics.normalizeEconomicsConfig(engineInput)).toEqual(
+        actualEconomics.normalizeEconomicsConfig(sourceConfig)
+      );
+      expect(actualEconomics.normalizeEconomicsConfig(engineInput).investmentPeriodYears).toBe(5);
+      expect(result.payload).toMatchObject({
+        scenarioSetId,
+        sourceConfigId: 12,
+        sourceConfigVersion: 4,
+        calculationMode: 'sync_allocation',
+        variants: [{ variantId, overrideType: 'allocation' }],
+      });
+      const allocationVariant = result.payload.variants[0]!;
+      if (!('economics' in allocationVariant)) throw new Error('Expected allocation economics');
+      expect(allocationVariant.economics).toEqual(sourceEconomics);
+      expect(allocationVariant.economics.summary.totalManagementFees).toBe(20_000_000);
+      const snapshotParams = queryMock.mock.calls.find(([sql]) =>
+        String(sql).includes('INSERT INTO fund_snapshots')
+      )![1] as unknown[];
+      expect(snapshotParams[7]).toBe(inputHash);
+    }
+  );
 
   it('rejects calculation when the scenario set is archived', async () => {
     queryMock

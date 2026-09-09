@@ -24,6 +24,20 @@ and this project adheres to
 
 ### Added (2026-09-09)
 
+- Add a connected synthetic actuals workflow covering saved drafts, restore,
+  validation refusals, publication, correction, corrected append, disabled
+  replay, and current-head consumer readback against disposable PostgreSQL.
+  Artifacts stay outside the repository; synthetic proof does not establish Fund
+  I completeness or production admission.
+- Explain disabled publication and unavailable consumer values while retaining
+  draft files, source notes, and historical receipt identity in the actuals UI.
+- Characterize saved hypothetical scenarios with an authoritative baseline,
+  persisted fee comparisons, stable replay identities, and source preservation.
+  Disclose allocation assumptions the current engine does not consume; reserve
+  optimization remains unavailable.
+- Prepare recovery gap specifications and unapproved Program C contracts. The
+  proposed narrow C1 sequencing exception remains inactive; live recovery,
+  retention, owner approval, and production gates remain unresolved.
 - Prepare bounded migration 0056 validation and exact apply/replay receipts for
   persisted actuals drafts. Production apply remains blocked by unresolved
   authoritative recovery and custody prerequisites.
@@ -40,6 +54,13 @@ and this project adheres to
 - Add candidate published-actual restatement contracts, immutable command/item
   lineage, and policy 1.5/payload 6 consumer handling. Historical payload 5
   stays readable; unmapped company monetary facts remain explicitly unavailable.
+
+### Fixed (2026-09-09)
+
+- Serialize both supported actuals receipt versions after an append to a
+  corrected head, including exact replay while publication is disabled.
+- Serve the production SPA from an explicit static root when its absolute
+  worktree path contains a dot directory.
 
 ### Fixed (2026-09-08)
 

@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VerifiedRequestCredential } from '../../../../server/lib/auth/request-credentials';
+import actualsFixture from '../../../e2e/fixtures/actuals-publish.json';
 
 const state = vi.hoisted(() => ({
   pilotFundId: null as number | null,
@@ -157,6 +158,46 @@ beforeEach(() => {
 });
 
 describe('actuals pilot route registration and command boundary', () => {
+  it.each([201, 200])('returns a v2 append receipt unchanged for status %s', async (statusCode) => {
+    const app = await makeApp(7);
+    const source = actualsFixture.receipt;
+    const receipt = {
+      ...source,
+      contractVersion: 'actuals-pilot-publish/2.0.0',
+      operationKind: 'append',
+      fundId: 7,
+      facts: {
+        ...source.facts,
+        policyVersion: 'financial-facts-policy/1.5.0',
+        payloadSchemaId: 'financial-facts-payload/6',
+      },
+      basisRef: {
+        ...source.basisRef,
+        fundId: 7,
+        policyVersion: 'financial-facts-policy/1.5.0',
+      },
+      effectiveBasis: {
+        ledgerRecordIds: source.admitted.ledger.approvedRowIds,
+        valuationRecordIds: source.admitted.valuation.approvedMarkIds,
+        recordsHash: source.facts.snapshotInputHash,
+        predecessorSnapshotInputHash: source.facts.snapshotInputHash,
+        corrections: [],
+      },
+      restatement: null,
+    };
+    publisher.run.mockResolvedValueOnce({ statusCode, receipt });
+
+    const result = await request(app)
+      .post('/api/funds/7/imports/actuals/publish')
+      .set('If-Match', '"financial-facts:none"')
+      .set('Idempotency-Key', 'abcdefab-cdef-4abc-8def-abcdefabcdef')
+      .send(publishRequest());
+
+    expect(result.status).toBe(statusCode);
+    expect(result.body).toEqual(receipt);
+    expect(publisher.run).toHaveBeenCalledOnce();
+  });
+
   it('returns a typed disabled-publication refusal while keeping preview and readback registered', async () => {
     const app = await makeApp(7);
     const { ActualsPilotPublishError } =

@@ -267,6 +267,95 @@ describe('FundScenarioWorkspacePage', () => {
     });
   }
 
+  it('keeps allocation limitations visible for unchanged comparisons and the fixed hypothetical creation form', async () => {
+    mockWorkspaceFetches();
+    const fallback = fetchSpy.getMockImplementation() as typeof fetch;
+    const allocationId = '00000000-0000-0000-0000-000000000311';
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (
+        (init?.method ?? 'GET') === 'GET' &&
+        url === '/api/funds/123/scenario-sets/source-config'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-source-config/1.0.0',
+            sourceConfigId: 14,
+            sourceConfigVersion: 4,
+            publishedAt: '2026-05-29T12:00:00.000Z',
+            allocations: [{ id: 'seed', category: 'Seed', percentage: 60 }],
+            capitalPlanAllocations: null,
+          })
+        );
+      }
+      if (
+        (init?.method ?? 'GET') === 'GET' &&
+        url === `/api/funds/123/scenario-sets/${allocationId}/comparison`
+      ) {
+        const comparison = scenarioComparisonResponse(allocationId);
+        comparison.scenarioSet = {
+          scenarioSetId: allocationId,
+          name: 'Allocation mix',
+          sourceConfigId: 14,
+          sourceConfigVersion: 4,
+        };
+        comparison.variants[0] = {
+          ...comparison.variants[0]!,
+          variantId: '00000000-0000-0000-0000-000000000312',
+          name: 'Seed heavy',
+          overrideType: 'allocation',
+          metrics: comparison.baseline!.metrics,
+          metricDeltas: [
+            {
+              metric: 'finalTvpi',
+              displayName: 'TVPI',
+              baselineValue: 1.8,
+              scenarioValue: 1.8,
+              absoluteDelta: 0,
+              percentageDelta: 0,
+              driftCapable: true,
+              driftReason: 'stable',
+            },
+          ],
+        };
+        return Promise.resolve(jsonResponse(comparison));
+      }
+      return fallback(input, init);
+    });
+    renderWorkspace();
+    const comparison = await screen.findByRole('group', { name: 'Allocation mix comparison' });
+    expect(within(comparison).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+    expect(
+      within(comparison).getByText(/Unchanged results do not measure sensitivity/)
+    ).toBeInTheDocument();
+    expect(within(comparison).getByTestId('scenario-comparison-table')).toBeInTheDocument();
+    const card = screen.getByTestId(`scenario-workspace-set-${allocationId}`);
+    expect(within(card).getByText('Source config 14 · v4')).toBeInTheDocument();
+    expect(within(card).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New allocation scenarios' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New allocation scenarios' });
+    expect(
+      within(dialog).getByText(/Create hypothetical Base, Upside, and Downside/)
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(dialog).getByText(/Config 14.*version 4/)).toBeInTheDocument()
+    );
+    expect(dialog.querySelector('#allocation-variant-name-0')).toHaveValue('Base');
+    expect(dialog.querySelector('#allocation-variant-name-1')).toHaveValue('Upside');
+    expect(dialog.querySelector('#allocation-variant-name-2')).toHaveValue('Downside');
+    expect(dialog.querySelector('#allocation-percentage-0-0')).toBeDisabled();
+    expect(dialog.querySelector('#allocation-percentage-1-0')).toBeEnabled();
+    expect(dialog.querySelector('#allocation-percentage-2-0')).toBeEnabled();
+    expect(within(dialog).getAllByText('seed')).toHaveLength(3);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(
+      await screen.findByRole('group', { name: 'Allocation mix comparison' })
+    ).toContainElement(comparison.querySelector('[role="note"]'));
+    expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0);
+  });
+
   it('loads scenario sets without polling reserve status for sync sets', async () => {
     mockWorkspaceFetches();
     renderWorkspace();
@@ -794,7 +883,10 @@ describe('FundScenarioWorkspacePage', () => {
     function scenarioSetListCallCount() {
       return fetchSpy.mock.calls.filter(([input, init]) => {
         const url = typeof input === 'string' ? input : input.toString();
-        return url === '/api/funds/123/scenario-sets' && ((init as RequestInit)?.method ?? 'GET') === 'GET';
+        return (
+          url === '/api/funds/123/scenario-sets' &&
+          ((init as RequestInit)?.method ?? 'GET') === 'GET'
+        );
       }).length;
     }
 

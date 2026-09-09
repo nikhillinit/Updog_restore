@@ -1,11 +1,11 @@
 ---
 status: DRAFT
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 scope: marginal-reserve-metric-admission-v2
-source_sha: 2a6372557a3dd1ba8a13e99c6867434ede3f9299
-body_sha256: cc3bd74aceb91b195473dbb9a45eb105a133da94483b0fe94c22d9c038266ed7
+source_sha: 8eac03568cd40bc4a00c21648a873badfc582b45
+body_sha256: 200cc17ffb23c776ea89603f1d18eb9c4a6cb49624a0642d1dde6cea2fa423d5
 approval_sha256: null
 reviewed_by: null
 reviewed_at: null
@@ -63,9 +63,9 @@ serving-admission receipt for a new V2 reserve payload.
 
 V1 `dynamic-reserve-intelligence-service.ts` writes `RESERVE_INTELLIGENCE`
 snapshots and `dynamic-reserve-intelligence-v1` payloads. V1 accepts optional
-policy-1.4 `basisRef`; payload-5 evaluator qualifies reserve consumption only
-with complete position valuation and investment lineage. No V2 admission receipt
-exists on this source baseline.
+policy-1.4/1.5 `basisRef`; the shared consumer evaluator qualifies reserve
+consumption only with complete position valuation and investment lineage. No V2
+admission receipt exists on this source baseline.
 
 ## Normative Product Decisions
 
@@ -77,6 +77,46 @@ exists on this source baseline.
 4. A metric may be unavailable with a typed reason; it is never synthesized.
 5. Serving requires an accepted admission receipt bound to exact source SHA,
    corpus revision, calculation identities, and hashes.
+
+### Metric, evidence and synthetic acceptance
+
+Proposed marginal MOIC reuses `calculateMarginalReserveMoic`: expected
+incremental proceeds divided by expected incremental deployed capital, in USD,
+at one pinned model-input date/horizon. It is gross modeled investment
+economics, not fund NAV, LP net return or MOIC on all invested capital. The
+named reserve increment is a check-input change; its probability-weighted
+capital delta is the denominator. Do not divide by a reserve budget or
+substitute current marks for expected exits.
+
+Require persisted security/position lineage, current ownership and currency,
+effective published assumptions, approved allocation/check limit, stage dates,
+round size/valuation, exit/graduation/failure probabilities and follow-on
+policy. Both legs must share those inputs, engine version, horizon and full
+facts basis; only the named reserve participation/check changes. Missing
+ownership, SAFE conversion, effective date, approval or valuation evidence
+remains unavailable. Reuse existing input-readiness reasons; no amount-based
+ownership inference.
+
+Retain the current engine's exact, unrounded denominator floor:
+`max(USD 1000, 0.01 * withDecision.expectedCapital)`. Nonpositive delta or delta
+below that floor returns null MOIC with `NON_POSITIVE_DELTA_CAPITAL` or
+`MIN_DENOMINATOR_FLOOR`. Negative incremental proceeds remain negative; zero is
+valid only with complete evidence. Values above 100x remain indicative and
+excluded from actionable ranking. Use existing six-decimal output rounding;
+actionability never follows solely from an available ratio.
+
+Synthetic expected cases (proposed corpus additions, not executed proof):
+
+| With/without expected proceeds     | With/without expected capital | Expected result                     |
+| ---------------------------------- | ----------------------------- | ----------------------------------- |
+| USD 300000 / 180000                | USD 100000 / 60000            | 120000 / 40000 = 3.000000x          |
+| USD 180000 / 200000                | USD 100000 / 60000            | -20000 / 40000 = -0.500000x         |
+| USD 201000 / 200000                | USD 100000 / 99500            | null; delta 500 is below floor 1000 |
+| Either leg lacks ownership or date | any                           | typed unavailable; no admission     |
+
+These are arithmetic/refusal oracles. Real producer acceptance additionally
+requires independently specified, valid stage inputs and expected outputs; an
+arbitrary leg-output envelope alone is not an economic mapping or engine proof.
 
 ## Request and Response Contracts
 
@@ -90,15 +130,16 @@ type FinancialFactsBasisRef = {
   snapshotId: number;
   snapshotInputHash: string;
   sourceFactsInputHash: string;
-  policyVersion: 'financial-facts-policy/1.4.0';
+  policyVersion:
+    'financial-facts-policy/1.4.0' | 'financial-facts-policy/1.5.0';
   asOfDate: string;
   knowledgeCutoff: string;
 };
 ```
 
-Policy 1.4/payload 5 requires the complete object and matching fund/snapshot.
-Policies 1.0-1.3 normalize to explicit `null`. NAV/RVPI/TVPI absent from payload
-5 remain typed unavailable.
+Policy 1.4/payload 5 and policy 1.5/payload 6 require the complete object and
+matching fund/snapshot. Policies 1.0-1.3 normalize to explicit `null`.
+NAV/RVPI/TVPI absent from payload 5 remain typed unavailable.
 
 ### Reusable V2/V3 admission contract
 
@@ -249,27 +290,27 @@ prospective and intentionally have no baseline hash.
 | `client/src/pages/fund-model-results-moic-analysis.tsx`            | `308712f16c186c88e0aa2090ca31930e1c1da55b98815650ca2e96aff3995c8e` |
 | `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md`         | `6145f23278a83ee178317f76ed3aaedb9886570b52d1148c50470b5aa7051b21` |
 | `flags/registry.yaml`                                              | `19b772d76abd512df8baa37ddcc97ded6b788aac30934a8dfbdcd9e389eefee2` |
-| `migrations/meta/_journal.json`                                    | `b69d3827f712c6474738faa874c3bc0073e6fb444ef85a4a35ac2ea1867c82ef` |
+| `migrations/meta/_journal.json`                                    | `5df1a9a2bb3eeb29f4c815df0f93b826c61b917fd9a6a9e66e75f336914a41d7` |
 | `scripts/build-server.mjs`                                         | `ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140` |
 | `scripts/build-vercel-api.mjs`                                     | `256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464` |
 | `server/config/features.ts`                                        | `36abd9ab0245c8e83b5a50d5d9469d7a73c29cf4b525da750626b0882b489654` |
-| `server/lib/database-backed-idempotency-routes.ts`                 | `75e6a6f11aa71a16f35dbbbea7348572dbc097af46736813a8d27910a0e57743` |
-| `server/route-policy/api-route-policy-registry.ts`                 | `f7df2fcc009e3748050c2907dbc82257baf66288b309d109b5f64a90600857d6` |
+| `server/lib/database-backed-idempotency-routes.ts`                 | `68291c7e21953f01c345d43594d28aa4394fe43c7129a231d48a037ba3743346` |
+| `server/route-policy/api-route-policy-registry.ts`                 | `c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd` |
 | `server/routes/fund-moic.ts`                                       | `2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba` |
 | `server/routes/mount-common-routes.ts`                             | `ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb` |
-| `server/services/financial-facts/financial-facts-basis-ref.ts`     | `0f59339137844a685634fb32d68115333481e09e6403a18c8f06ad5f69c133ae` |
+| `server/services/financial-facts/financial-facts-basis-ref.ts`     | `0ba8d757e7d9fe44c5a984c29c9f53977eeae23bad05cbea13387fcd9f4d124c` |
 | `server/services/fund-moic-ranking-service.ts`                     | `39f1557b7e4da2276c4b1d868e0c4e7829a49c54a7b78c1cf95d5bab5fe9c607` |
 | `server/services/moic/marginal-reserve-moic-input-service.ts`      | `9c3ba21b3ee8785e380dad8a5d73961ecb006d0c1e602e39ea144285dae77274` |
-| `server/services/reserves/dynamic-reserve-intelligence-service.ts` | `d50bb673f895fcca93a9f90b366e9790fe410ff5bbb852c65410d2c5875eccfc` |
+| `server/services/reserves/dynamic-reserve-intelligence-service.ts` | `c6a66f8d26048d8d5b6ac640c5d73585c8cd85f95c26f08db1189788d110d061` |
 | `server/services/reserves/ranked-reserve-orchestrator.ts`          | `872c4994effcdb3ca0aea2e2078363dea226c49b28c7176acd6e41ceabef9798` |
-| `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`     | `c88a024ec102de1ad4273253af52b636757eb90e4660ed419fb983630d1e7f13` |
-| `shared/contracts/financial-facts-snapshot-v1.contract.ts`         | `bdb763daa8a9ab0e62dadd47df9b4d165fcb5021d0ad73b04c82166fb1032a9e` |
+| `shared/contracts/dynamic-reserve-intelligence-v1.contract.ts`     | `09ae6f05ead10badfa9bf60f0205c9d2c0c11c2ce522a426c68bb8a93972ab2e` |
+| `shared/contracts/financial-facts-snapshot-v1.contract.ts`         | `eb8280651669b9cc63b53a44d8cd01068f522a0f695405a80313c41a4bf52e1e` |
 | `shared/contracts/marginal-reserve-moic-v1.contract.ts`            | `b0e0236f0d452e7ef5cad144eff56a690a459639f6c38257cda150e779529039` |
 | `shared/contracts/marginal-reserve-moic-v2.contract.ts`            | `d1ab1213431b522cd3321be29149665116460d8fa2d69f51eee6a86513b8979f` |
 | `shared/core/moic/MarginalReserveMoic.ts`                          | `5b2f95ae42feaa6c538c14ebc98a661ed23dc0bead03ead8860c847416d9c83e` |
-| `shared/lib/financial-facts/payload5-consumer-evaluator.ts`        | `b180059075e392436ce814e8ef901710b8a50a8d85f25007c91c579d4a61d5da` |
-| `shared/routes/api-route-manifest.ts`                              | `ad48e3d01c876ba54850d47b8c5f9645c3ac80a16a7f86d4598a1ccbf7d604f0` |
-| `shared/schema.ts`                                                 | `4c41473f48f241e789b79416d2a1ec7e844b95c11ca377686151b18a34606121` |
+| `shared/lib/financial-facts/payload5-consumer-evaluator.ts`        | `25d5b8501c60f01b9eb1cc173efcdd77f074bfd910c9898bf01ec6ec59442934` |
+| `shared/routes/api-route-manifest.ts`                              | `c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0` |
+| `shared/schema.ts`                                                 | `72f9a7b0cfd1fad3cf2631492569481572a17d39792f51e210a4e3610062fd63` |
 | `shared/schema/fund.ts`                                            | `d7be982c71e9b5155877599fc91d00f9a550f256d11082c31b76cfea88ffb42e` |
 
 ## Exact Test Manifest

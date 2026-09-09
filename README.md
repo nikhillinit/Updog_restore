@@ -104,6 +104,43 @@ authenticated organization/fund context and transaction-scoped RLS. It does not
 accept a new plan, recompute forecasts, enter shadow, or activate serving. See
 [F_1.13.0](docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md).
 
+Save incomplete files as a draft while dates, vehicle identity, or source
+evidence remain unresolved. Restore retrieves a saved revision; only an explicit
+Save creates its successor. Preview identifies invalid rows and missing inputs.
+The readback labels current-head consumer acceptance separately from historical
+publication receipt metrics and preserves unavailable values with their reasons.
+
+Run the connected synthetic acceptance workflow in an isolated worktree with
+Node 22.23.2, local Docker, and the installed Playwright Chromium browser:
+
+```bash
+TZ=UTC npm run demo:actuals:connected
+```
+
+The command builds the Preact app and exercises authenticated browser/HTTP paths
+against disposable PostgreSQL: draft/restore, publication, correction, replay,
+corrected append, and supported consumer readback. It prints an external
+artifact directory and rejects ambient database/provider configuration. The
+extended test uses separate rate-limit windows for its synthetic actor; the
+application limit stays unchanged. Synthetic results do not establish Fund I
+completeness or production readiness.
+
+### Saved hypothetical scenarios
+
+Saved scenario sets retain the source fund/configuration and version, with
+separate variant and calculation identities. Comparisons require an
+authoritative economics baseline; a missing baseline remains unavailable until
+fund recalculation creates it. Scenario calculations do not replace Base or
+mutate the source configuration.
+
+The current engine consumes fee changes. It does not consume allocation-row
+check size, allocation share, follow-on amount or participation, horizon, or
+pacing changes; the workspace discloses that limit before calculation and beside
+results. Reserve optimization remains unavailable. Synthetic PostgreSQL
+acceptance proves a persisted $20 million fee baseline versus a $21 million
+variant (+$1 million, +5%), without establishing Fund I assumptions or
+production readiness.
+
 ### Runtime and libraries
 
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Shadcn/ui, TanStack

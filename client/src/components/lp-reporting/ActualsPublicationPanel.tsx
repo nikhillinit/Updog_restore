@@ -888,7 +888,10 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
           Publish fixed-template actuals
         </h2>
         <p className="mt-1 text-sm text-charcoal/70">
-          Preview raw files, confirm coverage, then publish one immutable financial-facts snapshot.
+          Save incomplete source files as a draft or restore a saved revision. Preview selected
+          files with a reporting cutoff to review invalid rows, missing evidence, and unsupported
+          scope. Publication requires complete coverage, supported inputs, and publication to be
+          enabled.
         </p>
       </div>
 
@@ -919,7 +922,27 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
       {publishMutation.error ? (
         <Alert variant="destructive" role="alert" data-testid="actuals-publish-error">
           <AlertTitle>{publishMutation.error.code ?? 'PUBLISH_FAILED'}</AlertTitle>
-          <AlertDescription>{publishMutation.error.message}</AlertDescription>
+          <AlertDescription className="space-y-2 break-words">
+            <p>{publishMutation.error.message}</p>
+            {publishMutation.error.code === 'ACTUALS_PUBLICATION_DISABLED' ? (
+              <>
+                <p>
+                  New publication is disabled by configuration. This is separate from invalid rows,
+                  missing source evidence, or unsupported policies.
+                </p>
+                <p>
+                  Discard this refused command explicitly to resume preparation. Selected files and
+                  the coverage note stay in this session. With authorized draft access, save
+                  incomplete work or restore a saved revision; preview requires a reporting cutoff
+                  and selected files.
+                </p>
+                <p>
+                  Authenticated replay of an already committed command can return its recorded
+                  result. New publication and retry after proven absence remain disabled.
+                </p>
+              </>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 

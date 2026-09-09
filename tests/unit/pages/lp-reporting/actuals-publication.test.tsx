@@ -476,11 +476,19 @@ describe('ActualsPublicationPanel lifecycle', () => {
     expect(screen.getByText('Page 2 of 2 · rows 101–101 of 101')).toBeVisible();
   });
 
-  it('shows disabled publication as a known refusal and leaves draft editing available', async () => {
+  it('explains disabled publication and preserves preparation through explicit command discard', async () => {
     const publishCalls: Array<{ key: string; body: string }> = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.includes('latest-reference')) return response(noHead);
+      if (url.includes('/actuals/draft-revisions'))
+        return response({
+          contractVersion: 'actuals-draft-history/1.0.0',
+          fundId: 7,
+          head: null,
+          revisions: [],
+          nextBeforeRevision: null,
+        });
       if (url.includes('/actuals/dry-run')) return response(preview);
       if (url.includes('/actuals/publish')) {
         publishCalls.push({
@@ -498,10 +506,34 @@ describe('ActualsPublicationPanel lifecycle', () => {
     const user = userEvent.setup();
     renderPanel();
     await advanceToPublish(user);
+    const ledgerFile = (screen.getByLabelText('Ledger CSV') as HTMLInputElement).files?.[0];
+    const draftDetails = screen.getByText('Draft versions and corrections').closest('details')!;
+    draftDetails.open = true;
+    fireEvent(draftDetails, new Event('toggle'));
+    await screen.findByRole('region', { name: 'Actuals draft history' });
+    await user.selectOptions(screen.getByLabelText('Draft data qualification'), 'synthetic');
+    await user.type(
+      screen.getByLabelText('Draft source note'),
+      'Synthetic fixture; provisional amounts.'
+    );
     await user.click(screen.getByRole('button', { name: 'Publish actuals' }));
 
     expect(await screen.findByTestId('actuals-publish-error')).toHaveTextContent(
       'ACTUALS_PUBLICATION_DISABLED'
+    );
+    expect(screen.getByTestId('actuals-publish-error')).toHaveTextContent(
+      'New publication is disabled by configuration.'
+    );
+    expect(screen.getByTestId('actuals-publish-error')).toHaveTextContent(
+      'Discard this refused command explicitly'
+    );
+    expect(screen.getByTestId('actuals-publish-error')).toHaveTextContent(
+      'New publication and retry after proven absence remain disabled.'
+    );
+    expect(screen.getByLabelText('Ledger CSV')).toBeDisabled();
+    expect(screen.getByLabelText('Draft data qualification')).toHaveValue('synthetic');
+    expect(screen.getByLabelText('Draft source note')).toHaveValue(
+      'Synthetic fixture; provisional amounts.'
     );
     expect(screen.queryByTestId('actuals-unknown-outcome')).toBeNull();
     const storedKey = Object.keys(sessionStorage).find((key) =>
@@ -510,11 +542,28 @@ describe('ActualsPublicationPanel lifecycle', () => {
     expect(storedKey).toBeDefined();
     expect(JSON.parse(sessionStorage.getItem(storedKey!) ?? 'null')).toMatchObject({
       idempotencyKey: publishCalls[0]?.key,
+      ledger: {
+        payloadSha256: LEDGER_HASH,
+        canonicalRowsHash: preview.canonicalRowsHash,
+        previewHash: preview.previewHash,
+      },
+      coverage: { ledger: 'inception_to_date', evidenceNote: 'Complete ledger export.' },
       status: 'refused',
     });
+    expect(JSON.parse(publishCalls[0]!.body).ledger.payload).toBe(btoa(LEDGER_TEXT));
     await user.click(screen.getByRole('button', { name: 'Discard command' }));
     expect(screen.getByLabelText('Reporting cutoff')).toBeEnabled();
     expect(screen.getByLabelText('Ledger CSV')).toBeEnabled();
+    expect((screen.getByLabelText('Ledger CSV') as HTMLInputElement).files?.[0]).toBe(ledgerFile);
+    await user.click(screen.getByRole('button', { name: 'Preview actuals' }));
+    await screen.findByTestId('actuals-preview-summary');
+    expect(screen.getByLabelText('Coverage evidence note')).toHaveValue('Complete ledger export.');
+    expect(screen.getByLabelText('Draft data qualification')).toHaveValue('synthetic');
+    expect(screen.getByLabelText('Draft source note')).toHaveValue(
+      'Synthetic fixture; provisional amounts.'
+    );
+    expect(sessionStorage.getItem(storedKey!)).toBeNull();
+    expect(publishCalls).toHaveLength(1);
   });
 
   it('persists uncertain recovery state before a pending POST and enables discard after proven refusal', async () => {

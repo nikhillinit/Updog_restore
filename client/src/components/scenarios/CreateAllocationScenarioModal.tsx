@@ -25,6 +25,9 @@ import {
   type FundScenarioSourceConfigResponseV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 
+export const ALLOCATION_MODEL_LIMITATION =
+  'Allocation assumptions are saved, but the current economics model does not use these rows to model allocation percentages, initial check size, follow-on amounts or participation, or deployment horizon and pacing. Unchanged results do not measure sensitivity to these inputs.';
+
 type AllocationRow = NonNullable<FundScenarioSourceConfigResponseV1['allocations']>[number];
 type CapitalPlanAllocationRow = NonNullable<
   FundScenarioSourceConfigResponseV1['capitalPlanAllocations']
@@ -360,10 +363,14 @@ export function CreateAllocationScenarioModal({
             New allocation scenarios
           </DialogTitle>
           <DialogDescription className="font-poppins text-presson-textMuted">
-            Create fixed Base, Upside, and Downside variants from the current published source
-            configuration.
+            Create hypothetical Base, Upside, and Downside variants from the current published
+            source configuration. Base remains unchanged.
           </DialogDescription>
         </DialogHeader>
+
+        <p className="text-sm font-poppins text-presson-textMuted" role="note">
+          {ALLOCATION_MODEL_LIMITATION}
+        </p>
 
         <form onSubmit={submit} className="flex min-h-0 flex-col gap-4">
           <div className="min-h-0 space-y-4 overflow-y-auto pr-1">

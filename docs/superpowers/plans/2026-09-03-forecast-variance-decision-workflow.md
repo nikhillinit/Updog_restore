@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 owner: Repository Owner
 categories: [product-implementation, decision-workspace]
 ---
@@ -40,6 +40,24 @@ repository-owner exact-body approval.
   pins its own journal entry.
 - Product implementation, merge, deployment and serving wait for Program A A4 GO
   and verified final runtime identity. Specification preparation may proceed.
+
+## Proposed Task 1 exception (inactive)
+
+The reconciled program plan proposes allowing only Task 1 source-contract work
+and isolated synthetic tests before A GO after exact-body C1 review and named
+repository-owner approval of that exact exception. Neither approval is recorded.
+The global constraints continue to apply until then. Tasks 2-3, source
+admission, merge, candidate/runtime binding, deployment, serving and financial
+claims keep their existing gates; F_1.14.0 approval does not approve this
+exception.
+
+Task 1 must use the spec's explicit existing before/after pair, reciprocal plan
+successor links, full facts identity and matching forecast horizons. No implicit
+mint or recompute is allowed. Its synthetic tests cover missing pair, mismatched
+basis/methodology/units/horizon, intended versus intervening supersession,
+canonical replay/conflict, shared-writer head races and attribution residual.
+Missing category-to-engine mappings remain omissions pending individual review;
+input differences and the arithmetic reconciliation example do not prove them.
 
 ## Inspected Baseline and Required Source-Identity Revision
 
