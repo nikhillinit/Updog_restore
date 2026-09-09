@@ -355,6 +355,51 @@ export const ActualsMigrationPreflightInputSchema = z
         roleName: z.string().regex(/^[A-Za-z0-9_.-]{1,63}$/),
       })
       .strict(),
+    recovery: z
+      .object({
+        source: z
+          .object({
+            snapshotId: z.string().regex(/^[a-z0-9-]{1,60}$/),
+            branchId: z.string().regex(/^[a-z0-9-]{1,60}$/),
+            recoveryPoint: z.string().datetime({ offset: true }),
+          })
+          .strict()
+          .optional(),
+        restoreTarget: z
+          .object({
+            projectId: z.string().regex(/^[a-z0-9-]{1,60}$/),
+            branchId: z.string().regex(/^[a-z0-9-]{1,60}$/),
+            endpointId: z.string().regex(/^[a-z0-9-]{1,60}$/),
+            databaseName: z.string().regex(/^[A-Za-z0-9_-]{1,63}$/),
+            roleName: z.string().regex(/^[A-Za-z0-9_.-]{1,63}$/),
+          })
+          .strict()
+          .optional(),
+        proof: z
+          .object({
+            runId: PositiveDecimalIdSchema,
+            runAttempt: z.number().int().positive(),
+            artifactId: PositiveDecimalIdSchema,
+            artifactName: z.string().regex(/^[A-Za-z0-9_.-]{1,255}$/),
+            artifactSha256: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .superRefine((value, context) => {
+        const count =
+          Number(Boolean(value.source)) +
+          Number(Boolean(value.restoreTarget)) +
+          Number(Boolean(value.proof));
+        if (count !== 3) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'recovery source, restore target, and proof must be supplied together',
+          });
+        }
+      })
+      .optional(),
   })
   .strict();
 export type ActualsMigrationPreflightInput = z.infer<typeof ActualsMigrationPreflightInputSchema>;
