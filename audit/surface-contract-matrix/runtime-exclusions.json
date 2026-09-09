@@ -2,7 +2,6 @@
   {
     "id": "legacy-railway-api-topology",
     "fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b",
-    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b",
     "decision_status": "approved",
     "decision_evidence": "UNAPPROVED proposal for exclusions:legacy-railway-api-topology; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.",
     "matched_layer": "legacy-container-and-service-manifests",
@@ -11,12 +10,12 @@
       "Dockerfile.railway",
       "DECISIONS.md#ADR-080",
       "railway.toml absent: retired by ADR-080"
-    ]
+    ],
+    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b"
   },
   {
     "id": "ml-service-local-production-topology",
     "fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f",
-    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f",
     "decision_status": "approved",
     "decision_evidence": "UNAPPROVED proposal for exclusions:ml-service-local-production-topology; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.",
     "matched_layer": "ml-service-local",
@@ -29,6 +28,7 @@
       "railway.worker.toml",
       "railway.capital-call-status.worker.toml",
       "DECISIONS.md#ADR-075"
-    ]
+    ],
+    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f"
   }
 ]
