@@ -3,9 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
-import {
-  FINANCIAL_FACTS_POLICY_VERSION,
-} from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import { FINANCIAL_FACTS_POLICY_VERSION } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { toNumber } from '@shared/number';
 import type { FinancialFactsSnapshot } from '@shared/schema/financial-facts-snapshots';
 import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
@@ -71,7 +69,7 @@ function actorId(req: Request): number {
 }
 
 function snapshotResponse(row: FinancialFactsSnapshot) {
-  const parsed = parsePersistedFactsRow(row);
+  const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
   if (parsed.kind === 'unsupported') {
     throw new Error(`Financial-facts policy ${parsed.policyVersion} is not supported.`);
   }

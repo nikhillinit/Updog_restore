@@ -1,6 +1,6 @@
 import type {
   ActualMetricsV2,
-  ActualsPublishReceiptV1,
+  ActualsPublishReceipt,
   FinancialFactsLatestReferenceV1,
 } from '@shared/contracts/lp-reporting';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -29,7 +29,7 @@ interface ReadbackRow {
 }
 
 export interface ActualMetricsReadbackProps {
-  receipt: ActualsPublishReceiptV1;
+  receipt: ActualsPublishReceipt;
   latestReference?: FinancialFactsLatestReferenceV1;
   metrics?: ActualMetricsV2;
   isLoading?: boolean;

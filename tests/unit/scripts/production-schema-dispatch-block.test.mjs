@@ -2,6 +2,7 @@ import console from 'node:console';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { runInNewContext } from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 import YAML from 'yaml';
@@ -14,8 +15,69 @@ import {
 import { shouldRefuseProdDbPush } from '../../../scripts/db-push-core.mjs';
 import { runDbPushCli } from '../../../scripts/db-push.mjs';
 import { runDbStudioCli } from '../../../scripts/db-studio.mjs';
+import { assertActualsDraftProductionPrerequisites } from '../../../scripts/release/actuals-draft-prerequisites.mjs';
+import { assertActualsRestatementProductionPrerequisites } from '../../../scripts/release/actuals-restatement-prerequisites.mjs';
 
 describe('production schema dispatch block', () => {
+  it('refuses blocked historical preflight reports and never trusts a JSON pass', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
+    );
+    const step = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find(
+        (item) => item.name === 'Verify and download historical schema apply artifact by exact ID'
+      );
+    const start = step.run.indexOf("if (typeof preflight === 'object'");
+    const end = step.run.indexOf(
+      "} else if (receipt.mode === 'apply-current-forecast-0050-0055')",
+      start
+    );
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const guard = step.run.slice(start, end);
+    for (const preflight of [{ status: 'blocked' }, { blocked: true }, { evaluation: 'blocked' }]) {
+      const prerequisites = vi.fn();
+      expect(() =>
+        runInNewContext(guard, {
+          preflight,
+          assertActualsDraftProductionPrerequisites: prerequisites,
+        })
+      ).toThrow('0056 completed receipt contradicts blocked production prerequisites');
+      expect(prerequisites).not.toHaveBeenCalled();
+    }
+    for (const preflight of [null, {}, { evaluation: 'pass' }]) {
+      expect(() =>
+        runInNewContext(guard, {
+          preflight,
+          assertActualsDraftProductionPrerequisites,
+        })
+      ).toThrow();
+    }
+  });
+
+  it('explicitly refuses historical0057 receipt reuse before selecting any legacy schema', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
+    );
+    const step = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find(
+        (item) => item.name === 'Verify and download historical schema apply artifact by exact ID'
+      );
+    const start = step.run.indexOf("if (raw.mode === 'apply-actuals-restatement-0057')");
+    const end = step.run.indexOf('const receipt =', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const guard = step.run.slice(start, end);
+    expect(() =>
+      runInNewContext(guard, { raw: { mode: 'apply-actuals-restatement-0057' } })
+    ).toThrow('0057 historical receipt reuse is not admitted');
+    expect(() =>
+      runInNewContext(guard, { raw: { mode: 'apply-actuals-draft-0056' } })
+    ).not.toThrow();
+  });
+
   it('rejects reconcile apply even when confirmation flags are present', () => {
     expect(() =>
       assertApplyConfirmation({
@@ -94,7 +156,7 @@ describe('production schema dispatch block', () => {
     }
   });
 
-  it('admits only schema workflow apply modes through exact capability commands', async () => {
+  it('declares schema workflow modes and pins legacy capability commands', async () => {
     const workflow = YAML.parse(
       await readFile(
         path.join(process.cwd(), '.github', 'workflows', 'prod-schema-reconcile.yml'),
@@ -106,6 +168,8 @@ describe('production schema dispatch block', () => {
       'apply',
       'apply-catchup-0050-0053',
       'apply-current-forecast-0050-0055',
+      'apply-actuals-draft-0056',
+      'apply-actuals-restatement-0057',
     ]);
     const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
     const applyStep = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
@@ -130,6 +194,55 @@ describe('production schema dispatch block', () => {
       const gate = steps.find((step) => step.name === gateName);
       expect(gate?.if, gateName).toContain("startsWith(inputs.mode, 'apply')");
     }
+  });
+
+  it('blocks the named 0056 mode at prerequisites before its apply step', async () => {
+    const workflow = YAML.parse(
+      await readFile(
+        path.join(process.cwd(), '.github', 'workflows', 'prod-schema-reconcile.yml'),
+        'utf8'
+      )
+    );
+    const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
+    const prerequisite = steps.find(
+      (step) => step.name === 'Evaluate action-specific actuals draft production prerequisites'
+    );
+    const apply = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
+    expect(prerequisite?.if).toBe("inputs.mode == 'apply-actuals-draft-0056'");
+    expect(prerequisite?.run).toContain('scripts/release/actuals-draft-production-preflight.ts');
+    expect(prerequisite?.['continue-on-error']).not.toBe(true);
+    expect(steps.indexOf(prerequisite)).toBeLessThan(steps.indexOf(apply));
+    expect(apply?.run).toContain('scripts/run-actuals-draft-journaled-migration.mjs --apply --yes');
+    expect(() => assertActualsDraftProductionPrerequisites()).toThrow(
+      /0056 production action blocked/i
+    );
+  });
+
+  it('blocks the named 0057 mode at prerequisites before its apply step', async () => {
+    const workflow = YAML.parse(
+      await readFile(
+        path.join(process.cwd(), '.github', 'workflows', 'prod-schema-reconcile.yml'),
+        'utf8'
+      )
+    );
+    const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
+    const prerequisite = steps.find(
+      (step) =>
+        step.name === 'Evaluate action-specific actuals restatement production prerequisites'
+    );
+    const apply = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
+    expect(prerequisite?.if).toBe("inputs.mode == 'apply-actuals-restatement-0057'");
+    expect(prerequisite?.run).toContain(
+      'scripts/release/actuals-restatement-production-preflight.ts'
+    );
+    expect(prerequisite?.['continue-on-error']).not.toBe(true);
+    expect(steps.indexOf(prerequisite)).toBeLessThan(steps.indexOf(apply));
+    expect(apply?.run).toContain(
+      'scripts/run-actuals-restatement-journaled-migration.mjs --apply --yes'
+    );
+    expect(() => assertActualsRestatementProductionPrerequisites()).toThrow(
+      /0057 production action blocked/i
+    );
   });
 
   it('rejects reconcile apply when both capability flags are combined', () => {

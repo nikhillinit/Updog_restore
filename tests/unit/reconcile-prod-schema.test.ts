@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { normalizePostgresLiteralTextArrayCasts } from '../../scripts/lib/postgres-catalog-definition.mjs';
 
 import {
@@ -41,6 +41,32 @@ import {
   validateManifestSql,
   extractCreateTableNames,
 } from '../../scripts/reconcile-prod-schema.mjs';
+
+const pinned32FixtureRoots: string[] = [];
+let pinned32FixtureRoot: string;
+
+function createPinned32Fixture(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'reconcile-revision8-pinned32-'));
+  pinned32FixtureRoots.push(root);
+  const fixturePaths = new Set([
+    ...CANONICAL_MANIFEST_IDENTITIES.map((identity) => identity.manifestPath),
+    ...G3_CATCHUP_TARGETS.map((target) => target.sqlPath),
+  ]);
+  for (const relativePath of fixturePaths) {
+    const destination = path.join(root, relativePath);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(path.join(process.cwd(), relativePath), destination);
+  }
+  return root;
+}
+
+beforeAll(() => {
+  pinned32FixtureRoot = createPinned32Fixture();
+});
+
+afterAll(() => {
+  for (const root of pinned32FixtureRoots) fs.rmSync(root, { recursive: true, force: true });
+});
 
 interface QueryCall {
   readonly text: string;
@@ -447,8 +473,22 @@ function operatingDecisionsCatalog(
 }
 
 describe('reconcile-prod-schema runner helpers', () => {
+  it('refuses current 33/34 inventory under the revision8 pinned32 contract', async () => {
+    const inventory = fs.readdirSync(path.join(process.cwd(), 'scripts/prod-schema-manifests'));
+    expect(inventory).toContain('33-actuals-draft-revisions.json');
+    expect(inventory).toContain('34-actuals-restatement-commands.json');
+    await expect(prepare0053G3ReleaseGateHardeningCapability()).rejects.toMatchObject({
+      details: { kind: 'invalid-0053-capability-binding' },
+    });
+    await expect(prepareG3Catchup0050To0053Capability()).rejects.toMatchObject({
+      details: { kind: 'invalid-g3-catchup-capability-binding' },
+    });
+  });
+
   it('pins 0053 capability to canonical manifest and raw migration bytes', async () => {
-    await expect(prepare0053G3ReleaseGateHardeningCapability()).resolves.toMatchObject({
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: pinned32FixtureRoot })
+    ).resolves.toMatchObject({
       manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
       manifestName: 'g3-release-gate-hardening',
       sqlPath: 'migrations/0053_g3_release_gate_hardening.sql',
@@ -457,7 +497,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('binds capability identities to the pinned canonical vector, not directory contents', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     expect(target.canonicalManifestIdentities).toBe(CANONICAL_MANIFEST_IDENTITIES);
     expect(CANONICAL_MANIFEST_IDENTITIES).toHaveLength(32);
     expect(CANONICAL_MANIFEST_IDENTITIES[29]).toMatchObject({
@@ -478,22 +520,8 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects manifest inventory drift from the pinned identity vector', async () => {
-    const stagedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'reconcile-pinned-inventory-'));
+    const stagedRoot = createPinned32Fixture();
     const stagedManifestDir = path.join(stagedRoot, 'scripts', 'prod-schema-manifests');
-    const stagedMigrationsDir = path.join(stagedRoot, 'migrations');
-    fs.mkdirSync(stagedManifestDir, { recursive: true });
-    fs.mkdirSync(stagedMigrationsDir, { recursive: true });
-    for (const fileName of fs.readdirSync(path.join('scripts', 'prod-schema-manifests'))) {
-      fs.copyFileSync(
-        path.join('scripts', 'prod-schema-manifests', fileName),
-        path.join(stagedManifestDir, fileName)
-      );
-    }
-    fs.copyFileSync(
-      path.join('migrations', '0053_g3_release_gate_hardening.sql'),
-      path.join(stagedMigrationsDir, '0053_g3_release_gate_hardening.sql')
-    );
-
     await expect(
       prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
     ).resolves.toMatchObject({ manifestName: 'g3-release-gate-hardening' });
@@ -515,7 +543,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects lock-time parser input that drifts from pinned manifest inventory', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -560,7 +590,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects a post-binding replacement of selected 0053 SQL bytes', async () => {
-    const capability = await prepare0053G3ReleaseGateHardeningCapability();
+    const capability = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const manifest = capability.manifests.find(
       (candidate) => candidate.name === capability.manifestName
     );
@@ -577,7 +609,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('selects only target from complete exact lock-time audit vector', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -618,7 +652,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects malformed per-object audit action even when top-level vector is valid', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -640,7 +676,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects every non-exact lock-time selector vector', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -749,7 +787,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects contradictory aggregate object actions and governs non-array objects', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -815,7 +855,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects target APPLY with empty objects when building lock-time marker', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -832,7 +874,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects target destructive declarations and extra-object audit state', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const targetObject = {
       table: 'fixture_target',
       present: false,
@@ -910,7 +954,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -941,7 +987,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('rejects every non-canonical lock-time marker', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
       dropStatements: [],
@@ -1002,7 +1050,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('does not unlock or mutate after lock contention', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const client = createMockClient({ advisoryLockAcquired: false });
     const output: string[] = [];
 
@@ -1030,7 +1080,9 @@ describe('reconcile-prod-schema runner helpers', () => {
   });
 
   it('unlocks exactly once without marker or durable mutation after acquired-lock rejection', async () => {
-    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const target = await prepare0053G3ReleaseGateHardeningCapability({
+      rootDir: pinned32FixtureRoot,
+    });
     const client = createMockClient();
     const output: string[] = [];
 
@@ -1074,7 +1126,7 @@ describe('reconcile-prod-schema runner helpers', () => {
     ).toThrow(/production schema mutation mechanically blocked/i);
   });
 
-  it('constructs client only after valid 0053 capability admission', async () => {
+  it('rejects current inventory before constructing a 0053 apply client', async () => {
     const clientFactory = vi.fn(() => ({
       connect: vi.fn().mockRejectedValue(new Error('test connection refusal')),
       end: vi.fn().mockResolvedValue(undefined),
@@ -1085,10 +1137,8 @@ describe('reconcile-prod-schema runner helpers', () => {
         env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
         clientFactory,
       })
-    ).resolves.toBe(1);
-    expect(clientFactory).toHaveBeenCalledWith({
-      connectionString: 'postgres://operator:secret@localhost/updog',
-    });
+    ).rejects.toMatchObject({ details: { kind: 'invalid-0053-capability-binding' } });
+    expect(clientFactory).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -2476,7 +2526,7 @@ describe('g3 catch-up 0050-0053 capability', () => {
     targetActions?: Partial<Record<string, string>>;
     nonTargetActions?: Partial<Record<string, string>>;
   }) {
-    const capability = await prepareG3Catchup0050To0053Capability();
+    const capability = await prepareG3Catchup0050To0053Capability({ rootDir: pinned32FixtureRoot });
     const targetNames = new Set(capability.targets.map((target) => target.manifestName));
     const preparedManifests = capability.manifests.map((manifest) => ({
       manifest,
@@ -2531,7 +2581,7 @@ describe('g3 catch-up 0050-0053 capability', () => {
   });
 
   it('pins the four catch-up targets to canonical manifests in journal order', async () => {
-    const capability = await prepareG3Catchup0050To0053Capability();
+    const capability = await prepareG3Catchup0050To0053Capability({ rootDir: pinned32FixtureRoot });
     expect(capability.targets.map((target) => target.manifestName)).toEqual([
       'g3-portfolio-and-calculation',
       'g3-canary',
@@ -2646,7 +2696,7 @@ describe('g3 catch-up 0050-0053 capability', () => {
     expect(marker).not.toMatch(/postgres:\/\//);
   });
 
-  it('constructs client only after valid catch-up capability admission', async () => {
+  it('rejects current inventory before constructing a catch-up apply client', async () => {
     const clientFactory = vi.fn(() => ({
       connect: vi.fn().mockRejectedValue(new Error('test connection refusal')),
       end: vi.fn().mockResolvedValue(undefined),
@@ -2657,10 +2707,8 @@ describe('g3 catch-up 0050-0053 capability', () => {
         env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
         clientFactory,
       })
-    ).resolves.toBe(1);
-    expect(clientFactory).toHaveBeenCalledWith({
-      connectionString: 'postgres://operator:secret@localhost/updog',
-    });
+    ).rejects.toMatchObject({ details: { kind: 'invalid-g3-catchup-capability-binding' } });
+    expect(clientFactory).not.toHaveBeenCalled();
   });
 });
 

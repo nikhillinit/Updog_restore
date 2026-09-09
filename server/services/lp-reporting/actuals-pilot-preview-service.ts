@@ -166,6 +166,11 @@ export class ActualsPilotPreviewError extends Error {
 
 export interface ActualsPilotPreviewServiceOptions {
   database?: PreviewDatabase;
+  /** Internal receipt verification only: resolve original source labels by admitted identities. */
+  historicalIdentities?: ReadonlyMap<
+    string,
+    { readonly companyId: number | null; readonly vehicleId: number | null }
+  >;
 }
 
 export type ActualsPilotPreviewInput =
@@ -613,6 +618,35 @@ async function loadExistingValuationTuples(
     .where(
       and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate))
     )) as ExistingRow[];
+}
+
+async function loadSupersededRecordIds(
+  database: PreviewDatabase,
+  fundId: number,
+  kind: TemplateKind,
+  existingRows: readonly ExistingRow[]
+): Promise<ReadonlySet<number>> {
+  const ids = existingRows
+    .map((row) => row['id'])
+    .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id));
+  if (ids.length === 0) return new Set();
+  const successors =
+    kind === 'ledger'
+      ? await database
+          .select({ predecessorId: cashFlowEvents.supersedesEventId })
+          .from(cashFlowEvents)
+          .where(
+            and(eq(cashFlowEvents.fundId, fundId), inArray(cashFlowEvents.supersedesEventId, ids))
+          )
+      : await database
+          .select({ predecessorId: valuationMarks.priorMarkId })
+          .from(valuationMarks)
+          .where(and(eq(valuationMarks.fundId, fundId), inArray(valuationMarks.priorMarkId, ids)));
+  return new Set(
+    successors
+      .map((row) => row.predecessorId)
+      .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id))
+  );
 }
 
 async function loadPilotRoster(database: PreviewDatabase, fundId: number): Promise<boolean> {
@@ -1178,7 +1212,8 @@ function applyExistingClassification(
   existingRows: readonly ExistingRow[],
   valuationRows: readonly ExistingRow[],
   kind: TemplateKind,
-  asOfDate: string
+  asOfDate: string,
+  supersededRecordIds: ReadonlySet<number>
 ): void {
   const byHash = new Map<string, ExistingRow>();
   for (const existing of existingRows) {
@@ -1190,7 +1225,10 @@ function applyExistingClassification(
     if (hasError(row.issues) || !row.rowContentHash || !row.rowSourceHash) continue;
     const existing = byHash.get(row.rowSourceHash);
     if (existing) {
-      if (existingImportOrigin(existing) !== PILOT_IMPORT_ORIGIN) {
+      if (
+        existingImportOrigin(existing) !== PILOT_IMPORT_ORIGIN ||
+        (typeof existing['id'] === 'number' && supersededRecordIds.has(existing['id']))
+      ) {
         addIssue(row, 'EXISTING_IMPORT_PROVENANCE_CONFLICT', 'external_ref');
       } else if (existingContentHashForRow(existing, row, kind) === row.rowContentHash) {
         row.status = 'already_imported';
@@ -1580,11 +1618,36 @@ export async function prepareActualsPilotPreview(
   }
 
   const maps = await loadIdentityMaps(database, fundId);
-  const rows = parsed.rows.map((cells, index) =>
-    kind === 'ledger'
-      ? parseLedgerRow(cells, index + 1, request.asOfDate, fundId, maps)
-      : parseValuationRow(cells, index + 1, request.asOfDate, fundId, maps)
-  );
+  const rows = parsed.rows.map((cells, index) => {
+    const externalRef = cells[kind === 'ledger' ? 11 : 9];
+    const identity =
+      externalRef === undefined
+        ? undefined
+        : options.historicalIdentities?.get(computeActualsPilotRowSourceHash(fundId, externalRef));
+    const companyLabel = cells[kind === 'ledger' ? 4 : 0] ?? '';
+    const vehicleLabel = cells[kind === 'ledger' ? 5 : 1] ?? '';
+    const rowMaps =
+      identity === undefined
+        ? maps
+        : {
+            companies: new Map([
+              [
+                canonicalLabel(companyLabel),
+                identity.companyId === null ? [] : [identity.companyId],
+              ],
+            ]),
+            vehicles: new Map([
+              [
+                canonicalLabel(vehicleLabel),
+                identity.vehicleId === null ? [] : [identity.vehicleId],
+              ],
+            ]),
+            defaultVehicleId: identity.vehicleId,
+          };
+    return kind === 'ledger'
+      ? parseLedgerRow(cells, index + 1, request.asOfDate, fundId, rowMaps)
+      : parseValuationRow(cells, index + 1, request.asOfDate, fundId, rowMaps);
+  });
   assignContentHashes(rows, fundId, request.templateVersion);
   markDuplicateRows(rows, kind);
 
@@ -1610,7 +1673,18 @@ export async function prepareActualsPilotPreview(
   if (kind === 'valuation' && !rosterExists)
     globalIssues.push(makeIssue('VALUATION_ROSTER_EMPTY', 0, null));
 
-  applyExistingClassification(rows, existingRows, existingValuationRows, kind, request.asOfDate);
+  // Historical receipt verification proves original source identity, including replaced rows.
+  const supersededRecordIds = options.historicalIdentities
+    ? new Set<number>()
+    : await loadSupersededRecordIds(database, fundId, kind, existingRows);
+  applyExistingClassification(
+    rows,
+    existingRows,
+    existingValuationRows,
+    kind,
+    request.asOfDate,
+    supersededRecordIds
+  );
   const { fileTotals, netNewTotals } = classifyAndAggregate(rows, kind);
   const fileTotalsResponse = totalsResponse(fileTotals);
   const netNewTotalsResponse = totalsResponse(netNewTotals);

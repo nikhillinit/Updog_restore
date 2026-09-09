@@ -11,10 +11,14 @@ import {
 import {
   FinancialFactsPayloadV5Schema,
   FinancialFactsSnapshotV5Schema,
+  FinancialFactsSnapshotV6Schema,
   type FinancialFactsPayloadV5,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { ActualMetricsV2Schema } from '@shared/contracts/lp-reporting/actuals-pilot.contract';
-import { financialFactsPayloadV5, financialFactsSnapshotV5 } from '../fixtures/financial-facts-payload5';
+import {
+  financialFactsPayloadV5,
+  financialFactsSnapshotV5,
+} from '../fixtures/financial-facts-payload5';
 
 type ParsedFactsRow = Parameters<typeof projectActualMetricsV2>[0];
 
@@ -27,10 +31,11 @@ function availableMoney(value: string) {
   };
 }
 
-function factsRow(payload: FinancialFactsPayloadV5 = financialFactsPayloadV5(), id = 31): ParsedFactsRow {
-  const snapshot = FinancialFactsSnapshotV5Schema.parse(
-    financialFactsSnapshotV5({ payload })
-  );
+function factsRow(
+  payload: FinancialFactsPayloadV5 = financialFactsPayloadV5(),
+  id = 31
+): ParsedFactsRow {
+  const snapshot = FinancialFactsSnapshotV5Schema.parse(financialFactsSnapshotV5({ payload }));
   return { ...snapshot, id };
 }
 
@@ -52,6 +57,64 @@ function actionablePayload(): FinancialFactsPayloadV5 {
 }
 
 describe('actual metrics v2 projector', () => {
+  it('retains payload-6 aggregate values but blocks actionability for unavailable company money', () => {
+    const prior = FinancialFactsSnapshotV5Schema.parse(
+      financialFactsSnapshotV5({ payload: actionablePayload() })
+    );
+    const effectiveBasis = {
+      ledgerRecordIds: [],
+      valuationRecordIds: [],
+      recordsHash: 'd'.repeat(64),
+      predecessorSnapshotInputHash: 'e'.repeat(64),
+      corrections: [],
+    };
+    const snapshot = FinancialFactsSnapshotV6Schema.parse({
+      ...prior,
+      policyVersion: 'financial-facts-policy/1.5.0',
+      payloadSchemaId: 'financial-facts-payload/6',
+      payload: {
+        ...prior.payload,
+        effectiveBasis,
+        companyActuals: {
+          ...prior.payload.companyActuals,
+          facts: prior.payload.companyActuals.facts.map((fact) => ({
+            ...fact,
+            initialInvestmentAmount: null,
+            followOnInvestmentAmount: null,
+            amountOnlyNonEquityAmount: null,
+            monetaryFacts: {
+              availability: 'unavailable',
+              reasonCodes: ['DEPLOYMENT_CATEGORY_UNMAPPED'],
+              sourceCashFlowEventIds: [1],
+            },
+          })),
+        },
+        admissionReceiptCore: {
+          ...prior.payload.admissionReceiptCore,
+          contractVersion: 'actuals-admission/2.0.0',
+          operationKind: 'append',
+          restatement: null,
+          effectiveBasis,
+          facts: {
+            ...prior.payload.admissionReceiptCore.facts,
+            policyVersion: 'financial-facts-policy/1.5.0',
+            payloadSchemaId: 'financial-facts-payload/6',
+          },
+        },
+      },
+    });
+    const result = projectActualMetricsV2({ ...snapshot, id: 33 });
+    expect(result.capital.deployed).toMatchObject({
+      value: '100000.000000',
+      availability: 'available',
+    });
+    expect(result.actionability).toMatchObject({
+      status: 'blocked',
+      reasonCodes: ['DEPLOYMENT_CATEGORY_PARTIAL'],
+    });
+    expect(result.value.nav.value).toBeNull();
+  });
+
   it('projects the blocked payload-5 FIN-V001 shape and keeps gaps field-local', () => {
     const metrics = projectActualMetricsV2(factsRow());
 

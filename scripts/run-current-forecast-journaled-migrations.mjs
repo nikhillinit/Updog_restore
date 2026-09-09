@@ -170,14 +170,14 @@ export async function runCurrentForecastJournaledMigrationRecovery({
   }
 }
 
-async function readMigrationLedger(client) {
+export async function readMigrationLedger(client) {
   const result = await client.query(
     'SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at'
   );
   return result.rows;
 }
 
-async function readCurrentForecastSentinelCatalog(client) {
+export async function readCurrentForecastSentinelCatalog(client) {
   /** @type {Array<{ table: string, present: boolean, constraints: Array<Record<string, unknown>>, indexes: Array<Record<string, unknown>> }>} */
   const catalog = [];
   for (const sentinel of CURRENT_FORECAST_SENTINELS) {

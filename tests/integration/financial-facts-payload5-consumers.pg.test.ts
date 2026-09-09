@@ -19,7 +19,10 @@ import {
   ACTUALS_VALUATION_TEMPLATE_HEADER,
   ACTUALS_VALUATION_TEMPLATE_VERSION,
 } from '../../shared/contracts/lp-reporting/actuals-pilot-templates';
-import { FinancialFactsPayloadV5Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  FinancialFactsPayloadV5Schema,
+  FinancialFactsPayloadV6Schema,
+} from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { combinedSchema } from '../../server/db-schema';
 import type {
   PublishConnection,
@@ -104,6 +107,7 @@ const originalEnv = {
   NEON_DATABASE_URL: process.env['NEON_DATABASE_URL'],
   USE_REAL_DB_IN_VITEST: process.env['USE_REAL_DB_IN_VITEST'],
   ACTUALS_PILOT_FUND_ID: process.env['ACTUALS_PILOT_FUND_ID'],
+  ACTUALS_PILOT_PUBLISH_ENABLED: process.env['ACTUALS_PILOT_PUBLISH_ENABLED'],
 };
 
 function restoreEnvironment(): void {
@@ -170,6 +174,7 @@ async function seedPilot(): Promise<SeededPilot> {
   const companyId = company.rows[0]!.id;
 
   process.env['ACTUALS_PILOT_FUND_ID'] = String(fundId);
+  process.env['ACTUALS_PILOT_PUBLISH_ENABLED'] = 'true';
   return { fundId, actorId, vehicleId, companyId };
 }
 
@@ -606,7 +611,7 @@ async function parsedUnsupportedReason(snapshotId: number): Promise<string | und
     database: previewDb,
   });
   if (selected === null) return undefined;
-  const parsed = parsePersistedFactsRow(selected);
+  const parsed = parsePersistedFactsRow(selected, { allowRestatement: true });
   if (parsed.kind !== 'facts') return undefined;
   return parsed.snapshot.consumerEvaluations.find(
     (evaluation) => evaluation.consumer === 'periodic_analysis'
@@ -653,6 +658,199 @@ describe.skipIf(!runDocker)('payload-5 PostgreSQL consumer proofs', () => {
     await resetPilot();
     await seedPublishedConfig();
   });
+
+  it(
+    'requires an explicit successor plan after restatement and preserves every consumer basis',
+    async () => {
+      const original = await publish(await publishFixture());
+      const oldPlan = await mintCurrentPlanVersion({
+        fundId: seeded.fundId,
+        actorId: seeded.actorId,
+        idempotencyKey: '20000000-0000-4000-8000-000000000011',
+        database: previewDb,
+      });
+      const options = {
+        connect: connectWith(() => async (_text, _params, next) => next()),
+        invalidateAfterCommit: async () => undefined,
+      };
+      const targets = await publishModule.readActualsRestatementTargets(
+        {
+          fundId: seeded.fundId,
+          actorId: seeded.actorId,
+          request: { expectedBasis: original.receipt.basisRef, limit: 100, cursor: null },
+        },
+        options
+      );
+      const target = targets.targets.find(
+        (row) => row.fields.kind === 'ledger' && row.fields.eventType === 'portfolio_investment'
+      );
+      if (!target) throw new Error('Expected an admitted investment correction target.');
+      const bytes = csv(ACTUALS_LEDGER_TEMPLATE_HEADER, [
+        [
+          'portfolio_investment',
+          '2026-03-15',
+          '25000.00',
+          'USD',
+          'Acme Labs',
+          'main',
+          'initial',
+          'Reconciled investment amount',
+          '',
+          '',
+          '',
+          'pg-consumer-correction',
+        ],
+      ]);
+      const filePreview = await previewFile(
+        ACTUALS_LEDGER_TEMPLATE_VERSION,
+        'consumer-correction.csv',
+        bytes
+      );
+      expect(filePreview.canPublish).toBe(true);
+      const request = {
+        contractVersion: 'actuals-restatement/1.0.0' as const,
+        expectedBasis: original.receipt.basisRef,
+        expectedETag: original.receipt.facts.etag,
+        ledger: {
+          templateVersion: ACTUALS_LEDGER_TEMPLATE_VERSION,
+          fileName: 'consumer-correction.csv',
+          payload: bytes.toString('base64'),
+          expectedPayloadSha256: filePreview.payloadSha256,
+          expectedCanonicalRowsHash: filePreview.canonicalRowsHash,
+          expectedPreviewHash: filePreview.previewHash,
+        },
+        valuation: null,
+        items: [
+          {
+            target: target.identity,
+            originalPublication: target.originalPublication,
+            replacementExternalRef: 'pg-consumer-correction',
+            expectedReplacementContentHash: filePreview.rows[0]!.rowContentHash!,
+          },
+        ],
+        reason: 'Correct the investment amount without changing the saved plan.',
+      };
+      const preview = await publishModule.previewActualsRestatement(
+        { fundId: seeded.fundId, actorId: seeded.actorId, request },
+        options
+      );
+      expect(preview.errors).toEqual([]);
+      const corrected = await publishModule.publishActualsRestatement(
+        {
+          fundId: seeded.fundId,
+          actorId: seeded.actorId,
+          idempotencyKey: '10000000-0000-4000-8000-000000000011',
+          ifMatch: request.expectedETag,
+          request: { ...request, expectedPreviewHash: preview.previewHash },
+        },
+        options
+      );
+      const snapshotId = corrected.receipt.facts.snapshotId;
+      const latest = await getLatestFinancialFactsSnapshot({
+        fundId: seeded.fundId,
+        database: previewDb,
+      });
+      const parsed = parsePersistedFactsRow(latest!, { allowRestatement: true });
+      if (parsed.kind !== 'facts') throw new Error('Expected a supported restated snapshot.');
+      expect(
+        FinancialFactsPayloadV6Schema.parse(parsed.snapshot.payload).capitalActuals.deployedCapital
+          .value
+      ).toBe('25000.000000');
+      expect(projectActualMetricsV2(parsed.snapshot)).toMatchObject({
+        financialFactsSnapshotId: snapshotId,
+        snapshotInputHash: corrected.receipt.basisRef.snapshotInputHash,
+      });
+      await expect(
+        runCurrentForecastV2WithReceipt({
+          fundId: seeded.fundId,
+          currentPlanVersionId: oldPlan.id,
+          financialFactsSnapshotId: String(snapshotId),
+          clock: '2026-03-31T12:01:00.000Z',
+          database: previewDb,
+        })
+      ).rejects.toMatchObject({
+        code: 'CURRENT_FORECAST_BASIS_MISMATCH',
+        basisMismatchCode: 'PLAN_FACTS_HEAD_MISMATCH',
+      });
+      expect(
+        (await adminPool.query('SELECT count(*)::int AS count FROM fund_snapshots')).rows[0].count
+      ).toBe(0);
+      const plan = await mintCurrentPlanVersion({
+        fundId: seeded.fundId,
+        actorId: seeded.actorId,
+        idempotencyKey: '20000000-0000-4000-8000-000000000012',
+        database: previewDb,
+      });
+      expect(plan.sourceFactsSnapshotId).toBe(String(snapshotId));
+      const forecast = await runCurrentForecastV2WithReceipt({
+        fundId: seeded.fundId,
+        currentPlanVersionId: plan.id,
+        financialFactsSnapshotId: String(snapshotId),
+        clock: '2026-03-31T12:02:00.000Z',
+        database: previewDb,
+      });
+      const reserve = await createDynamicReserveIntelligenceRun({
+        fundId: seeded.fundId,
+        financialFactsSnapshotId: snapshotId,
+        overlay: [{ companyId: seeded.companyId, plannedReserveCents: 70_00 }],
+        idempotencyKey: 'payload6-reserve-1',
+        actorId: seeded.actorId,
+        dependencies: reserveDependencies('on'),
+      });
+      const construction = await runConstructionReconciliation({
+        fundId: seeded.fundId,
+        idempotencyKey: 'payload6-construction-1',
+        request: {
+          contractVersion: 'construction-reconciliation/1.0.0',
+          fundId: seeded.fundId,
+          currentPlanVersionId: Number(plan.id),
+          financialFactsSnapshotId: snapshotId,
+        },
+        database: previewDb,
+      });
+      expect(forecast.result.basisRef).toEqual(corrected.receipt.basisRef);
+      expect(reserve.result.basisRef).toEqual(corrected.receipt.basisRef);
+      expect(construction.envelope.result.basisRef).toEqual(corrected.receipt.basisRef);
+      const oldSnapshot = await getFinancialFactsSnapshotById({
+        fundId: seeded.fundId,
+        snapshotId: original.receipt.facts.snapshotId,
+        database: previewDb,
+      });
+      expect(oldSnapshot?.snapshotInputHash).toBe(original.receipt.basisRef.snapshotInputHash);
+      const policyVersionId = await seedEconomicsPolicy(plan);
+      await expect(
+        executeLpEconomicsRun({
+          fundId: seeded.fundId,
+          actorId: seeded.actorId,
+          idempotencyKey: 'payload6-economics-1',
+          request: {
+            policyVersionId,
+            factsSnapshotId: snapshotId,
+            planVersionId: Number(plan.id),
+            forecastSnapshotId: forecast.fundSnapshotId,
+            terminalMode: 'hold_unrealized',
+            clock: '2026-03-31T12:02:00.000Z',
+          },
+          database: previewDb,
+        })
+      ).rejects.toMatchObject({ code: 'UNSUPPORTED_FACTS_POLICY' });
+      await expect(
+        createDraftForPeriod(createAnalysisCheckpointPorts(previewDb), {
+          fundId: seeded.fundId,
+          period: quarterPeriod(2026, 1),
+          actorId: seeded.actorId,
+        })
+      ).rejects.toMatchObject({ code: 'UNSUPPORTED_FACTS_POLICY' });
+      expect(
+        (
+          await adminPool.query(`SELECT
+        (SELECT count(*) FROM internal_lp_economics_runs) AS economics,
+        (SELECT count(*) FROM internal_analysis_drafts) AS analysis`)
+        ).rows[0]
+      ).toEqual({ economics: '0', analysis: '0' });
+    },
+    TEST_TIMEOUT_MS
+  );
 
   it(
     'propagates one publisher-created payload-5 basis through supported persisted consumers',
@@ -729,7 +927,7 @@ describe.skipIf(!runDocker)('payload-5 PostgreSQL consumer proofs', () => {
       });
       expect(selected).toEqual(latest);
 
-      const parsed = parsePersistedFactsRow(latest!);
+      const parsed = parsePersistedFactsRow(latest!, { allowRestatement: true });
       expect(parsed.kind).toBe('facts');
       if (parsed.kind !== 'facts') throw new Error('Expected supported payload-5 facts.');
       expect(

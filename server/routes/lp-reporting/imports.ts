@@ -106,8 +106,20 @@ import {
   IfMatchSchema,
 } from '@shared/contracts/lp-reporting/actuals-pilot.contract';
 import {
+  ActualsRestatementHistoryResponseV1Schema,
+  ActualsRestatementPreviewRequestV1Schema,
+  ActualsRestatementPreviewResponseV1Schema,
+  ActualsRestatementPublishRequestV1Schema,
+  ActualsRestatementReadRequestV1Schema,
+  ActualsRestatementReceiptV1Schema,
+  ActualsRestatementTargetsResponseV1Schema,
+} from '@shared/contracts/lp-reporting/actuals-restatement.contract';
+import {
+  FinancialFactsBasisRefSchema,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   type FinancialFactsSnapshotV5,
+  type FinancialFactsSnapshotV6,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import {
   ActualsPilotPreviewError,
@@ -115,7 +127,11 @@ import {
 } from '../../services/lp-reporting/actuals-pilot-preview-service';
 import {
   ActualsPilotPublishError,
+  previewActualsRestatement,
   publishActualsPilot,
+  publishActualsRestatement,
+  readActualsRestatementHistory,
+  readActualsRestatementTargets,
 } from '../../services/lp-reporting/actuals-pilot-publish-service';
 import {
   getFinancialFactsSnapshotById,
@@ -139,6 +155,36 @@ const actualsSnapshotIdSchema = z
   .regex(/^[1-9][0-9]{0,9}$/)
   .transform(Number)
   .refine((value) => value <= 2_147_483_647);
+
+const actualsRestatementReadQuerySchema = z
+  .object({
+    expectedBasis: z
+      .string()
+      .min(1)
+      .max(4096)
+      .transform((value, ctx): unknown => {
+        try {
+          return JSON.parse(value) as unknown;
+        } catch {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Expected basis must be JSON.' });
+          return z.NEVER;
+        }
+      })
+      .pipe(FinancialFactsBasisRefSchema),
+    limit: z
+      .string()
+      .regex(/^[1-9][0-9]{0,2}$/)
+      .default('50')
+      .transform(Number),
+    cursor: z
+      .string()
+      .min(1)
+      .max(2048)
+      .optional()
+      .transform((value) => value ?? null),
+  })
+  .strict()
+  .pipe(ActualsRestatementReadRequestV1Schema);
 
 const valuationMarkImportBodySchema = ImportDryRunRequestSchema.extend({
   sourceType: z.literal('csv'),
@@ -906,12 +952,10 @@ if (actualsPilotFundId !== null) {
         return res.status(400).json({ error: 'If-Match is invalid.', code: 'INVALID_IF_MATCH' });
       const key = ActualsDraftIdempotencyKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
       if (!key.success)
-        return res
-          .status(400)
-          .json({
-            error: 'Idempotency-Key must be a lowercase UUID.',
-            code: 'INVALID_IDEMPOTENCY_KEY',
-          });
+        return res.status(400).json({
+          error: 'Idempotency-Key must be a lowercase UUID.',
+          code: 'INVALID_IDEMPOTENCY_KEY',
+        });
       const body = ActualsDraftSaveRequestV1Schema.safeParse(req.body);
       if (!body.success)
         return res
@@ -1063,6 +1107,140 @@ if (actualsPilotFundId !== null) {
   );
 
   router.get(
+    '/api/funds/:fundId/imports/actuals/restatements/targets',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      const query = actualsRestatementReadQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        return res.status(400).json({
+          error: 'Restatement targets require an exact basis and valid pagination.',
+          code: 'INVALID_CURSOR',
+        });
+      }
+      try {
+        const result = await readActualsRestatementTargets({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          request: query.data,
+          ...(req.context && { context: req.context }),
+        });
+        return res.status(200).json(ActualsRestatementTargetsResponseV1Schema.parse(result));
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.get(
+    '/api/funds/:fundId/imports/actuals/restatements/history',
+    ...actualsCommon,
+    async (req: Request, res: Response) => {
+      const query = actualsRestatementReadQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        return res.status(400).json({
+          error: 'Restatement history requires an exact basis and valid pagination.',
+          code: 'INVALID_CURSOR',
+        });
+      }
+      try {
+        const result = await readActualsRestatementHistory({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          request: query.data,
+          ...(req.context && { context: req.context }),
+        });
+        return res.status(200).json(ActualsRestatementHistoryResponseV1Schema.parse(result));
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/api/funds/:fundId/imports/actuals/restatements/dry-run',
+    ...actualsCommon,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const body = ActualsRestatementPreviewRequestV1Schema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({
+          error: 'Restatement preview request is invalid.',
+          code: 'INVALID_BODY',
+          issues: body.error.issues.map(({ path, message }) => ({ path, message })),
+        });
+      }
+      try {
+        const result = await previewActualsRestatement({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          request: body.data,
+          ...(req.context && { context: req.context }),
+        });
+        return res.status(200).json(ActualsRestatementPreviewResponseV1Schema.parse(result));
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.post(
+    '/api/funds/:fundId/imports/actuals/restatements/publish',
+    ...actualsCommon,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const rawIfMatch = requestHeader(req, 'if-match');
+      if (rawIfMatch === undefined) {
+        return res
+          .status(428)
+          .json({ error: 'If-Match is required.', code: 'PRECONDITION_REQUIRED' });
+      }
+      const ifMatch = IfMatchSchema.safeParse(rawIfMatch);
+      if (!ifMatch.success) {
+        return res.status(400).json({ error: 'If-Match is invalid.', code: 'INVALID_IF_MATCH' });
+      }
+      const key = actualsIdempotencyKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
+      if (!key.success) {
+        return res.status(400).json({
+          error: 'Idempotency-Key must be a lowercase UUID.',
+          code: 'INVALID_IDEMPOTENCY_KEY',
+        });
+      }
+      const body = ActualsRestatementPublishRequestV1Schema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({
+          error: 'Restatement publish request is invalid.',
+          code: 'INVALID_BODY',
+          issues: body.error.issues.map(({ path, message }) => ({ path, message })),
+        });
+      }
+      if (ifMatch.data !== body.data.expectedETag) {
+        return res.status(412).json({
+          error: 'If-Match does not identify the expected basis.',
+          code: 'STALE_BASIS',
+        });
+      }
+      try {
+        const result = await publishActualsRestatement({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: key.data,
+          ifMatch: ifMatch.data,
+          request: body.data,
+          requestId: actualsRequestId(req),
+          ...(req.context && { context: req.context }),
+        });
+        return res
+          .status(result.statusCode)
+          .json(ActualsRestatementReceiptV1Schema.parse(result.receipt));
+      } catch (error) {
+        return sendActualsError(req, res, error);
+      }
+    }
+  );
+
+  router.get(
     '/api/funds/:fundId/financial-facts/latest-reference',
     ...actualsCommon,
     async (req: Request, res: Response) => {
@@ -1080,7 +1258,7 @@ if (actualsPilotFundId !== null) {
           );
         }
 
-        const parsed = parsePersistedFactsRow(head.row);
+        const parsed = parsePersistedFactsRow(head.row, { allowRestatement: true });
         if (parsed.kind === 'unsupported') {
           return res.status(422).json({
             error: 'Financial facts policy is unsupported.',
@@ -1150,10 +1328,11 @@ if (actualsPilotFundId !== null) {
           row = head.row;
         }
 
-        const parsed = parsePersistedFactsRow(row);
+        const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
         if (
           parsed.kind === 'unsupported' ||
-          parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+          (parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+            parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_5_0)
         ) {
           return res.status(422).json({
             error: 'Financial facts policy is unsupported.',
@@ -1161,7 +1340,11 @@ if (actualsPilotFundId !== null) {
           });
         }
         const metrics = ActualMetricsV2Schema.parse(
-          projectActualMetricsV2(parsed.snapshot as FinancialFactsSnapshotV5 & { id: number })
+          projectActualMetricsV2(
+            parsed.snapshot as (FinancialFactsSnapshotV5 | FinancialFactsSnapshotV6) & {
+              id: number;
+            }
+          )
         );
         res.setHeader('ETag', actualMetricsV2ETag(row.id, row.snapshotInputHash));
         return res.status(200).json(metrics);

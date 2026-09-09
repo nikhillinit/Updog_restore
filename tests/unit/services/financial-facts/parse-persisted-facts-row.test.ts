@@ -183,7 +183,10 @@ function persistedSnapshot(
   });
 }
 
-function rowFromSnapshot(snapshot: PersistedFinancialFactsSnapshotV1, id: number): FinancialFactsSnapshot {
+function rowFromSnapshot(
+  snapshot: PersistedFinancialFactsSnapshotV1,
+  id: number
+): FinancialFactsSnapshot {
   return {
     id,
     fundId: snapshot.fundId,
@@ -260,5 +263,16 @@ describe('parsePersistedFactsRow', () => {
     row.payload = { malformed: true };
 
     expect(() => parsePersistedFactsRow(row)).toThrow();
+  });
+
+  it('requires an explicit restatement opt-in and still validates its payload', () => {
+    const row = rowFromSnapshot(snapshots[4]!, 101);
+    row.policyVersion = 'financial-facts-policy/1.5.0';
+    row.payloadSchemaId = 'financial-facts-payload/6';
+    expect(parsePersistedFactsRow(row)).toEqual({
+      kind: 'unsupported',
+      policyVersion: 'financial-facts-policy/1.5.0',
+    });
+    expect(() => parsePersistedFactsRow(row, { allowRestatement: true })).toThrow();
   });
 });

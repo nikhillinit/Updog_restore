@@ -109,6 +109,10 @@ const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'GET /api/funds/:fundId/imports/actuals/draft-revisions/:revision',
   'POST /api/funds/:fundId/imports/actuals/dry-run',
   'POST /api/funds/:fundId/imports/actuals/publish',
+  'GET /api/funds/:fundId/imports/actuals/restatements/targets',
+  'GET /api/funds/:fundId/imports/actuals/restatements/history',
+  'POST /api/funds/:fundId/imports/actuals/restatements/dry-run',
+  'POST /api/funds/:fundId/imports/actuals/restatements/publish',
   'GET /api/funds/:fundId/financial-facts/latest-reference',
   'GET /api/funds/:fundId/actuals/metrics',
 ] as const;
@@ -174,6 +178,35 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
     keys: ['POST /api/funds/:fundId/imports/actuals/publish'],
     expected: {
       workflowRequirement: 'actuals_pilot_preview_hashes_if_match_and_idempotency_key_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'GET /api/funds/:fundId/imports/actuals/restatements/targets',
+      'GET /api/funds/:fundId/imports/actuals/restatements/history',
+    ],
+    expected: {
+      workflowRequirement: 'actuals_restatement_full_basis_cursor_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/restatements/dry-run'],
+    expected: {
+      workflowRequirement:
+        'actuals_restatement_full_basis_lineage_and_explicit_fund_grant_verified',
+      exportPolicy: 'preview_only',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/restatements/publish'],
+    expected: {
+      workflowRequirement:
+        'actuals_restatement_full_basis_lineage_preview_if_match_and_idempotency_verified',
       exportPolicy: 'not_exportable',
       provenanceRequired: true,
     },
@@ -615,7 +648,7 @@ describe('route policy coverage', () => {
   });
 
   it('covers every LP-reporting metric-run and import route', () => {
-    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(43);
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(47);
 
     const declaredRoutes = [
       ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),

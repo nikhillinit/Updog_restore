@@ -22,6 +22,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-09-09)
+
+- Prepare bounded migration 0056 validation and exact apply/replay receipts for
+  persisted actuals drafts. Production apply remains blocked by unresolved
+  authoritative recovery and custody prerequisites.
+- Prepare a separate bounded 0057 restatement migration, receipt and rehearsal
+  path with exact source/catalog checks and its own disposable apply capability.
+  The 0056 runner remains bounded to 0056; production admission stays blocked.
+- Integrate authenticated protected-source/CI, owner-dispatch, and Neon/database
+  observations into both actuals preflights. Reports separate missing
+  engineering, missing live evidence, and undefined owner criteria; they do not
+  grant production admission.
+- Add candidate published-actual restatement contracts, immutable command/item
+  lineage, and policy 1.5/payload 6 consumer handling. Historical payload 5
+  stays readable; unmapped company monetary facts remain explicitly unavailable.
+
+### Fixed (2026-09-08)
+
+- Add an independent, default-disabled canonical actuals publication control.
+  Draft/preview/readback access and authenticated committed-command replay
+  remain available; new writes and proven-absence retries require explicit
+  enablement for the configured pilot. Both server assemblies reject invalid
+  configuration.
+
 ### Documentation (2026-09-07)
 
 - Close the local roadmap documentation and scanner-configuration review: Task 6

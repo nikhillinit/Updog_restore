@@ -14,6 +14,89 @@ const input = {
   expectedParentMigrationTail: '0049_kpi_observations',
 };
 const operationId = 'a07f8772-1877-4da9-a939-3a3ae62d1d8d';
+
+describe('0056 rehearsal source admission', () => {
+  const draftInput = {
+    ...input,
+    mode: 'actuals-draft-0056',
+    expectedParentMigrationTail: '0055_current_forecast_recompute_commands',
+  };
+  it('requires the exact0055 parent only in the new mode', () => {
+    expect(validateRehearsalInput(draftInput)).toEqual(draftInput);
+    expect(() =>
+      validateRehearsalInput({
+        ...draftInput,
+        expectedParentMigrationTail: input.expectedParentMigrationTail,
+      })
+    ).toThrow();
+    expect(() =>
+      validateRehearsalInput({
+        ...input,
+        expectedParentMigrationTail: draftInput.expectedParentMigrationTail,
+      })
+    ).toThrow();
+  });
+  it('makes zero provider, database, or command calls while authoritative prerequisites are unavailable', async () => {
+    const fetchImpl = vi.fn();
+    const tailReader = vi.fn();
+    const commandRunner = vi.fn();
+    await expect(
+      rehearseCurrentForecastNeon({
+        input: draftInput,
+        apiKey: 'synthetic-test-value',
+        githubRunId: '12',
+        githubRunAttempt: 1,
+        fetchImpl,
+        tailReader,
+        commandRunner,
+      })
+    ).rejects.toMatchObject({ code: 'PRODUCTION_PREREQUISITES_UNAVAILABLE' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(tailReader).not.toHaveBeenCalled();
+    expect(commandRunner).not.toHaveBeenCalled();
+  });
+});
+describe('0057 rehearsal source admission', () => {
+  const restatementInput = {
+    ...input,
+    mode: 'actuals-restatement-0057',
+    expectedParentMigrationTail: '0056_actuals_draft_revisions',
+  };
+  it('requires the exact0056 parent only in the new mode', () => {
+    expect(validateRehearsalInput(restatementInput)).toEqual(restatementInput);
+    expect(() =>
+      validateRehearsalInput({
+        ...restatementInput,
+        expectedParentMigrationTail: input.expectedParentMigrationTail,
+      })
+    ).toThrow();
+    expect(() =>
+      validateRehearsalInput({
+        ...input,
+        expectedParentMigrationTail: restatementInput.expectedParentMigrationTail,
+      })
+    ).toThrow();
+  });
+  it('makes zero provider, database, or command calls while authoritative prerequisites are unavailable', async () => {
+    const fetchImpl = vi.fn();
+    const tailReader = vi.fn();
+    const commandRunner = vi.fn();
+    await expect(
+      rehearseCurrentForecastNeon({
+        input: restatementInput,
+        apiKey: 'synthetic-test-value',
+        githubRunId: '12',
+        githubRunAttempt: 1,
+        fetchImpl,
+        tailReader,
+        commandRunner,
+      })
+    ).rejects.toMatchObject({ code: 'PRODUCTION_PREREQUISITES_UNAVAILABLE' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(tailReader).not.toHaveBeenCalled();
+    expect(commandRunner).not.toHaveBeenCalled();
+  });
+});
 /** @typedef {Record<string, any>} NeonResponse */
 const parentEndpoint = {
   id: 'ep-parent',

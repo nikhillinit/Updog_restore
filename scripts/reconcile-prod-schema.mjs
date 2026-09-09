@@ -26,6 +26,13 @@ export const RECONCILE_LOCK_ID = 20260628;
 export const ACTION_SKIP = 'SKIP';
 export const ACTION_APPLY_MISSING_DDL = 'APPLY-MISSING-DDL';
 export const ACTION_REFUSE_FOR_HUMAN = 'REFUSE-FOR-HUMAN';
+
+export const ACTUALS_DRAFT_MIGRATION_IDENTITY = Object.freeze({
+  tag: '0056_actuals_draft_revisions',
+  idx: 57,
+  when: 1788825600000,
+  hash: '94fd8537ee7afbee9f0d5b19bfa9cfd78263096c89ee4ef0ae015ad268ed04cf',
+});
 export const APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG = '--apply-0053-g3-release-gate-hardening';
 const APPLY_0053_MANIFEST_PATH = 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json';
 const APPLY_0053_MANIFEST_NAME = 'g3-release-gate-hardening';
@@ -1093,6 +1100,13 @@ export async function readManifestSql(manifest, rootDir = repoRoot) {
       sql,
       checksum: sha256(sql),
       statements: splitSqlStatements(sql),
+      ...(relPath === `migrations/${ACTUALS_DRAFT_MIGRATION_IDENTITY.tag}.sql`
+        ? {
+            sourceJournal: JSON.parse(
+              await fs.readFile(path.resolve(rootDir, 'migrations/meta/_journal.json'), 'utf8')
+            ),
+          }
+        : {}),
     });
   }
   return files;
@@ -1504,6 +1518,39 @@ export function dropStatements(manifest) {
   });
 }
 
+export function isPinnedActualsDraftMigrationSource(manifest, file) {
+  const identity = ACTUALS_DRAFT_MIGRATION_IDENTITY;
+  const sqlPath = `migrations/${identity.tag}.sql`;
+  const journal = file.sourceJournal;
+  const entry = journal?.entries?.[identity.idx];
+  const predecessor = journal?.entries?.[identity.idx - 1];
+  return (
+    manifest.name === 'actuals-draft-revisions' &&
+    manifest.order === 33 &&
+    manifest.manifestPath === 'scripts/prod-schema-manifests/33-actuals-draft-revisions.json' &&
+    manifest.sqlFiles?.length === 1 &&
+    manifest.sqlFiles[0] === sqlPath &&
+    file.path === sqlPath &&
+    typeof file.sql === 'string' &&
+    sha256(file.sql) === identity.hash &&
+    file.checksum === identity.hash &&
+    journal?.version === '7' &&
+    journal.dialect === 'postgresql' &&
+    Array.isArray(journal.entries) &&
+    journal.entries.filter((item) => item.tag === identity.tag).length === 1 &&
+    journal.entries.filter((item) => item.idx === identity.idx).length === 1 &&
+    journal.entries.filter((item) => item.when === identity.when).length === 1 &&
+    entry?.tag === identity.tag &&
+    entry.idx === identity.idx &&
+    entry.when === identity.when &&
+    entry.version === '7' &&
+    entry.breakpoints === true &&
+    predecessor?.idx === identity.idx - 1 &&
+    predecessor.tag === '0055_current_forecast_recompute_commands' &&
+    predecessor.when === 1788235843534
+  );
+}
+
 export function validateManifestSql(manifest, sqlFiles) {
   validateManifest(manifest);
   const allowedCreates = new Set([
@@ -1512,7 +1559,17 @@ export function validateManifestSql(manifest, sqlFiles) {
   ]);
 
   for (const file of sqlFiles) {
-    if (!MIGRATION_MARKER_PATTERN.test(file.sql)) {
+    const pinnedDraftSource = isPinnedActualsDraftMigrationSource(manifest, file);
+    if (
+      (manifest.name === 'actuals-draft-revisions' ||
+        file.path === `migrations/${ACTUALS_DRAFT_MIGRATION_IDENTITY.tag}.sql`) &&
+      !pinnedDraftSource
+    ) {
+      throw new ReconcileError('Immutable 0056 migration provenance mismatch', {
+        kind: 'invalid-actuals-draft-migration-provenance',
+      });
+    }
+    if (!MIGRATION_MARKER_PATTERN.test(file.sql) && !pinnedDraftSource) {
       throw new ReconcileError(`${file.path} is missing -- @generated or -- @drift-patch marker`, {
         kind: 'missing-migration-marker',
         file: file.path,

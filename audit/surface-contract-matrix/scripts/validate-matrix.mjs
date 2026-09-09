@@ -570,16 +570,20 @@ export function validateClosedPhaseInvariants({ document, requirements, families
   return errors;
 }
 
-export async function validateMatrix({ writeMetadata = true, graphDir = kgDir } = {}) {
-  const document = SurfaceMatrixDocumentSchema.parse(readJson(matrixFile));
-  const inventory = SourceInventorySchema.parse(readJson(inventoryFile));
-  const requirements = RequirementsDocumentSchema.parse(readJson(requirementsFile));
+export async function validateMatrix({ writeMetadata = true, graphDir = kgDir, candidateState } = {}) {
+  if (candidateState !== undefined && writeMetadata) {
+    throw new Error('Candidate matrix validation is read-only; writeMetadata must be false');
+  }
+  const input = (key, file) => candidateState === undefined ? readJson(file) : candidateState[key];
+  const document = SurfaceMatrixDocumentSchema.parse(input('matrix', matrixFile));
+  const inventory = SourceInventorySchema.parse(input('inventory', inventoryFile));
+  const requirements = RequirementsDocumentSchema.parse(input('requirements', requirementsFile));
   const policyModule = await import(pathToFileURL(path.join(repoRoot, 'server/route-policy/api-route-policy-registry.ts')).href);
   const governanceModule = await import(pathToFileURL(path.join(repoRoot, 'shared/routes/route-governance-registry.ts')).href);
-  const listeners = ListenerDispositionsSchema.parse(readJson(path.join(matrixDir, 'listener-dispositions.json')));
-  const candidates = DormantCandidatesSchema.parse(readJson(path.join(matrixDir, 'dormant-candidates.json')));
-  const exclusions = RuntimeExclusionsSchema.parse(readJson(path.join(matrixDir, 'runtime-exclusions.json')));
-  const orphans = OrphansSchema.parse(readJson(path.join(matrixDir, 'orphans.json')));
+  const listeners = ListenerDispositionsSchema.parse(input('listeners', path.join(matrixDir, 'listener-dispositions.json')));
+  const candidates = DormantCandidatesSchema.parse(input('candidates', path.join(matrixDir, 'dormant-candidates.json')));
+  const exclusions = RuntimeExclusionsSchema.parse(input('exclusions', path.join(matrixDir, 'runtime-exclusions.json')));
+  const orphans = OrphansSchema.parse(input('orphans', path.join(matrixDir, 'orphans.json')));
   const errors = [];
   if (Object.prototype.hasOwnProperty.call(document, 'orphans')) errors.push('matrix.json must not embed orphans; orphans.json is authoritative');
   validateMappings(document, inventory, errors);

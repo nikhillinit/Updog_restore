@@ -46,8 +46,7 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
 
 vi.mock('../../../../server/lib/auth/actuals-pilot-grant', () => ({
   requireActualsPilotGrant:
-    (readPilotFundId: () => number | null) =>
-    (req: Request, res: Response, next: NextFunction) => {
+    (readPilotFundId: () => number | null) => (req: Request, res: Response, next: NextFunction) => {
       if (Number(req.params['fundId']) !== readPilotFundId()) {
         res.status(404).json({ error: 'RESOURCE_NOT_FOUND' });
         return;
@@ -158,6 +157,30 @@ beforeEach(() => {
 });
 
 describe('actuals pilot route registration and command boundary', () => {
+  it('returns a typed disabled-publication refusal while keeping preview and readback registered', async () => {
+    const app = await makeApp(7);
+    const { ActualsPilotPublishError } =
+      await import('../../../../server/services/lp-reporting/actuals-pilot-publish-service');
+    publisher.run.mockRejectedValueOnce(
+      new ActualsPilotPublishError(409, 'ACTUALS_PUBLICATION_DISABLED', 'Publication is disabled.')
+    );
+    const result = await request(app)
+      .post('/api/funds/7/imports/actuals/publish')
+      .set('If-Match', '"financial-facts:none"')
+      .set('Idempotency-Key', 'abcdefab-cdef-4abc-8def-abcdefabcdef')
+      .send(publishRequest());
+
+    expect(result.status).toBe(409);
+    expect(result.body.code).toBe('ACTUALS_PUBLICATION_DISABLED');
+    expect(result.headers['cache-control']).toBe('private, no-store');
+    expect((await request(app).post('/api/funds/7/imports/actuals/dry-run').send({})).status).toBe(
+      400
+    );
+    expect((await request(app).get('/api/funds/7/financial-facts/latest-reference')).status).toBe(
+      200
+    );
+  });
+
   it('registers none of the four routes when the pilot fund is unset', async () => {
     const app = await makeApp(null);
     const responses = await Promise.all([
@@ -280,56 +303,64 @@ describe('actuals pilot route registration and command boundary', () => {
     expect(factsReadback.byId).toHaveBeenCalledWith({ fundId: 7, snapshotId: 17 });
   });
 
-  it('binds latest-reference and explicit metrics ETags to the same parsed snapshot identity', async () => {
-    const row = {
-      id: 17,
-      fundId: 7,
-      snapshotInputHash: 'a'.repeat(64),
-      supersedesSnapshotId: 16,
-    };
-    const snapshot = {
-      ...row,
-      sourceFactsInputHash: 'b'.repeat(64),
-      policyVersion: 'financial-facts-policy/1.4.0',
-      payloadSchemaId: 'financial-facts-payload/5',
-      asOfDate: '2026-09-04',
-      knowledgeCutoff: '2026-09-04T12:00:00.000Z',
-      consumerEvaluations: [{ consumer: 'current_forecast_v2', status: 'accepted', reasons: [] }],
-    };
-    state.head = { kind: 'head', row };
-    state.selectedRows = [row];
-    codec.parse.mockReturnValue({ kind: 'facts', snapshot });
-    metricsProjector.project.mockReturnValue({
-      contractVersion: 'actual-metrics/2.0.0',
-      snapshotStatus: 'unavailable',
-      fundId: 7,
-      asOfDate: null,
-      knowledgeCutoff: null,
-      financialFactsSnapshotId: null,
-      snapshotInputHash: null,
-      reasonCodes: ['FACTS_NOT_FOUND'],
-    });
-    const app = await makeApp(7);
+  it.each([
+    ['financial-facts-policy/1.4.0', 'financial-facts-payload/5'],
+    ['financial-facts-policy/1.5.0', 'financial-facts-payload/6'],
+  ])(
+    'binds %s latest-reference and metrics ETags to the same snapshot',
+    async (policyVersion, payloadSchemaId) => {
+      const row = {
+        id: 17,
+        fundId: 7,
+        snapshotInputHash: 'a'.repeat(64),
+        supersedesSnapshotId: 16,
+      };
+      const snapshot = {
+        ...row,
+        sourceFactsInputHash: 'b'.repeat(64),
+        policyVersion,
+        payloadSchemaId,
+        asOfDate: '2026-09-04',
+        knowledgeCutoff: '2026-09-04T12:00:00.000Z',
+        consumerEvaluations: [{ consumer: 'current_forecast_v2', status: 'accepted', reasons: [] }],
+      };
+      state.head = { kind: 'head', row };
+      state.selectedRows = [row];
+      codec.parse.mockReturnValue({ kind: 'facts', snapshot });
+      metricsProjector.project.mockReturnValue({
+        contractVersion: 'actual-metrics/2.0.0',
+        snapshotStatus: 'unavailable',
+        fundId: 7,
+        asOfDate: null,
+        knowledgeCutoff: null,
+        financialFactsSnapshotId: null,
+        snapshotInputHash: null,
+        reasonCodes: ['FACTS_NOT_FOUND'],
+      });
+      const app = await makeApp(7);
 
-    const latest = await request(app).get('/api/funds/7/financial-facts/latest-reference');
-    expect(latest.status).toBe(200);
-    expect(latest.headers.etag).toBe(`"financial-facts:17:${'a'.repeat(64)}"`);
-    expect(latest.body.head).toMatchObject({
-      snapshotId: 17,
-      snapshotInputHash: 'a'.repeat(64),
-      supersedesSnapshotId: 16,
-      basisRef: {
+      const latest = await request(app).get('/api/funds/7/financial-facts/latest-reference');
+      expect(latest.status).toBe(200);
+      expect(latest.headers.etag).toBe(`"financial-facts:17:${'a'.repeat(64)}"`);
+      expect(latest.body.head).toMatchObject({
         snapshotId: 17,
         snapshotInputHash: 'a'.repeat(64),
-        sourceFactsInputHash: 'b'.repeat(64),
-      },
-    });
+        supersedesSnapshotId: 16,
+        basisRef: {
+          snapshotId: 17,
+          snapshotInputHash: 'a'.repeat(64),
+          sourceFactsInputHash: 'b'.repeat(64),
+        },
+      });
 
-    const metrics = await request(app).get('/api/funds/7/actuals/metrics?factsSnapshotId=17');
-    expect(metrics.status).toBe(200);
-    expect(metrics.headers.etag).toBe(`"actual-metrics:17:${'a'.repeat(64)}:actual-metrics-2.0.0"`);
-    expect(metricsProjector.project).toHaveBeenCalledWith(snapshot);
-  });
+      const metrics = await request(app).get('/api/funds/7/actuals/metrics?factsSnapshotId=17');
+      expect(metrics.status).toBe(200);
+      expect(metrics.headers.etag).toBe(
+        `"actual-metrics:17:${'a'.repeat(64)}:actual-metrics-2.0.0"`
+      );
+      expect(metricsProjector.project).toHaveBeenCalledWith(snapshot);
+    }
+  );
 
   it('returns typed terminal-head errors without reading a snapshot payload', async () => {
     state.head = { kind: 'ambiguous', code: 'FACTS_HEAD_AMBIGUOUS' };

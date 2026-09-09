@@ -4,12 +4,16 @@ import {
 } from '@shared/contracts/lp-reporting/actuals-pilot.contract';
 import {
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   type ActualsAvailabilityReasonV1,
   type FinancialFactsSnapshotV5,
+  type FinancialFactsSnapshotV6,
   type GovernedMoneyV1,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 
-type ParsedActualsPilotFactsRow = FinancialFactsSnapshotV5 & { readonly id: number };
+type ParsedActualsPilotFactsRow = (FinancialFactsSnapshotV5 | FinancialFactsSnapshotV6) & {
+  readonly id: number;
+};
 
 const ACTIONABILITY_FIELDS = [
   'committedCapital',
@@ -77,30 +81,34 @@ export function unavailableActualMetricsV2(fundId: number) {
   });
 }
 
-export function projectActualMetricsV2(
-  parsedRow: ParsedActualsPilotFactsRow
-) {
-  if (parsedRow.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
-    throw new Error('Actual metrics projector requires a policy-1.4 facts row.');
+export function projectActualMetricsV2(parsedRow: ParsedActualsPilotFactsRow) {
+  if (
+    parsedRow.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+    parsedRow.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+  ) {
+    throw new Error('Actual metrics projector requires a policy-1.4 or policy-1.5 facts row.');
   }
 
-  const { capitalActuals: capital, valuationActuals: valuation, companyActuals } =
-    parsedRow.payload;
-  const companyLabels = new Map(companyActuals.facts.map((fact) => [fact.companyId, fact.companyName]));
+  const {
+    capitalActuals: capital,
+    valuationActuals: valuation,
+    companyActuals,
+  } = parsedRow.payload;
+  const companyLabels = new Map(
+    companyActuals.facts.map((fact) => [fact.companyId, fact.companyName])
+  );
   const marksByPosition = new Map(
     valuation.marks.map((mark) => [`${mark.vehicleId}:${mark.companyId}`, mark])
   );
 
   const companies = [...valuation.roster]
-    .sort(
-      (left, right) =>
-        left.companyId - right.companyId || left.vehicleId - right.vehicleId
-    )
+    .sort((left, right) => left.companyId - right.companyId || left.vehicleId - right.vehicleId)
     .map((rosterEntry) => {
       const mark = marksByPosition.get(`${rosterEntry.vehicleId}:${rosterEntry.companyId}`);
       return {
         companyId: rosterEntry.companyId,
-        companyLabel: companyLabels.get(rosterEntry.companyId) ?? `Company ${rosterEntry.companyId}`,
+        companyLabel:
+          companyLabels.get(rosterEntry.companyId) ?? `Company ${rosterEntry.companyId}`,
         positionFairValue:
           mark === undefined
             ? unavailableMoney(
@@ -118,6 +126,16 @@ export function projectActualMetricsV2(
     });
 
   const reasonCodes = actionabilityReasonCodes(capital);
+  if (parsedRow.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0) {
+    if (
+      parsedRow.payload.companyActuals.facts.some(
+        (fact) => fact.monetaryFacts.availability === 'unavailable'
+      ) &&
+      !reasonCodes.includes('DEPLOYMENT_CATEGORY_PARTIAL')
+    ) {
+      reasonCodes.push('DEPLOYMENT_CATEGORY_PARTIAL');
+    }
+  }
 
   return ActualMetricsV2Schema.parse({
     contractVersion: 'actual-metrics/2.0.0',

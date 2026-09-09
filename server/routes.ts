@@ -3,6 +3,7 @@ import type { Express, Request, Response, NextFunction, Router } from 'express';
 import type { RequestListener } from 'http';
 import { createServer, type Server } from 'http';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
+import { readActualsPilotPublishFundId } from './config/actuals-pilot-env.js';
 import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
 import {
@@ -53,6 +54,7 @@ export async function stopRouteServices(): Promise<void> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  readActualsPilotPublishFundId();
   // Wire calc-run completion automation and periodic alert scheduling.
   registerCompletionHandlers();
   varianceAlertAutomationService.start();

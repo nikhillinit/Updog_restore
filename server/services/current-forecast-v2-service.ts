@@ -16,6 +16,7 @@ import {
 } from '../../shared/contracts/current-plan-version-v1.contract';
 import {
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
@@ -31,6 +32,7 @@ import {
 import { fundSnapshots } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
 import { basisRefFromPersistedSnapshot } from './financial-facts/financial-facts-basis-ref';
+import { hasAvailableCompanyMonetaryFacts } from '../../shared/lib/financial-facts/payload5-consumer-evaluator';
 import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row';
 
 export type CurrentForecastDatabase = typeof db;
@@ -53,9 +55,7 @@ export type CurrentForecastV2ServiceErrorCode =
 export class CurrentForecastV2ServiceError extends Error {
   readonly statusCode: number;
   readonly basisMismatchCode:
-    | CurrentForecastBasisMismatchCode
-    | 'PLAN_FACTS_HEAD_MISMATCH'
-    | undefined;
+    CurrentForecastBasisMismatchCode | 'PLAN_FACTS_HEAD_MISMATCH' | undefined;
 
   constructor(
     readonly status: number,
@@ -109,7 +109,7 @@ function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersi
 }
 
 function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
-  const parsed = parsePersistedFactsRow(row);
+  const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
   if (parsed.kind === 'unsupported') {
     throw new CurrentForecastV2ServiceError(
       422,
@@ -246,7 +246,11 @@ export async function runCurrentForecastV2WithReceipt(
   const forecastEvaluation = facts.consumerEvaluations.find(
     (evaluation) => evaluation.consumer === 'forecast'
   );
-  if (forecastEvaluation?.status === 'blocked') {
+  if (
+    forecastEvaluation?.status === 'blocked' ||
+    (facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0 &&
+      facts.payload.companyActuals.facts.some((fact) => !hasAvailableCompanyMonetaryFacts(fact)))
+  ) {
     throw new CurrentForecastV2ServiceError(
       422,
       'FACTS_FORECAST_EVALUATION_BLOCKED',
@@ -254,13 +258,14 @@ export async function runCurrentForecastV2WithReceipt(
     );
   }
   if (
-    facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+    (facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 ||
+      facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0) &&
     plan.sourceFactsSnapshotId !== String(facts.id)
   ) {
     throw new CurrentForecastV2ServiceError(
       409,
       'CURRENT_FORECAST_BASIS_MISMATCH',
-      'A policy-1.4 forecast requires a plan minted from the same financial-facts head.',
+      `A policy-${facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 ? '1.4' : '1.5'} forecast requires a plan minted from the same financial-facts head.`,
       { basisMismatchCode: 'PLAN_FACTS_HEAD_MISMATCH' }
     );
   }
@@ -277,7 +282,8 @@ export async function runCurrentForecastV2WithReceipt(
   try {
     const projected = runCohortProjectionV2(engineInput, plan, facts);
     result =
-      facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+      facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 ||
+      facts.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0
         ? CurrentForecastV2Schema.parse({
             ...projected,
             basisRef: basisRefFromPersistedSnapshot(facts, facts.id),

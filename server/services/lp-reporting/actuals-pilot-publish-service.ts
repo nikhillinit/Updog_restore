@@ -1,15 +1,18 @@
 import { randomUUID } from 'node:crypto';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { and, eq } from 'drizzle-orm';
 
 import { combinedSchema } from '../../db-schema';
 import { pool, createClientDatabase } from '../../db';
 import { applyRLSContext, getRequestDatabaseScope } from '../../db/request-context';
 import type { UserContext } from '../../lib/secure-context';
 import { logger } from '../../lib/logger';
+import { readActualsPilotPublishFundId } from '../../config/actuals-pilot-env';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import {
   ActualsPublishReceiptV1Schema,
+  ActualsPublishReceiptV2Schema,
   ActualsPublishRequestV1Schema,
   ActualsPilotCashFlowPayloadSchema,
   ActualsPilotCentExactMoneySchema,
@@ -17,17 +20,57 @@ import {
   IfMatchSchema,
   isCentExactMoney,
   type ActualsPilotErrorCode,
-  type ActualsPublishReceiptV1,
+  type ActualsPublishReceipt,
+  type ActualsPublishFileV1,
   type ActualsPublishRequestV1,
 } from '@shared/contracts/lp-reporting/actuals-pilot.contract';
 import {
   AdmissionReceiptCoreV1Schema,
+  AdmissionReceiptCoreV2Schema,
   EMPTY_SELECTION_SET_HASH,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   FinancialFactsPayloadV5Schema,
+  FinancialFactsPayloadV6Schema,
+  FinancialFactsSnapshotV5Schema,
+  FinancialFactsSnapshotV6Schema,
+  FinancialFactsBasisRefSchema,
   type AdmissionReceiptCoreV1,
+  type AdmissionReceiptCoreV2,
+  type ActualsCorrectionProvenanceV1,
+  type ActualsRecordIdentityV1,
+  type FinancialFactsPayloadV6,
+  type FinancialFactsBasisRef,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  ActualsRestatementPublishRequestV1Schema,
+  ActualsRestatementPreviewRequestV1Schema,
+  ActualsRestatementPreviewResponseV1Schema,
+  ActualsRestatementTargetV1Schema,
+  ActualsRestatementRecordFieldsV1Schema,
+  ActualsRestatementReadRequestV1Schema,
+  ActualsRestatementCursorV1Schema,
+  ActualsRestatementTargetsResponseV1Schema,
+  ActualsRestatementHistoryResponseV1Schema,
+  type ActualsRestatementPublishRequestV1,
+  type ActualsRestatementPreviewRequestV1,
+  type ActualsRestatementPreviewResponseV1,
+  type ActualsRestatementReadRequestV1,
+  type ActualsRestatementTargetsResponseV1,
+  type ActualsRestatementHistoryResponseV1,
+  type ActualsRestatementErrorCodeV1,
+} from '@shared/contracts/lp-reporting/actuals-restatement.contract';
+import {
+  projectActualsEffectiveBasis,
+  ActualsEffectiveBasisError,
+  type ActualsAdmittedProjectionRecord,
+} from './actuals-restatement-service';
+import {
+  buildFinancialFactsPayloadV6,
+  projectCompanyActualsFromEffectiveLedger,
+} from '../financial-facts/payload6-builder';
 import {
   ACTUALS_LEDGER_TEMPLATE_VERSION,
   ACTUALS_VALUATION_TEMPLATE_VERSION,
@@ -46,7 +89,10 @@ import {
 } from '../financial-facts/payload5-builder';
 import { stripGeneratedAtLeaves } from '../financial-facts-snapshot-service';
 import { resolveTerminalFactsHead } from '../financial-facts/terminal-head';
-import { parsePersistedFactsRow } from '../financial-facts/parse-persisted-facts-row';
+import {
+  actualsRestatementCommands,
+  actualsRestatementItems,
+} from '@shared/schema/actuals-restatement-commands';
 import { buildFundCompanyActualsFacts } from '../fund-actuals/fund-company-actuals-facts-service';
 import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
 import {
@@ -96,10 +142,21 @@ export interface ActualsPilotPublishInput {
 
 export interface ActualsPilotPublishResult {
   readonly statusCode: 200 | 201;
-  readonly receipt: ActualsPublishReceiptV1;
+  readonly receipt: ActualsPublishReceipt;
   readonly replayed: boolean;
   readonly mutationAttempts: number;
   readonly durationMs: number;
+}
+
+export interface ActualsRestatementPublishInput extends Omit<ActualsPilotPublishInput, 'request'> {
+  readonly request: ActualsRestatementPublishRequestV1;
+}
+
+export interface ActualsRestatementReadInput<Request> {
+  readonly fundId: number;
+  readonly actorId: number;
+  readonly request: Request;
+  readonly context?: UserContext;
 }
 
 export interface ActualsPilotPublishOptions {
@@ -113,10 +170,15 @@ export interface ActualsPilotPublishOptions {
 
 export class ActualsPilotPublishError extends Error {
   readonly statusCode: number;
-  readonly code: ActualsPilotErrorCode;
+  readonly code: ActualsPilotErrorCode | ActualsRestatementErrorCodeV1;
   readonly details?: unknown;
 
-  constructor(statusCode: number, code: ActualsPilotErrorCode, message: string, details?: unknown) {
+  constructor(
+    statusCode: number,
+    code: ActualsPilotErrorCode | ActualsRestatementErrorCodeV1,
+    message: string,
+    details?: unknown
+  ) {
     super(message);
     this.name = 'ActualsPilotPublishError';
     this.statusCode = statusCode;
@@ -152,6 +214,7 @@ type BasisCashRow = FinancialFactsPayloadV5CashFlowRow & {
 };
 
 type BasisMarkRow = FinancialFactsPayloadV5MarksRow & {
+  readonly priorMarkId: number | null;
   readonly asOfDate: Date | string;
   readonly markSource: string;
   readonly valuationMethod: string;
@@ -169,19 +232,33 @@ interface BasisVehicleRow {
   readonly committedCapital: string | null;
 }
 
-interface FrozenCommand {
-  readonly input: ActualsPilotPublishInput;
-  readonly request: ActualsPublishRequestV1;
-  readonly operationHash: string;
+interface PublicationContext {
+  readonly input: {
+    readonly fundId: number;
+    readonly actorId: number;
+    readonly context?: UserContext;
+  };
   readonly knowledgeCutoff: Date;
   readonly knowledgeCutoffIso: string;
   readonly startedAt: number;
   readonly deadline: number;
 }
 
+interface FrozenCommand extends PublicationContext {
+  readonly input: ActualsPilotPublishInput | ActualsRestatementPublishInput;
+  readonly request: {
+    readonly asOfDate: string;
+    readonly ledger: ActualsPublishFileV1 | null;
+    readonly valuation: ActualsPublishFileV1 | null;
+    readonly coverage: ActualsPublishRequestV1['coverage'];
+  };
+  readonly restatementRequest: ActualsRestatementPublishRequestV1 | null;
+  readonly operationHash: string;
+}
+
 function budgetedConnection(
   connection: PublishConnection,
-  command: FrozenCommand,
+  command: PublicationContext,
   monotonicNow: () => number,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN'
 ): PublishConnection {
@@ -228,12 +305,12 @@ function budgetedConnection(
 
 interface AttemptCreated {
   readonly kind: 'created';
-  readonly receipt: ActualsPublishReceiptV1;
+  readonly receipt: ActualsPublishReceipt;
 }
 
 interface AttemptReplay {
   readonly kind: 'replay';
-  readonly receipt: ActualsPublishReceiptV1;
+  readonly receipt: ActualsPublishReceipt;
 }
 
 type AttemptResult = AttemptCreated | AttemptReplay;
@@ -290,19 +367,19 @@ function ledgerEventType(row: BasisCashRow, expenseCategory: string | null) {
 }
 
 function computeSourceFactsInputHash(
-  core: AdmissionReceiptCoreV1,
-  payload: ReturnType<typeof FinancialFactsPayloadV5Schema.parse>,
+  core: AdmissionReceiptCoreV1 | AdmissionReceiptCoreV2,
+  payload: ReturnType<typeof FinancialFactsPayloadV5Schema.parse> | FinancialFactsPayloadV6,
   predecessorSnapshotInputHash: string | null
 ): string {
-  return canonicalSha256({
+  const preimage = {
     templateVersions: [
       ACTUALS_LEDGER_TEMPLATE_VERSION,
       core.admitted.valuation === null ? null : ACTUALS_VALUATION_TEMPLATE_VERSION,
     ],
     fundId: core.fundId,
     asOfDate: core.asOfDate,
-    ledgerPayloadSha256: core.admitted.ledger.payloadSha256,
-    ledgerCanonicalRowsHash: core.admitted.ledger.canonicalRowsHash,
+    ledgerPayloadSha256: core.admitted.ledger?.payloadSha256 ?? null,
+    ledgerCanonicalRowsHash: core.admitted.ledger?.canonicalRowsHash ?? null,
     valuationPayloadSha256: core.admitted.valuation?.payloadSha256 ?? null,
     valuationCanonicalRowsHash: core.admitted.valuation?.canonicalRowsHash ?? null,
     coverage: core.coverage,
@@ -312,12 +389,17 @@ function computeSourceFactsInputHash(
     },
     predecessorSnapshotInputHash,
     companyActualsInputHash: payload.companyActuals.inputHash,
-  });
+  };
+  return canonicalSha256(
+    core.contractVersion === 'actuals-admission/2.0.0'
+      ? { ...preimage, operationKind: core.operationKind, effectiveBasis: core.effectiveBasis }
+      : preimage
+  );
 }
 
 function fail(
   status: number,
-  code: ActualsPilotErrorCode,
+  code: ActualsPilotErrorCode | ActualsRestatementErrorCodeV1,
   message: string,
   details?: unknown
 ): never {
@@ -335,7 +417,7 @@ function logSuccess(result: ActualsPilotPublishResult, requestId: string | undef
         replayed: result.replayed,
         mutationAttempts: result.mutationAttempts,
         durationMs: Math.round(result.durationMs),
-        approvedRowCount: result.receipt.admitted.ledger.approvedCount,
+        approvedRowCount: result.receipt.admitted.ledger?.approvedCount ?? 0,
         approvedMarkCount: result.receipt.admitted.valuation?.approvedCount ?? 0,
         snapshotId: result.receipt.facts.snapshotId,
         policyVersion: result.receipt.facts.policyVersion,
@@ -348,12 +430,12 @@ function logSuccess(result: ActualsPilotPublishResult, requestId: string | undef
   }
 }
 
-function remaining(command: FrozenCommand, monotonicNow: () => number): number {
+function remaining(command: PublicationContext, monotonicNow: () => number): number {
   return Math.floor(command.deadline - monotonicNow());
 }
 
 async function withinBudget<T>(
-  command: FrozenCommand,
+  command: PublicationContext,
   monotonicNow: () => number,
   work: Promise<T>,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN',
@@ -435,8 +517,46 @@ export function computeActualsPilotOperationHash(input: {
   });
 }
 
+export function computeActualsRestatementOperationHash(input: {
+  readonly fundId: number;
+  readonly ifMatch: string;
+  readonly request: Omit<ActualsRestatementPublishRequestV1, 'ledger' | 'valuation'> & {
+    readonly ledger: Pick<
+      ActualsPublishFileV1,
+      | 'templateVersion'
+      | 'expectedPayloadSha256'
+      | 'expectedCanonicalRowsHash'
+      | 'expectedPreviewHash'
+    > | null;
+    readonly valuation: Pick<
+      ActualsPublishFileV1,
+      | 'templateVersion'
+      | 'expectedPayloadSha256'
+      | 'expectedCanonicalRowsHash'
+      | 'expectedPreviewHash'
+    > | null;
+  };
+}): string {
+  const fileIdentity = (file: typeof input.request.ledger) =>
+    file === null
+      ? null
+      : {
+          templateVersion: file.templateVersion,
+          payloadSha256: file.expectedPayloadSha256,
+          canonicalRowsHash: file.expectedCanonicalRowsHash,
+          previewHash: file.expectedPreviewHash,
+        };
+  return canonicalSha256({
+    ...input.request,
+    fundId: input.fundId,
+    expectedFactsHead: input.ifMatch,
+    ledger: fileIdentity(input.request.ledger),
+    valuation: fileIdentity(input.request.valuation),
+  });
+}
+
 function frozenCommand(
-  input: ActualsPilotPublishInput,
+  input: ActualsPilotPublishInput | ActualsRestatementPublishInput,
   now: () => Date,
   monotonicNow: () => number
 ): FrozenCommand {
@@ -446,34 +566,62 @@ function frozenCommand(
   if (!Number.isSafeInteger(input.actorId) || input.actorId <= 0 || input.actorId > 2_147_483_647) {
     fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
   }
-  if (!IDEMPOTENCY_KEY_PATTERN.test(input.idempotencyKey)) {
-    fail(400, 'INVALID_IDEMPOTENCY_KEY', 'Idempotency key invalid.');
-  }
-  if (!IfMatchSchema.safeParse(input.ifMatch).success) {
-    fail(400, 'INVALID_IF_MATCH', 'If-Match invalid.');
-  }
-  const parsed = ActualsPublishRequestV1Schema.safeParse(input.request);
-  if (!parsed.success) fail(400, 'INVALID_BODY', 'Actuals publish request invalid.');
+  if (!IDEMPOTENCY_KEY_PATTERN.test(input.idempotencyKey))
+    fail(400, 'INVALID_IDEMPOTENCY_KEY', 'Idempotency key is invalid.');
+  if (!IfMatchSchema.safeParse(input.ifMatch).success)
+    fail(400, 'INVALID_IF_MATCH', 'If-Match is invalid.');
   const startedAt = monotonicNow();
   const knowledgeCutoff = new Date(now().getTime());
-  const request = parsed.data;
   const context = input.context ?? getRequestDatabaseScope()?.context;
-  if (context && context.fundId && Number(context.fundId) !== input.fundId) {
+  if (context && context.fundId && Number(context.fundId) !== input.fundId)
     fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
+  let request: FrozenCommand['request'];
+  let restatementRequest: ActualsRestatementPublishRequestV1 | null = null;
+  let operationHash: string;
+  if (input.request.contractVersion === 'actuals-restatement/1.0.0') {
+    const parsed = ActualsRestatementPublishRequestV1Schema.safeParse(input.request);
+    if (!parsed.success) fail(400, 'INVALID_BODY', 'Restatement publish request is invalid.');
+    restatementRequest = parsed.data;
+    if (
+      restatementRequest.expectedBasis.fundId !== input.fundId ||
+      restatementRequest.expectedETag !== input.ifMatch
+    ) {
+      fail(409, 'STALE_BASIS', 'Restatement must identify the exact current fund basis.');
+    }
+    request = {
+      asOfDate: restatementRequest.expectedBasis.asOfDate,
+      ledger: restatementRequest.ledger,
+      valuation: restatementRequest.valuation,
+      coverage: {
+        ledger: 'incremental_since_prior_head',
+        priorFactsSnapshotId: restatementRequest.expectedBasis.snapshotId,
+        evidenceNote: restatementRequest.reason,
+      },
+    };
+    operationHash = computeActualsRestatementOperationHash({
+      fundId: input.fundId,
+      ifMatch: input.ifMatch,
+      request: restatementRequest,
+    });
+  } else {
+    const parsed = ActualsPublishRequestV1Schema.safeParse(input.request);
+    if (!parsed.success) fail(400, 'INVALID_BODY', 'Actuals publish request is invalid.');
+    request = parsed.data;
+    operationHash = computeActualsPilotOperationHash({
+      fundId: input.fundId,
+      ifMatch: input.ifMatch,
+      request: parsed.data,
+    });
   }
   const frozenInput = Object.freeze({
     ...input,
-    request,
     ...(context && { context: Object.freeze({ ...context, fundId: String(input.fundId) }) }),
   });
   return {
     input: frozenInput,
     request,
-    operationHash: computeActualsPilotOperationHash({
-      fundId: input.fundId,
-      ifMatch: input.ifMatch,
-      request,
-    }),
+    restatementRequest,
+    operationHash,
     knowledgeCutoff,
     knowledgeCutoffIso: knowledgeCutoff.toISOString(),
     startedAt,
@@ -483,7 +631,7 @@ function frozenCommand(
 
 async function configureTransaction(
   connection: PublishConnection,
-  command: FrozenCommand,
+  command: PublicationContext,
   monotonicNow: () => number,
   fundLockAcquired = false,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN' = 'PUBLISH_RETRY_EXHAUSTED'
@@ -522,7 +670,7 @@ async function configureTransaction(
   );
 }
 
-function assertBudget(command: FrozenCommand, monotonicNow: () => number): void {
+function assertBudget(command: PublicationContext, monotonicNow: () => number): void {
   if (remaining(command, monotonicNow) < 1_000) {
     fail(503, 'PUBLISH_RETRY_EXHAUSTED', 'Insufficient publication budget.');
   }
@@ -530,7 +678,7 @@ function assertBudget(command: FrozenCommand, monotonicNow: () => number): void 
 
 async function lockPublicationScope(
   connection: PublishConnection,
-  command: FrozenCommand,
+  command: PublicationContext,
   companyIds: readonly number[] = []
 ): Promise<void> {
   const fund = await connection.query(
@@ -573,7 +721,7 @@ async function lockPublicationScope(
 
 async function acquireFundLock(
   connection: PublishConnection,
-  command: FrozenCommand,
+  command: PublicationContext,
   monotonicNow: () => number,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN'
 ): Promise<void> {
@@ -589,7 +737,7 @@ async function acquireFundLock(
 
 async function authorizeActor(
   connection: PublishConnection,
-  command: FrozenCommand,
+  command: PublicationContext,
   monotonicNow: () => number,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN'
 ): Promise<void> {
@@ -654,71 +802,95 @@ async function loadReceiptCandidate(
   return result.rows[0] ?? null;
 }
 
+function verifyPublicationSnapshot(row: SnapshotRow, predecessorSnapshotInputHash: string | null) {
+  const normalized = {
+    ...row,
+    asOfDate: isoDay(row.asOfDate),
+    knowledgeCutoff: new Date(row.knowledgeCutoff).toISOString(),
+    createdAt: new Date(row.createdAt).toISOString(),
+  };
+  const value = {
+    policyVersion: row.policyVersion,
+    payloadSchemaId: row.payloadSchemaId,
+    fundId: row.fundId,
+    asOfDate: normalized.asOfDate,
+    knowledgeCutoff: normalized.knowledgeCutoff,
+    vehicleScope: row.vehicleScope,
+    vehicleIds: row.vehicleIds,
+    selectionSetHash: row.selectionSetHash,
+    sourceFactsInputHash: row.sourceFactsInputHash,
+    snapshotInputHash: row.snapshotInputHash,
+    payload: row.payload,
+    consumerEvaluations: row.consumerEvaluations,
+    actorId: row.actorId,
+    createdAt: normalized.createdAt,
+  };
+  const snapshot =
+    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+      ? FinancialFactsSnapshotV5Schema.parse(value)
+      : row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+        ? FinancialFactsSnapshotV6Schema.parse(value)
+        : fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt uses an unsupported policy.');
+  const core = snapshot.payload.admissionReceiptCore;
+  const common = {
+    fundId: row.fundId,
+    vehicleIds: row.vehicleIds,
+    asOfDate: normalized.asOfDate,
+    knowledgeCutoff: normalized.knowledgeCutoff,
+    selectionSetHash: row.selectionSetHash,
+  };
+  const snapshotHash =
+    snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0
+      ? buildSnapshotInputHash({
+          ...common,
+          policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+          payload: snapshot.payload,
+        })
+      : buildSnapshotInputHash({
+          ...common,
+          policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
+          payload: snapshot.payload,
+        });
+  if (
+    row.requestHash !== core.operationHash ||
+    row.snapshotInputHash !== snapshotHash ||
+    core.fundId !== row.fundId ||
+    core.actor.userId !== row.actorId ||
+    core.asOfDate !== normalized.asOfDate ||
+    core.facts.policyVersion !== row.policyVersion ||
+    core.facts.payloadSchemaId !== row.payloadSchemaId ||
+    core.facts.supersedesSnapshotId !== row.supersedesSnapshotId ||
+    core.facts.knowledgeCutoff !== normalized.knowledgeCutoff ||
+    row.sourceFactsInputHash !==
+      computeSourceFactsInputHash(core, snapshot.payload, predecessorSnapshotInputHash)
+  ) {
+    fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt identity is incoherent.');
+  }
+  if (
+    snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0 &&
+    (snapshot.payload.effectiveBasis.predecessorSnapshotInputHash !==
+      predecessorSnapshotInputHash ||
+      canonicalSha256(snapshot.payload.effectiveBasis) !==
+        canonicalSha256(snapshot.payload.admissionReceiptCore.effectiveBasis))
+  ) {
+    fail(500, 'INTERNAL_ERROR', 'Stored effective basis is incoherent.');
+  }
+  return snapshot;
+}
+
 function receiptFromStored(
   row: SnapshotRow,
   command: FrozenCommand,
   predecessorSnapshotInputHash: string | null
-): ActualsPublishReceiptV1 {
-  if (row.actorId !== command.input.actorId) {
-    fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
-  }
-  const normalizedRow = {
-    ...row,
-    asOfDate: isoDay(row.asOfDate),
-    knowledgeCutoff:
-      row.knowledgeCutoff instanceof Date ? row.knowledgeCutoff : new Date(row.knowledgeCutoff),
-    createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
-  };
-  const parsed = parsePersistedFactsRow(normalizedRow as never);
-  if (
-    parsed.kind !== 'facts' ||
-    parsed.snapshot.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0
-  ) {
-    fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt is corrupt.');
-  }
-  const payload = parsed.snapshot.payload;
-  if (!('admissionReceiptCore' in payload)) {
-    fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt is corrupt.');
-  }
-  const coreResult = AdmissionReceiptCoreV1Schema.safeParse(payload.admissionReceiptCore);
-  if (!coreResult.success) fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt is corrupt.');
-  const core = coreResult.data;
-  const recomputedHash = buildSnapshotInputHash({
-    fundId: row.fundId,
-    vehicleIds: row.vehicleIds,
-    asOfDate: normalizedRow.asOfDate,
-    knowledgeCutoff: normalizedRow.knowledgeCutoff.toISOString(),
-    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
-    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
-    selectionSetHash: row.selectionSetHash,
-    payload,
-  });
-  if (
-    row.requestHash !== core.operationHash ||
-    recomputedHash !== row.snapshotInputHash ||
-    core.fundId !== row.fundId ||
-    core.actor.userId !== row.actorId ||
-    core.asOfDate !== normalizedRow.asOfDate ||
-    core.facts.policyVersion !== row.policyVersion ||
-    core.facts.payloadSchemaId !== row.payloadSchemaId ||
-    core.facts.supersedesSnapshotId !== row.supersedesSnapshotId ||
-    core.facts.knowledgeCutoff !== normalizedRow.knowledgeCutoff.toISOString()
-  ) {
-    fail(500, 'INTERNAL_ERROR', 'Stored actuals receipt is incoherent.');
-  }
-  const expectedSourceFactsInputHash = computeSourceFactsInputHash(
-    core,
-    payload,
-    predecessorSnapshotInputHash
-  );
-  if (row.sourceFactsInputHash !== expectedSourceFactsInputHash) {
-    fail(500, 'INTERNAL_ERROR', 'Stored actuals source hash is incoherent.');
-  }
-  if (core.operationHash !== command.operationHash) {
-    fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency key already used for another request.');
-  }
-  return ActualsPublishReceiptV1Schema.parse({
-    contractVersion: core.contractVersion,
+): ActualsPublishReceipt {
+  if (row.actorId !== command.input.actorId) fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
+  const snapshot = verifyPublicationSnapshot(row, predecessorSnapshotInputHash);
+  const core = snapshot.payload.admissionReceiptCore;
+  if (core.operationHash !== command.operationHash)
+    fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency key was already used for another request.');
+  const receipt = {
     operationHash: core.operationHash,
     fundId: core.fundId,
     asOfDate: core.asOfDate,
@@ -739,11 +911,20 @@ function receiptFromStored(
       snapshotId: row.id,
       snapshotInputHash: row.snapshotInputHash,
       sourceFactsInputHash: row.sourceFactsInputHash,
-      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
-      asOfDate: normalizedRow.asOfDate,
-      knowledgeCutoff: normalizedRow.knowledgeCutoff.toISOString(),
+      policyVersion: row.policyVersion,
+      asOfDate: snapshot.asOfDate,
+      knowledgeCutoff: snapshot.knowledgeCutoff,
     },
-  });
+  };
+  return core.contractVersion === 'actuals-admission/2.0.0'
+    ? ActualsPublishReceiptV2Schema.parse({
+        ...receipt,
+        contractVersion: 'actuals-pilot-publish/2.0.0',
+        operationKind: core.operationKind,
+        restatement: core.restatement,
+        effectiveBasis: core.effectiveBasis,
+      })
+    : ActualsPublishReceiptV1Schema.parse({ ...receipt, contractVersion: core.contractVersion });
 }
 
 async function projectStoredReceipt(
@@ -752,7 +933,7 @@ async function projectStoredReceipt(
   command: FrozenCommand,
   monotonicNow: () => number,
   timeoutCode: 'PUBLISH_RETRY_EXHAUSTED' | 'MUTATION_OUTCOME_UNKNOWN'
-): Promise<ActualsPublishReceiptV1> {
+): Promise<ActualsPublishReceipt> {
   if (row.actorId !== command.input.actorId) {
     fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
   }
@@ -771,6 +952,19 @@ async function projectStoredReceipt(
     predecessorSnapshotInputHash = predecessor.rows[0]?.snapshotInputHash ?? null;
     if (predecessorSnapshotInputHash === null) {
       fail(500, 'INTERNAL_ERROR', 'Stored actuals predecessor is missing.');
+    }
+  }
+  if (row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0) {
+    const core = FinancialFactsPayloadV6Schema.parse(row.payload).admissionReceiptCore;
+    if (core.operationKind === 'restatement') {
+      const prior = await connection.query<SnapshotRow>(
+        `${SNAPSHOT_SELECT} WHERE fund_id=$1 AND id=$2`,
+        [row.fundId, row.supersedesSnapshotId]
+      );
+      const predecessor = prior.rows[0];
+      if (!predecessor)
+        fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Correction predecessor is missing.');
+      await verifyCorrectionMetadata(connection, row, predecessor, core);
     }
   }
   return receiptFromStored(row, command, predecessorSnapshotInputHash);
@@ -810,10 +1004,16 @@ function validateHead(
   } else if (coverage.priorFactsSnapshotId !== row.id) {
     fail(422, 'INCOMPLETE_COVERAGE', 'Coverage predecessor must equal current head.');
   } else if (coverage.ledger === 'incremental_since_prior_head') {
-    if (row.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+    if (
+      row.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+      row.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+    ) {
       fail(422, 'INCOMPLETE_COVERAGE', 'Incremental coverage requires current policy-1.4 head.');
     }
-    const predecessorPayload = FinancialFactsPayloadV5Schema.safeParse(row.payload);
+    const predecessorPayload =
+      row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+        ? FinancialFactsPayloadV6Schema.safeParse(row.payload)
+        : FinancialFactsPayloadV5Schema.safeParse(row.payload);
     if (
       !predecessorPayload.success ||
       predecessorPayload.data.capitalActuals.ledgerCoverage !== 'complete'
@@ -824,6 +1024,14 @@ function validateHead(
         'Incremental coverage requires a complete predecessor basis.'
       );
     }
+  }
+  if (
+    command.restatementRequest &&
+    (!row ||
+      canonicalSha256(command.restatementRequest.expectedBasis) !==
+        canonicalSha256(basisRefForHead(row)))
+  ) {
+    fail(409, 'STALE_BASIS', 'Restatement basis changed.');
   }
   return row;
 }
@@ -900,11 +1108,13 @@ function validatePrepared(
 async function insertArtifacts(
   connection: PublishConnection,
   command: FrozenCommand,
-  ledger: ActualsPilotPreparedPreview,
+  ledger: ActualsPilotPreparedPreview | null,
   valuation: ActualsPilotPreparedPreview | null
-): Promise<{ ledgerId: number; valuationId: number | null }> {
+): Promise<{ ledgerId: number | null; valuationId: number | null }> {
   const files = [
-    { kind: 'ledger', prepared: ledger, file: command.request.ledger },
+    ...(ledger && command.request.ledger
+      ? [{ kind: 'ledger', prepared: ledger, file: command.request.ledger }]
+      : []),
     ...(valuation && command.request.valuation
       ? [{ kind: 'valuation', prepared: valuation, file: command.request.valuation }]
       : []),
@@ -982,8 +1192,8 @@ async function insertArtifacts(
     ids.set(kind, id);
   }
   const ledgerId = ids.get('ledger');
-  if (!ledgerId) fail(500, 'INTERNAL_ERROR', 'Ledger artifact insert failed.');
-  return { ledgerId, valuationId: ids.get('valuation') ?? null };
+  if (ledger && !ledgerId) fail(500, 'INTERNAL_ERROR', 'Ledger artifact insert failed.');
+  return { ledgerId: ledgerId ?? null, valuationId: ids.get('valuation') ?? null };
 }
 
 function acceptedRows(rows: readonly ActualsPilotPreparedRow[]): ActualsPilotPreparedRow[] {
@@ -1001,7 +1211,7 @@ async function insertCashRows(
   const values: unknown[] = [];
   const tuples = accepted.map((row, index) => {
     const fields = row.canonicalEconomicFields!;
-    const offset = index * 12;
+    const offset = index * 13;
     const templateType = String(row.eventType);
     const eventType =
       templateType === 'settled_contribution'
@@ -1025,7 +1235,7 @@ async function insertCashRows(
         contractVersion: 'actuals-pilot-cash-flow/1.0.0',
         sourceExternalRef: row.sourceExternalRef,
         rowContentHash: row.rowContentHash,
-        templateVersion: command.request.ledger.templateVersion,
+        templateVersion: ACTUALS_LEDGER_TEMPLATE_VERSION,
         settlementStatus: templateType === 'settled_contribution' ? 'settled' : null,
         deploymentCategory: fields['deploymentCategory'] ?? null,
         expenseCategory: fields['expenseCategory'] ?? null,
@@ -1034,15 +1244,19 @@ async function insertCashRows(
       },
       importBatchId,
       row.rowSourceHash,
-      command.input.actorId
+      command.input.actorId,
+      command.restatementRequest?.items.find(
+        (item) =>
+          item.target.kind === 'ledger' && item.replacementExternalRef === row.sourceExternalRef
+      )?.target.recordId ?? null
     );
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, 'approved', 'actuals_pilot_v1', $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, 'approved', 'actuals_pilot_v1', $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13})`;
   });
   const result = await connection.query<{ id: number }>(
     `
     INSERT INTO cash_flow_events
       (fund_id, vehicle_id, company_id, event_type, amount, currency, event_date, perspective,
-       description, payload, status, imported_from, import_batch_id, source_hash, created_by)
+       description, payload, status, imported_from, import_batch_id, source_hash, created_by, supersedes_event_id)
     VALUES ${tuples.join(', ')} RETURNING id`,
     values
   );
@@ -1060,7 +1274,7 @@ async function insertMarks(
   const values: unknown[] = [];
   const tuples = accepted.map((row, index) => {
     const fields = row.canonicalEconomicFields!;
-    const offset = index * 14;
+    const offset = index * 15;
     values.push(
       command.input.fundId,
       row.vehicleId,
@@ -1080,16 +1294,20 @@ async function insertMarks(
         rowContentHash: row.rowContentHash,
         templateVersion: command.request.valuation?.templateVersion,
       }),
-      command.knowledgeCutoff
+      command.knowledgeCutoff,
+      command.restatementRequest?.items.find(
+        (item) =>
+          item.target.kind === 'valuation' && item.replacementExternalRef === row.sourceExternalRef
+      )?.target.recordId ?? null
     );
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, 'planning_company_fmv', $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 13}, 'approved', $${offset + 10}, $${offset + 14}, 'actuals_pilot_v1', $${offset + 11}, $${offset + 12})`;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 4}, $${offset + 5}, 'USD', $${offset + 6}, 'planning_company_fmv', $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 13}, 'approved', $${offset + 10}, $${offset + 14}, 'actuals_pilot_v1', $${offset + 11}, $${offset + 12}, $${offset + 15})`;
   });
   const result = await connection.query<{ id: number }>(
     `
     INSERT INTO valuation_marks
       (fund_id, vehicle_id, company_id, mark_date, as_of_date, fair_value, currency, cost_basis,
        mark_purpose, mark_source, confidence_level, valuation_method, methodology_notes, status,
-       approved_by, approved_at, imported_from, import_batch_id, source_hash)
+       approved_by, approved_at, imported_from, import_batch_id, source_hash, prior_mark_id)
     VALUES ${tuples.join(', ')} RETURNING id`,
     values
   );
@@ -1115,7 +1333,7 @@ async function loadBasis(connection: PublishConnection, fundId: number, asOfDate
       mark_purpose AS "markPurpose", mark_source AS "markSource",
       confidence_level AS "confidenceLevel", valuation_method AS "valuationMethod",
       methodology_notes AS "methodologyNotes", status, imported_from AS "importedFrom",
-      source_hash AS "sourceHash"
+      source_hash AS "sourceHash", prior_mark_id AS "priorMarkId"
       FROM valuation_marks WHERE fund_id = $1 AND imported_from = 'actuals_pilot_v1'
         AND status IN ('approved','locked') AND as_of_date <= $2 ORDER BY mark_date, id`,
     [fundId, asOfDate]
@@ -1191,6 +1409,799 @@ function validateCumulativeBasisRows(basis: Awaited<ReturnType<typeof loadBasis>
 
 function sameIds(actual: readonly number[], expected: ReadonlySet<number>): boolean {
   return actual.length === expected.size && actual.every((id) => expected.has(id));
+}
+
+function basisRefForHead(row: {
+  id: number;
+  fundId: number;
+  snapshotInputHash: string;
+  sourceFactsInputHash: string;
+  policyVersion: string;
+  asOfDate: Date | string;
+  knowledgeCutoff: Date | string;
+}): FinancialFactsBasisRef {
+  return FinancialFactsBasisRefSchema.parse({
+    schemaId: 'financial-facts-basis-ref/1.0.0',
+    fundId: row.fundId,
+    snapshotId: row.id,
+    snapshotInputHash: row.snapshotInputHash,
+    sourceFactsInputHash: row.sourceFactsInputHash,
+    policyVersion: row.policyVersion,
+    asOfDate: isoDay(row.asOfDate),
+    knowledgeCutoff: new Date(row.knowledgeCutoff).toISOString(),
+  });
+}
+
+async function verifyCorrectionMetadata(
+  connection: PublishConnection,
+  row: SnapshotRow,
+  predecessor: SnapshotRow,
+  core: AdmissionReceiptCoreV2
+) {
+  if (core.operationKind !== 'restatement') return;
+  const database = databaseFor(connection);
+  const commands = await database
+    .select()
+    .from(actualsRestatementCommands)
+    .where(
+      and(
+        eq(actualsRestatementCommands.fundId, row.fundId),
+        eq(actualsRestatementCommands.commandId, core.restatement.commandId)
+      )
+    );
+  const command = commands[0];
+  if (
+    commands.length !== 1 ||
+    !command ||
+    command.publicationSnapshotId !== row.id ||
+    command.expectedSnapshotId !== predecessor.id ||
+    command.expectedSnapshotInputHash !== predecessor.snapshotInputHash ||
+    command.operationHash !== core.operationHash ||
+    command.idempotencyKey !== row.idempotencyKey ||
+    command.asOfDate !== core.asOfDate ||
+    command.reason !== core.restatement.reason ||
+    command.createdBy !== core.actor.userId ||
+    core.restatement.actor.userId !== core.actor.userId ||
+    command.createdAt.toISOString() !== core.facts.knowledgeCutoff ||
+    core.restatement.createdAt !== core.facts.knowledgeCutoff ||
+    core.restatement.asOfDate !== core.asOfDate ||
+    command.ledgerSourceArtifactId !== (core.admitted.ledger?.sourceArtifactId ?? null) ||
+    command.valuationSourceArtifactId !== (core.admitted.valuation?.sourceArtifactId ?? null)
+  ) {
+    fail(
+      409,
+      'INVALID_REPLACEMENT_LINEAGE',
+      'Immutable correction command differs from its receipt.'
+    );
+  }
+  const items = await database
+    .select()
+    .from(actualsRestatementItems)
+    .where(
+      and(
+        eq(actualsRestatementItems.fundId, row.fundId),
+        eq(actualsRestatementItems.commandId, core.restatement.commandId)
+      )
+    )
+    .orderBy(actualsRestatementItems.id);
+  const mappings: ActualsRestatementPublishRequestV1['items'] = items.map((item) => {
+    const kind = item.targetCashFlowEventId !== null ? 'ledger' : 'valuation';
+    const targetId = item.targetCashFlowEventId ?? item.targetValuationMarkId;
+    const replacementId = item.replacementCashFlowEventId ?? item.replacementValuationMarkId;
+    if (targetId === null || replacementId === null)
+      fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Correction item lacks endpoints.');
+    const target = {
+      kind,
+      recordId: targetId,
+      sourceHash: item.targetSourceHash,
+      contentHash: item.targetContentHash,
+    };
+    const replacement = {
+      kind,
+      recordId: replacementId,
+      sourceHash: item.replacementSourceHash,
+      contentHash: item.replacementContentHash,
+    };
+    const originalPublication = {
+      snapshotId: item.originalPublicationSnapshotId,
+      snapshotInputHash: item.originalPublicationSnapshotInputHash,
+      operationHash: item.originalPublicationOperationHash,
+    };
+    const receiptItem = core.restatement.items.find(
+      (entry) => entry.target.kind === kind && entry.target.recordId === targetId
+    );
+    if (
+      !receiptItem ||
+      canonicalSha256(receiptItem) !==
+        canonicalSha256({ target, replacement, originalPublication }) ||
+      item.replacementSourceHash !==
+        computeActualsPilotRowSourceHash(row.fundId, item.replacementExternalRef)
+    ) {
+      fail(
+        409,
+        'INVALID_REPLACEMENT_LINEAGE',
+        'Immutable correction item differs from its receipt.'
+      );
+    }
+    return {
+      target: receiptItem.target,
+      originalPublication,
+      replacementExternalRef: item.replacementExternalRef,
+      expectedReplacementContentHash: item.replacementContentHash,
+    };
+  });
+  const file = (
+    admission:
+      | AdmissionReceiptCoreV2['admitted']['ledger']
+      | AdmissionReceiptCoreV2['admitted']['valuation'],
+    templateVersion: ActualsPublishFileV1['templateVersion']
+  ) =>
+    admission === null
+      ? null
+      : {
+          templateVersion,
+          expectedPayloadSha256: admission.payloadSha256,
+          expectedCanonicalRowsHash: admission.canonicalRowsHash,
+          expectedPreviewHash: admission.previewHash,
+        };
+  const expectedBasis = basisRefForHead(predecessor);
+  const expectedETag = expectedHeadTag(predecessor);
+  const reconstructedHash = computeActualsRestatementOperationHash({
+    fundId: row.fundId,
+    ifMatch: expectedETag,
+    request: {
+      contractVersion: 'actuals-restatement/1.0.0',
+      expectedBasis,
+      expectedETag,
+      ledger: file(core.admitted.ledger, ACTUALS_LEDGER_TEMPLATE_VERSION),
+      valuation: file(core.admitted.valuation, ACTUALS_VALUATION_TEMPLATE_VERSION),
+      items: mappings,
+      reason: command.reason,
+      expectedPreviewHash: command.expectedPreviewHash,
+    },
+  });
+  if (items.length !== core.restatement.items.length || reconstructedHash !== core.operationHash) {
+    fail(
+      409,
+      'INVALID_REPLACEMENT_LINEAGE',
+      'Correction command body does not match its recorded operation hash.'
+    );
+  }
+}
+
+function cashIdentity(row: BasisCashRow): ActualsRecordIdentityV1 {
+  const payload = ActualsPilotCashFlowPayloadSchema.parse(row.payload);
+  if (row.sourceHash === null)
+    fail(409, 'EFFECTIVE_BASIS_INVALID', 'Cash source identity is missing.');
+  return {
+    kind: 'ledger',
+    recordId: row.id,
+    sourceHash: row.sourceHash,
+    contentHash: payload.rowContentHash,
+  };
+}
+
+function markIdentity(row: BasisMarkRow): ActualsRecordIdentityV1 {
+  return {
+    kind: 'valuation',
+    recordId: row.id,
+    sourceHash: row.sourceHash,
+    contentHash: parseStoredValuationPayload(row.methodologyNotes).rowContentHash,
+  };
+}
+
+function projectLoadedBasis(
+  basis: Awaited<ReturnType<typeof loadBasis>>,
+  fundId: number,
+  asOfDate: string,
+  admittedRecords: readonly ActualsAdmittedProjectionRecord[],
+  corrections: readonly ActualsCorrectionProvenanceV1[],
+  predecessorSnapshotInputHash: string,
+  pendingRecords: readonly {
+    identity: ActualsRecordIdentityV1;
+    correctionCommandId: string | null;
+  }[] = []
+) {
+  try {
+    return projectActualsEffectiveBasis({
+      fundId,
+      asOfDate,
+      predecessorSnapshotInputHash,
+      admittedRecords,
+      pendingRecords,
+      corrections,
+      ledgerRows: basis.cash.map((row) => ({
+        row,
+        identity: cashIdentity(row),
+        fundId: row.fundId,
+        effectiveDate: isoDay(row.eventDate),
+        supersedesEventId: row.supersedesEventId,
+        reversalOfEventId: row.reversalOfEventId,
+      })),
+      valuationMarks: basis.marks.map((row) => {
+        if (row.vehicleId === null)
+          fail(409, 'VALUATION_SCOPE_MISMATCH', 'Valuation vehicle is missing.');
+        return {
+          row,
+          identity: markIdentity(row),
+          fundId: row.fundId,
+          effectiveDate: isoDay(row.markDate),
+          priorMarkId: row.priorMarkId,
+          companyId: row.companyId,
+          vehicleId: row.vehicleId,
+          markPurpose: row.markPurpose,
+        };
+      }),
+    });
+  } catch (error) {
+    if (error instanceof ActualsEffectiveBasisError) fail(409, error.code, error.message);
+    throw error;
+  }
+}
+
+async function loadRestatementBasis(
+  connection: PublishConnection,
+  fundId: number,
+  expectedBasis: FinancialFactsBasisRef
+) {
+  const database = databaseFor(connection);
+  const terminal = await resolveTerminalFactsHead(database, fundId);
+  if (
+    terminal.kind !== 'head' ||
+    canonicalSha256(basisRefForHead(terminal.row)) !== canonicalSha256(expectedBasis)
+  ) {
+    fail(409, 'STALE_BASIS', 'Expected financial facts basis is no longer current.');
+  }
+  const basis = await loadBasis(connection, fundId, expectedBasis.asOfDate);
+  validateCumulativeBasisRows(basis);
+  const snapshots = await connection.query<SnapshotRow>(
+    `${SNAPSHOT_SELECT} WHERE fund_id = $1 ORDER BY id`,
+    [fundId]
+  );
+  const byId = new Map(snapshots.rows.map((row) => [row.id, row]));
+  const ancestry: SnapshotRow[] = [];
+  const visited = new Set<number>();
+  let cursor: number | null = expectedBasis.snapshotId;
+  while (cursor !== null) {
+    if (visited.has(cursor))
+      fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Snapshot ancestry contains a cycle.');
+    visited.add(cursor);
+    const row = byId.get(cursor);
+    if (!row) fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Snapshot ancestry is detached.');
+    ancestry.unshift(row);
+    cursor = row.supersedesSnapshotId;
+  }
+  const cashById = new Map(basis.cash.map((row) => [row.id, row]));
+  const marksById = new Map(basis.marks.map((row) => [row.id, row]));
+  const admittedRecords: ActualsAdmittedProjectionRecord[] = [];
+  const corrections: ActualsCorrectionProvenanceV1[] = [];
+  let ledgerPayloadSha256: string | null = null;
+  let valuationPayloadSha256: string | null = null;
+  for (const row of ancestry) {
+    if (
+      row.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_4_0 &&
+      row.policyVersion !== FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+    )
+      continue;
+    const previousHash =
+      row.supersedesSnapshotId === null
+        ? null
+        : (byId.get(row.supersedesSnapshotId)?.snapshotInputHash ?? null);
+    if (row.supersedesSnapshotId !== null && previousHash === null)
+      fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Snapshot predecessor is missing.');
+    const snapshot = verifyPublicationSnapshot(row, previousHash);
+    const core = snapshot.payload.admissionReceiptCore;
+    if (
+      core.contractVersion === 'actuals-admission/2.0.0' &&
+      core.operationKind === 'restatement'
+    ) {
+      const predecessor =
+        row.supersedesSnapshotId === null ? undefined : byId.get(row.supersedesSnapshotId);
+      if (!predecessor)
+        fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Correction predecessor is missing.');
+      await verifyCorrectionMetadata(connection, row, predecessor, core);
+    }
+    ledgerPayloadSha256 = core.admitted.ledger?.payloadSha256 ?? ledgerPayloadSha256;
+    valuationPayloadSha256 = core.admitted.valuation?.payloadSha256 ?? valuationPayloadSha256;
+    const correction = core.contractVersion === 'actuals-admission/2.0.0' ? core.restatement : null;
+    if (correction) corrections.push(correction);
+    const publication = {
+      snapshotId: row.id,
+      snapshotInputHash: row.snapshotInputHash,
+      operationHash: row.requestHash,
+    };
+    for (const id of core.admitted.ledger?.approvedRowIds ?? []) {
+      const record = cashById.get(id);
+      if (!record) fail(409, 'TARGET_NOT_ADMITTED', 'Admitted cash record is missing.');
+      admittedRecords.push({
+        identity: cashIdentity(record),
+        publication,
+        correctionCommandId: correction?.commandId ?? null,
+      });
+    }
+    for (const id of core.admitted.valuation?.approvedMarkIds ?? []) {
+      const record = marksById.get(id);
+      if (!record) fail(409, 'TARGET_NOT_ADMITTED', 'Admitted valuation record is missing.');
+      admittedRecords.push({
+        identity: markIdentity(record),
+        publication,
+        correctionCommandId: correction?.commandId ?? null,
+      });
+    }
+    if (expectedBasis.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+      for (const kind of ['ledger', 'valuation'] as const) {
+        const artifact = core.admitted[kind];
+        if (!artifact) continue;
+        const stored = await connection.query<{ payload: Buffer | null; payloadSha256: string }>(
+          'SELECT payload, payload_sha256 AS "payloadSha256" FROM source_artifacts WHERE fund_id=$1 AND id=$2',
+          [fundId, artifact.sourceArtifactId]
+        );
+        const source = stored.rows[0];
+        if (!source?.payload || source.payloadSha256 !== artifact.payloadSha256) {
+          fail(
+            409,
+            'EFFECTIVE_BASIS_INVALID',
+            'An original admitted source is unavailable for identity verification.'
+          );
+        }
+        const prepared = await prepareActualsPilotPreview(
+          {
+            fundId,
+            request: {
+              contractVersion: 'actuals-preview-request/1.0.0',
+              templateVersion:
+                kind === 'ledger'
+                  ? ACTUALS_LEDGER_TEMPLATE_VERSION
+                  : ACTUALS_VALUATION_TEMPLATE_VERSION,
+              asOfDate: core.asOfDate,
+              fileName: 'verified-source.csv',
+              payload: source.payload.toString('base64'),
+            },
+          },
+          {
+            database,
+            historicalIdentities: new Map(
+              [...basis.cash, ...basis.marks].flatMap((record) =>
+                record.sourceHash === null
+                  ? []
+                  : [
+                      [
+                        record.sourceHash,
+                        { companyId: record.companyId, vehicleId: record.vehicleId },
+                      ] as const,
+                    ]
+              )
+            ),
+          }
+        );
+        if (
+          prepared.preview.payloadSha256 !== artifact.payloadSha256 ||
+          prepared.preview.canonicalRowsHash !== artifact.canonicalRowsHash
+        ) {
+          fail(
+            409,
+            'EFFECTIVE_BASIS_INVALID',
+            'Admitted source bytes no longer match their receipt identity.'
+          );
+        }
+        const sourceRows = new Map(
+          prepared.rows.map((record) => [record.rowSourceHash, record.rowContentHash])
+        );
+        for (const membership of admittedRecords.filter(
+          (record) => record.publication.snapshotId === row.id && record.identity.kind === kind
+        )) {
+          if (sourceRows.get(membership.identity.sourceHash) !== membership.identity.contentHash) {
+            fail(
+              409,
+              'TARGET_HASH_MISMATCH',
+              'Admitted record content differs from its source artifact.'
+            );
+          }
+        }
+      }
+    }
+  }
+  const projected = projectLoadedBasis(
+    basis,
+    fundId,
+    expectedBasis.asOfDate,
+    admittedRecords,
+    corrections,
+    expectedBasis.snapshotInputHash
+  );
+  const head = byId.get(expectedBasis.snapshotId);
+  if (!head) fail(409, 'STALE_BASIS', 'Expected head is missing.');
+  if (head.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0) {
+    const payload = FinancialFactsPayloadV6Schema.parse(head.payload);
+    if (
+      payload.effectiveBasis.recordsHash !== projected.effectiveBasis.recordsHash ||
+      canonicalSha256(payload.effectiveBasis.corrections) !== canonicalSha256(corrections)
+    ) {
+      fail(
+        409,
+        'EFFECTIVE_BASIS_INVALID',
+        'Persisted effective identities differ from admitted history.'
+      );
+    }
+  }
+  const targets = [
+    ...projected.ledgerRows.map((row) => {
+      const payload = ActualsPilotCashFlowPayloadSchema.parse(row.payload);
+      return {
+        identity: cashIdentity(row),
+        fields: {
+          kind: 'ledger',
+          eventType: ledgerEventType(row, payload.expenseCategory),
+          effectiveDate: isoDay(row.eventDate),
+          amount: row.amount,
+          currency: row.currency,
+          companyId: row.companyId,
+          vehicleId: row.vehicleId,
+          deploymentCategory: payload.deploymentCategory,
+          expenseCategory: payload.expenseCategory,
+          distributionType: payload.distributionType,
+          recallable: payload.recallable,
+          description: row.description,
+        },
+        sourceExternalRef: payload.sourceExternalRef,
+        predecessorId: row.supersedesEventId,
+      };
+    }),
+    ...projected.valuationMarks
+      .filter((row) => isoDay(row.markDate) === expectedBasis.asOfDate)
+      .map((row) => ({
+        identity: markIdentity(row),
+        fields: {
+          kind: 'valuation',
+          markDate: isoDay(row.markDate),
+          fairValue: row.fairValue,
+          currency: row.currency,
+          companyId: row.companyId,
+          vehicleId: row.vehicleId,
+          markPurpose: row.markPurpose,
+          markSource: row.markSource,
+          confidenceLevel: row.confidenceLevel,
+          valuationMethod: row.valuationMethod,
+          costBasis: row.costBasis,
+        },
+        sourceExternalRef: parseStoredValuationPayload(row.methodologyNotes).sourceExternalRef,
+        predecessorId: row.priorMarkId,
+      })),
+  ].map(({ identity, fields, sourceExternalRef, predecessorId }) => {
+    const membership = admittedRecords.find(
+      (record) =>
+        record.identity.kind === identity.kind && record.identity.recordId === identity.recordId
+    );
+    if (!membership) fail(409, 'TARGET_NOT_ADMITTED', 'Effective target has no publication.');
+    const predecessor =
+      predecessorId === null
+        ? null
+        : admittedRecords.find(
+            (record) =>
+              record.identity.kind === identity.kind && record.identity.recordId === predecessorId
+          )?.identity;
+    if (predecessorId !== null && !predecessor)
+      fail(409, 'INVALID_REPLACEMENT_LINEAGE', 'Effective target predecessor is missing.');
+    return ActualsRestatementTargetV1Schema.parse({
+      identity,
+      fields,
+      sourceExternalRef,
+      originalPublication: membership.publication,
+      predecessor: predecessor ?? null,
+      correctionCommandId: membership.correctionCommandId,
+    });
+  });
+  if (ledgerPayloadSha256 === null)
+    fail(409, 'EFFECTIVE_BASIS_INVALID', 'Historical ledger source identity is missing.');
+  return {
+    basis,
+    projected,
+    admittedRecords,
+    corrections,
+    targets,
+    head,
+    ancestry,
+    ledgerPayloadSha256,
+    valuationPayloadSha256,
+  };
+}
+
+function replacementFields(row: ActualsPilotPreparedRow, kind: 'ledger' | 'valuation') {
+  const fields = row.canonicalEconomicFields;
+  if (!fields || !row.rowContentHash || !row.rowSourceHash || !row.sourceExternalRef)
+    fail(422, 'INVALID_CSV', 'Replacement row is incomplete.');
+  return ActualsRestatementRecordFieldsV1Schema.parse(
+    kind === 'ledger'
+      ? {
+          kind,
+          eventType: row.eventType,
+          effectiveDate: row.effectiveDate,
+          amount: row.canonicalAmount,
+          currency: 'USD',
+          companyId: row.companyId,
+          vehicleId: row.vehicleId,
+          deploymentCategory: fields['deploymentCategory'] ?? null,
+          expenseCategory: fields['expenseCategory'] ?? null,
+          distributionType: fields['distributionType'] ?? null,
+          recallable: fields['recallable'] ?? null,
+          description: fields['description'] ?? null,
+        }
+      : {
+          kind,
+          markDate: row.effectiveDate,
+          fairValue: row.canonicalAmount,
+          currency: 'USD',
+          companyId: row.companyId,
+          vehicleId: row.vehicleId,
+          markPurpose: 'planning_company_fmv',
+          markSource: fields['markSource'],
+          confidenceLevel: fields['confidenceLevel'],
+          valuationMethod: fields['valuationMethod'],
+          costBasis: fields['costBasis'] ?? null,
+        }
+  );
+}
+
+async function prepareRestatementReview(
+  connection: PublishConnection,
+  scope: PublicationContext,
+  request: ActualsRestatementPreviewRequestV1,
+  loaded: Awaited<ReturnType<typeof loadRestatementBasis>>
+) {
+  const database = databaseFor(connection);
+  const preparedFiles = new Map<'ledger' | 'valuation', ActualsPilotPreparedPreview>();
+  const reviewedItems: ActualsRestatementPreviewResponseV1['items'] = [];
+  for (const item of request.items) {
+    const target = loaded.targets.find(
+      (record) =>
+        record.identity.kind === item.target.kind &&
+        record.identity.recordId === item.target.recordId
+    );
+    if (
+      !target &&
+      item.target.kind === 'valuation' &&
+      loaded.projected.valuationMarks.some(
+        (record) =>
+          record.id === item.target.recordId &&
+          isoDay(record.markDate) < request.expectedBasis.asOfDate
+      )
+    ) {
+      fail(
+        409,
+        'HISTORICAL_MARK_RESTATEMENT_UNSUPPORTED',
+        'Valuation restatement supports only the current basis as-of date.'
+      );
+    }
+    if (!target)
+      fail(409, 'TARGET_NOT_EFFECTIVE', 'Correction target is not an eligible effective record.');
+    if (
+      canonicalSha256(target.identity) !== canonicalSha256(item.target) ||
+      canonicalSha256(target.originalPublication) !== canonicalSha256(item.originalPublication)
+    ) {
+      fail(409, 'TARGET_HASH_MISMATCH', 'Correction target identity changed.');
+    }
+  }
+  for (const kind of ['ledger', 'valuation'] as const) {
+    const file = request[kind];
+    if (file === null) continue;
+    const prepared = await prepareActualsPilotPreview(
+      { fundId: scope.input.fundId, request: previewRequest(file, request.expectedBasis.asOfDate) },
+      { database }
+    );
+    if (
+      prepared.preview.payloadSha256 !== file.expectedPayloadSha256 ||
+      prepared.preview.canonicalRowsHash !== file.expectedCanonicalRowsHash ||
+      prepared.preview.previewHash !== file.expectedPreviewHash
+    ) {
+      fail(409, 'PREVIEW_HASH_MISMATCH', 'Replacement source preview changed.');
+    }
+    if (
+      prepared.preview.issues.some(
+        (issue) =>
+          issue.severity === 'error' &&
+          !(kind === 'valuation' && issue.code === 'VALUATION_MARK_ALREADY_EXISTS')
+      )
+    ) {
+      fail(422, 'INVALID_CSV', 'Replacement source failed template validation.');
+    }
+    const mappings = request.items.filter((item) => item.target.kind === kind);
+    if (prepared.rows.length !== mappings.length)
+      fail(
+        409,
+        'REPLACEMENT_MAPPING_MISMATCH',
+        'Each replacement row must map to exactly one target.'
+      );
+    for (const row of prepared.rows) {
+      const mapping = mappings.find(
+        (item) => item.replacementExternalRef === row.sourceExternalRef
+      );
+      if (
+        !mapping ||
+        row.rowContentHash !== mapping.expectedReplacementContentHash ||
+        row.status === 'already_imported' ||
+        row.duplicateInFile
+      ) {
+        fail(
+          409,
+          'REPLACEMENT_MAPPING_MISMATCH',
+          'Replacement row identity does not match its target mapping.'
+        );
+      }
+      const original = loaded.targets.find(
+        (record) =>
+          record.identity.kind === kind && record.identity.recordId === mapping.target.recordId
+      );
+      if (!original) fail(409, 'TARGET_NOT_EFFECTIVE', 'Correction target is no longer effective.');
+      const fields = replacementFields(row, kind);
+      if (
+        fields.kind === 'valuation' &&
+        original.fields.kind === 'valuation' &&
+        (fields.markDate !== original.fields.markDate ||
+          fields.companyId !== original.fields.companyId ||
+          fields.vehicleId !== original.fields.vehicleId ||
+          fields.markPurpose !== original.fields.markPurpose)
+      ) {
+        fail(
+          409,
+          'VALUATION_SCOPE_MISMATCH',
+          'Valuation replacement must preserve company, vehicle, date, and type.'
+        );
+      }
+      row.issues = row.issues.filter((issue) => issue.code !== 'VALUATION_MARK_ALREADY_EXISTS');
+      if (row.issues.some((issue) => issue.severity === 'error'))
+        fail(422, 'INVALID_CSV', 'Replacement row is invalid.');
+      row.status = 'valid';
+      if (!row.sourceExternalRef || !row.rowContentHash)
+        fail(422, 'INVALID_CSV', 'Replacement identity is incomplete.');
+      reviewedItems.push({
+        original,
+        replacementExternalRef: row.sourceExternalRef,
+        replacementContentHash: row.rowContentHash,
+        replacementFields: fields,
+      });
+    }
+    preparedFiles.set(kind, prepared);
+  }
+  const sourceHashes = [...preparedFiles.values()].flatMap((prepared) =>
+    prepared.rows.flatMap((row) => (row.rowSourceHash === null ? [] : [row.rowSourceHash]))
+  );
+  const reused = await connection.query(
+    `SELECT id FROM cash_flow_events WHERE fund_id=$1 AND source_hash=ANY($2::text[])
+    UNION ALL SELECT id FROM valuation_marks WHERE fund_id=$1 AND source_hash=ANY($2::text[]) LIMIT 1`,
+    [scope.input.fundId, sourceHashes]
+  );
+  if (reused.rows.length > 0)
+    fail(409, 'EXTERNAL_REF_REUSE_CONFLICT', 'Replacement external references must be fresh.');
+  const candidate = {
+    ...loaded.basis,
+    cash: loaded.projected.ledgerRows.map((row) => {
+      const item = reviewedItems.find(
+        (entry) =>
+          entry.original.identity.kind === 'ledger' && entry.original.identity.recordId === row.id
+      );
+      if (!item || item.replacementFields.kind !== 'ledger') return row;
+      const fields = item.replacementFields;
+      return {
+        ...row,
+        companyId: fields.companyId,
+        vehicleId: fields.vehicleId,
+        eventType:
+          fields.eventType === 'settled_contribution'
+            ? 'lp_capital_call'
+            : fields.eventType === 'management_fee'
+              ? 'fund_expense'
+              : fields.eventType,
+        eventDate: new Date(`${fields.effectiveDate}T00:00:00.000Z`),
+        perspective: ['settled_contribution', 'lp_distribution'].includes(fields.eventType)
+          ? 'lp_net'
+          : 'fund_gross',
+        amount: fields.amount,
+        description: fields.description,
+        sourceHash: computeActualsPilotRowSourceHash(
+          scope.input.fundId,
+          item.replacementExternalRef
+        ),
+        payload: {
+          ...ActualsPilotCashFlowPayloadSchema.parse(row.payload),
+          sourceExternalRef: item.replacementExternalRef,
+          rowContentHash: item.replacementContentHash,
+          settlementStatus: fields.eventType === 'settled_contribution' ? 'settled' : null,
+          deploymentCategory: fields.deploymentCategory,
+          expenseCategory: fields.expenseCategory,
+          distributionType: fields.distributionType,
+          recallable: fields.recallable,
+        },
+      };
+    }),
+    marks: loaded.projected.valuationMarks
+      .filter((row) => isoDay(row.markDate) === request.expectedBasis.asOfDate)
+      .map((row) => {
+        const item = reviewedItems.find(
+          (entry) =>
+            entry.original.identity.kind === 'valuation' &&
+            entry.original.identity.recordId === row.id
+        );
+        if (!item || item.replacementFields.kind !== 'valuation') return row;
+        return {
+          ...row,
+          fairValue: item.replacementFields.fairValue,
+          costBasis: item.replacementFields.costBasis,
+          markSource: item.replacementFields.markSource,
+          confidenceLevel: item.replacementFields.confidenceLevel,
+          valuationMethod: item.replacementFields.valuationMethod,
+          sourceHash: computeActualsPilotRowSourceHash(
+            scope.input.fundId,
+            item.replacementExternalRef
+          ),
+          methodologyNotes: JSON.stringify({
+            ...parseStoredValuationPayload(row.methodologyNotes),
+            sourceExternalRef: item.replacementExternalRef,
+            rowContentHash: item.replacementContentHash,
+          }),
+        };
+      }),
+  };
+  const calculator = calculateLoadedActuals(
+    candidate,
+    scope.input.fundId,
+    request.ledger?.expectedPayloadSha256 ?? loaded.ledgerPayloadSha256,
+    candidate.marks.length === 0
+      ? null
+      : (request.valuation?.expectedPayloadSha256 ?? loaded.valuationPayloadSha256),
+    loaded.head.snapshotInputHash
+  );
+  const metadata = await buildFundCompanyActualsFacts({
+    database,
+    fundId: scope.input.fundId,
+    asOfDate: request.expectedBasis.asOfDate,
+    now: scope.knowledgeCutoff,
+    planningMarkSources: ['actuals_pilot_v1'],
+  });
+  const companies = projectCompanyActualsFromEffectiveLedger(metadata, candidate.cash);
+  const impact = {
+    capitalActuals: calculator.capitalActuals,
+    valuationActuals: calculator.valuationActuals,
+    unavailableCompanyIds: companies.facts
+      .filter((fact) => fact.monetaryFacts.availability === 'unavailable')
+      .map((fact) => fact.companyId)
+      .sort((left, right) => left - right),
+  };
+  const previewHash = canonicalSha256({
+    contractVersion: request.contractVersion,
+    expectedBasis: request.expectedBasis,
+    reason: request.reason,
+    items: request.items,
+    ledger:
+      request.ledger === null
+        ? null
+        : {
+            payloadSha256: request.ledger.expectedPayloadSha256,
+            canonicalRowsHash: request.ledger.expectedCanonicalRowsHash,
+          },
+    valuation:
+      request.valuation === null
+        ? null
+        : {
+            payloadSha256: request.valuation.expectedPayloadSha256,
+            canonicalRowsHash: request.valuation.expectedCanonicalRowsHash,
+          },
+    effectiveRecordsHash: loaded.projected.effectiveBasis.recordsHash,
+    impact,
+  });
+  const preview = ActualsRestatementPreviewResponseV1Schema.parse({
+    contractVersion: request.contractVersion,
+    basisRef: request.expectedBasis,
+    previewHash,
+    canPublish: true,
+    items: reviewedItems,
+    errors: [],
+    impact,
+  });
+  return {
+    preview,
+    ledger: preparedFiles.get('ledger') ?? null,
+    valuation: preparedFiles.get('valuation') ?? null,
+  };
 }
 
 async function assertCumulativeBasisMatchesReceipts(
@@ -1280,37 +2291,17 @@ async function assertCumulativeBasisMatchesReceipts(
   }
 }
 
-async function createPublication(
-  connection: PublishConnection,
-  command: FrozenCommand,
-  head: ReturnType<typeof validateHead>,
-  ledger: ActualsPilotPreparedPreview,
-  valuation: ActualsPilotPreparedPreview | null
-): Promise<ActualsPublishReceiptV1> {
-  const database = databaseFor(connection) as never;
-  const artifacts = await insertArtifacts(connection, command, ledger, valuation);
-  const importBatchId = randomUUID();
-  const approvedRowIds = await insertCashRows(connection, command, ledger.rows, importBatchId);
-  const approvedMarkIds = valuation
-    ? await insertMarks(connection, command, valuation.rows, importBatchId)
-    : [];
-  const basis = await loadBasis(connection, command.input.fundId, command.request.asOfDate);
-  validateCumulativeBasisRows(basis);
-  await assertCumulativeBasisMatchesReceipts(
-    connection,
-    command.input.fundId,
-    head?.id ?? null,
-    basis,
-    approvedRowIds,
-    approvedMarkIds
-  );
-  if (basis.vehicles.length !== 1 || basis.vehicles[0]?.committedCapital == null) {
-    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Pilot requires one active vehicle with commitment.');
-  }
-  const vehicle = basis.vehicles[0]!;
+function calculateLoadedActuals(
+  basis: Awaited<ReturnType<typeof loadBasis>>,
+  fundId: number,
+  ledgerPayloadSha256: string,
+  valuationPayloadSha256: string | null,
+  predecessorSnapshotInputHash: string | null
+) {
+  const vehicle = basis.vehicles[0];
+  if (basis.vehicles.length !== 1 || !vehicle || vehicle.committedCapital === null)
+    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'One committed main-fund vehicle is required.');
   const committedCapital = vehicle.committedCapital;
-  if (committedCapital === null)
-    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Vehicle commitment unavailable.');
   const ledgerRows: ActualsCalculatorLedgerRowV1[] = basis.cash.map((row) => {
     const storedPayload = ActualsPilotCashFlowPayloadSchema.parse(row.payload);
     return {
@@ -1334,19 +2325,12 @@ async function createPublication(
           },
         ])
     ).values(),
-  ] as Array<{ vehicleId: number; companyId: number }>;
-  const currentValuationSourceHashes = new Set(
-    valuation?.rows.flatMap((row) =>
-      row.rowSourceHash !== null && (row.status === 'valid' || row.status === 'already_imported')
-        ? [row.rowSourceHash]
-        : []
-    ) ?? []
+  ].filter(
+    (position): position is { vehicleId: number; companyId: number } =>
+      position.vehicleId !== null && position.companyId !== null
   );
   const valuationMarks: ActualsCalculatorValuationMarkV1[] = basis.marks
-    .filter(
-      (row): row is BasisMarkRow & { vehicleId: number } =>
-        row.vehicleId !== null && currentValuationSourceHashes.has(row.sourceHash)
-    )
+    .filter((row): row is BasisMarkRow & { vehicleId: number } => row.vehicleId !== null)
     .map((row) => ({
       ...parseStoredValuationPayload(row.methodologyNotes),
       markId: row.id,
@@ -1367,7 +2351,7 @@ async function createPublication(
       vehicleId: vehicle.vehicleId,
       amount: committedCapital,
       sourceHash: canonicalSha256({
-        fundId: command.input.fundId,
+        fundId: fundId,
         vehicleId: vehicle.vehicleId,
         amount: committedCapital,
       }),
@@ -1375,9 +2359,9 @@ async function createPublication(
     roster,
     valuationMarks,
     ledgerCoverage: 'complete',
-    ledgerPayloadSha256: command.request.ledger.expectedPayloadSha256,
-    valuationPayloadSha256: command.request.valuation?.expectedPayloadSha256 ?? null,
-    predecessorSnapshotInputHash: head?.snapshotInputHash ?? null,
+    ledgerPayloadSha256: ledgerPayloadSha256,
+    valuationPayloadSha256: valuationPayloadSha256,
+    predecessorSnapshotInputHash: predecessorSnapshotInputHash,
   });
   if (!calculator.ok) {
     fail(
@@ -1388,6 +2372,334 @@ async function createPublication(
       calculator.message
     );
   }
+  return calculator;
+}
+
+async function insertPublicationSnapshot(
+  connection: PublishConnection,
+  command: FrozenCommand,
+  headId: number | null,
+  vehicleId: number,
+  payload: ReturnType<typeof FinancialFactsPayloadV5Schema.parse> | FinancialFactsPayloadV6,
+  sourceFactsInputHash: string,
+  snapshotInputHash: string
+) {
+  const consumerEvaluations = evaluatePayload5Consumers(payload);
+  const inserted = await connection.query<SnapshotRow>(
+    `
+    INSERT INTO financial_facts_snapshots
+      (fund_id, policy_version, payload_schema_id, as_of_date, knowledge_cutoff, vehicle_scope,
+       vehicle_ids, selection_set_hash, source_facts_input_hash, snapshot_input_hash, payload,
+       consumer_evaluations, actor_id, idempotency_key, request_hash, supersedes_snapshot_id, created_at)
+    VALUES ($1,$2,$3,$4,$5,'fund_all',$6::jsonb,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$5)
+    RETURNING id, fund_id AS "fundId", policy_version AS "policyVersion",
+      payload_schema_id AS "payloadSchemaId", as_of_date AS "asOfDate",
+      knowledge_cutoff AS "knowledgeCutoff", vehicle_scope AS "vehicleScope",
+      vehicle_ids AS "vehicleIds", selection_set_hash AS "selectionSetHash",
+      source_facts_input_hash AS "sourceFactsInputHash", snapshot_input_hash AS "snapshotInputHash",
+      payload, consumer_evaluations AS "consumerEvaluations", actor_id AS "actorId",
+      idempotency_key AS "idempotencyKey", request_hash AS "requestHash",
+      supersedes_snapshot_id AS "supersedesSnapshotId", created_at AS "createdAt"`,
+    [
+      command.input.fundId,
+      payload.admissionReceiptCore.facts.policyVersion,
+      payload.admissionReceiptCore.facts.payloadSchemaId,
+      command.request.asOfDate,
+      command.knowledgeCutoff,
+      JSON.stringify([vehicleId]),
+      EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash,
+      snapshotInputHash,
+      JSON.stringify(payload),
+      JSON.stringify(consumerEvaluations),
+      command.input.actorId,
+      command.input.idempotencyKey,
+      command.operationHash,
+      headId,
+    ]
+  );
+  const row = inserted.rows[0];
+  if (!row) fail(500, 'INTERNAL_ERROR', 'Financial facts insert failed.');
+  return row;
+}
+
+async function createPublicationV6(
+  connection: PublishConnection,
+  command: FrozenCommand,
+  loaded: Awaited<ReturnType<typeof loadRestatementBasis>>,
+  ledger: ActualsPilotPreparedPreview | null,
+  valuation: ActualsPilotPreparedPreview | null
+): Promise<ActualsPublishReceipt> {
+  const artifacts = await insertArtifacts(connection, command, ledger, valuation);
+  const importBatchId = randomUUID();
+  const approvedRowIds = ledger
+    ? await insertCashRows(connection, command, ledger.rows, importBatchId)
+    : [];
+  const approvedMarkIds = valuation
+    ? await insertMarks(connection, command, valuation.rows, importBatchId)
+    : [];
+  const basis = await loadBasis(connection, command.input.fundId, command.request.asOfDate);
+  validateCumulativeBasisRows(basis);
+  const newIdentities = [
+    ...basis.cash.filter((row) => approvedRowIds.includes(row.id)).map(cashIdentity),
+    ...basis.marks.filter((row) => approvedMarkIds.includes(row.id)).map(markIdentity),
+  ];
+  const restatement = command.restatementRequest;
+  const correction: ActualsCorrectionProvenanceV1 | null =
+    restatement === null
+      ? null
+      : {
+          commandId: randomUUID(),
+          asOfDate: command.request.asOfDate,
+          reason: restatement.reason,
+          actor: { userId: command.input.actorId },
+          createdAt: command.knowledgeCutoffIso,
+          items: restatement.items.map((item) => {
+            const replacement = newIdentities.find(
+              (identity) =>
+                identity.kind === item.target.kind &&
+                identity.sourceHash ===
+                  computeActualsPilotRowSourceHash(
+                    command.input.fundId,
+                    item.replacementExternalRef
+                  )
+            );
+            if (!replacement || replacement.contentHash !== item.expectedReplacementContentHash)
+              fail(
+                409,
+                'REPLACEMENT_MAPPING_MISMATCH',
+                'Inserted replacement identity differs from preview.'
+              );
+            return {
+              target: item.target,
+              replacement,
+              originalPublication: item.originalPublication,
+            };
+          }),
+        };
+  const corrections =
+    correction === null ? loaded.corrections : [...loaded.corrections, correction];
+  const projected = projectLoadedBasis(
+    basis,
+    command.input.fundId,
+    command.request.asOfDate,
+    loaded.admittedRecords,
+    corrections,
+    loaded.head.snapshotInputHash,
+    newIdentities.map((identity) => ({
+      identity,
+      correctionCommandId: correction?.commandId ?? null,
+    }))
+  );
+  const effectiveMarks = projected.valuationMarks.filter(
+    (row) => isoDay(row.markDate) === command.request.asOfDate
+  );
+  const calculator = calculateLoadedActuals(
+    { ...basis, cash: projected.ledgerRows, marks: effectiveMarks },
+    command.input.fundId,
+    ledger?.preview.payloadSha256 ?? loaded.ledgerPayloadSha256,
+    effectiveMarks.length === 0
+      ? null
+      : (valuation?.preview.payloadSha256 ?? loaded.valuationPayloadSha256),
+    loaded.head.snapshotInputHash
+  );
+  const vehicle = basis.vehicles[0];
+  if (!vehicle) fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Main-fund vehicle is missing.');
+  const database = databaseFor(connection);
+  const metadata = await buildFundCompanyActualsFacts({
+    database,
+    fundId: command.input.fundId,
+    asOfDate: command.request.asOfDate,
+    now: command.knowledgeCutoff,
+    planningMarkSources: ['actuals_pilot_v1'],
+  });
+  const companyActuals = projectCompanyActualsFromEffectiveLedger(metadata, projected.ledgerRows);
+  const core = AdmissionReceiptCoreV2Schema.parse({
+    contractVersion: 'actuals-admission/2.0.0',
+    operationKind: correction === null ? 'append' : 'restatement',
+    operationHash: command.operationHash,
+    fundId: command.input.fundId,
+    asOfDate: command.request.asOfDate,
+    coverage: command.request.coverage,
+    admitted: {
+      ledger:
+        ledger && artifacts.ledgerId !== null
+          ? {
+              sourceArtifactId: artifacts.ledgerId,
+              payloadSha256: ledger.preview.payloadSha256,
+              canonicalRowsHash: ledger.preview.canonicalRowsHash,
+              previewHash: ledger.preview.previewHash,
+              approvedRowIds,
+              approvedCount: approvedRowIds.length,
+            }
+          : null,
+      valuation:
+        valuation && artifacts.valuationId !== null
+          ? {
+              sourceArtifactId: artifacts.valuationId,
+              payloadSha256: valuation.preview.payloadSha256,
+              canonicalRowsHash: valuation.preview.canonicalRowsHash,
+              previewHash: valuation.preview.previewHash,
+              approvedMarkIds,
+              approvedCount: approvedMarkIds.length,
+            }
+          : null,
+      importBatchId,
+    },
+    facts: {
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
+      supersedesSnapshotId: loaded.head.id,
+      knowledgeCutoff: command.knowledgeCutoffIso,
+    },
+    actor: { userId: command.input.actorId },
+    restatement: correction,
+    effectiveBasis: projected.effectiveBasis,
+  });
+  const payload = buildFinancialFactsPayloadV6({
+    cashRows: projected.ledgerRows,
+    markRows: effectiveMarks,
+    vehicleRoster: basis.vehicles.map(({ committedCapital: _ignored, ...row }) => row),
+    calculatorResult: calculator,
+    companyActuals,
+    asOfDate: command.request.asOfDate,
+    knowledgeCutoff: command.knowledgeCutoffIso,
+    admissionReceiptCore: core,
+  });
+  const sourceFactsInputHash = computeSourceFactsInputHash(
+    core,
+    payload,
+    loaded.head.snapshotInputHash
+  );
+  const snapshotInputHash = buildSnapshotInputHash({
+    fundId: command.input.fundId,
+    vehicleIds: [vehicle.vehicleId],
+    asOfDate: command.request.asOfDate,
+    knowledgeCutoff: command.knowledgeCutoffIso,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
+    selectionSetHash: EMPTY_SELECTION_SET_HASH,
+    payload,
+  });
+  const snapshot = await insertPublicationSnapshot(
+    connection,
+    command,
+    loaded.head.id,
+    vehicle.vehicleId,
+    payload,
+    sourceFactsInputHash,
+    snapshotInputHash
+  );
+  if (correction && restatement) {
+    await connection.query(
+      `INSERT INTO actuals_restatement_commands
+      (command_id,fund_id,idempotency_key,operation_hash,expected_snapshot_id,expected_snapshot_input_hash,
+       expected_preview_hash,as_of_date,reason,created_by,created_at,publication_snapshot_id,ledger_source_artifact_id,valuation_source_artifact_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [
+        correction.commandId,
+        command.input.fundId,
+        command.input.idempotencyKey,
+        command.operationHash,
+        loaded.head.id,
+        loaded.head.snapshotInputHash,
+        restatement.expectedPreviewHash,
+        command.request.asOfDate,
+        restatement.reason,
+        command.input.actorId,
+        command.knowledgeCutoff,
+        snapshot.id,
+        artifacts.ledgerId,
+        artifacts.valuationId,
+      ]
+    );
+    for (const item of correction.items) {
+      const mapping = restatement.items.find(
+        (entry) =>
+          entry.target.kind === item.target.kind && entry.target.recordId === item.target.recordId
+      );
+      if (!mapping) fail(409, 'REPLACEMENT_MAPPING_MISMATCH', 'Correction mapping is incomplete.');
+      await connection.query(
+        `INSERT INTO actuals_restatement_items
+        (command_id,fund_id,target_cash_flow_event_id,replacement_cash_flow_event_id,target_valuation_mark_id,replacement_valuation_mark_id,
+         target_source_hash,target_content_hash,replacement_source_hash,replacement_content_hash,replacement_external_ref,
+         original_publication_snapshot_id,original_publication_snapshot_input_hash,original_publication_operation_hash)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [
+          correction.commandId,
+          command.input.fundId,
+          item.target.kind === 'ledger' ? item.target.recordId : null,
+          item.target.kind === 'ledger' ? item.replacement.recordId : null,
+          item.target.kind === 'valuation' ? item.target.recordId : null,
+          item.target.kind === 'valuation' ? item.replacement.recordId : null,
+          item.target.sourceHash,
+          item.target.contentHash,
+          item.replacement.sourceHash,
+          item.replacement.contentHash,
+          mapping.replacementExternalRef,
+          item.originalPublication.snapshotId,
+          item.originalPublication.snapshotInputHash,
+          item.originalPublication.operationHash,
+        ]
+      );
+    }
+  }
+  if (core.operationKind === 'restatement')
+    await verifyCorrectionMetadata(connection, snapshot, loaded.head, core);
+  return receiptFromStored(snapshot, command, loaded.head.snapshotInputHash);
+}
+
+async function createPublication(
+  connection: PublishConnection,
+  command: FrozenCommand,
+  head: ReturnType<typeof validateHead>,
+  ledger: ActualsPilotPreparedPreview,
+  valuation: ActualsPilotPreparedPreview | null
+): Promise<ActualsPublishReceipt> {
+  const database = databaseFor(connection) as never;
+  const artifacts = await insertArtifacts(connection, command, ledger, valuation);
+  if (artifacts.ledgerId === null) fail(500, 'INTERNAL_ERROR', 'Ledger artifact is missing.');
+  const importBatchId = randomUUID();
+  const approvedRowIds = await insertCashRows(connection, command, ledger.rows, importBatchId);
+  const approvedMarkIds = valuation
+    ? await insertMarks(connection, command, valuation.rows, importBatchId)
+    : [];
+  const basis = await loadBasis(connection, command.input.fundId, command.request.asOfDate);
+  validateCumulativeBasisRows(basis);
+  await assertCumulativeBasisMatchesReceipts(
+    connection,
+    command.input.fundId,
+    head?.id ?? null,
+    basis,
+    approvedRowIds,
+    approvedMarkIds
+  );
+  if (basis.vehicles.length !== 1 || basis.vehicles[0]?.committedCapital == null) {
+    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Pilot requires one active vehicle with commitment.');
+  }
+  const vehicle = basis.vehicles[0]!;
+  const committedCapital = vehicle.committedCapital;
+  if (committedCapital === null)
+    fail(422, 'UNSUPPORTED_VEHICLE_SCOPE', 'Vehicle commitment unavailable.');
+  const currentValuationSourceHashes = new Set(
+    valuation?.rows.flatMap((row) =>
+      row.rowSourceHash !== null && (row.status === 'valid' || row.status === 'already_imported')
+        ? [row.rowSourceHash]
+        : []
+    ) ?? []
+  );
+  if (command.request.ledger === null)
+    fail(400, 'INVALID_BODY', 'Ordinary publication requires a ledger.');
+  const calculator = calculateLoadedActuals(
+    {
+      ...basis,
+      marks: basis.marks.filter((row) => currentValuationSourceHashes.has(row.sourceHash)),
+    },
+    command.input.fundId,
+    command.request.ledger.expectedPayloadSha256,
+    command.request.valuation?.expectedPayloadSha256 ?? null,
+    head?.snapshotInputHash ?? null
+  );
   const companyActuals = await buildFundCompanyActualsFacts({
     database,
     fundId: command.input.fundId,
@@ -1441,7 +2753,6 @@ async function createPublication(
     knowledgeCutoff: command.knowledgeCutoffIso,
     admissionReceiptCore: core,
   });
-  const consumerEvaluations = evaluatePayload5Consumers(payload);
   const sourceFactsInputHash = canonicalSha256({
     templateVersions: [
       command.request.ledger.templateVersion,
@@ -1468,41 +2779,15 @@ async function createPublication(
     selectionSetHash: EMPTY_SELECTION_SET_HASH,
     payload,
   });
-  const inserted = await connection.query<SnapshotRow>(
-    `
-    INSERT INTO financial_facts_snapshots
-      (fund_id, policy_version, payload_schema_id, as_of_date, knowledge_cutoff, vehicle_scope,
-       vehicle_ids, selection_set_hash, source_facts_input_hash, snapshot_input_hash, payload,
-       consumer_evaluations, actor_id, idempotency_key, request_hash, supersedes_snapshot_id, created_at)
-    VALUES ($1,$2,$3,$4,$5,'fund_all',$6::jsonb,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$5)
-    RETURNING id, fund_id AS "fundId", policy_version AS "policyVersion",
-      payload_schema_id AS "payloadSchemaId", as_of_date AS "asOfDate",
-      knowledge_cutoff AS "knowledgeCutoff", vehicle_scope AS "vehicleScope",
-      vehicle_ids AS "vehicleIds", selection_set_hash AS "selectionSetHash",
-      source_facts_input_hash AS "sourceFactsInputHash", snapshot_input_hash AS "snapshotInputHash",
-      payload, consumer_evaluations AS "consumerEvaluations", actor_id AS "actorId",
-      idempotency_key AS "idempotencyKey", request_hash AS "requestHash",
-      supersedes_snapshot_id AS "supersedesSnapshotId", created_at AS "createdAt"`,
-    [
-      command.input.fundId,
-      FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
-      FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
-      command.request.asOfDate,
-      command.knowledgeCutoff,
-      JSON.stringify([vehicle.vehicleId]),
-      EMPTY_SELECTION_SET_HASH,
-      sourceFactsInputHash,
-      snapshotInputHash,
-      JSON.stringify(payload),
-      JSON.stringify(consumerEvaluations),
-      command.input.actorId,
-      command.input.idempotencyKey,
-      command.operationHash,
-      head?.id ?? null,
-    ]
+  const row = await insertPublicationSnapshot(
+    connection,
+    command,
+    head?.id ?? null,
+    vehicle.vehicleId,
+    payload,
+    sourceFactsInputHash,
+    snapshotInputHash
   );
-  const row = inserted.rows[0];
-  if (!row) fail(500, 'INTERNAL_ERROR', 'Financial facts insert failed.');
   return receiptFromStored(row, command, head?.snapshotInputHash ?? null);
 }
 
@@ -1540,6 +2825,9 @@ async function mutationAttempt(
       ),
     };
   }
+  if (readActualsPilotPublishFundId() !== command.input.fundId) {
+    fail(409, 'ACTUALS_PUBLICATION_DISABLED', 'New actuals publication is disabled.');
+  }
   const database = databaseFor(connection) as never;
   assertBudget(command, monotonicNow);
   const head = validateHead(
@@ -1548,6 +2836,31 @@ async function mutationAttempt(
   );
   await lockPublicationScope(connection, command);
   await assertPilotOwnership(connection, command.input.fundId);
+  if (command.restatementRequest) {
+    const loaded = await loadRestatementBasis(
+      connection,
+      command.input.fundId,
+      command.restatementRequest.expectedBasis
+    );
+    const review = await prepareRestatementReview(
+      connection,
+      command,
+      command.restatementRequest,
+      loaded
+    );
+    if (review.preview.previewHash !== command.restatementRequest.expectedPreviewHash)
+      fail(409, 'PREVIEW_HASH_MISMATCH', 'Restatement preview changed.');
+    const receipt = await createPublicationV6(
+      connection,
+      command,
+      loaded,
+      review.ledger,
+      review.valuation
+    );
+    return { kind: 'created', receipt };
+  }
+  if (command.request.ledger === null)
+    fail(400, 'INVALID_BODY', 'Ordinary publication requires a ledger.');
   const preliminaryLedger = await prepareActualsPilotPreview(
     {
       fundId: command.input.fundId,
@@ -1600,7 +2913,16 @@ async function mutationAttempt(
     fail(422, 'INCOMPLETE_COVERAGE', 'Incremental publication cannot repeat predecessor rows.');
   }
   assertBudget(command, monotonicNow);
-  const receipt = await createPublication(connection, command, head, ledger, valuation);
+  const receipt =
+    head?.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+      ? await createPublicationV6(
+          connection,
+          command,
+          await loadRestatementBasis(connection, command.input.fundId, basisRefForHead(head)),
+          ledger,
+          valuation
+        )
+      : await createPublication(connection, command, head, ledger, valuation);
   return { kind: 'created', receipt };
 }
 
@@ -1608,7 +2930,7 @@ async function reconciliationOracle(
   connection: PublishConnection,
   command: FrozenCommand,
   monotonicNow: () => number
-): Promise<{ receipt: ActualsPublishReceiptV1 | null; destroyConnection: boolean }> {
+): Promise<{ receipt: ActualsPublishReceipt | null; destroyConnection: boolean }> {
   await withinBudget(
     command,
     monotonicNow,
@@ -1663,8 +2985,8 @@ async function rollbackAndRelease(connection: PublishConnection, error: unknown)
   connection.release(!rolledBack || sqlState(error) === null);
 }
 
-export async function publishActualsPilot(
-  input: ActualsPilotPublishInput,
+async function publishActualsCommand(
+  input: ActualsPilotPublishInput | ActualsRestatementPublishInput,
   options: ActualsPilotPublishOptions = {}
 ): Promise<ActualsPilotPublishResult> {
   const now = options.now ?? (() => new Date());
@@ -1676,7 +2998,8 @@ export async function publishActualsPilot(
   if (!command.input.context && !options.connect) {
     fail(404, 'RESOURCE_NOT_FOUND', 'Organization context required.');
   }
-  await preflightFile(command.input.fundId, command.request.asOfDate, command.request.ledger);
+  if (command.request.ledger)
+    await preflightFile(command.input.fundId, command.request.asOfDate, command.request.ledger);
   if (command.request.valuation) {
     await preflightFile(command.input.fundId, command.request.asOfDate, command.request.valuation);
   }
@@ -1856,6 +3179,243 @@ export async function publishActualsPilot(
   }
 
   fail(503, 'PUBLISH_RETRY_EXHAUSTED', 'Publication retry exhausted.');
+}
+
+export async function publishActualsPilot(
+  input: ActualsPilotPublishInput,
+  options: ActualsPilotPublishOptions = {}
+): Promise<ActualsPilotPublishResult> {
+  return publishActualsCommand(input, options);
+}
+
+export async function publishActualsRestatement(
+  input: ActualsRestatementPublishInput,
+  options: ActualsPilotPublishOptions = {}
+): Promise<ActualsPilotPublishResult> {
+  return publishActualsCommand(input, options);
+}
+
+async function withRestatementRead<Request, Result>(
+  input: ActualsRestatementReadInput<Request>,
+  expectedBasis: FinancialFactsBasisRef,
+  options: ActualsPilotPublishOptions,
+  work: (
+    connection: PublishConnection,
+    scope: PublicationContext,
+    loaded: Awaited<ReturnType<typeof loadRestatementBasis>>
+  ) => Promise<Result>
+): Promise<Result> {
+  if (
+    !Number.isSafeInteger(input.fundId) ||
+    input.fundId <= 0 ||
+    !Number.isSafeInteger(input.actorId) ||
+    input.actorId <= 0
+  )
+    fail(404, 'RESOURCE_NOT_FOUND', 'Resource not found.');
+  if (expectedBasis.fundId !== input.fundId)
+    fail(409, 'STALE_BASIS', 'Expected basis belongs to a different fund.');
+  const context = input.context ?? getRequestDatabaseScope()?.context;
+  if (
+    (context?.fundId && Number(context.fundId) !== input.fundId) ||
+    (!context && !options.connect)
+  )
+    fail(404, 'RESOURCE_NOT_FOUND', 'Organization context is required.');
+  const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const startedAt = monotonicNow();
+  const knowledgeCutoff = new Date((options.now ?? (() => new Date()))().getTime());
+  const scope: PublicationContext = {
+    input: { ...input, ...(context ? { context } : {}) },
+    knowledgeCutoff,
+    knowledgeCutoffIso: knowledgeCutoff.toISOString(),
+    startedAt,
+    deadline: startedAt + COMMAND_BUDGET_MS,
+  };
+  const rawConnection = await withinBudget(
+    scope,
+    monotonicNow,
+    (options.connect ?? defaultConnect)(),
+    'PUBLISH_RETRY_EXHAUSTED',
+    (late) => late.release(true)
+  );
+  const connection = budgetedConnection(
+    rawConnection,
+    scope,
+    monotonicNow,
+    'PUBLISH_RETRY_EXHAUSTED'
+  );
+  try {
+    await connection.query('BEGIN ISOLATION LEVEL READ COMMITTED');
+    if (context) await applyRLSContext(connection as never, context);
+    await configureTransaction(connection, scope, monotonicNow);
+    await acquireFundLock(connection, scope, monotonicNow, 'PUBLISH_RETRY_EXHAUSTED');
+    await authorizeActor(connection, scope, monotonicNow, 'PUBLISH_RETRY_EXHAUSTED');
+    await lockPublicationScope(connection, scope);
+    await assertPilotOwnership(connection, input.fundId);
+    const loaded = await loadRestatementBasis(connection, input.fundId, expectedBasis);
+    const result = await work(connection, scope, loaded);
+    await connection.query('COMMIT');
+    connection.release();
+    return result;
+  } catch (error) {
+    await rollbackAndRelease(connection, error);
+    throw error;
+  }
+}
+
+export async function previewActualsRestatement(
+  input: ActualsRestatementReadInput<ActualsRestatementPreviewRequestV1>,
+  options: ActualsPilotPublishOptions = {}
+): Promise<ActualsRestatementPreviewResponseV1> {
+  const request = ActualsRestatementPreviewRequestV1Schema.parse(input.request);
+  return withRestatementRead(
+    input,
+    request.expectedBasis,
+    options,
+    async (connection, scope, loaded) =>
+      (await prepareRestatementReview(connection, scope, request, loaded)).preview
+  );
+}
+
+function parseReadCursor(request: ActualsRestatementReadRequestV1, scope: 'targets' | 'history') {
+  if (request.cursor === null) return null;
+  try {
+    const bytes = Buffer.from(request.cursor, 'base64url');
+    if (!/^[A-Za-z0-9_-]+$/.test(request.cursor) || bytes.toString('base64url') !== request.cursor)
+      fail(400, 'INVALID_CURSOR', 'Cursor must use canonical base64url.');
+    const decoded: unknown = JSON.parse(bytes.toString('utf8'));
+    const cursor = ActualsRestatementCursorV1Schema.parse(decoded);
+    if (
+      cursor.scope !== scope ||
+      cursor.fundId !== request.expectedBasis.fundId ||
+      cursor.snapshotId !== request.expectedBasis.snapshotId ||
+      cursor.snapshotInputHash !== request.expectedBasis.snapshotInputHash
+    ) {
+      fail(409, 'INVALID_CURSOR', 'Cursor does not belong to the expected fund and basis.');
+    }
+    return cursor;
+  } catch (error) {
+    if (error instanceof ActualsPilotPublishError) throw error;
+    fail(400, 'INVALID_CURSOR', 'Cursor is malformed.');
+  }
+}
+
+function encodeReadCursor(
+  basis: FinancialFactsBasisRef,
+  scope: 'targets' | 'history',
+  afterKind: 'ledger' | 'valuation' | 'command',
+  afterId: number
+) {
+  return Buffer.from(
+    JSON.stringify({
+      contractVersion: 'actuals-restatement-cursor/1.0.0',
+      scope,
+      fundId: basis.fundId,
+      snapshotId: basis.snapshotId,
+      snapshotInputHash: basis.snapshotInputHash,
+      afterKind,
+      afterId,
+    })
+  ).toString('base64url');
+}
+
+export async function readActualsRestatementTargets(
+  input: ActualsRestatementReadInput<ActualsRestatementReadRequestV1>,
+  options: ActualsPilotPublishOptions = {}
+): Promise<ActualsRestatementTargetsResponseV1> {
+  const request = ActualsRestatementReadRequestV1Schema.parse(input.request);
+  const cursor = parseReadCursor(request, 'targets');
+  return withRestatementRead(
+    input,
+    request.expectedBasis,
+    options,
+    async (_connection, _scope, loaded) => {
+      const sorted = [...loaded.targets].sort((left, right) =>
+        left.identity.kind === right.identity.kind
+          ? left.identity.recordId - right.identity.recordId
+          : left.identity.kind === 'ledger'
+            ? -1
+            : 1
+      );
+      const remainingTargets =
+        cursor === null
+          ? sorted
+          : sorted.filter((target) =>
+              target.identity.kind === cursor.afterKind
+                ? target.identity.recordId > cursor.afterId
+                : cursor.afterKind === 'ledger' && target.identity.kind === 'valuation'
+            );
+      const targets = remainingTargets.slice(0, request.limit);
+      const last = targets.at(-1);
+      return ActualsRestatementTargetsResponseV1Schema.parse({
+        contractVersion: 'actuals-restatement/1.0.0',
+        basisRef: request.expectedBasis,
+        targets,
+        nextCursor:
+          remainingTargets.length > targets.length && last
+            ? encodeReadCursor(
+                request.expectedBasis,
+                'targets',
+                last.identity.kind,
+                last.identity.recordId
+              )
+            : null,
+      });
+    }
+  );
+}
+
+export async function readActualsRestatementHistory(
+  input: ActualsRestatementReadInput<ActualsRestatementReadRequestV1>,
+  options: ActualsPilotPublishOptions = {}
+): Promise<ActualsRestatementHistoryResponseV1> {
+  const request = ActualsRestatementReadRequestV1Schema.parse(input.request);
+  const cursor = parseReadCursor(request, 'history');
+  return withRestatementRead(
+    input,
+    request.expectedBasis,
+    options,
+    async (connection, _scope, loaded) => {
+      const commands = await connection.query<{
+        id: number;
+        commandId: string;
+        publicationSnapshotId: number;
+      }>(
+        'SELECT id, command_id AS "commandId", publication_snapshot_id AS "publicationSnapshotId" FROM actuals_restatement_commands WHERE fund_id=$1 AND id>$2 ORDER BY id LIMIT $3',
+        [input.fundId, cursor?.afterId ?? 0, request.limit + 1]
+      );
+      const history = commands.rows.slice(0, request.limit).map((command) => {
+        const correction = loaded.corrections.find(
+          (record) => record.commandId === command.commandId
+        );
+        const snapshot = loaded.ancestry.find((row) => row.id === command.publicationSnapshotId);
+        if (!correction || !snapshot)
+          fail(
+            409,
+            'INVALID_REPLACEMENT_LINEAGE',
+            'Correction history is detached from current ancestry.'
+          );
+        return {
+          id: command.id,
+          publication: {
+            snapshotId: snapshot.id,
+            snapshotInputHash: snapshot.snapshotInputHash,
+            operationHash: snapshot.requestHash,
+          },
+          correction,
+        };
+      });
+      const last = history.at(-1);
+      return ActualsRestatementHistoryResponseV1Schema.parse({
+        contractVersion: 'actuals-restatement/1.0.0',
+        basisRef: request.expectedBasis,
+        history,
+        nextCursor:
+          commands.rows.length > history.length && last
+            ? encodeReadCursor(request.expectedBasis, 'history', 'command', last.id)
+            : null,
+      });
+    }
+  );
 }
 
 export const actualsPilotPublishTestSeams = {

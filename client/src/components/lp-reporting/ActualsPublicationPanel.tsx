@@ -33,6 +33,7 @@ import { sha256Bytes, sha256Hash } from '@/lib/hash';
 import { formatDecimalCurrency } from '@/lib/format/lp-reporting/decimal';
 import { ActualMetricsReadback } from './ActualMetricsReadback';
 import { ActualsDraftHistory } from './ActualsDraftHistory';
+import { ActualsRestatementReview } from './ActualsRestatementReview';
 
 const STORAGE_PREFIX = 'actuals-publish:v1:';
 const LEDGER_MAX_BYTES = 120 * 1024;
@@ -431,6 +432,8 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const [isPreparingPublish, setIsPreparingPublish] = useState(false);
   const [draftLocked, setDraftLocked] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  const [restatementLocked, setRestatementLocked] = useState(false);
+  const [restatementPending, setRestatementPending] = useState(false);
   const receipt = publishMutation.data;
   const metricsQuery = useActualsMetrics(
     fundId,
@@ -457,6 +460,7 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
 
   const publishNavigationFrozen =
     draftPending ||
+    restatementPending ||
     isPreparingPublish ||
     publishMutation.isPending ||
     storedCommand?.status === 'uncertain';
@@ -511,11 +515,12 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const issues = useMemo(() => issueRows(preview), [preview]);
   const previewCanPublish =
     preview !== null && preview.ledger.canPublish && (preview.valuation?.canPublish ?? true);
-  const commandFrozen =
+  const ordinaryCommandFrozen =
     isPreparingPublish ||
     publishMutation.isPending ||
     storedCommand !== null ||
     corruptStorageKeys.length > 0;
+  const commandFrozen = ordinaryCommandFrozen || restatementLocked;
   const retryReady =
     storedCommand !== null &&
     frozenBody !== null &&
@@ -1339,6 +1344,21 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
           </div>
         </div>
       ) : null}
+      <ActualsRestatementReview
+        key={`restatement:${fundId}`}
+        fundId={fundId}
+        {...(latestQuery.data ? { latestReference: latestQuery.data.reference } : {})}
+        disabled={
+          ordinaryCommandFrozen ||
+          draftLocked ||
+          draftPending ||
+          ledgerPreviewMutation.isPending ||
+          valuationPreviewMutation.isPending
+        }
+        onLockChange={setRestatementLocked}
+        onPendingChange={setRestatementPending}
+        onRefreshBasis={() => latestQuery.refetch()}
+      />
     </section>
   );
 }

@@ -55,13 +55,25 @@ export function buildFinancialFactsPayloadV5(
     input.companyActuals
   );
   const admissionReceiptCore = AdmissionReceiptCoreV1Schema.parse(input.admissionReceiptCore);
+  return FinancialFactsPayloadV5Schema.parse({
+    ...buildActualsPayloadFields(
+      input,
+      FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+      admissionReceiptCore.admitted.valuation?.payloadSha256 ?? null
+    ),
+    companyActuals,
+    admissionReceiptCore,
+  });
+}
+
+export function buildActualsPayloadFields(
+  input: Omit<BuildFinancialFactsPayloadV5Input, 'companyActuals' | 'admissionReceiptCore'>,
+  policyVersion: string,
+  valuationPayloadSha256: string | null
+) {
   const calculator = input.calculatorResult;
   const cashFlowRows = input.cashRows.filter((row) => row.eventType !== 'realized_proceeds');
-  const cashFlow = buildCashFlowSeries(
-    cashFlowRows,
-    input.asOfDate,
-    FINANCIAL_FACTS_POLICY_VERSION_1_4_0
-  );
+  const cashFlow = buildCashFlowSeries(cashFlowRows, input.asOfDate, policyVersion);
   const marks = buildMarksSeries(input.markRows, input.asOfDate);
 
   const sortedVehicleRoster = [...input.vehicleRoster].sort(
@@ -95,15 +107,14 @@ export function buildFinancialFactsPayloadV5(
                 code: 'PERIOD_NAV_IS_POSITION_VALUE' as const,
                 severity: 'warning' as const,
                 message: PERIOD_NAV_WARNING_MESSAGE,
-                source: `actuals-pilot:valuation:${admissionReceiptCore.admitted.valuation?.payloadSha256 ?? ''}`,
+                source: `actuals-pilot:valuation:${valuationPayloadSha256 ?? ''}`,
               },
             ],
           },
         ]
       : [];
 
-  return FinancialFactsPayloadV5Schema.parse({
-    companyActuals,
+  return {
     sourceObservationIds: [],
     workingValueSelectionIds: [],
     participationTermRefs: [],
@@ -136,6 +147,5 @@ export function buildFinancialFactsPayloadV5(
     openingAccountingState: null,
     capitalActuals: calculator.capitalActuals,
     valuationActuals,
-    admissionReceiptCore,
-  });
+  };
 }
