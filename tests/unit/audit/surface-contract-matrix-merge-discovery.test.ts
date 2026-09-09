@@ -306,6 +306,26 @@ describe('surface contract matrix merge engine', () => {
     expect(removed.orphans[0]).toMatchObject({ id: row.id, resolution: 'unresolved' });
     expect(removed.coverage_review[key]).toBeUndefined();
   });
+
+  it('preserves historical closure across repeated seeds without approving added rows', () => {
+    const row = makeRow();
+    const closure = {
+      approver_id: 'fixture-reviewer',
+      evidence_ref: 'fixture-historical-review',
+      source_fingerprints: { 'server/routes/synthetic.ts': 'a'.repeat(64) },
+      requirements_sha256: 'b'.repeat(64),
+      families: { synthetic: [row.id] },
+    };
+    const previous = makeDocument([row], { phase: 'closed', g1_closure: closure });
+    const added = makeRow({ id: 'api:GET:/api/added' });
+    const seeded = makeDocument([row, added], { phase: 'closed' });
+    const first = mergeMatrix(previous, seeded);
+    const second = mergeMatrix(first, seeded);
+    expect(first.g1_closure).toEqual(closure);
+    expect(second.g1_closure).toEqual(closure);
+    expect(previous.g1_closure).toEqual(closure);
+    expect(second.rows.find((entry) => entry.id === added.id)?.decision_status).toBe('proposed');
+  });
 });
 
 describe('surface contract matrix dormant candidates', () => {

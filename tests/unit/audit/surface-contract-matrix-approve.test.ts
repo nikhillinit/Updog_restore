@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -183,6 +184,35 @@ async function closedRepairFixture() {
     JSON.parse(fs.readFileSync(workspace.files.matrix, 'utf8'))
   );
   matrix.phase = 'closed';
+  const inventory = JSON.parse(fs.readFileSync(workspace.files.inventory, 'utf8'));
+  matrix.rows = [
+    matrix.rows.find((entry) => entry.id === row.id)!,
+    matrix.rows.find((entry) => entry.id !== row.id && entry.classification === 'classified')!,
+  ];
+  matrix.coverage_review = {};
+  for (const fixtureRow of matrix.rows) {
+    fixtureRow.decision_status = 'approved';
+    fixtureRow.approved_source_hashes = rowSourceFingerprints(fixtureRow, inventory);
+    for (const exposure of fixtureRow.exposures) {
+      matrix.coverage_review[`${fixtureRow.id}|${exposure.deployment}|${exposure.runtime}`] = {
+        test_coverage: 'none-reviewed',
+        contract_fingerprint: contractFingerprint(fixtureRow),
+        evidence: 'Synthetic closed-repair fixture',
+      };
+    }
+  }
+  const requirements = { families: [] };
+  fs.writeFileSync(workspace.files.requirements, JSON.stringify(requirements));
+  matrix.g1_closure = {
+    approver_id: 'fixture-approver',
+    evidence_ref: 'fixture-evidence',
+    source_fingerprints: inventory.source_hashes,
+    requirements_sha256: createHash('sha256').update(JSON.stringify(requirements)).digest('hex'),
+    families: {},
+  };
+  for (const file of ['listeners', 'candidates', 'exclusions', 'orphans'] as const) {
+    fs.writeFileSync(workspace.files[file], '[]');
+  }
   const pendingRow = matrix.rows.find((entry) => entry.id === row.id)!;
   pendingRow.decision_status = 'proposed';
   fs.writeFileSync(workspace.files.matrix, `${JSON.stringify(matrix, null, 2)}\n`);
