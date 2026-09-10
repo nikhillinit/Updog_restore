@@ -36,6 +36,19 @@ const baseEnvelope = {
 } as const;
 
 describe('scenario input hash canonicalization', () => {
+  it('preserves the pre-capital V1 and V2 canonical bytes', () => {
+    expect(createScenarioInputHash(baseEnvelope)).toBe(
+      '6968aaddd06efe13db0ceaa65ef5df97d32887d974d69b8560f3df3fc1078bc0'
+    );
+    expect(
+      createScenarioInputHash({
+        ...baseEnvelope,
+        version: 'scenario-input-hash-v2',
+        modelInputsAsOfDate: '2026-06-30',
+      })
+    ).toBe('07e18c49e28c486d70bfbd6846a8450e015e76477fb5d4ca44cc62cd3f2a70eb');
+  });
+
   it('binds modelInputsAsOfDate only in scenario-input-hash-v2', () => {
     const juneEnvelope = {
       ...baseEnvelope,

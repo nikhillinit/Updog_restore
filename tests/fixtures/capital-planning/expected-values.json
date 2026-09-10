@@ -1,0 +1,272 @@
+{
+  "source": "F_1.15.0 Plan A CP fixtures with revision-3 precedence",
+  "sizing": [
+    {
+      "id": "CP-001",
+      "budget": "10000000",
+      "initialCheck": "500000",
+      "graduation": "0.5",
+      "participation": "0.5",
+      "followOnCheck": "500000",
+      "costPerEntry": "625000",
+      "expectedCompanies": "16",
+      "initial": "8000000.000000",
+      "followOn": "2000000.000000"
+    },
+    {
+      "id": "CP-002",
+      "budget": "10000000",
+      "initialCheck": "750000",
+      "graduation": "0.5",
+      "participation": "0.5",
+      "followOnCheck": "500000",
+      "costPerEntry": "875000",
+      "expectedCompanies": "11.428571428571",
+      "initial": "8571428.571429",
+      "followOn": "1428571.428571"
+    },
+    {
+      "id": "CP-003",
+      "budget": "10000000",
+      "initialCheck": "500000",
+      "graduation": "0.5",
+      "participation": "1",
+      "followOnCheck": "500000",
+      "costPerEntry": "750000",
+      "expectedCompanies": "13.333333333333",
+      "initial": "6666666.666667",
+      "followOn": "3333333.333333"
+    }
+  ],
+  "gp": [
+    {
+      "id": "GP-R3-001",
+      "commitment": "100",
+      "gp": "10",
+      "fraction": "0.4",
+      "fees": "10",
+      "expenses": "2",
+      "deemed": "4",
+      "available": "84"
+    },
+    {
+      "id": "GP-R3-002",
+      "commitment": "100",
+      "gp": "10",
+      "fraction": "0",
+      "fees": "10",
+      "expenses": "2",
+      "deemed": "0",
+      "available": "88"
+    },
+    {
+      "id": "GP-R3-003",
+      "commitment": "100",
+      "gp": "10",
+      "fraction": null,
+      "fees": "10",
+      "expenses": "2",
+      "deemed": "0",
+      "available": "88"
+    },
+    {
+      "id": "GP-R3-004",
+      "commitment": "100",
+      "gp": "10",
+      "fraction": "1",
+      "fees": "10",
+      "expenses": "2",
+      "deemed": "10",
+      "available": "78"
+    },
+    {
+      "id": "GP-R3-005",
+      "commitment": "100",
+      "gp": "0",
+      "fraction": "0.5",
+      "fees": "10",
+      "expenses": "2",
+      "deemed": "0",
+      "available": "88"
+    },
+    {
+      "id": "GP-R3-023",
+      "commitment": "100",
+      "gp": "100",
+      "fraction": "0.8",
+      "fees": "18",
+      "expenses": "2",
+      "deemed": "80",
+      "available": "0"
+    },
+    {
+      "id": "GP-R3-024",
+      "commitment": "100",
+      "gp": "100",
+      "fraction": "0.8",
+      "fees": "20",
+      "expenses": "5",
+      "deemed": "80",
+      "available": "-5"
+    }
+  ],
+  "preferenceBase": {
+    "ownership": "0.25",
+    "fundPreference": "4",
+    "senior": "2",
+    "pari": "4",
+    "junior": "2",
+    "cost": "2"
+  },
+  "preferences": [
+    {
+      "id": "CP-042",
+      "exit": "8",
+      "type": "non_participating",
+      "senior": "10",
+      "preferred": "0",
+      "conversion": "0",
+      "adjusted": "0",
+      "baseline": "2",
+      "benefit": "-2",
+      "moic": "0"
+    },
+    {
+      "id": "CP-043",
+      "exit": "8",
+      "type": "non_participating",
+      "preferred": "3",
+      "conversion": "0",
+      "adjusted": "3",
+      "baseline": "2",
+      "benefit": "1",
+      "moic": "1.5"
+    },
+    {
+      "id": "CP-044",
+      "exit": "28",
+      "type": "non_participating",
+      "preferred": "4",
+      "conversion": "5",
+      "adjusted": "5",
+      "baseline": "7",
+      "benefit": "-2",
+      "moic": "2.5"
+    },
+    {
+      "id": "CP-045",
+      "exit": "20",
+      "type": "participating",
+      "preferred": "6",
+      "conversion": "3",
+      "adjusted": "6",
+      "baseline": "5",
+      "benefit": "1",
+      "moic": "3"
+    },
+    {
+      "id": "CP-046",
+      "exit": "36",
+      "type": "participating",
+      "cap": "6",
+      "preferred": "6",
+      "conversion": "7",
+      "adjusted": "7",
+      "baseline": "9",
+      "benefit": "-2",
+      "moic": "3.5"
+    },
+    {
+      "id": "CP-047",
+      "exit": "11",
+      "type": "participating",
+      "cap": "4",
+      "preferred": "4",
+      "conversion": "0.75",
+      "adjusted": "4",
+      "baseline": "2.75",
+      "benefit": "1.25",
+      "moic": "2"
+    },
+    {
+      "id": "CP-048",
+      "exit": "20",
+      "type": "participating",
+      "cap": "6",
+      "ownership": "0",
+      "preferred": "4",
+      "conversion": "0",
+      "adjusted": "4",
+      "baseline": "0",
+      "benefit": "4",
+      "moic": "2"
+    },
+    {
+      "id": "CP-049",
+      "exit": "20",
+      "type": "participating",
+      "cap": "2",
+      "fundPreference": "0",
+      "pari": "0",
+      "preferred": "2",
+      "conversion": "4",
+      "adjusted": "4",
+      "baseline": "5",
+      "benefit": "-1",
+      "moic": "2"
+    }
+  ],
+  "breakpoints": {
+    "nonParticipatingConversion": "24",
+    "capSixAttainment": "20",
+    "capSixConversion": "32",
+    "capEqualsPreferenceAttainment": "10",
+    "capEqualsPreferenceConversion": "24",
+    "ownershipOneCapSixAttainment": "14",
+    "ownershipOneCapSixConversion": "14"
+  },
+  "proRata": {
+    "CP-025": {
+      "fullCheck": "2000000",
+      "fullOwnership": "0.1",
+      "zeroOwnership": "0.08",
+      "halfOwnership": "0.09"
+    },
+    "CP-026": {
+      "afterPool": "0.09",
+      "check": "1800000",
+      "ownership": "0.09"
+    },
+    "CP-031": {
+      "costPerEntry": "1516000",
+      "expectedCompanies": "10",
+      "initial": "12000000",
+      "followOn": "3160000",
+      "secondCheck": "720000"
+    }
+  },
+  "timing": {
+    "CP-034": {
+      "entryMonthZero": [
+        24,
+        42
+      ],
+      "entryMonthTwelve": [
+        36,
+        54
+      ]
+    }
+  },
+  "feeExpense": {
+    "CP-006": {
+      "fees": "17500000",
+      "expenses": "2400000",
+      "available": "80100000"
+    },
+    "FEE-R3-012": {
+      "fees": "4",
+      "expenses": "2",
+      "available": "90"
+    }
+  }
+}
