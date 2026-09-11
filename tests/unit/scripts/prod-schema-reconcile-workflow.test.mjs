@@ -1,5 +1,7 @@
 import { deepStrictEqual } from 'node:assert';
+import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -20,6 +22,374 @@ import {
   prepare0053G3ReleaseGateHardeningCapability,
   prepareG3Catchup0050To0053Capability,
 } from '../../../scripts/reconcile-prod-schema.mjs';
+
+describe('actuals synthetic attestation witness', () => {
+  const witnessEnv = {
+    EXPECTED_SHA: 'a'.repeat(40),
+    GITHUB_SHA: 'a'.repeat(40),
+    GITHUB_WORKFLOW_SHA: 'a'.repeat(40),
+    GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_SERVER_URL: 'https://github.com',
+    GITHUB_API_URL: 'https://api.github.com',
+    GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
+    GITHUB_REPOSITORY_OWNER: 'nikhillinit',
+    GITHUB_REPOSITORY_ID: '1234',
+    GITHUB_REF: 'refs/heads/codex/a0-witness',
+    GITHUB_WORKFLOW_REF:
+      'nikhillinit/Updog_restore/.github/workflows/actuals-isolated-restore-proof.yml@refs/heads/codex/a0-witness',
+    GITHUB_RUN_ID: '123',
+    GITHUB_RUN_ATTEMPT: '1',
+    GITHUB_ACTOR: 'nikhillinit',
+    GITHUB_TRIGGERING_ACTOR: 'nikhillinit',
+  };
+
+  function runWitnessStep(workflow, id, env) {
+    const step = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps)
+      .find((item) => item.id === id);
+    const script = step?.run.match(/node <<'NODE'\n([\s\S]*?)\nNODE(?:\n|$)/)?.[1];
+    expect(script, `standalone ${id} validation script`).toBeTruthy();
+    return spawnSync(process.execPath, ['--input-type=commonjs', '-'], {
+      input: script,
+      env: { ...witnessEnv, ...env },
+      encoding: 'utf8',
+      timeout: 5000,
+      maxBuffer: 256 * 1024,
+    });
+  }
+
+  it('permits only a bounded owner-dispatched synthetic workflow', async () => {
+    const source = await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8');
+    const workflow = YAML.parse(source);
+    expect(workflow.name).toBe('actuals-isolated-restore-proof');
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch']);
+    expect(workflow.on.workflow_dispatch.inputs).toEqual({
+      expected_sha: expect.objectContaining({ required: true, type: 'string' }),
+    });
+    expect(workflow.permissions).toEqual({
+      contents: 'read',
+      actions: 'read',
+      'id-token': 'write',
+      attestations: 'write',
+    });
+    expect(Object.keys(workflow.jobs)).toHaveLength(1);
+    for (const job of Object.values(workflow.jobs)) {
+      expect(job['runs-on']).toBe('ubuntu-24.04');
+      expect(job['timeout-minutes']).toBeGreaterThan(0);
+      expect(job['timeout-minutes']).toBeLessThanOrEqual(15);
+      expect(job.environment).toBeUndefined();
+      expect(job.permissions).toBeUndefined();
+      for (const step of job.steps) {
+        expect(step.environment).toBeUndefined();
+        if (step.uses) {
+          expect(step.uses).toMatch(/^actions\/(upload-artifact|attest)@[a-f0-9]{40}$/);
+        }
+      }
+    }
+    expect(source).not.toMatch(
+      /\bsecrets\s*[.[]|\bvars\s*[.[]|DATABASE_URL|NEON_API_KEY|npm\s+(?:ci|install|start)|pnpm|yarn/
+    );
+    expect(source).not.toMatch(/workflow_call|pull_request_target|workflow_run:/);
+  });
+
+  it('refuses unauthorized or mismatched execution before creating witness files', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
+    );
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'actuals-witness-guard-'));
+    try {
+      const accepted = runWitnessStep(workflow, 'guard', { WITNESS_DIR: directory });
+      expect(accepted.status, accepted.stderr).toBe(0);
+      for (const mismatch of [
+        { GITHUB_EVENT_NAME: 'push' },
+        { GITHUB_REPOSITORY: 'other/Updog_restore' },
+        { GITHUB_REPOSITORY_OWNER: 'other' },
+        { GITHUB_ACTOR: 'other' },
+        { GITHUB_TRIGGERING_ACTOR: 'other' },
+        { EXPECTED_SHA: 'main' },
+        { GITHUB_SHA: 'b'.repeat(40) },
+        { GITHUB_WORKFLOW_SHA: 'b'.repeat(40) },
+        { GITHUB_WORKFLOW_REF: `${witnessEnv.GITHUB_WORKFLOW_REF}-other` },
+        { GITHUB_RUN_ATTEMPT: '0' },
+      ]) {
+        const rejected = runWitnessStep(workflow, 'guard', { WITNESS_DIR: directory, ...mismatch });
+        expect(rejected.error).toBeUndefined();
+        expect(rejected.status, JSON.stringify(mismatch)).not.toBe(0);
+      }
+      expect(await readdir(directory)).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('generates only fixed synthetic evidence with no caller payload', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
+    );
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'actuals-witness-generate-'));
+    try {
+      const generated = runWitnessStep(workflow, 'generate', {
+        WITNESS_DIR: path.join(directory, 'witness'),
+        GITHUB_OUTPUT: path.join(directory, 'output'),
+        PROOF_JSON: '{"evidenceClass":"provider-restore"}',
+      });
+      expect(generated.status, generated.stderr).toBe(0);
+      const proof = JSON.parse(
+        await readFile(path.join(directory, 'witness/subject/proof.json'), 'utf8')
+      );
+      expect(proof).toEqual({
+        schemaVersion: 1,
+        profile: 'actuals-restore-proof/1.0.0',
+        evidenceClass: 'synthetic',
+        message: 'Harmless attestation witness; no database restore or production admission.',
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('checks certificate and archive bindings with synthetic CLI output, without claiming signature verification', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
+    );
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'actuals-witness-inspect-'));
+    const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+    const archive = Buffer.from('Synthetic parser transcript; not a signed archive.');
+    const archiveSha256 = digest(archive);
+    const artifactName = 'actuals-synthetic-proof-123-1';
+    const artifactUrl =
+      'https://api.github.com/repos/nikhillinit/Updog_restore/actions/artifacts/456';
+    const proofJson =
+      JSON.stringify({
+        schemaVersion: 1,
+        profile: 'actuals-restore-proof/1.0.0',
+        evidenceClass: 'synthetic',
+        message: 'Harmless attestation witness; no database restore or production admission.',
+      }) + '\n';
+    const predicate = {
+      schemaVersion: 1,
+      archive: { artifactId: '456', artifactName, sha256: archiveSha256 },
+      proofJson,
+      proofSha256: digest(proofJson),
+    };
+    const transcript = {
+      artifact: {
+        id: 456,
+        name: artifactName,
+        url: artifactUrl,
+        archive_download_url: `${artifactUrl}/zip`,
+        expired: false,
+        digest: `sha256:${archiveSha256}`,
+        size_in_bytes: archive.length,
+        created_at: new Date(Date.now() - 60_000).toISOString(),
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        workflow_run: {
+          id: 123,
+          head_sha: witnessEnv.GITHUB_SHA,
+          repository_id: 1234,
+          head_repository_id: 1234,
+        },
+      },
+      attempt: {
+        id: 123,
+        run_attempt: 1,
+        head_sha: witnessEnv.GITHUB_SHA,
+        repository: { id: 1234, full_name: witnessEnv.GITHUB_REPOSITORY },
+        head_repository: { id: 1234, full_name: witnessEnv.GITHUB_REPOSITORY },
+        path: '.github/workflows/actuals-isolated-restore-proof.yml',
+        name: 'actuals-isolated-restore-proof',
+        event: 'workflow_dispatch',
+        actor: { login: 'nikhillinit' },
+        triggering_actor: { login: 'nikhillinit' },
+        status: 'in_progress',
+        conclusion: null,
+      },
+      predicate,
+      verification: [
+        {
+          verificationResult: {
+            signature: {
+              certificate: {
+                sourceRepositoryURI: `https://github.com/${witnessEnv.GITHUB_REPOSITORY}`,
+                sourceRepositoryDigest: witnessEnv.GITHUB_SHA,
+                sourceRepositoryRef: witnessEnv.GITHUB_REF,
+                buildConfigURI: `https://github.com/${witnessEnv.GITHUB_WORKFLOW_REF}`,
+                buildConfigDigest: witnessEnv.GITHUB_SHA,
+                buildSignerURI: `https://github.com/${witnessEnv.GITHUB_WORKFLOW_REF}`,
+                buildSignerDigest: witnessEnv.GITHUB_SHA,
+                runnerEnvironment: 'github-hosted',
+                runInvocationURI:
+                  'https://github.com/nikhillinit/Updog_restore/actions/runs/123/attempts/1',
+              },
+            },
+            statement: {
+              _type: 'https://in-toto.io/Statement/v1',
+              predicateType: 'urn:updog:actuals-restore-proof:v1',
+              subject: [{ name: `${artifactName}.zip`, digest: { sha256: archiveSha256 } }],
+              predicate: globalThis.structuredClone(predicate),
+            },
+          },
+        },
+      ],
+    };
+    async function inspect(documents) {
+      for (const [name, value] of Object.entries(documents)) {
+        await writeFile(path.join(directory, `${name}.json`), JSON.stringify(value));
+      }
+      return runWitnessStep(workflow, 'inspect', {
+        WITNESS_DIR: directory,
+        ARTIFACT_ID: '456',
+        ARTIFACT_DIGEST: archiveSha256,
+      });
+    }
+    const certificate = (value) => value.verification[0].verificationResult.signature.certificate;
+    const statement = (value) => value.verification[0].verificationResult.statement;
+    try {
+      await mkdir(path.join(directory, 'subject'));
+      await writeFile(path.join(directory, 'subject/proof.json'), proofJson);
+      await writeFile(path.join(directory, 'archive.zip'), archive);
+      const accepted = await inspect(transcript);
+      expect(accepted.status, accepted.stderr).toBe(0);
+      const inspection = JSON.parse(
+        await readFile(path.join(directory, 'inspection.json'), 'utf8')
+      );
+      expect(inspection).toMatchObject({
+        evidenceClass: 'synthetic',
+        finalAttemptSnapshotRequired: true,
+      });
+      await rm(path.join(directory, 'inspection.json'));
+      for (const [name, mutate] of [
+        [
+          'missing runner',
+          (value) => {
+            delete certificate(value).runnerEnvironment;
+          },
+        ],
+        [
+          'self-hosted runner',
+          (value) => {
+            certificate(value).runnerEnvironment = 'self-hosted';
+          },
+        ],
+        [
+          'wrong repository',
+          (value) => {
+            certificate(value).sourceRepositoryURI += '-other';
+          },
+        ],
+        [
+          'wrong source',
+          (value) => {
+            certificate(value).sourceRepositoryDigest = 'b'.repeat(40);
+          },
+        ],
+        [
+          'workflow prefix collision',
+          (value) => {
+            certificate(value).buildSignerURI += '-other';
+          },
+        ],
+        [
+          'wrong signer SHA',
+          (value) => {
+            certificate(value).buildSignerDigest = 'b'.repeat(40);
+          },
+        ],
+        [
+          'missing attempt',
+          (value) => {
+            delete certificate(value).runInvocationURI;
+          },
+        ],
+        [
+          'prior attempt',
+          (value) => {
+            certificate(value).runInvocationURI = certificate(value).runInvocationURI.replace(
+              '/attempts/1',
+              '/attempts/2'
+            );
+          },
+        ],
+        [
+          'wrong metadata attempt',
+          (value) => {
+            value.attempt.run_attempt = 2;
+          },
+        ],
+        [
+          'wrong metadata run',
+          (value) => {
+            value.artifact.workflow_run.id = 124;
+          },
+        ],
+        [
+          'artifact ID substitution',
+          (value) => {
+            statement(value).predicate.archive.artifactId = '457';
+          },
+        ],
+        [
+          'all copies of ID substituted',
+          (value) => {
+            value.artifact.id = 457;
+            value.predicate.archive.artifactId = '457';
+            statement(value).predicate.archive.artifactId = '457';
+          },
+        ],
+        [
+          'extra envelope field',
+          (value) => {
+            statement(value).predicate.extra = true;
+          },
+        ],
+        [
+          'wrong proof hash',
+          (value) => {
+            statement(value).predicate.proofSha256 = '0'.repeat(64);
+          },
+        ],
+        [
+          'wrong subject',
+          (value) => {
+            statement(value).subject[0].digest.sha256 = '0'.repeat(64);
+          },
+        ],
+        [
+          'ambiguous results',
+          (value) => {
+            value.verification.push(globalThis.structuredClone(value.verification[0]));
+          },
+        ],
+      ]) {
+        const changed = globalThis.structuredClone(transcript);
+        mutate(changed);
+        const rejected = await inspect(changed);
+        expect(rejected.error, name).toBeUndefined();
+        expect(rejected.status, name).not.toBe(0);
+        expect(await readdir(directory)).not.toContain('inspection.json');
+      }
+      await writeFile(
+        path.join(directory, 'archive.zip'),
+        Buffer.concat([archive, Buffer.from('x')])
+      );
+      expect((await inspect(transcript)).status).not.toBe(0);
+      await writeFile(path.join(directory, 'archive.zip'), archive);
+      for (const invalid of ['{', ' '.repeat(256 * 1024 + 1)]) {
+        await writeFile(path.join(directory, 'verification.json'), invalid);
+        const rejected = runWitnessStep(workflow, 'inspect', {
+          WITNESS_DIR: directory,
+          ARTIFACT_ID: '456',
+          ARTIFACT_DIGEST: archiveSha256,
+        });
+        expect(rejected.error).toBeUndefined();
+        expect(rejected.status).not.toBe(0);
+        expect(await readdir(directory)).not.toContain('inspection.json');
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('prod-schema-reconcile workflow', () => {
   it('binds each actuals verifier to the authenticated dispatch title and protected target inputs', async () => {
