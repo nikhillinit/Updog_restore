@@ -1,0 +1,4211 @@
+{
+  "scope": "Frozen admitted B8 calculate response and exact companion fields. Read wrappers in the component suite are synthetic; this fixture is not browser or command-preimage evidence.",
+  "calculate": {
+    "contractVersion": "fund-scenario-capital-calculate/1.0.0",
+    "representation": "capital-plan-v1",
+    "snapshotId": 5,
+    "correlationId": "3a105638-e813-4e13-ace9-a13f707a4f93",
+    "source": "fund_snapshots",
+    "payload": {
+      "fundId": 101,
+      "lineage": {
+        "hashKind": "scenario-input-hash-v1",
+        "modelInputsAsOfDate": null,
+        "comparisonLineageVersion": null
+      },
+      "variants": [
+        {
+          "name": "Baseline",
+          "result": {
+            "input": {
+              "allocations": [
+                {
+                  "name": "Seed",
+                  "entryRound": "Seed",
+                  "allocationId": "a1",
+                  "entryStageId": "s0",
+                  "followOnRounds": [],
+                  "initialCheckUsd": "1.000000",
+                  "budgetShareRatio": "1.000000000000",
+                  "pipelineProfileId": "p1",
+                  "deploymentPeriodYears": 1
+                }
+              ],
+              "contractVersion": "capital-planning/1.0.0"
+            },
+            "provenance": [
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": null,
+                "benchmark": null,
+                "inputPath": "allocations[0].allocationId",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].id",
+                "sourceValue": "a1",
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "a1"
+              },
+              {
+                "note": "Explicit scenario link.",
+                "origin": "user_entered",
+                "stageId": null,
+                "benchmark": null,
+                "inputPath": "allocations[0].pipelineProfileId",
+                "profileId": "p1",
+                "sourcePath": null,
+                "sourceValue": null,
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "p1"
+              },
+              {
+                "note": "Explicit scenario link.",
+                "origin": "user_entered",
+                "stageId": "s0",
+                "benchmark": null,
+                "inputPath": "allocations[0].entryStageId",
+                "profileId": "p1",
+                "sourcePath": null,
+                "sourceValue": null,
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "s0"
+              },
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": null,
+                "benchmark": null,
+                "inputPath": "allocations[0].name",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].name",
+                "sourceValue": "Seed",
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "Seed"
+              },
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": "s0",
+                "benchmark": null,
+                "inputPath": "allocations[0].entryRound",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].entryRound",
+                "sourceValue": "Seed",
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "Seed"
+              },
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": null,
+                "benchmark": null,
+                "inputPath": "allocations[0].budgetShareRatio",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].capitalAllocationPct",
+                "sourceValue": "1.000000000000",
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "1.000000000000"
+              },
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": "s0",
+                "benchmark": null,
+                "inputPath": "allocations[0].initialCheckUsd",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].initialCheckAmount",
+                "sourceValue": "1.000000",
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": "1.000000"
+              },
+              {
+                "note": null,
+                "origin": "source_derived",
+                "stageId": null,
+                "benchmark": null,
+                "inputPath": "allocations[0].deploymentPeriodYears",
+                "profileId": "p1",
+                "sourcePath": "capitalPlanAllocations[0].investmentHorizonMonths",
+                "sourceValue": 1,
+                "effectiveDate": null,
+                "sourceVintage": "2026",
+                "effectiveValue": 1
+              }
+            ],
+            "performance": null,
+            "construction": {
+              "budget": {
+                "feePopulation": "full_fund_committed_capital",
+                "gpCommitmentUsd": "10.000000",
+                "lifetimeFeesUsd": "4.000000",
+                "fundingAssumption": "callable_as_needed",
+                "planningBudgetUsd": {
+                  "state": "available",
+                  "value": "90.000000"
+                },
+                "committedCapitalUsd": "100.000000",
+                "fundedFromFeesRatio": "0.400000000000",
+                "lifetimeExpensesUsd": "2.000000",
+                "planningBudgetOrigin": "derived_available_capital",
+                "overrideDifferenceUsd": {
+                  "state": "available",
+                  "value": "0.000000"
+                },
+                "gpDeemedContributionUsd": "4.000000",
+                "signedRoundingResidualUsd": "0.000000",
+                "availableConstructionCapitalUsd": "90.000000"
+              },
+              "headline": "Within lifetime capacity.",
+              "stresses": [
+                {
+                  "name": "graduation_plus_10pp",
+                  "label": "Graduation +10 percentage points",
+                  "state": "complete",
+                  "verdicts": {
+                    "timing": "within_term",
+                    "staleness": "unknown_current_source",
+                    "inputSupport": "complete",
+                    "reserveEarmark": "within_earmark",
+                    "allocationBudget": "within_allocation",
+                    "lifetimeCapacity": "within_capacity"
+                  },
+                  "countBasis": "expected",
+                  "changedPaths": [],
+                  "annualSchedule": [
+                    {
+                      "fundYear": 1,
+                      "countBasis": "expected",
+                      "calendarYear": 2026,
+                      "totalDemandUsd": "90.000000",
+                      "initialDemandUsd": "90.000000",
+                      "beyondTermFollowOnUsd": "0.000000",
+                      "withinTermFollowOnUsd": "0.000000"
+                    }
+                  ],
+                  "reconciliation": {
+                    "countBasis": "expected",
+                    "firstGapRoundId": null,
+                    "allocationGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "initialDemandUsd": "90.000000",
+                    "firstBudgetGapMonth": null,
+                    "lifetimeFollowOnUsd": "0.000000",
+                    "firstGapAllocationId": null,
+                    "reserveEarmarkGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "beyondTermFollowOnUsd": "0.000000",
+                    "withinTermFollowOnUsd": "0.000000",
+                    "signedBudgetResidualUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedLifetimeHeadroomUsd": "0.000000",
+                    "signedRoundingResidualUsd": "0.000000",
+                    "lifetimeBudgetShortfallUsd": "0.000000",
+                    "unassignedPlanningBudgetUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedDemandRoundingResidualUsd": "0.000000",
+                    "signedTimingRoundingResidualUsd": "0.000000",
+                    "signedAllocationRoundingResidualUsd": "0.000000"
+                  },
+                  "plannedReserveGapUsd": "0.000000"
+                },
+                {
+                  "name": "participation_full",
+                  "label": "Full participation",
+                  "state": "complete",
+                  "verdicts": {
+                    "timing": "within_term",
+                    "staleness": "unknown_current_source",
+                    "inputSupport": "complete",
+                    "reserveEarmark": "within_earmark",
+                    "allocationBudget": "within_allocation",
+                    "lifetimeCapacity": "within_capacity"
+                  },
+                  "countBasis": "expected",
+                  "changedPaths": [],
+                  "annualSchedule": [
+                    {
+                      "fundYear": 1,
+                      "countBasis": "expected",
+                      "calendarYear": 2026,
+                      "totalDemandUsd": "90.000000",
+                      "initialDemandUsd": "90.000000",
+                      "beyondTermFollowOnUsd": "0.000000",
+                      "withinTermFollowOnUsd": "0.000000"
+                    }
+                  ],
+                  "reconciliation": {
+                    "countBasis": "expected",
+                    "firstGapRoundId": null,
+                    "allocationGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "initialDemandUsd": "90.000000",
+                    "firstBudgetGapMonth": null,
+                    "lifetimeFollowOnUsd": "0.000000",
+                    "firstGapAllocationId": null,
+                    "reserveEarmarkGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "beyondTermFollowOnUsd": "0.000000",
+                    "withinTermFollowOnUsd": "0.000000",
+                    "signedBudgetResidualUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedLifetimeHeadroomUsd": "0.000000",
+                    "signedRoundingResidualUsd": "0.000000",
+                    "lifetimeBudgetShortfallUsd": "0.000000",
+                    "unassignedPlanningBudgetUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedDemandRoundingResidualUsd": "0.000000",
+                    "signedTimingRoundingResidualUsd": "0.000000",
+                    "signedAllocationRoundingResidualUsd": "0.000000"
+                  },
+                  "plannedReserveGapUsd": "0.000000"
+                },
+                {
+                  "name": "fixed_checks_and_pro_rata_rounds_plus_25pct",
+                  "label": "Fixed checks +25%; pro-rata round sizes +25%",
+                  "state": "complete",
+                  "verdicts": {
+                    "timing": "within_term",
+                    "staleness": "unknown_current_source",
+                    "inputSupport": "complete",
+                    "reserveEarmark": "within_earmark",
+                    "allocationBudget": "allocation_gap",
+                    "lifetimeCapacity": "over_capacity"
+                  },
+                  "countBasis": "expected",
+                  "changedPaths": ["allocations[0].initialCheckUsd"],
+                  "annualSchedule": [
+                    {
+                      "fundYear": 1,
+                      "countBasis": "expected",
+                      "calendarYear": 2026,
+                      "totalDemandUsd": "112.500000",
+                      "initialDemandUsd": "112.500000",
+                      "beyondTermFollowOnUsd": "0.000000",
+                      "withinTermFollowOnUsd": "0.000000"
+                    }
+                  ],
+                  "reconciliation": {
+                    "countBasis": "expected",
+                    "firstGapRoundId": null,
+                    "allocationGapUsd": {
+                      "state": "available",
+                      "value": "22.500000"
+                    },
+                    "initialDemandUsd": "112.500000",
+                    "firstBudgetGapMonth": 9,
+                    "lifetimeFollowOnUsd": "0.000000",
+                    "firstGapAllocationId": "a1",
+                    "reserveEarmarkGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "beyondTermFollowOnUsd": "0.000000",
+                    "withinTermFollowOnUsd": "0.000000",
+                    "signedBudgetResidualUsd": {
+                      "state": "available",
+                      "value": "-22.500000"
+                    },
+                    "signedLifetimeHeadroomUsd": "-22.500000",
+                    "signedRoundingResidualUsd": "0.000000",
+                    "lifetimeBudgetShortfallUsd": "22.500000",
+                    "unassignedPlanningBudgetUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedDemandRoundingResidualUsd": "0.000000",
+                    "signedTimingRoundingResidualUsd": "0.000000",
+                    "signedAllocationRoundingResidualUsd": "0.000000"
+                  },
+                  "plannedReserveGapUsd": "0.000000"
+                },
+                {
+                  "name": "follow_on_6_months_earlier",
+                  "label": "Follow-ons six months earlier",
+                  "state": "complete",
+                  "verdicts": {
+                    "timing": "within_term",
+                    "staleness": "unknown_current_source",
+                    "inputSupport": "complete",
+                    "reserveEarmark": "within_earmark",
+                    "allocationBudget": "within_allocation",
+                    "lifetimeCapacity": "within_capacity"
+                  },
+                  "countBasis": "expected",
+                  "changedPaths": [],
+                  "annualSchedule": [
+                    {
+                      "fundYear": 1,
+                      "countBasis": "expected",
+                      "calendarYear": 2026,
+                      "totalDemandUsd": "90.000000",
+                      "initialDemandUsd": "90.000000",
+                      "beyondTermFollowOnUsd": "0.000000",
+                      "withinTermFollowOnUsd": "0.000000"
+                    }
+                  ],
+                  "reconciliation": {
+                    "countBasis": "expected",
+                    "firstGapRoundId": null,
+                    "allocationGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "initialDemandUsd": "90.000000",
+                    "firstBudgetGapMonth": null,
+                    "lifetimeFollowOnUsd": "0.000000",
+                    "firstGapAllocationId": null,
+                    "reserveEarmarkGapUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "beyondTermFollowOnUsd": "0.000000",
+                    "withinTermFollowOnUsd": "0.000000",
+                    "signedBudgetResidualUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedLifetimeHeadroomUsd": "0.000000",
+                    "signedRoundingResidualUsd": "0.000000",
+                    "lifetimeBudgetShortfallUsd": "0.000000",
+                    "unassignedPlanningBudgetUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    },
+                    "signedDemandRoundingResidualUsd": "0.000000",
+                    "signedTimingRoundingResidualUsd": "0.000000",
+                    "signedAllocationRoundingResidualUsd": "0.000000"
+                  },
+                  "plannedReserveGapUsd": "0.000000"
+                }
+              ],
+              "verdicts": {
+                "timing": "within_term",
+                "staleness": "unknown_current_source",
+                "inputSupport": "complete",
+                "reserveEarmark": "within_earmark",
+                "allocationBudget": "within_allocation",
+                "lifetimeCapacity": "within_capacity"
+              },
+              "allocations": [
+                {
+                  "name": "Seed",
+                  "rounds": [],
+                  "entered": {
+                    "state": "unavailable",
+                    "value": null,
+                    "reason": "NOT_ENTERED"
+                  },
+                  "expected": {
+                    "label": "Expected companies",
+                    "countBasis": "expected",
+                    "companyCount": "90.000000000000",
+                    "reserveRatio": {
+                      "state": "available",
+                      "value": "0.000000000000"
+                    },
+                    "totalDemandUsd": "90.000000",
+                    "initialDemandUsd": "90.000000",
+                    "followOnDemandUsd": "0.000000",
+                    "signedResidualUsd": "0.000000",
+                    "reserveRatioDenominator": "allocated_investment_capital",
+                    "signedReserveResidualUsd": {
+                      "state": "available",
+                      "value": "0.000000"
+                    }
+                  },
+                  "allocationId": "a1",
+                  "allocationBudgetUsd": {
+                    "state": "available",
+                    "value": "90.000000"
+                  },
+                  "expectedPerCompanyCostUsd": "1.000000",
+                  "designatedFollowOnReserveUsd": {
+                    "state": "available",
+                    "value": "0.000000"
+                  }
+                }
+              ],
+              "assumptions": {
+                "homogeneousAllocation": true,
+                "affineCheckAndOwnershipUpdates": true,
+                "graduationAndParticipationIndependentOfOwnershipHistory": true
+              },
+              "disclosures": {
+                "gp": "Available construction capital deducts the GP deemed contribution under ADR-070. An omitted funded-from-fees fraction is treated as zero for this calculation without changing the saved source. The fraction does not reduce the management-fee basis or fee amount.",
+                "budget": "Available construction capital excludes recycling and exit proceeds; fee offsets are not modeled. Feasibility is evaluated under these assumptions.",
+                "timing": "This schedule assumes capital can be called as needed. It does not model current cash availability or capital-call execution."
+              },
+              "methodVersion": "capital-planning/1.0.0",
+              "monthlyDetail": [
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 0,
+                  "demandMonth": 0,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 1,
+                  "demandMonth": 1,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 2,
+                  "demandMonth": 2,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 3,
+                  "demandMonth": 3,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 4,
+                  "demandMonth": 4,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 5,
+                  "demandMonth": 5,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 6,
+                  "demandMonth": 6,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 7,
+                  "demandMonth": 7,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 8,
+                  "demandMonth": 8,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 9,
+                  "demandMonth": 9,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 10,
+                  "demandMonth": 10,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                },
+                {
+                  "kind": "initial",
+                  "roundId": null,
+                  "demandUsd": "7.500000",
+                  "beyondTerm": false,
+                  "countBasis": "expected",
+                  "entryMonth": 11,
+                  "demandMonth": 11,
+                  "allocationId": "a1",
+                  "companyCount": "7.500000000000"
+                }
+              ],
+              "annualSchedule": [
+                {
+                  "fundYear": 1,
+                  "countBasis": "expected",
+                  "calendarYear": 2026,
+                  "totalDemandUsd": "90.000000",
+                  "initialDemandUsd": "90.000000",
+                  "beyondTermFollowOnUsd": "0.000000",
+                  "withinTermFollowOnUsd": "0.000000"
+                }
+              ],
+              "qualifications": [],
+              "reconciliation": [
+                {
+                  "countBasis": "expected",
+                  "firstGapRoundId": null,
+                  "allocationGapUsd": {
+                    "state": "available",
+                    "value": "0.000000"
+                  },
+                  "initialDemandUsd": "90.000000",
+                  "firstBudgetGapMonth": null,
+                  "lifetimeFollowOnUsd": "0.000000",
+                  "firstGapAllocationId": null,
+                  "reserveEarmarkGapUsd": {
+                    "state": "available",
+                    "value": "0.000000"
+                  },
+                  "beyondTermFollowOnUsd": "0.000000",
+                  "withinTermFollowOnUsd": "0.000000",
+                  "signedBudgetResidualUsd": {
+                    "state": "available",
+                    "value": "0.000000"
+                  },
+                  "signedLifetimeHeadroomUsd": "0.000000",
+                  "signedRoundingResidualUsd": "0.000000",
+                  "lifetimeBudgetShortfallUsd": "0.000000",
+                  "unassignedPlanningBudgetUsd": {
+                    "state": "available",
+                    "value": "0.000000"
+                  },
+                  "signedDemandRoundingResidualUsd": "0.000000",
+                  "signedTimingRoundingResidualUsd": "0.000000",
+                  "signedAllocationRoundingResidualUsd": "0.000000"
+                }
+              ]
+            },
+            "sourceBundle": {
+              "gp": {
+                "resolved": {
+                  "fact": {
+                    "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+                    "rawValue": 10,
+                    "unitClass": "resolved_dollars",
+                    "sourceUnit": "usd",
+                    "normalizedValue": "10.000000",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "source": "nested_amount",
+                  "commitmentUsd": "10.000000"
+                },
+                "methodVersion": "capital-gp-deemed/1.0.0",
+                "fundedFromFeesPct": {
+                  "fact": {
+                    "path": "fundedFromFeesPct",
+                    "rawValue": 0.4,
+                    "unitClass": "resolved_ratio",
+                    "sourceUnit": "ratio",
+                    "normalizedValue": "0.400000000000",
+                    "provenanceOrigin": "contract_resolved"
+                  },
+                  "state": "present",
+                  "defaultReason": null,
+                  "effectiveValue": "0.400000000000"
+                },
+                "nestedCommitmentPct": {
+                  "state": "absent"
+                },
+                "deemedContributionUsd": "4.000000",
+                "nestedCommitmentAmount": {
+                  "state": "present",
+                  "rawValue": 10
+                },
+                "topLevelCommitmentAmount": {
+                  "state": "absent"
+                }
+              },
+              "fundLife": {
+                "path": "fundLife",
+                "rawValue": 2,
+                "shadowed": null,
+                "effectiveValue": 2,
+                "provenanceOrigin": "contract_resolved"
+              },
+              "fundSize": {
+                "path": "funds.size",
+                "rawValue": "100.00",
+                "unitClass": "resolved_dollars",
+                "sourceUnit": "usd",
+                "normalizedValue": "100.000000",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "feeExpense": {
+                "expenses": [
+                  {
+                    "id": "expense-1",
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0]",
+                    "amount": {
+                      "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+                      "rawValue": 1,
+                      "unitClass": "resolved_dollars",
+                      "sourceUnit": "usd",
+                      "normalizedValue": "1.000000",
+                      "provenanceOrigin": "scenario_declared"
+                    },
+                    "period": {
+                      "end": {
+                        "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+                        "rawValue": 2,
+                        "effectiveValue": 2,
+                        "provenanceOrigin": "contract_resolved"
+                      },
+                      "kind": "annual",
+                      "start": {
+                        "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+                        "rawValue": 1,
+                        "effectiveValue": 1,
+                        "provenanceOrigin": "contract_resolved"
+                      },
+                      "endDefaultReason": null,
+                      "normalizedEndMonth": 23,
+                      "normalizedStartMonth": 0
+                    },
+                    "category": "administration",
+                    "frequency": "annual",
+                    "growthRate": {
+                      "state": "absent",
+                      "effectiveValue": "0.000000000000"
+                    }
+                  }
+                ],
+                "feeTiers": [
+                  {
+                    "id": "fee-1",
+                    "name": "Committed fee",
+                    "path": "economicsAssumptions.feeModel.tiers[0]",
+                    "rate": {
+                      "path": "economicsAssumptions.feeModel.tiers[0].rate",
+                      "rawValue": 0.02,
+                      "unitClass": "resolved_ratio",
+                      "sourceUnit": "ratio",
+                      "normalizedValue": "0.020000000000",
+                      "provenanceOrigin": "contract_resolved"
+                    },
+                    "basis": "committed_capital",
+                    "period": {
+                      "end": {
+                        "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+                        "rawValue": 2,
+                        "effectiveValue": 2,
+                        "provenanceOrigin": "contract_resolved"
+                      },
+                      "kind": "annual",
+                      "start": {
+                        "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+                        "rawValue": 1,
+                        "effectiveValue": 1,
+                        "provenanceOrigin": "contract_resolved"
+                      },
+                      "endDefaultReason": null,
+                      "normalizedEndMonth": 23,
+                      "normalizedStartMonth": 0
+                    },
+                    "population": "full_fund_committed_capital",
+                    "recyclingAnnotation": null
+                  }
+                ],
+                "annotations": [],
+                "feeBasisUsd": "100.000000",
+                "rawPresence": {
+                  "explicitFeeTiers": "nonempty",
+                  "legacyFeeProfiles": "absent",
+                  "managementFeeRate": false,
+                  "nestedDefaultRate": false,
+                  "legacyFundExpenses": "absent",
+                  "explicitAnnualExpenses": "nonempty"
+                },
+                "feeSelection": "explicit_tiers",
+                "methodVersion": "capital-fee-expense/1.0.0",
+                "shadowedPaths": [],
+                "feeSourceLabel": "economics_override",
+                "lifetimeFeesUsd": "4.000000",
+                "expenseSelection": "explicit_annual",
+                "expenseSourceLabel": "economics_override",
+                "lifetimeExpensesUsd": "2.000000",
+                "selectedFeeProfileId": null
+              },
+              "projection": {
+                "fund": {
+                  "size": "100.00",
+                  "schemaTag": {
+                    "state": "absent"
+                  },
+                  "sizeUnitTag": {
+                    "state": "absent"
+                  },
+                  "baseCurrency": "USD"
+                },
+                "facts": [
+                  {
+                    "path": "allocations",
+                    "state": "array",
+                    "length": 2
+                  },
+                  {
+                    "path": "allocations[0].category",
+                    "state": "present",
+                    "rawValue": "Initial"
+                  },
+                  {
+                    "path": "allocations[0].id",
+                    "state": "present",
+                    "rawValue": "category-initial"
+                  },
+                  {
+                    "path": "allocations[0].percentage",
+                    "state": "present",
+                    "rawValue": 60
+                  },
+                  {
+                    "path": "allocations[1].category",
+                    "state": "present",
+                    "rawValue": "Follow-on"
+                  },
+                  {
+                    "path": "allocations[1].id",
+                    "state": "present",
+                    "rawValue": "category-follow-on"
+                  },
+                  {
+                    "path": "allocations[1].percentage",
+                    "state": "present",
+                    "rawValue": 40
+                  },
+                  {
+                    "path": "capitalPlanAllocations",
+                    "state": "array",
+                    "length": 1
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].capitalAllocationPct",
+                    "state": "present",
+                    "rawValue": 100
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].entryRound",
+                    "state": "present",
+                    "rawValue": "Seed"
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].followOnParticipationPct",
+                    "state": "present",
+                    "rawValue": 0
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].followOnStrategy",
+                    "state": "present",
+                    "rawValue": "amount"
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].id",
+                    "state": "present",
+                    "rawValue": "a1"
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].initialCheckAmount",
+                    "state": "present",
+                    "rawValue": 1
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].initialCheckStrategy",
+                    "state": "present",
+                    "rawValue": "amount"
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].investmentHorizonMonths",
+                    "state": "present",
+                    "rawValue": 12
+                  },
+                  {
+                    "path": "capitalPlanAllocations[0].name",
+                    "state": "present",
+                    "rawValue": "Seed"
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses",
+                    "state": "array",
+                    "length": 1
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+                    "state": "present",
+                    "rawValue": 1
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0].category",
+                    "state": "present",
+                    "rawValue": "administration"
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+                    "state": "present",
+                    "rawValue": 2
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0].id",
+                    "state": "present",
+                    "rawValue": "expense-1"
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+                    "state": "present",
+                    "rawValue": 1
+                  },
+                  {
+                    "path": "economicsAssumptions.expenseModel.source",
+                    "state": "present",
+                    "rawValue": "economics_override"
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.source",
+                    "state": "present",
+                    "rawValue": "economics_override"
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers",
+                    "state": "array",
+                    "length": 1
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].basis",
+                    "state": "present",
+                    "rawValue": "committed_capital"
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+                    "state": "present",
+                    "rawValue": 2
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].id",
+                    "state": "present",
+                    "rawValue": "fee-1"
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].name",
+                    "state": "present",
+                    "rawValue": "Committed fee"
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].rate",
+                    "state": "present",
+                    "rawValue": 0.02
+                  },
+                  {
+                    "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+                    "state": "present",
+                    "rawValue": 1
+                  },
+                  {
+                    "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+                    "state": "present",
+                    "rawValue": 10
+                  },
+                  {
+                    "path": "fundLife",
+                    "state": "present",
+                    "rawValue": 2
+                  },
+                  {
+                    "path": "fundSize",
+                    "state": "present",
+                    "rawValue": 100
+                  },
+                  {
+                    "path": "fundedFromFeesPct",
+                    "state": "present",
+                    "rawValue": 0.4
+                  },
+                  {
+                    "path": "investmentPeriod",
+                    "state": "present",
+                    "rawValue": 1
+                  },
+                  {
+                    "path": "isEvergreen",
+                    "state": "present",
+                    "rawValue": false
+                  },
+                  {
+                    "path": "pipelineProfiles",
+                    "state": "array",
+                    "length": 1
+                  },
+                  {
+                    "path": "pipelineProfiles[0].id",
+                    "state": "present",
+                    "rawValue": "p1"
+                  },
+                  {
+                    "path": "pipelineProfiles[0].name",
+                    "state": "present",
+                    "rawValue": "Synthetic pipeline"
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages",
+                    "state": "array",
+                    "length": 1
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].esopPct",
+                    "state": "present",
+                    "rawValue": 0
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].exitRate",
+                    "state": "present",
+                    "rawValue": 0
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].exitValuation",
+                    "state": "present",
+                    "rawValue": 0
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].graduationRate",
+                    "state": "present",
+                    "rawValue": 0
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].id",
+                    "state": "present",
+                    "rawValue": "s0"
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].monthsToExit",
+                    "state": "present",
+                    "rawValue": 24
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].monthsToGraduate",
+                    "state": "present",
+                    "rawValue": 12
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].name",
+                    "state": "present",
+                    "rawValue": "Seed"
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].roundSize",
+                    "state": "present",
+                    "rawValue": 2
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].valuation",
+                    "state": "present",
+                    "rawValue": 10
+                  },
+                  {
+                    "path": "pipelineProfiles[0].stages[0].valuationType",
+                    "state": "present",
+                    "rawValue": "pre"
+                  },
+                  {
+                    "path": "vintageYear",
+                    "state": "present",
+                    "rawValue": 2026
+                  }
+                ],
+                "fundId": 101,
+                "configUnitTag": {
+                  "state": "absent"
+                },
+                "rawConfigHash": "c16752b9eeaa3ffc15f59e6e31f5d42dd5d292384a2a58423d5553eeeac061f0",
+                "sourceConfigId": 11,
+                "configSchemaTag": {
+                  "state": "absent"
+                },
+                "contractVersion": "fund-scenario-capital-source-projection/1.0.0",
+                "sourceConfigVersion": 1
+              },
+              "isEvergreen": false,
+              "publishedAt": "2026-07-01T00:00:00.000Z",
+              "vintageYear": 2026,
+              "baseCurrency": "USD",
+              "construction": {
+                "links": [
+                  {
+                    "allocationId": "a1",
+                    "entryStageId": "s0",
+                    "provenanceOrigin": "scenario_declared",
+                    "pipelineProfileId": "p1"
+                  }
+                ],
+                "allocations": [
+                  {
+                    "id": "category-initial",
+                    "category": "Initial",
+                    "percentage": {
+                      "path": "allocations[0].percentage",
+                      "rawValue": 60,
+                      "unitClass": "resolved_ratio",
+                      "sourceUnit": "percent_points",
+                      "normalizedValue": "0.600000000000",
+                      "provenanceOrigin": "contract_resolved"
+                    }
+                  },
+                  {
+                    "id": "category-follow-on",
+                    "category": "Follow-on",
+                    "percentage": {
+                      "path": "allocations[1].percentage",
+                      "rawValue": 40,
+                      "unitClass": "resolved_ratio",
+                      "sourceUnit": "percent_points",
+                      "normalizedValue": "0.400000000000",
+                      "provenanceOrigin": "contract_resolved"
+                    }
+                  }
+                ],
+                "sectorProfiles": [],
+                "pipelineProfiles": [
+                  {
+                    "id": "p1",
+                    "name": "Synthetic pipeline",
+                    "stages": [
+                      {
+                        "id": "s0",
+                        "name": "Seed",
+                        "esopPct": {
+                          "path": "pipelineProfiles[0].stages[0].esopPct",
+                          "rawValue": 0,
+                          "unitClass": "resolved_ratio",
+                          "sourceUnit": "ratio",
+                          "normalizedValue": "0.000000000000",
+                          "provenanceOrigin": "scenario_declared"
+                        },
+                        "roundSize": {
+                          "path": "pipelineProfiles[0].stages[0].roundSize",
+                          "rawValue": 2,
+                          "unitClass": "resolved_dollars",
+                          "sourceUnit": "usd",
+                          "normalizedValue": "2.000000",
+                          "provenanceOrigin": "scenario_declared"
+                        },
+                        "valuation": {
+                          "path": "pipelineProfiles[0].stages[0].valuation",
+                          "rawValue": 10,
+                          "unitClass": "resolved_dollars",
+                          "sourceUnit": "usd",
+                          "normalizedValue": "10.000000",
+                          "provenanceOrigin": "scenario_declared"
+                        },
+                        "timeOrigin": "unresolved",
+                        "exitValuation": {
+                          "path": "pipelineProfiles[0].stages[0].exitValuation",
+                          "rawValue": 0,
+                          "unitClass": "resolved_dollars",
+                          "sourceUnit": "usd",
+                          "normalizedValue": "0.000000",
+                          "provenanceOrigin": "scenario_declared"
+                        },
+                        "poolSemantics": "unresolved",
+                        "valuationType": "pre",
+                        "graduationRate": {
+                          "path": "pipelineProfiles[0].stages[0].graduationRate",
+                          "rawValue": 0,
+                          "unitClass": "resolved_ratio",
+                          "sourceUnit": "ratio",
+                          "normalizedValue": "0.000000000000",
+                          "provenanceOrigin": "scenario_declared"
+                        },
+                        "monthsToGraduate": 12
+                      }
+                    ]
+                  }
+                ],
+                "capitalPlanAllocations": [
+                  {
+                    "id": "a1",
+                    "name": "Seed",
+                    "entryRound": "Seed",
+                    "followOnAmount": null,
+                    "sectorProfileId": null,
+                    "followOnStrategy": "amount",
+                    "initialCheckAmount": {
+                      "path": "capitalPlanAllocations[0].initialCheckAmount",
+                      "rawValue": 1,
+                      "unitClass": "resolved_dollars",
+                      "sourceUnit": "usd",
+                      "normalizedValue": "1.000000",
+                      "provenanceOrigin": "scenario_declared"
+                    },
+                    "initialOwnershipPct": null,
+                    "capitalAllocationPct": {
+                      "path": "capitalPlanAllocations[0].capitalAllocationPct",
+                      "rawValue": 100,
+                      "unitClass": "resolved_ratio",
+                      "sourceUnit": "percent_points",
+                      "normalizedValue": "1.000000000000",
+                      "provenanceOrigin": "scenario_declared"
+                    },
+                    "initialCheckStrategy": "amount",
+                    "investmentHorizonMonths": 12,
+                    "followOnParticipationPct": {
+                      "path": "capitalPlanAllocations[0].followOnParticipationPct",
+                      "rawValue": 0,
+                      "unitClass": "resolved_ratio",
+                      "sourceUnit": "percent_points",
+                      "normalizedValue": "0.000000000000",
+                      "provenanceOrigin": "scenario_declared"
+                    }
+                  }
+                ]
+              },
+              "configFundSize": {
+                "fact": {
+                  "path": "fundSize",
+                  "rawValue": 100,
+                  "unitClass": "resolved_dollars",
+                  "sourceUnit": "usd",
+                  "normalizedValue": "100.000000",
+                  "provenanceOrigin": "scenario_declared"
+                },
+                "state": "matched"
+              },
+              "contractVersion": "fund-scenario-capital-source-bundle/1.0.0",
+              "investmentPeriod": {
+                "path": "investmentPeriod",
+                "rawValue": 1,
+                "shadowed": null,
+                "effectiveValue": 1,
+                "provenanceOrigin": "contract_resolved"
+              },
+              "sourceBundleHash": "dd50836b32231f673ee5192744288dfaa754f1d54e4f943e45ecf4a36ea48072",
+              "unitDeclarations": {
+                "fundSize": "usd",
+                "funds.size": "usd",
+                "pipelineProfiles[0].stages[0].esopPct": "ratio",
+                "pipelineProfiles[0].stages[0].roundSize": "usd",
+                "pipelineProfiles[0].stages[0].valuation": "usd",
+                "pipelineProfiles[0].stages[0].exitValuation": "usd",
+                "capitalPlanAllocations[0].initialCheckAmount": "usd",
+                "pipelineProfiles[0].stages[0].graduationRate": "ratio",
+                "capitalPlanAllocations[0].capitalAllocationPct": "percent_points",
+                "capitalPlanAllocations[0].followOnParticipationPct": "percent_points",
+                "economicsAssumptions.gpCommitmentModel.commitmentAmount": "usd",
+                "economicsAssumptions.expenseModel.annualExpenses[0].amount": "usd"
+              },
+              "modelInputsAsOfDate": null,
+              "interpretationVersion": "capital-source-interpretation/1.0.1"
+            },
+            "contractVersion": "capital-planning/1.0.0"
+          },
+          "variantId": "e5c762b5-e6be-44dc-9552-f6c5e1d1fd96",
+          "overrideType": "capital_plan",
+          "scenarioSetId": "edbddca1-5125-4f39-9a54-7ec2ccb1c34d"
+        }
+      ],
+      "inputHash": "c81323a1ebb872a3396e82422ac87c81fe16485c5cba41a0196e187c22c09f00",
+      "calculatedAt": "2026-09-11T16:36:02.988Z",
+      "methodVersion": "capital-planning/1.0.0",
+      "scenarioSetId": "edbddca1-5125-4f39-9a54-7ec2ccb1c34d",
+      "sourceConfigId": 11,
+      "calculationMode": "sync_capital_plan",
+      "contractVersion": "fund-scenario-capital-calculation/1.0.0",
+      "sourceBundleHash": "dd50836b32231f673ee5192744288dfaa754f1d54e4f943e45ecf4a36ea48072",
+      "baselineVariantId": "e5c762b5-e6be-44dc-9552-f6c5e1d1fd96",
+      "calculationDomain": "capital_plan",
+      "calculationVersion": "1.0.0",
+      "sourceConfigVersion": 1,
+      "interpretationVersion": "capital-source-interpretation/1.0.1",
+      "capitalPreimageVersion": "capital-preimage/1.0.0"
+    }
+  },
+  "companions": {
+    "manual99": {
+      "input": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "issuerLabel": "Synthetic issuer",
+        "issuerKind": "representative_issuer",
+        "exitEquityValueUsd": "0.000000",
+        "exitDate": "2026-01-01",
+        "asConvertedOwnershipRatio": "0.250000000000",
+        "manualOwnershipOverrideRatio": "0.500000000000",
+        "ownershipOverrideExplanation": "Synthetic explicit override",
+        "fundLiquidationPreferenceUsd": "4000000.000000",
+        "preferenceType": "participating",
+        "participationCap": {
+          "type": "none"
+        },
+        "totalPreferencesSeniorUsd": "2000000.000000",
+        "totalPreferencesPariPassuUsd": "4000000.000000",
+        "totalPreferencesJuniorUsd": "2000000.000000",
+        "investedCostUsd": "2000000.000000",
+        "positionFmv": {
+          "amountUsd": "7.000000",
+          "asOfDate": "2026-08-01",
+          "basis": "direct"
+        },
+        "manualFmvOverride": {
+          "amountUsd": "99.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        }
+      },
+      "performance": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "input": {
+          "methodVersion": "aggregate-preference-forecast/1.0.0",
+          "issuerLabel": "Synthetic issuer",
+          "issuerKind": "representative_issuer",
+          "exitEquityValueUsd": "0.000000",
+          "exitDate": "2026-01-01",
+          "asConvertedOwnershipRatio": "0.250000000000",
+          "manualOwnershipOverrideRatio": "0.500000000000",
+          "ownershipOverrideExplanation": "Synthetic explicit override",
+          "fundLiquidationPreferenceUsd": "4000000.000000",
+          "preferenceType": "participating",
+          "participationCap": {
+            "type": "none"
+          },
+          "totalPreferencesSeniorUsd": "2000000.000000",
+          "totalPreferencesPariPassuUsd": "4000000.000000",
+          "totalPreferencesJuniorUsd": "2000000.000000",
+          "investedCostUsd": "2000000.000000",
+          "positionFmv": {
+            "amountUsd": "7.000000",
+            "asOfDate": "2026-08-01",
+            "basis": "direct"
+          },
+          "manualFmvOverride": {
+            "amountUsd": "99.000000",
+            "asOfDate": "2026-09-01",
+            "basis": "manual"
+          }
+        },
+        "effectiveOwnershipRatio": "0.500000000000",
+        "ownershipOrigin": "manual_override",
+        "preferredCandidateUsd": "0.000000",
+        "conversionCandidateUsd": "0.000000",
+        "selectedRoute": "indifferent",
+        "adjustedProceedsUsd": "0.000000",
+        "noPreferenceBaselineUsd": "0.000000",
+        "signedPreferenceBenefitUsd": "0.000000",
+        "electionUpliftUsd": "0.000000",
+        "adjustedMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "baselineMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "effectiveFmv": {
+          "amountUsd": "99.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        },
+        "fmvUnavailableReason": null,
+        "capAttainmentUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "conversionThresholdUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "preferredRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "conversionRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "exitBeyondFundTerm": false,
+        "juniorPreferenceLabel": "Preferences Behind Position",
+        "disclosure": "Aggregate preference forecast based on entered ownership and summarized preference terms. It does not reproduce a security-level cap table or legal distribution waterfall.",
+        "constructionFunding": "excluded",
+        "fixedOtherClaims": true,
+        "fixedResidualShare": true,
+        "voluntaryFullConversion": true
+      }
+    },
+    "manual1": {
+      "input": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "issuerLabel": "Synthetic issuer",
+        "issuerKind": "representative_issuer",
+        "exitEquityValueUsd": "0.000000",
+        "exitDate": "2026-01-01",
+        "asConvertedOwnershipRatio": "0.250000000000",
+        "manualOwnershipOverrideRatio": "0.500000000000",
+        "ownershipOverrideExplanation": "Synthetic explicit override",
+        "fundLiquidationPreferenceUsd": "4000000.000000",
+        "preferenceType": "participating",
+        "participationCap": {
+          "type": "none"
+        },
+        "totalPreferencesSeniorUsd": "2000000.000000",
+        "totalPreferencesPariPassuUsd": "4000000.000000",
+        "totalPreferencesJuniorUsd": "2000000.000000",
+        "investedCostUsd": "2000000.000000",
+        "positionFmv": {
+          "amountUsd": "7.000000",
+          "asOfDate": "2026-08-01",
+          "basis": "direct"
+        },
+        "manualFmvOverride": {
+          "amountUsd": "1.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        }
+      },
+      "performance": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "input": {
+          "methodVersion": "aggregate-preference-forecast/1.0.0",
+          "issuerLabel": "Synthetic issuer",
+          "issuerKind": "representative_issuer",
+          "exitEquityValueUsd": "0.000000",
+          "exitDate": "2026-01-01",
+          "asConvertedOwnershipRatio": "0.250000000000",
+          "manualOwnershipOverrideRatio": "0.500000000000",
+          "ownershipOverrideExplanation": "Synthetic explicit override",
+          "fundLiquidationPreferenceUsd": "4000000.000000",
+          "preferenceType": "participating",
+          "participationCap": {
+            "type": "none"
+          },
+          "totalPreferencesSeniorUsd": "2000000.000000",
+          "totalPreferencesPariPassuUsd": "4000000.000000",
+          "totalPreferencesJuniorUsd": "2000000.000000",
+          "investedCostUsd": "2000000.000000",
+          "positionFmv": {
+            "amountUsd": "7.000000",
+            "asOfDate": "2026-08-01",
+            "basis": "direct"
+          },
+          "manualFmvOverride": {
+            "amountUsd": "1.000000",
+            "asOfDate": "2026-09-01",
+            "basis": "manual"
+          }
+        },
+        "effectiveOwnershipRatio": "0.500000000000",
+        "ownershipOrigin": "manual_override",
+        "preferredCandidateUsd": "0.000000",
+        "conversionCandidateUsd": "0.000000",
+        "selectedRoute": "indifferent",
+        "adjustedProceedsUsd": "0.000000",
+        "noPreferenceBaselineUsd": "0.000000",
+        "signedPreferenceBenefitUsd": "0.000000",
+        "electionUpliftUsd": "0.000000",
+        "adjustedMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "baselineMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "effectiveFmv": {
+          "amountUsd": "1.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        },
+        "fmvUnavailableReason": null,
+        "capAttainmentUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "conversionThresholdUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "preferredRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "conversionRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "exitBeyondFundTerm": false,
+        "juniorPreferenceLabel": "Preferences Behind Position",
+        "disclosure": "Aggregate preference forecast based on entered ownership and summarized preference terms. It does not reproduce a security-level cap table or legal distribution waterfall.",
+        "constructionFunding": "excluded",
+        "fixedOtherClaims": true,
+        "fixedResidualShare": true,
+        "voluntaryFullConversion": true
+      }
+    },
+    "unavailable": {
+      "input": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "issuerLabel": "Synthetic issuer",
+        "issuerKind": "representative_issuer",
+        "exitEquityValueUsd": "0.000000",
+        "exitDate": "2026-01-01",
+        "asConvertedOwnershipRatio": "0.250000000000",
+        "manualOwnershipOverrideRatio": "0.500000000000",
+        "ownershipOverrideExplanation": "Synthetic explicit override",
+        "fundLiquidationPreferenceUsd": "4000000.000000",
+        "preferenceType": "participating",
+        "participationCap": {
+          "type": "none"
+        },
+        "totalPreferencesSeniorUsd": "2000000.000000",
+        "totalPreferencesPariPassuUsd": "4000000.000000",
+        "totalPreferencesJuniorUsd": "2000000.000000",
+        "investedCostUsd": "2000000.000000"
+      },
+      "performance": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "input": {
+          "methodVersion": "aggregate-preference-forecast/1.0.0",
+          "issuerLabel": "Synthetic issuer",
+          "issuerKind": "representative_issuer",
+          "exitEquityValueUsd": "0.000000",
+          "exitDate": "2026-01-01",
+          "asConvertedOwnershipRatio": "0.250000000000",
+          "manualOwnershipOverrideRatio": "0.500000000000",
+          "ownershipOverrideExplanation": "Synthetic explicit override",
+          "fundLiquidationPreferenceUsd": "4000000.000000",
+          "preferenceType": "participating",
+          "participationCap": {
+            "type": "none"
+          },
+          "totalPreferencesSeniorUsd": "2000000.000000",
+          "totalPreferencesPariPassuUsd": "4000000.000000",
+          "totalPreferencesJuniorUsd": "2000000.000000",
+          "investedCostUsd": "2000000.000000"
+        },
+        "effectiveOwnershipRatio": "0.500000000000",
+        "ownershipOrigin": "manual_override",
+        "preferredCandidateUsd": "0.000000",
+        "conversionCandidateUsd": "0.000000",
+        "selectedRoute": "indifferent",
+        "adjustedProceedsUsd": "0.000000",
+        "noPreferenceBaselineUsd": "0.000000",
+        "signedPreferenceBenefitUsd": "0.000000",
+        "electionUpliftUsd": "0.000000",
+        "adjustedMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "baselineMoic": {
+          "state": "available",
+          "value": "0.000000000000"
+        },
+        "effectiveFmv": null,
+        "fmvUnavailableReason": "FMV_UNAVAILABLE",
+        "capAttainmentUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "conversionThresholdUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "preferredRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "conversionRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "exitBeyondFundTerm": false,
+        "juniorPreferenceLabel": "Preferences Behind Position",
+        "disclosure": "Aggregate preference forecast based on entered ownership and summarized preference terms. It does not reproduce a security-level cap table or legal distribution waterfall.",
+        "constructionFunding": "excluded",
+        "fixedOtherClaims": true,
+        "fixedResidualShare": true,
+        "voluntaryFullConversion": true
+      }
+    },
+    "zeroCost": {
+      "input": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "issuerLabel": "Synthetic issuer",
+        "issuerKind": "representative_issuer",
+        "exitEquityValueUsd": "0.000000",
+        "exitDate": "2026-01-01",
+        "asConvertedOwnershipRatio": "0.250000000000",
+        "manualOwnershipOverrideRatio": "0.500000000000",
+        "ownershipOverrideExplanation": "Synthetic explicit override",
+        "fundLiquidationPreferenceUsd": "4000000.000000",
+        "preferenceType": "participating",
+        "participationCap": {
+          "type": "none"
+        },
+        "totalPreferencesSeniorUsd": "2000000.000000",
+        "totalPreferencesPariPassuUsd": "4000000.000000",
+        "totalPreferencesJuniorUsd": "2000000.000000",
+        "investedCostUsd": "0.000000",
+        "positionFmv": {
+          "amountUsd": "7.000000",
+          "asOfDate": "2026-08-01",
+          "basis": "direct"
+        },
+        "manualFmvOverride": {
+          "amountUsd": "99.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        }
+      },
+      "performance": {
+        "methodVersion": "aggregate-preference-forecast/1.0.0",
+        "input": {
+          "methodVersion": "aggregate-preference-forecast/1.0.0",
+          "issuerLabel": "Synthetic issuer",
+          "issuerKind": "representative_issuer",
+          "exitEquityValueUsd": "0.000000",
+          "exitDate": "2026-01-01",
+          "asConvertedOwnershipRatio": "0.250000000000",
+          "manualOwnershipOverrideRatio": "0.500000000000",
+          "ownershipOverrideExplanation": "Synthetic explicit override",
+          "fundLiquidationPreferenceUsd": "4000000.000000",
+          "preferenceType": "participating",
+          "participationCap": {
+            "type": "none"
+          },
+          "totalPreferencesSeniorUsd": "2000000.000000",
+          "totalPreferencesPariPassuUsd": "4000000.000000",
+          "totalPreferencesJuniorUsd": "2000000.000000",
+          "investedCostUsd": "0.000000",
+          "positionFmv": {
+            "amountUsd": "7.000000",
+            "asOfDate": "2026-08-01",
+            "basis": "direct"
+          },
+          "manualFmvOverride": {
+            "amountUsd": "99.000000",
+            "asOfDate": "2026-09-01",
+            "basis": "manual"
+          }
+        },
+        "effectiveOwnershipRatio": "0.500000000000",
+        "ownershipOrigin": "manual_override",
+        "preferredCandidateUsd": "0.000000",
+        "conversionCandidateUsd": "0.000000",
+        "selectedRoute": "indifferent",
+        "adjustedProceedsUsd": "0.000000",
+        "noPreferenceBaselineUsd": "0.000000",
+        "signedPreferenceBenefitUsd": "0.000000",
+        "electionUpliftUsd": "0.000000",
+        "adjustedMoic": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "ZERO_COST"
+        },
+        "baselineMoic": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "ZERO_COST"
+        },
+        "effectiveFmv": {
+          "amountUsd": "99.000000",
+          "asOfDate": "2026-09-01",
+          "basis": "manual"
+        },
+        "fmvUnavailableReason": null,
+        "capAttainmentUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "conversionThresholdUsd": {
+          "state": "unavailable",
+          "value": null,
+          "reason": "UNCAPPED"
+        },
+        "preferredRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "conversionRouteTrace": {
+          "seniorPaidUsd": "0.000000",
+          "fundPaidUsd": "0.000000",
+          "otherPariPaidUsd": "0.000000",
+          "juniorPaidUsd": "0.000000",
+          "otherCommonPaidUsd": "0.000000",
+          "signedRoundingResidualUsd": "0.000000"
+        },
+        "exitBeyondFundTerm": false,
+        "juniorPreferenceLabel": "Preferences Behind Position",
+        "disclosure": "Aggregate preference forecast based on entered ownership and summarized preference terms. It does not reproduce a security-level cap table or legal distribution waterfall.",
+        "constructionFunding": "excluded",
+        "fixedOtherClaims": true,
+        "fixedResidualShare": true,
+        "voluntaryFullConversion": true
+      }
+    }
+  },
+  "b4Cp032ZeroFraction": {
+    "explicitZero": {
+      "contractVersion": "capital-planning/1.0.0",
+      "input": {
+        "contractVersion": "capital-planning/1.0.0",
+        "allocations": [
+          {
+            "allocationId": "a1",
+            "name": "Seed",
+            "entryRound": "Seed",
+            "pipelineProfileId": "p1",
+            "entryStageId": "s0",
+            "budgetShareRatio": "1.000000000000",
+            "initialCheckUsd": "1000000.000000",
+            "deploymentPeriodYears": 1,
+            "followOnRounds": []
+          }
+        ]
+      },
+      "sourceBundle": {
+        "contractVersion": "fund-scenario-capital-source-bundle/1.0.0",
+        "projection": {
+          "contractVersion": "fund-scenario-capital-source-projection/1.0.0",
+          "fundId": 101,
+          "sourceConfigId": 11,
+          "sourceConfigVersion": 1,
+          "rawConfigHash": "a6bffe2fa4ffeb2dca19097ea1dea7d392b99a5d83e23dba3c6761cb8c23e36b",
+          "fund": {
+            "size": "100000000",
+            "baseCurrency": "USD",
+            "sizeUnitTag": {
+              "state": "absent"
+            },
+            "schemaTag": {
+              "state": "absent"
+            }
+          },
+          "configUnitTag": {
+            "state": "absent"
+          },
+          "configSchemaTag": {
+            "state": "absent"
+          },
+          "facts": [
+            {
+              "path": "allocations",
+              "state": "array",
+              "length": 2
+            },
+            {
+              "path": "allocations[0].category",
+              "state": "present",
+              "rawValue": "Initial"
+            },
+            {
+              "path": "allocations[0].id",
+              "state": "present",
+              "rawValue": "category-initial"
+            },
+            {
+              "path": "allocations[0].percentage",
+              "state": "present",
+              "rawValue": 60
+            },
+            {
+              "path": "allocations[1].category",
+              "state": "present",
+              "rawValue": "Follow-on"
+            },
+            {
+              "path": "allocations[1].id",
+              "state": "present",
+              "rawValue": "category-follow-on"
+            },
+            {
+              "path": "allocations[1].percentage",
+              "state": "present",
+              "rawValue": 40
+            },
+            {
+              "path": "capitalPlanAllocations",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "capitalPlanAllocations[0].capitalAllocationPct",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "capitalPlanAllocations[0].entryRound",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "capitalPlanAllocations[0].followOnParticipationPct",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "capitalPlanAllocations[0].followOnStrategy",
+              "state": "present",
+              "rawValue": "amount"
+            },
+            {
+              "path": "capitalPlanAllocations[0].id",
+              "state": "present",
+              "rawValue": "a1"
+            },
+            {
+              "path": "capitalPlanAllocations[0].initialCheckAmount",
+              "state": "present",
+              "rawValue": 1000000
+            },
+            {
+              "path": "capitalPlanAllocations[0].initialCheckStrategy",
+              "state": "present",
+              "rawValue": "amount"
+            },
+            {
+              "path": "capitalPlanAllocations[0].investmentHorizonMonths",
+              "state": "present",
+              "rawValue": 12
+            },
+            {
+              "path": "capitalPlanAllocations[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+              "state": "present",
+              "rawValue": 200000
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].category",
+              "state": "present",
+              "rawValue": "administration"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].id",
+              "state": "present",
+              "rawValue": "expense"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.source",
+              "state": "present",
+              "rawValue": "economics_override"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.source",
+              "state": "present",
+              "rawValue": "economics_override"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].basis",
+              "state": "present",
+              "rawValue": "committed_capital"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].id",
+              "state": "present",
+              "rawValue": "fee-1"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].name",
+              "state": "present",
+              "rawValue": "Committed fee"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].rate",
+              "state": "present",
+              "rawValue": 0.018
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+              "state": "present",
+              "rawValue": 10000000
+            },
+            {
+              "path": "fundLife",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "fundSize",
+              "state": "present",
+              "rawValue": 100000000
+            },
+            {
+              "path": "fundedFromFeesPct",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "investmentPeriod",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "isEvergreen",
+              "state": "present",
+              "rawValue": false
+            },
+            {
+              "path": "pipelineProfiles",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "pipelineProfiles[0].id",
+              "state": "present",
+              "rawValue": "p1"
+            },
+            {
+              "path": "pipelineProfiles[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "pipelineProfiles[0].stages",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].esopPct",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].exitRate",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].exitValuation",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].graduationRate",
+              "state": "present",
+              "rawValue": 0.5
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].id",
+              "state": "present",
+              "rawValue": "s0"
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].monthsToExit",
+              "state": "present",
+              "rawValue": 24
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].monthsToGraduate",
+              "state": "present",
+              "rawValue": 12
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].roundSize",
+              "state": "present",
+              "rawValue": 2000000
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].valuation",
+              "state": "present",
+              "rawValue": 10000000
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].valuationType",
+              "state": "present",
+              "rawValue": "pre"
+            },
+            {
+              "path": "vintageYear",
+              "state": "present",
+              "rawValue": 2026
+            }
+          ]
+        },
+        "sourceBundleHash": "96afe197376c8b2e2b0ddaa88e5d986d86afc032f6e3b1656eefc18be8fd8d17",
+        "publishedAt": "2026-09-01T00:00:00.000Z",
+        "interpretationVersion": "capital-source-interpretation/1.0.1",
+        "unitDeclarations": {
+          "funds.size": "usd",
+          "fundSize": "usd",
+          "economicsAssumptions.gpCommitmentModel.commitmentAmount": "usd",
+          "capitalPlanAllocations[0].capitalAllocationPct": "ratio",
+          "capitalPlanAllocations[0].followOnParticipationPct": "ratio",
+          "capitalPlanAllocations[0].initialCheckAmount": "usd",
+          "pipelineProfiles[0].stages[0].roundSize": "usd",
+          "pipelineProfiles[0].stages[0].valuation": "usd",
+          "pipelineProfiles[0].stages[0].exitValuation": "usd",
+          "pipelineProfiles[0].stages[0].graduationRate": "ratio",
+          "pipelineProfiles[0].stages[0].esopPct": "ratio",
+          "economicsAssumptions.expenseModel.annualExpenses[0].amount": "usd"
+        },
+        "fundSize": {
+          "path": "funds.size",
+          "rawValue": "100000000",
+          "sourceUnit": "usd",
+          "normalizedValue": "100000000.000000",
+          "unitClass": "resolved_dollars",
+          "provenanceOrigin": "scenario_declared"
+        },
+        "configFundSize": {
+          "state": "matched",
+          "fact": {
+            "path": "fundSize",
+            "rawValue": 100000000,
+            "sourceUnit": "usd",
+            "normalizedValue": "100000000.000000",
+            "unitClass": "resolved_dollars",
+            "provenanceOrigin": "scenario_declared"
+          }
+        },
+        "baseCurrency": "USD",
+        "isEvergreen": false,
+        "modelInputsAsOfDate": null,
+        "vintageYear": 2026,
+        "fundLife": {
+          "path": "fundLife",
+          "rawValue": 10,
+          "effectiveValue": 10,
+          "provenanceOrigin": "contract_resolved",
+          "shadowed": null
+        },
+        "investmentPeriod": {
+          "path": "investmentPeriod",
+          "rawValue": 10,
+          "effectiveValue": 10,
+          "provenanceOrigin": "contract_resolved",
+          "shadowed": null
+        },
+        "gp": {
+          "nestedCommitmentAmount": {
+            "state": "present",
+            "rawValue": 10000000
+          },
+          "nestedCommitmentPct": {
+            "state": "absent"
+          },
+          "topLevelCommitmentAmount": {
+            "state": "absent"
+          },
+          "resolved": {
+            "source": "nested_amount",
+            "fact": {
+              "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+              "rawValue": 10000000,
+              "sourceUnit": "usd",
+              "normalizedValue": "10000000.000000",
+              "unitClass": "resolved_dollars",
+              "provenanceOrigin": "scenario_declared"
+            },
+            "commitmentUsd": "10000000.000000"
+          },
+          "fundedFromFeesPct": {
+            "state": "present",
+            "fact": {
+              "path": "fundedFromFeesPct",
+              "rawValue": 0,
+              "sourceUnit": "ratio",
+              "normalizedValue": "0.000000000000",
+              "unitClass": "resolved_ratio",
+              "provenanceOrigin": "contract_resolved"
+            },
+            "effectiveValue": "0.000000000000",
+            "defaultReason": null
+          },
+          "deemedContributionUsd": "0.000000",
+          "methodVersion": "capital-gp-deemed/1.0.0"
+        },
+        "feeExpense": {
+          "methodVersion": "capital-fee-expense/1.0.0",
+          "feeSelection": "explicit_tiers",
+          "expenseSelection": "explicit_annual",
+          "rawPresence": {
+            "explicitFeeTiers": "nonempty",
+            "legacyFeeProfiles": "absent",
+            "explicitAnnualExpenses": "nonempty",
+            "legacyFundExpenses": "absent",
+            "nestedDefaultRate": false,
+            "managementFeeRate": false
+          },
+          "feeSourceLabel": "economics_override",
+          "expenseSourceLabel": "economics_override",
+          "selectedFeeProfileId": null,
+          "feeTiers": [
+            {
+              "id": "fee-1",
+              "name": "Committed fee",
+              "path": "economicsAssumptions.feeModel.tiers[0]",
+              "rate": {
+                "path": "economicsAssumptions.feeModel.tiers[0].rate",
+                "rawValue": 0.018,
+                "sourceUnit": "ratio",
+                "normalizedValue": "0.018000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              },
+              "basis": "committed_capital",
+              "population": "full_fund_committed_capital",
+              "period": {
+                "kind": "annual",
+                "start": {
+                  "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+                  "rawValue": 1,
+                  "effectiveValue": 1,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "end": {
+                  "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+                  "rawValue": 10,
+                  "effectiveValue": 10,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "normalizedStartMonth": 0,
+                "normalizedEndMonth": 119,
+                "endDefaultReason": null
+              },
+              "recyclingAnnotation": null
+            }
+          ],
+          "expenses": [
+            {
+              "id": "expense",
+              "category": "administration",
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0]",
+              "amount": {
+                "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+                "rawValue": 200000,
+                "sourceUnit": "usd",
+                "normalizedValue": "200000.000000",
+                "unitClass": "resolved_dollars",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "period": {
+                "kind": "annual",
+                "start": {
+                  "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+                  "rawValue": 1,
+                  "effectiveValue": 1,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "end": {
+                  "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+                  "rawValue": 10,
+                  "effectiveValue": 10,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "normalizedStartMonth": 0,
+                "normalizedEndMonth": 119,
+                "endDefaultReason": null
+              },
+              "frequency": "annual",
+              "growthRate": {
+                "state": "absent",
+                "effectiveValue": "0.000000000000"
+              }
+            }
+          ],
+          "shadowedPaths": [],
+          "annotations": [],
+          "feeBasisUsd": "100000000.000000",
+          "lifetimeFeesUsd": "18000000.000000",
+          "lifetimeExpensesUsd": "2000000.000000"
+        },
+        "construction": {
+          "allocations": [
+            {
+              "id": "category-initial",
+              "category": "Initial",
+              "percentage": {
+                "path": "allocations[0].percentage",
+                "rawValue": 60,
+                "sourceUnit": "percent_points",
+                "normalizedValue": "0.600000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              }
+            },
+            {
+              "id": "category-follow-on",
+              "category": "Follow-on",
+              "percentage": {
+                "path": "allocations[1].percentage",
+                "rawValue": 40,
+                "sourceUnit": "percent_points",
+                "normalizedValue": "0.400000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              }
+            }
+          ],
+          "capitalPlanAllocations": [
+            {
+              "id": "a1",
+              "name": "Seed",
+              "sectorProfileId": null,
+              "entryRound": "Seed",
+              "capitalAllocationPct": {
+                "path": "capitalPlanAllocations[0].capitalAllocationPct",
+                "rawValue": 1,
+                "sourceUnit": "ratio",
+                "normalizedValue": "1.000000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "initialCheckStrategy": "amount",
+              "initialCheckAmount": {
+                "path": "capitalPlanAllocations[0].initialCheckAmount",
+                "rawValue": 1000000,
+                "sourceUnit": "usd",
+                "normalizedValue": "1000000.000000",
+                "unitClass": "resolved_dollars",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "initialOwnershipPct": null,
+              "followOnStrategy": "amount",
+              "followOnAmount": null,
+              "followOnParticipationPct": {
+                "path": "capitalPlanAllocations[0].followOnParticipationPct",
+                "rawValue": 0,
+                "sourceUnit": "ratio",
+                "normalizedValue": "0.000000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "investmentHorizonMonths": 12
+            }
+          ],
+          "sectorProfiles": [],
+          "pipelineProfiles": [
+            {
+              "id": "p1",
+              "name": "Seed",
+              "stages": [
+                {
+                  "id": "s0",
+                  "name": "Seed",
+                  "roundSize": {
+                    "path": "pipelineProfiles[0].stages[0].roundSize",
+                    "rawValue": 2000000,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "2000000.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "valuation": {
+                    "path": "pipelineProfiles[0].stages[0].valuation",
+                    "rawValue": 10000000,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "10000000.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "valuationType": "pre",
+                  "esopPct": {
+                    "path": "pipelineProfiles[0].stages[0].esopPct",
+                    "rawValue": 0,
+                    "sourceUnit": "ratio",
+                    "normalizedValue": "0.000000000000",
+                    "unitClass": "resolved_ratio",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "graduationRate": {
+                    "path": "pipelineProfiles[0].stages[0].graduationRate",
+                    "rawValue": 0.5,
+                    "sourceUnit": "ratio",
+                    "normalizedValue": "0.500000000000",
+                    "unitClass": "resolved_ratio",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "exitValuation": {
+                    "path": "pipelineProfiles[0].stages[0].exitValuation",
+                    "rawValue": 0,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "0.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "monthsToGraduate": 12,
+                  "timeOrigin": "unresolved",
+                  "poolSemantics": "unresolved"
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "allocationId": "a1",
+              "pipelineProfileId": "p1",
+              "entryStageId": "s0",
+              "provenanceOrigin": "scenario_declared"
+            }
+          ]
+        }
+      },
+      "provenance": [
+        {
+          "inputPath": "allocations[0].allocationId",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].id",
+          "sourceValue": "a1",
+          "effectiveValue": "a1",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].pipelineProfileId",
+          "origin": "user_entered",
+          "sourcePath": null,
+          "sourceValue": null,
+          "effectiveValue": "p1",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": "Explicit scenario link.",
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].entryStageId",
+          "origin": "user_entered",
+          "sourcePath": null,
+          "sourceValue": null,
+          "effectiveValue": "s0",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": "Explicit scenario link.",
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].name",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].name",
+          "sourceValue": "Seed",
+          "effectiveValue": "Seed",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].entryRound",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].entryRound",
+          "sourceValue": "Seed",
+          "effectiveValue": "Seed",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].budgetShareRatio",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].capitalAllocationPct",
+          "sourceValue": "1.000000000000",
+          "effectiveValue": "1.000000000000",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].initialCheckUsd",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].initialCheckAmount",
+          "sourceValue": "1000000.000000",
+          "effectiveValue": "1000000.000000",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].deploymentPeriodYears",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].investmentHorizonMonths",
+          "sourceValue": 1,
+          "effectiveValue": 1,
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        }
+      ],
+      "construction": {
+        "methodVersion": "capital-planning/1.0.0",
+        "budget": {
+          "committedCapitalUsd": "100000000.000000",
+          "gpCommitmentUsd": "10000000.000000",
+          "fundedFromFeesRatio": "0.000000000000",
+          "gpDeemedContributionUsd": "0.000000",
+          "lifetimeFeesUsd": "18000000.000000",
+          "lifetimeExpensesUsd": "2000000.000000",
+          "availableConstructionCapitalUsd": "80000000.000000",
+          "signedRoundingResidualUsd": "0.000000",
+          "planningBudgetUsd": {
+            "state": "available",
+            "value": "80000000.000000"
+          },
+          "planningBudgetOrigin": "derived_available_capital",
+          "overrideDifferenceUsd": {
+            "state": "available",
+            "value": "0.000000"
+          },
+          "feePopulation": "full_fund_committed_capital",
+          "fundingAssumption": "callable_as_needed"
+        },
+        "allocations": [
+          {
+            "allocationId": "a1",
+            "name": "Seed",
+            "allocationBudgetUsd": {
+              "state": "available",
+              "value": "80000000.000000"
+            },
+            "expectedPerCompanyCostUsd": "1000000.000000",
+            "expected": {
+              "countBasis": "expected",
+              "label": "Expected companies",
+              "companyCount": "80.000000000000",
+              "initialDemandUsd": "80000000.000000",
+              "followOnDemandUsd": "0.000000",
+              "totalDemandUsd": "80000000.000000",
+              "signedResidualUsd": "0.000000",
+              "signedReserveResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveRatio": {
+                "state": "available",
+                "value": "0.000000000000"
+              },
+              "reserveRatioDenominator": "allocated_investment_capital"
+            },
+            "entered": {
+              "state": "unavailable",
+              "value": null,
+              "reason": "NOT_ENTERED"
+            },
+            "designatedFollowOnReserveUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "rounds": []
+          }
+        ],
+        "verdicts": {
+          "inputSupport": "complete",
+          "lifetimeCapacity": "within_capacity",
+          "allocationBudget": "within_allocation",
+          "reserveEarmark": "within_earmark",
+          "timing": "within_term",
+          "staleness": "unknown_current_source"
+        },
+        "headline": "Within lifetime capacity.",
+        "qualifications": [],
+        "reconciliation": [
+          {
+            "countBasis": "expected",
+            "initialDemandUsd": "80000000.000000",
+            "lifetimeFollowOnUsd": "0.000000",
+            "withinTermFollowOnUsd": "0.000000",
+            "beyondTermFollowOnUsd": "0.000000",
+            "unassignedPlanningBudgetUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "signedAllocationRoundingResidualUsd": "0.000000",
+            "signedRoundingResidualUsd": "-0.000004",
+            "signedDemandRoundingResidualUsd": "0.000000",
+            "signedTimingRoundingResidualUsd": "0.000000",
+            "signedBudgetResidualUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "signedLifetimeHeadroomUsd": "0.000000",
+            "lifetimeBudgetShortfallUsd": "0.000000",
+            "allocationGapUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "reserveEarmarkGapUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "firstBudgetGapMonth": null,
+            "firstGapAllocationId": null,
+            "firstGapRoundId": null
+          }
+        ],
+        "monthlyDetail": [
+          {
+            "allocationId": "a1",
+            "entryMonth": 0,
+            "demandMonth": 0,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 1,
+            "demandMonth": 1,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 2,
+            "demandMonth": 2,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 3,
+            "demandMonth": 3,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 4,
+            "demandMonth": 4,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 5,
+            "demandMonth": 5,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 6,
+            "demandMonth": 6,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 7,
+            "demandMonth": 7,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 8,
+            "demandMonth": 8,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 9,
+            "demandMonth": 9,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 10,
+            "demandMonth": 10,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 11,
+            "demandMonth": 11,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          }
+        ],
+        "annualSchedule": [
+          {
+            "fundYear": 1,
+            "calendarYear": 2026,
+            "countBasis": "expected",
+            "initialDemandUsd": "80000000.000004",
+            "withinTermFollowOnUsd": "0.000000",
+            "beyondTermFollowOnUsd": "0.000000",
+            "totalDemandUsd": "80000000.000004"
+          }
+        ],
+        "stresses": [
+          {
+            "state": "complete",
+            "name": "graduation_plus_10pp",
+            "label": "Graduation +10 percentage points",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "participation_full",
+            "label": "Full participation",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "fixed_checks_and_pro_rata_rounds_plus_25pct",
+            "label": "Fixed checks +25%; pro-rata round sizes +25%",
+            "countBasis": "expected",
+            "changedPaths": ["allocations[0].initialCheckUsd"],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "100000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "-20000000.000000"
+              },
+              "signedLifetimeHeadroomUsd": "-20000000.000000",
+              "lifetimeBudgetShortfallUsd": "20000000.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "20000000.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": 9,
+              "firstGapAllocationId": "a1",
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "over_capacity",
+              "allocationBudget": "allocation_gap",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "99999999.999996",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "99999999.999996"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "follow_on_6_months_earlier",
+            "label": "Follow-ons six months earlier",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          }
+        ],
+        "disclosures": {
+          "timing": "This schedule assumes capital can be called as needed. It does not model current cash availability or capital-call execution.",
+          "budget": "Available construction capital excludes recycling and exit proceeds; fee offsets are not modeled. Feasibility is evaluated under these assumptions.",
+          "gp": "Available construction capital deducts the GP deemed contribution under ADR-070. An omitted funded-from-fees fraction is treated as zero for this calculation without changing the saved source. The fraction does not reduce the management-fee basis or fee amount."
+        },
+        "assumptions": {
+          "homogeneousAllocation": true,
+          "graduationAndParticipationIndependentOfOwnershipHistory": true,
+          "affineCheckAndOwnershipUpdates": true
+        }
+      },
+      "performance": null
+    },
+    "omittedZero": {
+      "contractVersion": "capital-planning/1.0.0",
+      "input": {
+        "contractVersion": "capital-planning/1.0.0",
+        "allocations": [
+          {
+            "allocationId": "a1",
+            "name": "Seed",
+            "entryRound": "Seed",
+            "pipelineProfileId": "p1",
+            "entryStageId": "s0",
+            "budgetShareRatio": "1.000000000000",
+            "initialCheckUsd": "1000000.000000",
+            "deploymentPeriodYears": 1,
+            "followOnRounds": []
+          }
+        ]
+      },
+      "sourceBundle": {
+        "contractVersion": "fund-scenario-capital-source-bundle/1.0.0",
+        "projection": {
+          "contractVersion": "fund-scenario-capital-source-projection/1.0.0",
+          "fundId": 101,
+          "sourceConfigId": 11,
+          "sourceConfigVersion": 1,
+          "rawConfigHash": "f45f21ff2f8ab64bcefc6fc9a148d2e1178f84c06aec9c30f75ea5059a901334",
+          "fund": {
+            "size": "100000000",
+            "baseCurrency": "USD",
+            "sizeUnitTag": {
+              "state": "absent"
+            },
+            "schemaTag": {
+              "state": "absent"
+            }
+          },
+          "configUnitTag": {
+            "state": "absent"
+          },
+          "configSchemaTag": {
+            "state": "absent"
+          },
+          "facts": [
+            {
+              "path": "allocations",
+              "state": "array",
+              "length": 2
+            },
+            {
+              "path": "allocations[0].category",
+              "state": "present",
+              "rawValue": "Initial"
+            },
+            {
+              "path": "allocations[0].id",
+              "state": "present",
+              "rawValue": "category-initial"
+            },
+            {
+              "path": "allocations[0].percentage",
+              "state": "present",
+              "rawValue": 60
+            },
+            {
+              "path": "allocations[1].category",
+              "state": "present",
+              "rawValue": "Follow-on"
+            },
+            {
+              "path": "allocations[1].id",
+              "state": "present",
+              "rawValue": "category-follow-on"
+            },
+            {
+              "path": "allocations[1].percentage",
+              "state": "present",
+              "rawValue": 40
+            },
+            {
+              "path": "capitalPlanAllocations",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "capitalPlanAllocations[0].capitalAllocationPct",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "capitalPlanAllocations[0].entryRound",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "capitalPlanAllocations[0].followOnParticipationPct",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "capitalPlanAllocations[0].followOnStrategy",
+              "state": "present",
+              "rawValue": "amount"
+            },
+            {
+              "path": "capitalPlanAllocations[0].id",
+              "state": "present",
+              "rawValue": "a1"
+            },
+            {
+              "path": "capitalPlanAllocations[0].initialCheckAmount",
+              "state": "present",
+              "rawValue": 1000000
+            },
+            {
+              "path": "capitalPlanAllocations[0].initialCheckStrategy",
+              "state": "present",
+              "rawValue": "amount"
+            },
+            {
+              "path": "capitalPlanAllocations[0].investmentHorizonMonths",
+              "state": "present",
+              "rawValue": 12
+            },
+            {
+              "path": "capitalPlanAllocations[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+              "state": "present",
+              "rawValue": 200000
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].category",
+              "state": "present",
+              "rawValue": "administration"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].id",
+              "state": "present",
+              "rawValue": "expense"
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "economicsAssumptions.expenseModel.source",
+              "state": "present",
+              "rawValue": "economics_override"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.source",
+              "state": "present",
+              "rawValue": "economics_override"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].basis",
+              "state": "present",
+              "rawValue": "committed_capital"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].id",
+              "state": "present",
+              "rawValue": "fee-1"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].name",
+              "state": "present",
+              "rawValue": "Committed fee"
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].rate",
+              "state": "present",
+              "rawValue": 0.018
+            },
+            {
+              "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+              "state": "present",
+              "rawValue": 1
+            },
+            {
+              "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+              "state": "present",
+              "rawValue": 10000000
+            },
+            {
+              "path": "fundLife",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "fundSize",
+              "state": "present",
+              "rawValue": 100000000
+            },
+            {
+              "path": "investmentPeriod",
+              "state": "present",
+              "rawValue": 10
+            },
+            {
+              "path": "isEvergreen",
+              "state": "present",
+              "rawValue": false
+            },
+            {
+              "path": "pipelineProfiles",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "pipelineProfiles[0].id",
+              "state": "present",
+              "rawValue": "p1"
+            },
+            {
+              "path": "pipelineProfiles[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "pipelineProfiles[0].stages",
+              "state": "array",
+              "length": 1
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].esopPct",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].exitRate",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].exitValuation",
+              "state": "present",
+              "rawValue": 0
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].graduationRate",
+              "state": "present",
+              "rawValue": 0.5
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].id",
+              "state": "present",
+              "rawValue": "s0"
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].monthsToExit",
+              "state": "present",
+              "rawValue": 24
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].monthsToGraduate",
+              "state": "present",
+              "rawValue": 12
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].name",
+              "state": "present",
+              "rawValue": "Seed"
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].roundSize",
+              "state": "present",
+              "rawValue": 2000000
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].valuation",
+              "state": "present",
+              "rawValue": 10000000
+            },
+            {
+              "path": "pipelineProfiles[0].stages[0].valuationType",
+              "state": "present",
+              "rawValue": "pre"
+            },
+            {
+              "path": "vintageYear",
+              "state": "present",
+              "rawValue": 2026
+            }
+          ]
+        },
+        "sourceBundleHash": "3497c806fc74f2ed283fd446396f93a4eee1008015e588893d3bf70a1dda853b",
+        "publishedAt": "2026-09-01T00:00:00.000Z",
+        "interpretationVersion": "capital-source-interpretation/1.0.1",
+        "unitDeclarations": {
+          "funds.size": "usd",
+          "fundSize": "usd",
+          "economicsAssumptions.gpCommitmentModel.commitmentAmount": "usd",
+          "capitalPlanAllocations[0].capitalAllocationPct": "ratio",
+          "capitalPlanAllocations[0].followOnParticipationPct": "ratio",
+          "capitalPlanAllocations[0].initialCheckAmount": "usd",
+          "pipelineProfiles[0].stages[0].roundSize": "usd",
+          "pipelineProfiles[0].stages[0].valuation": "usd",
+          "pipelineProfiles[0].stages[0].exitValuation": "usd",
+          "pipelineProfiles[0].stages[0].graduationRate": "ratio",
+          "pipelineProfiles[0].stages[0].esopPct": "ratio",
+          "economicsAssumptions.expenseModel.annualExpenses[0].amount": "usd"
+        },
+        "fundSize": {
+          "path": "funds.size",
+          "rawValue": "100000000",
+          "sourceUnit": "usd",
+          "normalizedValue": "100000000.000000",
+          "unitClass": "resolved_dollars",
+          "provenanceOrigin": "scenario_declared"
+        },
+        "configFundSize": {
+          "state": "matched",
+          "fact": {
+            "path": "fundSize",
+            "rawValue": 100000000,
+            "sourceUnit": "usd",
+            "normalizedValue": "100000000.000000",
+            "unitClass": "resolved_dollars",
+            "provenanceOrigin": "scenario_declared"
+          }
+        },
+        "baseCurrency": "USD",
+        "isEvergreen": false,
+        "modelInputsAsOfDate": null,
+        "vintageYear": 2026,
+        "fundLife": {
+          "path": "fundLife",
+          "rawValue": 10,
+          "effectiveValue": 10,
+          "provenanceOrigin": "contract_resolved",
+          "shadowed": null
+        },
+        "investmentPeriod": {
+          "path": "investmentPeriod",
+          "rawValue": 10,
+          "effectiveValue": 10,
+          "provenanceOrigin": "contract_resolved",
+          "shadowed": null
+        },
+        "gp": {
+          "nestedCommitmentAmount": {
+            "state": "present",
+            "rawValue": 10000000
+          },
+          "nestedCommitmentPct": {
+            "state": "absent"
+          },
+          "topLevelCommitmentAmount": {
+            "state": "absent"
+          },
+          "resolved": {
+            "source": "nested_amount",
+            "fact": {
+              "path": "economicsAssumptions.gpCommitmentModel.commitmentAmount",
+              "rawValue": 10000000,
+              "sourceUnit": "usd",
+              "normalizedValue": "10000000.000000",
+              "unitClass": "resolved_dollars",
+              "provenanceOrigin": "scenario_declared"
+            },
+            "commitmentUsd": "10000000.000000"
+          },
+          "fundedFromFeesPct": {
+            "state": "absent",
+            "effectiveValue": "0.000000000000",
+            "defaultReason": "ADR_070_MISSING_FRACTION_ZERO"
+          },
+          "deemedContributionUsd": "0.000000",
+          "methodVersion": "capital-gp-deemed/1.0.0"
+        },
+        "feeExpense": {
+          "methodVersion": "capital-fee-expense/1.0.0",
+          "feeSelection": "explicit_tiers",
+          "expenseSelection": "explicit_annual",
+          "rawPresence": {
+            "explicitFeeTiers": "nonempty",
+            "legacyFeeProfiles": "absent",
+            "explicitAnnualExpenses": "nonempty",
+            "legacyFundExpenses": "absent",
+            "nestedDefaultRate": false,
+            "managementFeeRate": false
+          },
+          "feeSourceLabel": "economics_override",
+          "expenseSourceLabel": "economics_override",
+          "selectedFeeProfileId": null,
+          "feeTiers": [
+            {
+              "id": "fee-1",
+              "name": "Committed fee",
+              "path": "economicsAssumptions.feeModel.tiers[0]",
+              "rate": {
+                "path": "economicsAssumptions.feeModel.tiers[0].rate",
+                "rawValue": 0.018,
+                "sourceUnit": "ratio",
+                "normalizedValue": "0.018000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              },
+              "basis": "committed_capital",
+              "population": "full_fund_committed_capital",
+              "period": {
+                "kind": "annual",
+                "start": {
+                  "path": "economicsAssumptions.feeModel.tiers[0].startYear",
+                  "rawValue": 1,
+                  "effectiveValue": 1,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "end": {
+                  "path": "economicsAssumptions.feeModel.tiers[0].endYear",
+                  "rawValue": 10,
+                  "effectiveValue": 10,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "normalizedStartMonth": 0,
+                "normalizedEndMonth": 119,
+                "endDefaultReason": null
+              },
+              "recyclingAnnotation": null
+            }
+          ],
+          "expenses": [
+            {
+              "id": "expense",
+              "category": "administration",
+              "path": "economicsAssumptions.expenseModel.annualExpenses[0]",
+              "amount": {
+                "path": "economicsAssumptions.expenseModel.annualExpenses[0].amount",
+                "rawValue": 200000,
+                "sourceUnit": "usd",
+                "normalizedValue": "200000.000000",
+                "unitClass": "resolved_dollars",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "period": {
+                "kind": "annual",
+                "start": {
+                  "path": "economicsAssumptions.expenseModel.annualExpenses[0].startYear",
+                  "rawValue": 1,
+                  "effectiveValue": 1,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "end": {
+                  "path": "economicsAssumptions.expenseModel.annualExpenses[0].endYear",
+                  "rawValue": 10,
+                  "effectiveValue": 10,
+                  "provenanceOrigin": "contract_resolved"
+                },
+                "normalizedStartMonth": 0,
+                "normalizedEndMonth": 119,
+                "endDefaultReason": null
+              },
+              "frequency": "annual",
+              "growthRate": {
+                "state": "absent",
+                "effectiveValue": "0.000000000000"
+              }
+            }
+          ],
+          "shadowedPaths": [],
+          "annotations": [],
+          "feeBasisUsd": "100000000.000000",
+          "lifetimeFeesUsd": "18000000.000000",
+          "lifetimeExpensesUsd": "2000000.000000"
+        },
+        "construction": {
+          "allocations": [
+            {
+              "id": "category-initial",
+              "category": "Initial",
+              "percentage": {
+                "path": "allocations[0].percentage",
+                "rawValue": 60,
+                "sourceUnit": "percent_points",
+                "normalizedValue": "0.600000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              }
+            },
+            {
+              "id": "category-follow-on",
+              "category": "Follow-on",
+              "percentage": {
+                "path": "allocations[1].percentage",
+                "rawValue": 40,
+                "sourceUnit": "percent_points",
+                "normalizedValue": "0.400000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "contract_resolved"
+              }
+            }
+          ],
+          "capitalPlanAllocations": [
+            {
+              "id": "a1",
+              "name": "Seed",
+              "sectorProfileId": null,
+              "entryRound": "Seed",
+              "capitalAllocationPct": {
+                "path": "capitalPlanAllocations[0].capitalAllocationPct",
+                "rawValue": 1,
+                "sourceUnit": "ratio",
+                "normalizedValue": "1.000000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "initialCheckStrategy": "amount",
+              "initialCheckAmount": {
+                "path": "capitalPlanAllocations[0].initialCheckAmount",
+                "rawValue": 1000000,
+                "sourceUnit": "usd",
+                "normalizedValue": "1000000.000000",
+                "unitClass": "resolved_dollars",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "initialOwnershipPct": null,
+              "followOnStrategy": "amount",
+              "followOnAmount": null,
+              "followOnParticipationPct": {
+                "path": "capitalPlanAllocations[0].followOnParticipationPct",
+                "rawValue": 0,
+                "sourceUnit": "ratio",
+                "normalizedValue": "0.000000000000",
+                "unitClass": "resolved_ratio",
+                "provenanceOrigin": "scenario_declared"
+              },
+              "investmentHorizonMonths": 12
+            }
+          ],
+          "sectorProfiles": [],
+          "pipelineProfiles": [
+            {
+              "id": "p1",
+              "name": "Seed",
+              "stages": [
+                {
+                  "id": "s0",
+                  "name": "Seed",
+                  "roundSize": {
+                    "path": "pipelineProfiles[0].stages[0].roundSize",
+                    "rawValue": 2000000,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "2000000.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "valuation": {
+                    "path": "pipelineProfiles[0].stages[0].valuation",
+                    "rawValue": 10000000,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "10000000.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "valuationType": "pre",
+                  "esopPct": {
+                    "path": "pipelineProfiles[0].stages[0].esopPct",
+                    "rawValue": 0,
+                    "sourceUnit": "ratio",
+                    "normalizedValue": "0.000000000000",
+                    "unitClass": "resolved_ratio",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "graduationRate": {
+                    "path": "pipelineProfiles[0].stages[0].graduationRate",
+                    "rawValue": 0.5,
+                    "sourceUnit": "ratio",
+                    "normalizedValue": "0.500000000000",
+                    "unitClass": "resolved_ratio",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "exitValuation": {
+                    "path": "pipelineProfiles[0].stages[0].exitValuation",
+                    "rawValue": 0,
+                    "sourceUnit": "usd",
+                    "normalizedValue": "0.000000",
+                    "unitClass": "resolved_dollars",
+                    "provenanceOrigin": "scenario_declared"
+                  },
+                  "monthsToGraduate": 12,
+                  "timeOrigin": "unresolved",
+                  "poolSemantics": "unresolved"
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "allocationId": "a1",
+              "pipelineProfileId": "p1",
+              "entryStageId": "s0",
+              "provenanceOrigin": "scenario_declared"
+            }
+          ]
+        }
+      },
+      "provenance": [
+        {
+          "inputPath": "allocations[0].allocationId",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].id",
+          "sourceValue": "a1",
+          "effectiveValue": "a1",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].pipelineProfileId",
+          "origin": "user_entered",
+          "sourcePath": null,
+          "sourceValue": null,
+          "effectiveValue": "p1",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": "Explicit scenario link.",
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].entryStageId",
+          "origin": "user_entered",
+          "sourcePath": null,
+          "sourceValue": null,
+          "effectiveValue": "s0",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": "Explicit scenario link.",
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].name",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].name",
+          "sourceValue": "Seed",
+          "effectiveValue": "Seed",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].entryRound",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].entryRound",
+          "sourceValue": "Seed",
+          "effectiveValue": "Seed",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].budgetShareRatio",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].capitalAllocationPct",
+          "sourceValue": "1.000000000000",
+          "effectiveValue": "1.000000000000",
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].initialCheckUsd",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].initialCheckAmount",
+          "sourceValue": "1000000.000000",
+          "effectiveValue": "1000000.000000",
+          "profileId": "p1",
+          "stageId": "s0",
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        },
+        {
+          "inputPath": "allocations[0].deploymentPeriodYears",
+          "origin": "source_derived",
+          "sourcePath": "capitalPlanAllocations[0].investmentHorizonMonths",
+          "sourceValue": 1,
+          "effectiveValue": 1,
+          "profileId": "p1",
+          "stageId": null,
+          "effectiveDate": null,
+          "sourceVintage": "2026",
+          "note": null,
+          "benchmark": null
+        }
+      ],
+      "construction": {
+        "methodVersion": "capital-planning/1.0.0",
+        "budget": {
+          "committedCapitalUsd": "100000000.000000",
+          "gpCommitmentUsd": "10000000.000000",
+          "fundedFromFeesRatio": "0.000000000000",
+          "gpDeemedContributionUsd": "0.000000",
+          "lifetimeFeesUsd": "18000000.000000",
+          "lifetimeExpensesUsd": "2000000.000000",
+          "availableConstructionCapitalUsd": "80000000.000000",
+          "signedRoundingResidualUsd": "0.000000",
+          "planningBudgetUsd": {
+            "state": "available",
+            "value": "80000000.000000"
+          },
+          "planningBudgetOrigin": "derived_available_capital",
+          "overrideDifferenceUsd": {
+            "state": "available",
+            "value": "0.000000"
+          },
+          "feePopulation": "full_fund_committed_capital",
+          "fundingAssumption": "callable_as_needed"
+        },
+        "allocations": [
+          {
+            "allocationId": "a1",
+            "name": "Seed",
+            "allocationBudgetUsd": {
+              "state": "available",
+              "value": "80000000.000000"
+            },
+            "expectedPerCompanyCostUsd": "1000000.000000",
+            "expected": {
+              "countBasis": "expected",
+              "label": "Expected companies",
+              "companyCount": "80.000000000000",
+              "initialDemandUsd": "80000000.000000",
+              "followOnDemandUsd": "0.000000",
+              "totalDemandUsd": "80000000.000000",
+              "signedResidualUsd": "0.000000",
+              "signedReserveResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveRatio": {
+                "state": "available",
+                "value": "0.000000000000"
+              },
+              "reserveRatioDenominator": "allocated_investment_capital"
+            },
+            "entered": {
+              "state": "unavailable",
+              "value": null,
+              "reason": "NOT_ENTERED"
+            },
+            "designatedFollowOnReserveUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "rounds": []
+          }
+        ],
+        "verdicts": {
+          "inputSupport": "complete",
+          "lifetimeCapacity": "within_capacity",
+          "allocationBudget": "within_allocation",
+          "reserveEarmark": "within_earmark",
+          "timing": "within_term",
+          "staleness": "unknown_current_source"
+        },
+        "headline": "Within lifetime capacity.",
+        "qualifications": [],
+        "reconciliation": [
+          {
+            "countBasis": "expected",
+            "initialDemandUsd": "80000000.000000",
+            "lifetimeFollowOnUsd": "0.000000",
+            "withinTermFollowOnUsd": "0.000000",
+            "beyondTermFollowOnUsd": "0.000000",
+            "unassignedPlanningBudgetUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "signedAllocationRoundingResidualUsd": "0.000000",
+            "signedRoundingResidualUsd": "-0.000004",
+            "signedDemandRoundingResidualUsd": "0.000000",
+            "signedTimingRoundingResidualUsd": "0.000000",
+            "signedBudgetResidualUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "signedLifetimeHeadroomUsd": "0.000000",
+            "lifetimeBudgetShortfallUsd": "0.000000",
+            "allocationGapUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "reserveEarmarkGapUsd": {
+              "state": "available",
+              "value": "0.000000"
+            },
+            "firstBudgetGapMonth": null,
+            "firstGapAllocationId": null,
+            "firstGapRoundId": null
+          }
+        ],
+        "monthlyDetail": [
+          {
+            "allocationId": "a1",
+            "entryMonth": 0,
+            "demandMonth": 0,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 1,
+            "demandMonth": 1,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 2,
+            "demandMonth": 2,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 3,
+            "demandMonth": 3,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 4,
+            "demandMonth": 4,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 5,
+            "demandMonth": 5,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 6,
+            "demandMonth": 6,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 7,
+            "demandMonth": 7,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 8,
+            "demandMonth": 8,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 9,
+            "demandMonth": 9,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 10,
+            "demandMonth": 10,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          },
+          {
+            "allocationId": "a1",
+            "entryMonth": 11,
+            "demandMonth": 11,
+            "roundId": null,
+            "kind": "initial",
+            "countBasis": "expected",
+            "companyCount": "6.666666666667",
+            "demandUsd": "6666666.666667",
+            "beyondTerm": false
+          }
+        ],
+        "annualSchedule": [
+          {
+            "fundYear": 1,
+            "calendarYear": 2026,
+            "countBasis": "expected",
+            "initialDemandUsd": "80000000.000004",
+            "withinTermFollowOnUsd": "0.000000",
+            "beyondTermFollowOnUsd": "0.000000",
+            "totalDemandUsd": "80000000.000004"
+          }
+        ],
+        "stresses": [
+          {
+            "state": "complete",
+            "name": "graduation_plus_10pp",
+            "label": "Graduation +10 percentage points",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "participation_full",
+            "label": "Full participation",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "fixed_checks_and_pro_rata_rounds_plus_25pct",
+            "label": "Fixed checks +25%; pro-rata round sizes +25%",
+            "countBasis": "expected",
+            "changedPaths": ["allocations[0].initialCheckUsd"],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "100000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "-20000000.000000"
+              },
+              "signedLifetimeHeadroomUsd": "-20000000.000000",
+              "lifetimeBudgetShortfallUsd": "20000000.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "20000000.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": 9,
+              "firstGapAllocationId": "a1",
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "over_capacity",
+              "allocationBudget": "allocation_gap",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "99999999.999996",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "99999999.999996"
+              }
+            ]
+          },
+          {
+            "state": "complete",
+            "name": "follow_on_6_months_earlier",
+            "label": "Follow-ons six months earlier",
+            "countBasis": "expected",
+            "changedPaths": [],
+            "reconciliation": {
+              "countBasis": "expected",
+              "initialDemandUsd": "80000000.000000",
+              "lifetimeFollowOnUsd": "0.000000",
+              "withinTermFollowOnUsd": "0.000000",
+              "beyondTermFollowOnUsd": "0.000000",
+              "unassignedPlanningBudgetUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedAllocationRoundingResidualUsd": "0.000000",
+              "signedRoundingResidualUsd": "-0.000004",
+              "signedDemandRoundingResidualUsd": "0.000000",
+              "signedTimingRoundingResidualUsd": "0.000000",
+              "signedBudgetResidualUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "signedLifetimeHeadroomUsd": "0.000000",
+              "lifetimeBudgetShortfallUsd": "0.000000",
+              "allocationGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "reserveEarmarkGapUsd": {
+                "state": "available",
+                "value": "0.000000"
+              },
+              "firstBudgetGapMonth": null,
+              "firstGapAllocationId": null,
+              "firstGapRoundId": null
+            },
+            "verdicts": {
+              "inputSupport": "complete",
+              "lifetimeCapacity": "within_capacity",
+              "allocationBudget": "within_allocation",
+              "reserveEarmark": "within_earmark",
+              "timing": "within_term",
+              "staleness": "unknown_current_source"
+            },
+            "plannedReserveGapUsd": "0.000000",
+            "annualSchedule": [
+              {
+                "fundYear": 1,
+                "calendarYear": 2026,
+                "countBasis": "expected",
+                "initialDemandUsd": "80000000.000004",
+                "withinTermFollowOnUsd": "0.000000",
+                "beyondTermFollowOnUsd": "0.000000",
+                "totalDemandUsd": "80000000.000004"
+              }
+            ]
+          }
+        ],
+        "disclosures": {
+          "timing": "This schedule assumes capital can be called as needed. It does not model current cash availability or capital-call execution.",
+          "budget": "Available construction capital excludes recycling and exit proceeds; fee offsets are not modeled. Feasibility is evaluated under these assumptions.",
+          "gp": "Available construction capital deducts the GP deemed contribution under ADR-070. An omitted funded-from-fees fraction is treated as zero for this calculation without changing the saved source. The fraction does not reduce the management-fee basis or fee amount."
+        },
+        "assumptions": {
+          "homogeneousAllocation": true,
+          "graduationAndParticipationIndependentOfOwnershipHistory": true,
+          "affineCheckAndOwnershipUpdates": true
+        }
+      },
+      "performance": null
+    }
+  }
+}

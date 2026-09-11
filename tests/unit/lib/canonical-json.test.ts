@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { canonicalJson, sha256CanonicalJson } from '@shared/lib/canonical-json';
+import { canonicalJson as pureCanonicalJson } from '@shared/lib/canonical-json-serialization';
 import {
   canonicalJson as reExportedCanonicalJson,
   sha256CanonicalJson as reExportedSha256CanonicalJson,
@@ -93,15 +94,27 @@ describe('sha256CanonicalJson', () => {
   it('is key-order independent', () => {
     expect(sha256CanonicalJson({ a: 1, b: 2 })).toBe(sha256CanonicalJson({ b: 2, a: 1 }));
   });
+
+  it.each([
+    [
+      'Unicode',
+      'caf\u00e9 \u20ac \ud83d\ude00',
+      'ad4683725e1f8ca41273f0ef2e95971e3cef5bf779e565161d42be2832ad9ca4',
+    ],
+    ['BOM', '\uFEFFevent_type', '8f669c5a739b278068d0c76393848424de463c593c385664b82998c8f7f5d263'],
+  ])('retains the pinned UTF-8 digest for %s', (_name, value, digest) => {
+    expect(sha256CanonicalJson(value)).toBe(digest);
+  });
 });
 
 describe('module purity', () => {
   it('re-exports from the original server service remain the same functions', () => {
+    expect(pureCanonicalJson).toBe(canonicalJson);
     expect(reExportedCanonicalJson).toBe(canonicalJson);
     expect(reExportedSha256CanonicalJson).toBe(sha256CanonicalJson);
   });
 
-  it('imports nothing beyond node:crypto (no database, environment, network, or file access)', () => {
+  it('imports only node:crypto and the pure serializer leaf', () => {
     const source = fs.readFileSync(
       fileURLToPath(new URL('../../../shared/lib/canonical-json.ts', import.meta.url)),
       'utf8'
@@ -109,7 +122,14 @@ describe('module purity', () => {
     const imports = [...source.matchAll(/^import\s[^;]*from\s+'([^']+)';/gm)].map(
       (match) => match[1]
     );
-    expect(imports).toEqual(['node:crypto']);
+    expect(imports).toEqual(['node:crypto', './canonical-json-serialization']);
+    const serializer = fs.readFileSync(
+      fileURLToPath(
+        new URL('../../../shared/lib/canonical-json-serialization.ts', import.meta.url)
+      ),
+      'utf8'
+    );
+    expect(serializer).not.toMatch(/^import\s/m);
     for (const forbidden of [
       'process.env',
       'fetch(',
@@ -120,6 +140,10 @@ describe('module purity', () => {
       '../../db',
     ]) {
       expect(source, `canonical-json.ts must not reference ${forbidden}`).not.toContain(forbidden);
+      expect(
+        serializer,
+        `canonical-json-serialization.ts must not reference ${forbidden}`
+      ).not.toContain(forbidden);
     }
   });
 });

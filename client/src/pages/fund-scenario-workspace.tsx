@@ -18,6 +18,15 @@ import {
   CreateAllocationScenarioModal,
 } from '@/components/scenarios/CreateAllocationScenarioModal';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
+import { CreateCapitalPlanScenarioModal } from '@/components/scenarios/CreateCapitalPlanScenarioModal';
+import { CapitalScenarioCard } from '@/components/scenarios/CapitalScenarioCard';
+import {
+  duplicateCapitalDraft,
+  retainCapitalDraft,
+  retainCapitalSaveIntent,
+} from '@/components/scenarios/capital-plan-draft';
+import { capitalScenarioListQueryKey } from '@/lib/fund-scenario-workspace-query-keys';
+import { fetchCapitalScenarioList } from '@/lib/fund-scenario-workspace-api';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
 import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
@@ -595,7 +604,9 @@ function ScenarioComparisonWorkspace({
   );
 }
 
-function FundScenarioWorkspacePage() {
+export function FundScenarioWorkspacePage({
+  capitalPlanEnabled = false,
+}: { capitalPlanEnabled?: boolean } = {}) {
   const fundId = useWorkspaceFundId();
   const queryClient = useQueryClient();
   const [pendingScenarioSetId, setPendingScenarioSetId] = useState<string | null>(null);
@@ -607,6 +618,9 @@ function FundScenarioWorkspacePage() {
   const reserveInFlightRef = useRef(new Set<string>());
   const [isCreateMethodologyOpen, setIsCreateMethodologyOpen] = useState(false);
   const [isCreateAllocationOpen, setIsCreateAllocationOpen] = useState(false);
+  const [isCreateCapitalOpen, setIsCreateCapitalOpen] = useState(false);
+  const [capitalDraftRevision, setCapitalDraftRevision] = useState(0);
+  const [includeArchivedCapital, setIncludeArchivedCapital] = useState(false);
   const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
   const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
@@ -639,6 +653,23 @@ function FundScenarioWorkspacePage() {
   });
 
   const scenarioSets = scenarioSetsQuery.data ?? EMPTY_SCENARIO_SETS;
+
+  const capitalSetsQuery = useQuery({
+    queryKey: capitalScenarioListQueryKey(fundId ?? '', includeArchivedCapital),
+    queryFn: () => fetchCapitalScenarioList(fundId ?? '', includeArchivedCapital),
+    enabled: capitalPlanEnabled && fundId !== null,
+  });
+  const combinedScenarioSets = [
+    ...scenarioSets.map((summary) => ({ family: 'legacy' as const, summary })),
+    ...(capitalSetsQuery.data?.scenarioSets ?? []).map((summary) => ({
+      family: 'capital-plan-v1' as const,
+      summary,
+    })),
+  ].sort(
+    (a, b) =>
+      b.summary.updatedAt.localeCompare(a.summary.updatedAt) ||
+      b.summary.id.localeCompare(a.summary.id)
+  );
 
   const detailQueries = useQueries({
     queries: scenarioSets.map((summary) => ({
@@ -781,7 +812,7 @@ function FundScenarioWorkspacePage() {
     );
   }
 
-  if (scenarioSetsQuery.isLoading || resultsQuery.isLoading) {
+  if (!capitalPlanEnabled && (scenarioSetsQuery.isLoading || resultsQuery.isLoading)) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
         {partialStateFrame(<WorkspaceLoadingState />)}
@@ -789,7 +820,7 @@ function FundScenarioWorkspacePage() {
     );
   }
 
-  if (scenarioSetsQuery.isError || resultsQuery.isError) {
+  if (!capitalPlanEnabled && (scenarioSetsQuery.isError || resultsQuery.isError)) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
         {partialStateFrame(
@@ -824,6 +855,11 @@ function FundScenarioWorkspacePage() {
             <header className="space-y-4">
               <div className="flex flex-wrap items-center justify-end gap-3">
                 <div className="flex flex-wrap items-center gap-2">
+                  {capitalPlanEnabled && (
+                    <Button type="button" onClick={() => setIsCreateCapitalOpen(true)}>
+                      New capital planning scenario
+                    </Button>
+                  )}
                   {seedPickerEnabled && (
                     <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
                       Start case from portfolio actuals
@@ -878,9 +914,9 @@ function FundScenarioWorkspacePage() {
                     ·
                   </span>
                   <span>
-                    {scenarioSets.length === 1
+                    {(capitalPlanEnabled ? combinedScenarioSets.length : scenarioSets.length) === 1
                       ? '1 scenario set'
-                      : `${scenarioSets.length} scenario sets`}
+                      : `${capitalPlanEnabled ? combinedScenarioSets.length : scenarioSets.length} scenario sets`}
                   </span>
                 </p>
               </div>
@@ -891,22 +927,80 @@ function FundScenarioWorkspacePage() {
               )}
             </header>
 
-            <ScenarioActionList
-              scenarioSets={scenarioSets}
-              detailById={detailById}
-              statusById={statusById}
-              noticeById={reserveNotices}
-              pendingScenarioSetId={pendingScenarioSetId}
-              highlightedScenarioSetId={highlightedScenarioSetId}
-              onCalculate={(detail) => {
-                if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
-                  void runReserveCalculation(detail);
-                  return;
-                }
-                setPendingScenarioSetId(detail.id);
-                calculateMutation.mutate(detail);
-              }}
-            />
+            {capitalPlanEnabled && (
+              <>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={includeArchivedCapital}
+                    onChange={(event) => setIncludeArchivedCapital(event.target.checked)}
+                  />
+                  Include archived capital plans
+                </label>
+                {(scenarioSetsQuery.isLoading || resultsQuery.isLoading) && (
+                  <p>Loading legacy scenarios.</p>
+                )}
+                {(scenarioSetsQuery.isError || resultsQuery.isError) && (
+                  <p role="alert">Legacy scenario data unavailable. Capital plans remain usable.</p>
+                )}
+                {capitalSetsQuery.isLoading && <p>Loading capital plans.</p>}
+                {capitalSetsQuery.isError && (
+                  <p role="alert">Capital plan list unavailable. Legacy scenarios remain usable.</p>
+                )}
+              </>
+            )}
+            {capitalPlanEnabled ? (
+              combinedScenarioSets.map((item) =>
+                item.family === 'capital-plan-v1' ? (
+                  <CapitalScenarioCard
+                    key={`capital-${item.summary.id}`}
+                    fundId={fundId}
+                    summary={item.summary}
+                    onDuplicate={(detail) => {
+                      retainCapitalDraft(fundId, duplicateCapitalDraft(detail));
+                      retainCapitalSaveIntent(fundId, null);
+                      setCapitalDraftRevision((value) => value + 1);
+                      setIsCreateCapitalOpen(true);
+                    }}
+                  />
+                ) : (
+                  <ScenarioActionList
+                    key={`legacy-${item.summary.id}`}
+                    scenarioSets={[item.summary]}
+                    detailById={detailById}
+                    statusById={statusById}
+                    noticeById={reserveNotices}
+                    pendingScenarioSetId={pendingScenarioSetId}
+                    highlightedScenarioSetId={highlightedScenarioSetId}
+                    onCalculate={(detail) => {
+                      if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
+                        void runReserveCalculation(detail);
+                        return;
+                      }
+                      setPendingScenarioSetId(detail.id);
+                      calculateMutation.mutate(detail);
+                    }}
+                  />
+                )
+              )
+            ) : (
+              <ScenarioActionList
+                scenarioSets={scenarioSets}
+                detailById={detailById}
+                statusById={statusById}
+                noticeById={reserveNotices}
+                pendingScenarioSetId={pendingScenarioSetId}
+                highlightedScenarioSetId={highlightedScenarioSetId}
+                onCalculate={(detail) => {
+                  if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
+                    void runReserveCalculation(detail);
+                    return;
+                  }
+                  setPendingScenarioSetId(detail.id);
+                  calculateMutation.mutate(detail);
+                }}
+              />
+            )}
 
             <section className="space-y-4">
               <div>
@@ -939,6 +1033,15 @@ function FundScenarioWorkspacePage() {
               onOpenChange={setIsCreateAllocationOpen}
               onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
             />
+            {capitalPlanEnabled && (
+              <CreateCapitalPlanScenarioModal
+                key={`${fundId}-${capitalDraftRevision}`}
+                fundId={fundId}
+                open={isCreateCapitalOpen}
+                onOpenChange={setIsCreateCapitalOpen}
+                onSuccess={(created) => setHighlightedScenarioSetId(created.scenarioSetId)}
+              />
+            )}
             {seedPickerEnabled && (
               <ScenarioFactsSeedPicker
                 fundId={fundId}
