@@ -3,7 +3,7 @@ import { Decimal } from '../lib/decimal-config';
 import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../lib/decimal-string';
 
 export const CAPITAL_PLANNING_VERSION = 'capital-planning/1.0.0' as const;
-export const CAPITAL_SOURCE_INTERPRETATION_VERSION = 'capital-source-interpretation/1.0.0' as const;
+export const CAPITAL_SOURCE_INTERPRETATION_VERSION = 'capital-source-interpretation/1.0.1' as const;
 export const CAPITAL_GP_METHOD_VERSION = 'capital-gp-deemed/1.0.0' as const;
 export const CAPITAL_FEE_METHOD_VERSION = 'capital-fee-expense/1.0.0' as const;
 export const CAPITAL_PREIMAGE_VERSION = 'capital-preimage/1.0.0' as const;
@@ -1077,14 +1077,14 @@ export const CapitalAllocationInputV1Schema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['entryFinancing'],
-          message: 'Pro-rata chains require entry financing',
+          message: 'OWNERSHIP_INPUT_UNRESOLVED',
         });
       value.followOnRounds.slice(0, lastProRata + 1).forEach((round, index) => {
         if (!round.financing)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['followOnRounds', index, 'financing'],
-            message: 'Pro-rata chains require intervening financing',
+            message: 'OWNERSHIP_INPUT_UNRESOLVED',
           });
         if (round.incrementalPreMoneyPoolDilutionRatio === undefined)
           ctx.addIssue({
