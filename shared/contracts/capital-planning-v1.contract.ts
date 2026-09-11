@@ -1201,6 +1201,169 @@ export const CapitalPlanningInputV1Schema = z
       });
   });
 
+const CapitalBenchmarkTargetV1Schema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('entry'), allocationId: CapitalIdV1Schema }).strict(),
+  z
+    .object({
+      kind: z.literal('follow_on'),
+      allocationId: CapitalIdV1Schema,
+      roundId: CapitalIdV1Schema,
+    })
+    .strict(),
+]);
+const CapitalBenchmarkSelectorV1Schema = z
+  .object({
+    version: CapitalVersionV1Schema,
+    stage: z.enum(['seed', 'series_a', 'series_b', 'series_c', 'series_d']),
+  })
+  .strict();
+const CapitalBenchmarkOverridesV1Schema = z
+  .object({
+    valuation: z
+      .object({
+        valuationUsd: CapitalPositiveMoneyV1Schema,
+        valuationBasis: z.enum(['pre_money', 'post_money']),
+      })
+      .strict()
+      .optional(),
+    totalPrimaryRoundUsd: CapitalPositiveMoneyV1Schema.optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    for (const key of ['valuation', 'totalPrimaryRoundUsd'] as const) {
+      if (Object.prototype.hasOwnProperty.call(value, key) && value[key] === undefined)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'A supplied override must have a value',
+        });
+    }
+  });
+export const CapitalBenchmarkSelectionV1Schema = z
+  .object({
+    target: CapitalBenchmarkTargetV1Schema,
+    selector: CapitalBenchmarkSelectorV1Schema,
+    overrides: CapitalBenchmarkOverridesV1Schema.optional(),
+  })
+  .strict();
+
+// Reuse the normalized object shapes and refinements. Only selected, missing
+// financing may wait for source resolution; identity, share and pool checks remain.
+export const CapitalPlanningDraftV1Schema = z
+  .object({
+    input: CapitalPlanningInputV1Schema.innerType().extend({
+      allocations: z
+        .array(CapitalAllocationInputV1Schema.innerType())
+        .min(1)
+        .max(limits.maxAllocations),
+    }),
+    benchmarkSelections: z
+      .array(CapitalBenchmarkSelectionV1Schema)
+      .max(limits.maxAllocations * (limits.maxFollowOnRounds + 1))
+      .optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const deferredPaths = new Set<string>();
+    for (const [index, selection] of (value.benchmarkSelections ?? []).entries()) {
+      const ai = value.input.allocations.findIndex(
+        (allocation) => allocation.allocationId === selection.target.allocationId
+      );
+      const allocation = value.input.allocations[ai];
+      const target = selection.target;
+      const ri =
+        target.kind === 'follow_on'
+          ? (allocation?.followOnRounds.findIndex((round) => round.roundId === target.roundId) ??
+            -1)
+          : -1;
+      if (!allocation || (target.kind === 'follow_on' && ri < 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['benchmarkSelections', index, 'target'],
+          message: 'Benchmark target must identify an existing allocation or round',
+        });
+        continue;
+      }
+      const path =
+        target.kind === 'entry'
+          ? ['allocations', ai, 'entryFinancing']
+          : ['allocations', ai, 'followOnRounds', ri, 'financing'];
+      const key = JSON.stringify(path);
+      if (deferredPaths.has(key))
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['benchmarkSelections', index, 'target'],
+          message: 'Benchmark targets must be unique',
+        });
+      deferredPaths.add(key);
+      const supplied =
+        target.kind === 'entry'
+          ? Object.prototype.hasOwnProperty.call(allocation, 'entryFinancing')
+          : Object.prototype.hasOwnProperty.call(allocation.followOnRounds[ri], 'financing');
+      if (supplied)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['input', ...path],
+          message: 'Selected financing must be absent; explicit edits belong in overrides',
+        });
+    }
+    const normalized = CapitalPlanningInputV1Schema.safeParse(value.input);
+    if (!normalized.success)
+      for (const issue of normalized.error.issues) {
+        if (
+          issue.message === 'OWNERSHIP_INPUT_UNRESOLVED' &&
+          deferredPaths.has(JSON.stringify(issue.path))
+        )
+          continue;
+        ctx.addIssue({ ...issue, path: ['input', ...issue.path] });
+      }
+  });
+
+export const CapitalBenchmarkMetadataV1Schema = z
+  .object({
+    version: CapitalVersionV1Schema,
+    sourceUrl: z.string().url().max(2048),
+    sourceTitle: CapitalLabelV1Schema,
+    observationStart: z.string().date().nullable(),
+    observationEnd: z.string().date(),
+    observationWindow: CapitalLabelV1Schema.optional(),
+    population: CapitalLabelV1Schema,
+    geography: CapitalLabelV1Schema,
+    sector: CapitalLabelV1Schema,
+    stage: CapitalLabelV1Schema,
+    statistic: z.literal('median'),
+    valuationBasis: z.enum(['pre_money', 'post_money']).nullable(),
+    sourceUnit: CapitalSourceUnitV1Schema,
+    sampleSize: z.number().int().positive().safe().nullable(),
+    populationMismatch: NoteSchema.nullable(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.observationStart === null && value.observationWindow === undefined)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['observationWindow'],
+        message: 'An unknown observation start requires the reported observation window',
+      });
+  });
+
+export const CapitalBenchmarkSnapshotV1Schema = CapitalBenchmarkSelectionV1Schema.extend({
+  baselineFinancing: CapitalFinancingV1Schema,
+  metadata: CapitalBenchmarkMetadataV1Schema,
+  observedMetrics: z
+    .object({ valuationUsd: CapitalLabelV1Schema, totalPrimaryRoundUsd: CapitalLabelV1Schema })
+    .strict(),
+})
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.selector.version !== value.metadata.version)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['metadata', 'version'],
+        message: 'Copied benchmark metadata must retain the selected version',
+      });
+  });
+
 export const CapitalAssumptionProvenanceV1Schema = z
   .object({
     inputPath: CapitalPathV1Schema,
@@ -1226,25 +1389,7 @@ export const CapitalAssumptionProvenanceV1Schema = z
     effectiveDate: z.string().date().nullable(),
     sourceVintage: CapitalLabelV1Schema.nullable(),
     note: NoteSchema.nullable(),
-    benchmark: z
-      .object({
-        version: CapitalVersionV1Schema,
-        sourceUrl: z.string().url().max(2048),
-        sourceTitle: CapitalLabelV1Schema,
-        observationStart: z.string().date(),
-        observationEnd: z.string().date(),
-        population: CapitalLabelV1Schema,
-        geography: CapitalLabelV1Schema,
-        sector: CapitalLabelV1Schema,
-        stage: CapitalLabelV1Schema,
-        statistic: z.literal('median'),
-        valuationBasis: z.enum(['pre_money', 'post_money']).nullable(),
-        sourceUnit: CapitalSourceUnitV1Schema,
-        sampleSize: z.number().int().positive().safe().nullable(),
-        populationMismatch: NoteSchema.nullable(),
-      })
-      .strict()
-      .nullable(),
+    benchmark: CapitalBenchmarkMetadataV1Schema.nullable(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -1627,6 +1772,10 @@ export const CapitalPlanningResultV1Schema = z
     input: CapitalPlanningInputV1Schema,
     sourceBundle: CapitalSourceBundleV1Schema,
     provenance: z.array(CapitalAssumptionProvenanceV1Schema).max(limits.maxSourceFacts),
+    benchmarkSnapshots: z
+      .array(CapitalBenchmarkSnapshotV1Schema)
+      .max(limits.maxAllocations * (limits.maxFollowOnRounds + 1))
+      .optional(),
     construction: CapitalConstructionResultV1Schema,
     performance: AggregatePreferenceResultV1Schema.nullable(),
   })
@@ -1673,6 +1822,10 @@ export const CapitalPlanningMemoV1Schema: z.ZodType<CapitalPlanningMemoV1> = z
   .strict();
 
 export type CapitalPlanningInputV1 = z.infer<typeof CapitalPlanningInputV1Schema>;
+export type CapitalPlanningDraftV1 = z.infer<typeof CapitalPlanningDraftV1Schema>;
+export type CapitalBenchmarkSelectionV1 = z.infer<typeof CapitalBenchmarkSelectionV1Schema>;
+export type CapitalBenchmarkMetadataV1 = z.infer<typeof CapitalBenchmarkMetadataV1Schema>;
+export type CapitalBenchmarkSnapshotV1 = z.infer<typeof CapitalBenchmarkSnapshotV1Schema>;
 export type CapitalAllocationInputV1 = z.infer<typeof CapitalAllocationInputV1Schema>;
 export type CapitalFollowOnRoundV1 = z.infer<typeof CapitalFollowOnRoundV1Schema>;
 export type CapitalCheckPolicyV1 = z.infer<typeof CapitalCheckPolicyV1Schema>;

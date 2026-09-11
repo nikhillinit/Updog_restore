@@ -5,11 +5,14 @@ import {
   CAPITAL_PLANNING_PROVISIONAL_LIMITS as limits,
   CAPITAL_SOURCE_INTERPRETATION_VERSION,
   CapitalPlanningInputV1Schema,
+  CapitalPlanningDraftV1Schema,
   CapitalRawSourceFactV1Schema,
   CapitalSourceBundleV1Schema,
   CapitalSourceProjectionV1Schema,
   CapitalUnitDeclarationsV1Schema,
   type CapitalAssumptionProvenanceV1,
+  type CapitalBenchmarkSnapshotV1,
+  type CapitalPlanningDraftV1,
   type CapitalConstructionSourceFactsV1,
   type CapitalFeeExpenseSourceFactsV1,
   type CapitalGpSourceFactsV1,
@@ -28,6 +31,11 @@ import { canonicalJson, sha256CanonicalJson } from '../canonical-json';
 import { Decimal } from '../decimal-config';
 import { toFixedDecimalString } from '../decimal-string';
 import { computeCapitalLifetimeFees } from './fee-tiers-to-fee-profile';
+import { CapitalPlanningCalculationError } from './calculation-support';
+import {
+  applyCapitalBenchmarkProvenanceV1,
+  resolveCapitalPlanningDraftV1,
+} from './benchmark-presets';
 
 type RawConfig = z.input<typeof FundDraftWriteV1Schema>;
 type RawFact = CapitalSourceProjectionV1['facts'][number];
@@ -78,6 +86,8 @@ export type CapitalMaterializationResult =
       sourceBundle: CapitalSourceBundleV1;
       availableConstructionCapitalUsd: string;
       assumptionProvenanceByInput: CapitalAssumptionProvenanceV1[][];
+      resolvedInputs?: CapitalPlanningInputV1[];
+      benchmarkSnapshotsByInput?: CapitalBenchmarkSnapshotV1[][];
       readiness: Readiness;
     }
   | {
@@ -1027,21 +1037,41 @@ function failure(
   };
 }
 
-function admittedInputs(inputs: readonly unknown[], raw: RawConfig): CapitalPlanningInputV1[] {
+function admittedInputs(
+  inputs: readonly unknown[],
+  raw: RawConfig,
+  allowDraft = false
+): CapitalPlanningDraftV1[] {
   if (inputs.length === 0)
     refuse('INVALID_INPUT', 'inputs', 'At least one scenario input is required', 'incomplete');
   bounded(inputs.length, limits.maxVariants, 'inputs');
   return inputs.map((input) => {
-    const parsed = CapitalPlanningInputV1Schema.safeParse(input);
-    if (parsed.success) return parsed.data;
+    const isDraft =
+      allowDraft &&
+      typeof input === 'object' &&
+      input !== null &&
+      Object.prototype.hasOwnProperty.call(input, 'input');
+    const parsed = isDraft
+      ? CapitalPlanningDraftV1Schema.safeParse(input)
+      : CapitalPlanningInputV1Schema.safeParse(input);
+    if (parsed.success)
+      return isDraft
+        ? (parsed.data as CapitalPlanningDraftV1)
+        : { input: parsed.data as CapitalPlanningInputV1 };
     throw new AdmissionRefusal(
-      parsed.error.issues.map((issue): CapitalIssueV1 => {
+      parsed.error.issues.map((originalIssue): CapitalIssueV1 => {
+        const issue =
+          isDraft && originalIssue.path[0] === 'input'
+            ? { ...originalIssue, path: originalIssue.path.slice(1) }
+            : originalIssue;
         let path = issuePath(issue.path) || 'input';
         let code: CapitalRefusalCodeV1 = 'INVALID_INPUT';
         if (issue.path.includes('timeOrigin') || issue.path.includes('monthsAfterPreviousRound')) {
           code = 'TIME_ORIGIN_UNRESOLVED';
           // A source transition belongs to the previous stage even when its investment is skipped.
-          const candidate = input as Partial<CapitalPlanningInputV1> | null;
+          const candidate = (
+            isDraft ? (input as { input: unknown }).input : input
+          ) as Partial<CapitalPlanningInputV1> | null;
           const ai = issue.path[1];
           const ri = issue.path[3];
           const allocation =
@@ -1268,7 +1298,8 @@ export function materializeCapitalSource(args: {
         'Reviewed interpretation version is unsupported',
         'unsupported'
       );
-    const inputs = admittedInputs(args.inputs, args.source.config.raw as RawConfig);
+    const drafts = admittedInputs(args.inputs, args.source.config.raw as RawConfig, true);
+    const inputs = drafts.map((draft) => draft.input);
     const declarations = parse(
       CapitalUnitDeclarationsV1Schema,
       args.unitDeclarations,
@@ -1293,15 +1324,35 @@ export function materializeCapitalSource(args: {
       },
       'sourceBundle'
     );
+    const resolutions = drafts.some((draft) => (draft.benchmarkSelections?.length ?? 0) > 0)
+      ? drafts.map((draft) => resolveCapitalPlanningDraftV1({ draft, sourceBundle }))
+      : undefined;
     return {
       ok: true,
       sourceBundle,
       availableConstructionCapitalUsd,
-      assumptionProvenanceByInput: inputs.map((input) => assumptionProvenance(input, sourceBundle)),
+      assumptionProvenanceByInput: resolutions
+        ? resolutions.map((resolution) =>
+            applyCapitalBenchmarkProvenanceV1(
+              assumptionProvenance(resolution.input, sourceBundle),
+              resolution.financingProvenance
+            )
+          )
+        : inputs.map((input) => assumptionProvenance(input, sourceBundle)),
+      ...(resolutions
+        ? {
+            resolvedInputs: resolutions.map((resolution) => resolution.input),
+            benchmarkSnapshotsByInput: resolutions.map(
+              (resolution) => resolution.benchmarkSnapshots
+            ),
+          }
+        : {}),
       readiness: { context: 'current_preview', state: 'READY', issues: [] },
     };
   } catch (error) {
     if (error instanceof AdmissionRefusal) return failure(error.issues, 'current_preview');
+    if (error instanceof CapitalPlanningCalculationError)
+      return failure(error.issues, 'current_preview');
     throw error;
   }
 }
@@ -1373,7 +1424,7 @@ export function verifyPinnedCapitalSourceBundle(args: {
       raw,
       { id: savedProjection.fundId, ...savedProjection.fund },
       bundle.unitDeclarations,
-      admittedInputs(args.inputs, raw)
+      admittedInputs(args.inputs, raw).map((draft) => draft.input)
     );
     const rebuilt = parse(CapitalSourceBundleV1Schema, { ...bundle, ...facts }, 'sourceBundle');
     if (canonicalJson(rebuilt) !== canonicalJson(bundle))
