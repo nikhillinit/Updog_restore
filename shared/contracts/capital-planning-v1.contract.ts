@@ -1585,6 +1585,23 @@ export const AggregatePreferenceResultV1Schema = z
   })
   .strict()
   .superRefine((value, ctx) => {
+    const ownershipOrigin =
+      value.input.manualOwnershipOverrideRatio === undefined ? 'base' : 'manual_override';
+    if (value.ownershipOrigin !== ownershipOrigin)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ownershipOrigin'],
+        message: 'Ownership origin must match the selected input',
+      });
+    if (
+      value.effectiveOwnershipRatio !==
+      (value.input.manualOwnershipOverrideRatio ?? value.input.asConvertedOwnershipRatio)
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['effectiveOwnershipRatio'],
+        message: 'Effective ownership must match the selected input',
+      });
     if ((value.effectiveFmv === null) !== (value.fmvUnavailableReason !== null))
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
