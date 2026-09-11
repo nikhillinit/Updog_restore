@@ -1,0 +1,35 @@
+{
+  "name": "capital-plan-override",
+  "order": 35,
+  "description": "Migration 0058: admit capital_plan scenario variants while preserving the five existing override modes and all stored rows.",
+  "missingTablePolicy": "existing_table_required",
+  "sqlFiles": ["migrations/0058_capital_plan_override.sql"],
+  "allowedCreateTables": [],
+  "applyPolicy": {
+    "allowConstraintReplacements": [
+      {
+        "table": "fund_scenario_variants",
+        "name": "fund_scenario_variants_override_type_check",
+        "expectedDefinition": {
+          "requiredFragments": ["override_type"],
+          "stringLiterals": [
+            "fee_profile",
+            "reserve_allocation",
+            "allocation",
+            "sector_profile",
+            "methodology",
+            "capital_plan"
+          ]
+        }
+      }
+    ]
+  },
+  "expectedTables": [
+    {
+      "name": "fund_scenario_variants",
+      "sharedTable": true,
+      "columns": [],
+      "constraints": ["fund_scenario_variants_override_type_check"]
+    }
+  ]
+}
