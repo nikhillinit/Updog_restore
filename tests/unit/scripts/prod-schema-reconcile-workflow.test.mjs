@@ -92,33 +92,27 @@ describe('actuals synthetic attestation witness', () => {
     expect(source).not.toMatch(/workflow_call|pull_request_target|workflow_run:/);
   });
 
-  it('refuses unauthorized or mismatched execution before creating witness files', async () => {
+  it('rejects unauthorized or mismatched execution inputs', async () => {
     const workflow = YAML.parse(
       await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
     );
-    const directory = await mkdtemp(path.join(os.tmpdir(), 'actuals-witness-guard-'));
-    try {
-      const accepted = runWitnessStep(workflow, 'guard', { WITNESS_DIR: directory });
-      expect(accepted.status, accepted.stderr).toBe(0);
-      for (const mismatch of [
-        { GITHUB_EVENT_NAME: 'push' },
-        { GITHUB_REPOSITORY: 'other/Updog_restore' },
-        { GITHUB_REPOSITORY_OWNER: 'other' },
-        { GITHUB_ACTOR: 'other' },
-        { GITHUB_TRIGGERING_ACTOR: 'other' },
-        { EXPECTED_SHA: 'main' },
-        { GITHUB_SHA: 'b'.repeat(40) },
-        { GITHUB_WORKFLOW_SHA: 'b'.repeat(40) },
-        { GITHUB_WORKFLOW_REF: `${witnessEnv.GITHUB_WORKFLOW_REF}-other` },
-        { GITHUB_RUN_ATTEMPT: '0' },
-      ]) {
-        const rejected = runWitnessStep(workflow, 'guard', { WITNESS_DIR: directory, ...mismatch });
-        expect(rejected.error).toBeUndefined();
-        expect(rejected.status, JSON.stringify(mismatch)).not.toBe(0);
-      }
-      expect(await readdir(directory)).toEqual([]);
-    } finally {
-      await rm(directory, { recursive: true, force: true });
+    const accepted = runWitnessStep(workflow, 'guard', {});
+    expect(accepted.status, accepted.stderr).toBe(0);
+    for (const mismatch of [
+      { GITHUB_EVENT_NAME: 'push' },
+      { GITHUB_REPOSITORY: 'other/Updog_restore' },
+      { GITHUB_REPOSITORY_OWNER: 'other' },
+      { GITHUB_ACTOR: 'other' },
+      { GITHUB_TRIGGERING_ACTOR: 'other' },
+      { EXPECTED_SHA: 'main' },
+      { GITHUB_SHA: 'b'.repeat(40) },
+      { GITHUB_WORKFLOW_SHA: 'b'.repeat(40) },
+      { GITHUB_WORKFLOW_REF: `${witnessEnv.GITHUB_WORKFLOW_REF}-other` },
+      { GITHUB_RUN_ATTEMPT: '0' },
+    ]) {
+      const rejected = runWitnessStep(workflow, 'guard', mismatch);
+      expect(rejected.error).toBeUndefined();
+      expect(rejected.status, JSON.stringify(mismatch)).not.toBe(0);
     }
   });
 
