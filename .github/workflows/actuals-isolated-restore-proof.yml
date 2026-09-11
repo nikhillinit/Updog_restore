@@ -377,8 +377,8 @@ jobs:
           const changed = Buffer.from(original);
           changed[0] ^= 1;
           save('archive-mutated.zip', changed);
-          // CLI reports the verification stage, not the underlying digest/SAN error.
-          const signatureMarkers = ['Sigstore verification failed', 'verifying with issuer'];
+          // Captured non-TTY stderr reports the verification stage without the UI diagnostic.
+          const signatureMarkers = ['Error: verifying with issuer "sigstore.dev"'];
           const results = { archiveByte: reject('negative-archive', file('archive-mutated.zip'), policy,
             signatureMarkers, { byteOffset: 0, originalSha256: digest(original), mutatedSha256: digest(changed) }) };
           fs.unlinkSync(file('archive-mutated.zip'));

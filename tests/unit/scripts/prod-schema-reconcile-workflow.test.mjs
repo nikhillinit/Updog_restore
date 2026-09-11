@@ -142,6 +142,76 @@ describe('actuals synthetic attestation witness', () => {
     }
   });
 
+  it('classifies non-TTY CLI rejection diagnostics and refuses unrelated errors', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
+    );
+    const positive = '[{"synthetic":true}]\n';
+    const signatureStderr = '\nError: verifying with issuer "sigstore.dev"\n';
+    for (const unrelatedStage of ['', 'archive', 'signer']) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), 'actuals-witness-negatives-'));
+      try {
+        await writeFile(path.join(directory, 'archive.zip'), 'Synthetic CLI transcript only.');
+        await writeFile(path.join(directory, 'verification.json'), positive);
+        await writeFile(
+          path.join(directory, 'verification-command.json'),
+          JSON.stringify({
+            archive: path.join(directory, 'archive.zip'),
+            policy: [
+              '--signer-workflow',
+              'nikhillinit/Updog_restore/.github/workflows/actuals-isolated-restore-proof.yml',
+              '--predicate-type',
+              'urn:updog:actuals-restore-proof:v1',
+            ],
+          })
+        );
+        await writeFile(
+          path.join(directory, 'gh'),
+          `#!${process.execPath}
+const args = process.argv.slice(2);
+const stage = args[2].endsWith('archive-mutated.zip') ? 'archive'
+  : args.some((arg) => arg.endsWith('/not-the-witness.yml')) ? 'signer'
+  : args.includes('urn:updog:rejected-predicate:v1') ? 'predicate' : '';
+if (stage) {
+  process.stderr.write(stage === process.env.UNRELATED_STAGE ? 'Error: authentication failed'
+    : stage === 'predicate' ? 'Error: no attestations found with predicate type: urn:updog:rejected-predicate:v1'
+    : process.env.SIGNATURE_STDERR);
+  process.exitCode = 1;
+} else {
+  process.stdout.write(process.env.POSITIVE_JSON);
+}
+`,
+          { mode: 0o700 }
+        );
+        const result = runWitnessStep(workflow, 'negatives', {
+          WITNESS_DIR: directory,
+          PATH: directory,
+          POSITIVE_JSON: positive,
+          SIGNATURE_STDERR: signatureStderr,
+          UNRELATED_STAGE: unrelatedStage,
+        });
+        expect(result.error).toBeUndefined();
+        if (unrelatedStage) {
+          expect(result.status).not.toBe(0);
+          expect(result.stderr).toContain(
+            'Unexpected failure stage; negative witness not established'
+          );
+          expect(await readdir(directory)).not.toContain('cli-results.json');
+        } else {
+          expect(result.status, result.stderr).toBe(0);
+          const results = JSON.parse(
+            await readFile(path.join(directory, 'cli-results.json'), 'utf8')
+          );
+          for (const name of ['archiveByte', 'signer', 'predicate']) {
+            expect(results[name]).toMatchObject({ exitCode: 1, restoredExitCode: 0 });
+          }
+        }
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  });
+
   it('checks certificate and archive bindings with synthetic CLI output, without claiming signature verification', async () => {
     const workflow = YAML.parse(
       await readFile('.github/workflows/actuals-isolated-restore-proof.yml', 'utf8')
