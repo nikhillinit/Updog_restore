@@ -3,6 +3,8 @@ import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
+  FundScenarioCapitalResultsResponseV1Schema,
+  type FundScenarioCapitalResultsResponseV1,
   FundScenarioCalculationResponseV1Schema,
   ScenarioSetResultSummaryV1Schema,
   type FundScenarioCalculationModeV1,
@@ -25,6 +27,9 @@ import { hasEconomicsAssumptions, runEconomicsModel } from '@shared/lib/economic
 import {
   createHttpError,
   fetchScenarioSetDetail,
+  fetchRawScenarioSet,
+  fetchRawScenarioSets,
+  fetchCapitalScenarioSetDetailFromRaw,
   insertScenarioSetEvent,
   normalizeActor,
   parseCount,
@@ -33,6 +38,8 @@ import {
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
+import { fetchCapitalSavedSnapshot } from './fund-scenario-capital-read-service.js';
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
 import {
   acquireScenarioCalculationRun,
   findCompletedScenarioRun,
@@ -727,7 +734,14 @@ export async function calculateFundScenarioSet(
       payload,
       inputHash,
     });
-    if ((await markScenarioCalculationRunCompleted(client, run.id, syncFenceIdentity, response.snapshotId)) !== 1) {
+    if (
+      (await markScenarioCalculationRunCompleted(
+        client,
+        run.id,
+        syncFenceIdentity,
+        response.snapshotId
+      )) !== 1
+    ) {
       throw createHttpError(409, 'Scenario calculation run ownership was lost', {
         code: 'scenario_calculation_ownership_lost',
       });
@@ -753,12 +767,40 @@ export async function calculateFundScenarioSet(
   });
 }
 
+export function getScenarioResults(
+  fundId: number,
+  scenarioSetId: string,
+  representation?: undefined
+): Promise<FundScenarioCalculationResponseV1 | null>;
+// eslint-disable-next-line no-redeclare -- TypeScript overload preserves the strict legacy return type.
+export function getScenarioResults(
+  fundId: number,
+  scenarioSetId: string,
+  representation: 'capital-plan-v1'
+): Promise<FundScenarioCapitalResultsResponseV1>;
+// eslint-disable-next-line no-redeclare -- Implementation of the representation overloads.
 export async function getScenarioResults(
   fundId: number,
-  scenarioSetId: string
-): Promise<FundScenarioCalculationResponseV1 | null> {
+  scenarioSetId: string,
+  representation?: ScenarioRepresentation
+): Promise<FundScenarioCalculationResponseV1 | FundScenarioCapitalResultsResponseV1 | null> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
+    if (representation) {
+      const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);
+      const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
+      const savedResult = await fetchCapitalSavedSnapshot(client, detail);
+      const response: FundScenarioCapitalResultsResponseV1 = {
+        contractVersion: 'fund-scenario-capital-results/1.0.0',
+        representation,
+        scenarioSetId,
+        savedResult,
+        unavailableReason: savedResult === null ? 'NO_CALCULATED_RESULT' : null,
+        readState: detail.readState,
+      };
+      FundScenarioCapitalResultsResponseV1Schema.parse(response);
+      return response;
+    }
     await fetchScenarioSetDetail(client, fundId, scenarioSetId);
 
     const result = await client.query<SnapshotRow>(
@@ -789,6 +831,10 @@ export async function getAllScenarioResultsForFund(
 ): Promise<AllScenarioResultsForFund> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
+    // Classify every active set before selecting snapshots; mixed sets must remain visible errors.
+    const rawSets = await fetchRawScenarioSets(client, fundId);
+    const legacySetIds = rawSets.filter((set) => set.family === 'legacy').map((set) => set.row.id);
+    if (legacySetIds.length === 0) return { kind: 'none_exist' };
     const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
 
     const result = await client.query<AllScenarioResultsRow>(
@@ -816,9 +862,10 @@ export async function getAllScenarioResultsForFund(
           LIMIT 1
        ) latest ON TRUE
       WHERE s.fund_id = $1
+        AND s.id = ANY($2::uuid[])
         AND s.archived_at IS NULL
       ORDER BY s.updated_at DESC, s.id DESC`,
-      [fundId]
+      [fundId, legacySetIds]
     );
 
     if (result.rows.length === 0) {

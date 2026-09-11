@@ -1,11 +1,22 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import historicalCapital from '../../fixtures/capital-planning/completed-interpretation-1.0.0.json';
 
-const { getSourceConfigMock, createScenarioSetMock, getScenarioSetMock } = vi.hoisted(() => ({
+const {
+  getSourceConfigMock,
+  createScenarioSetMock,
+  getScenarioSetMock,
+  familyQueryMock,
+  familyTransactionMock,
+} = vi.hoisted(() => ({
   getSourceConfigMock: vi.fn(),
   createScenarioSetMock: vi.fn(),
   getScenarioSetMock: vi.fn(),
+  familyQueryMock: vi.fn(),
+  familyTransactionMock: vi.fn(),
 }));
+
+vi.mock('../../../server/db/pg-circuit.js', () => ({ transaction: familyTransactionMock }));
 
 vi.mock('../../../server/services/fund-scenario-set-service.js', async (importActual) => {
   const actual =
@@ -330,5 +341,202 @@ describe('fund scenario sets source-config route (F_1.7.0 S1)', () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'invalid_request_body' });
     expect(createScenarioSetMock).not.toHaveBeenCalled();
+  }, 30_000);
+});
+
+describe('B7 negotiated reader routes through actual adapters', () => {
+  let saved: typeof historicalCapital;
+  let legacy: boolean;
+  const prefix = '/api/funds/101/scenario-sets';
+  const scenarioId = historicalCapital.scenarioSet.id;
+  const paths = [
+    '/source-config',
+    '',
+    `/${scenarioId}`,
+    `/${scenarioId}/results`,
+    `/${scenarioId}/comparison`,
+    `/${scenarioId}/calculation-status`,
+  ];
+
+  beforeEach(async () => {
+    saveEnv();
+    vi.resetModules();
+    vi.clearAllMocks();
+    saved = structuredClone(historicalCapital);
+    legacy = false;
+    familyQueryMock.mockReset();
+    familyTransactionMock.mockReset();
+    familyTransactionMock.mockImplementation(
+      async (run: (client: { query: typeof familyQueryMock }) => unknown) =>
+        run({ query: familyQueryMock })
+    );
+    familyQueryMock.mockImplementation(async (sqlValue: unknown) => {
+      const sql = String(sqlValue);
+      if (/\b(INSERT|UPDATE|DELETE|TRUNCATE)\b/.test(sql))
+        throw new Error('GET attempted mutation');
+      if (/fund_scenario_calculation_runs|fund_scenario_set_events/.test(sql))
+        throw new Error('Capital GET attempted reserve work');
+      if (sql.includes('FROM funds f'))
+        return {
+          rows: [
+            {
+              fund_id: 101,
+              size: saved.rawSource.fund.size,
+              base_currency: saved.rawSource.fund.baseCurrency,
+              id: saved.rawSource.config.id,
+              version: saved.rawSource.config.version,
+              config: saved.rawSource.config.raw,
+              published_at: saved.rawSource.config.publishedAt,
+            },
+          ],
+        };
+      if (sql.includes('FROM funds')) return { rows: [{ id: 101 }] };
+      if (sql.includes('FROM fundconfigs'))
+        return {
+          rows: [
+            {
+              id: saved.rawSource.config.id,
+              version: saved.rawSource.config.version,
+              config: saved.rawSource.config.raw,
+              published_at: saved.rawSource.config.publishedAt,
+            },
+          ],
+        };
+      if (sql.includes('FROM fund_scenario_sets')) return { rows: [saved.scenarioSet] };
+      if (sql.includes('FROM fund_scenario_variants'))
+        return {
+          rows: legacy
+            ? saved.variants.map((v) => ({
+                ...v,
+                override_type: 'fee_profile',
+                override_payload: {},
+              }))
+            : saved.variants,
+        };
+      if (sql.includes('FROM fund_snapshots')) return { rows: [saved.snapshot] };
+      throw new Error(`Unexpected negotiated GET query: ${sql}`);
+    });
+    const actual = await vi.importActual<
+      typeof import('../../../server/services/fund-scenario-set-service')
+    >('../../../server/services/fund-scenario-set-service');
+    getSourceConfigMock.mockImplementation(actual.getFundScenarioSourceConfig);
+    getScenarioSetMock.mockImplementation(actual.getFundScenarioSet);
+  });
+  afterEach(() => {
+    restoreEnv();
+    vi.restoreAllMocks();
+  });
+
+  it.each(paths)(
+    'rejects malformed scalar, repeated and array selectors on %s before database reads',
+    async (suffix) => {
+      const app = await makeAppWithTestAuth();
+      const authorization = await authorizationHeader();
+      for (const query of [
+        'representation=unknown',
+        'representation=',
+        'representation=capital-plan-v1&representation=capital-plan-v1',
+        'representation[]=capital-plan-v1',
+        'representation[bad]=capital-plan-v1',
+        'representation=capital-plan-v1&representation[]=capital-plan-v1',
+      ]) {
+        const result = await request(app)
+          .get(`${prefix}${suffix}?${query}`)
+          .set('Authorization', authorization);
+        expect(result.status, `${suffix}?${query}`).toBe(400);
+        expect(result.body).toMatchObject({
+          error: 'invalid_representation',
+          parameter: 'representation',
+          allowedValues: ['capital-plan-v1'],
+        });
+      }
+      expect(familyQueryMock).not.toHaveBeenCalled();
+    },
+    30_000
+  );
+
+  it('dispatches source/list/detail/results/comparison using actual capital readers', async () => {
+    const app = await makeAppWithTestAuth();
+    const authorization = await authorizationHeader();
+    const versions = [
+      'fund-scenario-capital-source/1.0.0',
+      'fund-scenario-capital-list/1.0.0',
+      'fund-scenario-capital-detail/1.0.0',
+      'fund-scenario-capital-results/1.0.0',
+      'fund-scenario-capital-comparison/1.0.0',
+    ];
+    for (const [index, suffix] of paths.slice(0, 5).entries()) {
+      const result = await request(app)
+        .get(`${prefix}${suffix}?representation=capital-plan-v1`)
+        .set('Authorization', authorization);
+      expect(result.status, suffix).toBe(200);
+      expect(result.body).toMatchObject({
+        representation: 'capital-plan-v1',
+        contractVersion: versions[index],
+      });
+      if (suffix.endsWith('/results'))
+        expect(JSON.stringify(result.body.savedResult.payload)).toBe(saved.payloadSerialized);
+    }
+  }, 30_000);
+
+  it.each(['', '?representation=capital-plan-v1'])(
+    'refuses capital status with409 before reserve identity/run work (%s)',
+    async (selector) => {
+      const app = await makeAppWithTestAuth();
+      const result = await request(app)
+        .get(`${prefix}/${scenarioId}/calculation-status${selector}`)
+        .set('Authorization', await authorizationHeader());
+      expect(result.status).toBe(409);
+      expect(result.body).toMatchObject({ code: 'capital_plan_calculation_status_not_applicable' });
+      expect(
+        familyQueryMock.mock.calls.some(([sql]) =>
+          /fund_scenario_calculation_runs|fund_scenario_set_events|fundconfigs/.test(String(sql))
+        )
+      ).toBe(false);
+    },
+    30_000
+  );
+
+  it.each(['', '/results', '/comparison'])(
+    'requires representation before parsing a corrupt capital payload on direct%s',
+    async (suffix) => {
+      saved.variants[0]!.override_payload = {} as (typeof saved.variants)[0]['override_payload'];
+      const app = await makeAppWithTestAuth();
+      const result = await request(app)
+        .get(`${prefix}/${scenarioId}${suffix}`)
+        .set('Authorization', await authorizationHeader());
+      expect(result.status).toBe(406);
+      expect(result.body).toMatchObject({ code: 'scenario_representation_required' });
+    },
+    30_000
+  );
+
+  it.each(['', '/results', '/comparison'])(
+    'refuses capital representation before parsing a corrupt legacy payload on direct%s',
+    async (suffix) => {
+      legacy = true;
+      const app = await makeAppWithTestAuth();
+      const result = await request(app)
+        .get(`${prefix}/${scenarioId}${suffix}?representation=capital-plan-v1`)
+        .set('Authorization', await authorizationHeader());
+      expect(result.status).toBe(406);
+      expect(result.body).toMatchObject({ code: 'scenario_representation_not_applicable' });
+    },
+    30_000
+  );
+
+  it('keeps the default list legacy-only with capital data and rejects capital aggregate representation before loading results', async () => {
+    const app = await makeAppWithTestAuth();
+    const authorization = await authorizationHeader();
+    const list = await request(app).get(prefix).set('Authorization', authorization);
+    expect(list.status).toBe(200);
+    expect(list.body).toEqual({ scenarioSets: [] });
+    familyQueryMock.mockClear();
+    const aggregate = await request(app)
+      .get('/api/funds/101/results?representation=capital-plan-v1')
+      .set('Authorization', authorization);
+    expect(aggregate.status).toBe(406);
+    expect(aggregate.body).toMatchObject({ error: 'scenario_representation_not_applicable' });
+    expect(familyQueryMock).not.toHaveBeenCalled();
   }, 30_000);
 });

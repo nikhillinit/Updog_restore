@@ -27,6 +27,7 @@ import {
   type CapitalUnitDeclarationsV1,
 } from '../../contracts/capital-planning-v1.contract';
 import { FundDraftWriteV1Schema } from '../../contracts/fund-draft-write-v1.contract';
+import type { FundScenarioCapitalSourceResponseV1 } from '../../contracts/fund-scenario-sets-v1.contract';
 import { canonicalJson, sha256CanonicalJson } from '../canonical-json';
 import { Decimal } from '../decimal-config';
 import { toFixedDecimalString } from '../decimal-string';
@@ -226,16 +227,25 @@ export function fingerprintCapitalSource(source: CapitalRawSource): {
   return { projection, sourceBundleHash: sha256CanonicalJson(projection) };
 }
 
-function normalizeSource(
-  raw: RawConfig,
-  fund: CapitalRawSource['fund'],
-  declarations: CapitalUnitDeclarationsV1,
-  inputs: CapitalPlanningInputV1[]
-): BundleFacts & { availableConstructionCapitalUsd: string } {
-  // Presence determines whether a supported schedule exists before selected money or rates
-  // are normalized. The caller validates the entire persisted source before this step.
+function usesExplicitFeeTiers(raw: RawConfig): boolean {
+  return (raw.economicsAssumptions?.feeModel?.tiers?.length ?? 0) > 0;
+}
+
+function usesExplicitExpenses(raw: RawConfig): boolean {
+  return raw.economicsAssumptions?.expenseModel?.annualExpenses !== undefined;
+}
+
+function selectedGpSource(raw: RawConfig): CapitalGpSourceFactsV1['resolved']['source'] {
+  const model = raw.economicsAssumptions?.gpCommitmentModel;
+  if (model?.commitmentAmount !== undefined) return 'nested_amount';
+  if (model?.commitmentPct !== undefined) return 'nested_percent';
+  if (raw.gpCommitment !== undefined) return 'top_level_amount';
+  return 'zero_fallback';
+}
+
+function requireFeeSchedule(raw: RawConfig): void {
   const feeModel = raw.economicsAssumptions?.feeModel;
-  const explicit = (feeModel?.tiers?.length ?? 0) > 0;
+  const explicit = usesExplicitFeeTiers(raw);
   if (!explicit && !raw.feeProfiles?.length) {
     const path =
       feeModel?.defaultRate !== undefined
@@ -250,6 +260,290 @@ function normalizeSource(
       'incomplete'
     );
   }
+}
+
+function year(value: number | undefined, path: string, code: CapitalRefusalCodeV1): number {
+  if (value === undefined || !Number.isInteger(value) || value < 1)
+    refuse(
+      code,
+      path,
+      'A positive integer year is required',
+      value === undefined ? 'incomplete' : 'invalid'
+    );
+  bounded(value, limits.maxFundYears, path);
+  return value;
+}
+
+function assertFiniteSource(raw: RawConfig, fund: CapitalRawSource['fund']): void {
+  if (fund.baseCurrency === null || fund.baseCurrency === '')
+    refuse('FUND_CURRENCY_UNRESOLVED', 'baseCurrency', 'Fund currency is required', 'incomplete');
+  if (fund.baseCurrency !== 'USD')
+    refuse(
+      'FUND_CURRENCY_UNSUPPORTED',
+      'baseCurrency',
+      'Only USD capital sources are supported',
+      'unsupported'
+    );
+  if (raw.isEvergreen === undefined)
+    refuse(
+      'FUND_VEHICLE_MODE_UNRESOLVED',
+      'isEvergreen',
+      'Explicit vehicle mode is required',
+      'incomplete'
+    );
+  if (raw.isEvergreen !== false)
+    refuse(
+      'FUND_VEHICLE_MODE_UNSUPPORTED',
+      'isEvergreen',
+      'Evergreen vehicles are unsupported',
+      'unsupported'
+    );
+}
+
+function feeBasis(basis: string, path: string): 'committed_capital' {
+  if (basis === 'committed_capital') return basis;
+  const reasons: Record<string, NonNullable<CapitalIssueV1['reason']>> = {
+    called_capital_period: 'CALL_SCHEDULE_NOT_MODELED',
+    called_capital_cumulative: 'CALL_SCHEDULE_NOT_MODELED',
+    called_capital_net_of_returns: 'CALL_SCHEDULE_NOT_MODELED',
+    gross_cumulative_called: 'CALL_SCHEDULE_NOT_MODELED',
+    net_cumulative_called: 'CALL_SCHEDULE_NOT_MODELED',
+    invested_capital: 'INVESTED_BASIS_ADAPTER_NOT_IMPLEMENTED',
+    cumulative_invested: 'INVESTED_BASIS_ADAPTER_NOT_IMPLEMENTED',
+    fair_market_value: 'VALUATION_PATH_NOT_MODELED',
+    unrealized_cost: 'UNREALIZED_COST_SCHEDULE_NOT_MODELED',
+    unrealized_investments: 'UNREALIZED_COST_SCHEDULE_NOT_MODELED',
+  };
+  const reason = reasons[basis];
+  if (!reason) refuse('INVALID_INPUT', path, 'Unknown fee basis');
+  refuse(
+    'FEE_BASIS_UNSUPPORTED',
+    path,
+    'Selected fee basis is unsupported for capital planning',
+    'unsupported',
+    { feeBasis: basis as CapitalIssueV1['feeBasis'], reason }
+  );
+}
+
+export type CapitalSourcePreviewInspection = Pick<
+  FundScenarioCapitalSourceResponseV1,
+  'projection' | 'sourceBundleHash' | 'remainingDeclarations' | 'calculationReadiness'
+> & { materialized: null };
+
+/** Inspect source-global branches without inventing scenario selections or units. */
+export function inspectCapitalSourcePreview(
+  source: CapitalRawSource
+): CapitalSourcePreviewInspection {
+  const fingerprint = fingerprintCapitalSource(source);
+  const remainingDeclarations: CapitalSourcePreviewInspection['remainingDeclarations'] = [];
+  const issues: CapitalIssueV1[] = [];
+  const validation = FundDraftWriteV1Schema.safeParse(source.config.raw);
+  if (!validation.success) {
+    issues.push(
+      ...validation.error.issues.map((issue): CapitalIssueV1 => ({
+        code: isTimeOriginIssue(issue.message) ? 'TIME_ORIGIN_UNRESOLVED' : 'INVALID_INPUT',
+        path: issuePath(issue.path) || 'config',
+        message: issue.message,
+        support: isTimeOriginIssue(issue.message) ? 'incomplete' : 'invalid',
+      }))
+    );
+  } else {
+    // Parsed defaults cannot enter the raw source projection or branch selection.
+    const raw = source.config.raw as RawConfig;
+    const add = (
+      path: string,
+      allowedUnits: CapitalSourcePreviewInspection['remainingDeclarations'][number]['allowedUnits']
+    ) => remainingDeclarations.push({ path, allowedUnits });
+    const money = (path: string) => add(path, ['usd', 'usd_millions']);
+    const months = (
+      value: { startMonth?: number | undefined; endMonth?: number | undefined },
+      path: string
+    ) => {
+      for (const boundary of ['startMonth', 'endMonth'] as const) {
+        if (value[boundary] !== undefined) {
+          add(`${path}.${boundary}`, ['fund_month_zero_based', 'fund_month_one_based']);
+        }
+      }
+    };
+    money('funds.size');
+    if (raw.fundSize !== undefined) money('fundSize');
+    const gpSource = selectedGpSource(raw);
+    if (gpSource === 'nested_amount')
+      money('economicsAssumptions.gpCommitmentModel.commitmentAmount');
+    if (gpSource === 'top_level_amount') money('gpCommitment');
+    if (!usesExplicitFeeTiers(raw) && raw.feeProfiles?.length === 1) {
+      raw.feeProfiles[0]!.feeTiers.forEach((tier, index) => {
+        const path = `feeProfiles[0].feeTiers[${index}]`;
+        add(`${path}.percentage`, ['ratio', 'percent_points']);
+        months(tier, path);
+      });
+    }
+    const expenses = raw.economicsAssumptions?.expenseModel;
+    if (usesExplicitExpenses(raw)) {
+      expenses!.annualExpenses!.forEach((_expense, index) =>
+        money(`economicsAssumptions.expenseModel.annualExpenses[${index}].amount`)
+      );
+    } else {
+      raw.fundExpenses?.forEach((expense, index) => {
+        const path = `fundExpenses[${index}]`;
+        money(`${path}.monthlyAmount`);
+        months(expense, path);
+      });
+    }
+    bounded(remainingDeclarations.length, limits.maxDeclarations, 'unitDeclarations');
+    try {
+      requireFeeSchedule(raw);
+      assertFiniteSource(raw, source.fund);
+      if (decimal(source.fund.size, 'funds.size', 'INVALID_INPUT').lte(0)) {
+        refuse('INVALID_INPUT', 'funds.size', 'Commitments must be positive');
+      }
+      if (gpSource === 'zero_fallback' && (raw.fundedFromFeesPct ?? 0) > 0) {
+        refuse(
+          'GP_COMMITMENT_UNRESOLVED',
+          'gpCommitment',
+          'A positive fee-funded fraction requires a GP commitment source',
+          'incomplete'
+        );
+      }
+      const timeline = raw.economicsAssumptions?.timeline;
+      const life = year(
+        timeline?.fundLifeYears ?? raw.fundLife,
+        timeline ? 'economicsAssumptions.timeline.fundLifeYears' : 'fundLife',
+        'FUND_TERM_UNRESOLVED'
+      );
+      if (year(raw.investmentPeriod, 'investmentPeriod', 'INVESTMENT_PERIOD_UNRESOLVED') > life) {
+        refuse(
+          'INVESTMENT_PERIOD_UNRESOLVED',
+          'investmentPeriod',
+          'Investment period exceeds fund term'
+        );
+      }
+      const vintage = timeline?.vintageYear ?? raw.vintageYear;
+      if (vintage === undefined || !Number.isInteger(vintage) || vintage < 1900 || vintage > 2200) {
+        refuse(
+          'VINTAGE_YEAR_UNRESOLVED',
+          timeline ? 'economicsAssumptions.timeline.vintageYear' : 'vintageYear',
+          'A valid vintage year is required',
+          vintage === undefined ? 'incomplete' : 'invalid'
+        );
+      }
+      if (usesExplicitFeeTiers(raw)) {
+        bounded(
+          raw.economicsAssumptions!.feeModel!.tiers!.length,
+          limits.maxFeeExpensePieces,
+          'economicsAssumptions.feeModel.tiers'
+        );
+        raw.economicsAssumptions!.feeModel!.tiers!.forEach((tier, index) =>
+          feeBasis(tier.basis, `economicsAssumptions.feeModel.tiers[${index}].basis`)
+        );
+      } else {
+        if (raw.feeProfiles!.length !== 1) {
+          refuse(
+            'FEE_PROFILE_APPLICABILITY_UNSUPPORTED',
+            'feeProfiles',
+            'Exactly one full-fund legacy fee profile is supported',
+            'unsupported'
+          );
+        }
+        if (raw.feeProfiles![0]!.feeTiers.length === 0) {
+          refuse(
+            'FEE_MODEL_UNRESOLVED',
+            'feeProfiles[0].feeTiers',
+            'Selected fee profile requires explicit tiers',
+            'incomplete'
+          );
+        }
+        bounded(
+          raw.feeProfiles![0]!.feeTiers.length,
+          limits.maxFeeExpensePieces,
+          'feeProfiles[0].feeTiers'
+        );
+        raw.feeProfiles![0]!.feeTiers.forEach((tier, index) =>
+          feeBasis(tier.feeBasis, `feeProfiles[0].feeTiers[${index}].feeBasis`)
+        );
+      }
+      for (const key of ['orgExpenseCap', 'orgExpenseCapType'] as const) {
+        if (expenses?.[key] !== undefined) {
+          refuse(
+            'EXPENSE_CAP_UNSUPPORTED',
+            `economicsAssumptions.expenseModel.${key}`,
+            'Expense-cap policies are unsupported',
+            'unsupported'
+          );
+        }
+      }
+      if (usesExplicitExpenses(raw)) {
+        bounded(
+          expenses!.annualExpenses!.length,
+          limits.maxFeeExpensePieces,
+          'economicsAssumptions.expenseModel.annualExpenses'
+        );
+        expenses!.annualExpenses!.forEach((expense, index) => {
+          if (expense.growthRate !== undefined && expense.growthRate !== 0) {
+            refuse(
+              'EXPENSE_GROWTH_UNSUPPORTED',
+              `economicsAssumptions.expenseModel.annualExpenses[${index}].growthRate`,
+              'Nonzero expense growth is unsupported',
+              'unsupported'
+            );
+          }
+        });
+      } else if (raw.fundExpenses === undefined) {
+        refuse(
+          'EXPENSE_MODEL_UNRESOLVED',
+          'fundExpenses',
+          'An explicit expense schedule is required',
+          'incomplete'
+        );
+      } else {
+        bounded(raw.fundExpenses.length, limits.maxFeeExpensePieces, 'fundExpenses');
+      }
+    } catch (error) {
+      if (!(error instanceof AdmissionRefusal)) throw error;
+      issues.push(...error.issues);
+    }
+    issues.push(
+      ...remainingDeclarations.map(({ path, allowedUnits }): CapitalIssueV1 => ({
+        code: allowedUnits[0]?.startsWith('fund_month')
+          ? 'TIME_ORIGIN_UNRESOLVED'
+          : 'UNIT_PROVENANCE_UNRESOLVED',
+        path,
+        message: 'An exact-path source-unit declaration is required',
+        support: 'incomplete',
+      }))
+    );
+  }
+  issues.push({
+    code: 'INVALID_INPUT',
+    path: 'inputs',
+    message: 'Scenario selections are required to determine construction sources and declarations',
+    support: 'incomplete',
+  });
+  return {
+    ...fingerprint,
+    remainingDeclarations,
+    materialized: null,
+    calculationReadiness: {
+      context: 'current_preview',
+      state: issues.some((issue) => issue.support !== 'incomplete')
+        ? 'UNSUPPORTED'
+        : 'INPUT_REQUIRED',
+      issues,
+    },
+  };
+}
+
+function normalizeSource(
+  raw: RawConfig,
+  fund: CapitalRawSource['fund'],
+  declarations: CapitalUnitDeclarationsV1,
+  inputs: CapitalPlanningInputV1[]
+): BundleFacts & { availableConstructionCapitalUsd: string } {
+  // Presence determines whether a supported schedule exists before selected money or rates
+  // are normalized. The caller validates the entire persisted source before this step.
+  const feeModel = raw.economicsAssumptions?.feeModel;
+  const explicit = usesExplicitFeeTiers(raw);
+  requireFeeSchedule(raw);
   const consumed = new Set<string>();
   function unit(path: string, allowed: readonly string[]): CapitalUnitDeclarationsV1[string] {
     const value = declarations[path];
@@ -300,41 +594,8 @@ function normalizeSource(
       provenanceOrigin: resolved ? 'contract_resolved' : 'scenario_declared',
     };
   }
-  function year(value: number | undefined, path: string, code: CapitalRefusalCodeV1): number {
-    if (value === undefined || !Number.isInteger(value) || value < 1)
-      refuse(
-        code,
-        path,
-        'A positive integer year is required',
-        value === undefined ? 'incomplete' : 'invalid'
-      );
-    bounded(value, limits.maxFundYears, path);
-    return value;
-  }
 
-  if (fund.baseCurrency === null || fund.baseCurrency === '')
-    refuse('FUND_CURRENCY_UNRESOLVED', 'baseCurrency', 'Fund currency is required', 'incomplete');
-  if (fund.baseCurrency !== 'USD')
-    refuse(
-      'FUND_CURRENCY_UNSUPPORTED',
-      'baseCurrency',
-      'Only USD capital sources are supported',
-      'unsupported'
-    );
-  if (raw.isEvergreen === undefined)
-    refuse(
-      'FUND_VEHICLE_MODE_UNRESOLVED',
-      'isEvergreen',
-      'Explicit vehicle mode is required',
-      'incomplete'
-    );
-  if (raw.isEvergreen !== false)
-    refuse(
-      'FUND_VEHICLE_MODE_UNSUPPORTED',
-      'isEvergreen',
-      'Evergreen vehicles are unsupported',
-      'unsupported'
-    );
+  assertFiniteSource(raw, fund);
   const fundSize = money(fund.size, 'funds.size');
   const exactCommitments = new Decimal(fund.size).times(
     fundSize.sourceUnit === 'usd_millions' ? 1000000 : 1
@@ -392,17 +653,18 @@ function normalizeSource(
   const rawGp = (value: number | undefined): CapitalGpSourceFactsV1['nestedCommitmentAmount'] =>
     value === undefined ? { state: 'absent' } : { state: 'present', rawValue: value };
   let resolved: CapitalGpSourceFactsV1['resolved'];
-  if (gpModel?.commitmentAmount !== undefined) {
-    const fact = money(gpModel.commitmentAmount, amountPath, 'GP_COMMITMENT_INVALID');
+  const gpSource = selectedGpSource(raw);
+  if (gpSource === 'nested_amount') {
+    const fact = money(gpModel!.commitmentAmount, amountPath, 'GP_COMMITMENT_INVALID');
     resolved = { source: 'nested_amount', fact, commitmentUsd: fact.normalizedValue };
-  } else if (gpModel?.commitmentPct !== undefined) {
-    const fact = rate(gpModel.commitmentPct, pctPath, 'ratio', 'GP_COMMITMENT_INVALID');
+  } else if (gpSource === 'nested_percent') {
+    const fact = rate(gpModel!.commitmentPct, pctPath, 'ratio', 'GP_COMMITMENT_INVALID');
     resolved = {
       source: 'nested_percent',
       fact,
-      commitmentUsd: fixed(exactCommitments.times(gpModel.commitmentPct), 6, pctPath),
+      commitmentUsd: fixed(exactCommitments.times(gpModel!.commitmentPct!), 6, pctPath),
     };
-  } else if (raw.gpCommitment !== undefined) {
+  } else if (gpSource === 'top_level_amount') {
     const fact = money(raw.gpCommitment, 'gpCommitment', 'GP_COMMITMENT_INVALID');
     resolved = { source: 'top_level_amount', fact, commitmentUsd: fact.normalizedValue };
   } else {
@@ -560,7 +822,7 @@ function normalizeSource(
   }
 
   const expenseModel = raw.economicsAssumptions?.expenseModel;
-  const explicitExpenses = expenseModel?.annualExpenses !== undefined;
+  const explicitExpenses = usesExplicitExpenses(raw);
   const shadowedPaths: string[] = [];
   const annotations: CapitalFeeExpenseSourceFactsV1['annotations'] = [];
   const presence = (value: unknown[] | undefined) =>
@@ -569,30 +831,6 @@ function normalizeSource(
       : value.length
         ? ('nonempty' as const)
         : ('empty' as const);
-  function feeBasis(basis: string, path: string): 'committed_capital' {
-    if (basis === 'committed_capital') return basis;
-    const reasons: Record<string, NonNullable<CapitalIssueV1['reason']>> = {
-      called_capital_period: 'CALL_SCHEDULE_NOT_MODELED',
-      called_capital_cumulative: 'CALL_SCHEDULE_NOT_MODELED',
-      called_capital_net_of_returns: 'CALL_SCHEDULE_NOT_MODELED',
-      gross_cumulative_called: 'CALL_SCHEDULE_NOT_MODELED',
-      net_cumulative_called: 'CALL_SCHEDULE_NOT_MODELED',
-      invested_capital: 'INVESTED_BASIS_ADAPTER_NOT_IMPLEMENTED',
-      cumulative_invested: 'INVESTED_BASIS_ADAPTER_NOT_IMPLEMENTED',
-      fair_market_value: 'VALUATION_PATH_NOT_MODELED',
-      unrealized_cost: 'UNREALIZED_COST_SCHEDULE_NOT_MODELED',
-      unrealized_investments: 'UNREALIZED_COST_SCHEDULE_NOT_MODELED',
-    };
-    const reason = reasons[basis];
-    if (!reason) refuse('INVALID_INPUT', path, 'Unknown fee basis');
-    refuse(
-      'FEE_BASIS_UNSUPPORTED',
-      path,
-      'Selected fee basis is unsupported for capital planning',
-      'unsupported',
-      { feeBasis: basis as CapitalIssueV1['feeBasis'], reason }
-    );
-  }
   let feeTiers: CapitalFeeExpenseSourceFactsV1['feeTiers'];
   let selectedFeeProfileId: string | null = null;
   if (explicit) {
@@ -670,11 +908,11 @@ function normalizeSource(
   let expenses: CapitalFeeExpenseSourceFactsV1['expenses'];
   if (explicitExpenses) {
     bounded(
-      expenseModel.annualExpenses!.length,
+      expenseModel!.annualExpenses!.length,
       limits.maxFeeExpensePieces,
       'economicsAssumptions.expenseModel.annualExpenses'
     );
-    expenses = expenseModel.annualExpenses!.map((expense, index) => {
+    expenses = expenseModel!.annualExpenses!.map((expense, index) => {
       const path = `economicsAssumptions.expenseModel.annualExpenses[${index}]`;
       if (expense.growthRate !== undefined && expense.growthRate !== 0)
         refuse(

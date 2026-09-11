@@ -13,11 +13,15 @@ import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
 import { requireAuth, requireFundAccess, requireWriteRole } from '../lib/auth/jwt.js';
 import { firstString } from '../lib/request-values.js';
 import { sendBodyValidationError } from '../lib/validation-response.js';
+import { parseScenarioRepresentation } from '../lib/scenario-representation.js';
 import {
   archiveFundScenarioSet,
   getFundScenarioSourceConfig,
   getFundScenarioSet,
   listFundScenarioSets,
+  getFundScenarioCapitalSourceConfig,
+  listFundScenarioCapitalSets,
+  getFundScenarioCapitalSet,
 } from '../services/fund-scenario-set-service.js';
 import { createFundScenarioSet } from '../services/fund-scenario-set-create-service.js';
 import { createReserveOptimizationScenarioSet } from '../services/fund-scenario-reserve-optimization-workflow-service.js';
@@ -136,6 +140,12 @@ function isV2ScenarioSetPayload(value: unknown): boolean {
 }
 
 function statusForError(statusCode?: number, code?: string) {
+  if (
+    code === 'scenario_representation_required' ||
+    code === 'scenario_representation_not_applicable' ||
+    code === 'capital_plan_calculation_status_not_applicable'
+  )
+    return code;
   if (code === 'idempotency_key_reused' || code === 'idempotency_request_in_progress') {
     return code;
   }
@@ -166,6 +176,11 @@ router.get(
     }
 
     const includeArchived = req.query['includeArchived'] === 'true';
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    if (representation) {
+      return res.status(200).json(await listFundScenarioCapitalSets(fundId, { includeArchived }));
+    }
     const scenarioSets = await listFundScenarioSets(fundId, { includeArchived });
     return res.status(200).json({ scenarioSets });
   })
@@ -182,7 +197,11 @@ router.get(
       return;
     }
 
-    const sourceConfig = await getFundScenarioSourceConfig(fundId);
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    const sourceConfig = representation
+      ? await getFundScenarioCapitalSourceConfig(fundId)
+      : await getFundScenarioSourceConfig(fundId);
     return res.status(200).json(sourceConfig);
   })
 );
@@ -199,7 +218,11 @@ router.get(
       return;
     }
 
-    const scenarioSet = await getFundScenarioSet(fundId, scenarioSetId);
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    const scenarioSet = representation
+      ? await getFundScenarioCapitalSet(fundId, scenarioSetId)
+      : await getFundScenarioSet(fundId, scenarioSetId);
     return res.status(200).json(scenarioSet);
   })
 );
@@ -351,7 +374,11 @@ router.get(
       return;
     }
 
-    const status = await getFundScenarioCalculationStatus(fundId, scenarioSetId);
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    const status = representation
+      ? await getFundScenarioCalculationStatus(fundId, scenarioSetId, representation)
+      : await getFundScenarioCalculationStatus(fundId, scenarioSetId);
     return res.status(200).json(status);
   })
 );
@@ -368,7 +395,11 @@ router.get(
       return;
     }
 
-    const comparison = await getFundScenarioComparison(fundId, scenarioSetId);
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    const comparison = representation
+      ? await getFundScenarioComparison(fundId, scenarioSetId, representation)
+      : await getFundScenarioComparison(fundId, scenarioSetId);
     return res.status(200).json(comparison);
   })
 );
@@ -385,7 +416,11 @@ router.get(
       return;
     }
 
-    const result = await getScenarioResults(fundId, scenarioSetId);
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    const result = representation
+      ? await getScenarioResults(fundId, scenarioSetId, representation)
+      : await getScenarioResults(fundId, scenarioSetId);
     if (result === null) {
       return res.status(404).json({
         error: 'not_found',

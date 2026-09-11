@@ -1,4 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import historicalCapital from '../../fixtures/capital-planning/completed-interpretation-1.0.0.json';
+import * as capitalComparisonContract from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
+import * as capitalCalculator from '../../../shared/lib/capital-planning/capital-planning-v1';
+import * as capitalMaterializer from '../../../shared/lib/capital-planning/materialize-from-fund-draft';
+import {
+  makeCapitalDeclarations,
+  makeCapitalInput,
+  makeCapitalRawConfig,
+} from '../../fixtures/capital-planning/fixtures';
+import { CAPITAL_BENCHMARK_CATALOG_VERSION } from '../../../shared/lib/capital-planning/benchmark-presets';
+import { CapitalPlanningDraftV1Schema } from '../../../shared/contracts/capital-planning-v1.contract';
 
 const { transactionMock, queryMock } = vi.hoisted(() => ({
   transactionMock: vi.fn(),
@@ -191,11 +202,7 @@ function sqlForQueryContaining(fragment: string) {
 
 function mockScenarioSet(
   overrideType:
-    | 'fee_profile'
-    | 'reserve_allocation'
-    | 'allocation'
-    | 'sector_profile'
-    | 'methodology'
+    'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile' | 'methodology'
 ) {
   queryMock.mockResolvedValueOnce({ rows: [{ id: 123 }] });
   queryMock.mockResolvedValueOnce({
@@ -239,11 +246,7 @@ function mockScenarioSet(
 
 function overridePayloadFor(
   overrideType:
-    | 'fee_profile'
-    | 'reserve_allocation'
-    | 'allocation'
-    | 'sector_profile'
-    | 'methodology'
+    'fee_profile' | 'reserve_allocation' | 'allocation' | 'sector_profile' | 'methodology'
 ) {
   if (overrideType === 'fee_profile') {
     return {
@@ -430,3 +433,273 @@ function calculationModeFor(
       return 'sync_methodology';
   }
 }
+
+describe('B7 persisted capital comparison reader', () => {
+  let saved: typeof historicalCapital;
+  let liveSource: typeof historicalCapital.rawSource | null;
+
+  beforeEach(() => {
+    saved = structuredClone(historicalCapital);
+    liveSource = structuredClone(saved.rawSource);
+    queryMock.mockReset();
+    transactionMock.mockImplementation(
+      async (run: (client: { query: typeof queryMock }) => unknown) => run({ query: queryMock })
+    );
+    queryMock.mockImplementation(async (sqlValue: unknown) => {
+      const sql = String(sqlValue);
+      if (/\b(INSERT|UPDATE|DELETE|TRUNCATE)\b/.test(sql))
+        throw new Error('Capital read attempted a write');
+      if (/type\s*=\s*'ECONOMICS'/.test(sql))
+        throw new Error('Capital read attempted authoritative baseline selection');
+      if (sql.includes('FROM funds f'))
+        return {
+          rows: liveSource
+            ? [
+                {
+                  fund_id: 101,
+                  size: liveSource.fund.size,
+                  base_currency: liveSource.fund.baseCurrency,
+                  id: liveSource.config.id,
+                  version: liveSource.config.version,
+                  config: liveSource.config.raw,
+                  published_at: liveSource.config.publishedAt,
+                },
+              ]
+            : [],
+        };
+      if (sql.includes('FROM funds')) return { rows: [{ id: 101 }] };
+      if (sql.includes('FROM fund_scenario_sets')) return { rows: [saved.scenarioSet] };
+      if (sql.includes('FROM fund_scenario_variants')) return { rows: saved.variants };
+      if (sql.includes('FROM fund_snapshots')) return { rows: [saved.snapshot] };
+      throw new Error(`Unexpected capital comparison query: ${sql}`);
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reports exact simultaneous saved input changes with immutable historical memos and no financial producer', async () => {
+    const calculate = vi.spyOn(capitalCalculator, 'calculateCapitalPlanningV1');
+    const materialize = vi.spyOn(capitalMaterializer, 'materializeCapitalSource');
+    const verify = vi.spyOn(capitalMaterializer, 'verifyPinnedCapitalSourceBundle');
+    const before = JSON.stringify(saved);
+    const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+    expect(
+      capitalComparisonContract.FundScenarioCapitalComparisonV1Schema.safeParse(result).success
+    ).toBe(true);
+    expect(result.comparisonStatus).toBe('comparable');
+    expect(result.variants[0]!.changedInputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'input.allocations[0].initialCheckUsd',
+          baseline: '1.000000',
+          variant: '2.000000',
+        }),
+        expect.objectContaining({
+          path: 'input.allocations[0].deploymentPeriodYears',
+          baseline: 1,
+          variant: 2,
+        }),
+        expect.objectContaining({
+          path: 'input.allocations[0].plannedCompanyCount',
+          baseline: null,
+          variant: 30,
+        }),
+        expect.objectContaining({
+          path: 'input.netInvestableCapitalUsd',
+          baseline: null,
+          variant: '80.000000',
+          group: 'budget_gp_deemed',
+        }),
+      ])
+    );
+    expect(JSON.stringify(result.baseline!.result)).toBe(
+      JSON.stringify(saved.snapshot.payload.variants[0]!.result)
+    );
+    expect(JSON.stringify(result.variants[0]!.memo.result)).toBe(
+      JSON.stringify(saved.snapshot.payload.variants[1]!.result)
+    );
+    expect(JSON.stringify(saved)).toBe(before);
+    expect(JSON.stringify(result.variants[0]!.changedInputs)).not.toMatch(/causal|attribution/);
+    expect(calculate).not.toHaveBeenCalled();
+    expect(materialize).not.toHaveBeenCalled();
+    expect(verify).not.toHaveBeenCalled();
+    expect(queryMock.mock.calls.some(([sql]) => String(sql).includes("type = 'ECONOMICS'"))).toBe(
+      false
+    );
+  });
+
+  it('preserves bracketed benchmark and provenance change paths from actual saved current snapshots', async () => {
+    const raw = makeCapitalRawConfig();
+    raw.investmentPeriod = 2;
+    const rawSource = { fund: saved.rawSource.fund, config: { ...saved.rawSource.config, raw } };
+    const drafts = ['5000000.000000', '6000000.000000'].map((totalPrimaryRoundUsd) =>
+      CapitalPlanningDraftV1Schema.parse({
+        input: makeCapitalInput(),
+        benchmarkSelections: [
+          {
+            target: { allocationId: 'a1', kind: 'entry' },
+            selector: { version: CAPITAL_BENCHMARK_CATALOG_VERSION, stage: 'seed' },
+            overrides: { totalPrimaryRoundUsd },
+          },
+        ],
+      })
+    );
+    const materialized = capitalMaterializer.materializeCapitalSource({
+      source: rawSource,
+      inputs: drafts,
+      unitDeclarations: makeCapitalDeclarations(),
+    });
+    if (!materialized.ok) throw new Error(JSON.stringify(materialized));
+    const results = drafts.map((_, index) =>
+      capitalCalculator.calculateCapitalPlanningV1({
+        input: materialized.resolvedInputs![index]!,
+        sourceBundle: materialized.sourceBundle,
+        benchmarkSnapshots: materialized.benchmarkSnapshotsByInput![index]!,
+      })
+    );
+    saved.variants.forEach((variant, index) => {
+      variant.override_payload = {
+        input: materialized.resolvedInputs![index]!,
+        sourceBundle: materialized.sourceBundle,
+        sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
+        benchmarkSnapshots: materialized.benchmarkSnapshotsByInput![index]!,
+      } as unknown as typeof variant.override_payload;
+    });
+    saved.snapshot.payload = {
+      ...saved.snapshot.payload,
+      interpretationVersion: materialized.sourceBundle.interpretationVersion,
+      sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
+      variants: saved.snapshot.payload.variants.map((variant, index) => ({
+        ...variant,
+        result: results[index]!,
+      })),
+    } as unknown as typeof saved.snapshot.payload;
+    liveSource = rawSource as typeof saved.rawSource;
+    const calculate = vi.spyOn(capitalCalculator, 'calculateCapitalPlanningV1');
+    const materialize = vi.spyOn(capitalMaterializer, 'materializeCapitalSource');
+    const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+    expect(
+      capitalComparisonContract.FundScenarioCapitalComparisonV1Schema.safeParse(result).success
+    ).toBe(true);
+    const changes = result.variants[0]!.changedInputs;
+    expect(changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'input.allocations[0].entryFinancing.totalPrimaryRoundUsd',
+          baseline: '5000000.000000',
+          variant: '6000000.000000',
+          group: 'valuation_round_size',
+        }),
+        expect.objectContaining({
+          path: 'benchmarkSnapshots[0].overrides.totalPrimaryRoundUsd',
+          baseline: '5000000.000000',
+          variant: '6000000.000000',
+          group: 'provenance',
+        }),
+      ])
+    );
+    expect(
+      changes.some(
+        (change) => /^provenance\[\d+\]/.test(change.path) && change.group === 'provenance'
+      )
+    ).toBe(true);
+    expect(changes.every((change) => !/\.\d+(?:\.|$)/.test(change.path))).toBe(true);
+    expect(calculate).not.toHaveBeenCalled();
+    expect(materialize).not.toHaveBeenCalled();
+  });
+
+  it('routes every present numeric comparison delta through the actual B5 exact helper', async () => {
+    const exact = vi.spyOn(capitalComparisonContract, 'calculateCapitalComparisonDeltaV1');
+    const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+    const present = result.variants[0]!.metricDeltas.filter(
+      (d) => d.baselineValue !== null && d.variantValue !== null
+    );
+    expect(present.length).toBeGreaterThan(0);
+    expect(exact).toHaveBeenCalledTimes(present.length);
+    for (const metric of present)
+      expect(exact).toHaveBeenCalledWith({
+        baselineValue: metric.baselineValue,
+        variantValue: metric.variantValue,
+        scale: metric.metric.endsWith('Usd') ? 6 : 12,
+      });
+  });
+
+  it.each([
+    ['0.000001', '0.000002', '0.000001', '100.000000000000'],
+    ['0.000002', '0.000001', '-0.000001', '-50.000000000000'],
+    ['-0.000001', '0.000001', '0.000002', '200.000000000000'],
+    ['0.000001', '0.000001', '0.000000', '0.000000000000'],
+    ['0.000000', '0.000001', '0.000001', null],
+    ['0.000001', '1000000.000000', '999999.999999', '99999999999900.000000000000'],
+  ] as const)(
+    'preserves saved signed values %s -> %s with independent exact delta %s',
+    async (baseline, variant, absoluteDelta, percentageDelta) => {
+      // Admitted persisted numeric strings, not a request to recompute historical economics.
+      saved.snapshot.payload.variants[0]!.result.construction.reconciliation[0]!.signedLifetimeHeadroomUsd =
+        baseline;
+      saved.snapshot.payload.variants[1]!.result.construction.reconciliation[0]!.signedLifetimeHeadroomUsd =
+        variant;
+      const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+      const metric = result.variants[0]!.metricDeltas.find(
+        (d) => d.metric === 'signedLifetimeHeadroomUsd' && d.countBasis === 'expected'
+      );
+      expect(metric).toMatchObject({
+        baselineValue: baseline,
+        variantValue: variant,
+        absoluteDelta,
+        percentageDelta,
+        unavailableReason: percentageDelta === null ? 'ZERO_BASELINE' : null,
+      });
+    }
+  );
+
+  it('preserves unavailable entered and omitted companion operands instead of substituting expected counts or zero', async () => {
+    const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+    const metrics = result.variants[0]!.metricDeltas;
+    expect(
+      metrics.find((d) => d.metric === 'initialDemandUsd' && d.countBasis === 'entered')
+    ).toMatchObject({
+      baselineValue: null,
+      variantValue: '60.000000',
+      absoluteDelta: null,
+      percentageDelta: null,
+      unavailableReason: 'NOT_ENTERED',
+    });
+    expect(
+      metrics.find((d) => d.metric === 'initialDemandUsd' && d.countBasis === 'expected')
+    ).toMatchObject({
+      baselineValue: '90.000000',
+      variantValue: '80.000000',
+      absoluteDelta: '-10.000000',
+      percentageDelta: '-11.111111111111',
+    });
+    expect(
+      metrics
+        .filter((d) => d.group === 'companion')
+        .every(
+          (d) =>
+            d.baselineValue === null &&
+            d.variantValue === null &&
+            d.absoluteDelta === null &&
+            d.unavailableReason === 'COMPANION_OMITTED'
+        )
+    ).toBe(true);
+  });
+
+  it('keeps historical comparison readable without a current source', async () => {
+    liveSource = null;
+    const result = await getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1');
+    expect(result.baseline!.readState.sourceFreshness).toBe('STALE_SOURCE_UNAVAILABLE');
+    expect(result.baseline!.readState.interpretationCompatibility.state).toBe(
+      'UNSUPPORTED_SAVED_VERSION'
+    );
+  });
+
+  it('refuses comparison for mismatched saved snapshot identity', async () => {
+    saved.snapshot.state_hash = '0'.repeat(64);
+    await expect(
+      getFundScenarioComparison(101, saved.scenarioSet.id, 'capital-plan-v1')
+    ).rejects.toMatchObject({ statusCode: 500, code: 'scenario_saved_data_invalid' });
+  });
+});
