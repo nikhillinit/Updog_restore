@@ -1,0 +1,448 @@
+name: actuals-isolated-restore-proof
+
+# Synthetic witness only. Hosted dispatch and the new attest action need separate admission.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact reviewed 40-character commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+  attestations: write
+
+jobs:
+  witness:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      inputs.expected_sha == github.sha &&
+      inputs.expected_sha == github.workflow_sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_HOST: github.com
+      GH_PROMPT_DISABLED: '1'
+      TZ: UTC
+    steps:
+      - name: Guard owner and exact execution source before writes
+        id: guard
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const e = process.env;
+          assert.equal(e.GITHUB_EVENT_NAME, 'workflow_dispatch');
+          assert.equal(e.GITHUB_REPOSITORY, 'nikhillinit/Updog_restore');
+          assert.equal(e.GITHUB_REPOSITORY_OWNER, 'nikhillinit');
+          assert.equal(e.GITHUB_ACTOR, e.GITHUB_REPOSITORY_OWNER);
+          assert.equal(e.GITHUB_TRIGGERING_ACTOR, e.GITHUB_REPOSITORY_OWNER);
+          assert.match(e.EXPECTED_SHA || '', /^[a-f0-9]{40}$/);
+          assert.equal(e.GITHUB_SHA, e.EXPECTED_SHA);
+          assert.equal(e.GITHUB_WORKFLOW_SHA, e.EXPECTED_SHA);
+          assert.match(e.GITHUB_REF || '', /^refs\/(heads|tags)\/[^\s@?#]+$/);
+          assert.equal(e.GITHUB_WORKFLOW_REF,
+            `${e.GITHUB_REPOSITORY}/.github/workflows/actuals-isolated-restore-proof.yml@${e.GITHUB_REF}`);
+          for (const value of [e.GITHUB_RUN_ID, e.GITHUB_RUN_ATTEMPT, e.GITHUB_REPOSITORY_ID]) {
+            assert.match(value || '', /^[1-9][0-9]*$/);
+            assert(Number.isSafeInteger(Number(value)));
+          }
+          assert.equal(e.GITHUB_SERVER_URL, 'https://github.com');
+          assert.equal(e.GITHUB_API_URL, 'https://api.github.com');
+          NODE
+
+      - name: Generate fixed harmless synthetic proof
+        id: generate
+        env:
+          WITNESS_DIR: ${{ runner.temp }}/actuals-restore-proof-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const dir = process.env.WITNESS_DIR;
+          fs.mkdirSync(dir, { mode: 0o700 });
+          fs.mkdirSync(path.join(dir, 'subject'), { mode: 0o700 });
+          const proofJson = JSON.stringify({ schemaVersion: 1,
+            profile: 'actuals-restore-proof/1.0.0', evidenceClass: 'synthetic',
+            message: 'Harmless attestation witness; no database restore or production admission.' }) + '\n';
+          fs.writeFileSync(path.join(dir, 'subject/proof.json'), proofJson, { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(path.join(dir, 'subject/evidence.txt'),
+            'Synthetic witness only. No provider, database, restore, or application was accessed.\n',
+            { flag: 'wx', mode: 0o600 });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `dir=${dir}\nartifact_name=actuals-synthetic-proof-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}\n`);
+          NODE
+
+      - name: Upload immutable subject archive once
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.generate.outputs.artifact_name }}
+          path: ${{ steps.generate.outputs.dir }}/subject/
+          archive: true
+          if-no-files-found: error
+          overwrite: false
+
+      - name: Authenticate metadata and hash bounded final archive
+        id: archive
+        env:
+          WITNESS_DIR: ${{ steps.generate.outputs.dir }}
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const { execFileSync } = require('node:child_process');
+          const e = process.env;
+          const metadataLimit = 256 * 1024;
+          const archiveLimit = 50 * 1024 * 1024;
+          const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+          const save = (name, bytes) => fs.writeFileSync(path.join(e.WITNESS_DIR, name), bytes,
+            { flag: 'wx', mode: 0o600 });
+          function api(resource, accept = 'application/vnd.github+json') {
+            return execFileSync('gh', ['api', '--hostname', 'github.com', '--method', 'GET',
+              '-H', `Accept: ${accept}`, '-H', 'X-GitHub-Api-Version: 2022-11-28',
+              `/repos/${e.GITHUB_REPOSITORY}/${resource}`],
+              { timeout: 30_000, maxBuffer: metadataLimit, stdio: ['ignore', 'pipe', 'pipe'] });
+          }
+          async function main() {
+            assert.match(e.ARTIFACT_ID || '', /^[1-9][0-9]*$/);
+            assert(Number.isSafeInteger(Number(e.ARTIFACT_ID)));
+            assert.match(e.ARTIFACT_DIGEST || '', /^[a-f0-9]{64}$/);
+            const artifactBytes = api(`actions/artifacts/${e.ARTIFACT_ID}`);
+            const artifact = JSON.parse(artifactBytes);
+            const artifactName = `actuals-synthetic-proof-${e.GITHUB_RUN_ID}-${e.GITHUB_RUN_ATTEMPT}`;
+            const apiUrl = `https://api.github.com/repos/${e.GITHUB_REPOSITORY}/actions/artifacts/${e.ARTIFACT_ID}`;
+            assert.equal(artifact.id, Number(e.ARTIFACT_ID));
+            assert.equal(artifact.name, artifactName);
+            assert.equal(artifact.url, apiUrl);
+            assert.equal(artifact.archive_download_url, `${apiUrl}/zip`);
+            assert.equal(artifact.expired, false);
+            assert.equal(artifact.digest, `sha256:${e.ARTIFACT_DIGEST}`);
+            assert.equal(artifact.workflow_run.id, Number(e.GITHUB_RUN_ID));
+            assert.equal(artifact.workflow_run.head_sha, e.GITHUB_SHA);
+            assert.equal(artifact.workflow_run.repository_id, Number(e.GITHUB_REPOSITORY_ID));
+            assert.equal(artifact.workflow_run.head_repository_id, Number(e.GITHUB_REPOSITORY_ID));
+            assert(Number.isSafeInteger(artifact.size_in_bytes) && artifact.size_in_bytes > 0 &&
+              artifact.size_in_bytes <= archiveLimit);
+            const now = Date.now();
+            assert(Number.isFinite(Date.parse(artifact.created_at)) && Date.parse(artifact.created_at) <= now);
+            assert(Number.isFinite(Date.parse(artifact.expires_at)) && Date.parse(artifact.expires_at) > now);
+            const attemptBytes = api(`actions/runs/${e.GITHUB_RUN_ID}/attempts/${e.GITHUB_RUN_ATTEMPT}`);
+            const attempt = JSON.parse(attemptBytes);
+            assert.equal(attempt.id, Number(e.GITHUB_RUN_ID));
+            assert.equal(attempt.run_attempt, Number(e.GITHUB_RUN_ATTEMPT));
+            assert.equal(attempt.head_sha, e.GITHUB_SHA);
+            assert.equal(attempt.repository.full_name, e.GITHUB_REPOSITORY);
+            assert.equal(attempt.repository.id, Number(e.GITHUB_REPOSITORY_ID));
+            assert.equal(attempt.head_repository.full_name, e.GITHUB_REPOSITORY);
+            assert.equal(attempt.path, '.github/workflows/actuals-isolated-restore-proof.yml');
+            assert.equal(attempt.name, 'actuals-isolated-restore-proof');
+            assert.equal(attempt.event, 'workflow_dispatch');
+            assert.equal(attempt.actor.login, e.GITHUB_REPOSITORY_OWNER);
+            assert.equal(attempt.triggering_actor.login, e.GITHUB_REPOSITORY_OWNER);
+            // This attempt is still running; final successful status needs a later authenticated snapshot.
+            assert.equal(attempt.status, 'in_progress');
+            assert.equal(attempt.conclusion, null);
+            const response = await fetch(`${apiUrl}/zip`, { redirect: 'manual',
+              headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${e.GH_TOKEN}` },
+              signal: AbortSignal.timeout(30_000) });
+            assert.equal(response.status, 302);
+            const location = response.headers.get('location');
+            assert(location);
+            const signed = new URL(location);
+            assert.equal(signed.protocol, 'https:');
+            assert.match(signed.hostname, /^productionresultssa[0-9]+\.blob\.core\.windows\.net$/);
+            assert.equal(signed.port + signed.username + signed.password + signed.hash, '');
+            await response.body?.cancel();
+            // Credentials stop at the API origin. Signed storage cannot redirect again.
+            const storage = await fetch(signed, { headers: {}, redirect: 'error',
+              signal: AbortSignal.timeout(30_000) });
+            assert.equal(storage.status, 200);
+            const declared = storage.headers.get('content-length');
+            assert(declared === null || (/^[0-9]+$/.test(declared) && Number(declared) <= archiveLimit));
+            assert(storage.body);
+            const chunks = [];
+            let size = 0;
+            for await (const chunk of storage.body) {
+              size += chunk.byteLength;
+              assert(size <= archiveLimit, 'archive exceeds byte limit');
+              chunks.push(chunk);
+            }
+            assert.equal(size, artifact.size_in_bytes);
+            const archive = Buffer.concat(chunks);
+            assert.equal(digest(archive), e.ARTIFACT_DIGEST);
+            const proofJson = fs.readFileSync(path.join(e.WITNESS_DIR, 'subject/proof.json'), 'utf8');
+            const envelope = { schemaVersion: 1,
+              archive: { artifactId: e.ARTIFACT_ID, artifactName, sha256: e.ARTIFACT_DIGEST },
+              proofJson, proofSha256: digest(proofJson) };
+            save('archive.zip', archive);
+            save('artifact.json', artifactBytes);
+            save('attempt.json', attemptBytes);
+            save('predicate.json', JSON.stringify(envelope) + '\n');
+            save('workflow.yml', api(`contents/.github/workflows/actuals-isolated-restore-proof.yml?ref=${e.GITHUB_SHA}`,
+              'application/vnd.github.raw+json'));
+          }
+          main().catch(() => { console.error('Authenticated archive collection failed.'); process.exitCode = 1; });
+          NODE
+
+      - name: Attest final ZIP using exact custom predicate
+        id: attest
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0; proposed dependency
+        with:
+          subject-name: ${{ steps.generate.outputs.artifact_name }}.zip
+          subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+          predicate-type: urn:updog:actuals-restore-proof:v1
+          predicate-path: ${{ steps.generate.outputs.dir }}/predicate.json
+
+      - name: Verify genuine bundle using platform default trust root
+        id: verify
+        env:
+          WITNESS_DIR: ${{ steps.generate.outputs.dir }}
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { spawnSync } = require('node:child_process');
+          const e = process.env;
+          const limit = 256 * 1024;
+          const file = (name) => path.join(e.WITNESS_DIR, name);
+          const save = (name, bytes) => fs.writeFileSync(file(name), bytes, { flag: 'wx', mode: 0o600 });
+          assert(fs.statSync(e.BUNDLE_PATH).size > 0 && fs.statSync(e.BUNDLE_PATH).size <= limit);
+          save('bundle.json', fs.readFileSync(e.BUNDLE_PATH));
+          const policy = ['--hostname', 'github.com', '--deny-self-hosted-runners',
+            '--repo', e.GITHUB_REPOSITORY, '--signer-workflow',
+            `${e.GITHUB_REPOSITORY}/.github/workflows/actuals-isolated-restore-proof.yml`,
+            '--source-digest', e.GITHUB_SHA, '--signer-digest', e.GITHUB_SHA,
+            '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com',
+            '--predicate-type', 'urn:updog:actuals-restore-proof:v1',
+            '--format', 'json', '--bundle', file('bundle.json')];
+          const result = spawnSync('gh', ['attestation', 'verify', file('archive.zip'), ...policy],
+            { timeout: 60_000, maxBuffer: limit, stdio: ['ignore', 'pipe', 'pipe'] });
+          assert(!result.error && !result.signal && result.status === 0, 'CLI verification failed or interrupted');
+          save('verification.json', result.stdout);
+          save('verification.stderr.txt', result.stderr);
+          save('verification-command.json', JSON.stringify({ archive: file('archive.zip'), policy }) + '\n');
+          NODE
+
+      - name: Inspect certificate, exact attempt, subject and synthetic envelope
+        id: inspect
+        env:
+          WITNESS_DIR: ${{ steps.generate.outputs.dir }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const e = process.env;
+          const limit = 256 * 1024;
+          const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+          function read(name, max = limit) {
+            const file = path.join(e.WITNESS_DIR, name);
+            const size = fs.statSync(file).size;
+            assert(size > 0 && size <= max, 'file exceeds byte limit');
+            return fs.readFileSync(file);
+          }
+          const json = (name) => JSON.parse(read(name));
+          const artifact = json('artifact.json');
+          const attempt = json('attempt.json');
+          const verification = json('verification.json');
+          assert(Array.isArray(verification) && verification.length === 1, 'ambiguous verification');
+          const result = verification[0].verificationResult;
+          // sigstore-go embeds Extensions: official JSON fields are flat on certificate.
+          const certificate = result.signature.certificate;
+          const workflowUri = `https://github.com/${e.GITHUB_WORKFLOW_REF}`;
+          assert.equal(certificate.sourceRepositoryURI, `https://github.com/${e.GITHUB_REPOSITORY}`);
+          assert.equal(certificate.sourceRepositoryDigest, e.GITHUB_SHA);
+          assert.equal(certificate.sourceRepositoryRef, e.GITHUB_REF);
+          assert.equal(certificate.buildConfigURI, workflowUri);
+          assert.equal(certificate.buildConfigDigest, e.GITHUB_SHA);
+          assert.equal(certificate.buildSignerURI, workflowUri);
+          assert.equal(certificate.buildSignerDigest, e.GITHUB_SHA);
+          assert.equal(certificate.runnerEnvironment, 'github-hosted');
+          const invocation = (value) => `https://github.com/${e.GITHUB_REPOSITORY}/actions/runs/${e.GITHUB_RUN_ID}/attempts/${value}`;
+          function requireAttempt(value) {
+            assert.equal(certificate.runInvocationURI, invocation(value), 'certificate attempt mismatch');
+            assert.equal(attempt.run_attempt, Number(value));
+          }
+          requireAttempt(e.GITHUB_RUN_ATTEMPT);
+          assert.throws(() => requireAttempt(String(BigInt(e.GITHUB_RUN_ATTEMPT) + 1n)),
+            /certificate attempt mismatch/);
+          assert.equal(attempt.id, Number(e.GITHUB_RUN_ID));
+          assert.equal(attempt.head_sha, e.GITHUB_SHA);
+          assert.equal(attempt.repository.full_name, e.GITHUB_REPOSITORY);
+          assert.equal(attempt.repository.id, Number(e.GITHUB_REPOSITORY_ID));
+          assert.equal(attempt.head_repository.full_name, e.GITHUB_REPOSITORY);
+          assert.equal(attempt.path, '.github/workflows/actuals-isolated-restore-proof.yml');
+          assert.equal(attempt.name, 'actuals-isolated-restore-proof');
+          assert.equal(attempt.event, 'workflow_dispatch');
+          assert.equal(attempt.actor.login, e.GITHUB_REPOSITORY_OWNER);
+          assert.equal(attempt.triggering_actor.login, e.GITHUB_REPOSITORY_OWNER);
+          assert.equal(attempt.status, 'in_progress');
+          assert.equal(attempt.conclusion, null);
+          const archive = read('archive.zip', 50 * 1024 * 1024);
+          const archiveSha256 = digest(archive);
+          const artifactName = `actuals-synthetic-proof-${e.GITHUB_RUN_ID}-${e.GITHUB_RUN_ATTEMPT}`;
+          assert.match(e.ARTIFACT_ID || '', /^[1-9][0-9]*$/);
+          assert.match(e.ARTIFACT_DIGEST || '', /^[a-f0-9]{64}$/);
+          assert(Number.isSafeInteger(artifact.id) && artifact.id > 0);
+          assert.equal(artifact.id, Number(e.ARTIFACT_ID));
+          assert.equal(artifact.name, artifactName);
+          const apiUrl = `https://api.github.com/repos/${e.GITHUB_REPOSITORY}/actions/artifacts/${e.ARTIFACT_ID}`;
+          assert.equal(artifact.url, apiUrl);
+          assert.equal(artifact.archive_download_url, `${apiUrl}/zip`);
+          assert.equal(artifact.expired, false);
+          assert.equal(artifact.digest, `sha256:${archiveSha256}`);
+          assert.equal(archiveSha256, e.ARTIFACT_DIGEST);
+          assert.equal(artifact.size_in_bytes, archive.length);
+          assert(Number.isFinite(Date.parse(artifact.created_at)) && Date.parse(artifact.created_at) <= Date.now());
+          assert(Number.isFinite(Date.parse(artifact.expires_at)) && Date.parse(artifact.expires_at) > Date.now());
+          assert.equal(artifact.workflow_run.id, Number(e.GITHUB_RUN_ID));
+          assert.equal(artifact.workflow_run.head_sha, e.GITHUB_SHA);
+          assert.equal(artifact.workflow_run.repository_id, Number(e.GITHUB_REPOSITORY_ID));
+          assert.equal(artifact.workflow_run.head_repository_id, Number(e.GITHUB_REPOSITORY_ID));
+          const statement = result.statement;
+          assert.equal(statement._type, 'https://in-toto.io/Statement/v1');
+          assert.equal(statement.predicateType, 'urn:updog:actuals-restore-proof:v1');
+          assert.deepEqual(statement.subject, [{ name: `${artifactName}.zip`, digest: { sha256: archiveSha256 } }]);
+          const proofJson = JSON.stringify({ schemaVersion: 1,
+            profile: 'actuals-restore-proof/1.0.0', evidenceClass: 'synthetic',
+            message: 'Harmless attestation witness; no database restore or production admission.' }) + '\n';
+          assert.equal(read('subject/proof.json').toString('utf8'), proofJson);
+          const envelope = { schemaVersion: 1,
+            archive: { artifactId: String(artifact.id), artifactName, sha256: archiveSha256 },
+            proofJson, proofSha256: digest(proofJson) };
+          assert.deepEqual(statement.predicate, envelope);
+          assert.deepEqual(json('predicate.json'), envelope);
+          fs.writeFileSync(path.join(e.WITNESS_DIR, 'inspection.json'), JSON.stringify({
+            evidenceClass: 'synthetic', certificateAttempt: e.GITHUB_RUN_ATTEMPT,
+            wrongExpectedAttemptRefused: true, finalAttemptSnapshotRequired: true,
+            archiveSha256, proofSha256: envelope.proofSha256 }) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Reject changed archive and policy with restored positive controls
+        id: negatives
+        env:
+          WITNESS_DIR: ${{ steps.generate.outputs.dir }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const { spawnSync } = require('node:child_process');
+          const file = (name) => path.join(process.env.WITNESS_DIR, name);
+          const save = (name, bytes) => fs.writeFileSync(file(name), bytes, { flag: 'wx', mode: 0o600 });
+          const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+          const { archive, policy } = JSON.parse(fs.readFileSync(file('verification-command.json')));
+          const positive = JSON.parse(fs.readFileSync(file('verification.json')));
+          function run(archivePath, args) {
+            const result = spawnSync('gh', ['attestation', 'verify', archivePath, ...args],
+              { timeout: 60_000, maxBuffer: 256 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+            assert(!result.error && !result.signal && Number.isInteger(result.status), 'CLI interrupted');
+            return result;
+          }
+          function reject(name, archivePath, args, markers, delta) {
+            const result = run(archivePath, args);
+            assert(result.status !== 0, `Unexpected ${name} success`);
+            assert(markers.every((marker) => result.stderr.toString('utf8').includes(marker)),
+              'Unexpected failure stage; negative witness not established');
+            save(`${name}.json`, result.stdout);
+            save(`${name}.stderr.txt`, result.stderr);
+            const restored = run(archive, policy);
+            assert.equal(restored.status, 0, 'Restored positive control failed');
+            assert.deepEqual(JSON.parse(restored.stdout), positive);
+            save(`${name}-restored.json`, restored.stdout);
+            save(`${name}-restored.stderr.txt`, restored.stderr);
+            return { exitCode: result.status, rejectionMarkers: markers, delta, restoredExitCode: restored.status };
+          }
+          const original = fs.readFileSync(archive);
+          const changed = Buffer.from(original);
+          changed[0] ^= 1;
+          save('archive-mutated.zip', changed);
+          // CLI reports the verification stage, not the underlying digest/SAN error.
+          const signatureMarkers = ['Sigstore verification failed', 'verifying with issuer'];
+          const results = { archiveByte: reject('negative-archive', file('archive-mutated.zip'), policy,
+            signatureMarkers, { byteOffset: 0, originalSha256: digest(original), mutatedSha256: digest(changed) }) };
+          fs.unlinkSync(file('archive-mutated.zip'));
+          for (const [name, flag, rejected] of [
+            ['signer', '--signer-workflow', `${process.env.GITHUB_REPOSITORY}/.github/workflows/not-the-witness.yml`],
+            ['predicate', '--predicate-type', 'urn:updog:rejected-predicate:v1']]) {
+            const args = [...policy];
+            const index = args.indexOf(flag) + 1;
+            assert(index > 0);
+            const expected = args[index];
+            args[index] = rejected;
+            const markers = name === 'predicate'
+              ? [`no attestations found with predicate type: ${rejected}`] : signatureMarkers;
+            results[name] = reject(`negative-${name}`, archive, args, markers, { flag, expected, rejected });
+          }
+          save('cli-results.json', JSON.stringify({ positiveExitCode: 0, ...results }) + '\n');
+          NODE
+
+      - name: Record source, tools and fixture byte provenance
+        id: provenance
+        env:
+          WITNESS_DIR: ${{ steps.generate.outputs.dir }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const { execFileSync } = require('node:child_process');
+          const e = process.env;
+          async function sha256(file) {
+            const hash = createHash('sha256');
+            for await (const bytes of fs.createReadStream(file)) hash.update(bytes);
+            return hash.digest('hex');
+          }
+          async function main() {
+            const files = {};
+            for (const name of fs.readdirSync(e.WITNESS_DIR, { recursive: true }).sort()) {
+              const file = path.join(e.WITNESS_DIR, name);
+              if (fs.statSync(file).isFile()) files[name] = { sha256: await sha256(file), bytes: fs.statSync(file).size };
+            }
+            const ghPath = e.PATH.split(path.delimiter).map((dir) => path.join(dir, 'gh'))
+              .find((file) => { try { fs.accessSync(file, fs.constants.X_OK); return fs.statSync(file).isFile(); } catch { return false; } });
+            assert(ghPath, 'GitHub CLI executable missing');
+            const provenance = { evidenceClass: 'synthetic', repository: e.GITHUB_REPOSITORY,
+              sourceSha: e.GITHUB_SHA, workflowSha: e.GITHUB_WORKFLOW_SHA, workflowRef: e.GITHUB_WORKFLOW_REF,
+              runId: e.GITHUB_RUN_ID, runAttempt: e.GITHUB_RUN_ATTEMPT, nodeVersion: process.version,
+              ghVersion: execFileSync('gh', ['--version'], { timeout: 10_000, maxBuffer: 256 * 1024, encoding: 'utf8' }).trim(),
+              ghSha256: await sha256(fs.realpathSync(ghPath)),
+              actions: { uploadArtifact: { version: '7.0.1', ref: 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' },
+                attest: { version: '3.0.0', ref: 'actions/attest@daf44fb950173508f38bd2406030372c1d1162b1' } },
+              trustRoot: 'GitHub CLI platform default', finalAttemptSnapshotRequired: true, files };
+            fs.writeFileSync(path.join(e.WITNESS_DIR, 'provenance.json'), JSON.stringify(provenance, null, 2) + '\n',
+              { flag: 'wx', mode: 0o600 });
+          }
+          main().catch(() => { console.error('Fixture provenance failed.'); process.exitCode = 1; });
+          NODE
+
+      - name: Export separate witness fixture for independent inspection
+        id: export
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: actuals-synthetic-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.generate.outputs.dir }}/
+          archive: true
+          if-no-files-found: error
+          overwrite: false
