@@ -198,7 +198,7 @@ jobs:
 
       - name: Attest final ZIP using exact custom predicate
         id: attest
-        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0; proposed dependency
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v3.0.0; proposed dependency
         with:
           subject-name: ${{ steps.generate.outputs.artifact_name }}.zip
           subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
