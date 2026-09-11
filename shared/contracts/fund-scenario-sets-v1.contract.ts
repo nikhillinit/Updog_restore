@@ -866,6 +866,7 @@ export const FundScenarioCapitalDetailResponseV1Schema =
           message: 'Variant count/baseline mismatch',
         });
       const firstBundle = value.variants[0]?.override.payload.sourceBundle;
+      let firstBundleJson: string | undefined;
       for (const [index, variant] of value.variants.entries()) {
         const bundle = variant.override.payload.sourceBundle;
         if (
@@ -876,7 +877,7 @@ export const FundScenarioCapitalDetailResponseV1Schema =
           bundle.projection.fundId !== value.fundId ||
           bundle.projection.sourceConfigId !== value.sourceConfigId ||
           bundle.projection.sourceConfigVersion !== value.sourceConfigVersion ||
-          canonicalJson(bundle) !== canonicalJson(firstBundle)
+          canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(firstBundle))
         )
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -951,6 +952,7 @@ export const FundScenarioCapitalCalculationPayloadV1Schema = z
         message: 'Stable baseline/variant identities required',
       });
     const firstBundle = value.variants[0]?.result.sourceBundle;
+    let firstBundleJson: string | undefined;
     for (const [index, variant] of value.variants.entries()) {
       const bundle = variant.result.sourceBundle;
       if (
@@ -961,7 +963,7 @@ export const FundScenarioCapitalCalculationPayloadV1Schema = z
         bundle.projection.sourceConfigVersion !== value.sourceConfigVersion ||
         bundle.interpretationVersion !== value.interpretationVersion ||
         bundle.modelInputsAsOfDate !== value.lineage.modelInputsAsOfDate ||
-        canonicalJson(bundle) !== canonicalJson(firstBundle)
+        canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(firstBundle))
       )
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

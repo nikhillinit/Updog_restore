@@ -8,11 +8,44 @@ import type {
   CreateFundScenarioSetV2,
   FundScenarioSourceConfigResponseV1,
   FundScenarioSetDetailV1,
+  CreateFundScenarioSetV3,
+  FundScenarioCapitalCreateResponseV1,
+  FundScenarioCapitalStoredOverrideV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   CreateFundScenarioSetV1Schema,
   CreateFundScenarioSetV2Schema,
+  CreateFundScenarioSetV3Schema,
+  FundScenarioCapitalCreateResponseV1Schema,
+  FundScenarioCapitalStoredOverrideV1Schema,
+  FundScenarioCapitalCalculationPayloadV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  CAPITAL_PLANNING_PROVISIONAL_LIMITS,
+  CAPITAL_PLANNING_VERSION,
+  CAPITAL_PREIMAGE_VERSION,
+  CAPITAL_SOURCE_INTERPRETATION_VERSION,
+  CapitalIssuesV1Schema,
+  type CapitalIssueV1,
+} from '@shared/contracts/capital-planning-v1.contract';
+import { canonicalJson } from '@shared/lib/scenarios/canonicalize';
+import {
+  FUND_SCENARIOS_CONTRACT_VERSION,
+  resolveScenarioInputLineage,
+  capitalSchemaIssues,
+  expandedCapitalRows,
+} from '@shared/lib/scenarios/scenario-input-envelope';
+import {
+  fingerprintCapitalSource,
+  materializeCapitalSource,
+  type CapitalRawSource,
+} from '@shared/lib/capital-planning/materialize-from-fund-draft';
+import { calculateCapitalPlanningV1 } from '@shared/lib/capital-planning/capital-planning-v1';
+import {
+  assertCalculationSize,
+  CapitalPlanningCalculationError,
+} from '@shared/lib/capital-planning/calculation-support';
+import { createCapitalScenarioInputHash } from '../lib/scenarios/scenario-input-hash.js';
 import {
   FundDraftWriteV1Schema,
   type FundDraftWriteV1,
@@ -20,6 +53,8 @@ import {
 import {
   createHttpError,
   fetchScenarioSetDetail,
+  fetchRawScenarioSet,
+  requireScenarioSetFamily,
   insertScenarioSetEvent,
   normalizeActor,
   normalizeNullableText,
@@ -30,6 +65,7 @@ import {
   type FundScenarioVariantRow,
 } from './fund-scenario-set-service.js';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
+export { capitalSchemaIssues } from '@shared/lib/scenarios/scenario-input-envelope';
 
 const MAX_ACTIVE_SCENARIO_SETS_PER_FUND = 10;
 const FUND_SCENARIO_SET_ACTIVE_NAME_UNIQUE_CONSTRAINT =
@@ -71,6 +107,328 @@ export async function createFundScenarioSet(
   return transaction((client) =>
     createFundScenarioSetInTransaction(client, fundId, parsedInput, actorInput, options)
   );
+}
+
+function capitalIssues(issues: CapitalIssueV1[], status = 422): never {
+  throw createHttpError(status, issues[0]?.message ?? 'Capital input was refused', {
+    code: issues[0]?.code ?? 'INVALID_INPUT',
+    details: { issues },
+  });
+}
+
+/** Aggregate saved input admission shared by create and new calculation, never replay. */
+export function assertCapitalScenarioStoredInputLimits(
+  overrides: readonly FundScenarioCapitalStoredOverrideV1[]
+): void {
+  const limits = CAPITAL_PLANNING_PROVISIONAL_LIMITS;
+  assertCalculationSize(overrides, limits.maxInputBytes, 'storedVariants');
+  if (overrides.length === 0 || overrides.length > limits.maxVariants) {
+    throw new CapitalPlanningCalculationError([
+      {
+        code: overrides.length > limits.maxVariants ? 'INPUT_TOO_LARGE' : 'INVALID_INPUT',
+        path: 'storedVariants',
+        message: 'Capital scenarios require one to five variants',
+        support: 'invalid',
+        ...(overrides.length > limits.maxVariants
+          ? { limit: limits.maxVariants, observed: overrides.length }
+          : {}),
+      },
+    ]);
+  }
+  overrides.forEach((override, index) => {
+    const parsed = FundScenarioCapitalStoredOverrideV1Schema.safeParse(override);
+    if (!parsed.success)
+      throw new CapitalPlanningCalculationError(
+        capitalSchemaIssues(parsed.error.issues, override, `storedVariants[${index}]`)
+      );
+  });
+  const observed = expandedCapitalRows(overrides.map((override) => override.payload.input));
+  if (observed > limits.maxExpandedRows) {
+    throw new CapitalPlanningCalculationError([
+      {
+        code: 'INPUT_TOO_LARGE',
+        path: 'storedVariants',
+        message: 'Capital scenarios exceed the aggregate monthly row ceiling',
+        support: 'invalid',
+        limit: limits.maxExpandedRows,
+        observed,
+      },
+    ]);
+  }
+}
+
+function prepareCapitalCreateResponse(scenarioSetId: string): {
+  response: FundScenarioCapitalCreateResponseV1;
+  serializedResponse: string;
+} {
+  const response = {
+    contractVersion: 'fund-scenario-capital-create/1.0.0' as const,
+    representation: 'capital-plan-v1' as const,
+    scenarioSetId,
+  };
+  if (!FundScenarioCapitalCreateResponseV1Schema.safeParse(response).success) {
+    throw createHttpError(500, 'Capital create response failed validation', {
+      code: 'scenario_response_invalid',
+    });
+  }
+  return { response, serializedResponse: JSON.stringify(response) };
+}
+
+/** V3 has a separate admission path; legacy V1/V2 parsing and request hashes stay unchanged. */
+export async function createFundScenarioCapitalSet(
+  fundId: number,
+  input: CreateFundScenarioSetV3,
+  actorInput: FundScenarioMutationActor = {},
+  options: CreateFundScenarioSetOptions = {}
+): Promise<{ response: FundScenarioCapitalCreateResponseV1; serializedResponse: string }> {
+  const parsed = CreateFundScenarioSetV3Schema.safeParse(input);
+  if (!parsed.success) {
+    const issues = capitalSchemaIssues(parsed.error.issues, input);
+    capitalIssues(issues);
+  }
+  const request = parsed.data;
+  try {
+    assertCalculationSize(request, CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxInputBytes, 'input');
+    return await transaction(async (client) => {
+      await verifyFundExists(client, fundId, { forUpdate: true });
+      const idempotencyKey = normalizeIdempotencyKey(options.idempotencyKey);
+      const requestHash = crypto
+        .createHash('sha256')
+        .update(canonicalJson({ fundId, input: request }))
+        .digest('hex');
+      if (idempotencyKey !== null) {
+        const existing = await getScenarioSetByIdempotencyKey(client, fundId, idempotencyKey);
+        if (existing) {
+          assertIdempotencyRequestMatches(existing, idempotencyKey, requestHash);
+          requireScenarioSetFamily(
+            await fetchRawScenarioSet(client, fundId, existing.id),
+            'capital_plan'
+          );
+          return prepareCapitalCreateResponse(existing.id);
+        }
+      }
+      if (request.expectedInterpretationVersion !== CAPITAL_SOURCE_INTERPRETATION_VERSION) {
+        capitalIssues([
+          {
+            code: 'INTERPRETATION_VERSION_UNSUPPORTED',
+            path: 'expectedInterpretationVersion',
+            message: 'Reviewed interpretation version is unsupported',
+            support: 'unsupported',
+          },
+        ]);
+      }
+      const source = await getCurrentCapitalPublishedSource(client, fundId);
+      const fingerprint = fingerprintCapitalSource(source);
+      if (
+        request.expectedSourceConfigId !== source.config.id ||
+        request.expectedSourceConfigVersion !== source.config.version ||
+        request.expectedSourceBundleHash !== fingerprint.sourceBundleHash
+      ) {
+        throw createHttpError(409, 'Scenario source config changed since it was loaded', {
+          code: 'scenario_source_config_stale',
+          details: {
+            suppliedSourceConfigId: request.expectedSourceConfigId,
+            suppliedSourceConfigVersion: request.expectedSourceConfigVersion,
+            suppliedSourceBundleHash: request.expectedSourceBundleHash,
+            currentSourceConfigId: source.config.id,
+            currentSourceConfigVersion: source.config.version,
+            currentSourceBundleHash: fingerprint.sourceBundleHash,
+          },
+        });
+      }
+      const materialized = materializeCapitalSource({
+        source,
+        inputs: request.variants.map((variant) => variant.override.payload),
+        unitDeclarations: request.unitDeclarations,
+        expectedInterpretationVersion: request.expectedInterpretationVersion,
+      });
+      if (!materialized.ok) capitalIssues(materialized.issues, materialized.status);
+      const overrides = request.variants.map(
+        (variant, index): FundScenarioCapitalStoredOverrideV1 => {
+          const supplied = variant.override.payload;
+          const normalizedInput =
+            materialized.resolvedInputs?.[index] ??
+            ('input' in supplied ? supplied.input : supplied);
+          const snapshots = materialized.benchmarkSnapshotsByInput?.[index];
+          return FundScenarioCapitalStoredOverrideV1Schema.parse({
+            overrideType: 'capital_plan',
+            payload: {
+              input: normalizedInput,
+              sourceBundle: materialized.sourceBundle,
+              sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
+              ...(snapshots === undefined ? {} : { benchmarkSnapshots: snapshots }),
+            },
+          });
+        }
+      );
+      assertCapitalScenarioStoredInputLimits(overrides);
+      const scenarioSetId = crypto.randomUUID();
+      const lineage = resolveScenarioInputLineage(
+        materialized.sourceBundle.modelInputsAsOfDate ?? undefined
+      );
+      const envelope = {
+        contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
+        fundId,
+        scenarioSetId,
+        sourceConfigId: source.config.id,
+        sourceConfigVersion: source.config.version,
+        calculationDomain: 'capital_plan' as const,
+        calculationMode: 'sync_capital_plan' as const,
+        overrideType: 'capital_plan' as const,
+        capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
+        methodVersion: CAPITAL_PLANNING_VERSION,
+        interpretationVersion: materialized.sourceBundle.interpretationVersion,
+        engineVersion: '1.0.0',
+        baselineVariantId: request.baselineVariantId,
+        sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
+        variants: request.variants.map((variant, index) => ({
+          variantId: variant.variantId,
+          sortOrder: index,
+          override: overrides[index]!,
+        })),
+      };
+      const inputHash = createCapitalScenarioInputHash(
+        lineage.hashKind === 'scenario-input-hash-v2'
+          ? {
+              ...envelope,
+              version: lineage.hashKind,
+              modelInputsAsOfDate: lineage.modelInputsAsOfDate,
+            }
+          : { ...envelope, version: lineage.hashKind }
+      );
+      const payload = FundScenarioCapitalCalculationPayloadV1Schema.parse({
+        contractVersion: 'fund-scenario-capital-calculation/1.0.0',
+        calculationDomain: 'capital_plan',
+        calculationMode: 'sync_capital_plan',
+        capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
+        methodVersion: CAPITAL_PLANNING_VERSION,
+        interpretationVersion: materialized.sourceBundle.interpretationVersion,
+        calculationVersion: '1.0.0',
+        inputHash,
+        lineage,
+        fundId,
+        scenarioSetId,
+        baselineVariantId: request.baselineVariantId,
+        sourceConfigId: source.config.id,
+        sourceConfigVersion: source.config.version,
+        sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
+        calculatedAt: new Date().toISOString(),
+        variants: request.variants.map((variant, index) => ({
+          variantId: variant.variantId,
+          scenarioSetId,
+          name: variant.name,
+          overrideType: 'capital_plan',
+          result: calculateCapitalPlanningV1({
+            input: overrides[index]!.payload.input,
+            sourceBundle: materialized.sourceBundle,
+            ...(overrides[index]!.payload.benchmarkSnapshots === undefined
+              ? {}
+              : {
+                  benchmarkSnapshots: overrides[index]!.payload.benchmarkSnapshots,
+                }),
+          }),
+        })),
+      });
+      assertCalculationSize(
+        payload,
+        CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxSnapshotBytes,
+        'snapshot'
+      );
+      await assertActiveScenarioSetCapacity(client, fundId);
+      const collisions = await client.query<{ id: string }>(
+        'SELECT id FROM fund_scenario_variants WHERE id = ANY($1::uuid[])',
+        [request.variants.map((variant) => variant.variantId)]
+      );
+      if (collisions.rows.length > 0) {
+        throw createHttpError(409, 'A scenario variant identity is already in use', {
+          code: 'scenario_variant_id_conflict',
+        });
+      }
+      const actor = normalizeActor(actorInput);
+      const persistedId = await insertScenarioSet(client, {
+        fundId,
+        scenarioSetId,
+        input: request,
+        actor,
+        publishedConfig: {
+          id: source.config.id,
+          version: source.config.version,
+          config: source.config.raw,
+        },
+        idempotencyKey,
+        idempotencyRequestHash: idempotencyKey === null ? null : requestHash,
+      });
+      for (const [index, variant] of request.variants.entries()) {
+        await client.query(
+          `INSERT INTO fund_scenario_variants
+           (id, scenario_set_id, name, description, sort_order, override_type, override_payload)
+           VALUES ($1, $2, $3, $4, $5, 'capital_plan', $6)`,
+          [
+            variant.variantId,
+            persistedId,
+            variant.name,
+            normalizeNullableText(variant.description),
+            index,
+            JSON.stringify(overrides[index]!.payload),
+          ]
+        );
+      }
+      await recordScenarioSetCreated(client, fundId, persistedId, actor, request, {
+        id: source.config.id,
+        version: source.config.version,
+        config: source.config.raw,
+      });
+      return prepareCapitalCreateResponse(persistedId);
+    });
+  } catch (error) {
+    if (error instanceof CapitalPlanningCalculationError) capitalIssues(error.issues);
+    const issues = CapitalIssuesV1Schema.safeParse(
+      error instanceof Error && 'issues' in error ? error.issues : undefined
+    );
+    if (issues.success && issues.data.length > 0) capitalIssues(issues.data);
+    if (isUniqueConstraintViolation(error, 'fund_scenario_variants_pkey')) {
+      throw createHttpError(409, 'A scenario variant identity is already in use', {
+        code: 'scenario_variant_id_conflict',
+      });
+    }
+    throw error;
+  }
+}
+
+async function getCurrentCapitalPublishedSource(
+  client: PoolClient,
+  fundId: number
+): Promise<CapitalRawSource> {
+  // The fund row is already locked by the caller; lock the publication row before CAS.
+  const config = await client.query<PublishedConfigRow & { published_at: Date | string }>(
+    `SELECT id, version, config, published_at FROM fundconfigs
+     WHERE fund_id = $1 AND is_published = TRUE
+     ORDER BY version DESC, id DESC LIMIT 1 FOR UPDATE`,
+    [fundId]
+  );
+  const row = config.rows[0];
+  if (!row)
+    throw createHttpError(409, `Fund ${fundId} does not have a published config`, {
+      code: 'no_published_config',
+    });
+  const fund = await client.query<{
+    id: number;
+    size: string | number;
+    base_currency: string | null;
+  }>('SELECT id, size, base_currency FROM funds WHERE id = $1', [fundId]);
+  const fundRow = fund.rows[0];
+  if (!fundRow)
+    throw createHttpError(404, `Fund ${fundId} was not found`, { code: 'fund_not_found' });
+  return {
+    fund: { id: fundRow.id, size: fundRow.size, baseCurrency: fundRow.base_currency },
+    config: {
+      id: row.id,
+      version: row.version,
+      raw: row.config,
+      publishedAt:
+        row.published_at instanceof Date ? row.published_at.toISOString() : row.published_at,
+    },
+  };
 }
 
 type CreateFundScenarioSetInput = CreateFundScenarioSetV1 | CreateFundScenarioSetV2;
@@ -479,7 +837,8 @@ async function insertScenarioSet(
   client: PoolClient,
   input: {
     fundId: number;
-    input: CreateFundScenarioSetV1;
+    input: Pick<CreateFundScenarioSetV1, 'name' | 'description'>;
+    scenarioSetId?: string;
     actor: ReturnType<typeof normalizeActor>;
     publishedConfig: PublishedConfigRow;
     idempotencyKey: string | null;
@@ -510,9 +869,9 @@ async function insertScenarioSetRow(
     `INSERT INTO fund_scenario_sets (
        fund_id, name, description, source_config_id, source_config_version,
        created_by_user_id, created_by_label, updated_by_user_id, updated_by_label,
-       idempotency_key, idempotency_request_hash
+       idempotency_key, idempotency_request_hash${input.scenarioSetId === undefined ? '' : ', id'}
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11${input.scenarioSetId === undefined ? '' : ', $12'})
      RETURNING id`,
     [
       input.fundId,
@@ -526,6 +885,7 @@ async function insertScenarioSetRow(
       input.actor.label,
       input.idempotencyKey,
       input.idempotencyRequestHash,
+      ...(input.scenarioSetId === undefined ? [] : [input.scenarioSetId]),
     ]
   );
 
@@ -569,7 +929,7 @@ async function recordScenarioSetCreated(
   fundId: number,
   scenarioSetId: string,
   actor: ReturnType<typeof normalizeActor>,
-  input: CreateFundScenarioSetV1,
+  input: { variants: readonly unknown[] },
   publishedConfig: PublishedConfigRow
 ): Promise<void> {
   await insertScenarioSetEvent(client, {

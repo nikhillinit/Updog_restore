@@ -1357,29 +1357,34 @@ describe('B2 canonical lifetime-capital controls', () => {
 });
 
 describe('B2 maximum-shape preparation', () => {
-  it('materializes five physical call records with ten allocations, six follow-ons and independent capacity literals', () => {
+  it('materializes five physical records packed within aggregate bounds with independent capacity literals', () => {
     expect(maximumShape).toHaveLength(5);
     expect(new Set(maximumShape.map((record) => record.source)).size).toBe(5);
     expect(new Set(maximumShape.map((record) => record.inputs[0])).size).toBe(5);
-    for (const record of maximumShape) {
+    for (const [index, record] of maximumShape.entries()) {
       const raw = record.source.config.raw;
       expect(raw.capitalPlanAllocations).toHaveLength(10);
       expect(raw.pipelineProfiles).toHaveLength(10);
-      expect(raw.pipelineProfiles.every((profile) => profile.stages.length === 12)).toBe(true);
+      expect(raw.pipelineProfiles.map((profile) => profile.stages.length)).toEqual([
+        12, 4, 2, 2, 2, 2, 2, 2, 2, 2,
+      ]);
+      expect(raw.economicsAssumptions.feeModel.tiers).toHaveLength(120);
+      expect(raw.economicsAssumptions.expenseModel.annualExpenses).toHaveLength(120);
       expect(raw.fundLife).toBe(30);
       expect(FundDraftWriteV1Schema.safeParse(raw).success).toBe(true);
       expect(CapitalUnitDeclarationsV1Schema.safeParse(record.unitDeclarations).success).toBe(true);
       expect(record.inputs).toHaveLength(1);
       expect(record.inputs[0]!.allocations).toHaveLength(10);
       expect(
-        record.inputs[0]!.allocations.every((allocation) => allocation.followOnRounds.length === 6)
-      ).toBe(true);
+        record.inputs[0]!.allocations.map((allocation) => allocation.followOnRounds.length)
+      ).toEqual(index === 2 ? [5, 5, 6, 6, 6, 6, 6, 6, 6, 6] : Array(10).fill(6));
       expect(CapitalPlanningInputV1Schema.safeParse(record.inputs[0]).success).toBe(true);
       const result = admitted(materializeCapitalSource(record));
       expect(result.sourceBundle.gp.deemedContributionUsd).toBe('4.000000');
-      expect(result.sourceBundle.feeExpense.lifetimeFeesUsd).toBe('60.000000');
-      expect(result.sourceBundle.feeExpense.lifetimeExpensesUsd).toBe('30.000000');
-      expect(result.availableConstructionCapitalUsd).toBe('6.000000');
+      // 120 * 0.000001 * USD100 * 30 years; 120 * USD0.0001 * 30 years.
+      expect(result.sourceBundle.feeExpense.lifetimeFeesUsd).toBe('0.360000');
+      expect(result.sourceBundle.feeExpense.lifetimeExpensesUsd).toBe('0.360000');
+      expect(result.availableConstructionCapitalUsd).toBe('95.280000');
     }
     const combined = admitted(
       materializeCapitalSource({
@@ -1390,11 +1395,28 @@ describe('B2 maximum-shape preparation', () => {
     expect(combined.assumptionProvenanceByInput).toHaveLength(5);
     expect(combined.sourceBundle.construction.capitalPlanAllocations).toHaveLength(10);
     expect(
-      combined.sourceBundle.construction.pipelineProfiles.every(
-        (profile) => profile.stages.length === 7
+      combined.sourceBundle.construction.pipelineProfiles.map((profile) => profile.id)
+    ).toEqual(['p1']);
+    expect(combined.sourceBundle.construction.pipelineProfiles[0]!.stages).toHaveLength(7);
+    const inputs = maximumShape.flatMap((record) => record.inputs);
+    expect(
+      inputs.map((input) =>
+        input.allocations.reduce(
+          (rows, allocation) =>
+            rows +
+            allocation.deploymentPeriodYears *
+              12 *
+              (1 + allocation.followOnRounds.length) *
+              (allocation.plannedCompanyCount === undefined ? 1 : 2),
+          0
+        )
       )
-    ).toBe(true);
-    expect(combined.availableConstructionCapitalUsd).toBe('6.000000');
+    ).toEqual([16800, 16800, 9600, 8400, 8400]);
+    expect(inputs[0]!.allocations[0]!.name).toHaveLength(240);
+    expect(inputs[0]!.allocations[0]!.followOnRounds[0]!.roundId).toHaveLength(120);
+    expect(inputs[0]!.performanceCase?.exitEquityValueUsd).toHaveLength(24);
+    expect(inputs[0]!.performanceCase?.ownershipOverrideExplanation).toHaveLength(2000);
+    expect(combined.availableConstructionCapitalUsd).toBe('95.280000');
     expect(combined.readiness.state).toBe('READY');
   });
 });

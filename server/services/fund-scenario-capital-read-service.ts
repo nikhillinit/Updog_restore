@@ -9,7 +9,7 @@ import {
 import { canonicalJson, sha256CanonicalJson } from '@shared/lib/canonical-json';
 import { createHttpError } from './fund-scenario-set-service';
 
-interface CapitalSnapshotRow {
+export interface CapitalSnapshotRow {
   id: number;
   fund_id: number;
   scenario_set_id: string;
@@ -21,10 +21,31 @@ interface CapitalSnapshotRow {
   payload: unknown;
 }
 
+export interface CapitalSavedScenarioContext {
+  fundId: number;
+  id: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  sourceBundleHash: string;
+  interpretationVersion: string;
+  baselineVariantId: string;
+  variants: ReadonlyArray<
+    Pick<
+      FundScenarioCapitalDetailResponseV1['variants'][number],
+      'id' | 'scenarioSetId' | 'sortOrder' | 'override'
+    >
+  >;
+}
+
+export type CapitalSavedResult = NonNullable<FundScenarioCapitalResultsResponseV1['savedResult']>;
+
 const READABLE_INTERPRETATIONS = new Set([
   'capital-source-interpretation/1.0.0',
   'capital-source-interpretation/1.0.1',
 ]);
+const calculateResponseMetadataSchema = FundScenarioCapitalCalculateResponseV1Schema.omit({
+  payload: true,
+});
 
 function invalidSnapshot(): never {
   throw createHttpError(500, 'Stored capital snapshot identity or payload is invalid', {
@@ -32,22 +53,11 @@ function invalidSnapshot(): never {
   });
 }
 
-/** Read and validate persisted results without rebuilding any saved field. */
-export async function fetchCapitalSavedSnapshot(
-  client: PoolClient,
-  detail: FundScenarioCapitalDetailResponseV1
-): Promise<FundScenarioCapitalResultsResponseV1['savedResult']> {
-  const result = await client.query<CapitalSnapshotRow>(
-    `SELECT id, fund_id, scenario_set_id, config_id, config_version,
-            calc_version, state_hash, correlation_id, payload
-       FROM fund_snapshots
-      WHERE fund_id = $1 AND scenario_set_id = $2 AND type = 'SCENARIOS'
-      ORDER BY created_at DESC, id DESC
-      LIMIT 1`,
-    [detail.fundId, detail.id]
-  );
-  const row = result.rows[0];
-  if (!row) return null;
+/** Decode original persisted bytes using saved context only. */
+export function decodeCapitalSavedSnapshot(
+  row: CapitalSnapshotRow,
+  detail: CapitalSavedScenarioContext
+): CapitalSavedResult {
   if (!FundScenarioCapitalCalculationPayloadV1Schema.safeParse(row.payload).success) {
     invalidSnapshot();
   }
@@ -81,6 +91,8 @@ export async function fetchCapitalSavedSnapshot(
     const source = variant.result.sourceBundle;
     if (
       !savedVariant ||
+      savedVariant.sortOrder !== index ||
+      savedVariant.scenarioSetId !== detail.id ||
       variant.variantId !== savedVariant.id ||
       variant.scenarioSetId !== detail.id ||
       canonicalJson(variant.result.input) !== canonicalJson(savedVariant.override.payload.input) ||
@@ -99,13 +111,32 @@ export async function fetchCapitalSavedSnapshot(
     payload,
   };
   if (
-    !FundScenarioCapitalCalculateResponseV1Schema.safeParse({
+    !calculateResponseMetadataSchema.safeParse({
       contractVersion: 'fund-scenario-capital-calculate/1.0.0',
       representation: 'capital-plan-v1',
-      ...savedResult,
+      snapshotId: savedResult.snapshotId,
+      correlationId: savedResult.correlationId,
+      source: savedResult.source,
     }).success
   ) {
     invalidSnapshot();
   }
   return savedResult;
+}
+
+/** Read and validate persisted results without rebuilding any saved field. */
+export async function fetchCapitalSavedSnapshot(
+  client: PoolClient,
+  detail: FundScenarioCapitalDetailResponseV1
+): Promise<FundScenarioCapitalResultsResponseV1['savedResult']> {
+  const result = await client.query<CapitalSnapshotRow>(
+    `SELECT id, fund_id, scenario_set_id, config_id, config_version,
+            calc_version, state_hash, correlation_id, payload
+       FROM fund_snapshots
+      WHERE fund_id = $1 AND scenario_set_id = $2 AND type = 'SCENARIOS'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [detail.fundId, detail.id]
+  );
+  return result.rows[0] ? decodeCapitalSavedSnapshot(result.rows[0], detail) : null;
 }

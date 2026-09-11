@@ -854,6 +854,94 @@ describe('capital planning financial truth', () => {
     });
   });
 
+  it('CP041 keeps no-gap cohorts separate from a later multi-allocation stress gap', () => {
+    const candidate = makeCapitalInput();
+    const original = candidate.allocations[0]!;
+    candidate.allocations = [4, 6, 0].map((count, index) => ({
+      ...original,
+      allocationId: `a${index + 1}`,
+      name: `Allocation ${index + 1}`,
+      pipelineProfileId: `p${index + 1}`,
+      budgetShareRatio: ratio(new Decimal(count).div(10).toString()),
+      plannedCompanyCount: count,
+    }));
+
+    const c = run(candidate, 10, 1).construction;
+    expect(c.monthlyDetail).toHaveLength(72);
+    for (const reconciliation of c.reconciliation) {
+      expect(reconciliation).toMatchObject({
+        firstBudgetGapMonth: null,
+        firstGapAllocationId: null,
+        firstGapRoundId: null,
+        lifetimeBudgetShortfallUsd: money(0),
+        allocationGapUsd: { state: 'available', value: money(0) },
+        reserveEarmarkGapUsd: { state: 'available', value: money(0) },
+      });
+    }
+    for (const countBasis of ['expected', 'entered']) {
+      expect(
+        c.stresses.find(
+          (stress) =>
+            stress.name === 'fixed_checks_and_pro_rata_rounds_plus_25pct' &&
+            stress.countBasis === countBasis
+        )
+      ).toMatchObject({
+        state: 'complete',
+        reconciliation: {
+          firstBudgetGapMonth: 9,
+          firstGapAllocationId: 'a1',
+          firstGapRoundId: null,
+          lifetimeBudgetShortfallUsd: money('2.5'),
+        },
+      });
+    }
+  });
+
+  it('CP041 retains other allocation accruals across initial and follow-on cohorts', () => {
+    const candidate = makeCapitalInput();
+    candidate.netInvestableCapitalUsd = money(20);
+    const original = candidate.allocations[0]!;
+    candidate.allocations = [0, 4, 4].map((count, index) => ({
+      ...original,
+      allocationId: ['a0', 'b1', 'c1'][index]!,
+      name: `Allocation ${index + 1}`,
+      pipelineProfileId: `p${index + 1}`,
+      budgetShareRatio: ratio(index === 0 ? 0 : '0.5'),
+      plannedCompanyCount: count,
+      followOnRounds: [
+        {
+          roundId: 'follow',
+          stageId: 'next',
+          roundLabel: 'Follow-on',
+          graduationRatio: ratio(1),
+          participationRatio: ratio(1),
+          checkPolicy: { type: 'fixed_check', checkUsd: money(1) },
+          monthsAfterPreviousRound: 0,
+          timeOrigin: 'previous_round',
+        },
+      ],
+    }));
+
+    const c = run(candidate, 10, 1).construction;
+    expect(c.monthlyDetail).toHaveLength(144);
+    expect(c.reconciliation.find((value) => value.countBasis === 'expected')).toMatchObject({
+      firstBudgetGapMonth: 6,
+      firstGapAllocationId: 'b1',
+      firstGapRoundId: null,
+      lifetimeBudgetShortfallUsd: money(10),
+      allocationGapUsd: { state: 'available', value: money(0) },
+      reserveEarmarkGapUsd: { state: 'available', value: money(0) },
+    });
+    expect(c.reconciliation.find((value) => value.countBasis === 'entered')).toMatchObject({
+      firstBudgetGapMonth: 7,
+      firstGapAllocationId: 'c1',
+      firstGapRoundId: null,
+      lifetimeBudgetShortfallUsd: money(6),
+      allocationGapUsd: { state: 'available', value: money(0) },
+      reserveEarmarkGapUsd: { state: 'available', value: money(0) },
+    });
+  });
+
   it('CP041 reports the first actual budget gap without rounded false positives', () => {
     const candidate = makeCapitalInput();
     candidate.allocations[0]!.plannedCompanyCount = 12;

@@ -23,9 +23,15 @@ export interface ScenarioCalculationRunIdentity {
     | 'sync_allocation'
     | 'sync_sector_profile'
     | 'sync_methodology'
+    | 'sync_capital_plan'
     | 'async_reserve_allocation';
   overrideType:
-    'fee_profile' | 'allocation' | 'sector_profile' | 'methodology' | 'reserve_allocation';
+    | 'fee_profile'
+    | 'allocation'
+    | 'sector_profile'
+    | 'methodology'
+    | 'reserve_allocation'
+    | 'capital_plan';
   inputHash: string;
   hashKind: ScenarioInputHashKind;
   modelInputsAsOfDate: string | null;

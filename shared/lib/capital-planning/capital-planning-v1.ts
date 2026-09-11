@@ -368,6 +368,17 @@ function monthlyRows(
   if (amounts === null) return [];
   const months = model.input.deploymentPeriodYears * 12;
   const rows: CapitalMonthlyDetailV1[] = [];
+  const initialCompanyCount = ratio(amounts.count.div(months));
+  const initialDemandUsd = money(amounts.initial.div(months));
+  const followOnValues = model.rounds.map((round) => ({
+    round,
+    companyCount: ratio(
+      round.check.isZero()
+        ? zero()
+        : amounts.count.times(round.graduation).times(round.participation).div(months)
+    ),
+    demandUsd: money(amounts.count.times(round.cost).div(months)),
+  }));
   for (let entryMonth = 0; entryMonth < months; entryMonth++) {
     rows.push({
       allocationId: model.input.allocationId,
@@ -376,11 +387,11 @@ function monthlyRows(
       roundId: null,
       kind: 'initial',
       countBasis: basis,
-      companyCount: ratio(amounts.count.div(months)),
-      demandUsd: money(amounts.initial.div(months)),
+      companyCount: initialCompanyCount,
+      demandUsd: initialDemandUsd,
       beyondTerm: false,
     });
-    for (const round of model.rounds) {
+    for (const { round, companyCount, demandUsd } of followOnValues) {
       const demandMonth = entryMonth + round.lag;
       rows.push({
         allocationId: model.input.allocationId,
@@ -389,12 +400,8 @@ function monthlyRows(
         roundId: round.input.roundId,
         kind: 'follow_on',
         countBasis: basis,
-        companyCount: ratio(
-          round.check.isZero()
-            ? zero()
-            : amounts.count.times(round.graduation).times(round.participation).div(months)
-        ),
-        demandUsd: money(amounts.count.times(round.cost).div(months)),
+        companyCount,
+        demandUsd,
         beyondTerm: demandMonth >= termMonths,
       });
     }
@@ -479,37 +486,44 @@ function reconcile(
   // Emitted monthly rounding must never invent a first budget shortfall.
   const accrued = bases.map(() => ({ initialMonths: 0, rounds: new Map<string, number>() }));
   let first: CapitalMonthlyDetailV1 | null = null;
-  const sorted = [...rows].sort(
-    (a, b) =>
-      a.demandMonth - b.demandMonth ||
-      compareIds(a.allocationId, b.allocationId) ||
-      compareIds(a.roundId ?? '', b.roundId ?? '')
-  );
+  // Nonnegative cohort demand cannot create a first gap when every lifetime gap is absent.
+  const sorted =
+    !overCapacity && allocationGap.isZero() && reserveGap.isZero()
+      ? []
+      : [...rows].sort(
+          (a, b) =>
+            a.demandMonth - b.demandMonth ||
+            compareIds(a.allocationId, b.allocationId) ||
+            compareIds(a.roundId ?? '', b.roundId ?? '')
+        );
   const byId = new Map(bases.map((base, index) => [base.model.input.allocationId, index]));
+  const cumulativeForAllocation = (entry: (typeof accrued)[number], ai: number) => {
+    const demand = amounts[ai];
+    if (!demand) return { initial: zero(), follow: zero() };
+    const model = models[ai]!;
+    const months = model.input.deploymentPeriodYears * 12;
+    return {
+      initial: demand.initial.times(entry.initialMonths).div(months),
+      follow: sum(
+        model.rounds.map((round) =>
+          demand.count
+            .times(round.cost)
+            .times(entry.rounds.get(round.input.roundId) ?? 0)
+            .div(months)
+        )
+      ),
+    };
+  };
+  let cumulative: ReturnType<typeof cumulativeForAllocation>[] | undefined;
   for (const row of sorted) {
     const index = byId.get(row.allocationId)!;
     if (amounts[index]?.count.isZero()) continue;
     const state = accrued[index]!;
     if (row.kind === 'initial') state.initialMonths++;
     else state.rounds.set(row.roundId!, (state.rounds.get(row.roundId!) ?? 0) + 1);
-    if (!overCapacity && allocationGap.isZero() && reserveGap.isZero()) continue;
-    const cumulative = accrued.map((entry, ai) => {
-      const demand = amounts[ai];
-      if (!demand) return { initial: zero(), follow: zero() };
-      const model = models[ai]!;
-      const months = model.input.deploymentPeriodYears * 12;
-      return {
-        initial: demand.initial.times(entry.initialMonths).div(months),
-        follow: sum(
-          model.rounds.map((round) =>
-            demand.count
-              .times(round.cost)
-              .times(entry.rounds.get(round.input.roundId) ?? 0)
-              .div(months)
-          )
-        ),
-      };
-    });
+    // Preserve the first full pass; only this allocation's accrued counts change afterward.
+    if (cumulative === undefined) cumulative = accrued.map(cumulativeForAllocation);
+    else cumulative[index] = cumulativeForAllocation(state, index);
     const current = cumulative[index]!;
     const base = bases[index]!;
     const gap = gaps[index]!;

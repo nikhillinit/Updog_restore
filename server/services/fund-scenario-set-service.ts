@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
   CAPITAL_PLAN_REPRESENTATION,
+  FundScenarioCapitalArchiveResponseV1Schema,
   FundScenarioCapitalDetailResponseV1Schema,
   FundScenarioCapitalListResponseV1Schema,
   FundScenarioCapitalSourceResponseV1Schema,
@@ -19,6 +20,7 @@ import {
   type FundScenarioCapitalListResponseV1,
   type FundScenarioCapitalSourceResponseV1,
   type FundScenarioCapitalStoredOverrideV1,
+  type FundScenarioCapitalSetSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import {
@@ -354,7 +356,7 @@ async function getScenarioSetSummaryOrThrow(
 
   const scenarioSet = result.rows[0];
   if (!scenarioSet) {
-    throw createHttpError(404, `Scenario set ${scenarioSetId} not found`, {
+    throw createHttpError(404, 'Scenario set not found', {
       code: 'scenario_set_not_found',
     });
   }
@@ -571,6 +573,7 @@ export function buildCapitalReadState(
       code: 'scenario_saved_data_invalid',
     });
   }
+  let firstBundleJson: string | undefined;
   for (const override of savedOverrides) {
     if (!FundScenarioCapitalStoredOverrideV1Schema.safeParse(override).success) {
       throw createHttpError(500, 'Stored capital scenario input is invalid', {
@@ -580,7 +583,7 @@ export function buildCapitalReadState(
     const bundle = override.payload.sourceBundle;
     if (
       sha256CanonicalJson(bundle.projection) !== bundle.sourceBundleHash ||
-      canonicalJson(bundle) !== canonicalJson(first.payload.sourceBundle)
+      canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(first.payload.sourceBundle))
     ) {
       throw createHttpError(500, 'Stored capital source identity is inconsistent', {
         code: 'scenario_saved_data_invalid',
@@ -635,7 +638,8 @@ export function buildCapitalReadState(
 
 export async function fetchCapitalScenarioSetDetailFromRaw(
   client: PoolClient,
-  raw: RawFundScenarioSet
+  raw: RawFundScenarioSet,
+  options: { readCurrentSource?: boolean } = {}
 ): Promise<FundScenarioCapitalDetailResponseV1> {
   requireScenarioSetFamily(raw, 'capital_plan');
   const variants = raw.variants.map((variant) => ({
@@ -661,7 +665,10 @@ export async function fetchCapitalScenarioSetDetailFromRaw(
   const first = overrides[0]!;
   const readState = buildCapitalReadState(
     overrides,
-    await loadCurrentCapitalRawSource(client, raw.row.fund_id)
+    // Commands use only saved identity before replay. Their acknowledgements omit readState.
+    options.readCurrentSource === false
+      ? null
+      : await loadCurrentCapitalRawSource(client, raw.row.fund_id)
   );
   const detail = {
     ...mapScenarioSetSummary({ ...raw.row, variant_count: variants.length }),
@@ -790,6 +797,49 @@ export async function archiveFundScenarioSet(
   );
 }
 
+export async function archiveFundScenarioCapitalSet(
+  fundId: number,
+  scenarioSetId: string,
+  actorInput: FundScenarioMutationActor = {},
+  input: ArchiveFundScenarioSetV1 = {}
+): Promise<{
+  response: FundScenarioCapitalSetSummaryV1 & { archivedAt: string };
+  serializedResponse: string;
+}> {
+  return transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId, { forUpdate: true });
+    requireScenarioSetFamily(raw, 'capital_plan');
+    if (raw.row.archived_at === null) {
+      const actor = normalizeActor(actorInput);
+      raw.row = await updateArchivedScenarioSet(client, fundId, scenarioSetId, actor);
+      await insertScenarioSetEvent(client, {
+        scenarioSetId,
+        fundId,
+        eventType: 'archived',
+        actor,
+        changeSummary: buildArchiveChangeSummary(input.reason),
+      });
+    }
+    const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
+    const response = {
+      ...mapScenarioSetSummary(raw.row),
+      overrideType: 'capital_plan' as const,
+      baselineVariantId: detail.baselineVariantId,
+      sourceBundleHash: detail.sourceBundleHash,
+      interpretationVersion: detail.interpretationVersion,
+      readState: detail.readState,
+      archivedAt: detail.archivedAt!,
+    };
+    if (!FundScenarioCapitalArchiveResponseV1Schema.safeParse(response).success) {
+      throw createHttpError(500, 'Capital archive response failed validation', {
+        code: 'scenario_response_invalid',
+      });
+    }
+    return { response, serializedResponse: JSON.stringify(response) };
+  });
+}
+
 async function archiveFundScenarioSetInTransaction(
   client: PoolClient,
   fundId: number,
@@ -837,6 +887,7 @@ async function updateArchivedScenarioSet(
             updated_at = NOW()
       WHERE fund_id = $3
         AND id = $4
+        AND archived_at IS NULL
       RETURNING
         id, fund_id, name, description, source_config_id, source_config_version,
         created_by_user_id, created_by_label, updated_by_user_id, updated_by_label,
@@ -850,7 +901,7 @@ async function updateArchivedScenarioSet(
 
   const archived = result.rows[0];
   if (!archived) {
-    throw createHttpError(404, `Scenario set ${scenarioSetId} not found`, {
+    throw createHttpError(404, 'Scenario set not found', {
       code: 'scenario_set_not_found',
     });
   }

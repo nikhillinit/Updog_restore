@@ -5,10 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const authState = vi.hoisted(() => ({
   user: null as null | { id: number; role: string; email?: string },
 }));
-const svc = vi.hoisted(() => ({ executeReserveCalculationCommand: vi.fn() }));
+const svc = vi.hoisted(() => ({
+  executeReserveCalculationCommand: vi.fn(),
+  createReserveOptimizationScenarioSet: vi.fn(),
+}));
 
 vi.mock('../../../server/services/fund-scenario-calculation-command-service', () => ({
   executeReserveCalculationCommand: svc.executeReserveCalculationCommand,
+}));
+vi.mock('../../../server/services/fund-scenario-reserve-optimization-workflow-service', () => ({
+  createReserveOptimizationScenarioSet: svc.createReserveOptimizationScenarioSet,
 }));
 
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
@@ -61,6 +67,29 @@ beforeEach(() => {
 });
 
 describe('calculate-reserve idempotent command route', () => {
+  it.each([
+    ['representation=', 400, 'invalid_representation'],
+    ['representation=unknown', 400, 'invalid_representation'],
+    [
+      'representation=capital-plan-v1&representation=capital-plan-v1',
+      400,
+      'invalid_representation',
+    ],
+    ['representation[]=capital-plan-v1', 400, 'invalid_representation'],
+    ['representation=capital-plan-v1', 406, 'scenario_representation_not_applicable'],
+  ])('refuses reserve mutation selector %s before either writer', async (query, status, error) => {
+    for (const path of [
+      `/api/funds/7/scenario-sets/${SCENARIO_SET_ID}/calculate-reserve`,
+      '/api/funds/7/scenario-sets/reserve-optimization',
+    ]) {
+      const result = await post({ key: 'representation-key', path: `${path}?${query}` });
+      expect(result.status).toBe(status);
+      expect(result.body).toMatchObject({ error });
+      expect(svc.executeReserveCalculationCommand).not.toHaveBeenCalled();
+      expect(svc.createReserveOptimizationScenarioSet).not.toHaveBeenCalled();
+    }
+  });
+
   it('returns 428 when Idempotency-Key is missing', async () => {
     const result = await post();
 
@@ -143,9 +172,13 @@ describe('calculate-reserve idempotent command route', () => {
 
   it('maps key reuse with a changed request to 422 idempotency_key_reused', async () => {
     svc.executeReserveCalculationCommand.mockRejectedValue(
-      createHttpError(422, 'Idempotency-Key was reused with a different reserve calculation request', {
-        code: 'idempotency_key_reused',
-      })
+      createHttpError(
+        422,
+        'Idempotency-Key was reused with a different reserve calculation request',
+        {
+          code: 'idempotency_key_reused',
+        }
+      )
     );
 
     const result = await post({ key: 'reused-key' });

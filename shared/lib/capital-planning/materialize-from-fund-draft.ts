@@ -1145,6 +1145,13 @@ function selectConstruction(
       selectedStages.set(pi, stages);
     }
   }
+  // Construction caps govern the selected normalized facts. Unselected raw
+  // profiles/stages remain governed by projection-fact and saved-input bounds.
+  bounded(selectedAllocations.size, limits.maxAllocations, 'capitalPlanAllocations');
+  bounded(selectedSectors.size, limits.maxProfiles, 'sectorProfiles');
+  bounded(selectedStages.size, limits.maxProfiles, 'pipelineProfiles');
+  for (const [profileIndex, stages] of selectedStages)
+    bounded(stages.size, limits.maxStages, `pipelineProfiles[${profileIndex}].stages`);
   const optionalMoney = (value: number | undefined, path: string) =>
     value === undefined ? null : money(value, path);
   const optionalRate = (value: number | undefined, path: string) =>

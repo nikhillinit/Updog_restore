@@ -6,6 +6,7 @@ import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
   CreateFundScenarioSetV2Schema,
+  CreateFundScenarioSetV3Schema,
   CreateReserveOptimizationScenarioSetV1Schema,
   FundScenarioReserveCalculationRequestV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
@@ -14,8 +15,10 @@ import { requireAuth, requireFundAccess, requireWriteRole } from '../lib/auth/jw
 import { firstString } from '../lib/request-values.js';
 import { sendBodyValidationError } from '../lib/validation-response.js';
 import { parseScenarioRepresentation } from '../lib/scenario-representation.js';
+import { CapitalPlanningCalculationError } from '@shared/lib/capital-planning/calculation-support';
 import {
   archiveFundScenarioSet,
+  archiveFundScenarioCapitalSet,
   getFundScenarioSourceConfig,
   getFundScenarioSet,
   listFundScenarioSets,
@@ -23,7 +26,12 @@ import {
   listFundScenarioCapitalSets,
   getFundScenarioCapitalSet,
 } from '../services/fund-scenario-set-service.js';
-import { createFundScenarioSet } from '../services/fund-scenario-set-create-service.js';
+import {
+  createFundScenarioSet,
+  createFundScenarioCapitalSet,
+  capitalSchemaIssues,
+} from '../services/fund-scenario-set-create-service.js';
+import { calculateFundScenarioCapitalSet } from '../services/fund-scenario-capital-calculation-service.js';
 import { createReserveOptimizationScenarioSet } from '../services/fund-scenario-reserve-optimization-workflow-service.js';
 import {
   calculateFundScenarioSet,
@@ -131,11 +139,11 @@ function getIdempotencyKey(req: Request): string | null {
   return trimmed ? trimmed : null;
 }
 
-function isV2ScenarioSetPayload(value: unknown): boolean {
+function isScenarioSetPayloadVersion(value: unknown, contractVersion: string): boolean {
   return (
     value !== null &&
     typeof value === 'object' &&
-    (value as Record<string, unknown>)['contractVersion'] === 'fund-scenario-set-create/2.0.0'
+    (value as Record<string, unknown>)['contractVersion'] === contractVersion
   );
 }
 
@@ -239,6 +247,32 @@ router.post(
       return;
     }
 
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    if (isScenarioSetPayloadVersion(req.body, 'fund-scenario-set-create/3.0.0')) {
+      const parsed = CreateFundScenarioSetV3Schema.safeParse(req.body);
+      if (!parsed.success) {
+        const issues = capitalSchemaIssues(parsed.error.issues, req.body);
+        if (issues.some((issue) => issue.code !== 'INVALID_INPUT')) {
+          throw new CapitalPlanningCalculationError(issues);
+        }
+        return res.status(422).json({
+          error: 'invalid_scenario_set_v3_payload',
+          message: 'Invalid capital scenario set payload',
+          details: parsed.error.format(),
+        });
+      }
+      const result = await createFundScenarioCapitalSet(fundId, parsed.data, parseActor(req), {
+        idempotencyKey: getIdempotencyKey(req),
+      });
+      return res.status(201).type('application/json').send(result.serializedResponse);
+    }
+    if (representation) {
+      return res.status(406).json({
+        error: 'scenario_representation_not_applicable',
+        message: 'The capital representation requires a V3 capital create request',
+      });
+    }
     const parsedV1 = CreateFundScenarioSetV1Schema.safeParse(req.body);
     if (parsedV1.success) {
       const scenarioSet = await createFundScenarioSet(fundId, parsedV1.data, parseActor(req), {
@@ -255,7 +289,7 @@ router.post(
       return res.status(201).json(scenarioSet);
     }
 
-    if (isV2ScenarioSetPayload(req.body)) {
+    if (isScenarioSetPayloadVersion(req.body, 'fund-scenario-set-create/2.0.0')) {
       return res.status(422).json({
         error: 'unprocessable_entity',
         code: 'invalid_scenario_set_v2_payload',
@@ -284,6 +318,14 @@ router.post(
       return;
     }
 
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    if (representation) {
+      return res.status(406).json({
+        error: 'scenario_representation_not_applicable',
+        message: 'The capital representation does not apply to reserve optimization',
+      });
+    }
     const parsed = CreateReserveOptimizationScenarioSetV1Schema.safeParse(req.body ?? {});
     if (!parsed.success) {
       sendBodyValidationError(res, parsed.error, 'Invalid reserve optimization scenario payload');
@@ -313,6 +355,12 @@ router.post(
       return;
     }
 
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    if (representation) {
+      const result = await calculateFundScenarioCapitalSet(fundId, scenarioSetId, parseActor(req));
+      return res.status(200).type('application/json').send(result.serializedResponse);
+    }
     const result = await calculateFundScenarioSet(fundId, scenarioSetId, parseActor(req));
     return res.status(200).json(result);
   })
@@ -331,6 +379,14 @@ router.post(
       return;
     }
 
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
+    if (representation) {
+      return res.status(406).json({
+        error: 'scenario_representation_not_applicable',
+        message: 'The capital representation does not apply to reserve calculation',
+      });
+    }
     const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
     if (parsedKey.kind === 'missing') {
       return res.status(428).json({
@@ -444,12 +500,23 @@ router.post(
       return;
     }
 
+    const representation = parseScenarioRepresentation(req, res);
+    if (representation === null) return;
     const parsed = ArchiveFundScenarioSetV1Schema.safeParse(req.body ?? {});
     if (!parsed.success) {
       sendBodyValidationError(res, parsed.error, 'Invalid fund scenario set archive payload');
       return;
     }
 
+    if (representation) {
+      const result = await archiveFundScenarioCapitalSet(
+        fundId,
+        scenarioSetId,
+        parseActor(req),
+        parsed.data
+      );
+      return res.status(200).type('application/json').send(result.serializedResponse);
+    }
     const scenarioSet = await archiveFundScenarioSet(
       fundId,
       scenarioSetId,
@@ -461,6 +528,14 @@ router.post(
 );
 
 router.use((error: HttpError, _req: Request, res: Response, _next: unknown) => {
+  if (error instanceof CapitalPlanningCalculationError) {
+    return res.status(422).json({
+      error: 'unprocessable_entity',
+      code: error.issues[0]?.code ?? 'INVALID_INPUT',
+      message: error.message,
+      details: { issues: error.issues },
+    });
+  }
   if (error.code === 'idempotency_request_in_progress') {
     res.set('Retry-After', '1');
   }
