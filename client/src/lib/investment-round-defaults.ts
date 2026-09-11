@@ -9,12 +9,6 @@
 
 import type { InvestmentRound } from '@/types/investment-rounds';
 
-// Legacy wizard defaults are not independently validated capital-planning presets.
-export const CAPITAL_PLANNING_BENCHMARK_AVAILABILITY = {
-  available: false,
-  reason: 'EXTERNAL_EVIDENCE_NOT_REVALIDATED',
-} as const;
-
 function cloneRound(round: InvestmentRound): InvestmentRound {
   return { ...round };
 }
