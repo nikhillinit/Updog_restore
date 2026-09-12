@@ -2,7 +2,6 @@
  * Legacy Route Mapping
  *
  * Maps old navigation routes to new 5-route IA.
- * Used by LegacyRouteRedirector when enable_new_ia flag is ON.
  *
  * Pattern: Old route → New consolidated route
  */
