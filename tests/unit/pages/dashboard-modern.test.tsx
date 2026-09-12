@@ -122,9 +122,9 @@ describe('ModernDashboard', () => {
     await user.click(screen.getByRole('tab', { name: /performance/i }));
 
     expect(screen.getByText(/supported performance metrics/i)).toBeInTheDocument();
-    expect(screen.getByText('IRR')).toBeInTheDocument();
+    expect(screen.getByText('IRR estimate')).toBeInTheDocument();
     expect(screen.getByText('18.0%')).toBeInTheDocument();
-    expect(screen.getByText('TVPI')).toBeInTheDocument();
+    expect(screen.getByText('TVPI estimate')).toBeInTheDocument();
     expect(screen.getByText('1.25x')).toBeInTheDocument();
     expect(screen.getByText(/benchmark and attribution unavailable/i)).toBeInTheDocument();
     expect(screen.queryByText(/performance analytics remain deferred/i)).not.toBeInTheDocument();

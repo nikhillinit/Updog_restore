@@ -66,7 +66,10 @@ const ACCESS_LABELS: Record<ShareAccessLevel, string> = {
 };
 
 const humanizeMetric = (metric: string) =>
-  metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  metric
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .replace(/\bGp\b/g, 'GP');
 
 const formatPreviewMoic = (moic: number | null, moicHidden: boolean): string => {
   if (moic !== null) return `${moic.toFixed(2)}x`;
@@ -402,7 +405,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                       }}
                     />
                     <Label htmlFor={metric} className="text-sm">
-                      {metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                      {humanizeMetric(metric)}
                     </Label>
                   </div>
                 ))}

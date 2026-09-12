@@ -119,6 +119,24 @@ describe('production auth session gate', () => {
     expect(mocks.fundProviderMounts).toBe(0);
   });
 
+  it('waits for the session before showing login', () => {
+    mocks.session.isPending = true;
+    renderAt('/login');
+    expect(screen.getByText('Session Loading')).toBeInTheDocument();
+    expect(mocks.enabledCalls).toEqual([true]);
+    expect(mocks.fundProviderMounts).toBe(0);
+  });
+
+  it('redirects authenticated login visits to the dashboard', async () => {
+    mocks.session.data = {
+      user: { id: '7', email: 'admin@example.com', role: 'admin', fundIds: [] },
+    };
+    renderAt('/login');
+    expect(await screen.findByText('Dashboard Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/dashboard');
+    expect(screen.queryByText('Login Page')).not.toBeInTheDocument();
+  });
+
   it('redirects an unauthenticated protected request to login without mounting fund providers', async () => {
     mocks.session.data = null;
     renderAt('/dashboard');

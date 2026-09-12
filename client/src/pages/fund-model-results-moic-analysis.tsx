@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { useFundContext } from '@/contexts/FundContext';
 import { AlertTriangle, ChevronRight, Info } from 'lucide-react';
 import { useRoute } from 'wouter';
 import { ReserveIntelligencePanel } from '@/components/fund-results/ReserveIntelligencePanel';
@@ -506,8 +507,15 @@ function RankingsTable({
 }
 
 export default function FundModelResultsMoicAnalysisPage() {
+  const { currentFund } = useFundContext();
   const [, params] = useRoute('/fund-model-results/:fundId/moic-analysis');
   const fundIdResult = parseFundIdParam(params?.fundId);
+  const fundLabel =
+    fundIdResult.status === 'valid'
+      ? currentFund?.id === fundIdResult.fundId
+        ? currentFund.name
+        : `Fund ${fundIdResult.fundId}`
+      : 'No fund';
   const { data, error, isLoading } = useFundMoicRankingsV2(fundIdResult.fundId);
   const { portfolioCompanies } = usePortfolioCompanies(fundIdResult.fundId ?? undefined);
   const hasParsedResponse = fundIdResult.status === 'valid' && !error && data;
@@ -517,7 +525,7 @@ export default function FundModelResultsMoicAnalysisPage() {
       <header>
         <h1 className="text-3xl font-bold text-pov-charcoal">MOIC Analysis</h1>
         <p className="text-muted-foreground">
-          {fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'Fund-scoped results'}
+          {fundIdResult.status === 'valid' ? fundLabel : 'Fund-scoped results'}
         </p>
       </header>
 
@@ -526,7 +534,7 @@ export default function FundModelResultsMoicAnalysisPage() {
       <FundWorkspaceProvider fundId={fundIdResult.fundId}>
         <WorkspaceNav
           fundId={fundIdResult.status === 'valid' ? String(fundIdResult.fundId) : null}
-          fundLabel={fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'No fund'}
+          fundLabel={fundLabel}
           active="reserves"
           indicator={<WorkspaceBasisIndicator mode="construction" />}
         />

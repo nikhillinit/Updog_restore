@@ -31,6 +31,9 @@ import {
 
 const COMPACT_KPI_KEYS: CompactKpiKey[] = ['deployed', 'remaining', 'nav', 'tvpi', 'dpi', 'netIrr'];
 
+export const PORTFOLIO_METRICS_BASIS =
+  'Portfolio estimates from investment and valuation records; not reconciled LP returns. Source freshness unavailable.';
+
 const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
   deployed: {
     key: 'deployed',
@@ -58,26 +61,26 @@ const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
   },
   tvpi: {
     key: 'tvpi',
-    label: 'TVPI',
+    label: 'TVPI estimate',
     icon: 'trending-up',
     colorClassName: 'text-charcoal-700',
-    description: 'Total Value to Paid-In',
+    description: 'Total value to recorded investment capital',
     valueType: 'multiple',
   },
   dpi: {
     key: 'dpi',
-    label: 'DPI',
+    label: 'DPI estimate',
     icon: 'dollar',
     colorClassName: 'text-charcoal-700',
-    description: 'Distributions to Paid-In',
+    description: 'Recorded distributions to investment capital',
     valueType: 'multiple',
   },
   netIrr: {
     key: 'netIrr',
-    label: 'Net IRR',
+    label: 'IRR estimate',
     icon: 'bar-chart',
     colorClassName: 'text-charcoal-700',
-    description: 'Net internal rate of return',
+    description: 'Portfolio IRR estimate from dated investments and recorded valuations',
     valueType: 'percentage',
   },
 };
@@ -341,14 +344,14 @@ function buildHeaderMetricCards(
     },
     {
       key: 'tvpi',
-      title: 'TVPI',
+      title: 'TVPI estimate',
       displayValue: formatMetricMultiple(metrics.tvpi, metricDisplayUnavailable),
       theme: 'beige',
       icon: 'target',
     },
     {
       key: 'dpi',
-      title: 'DPI',
+      title: 'DPI estimate',
       displayValue: formatPerformanceMetric(
         metrics.dpi,
         metrics.availability.dpi,
@@ -361,7 +364,7 @@ function buildHeaderMetricCards(
     },
     {
       key: 'irr',
-      title: 'Net IRR',
+      title: 'IRR estimate',
       displayValue: formatPerformanceMetric(
         metrics.irr,
         metrics.availability.irr,
@@ -393,18 +396,18 @@ function getLastUpdatedText(
 ) {
   if (metricsLoading) return 'Loading metrics';
   if (metricUnavailable) return 'Metrics source unavailable';
-  return `Last updated: ${formatLastUpdated(lastUpdated)}`;
+  return `Computed: ${formatLastUpdated(lastUpdated)}`;
 }
 
 function getStatusIndicatorClassName(metricUnavailable: boolean) {
   if (metricUnavailable) return 'bg-error';
-  return 'bg-success animate-pulse';
+  return 'bg-charcoal-500';
 }
 
 function getStatusIndicatorText(metricsLoading: boolean, metricUnavailable: boolean) {
   if (metricsLoading) return 'Metrics loading';
   if (metricUnavailable) return 'Metrics unavailable';
-  return 'Live metrics';
+  return 'Portfolio estimates';
 }
 
 function buildCompactKpiItem(

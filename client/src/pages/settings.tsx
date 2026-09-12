@@ -5,20 +5,15 @@
  * Part of Codex-validated UI/UX restructure.
  */
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { POVBrandHeader } from "@/components/ui/POVLogo";
-import {
-  Settings as SettingsIcon,
-  User,
-  Bell,
-  Shield,
-  Database,
-  Activity
-} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { POVBrandHeader } from '@/components/ui/POVLogo';
+import { useAuthSession } from '@/lib/auth-session';
+import { Settings as SettingsIcon, User, Bell, Shield, Database, Activity } from 'lucide-react';
 
 export default function SettingsPage() {
+  const session = useAuthSession();
   return (
     <div className="min-h-screen bg-pov-gray">
       <POVBrandHeader
@@ -36,7 +31,7 @@ export default function SettingsPage() {
               <div>
                 <CardTitle className="font-inter text-lg">Profile</CardTitle>
                 <CardDescription className="font-poppins text-sm">
-                  Manage your account information
+                  Session identity. Profile editing is not available here.
                 </CardDescription>
               </div>
             </div>
@@ -44,17 +39,27 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-inter text-sm font-medium text-pov-charcoal">Display Name</p>
-                <p className="font-poppins text-xs text-charcoal-500">Fund Manager</p>
+                <p className="font-inter text-sm font-medium text-pov-charcoal">Account</p>
+                <p className="font-poppins text-xs text-presson-textMuted">
+                  {session.isPending
+                    ? 'Loading account...'
+                    : (session.data?.user.email ?? 'Account unavailable')}
+                </p>
               </div>
-              <Button variant="outline" size="sm">Edit</Button>
+              <Button variant="outline" size="sm" disabled>
+                Edit
+              </Button>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-inter text-sm font-medium text-pov-charcoal">Email</p>
-                <p className="font-poppins text-xs text-charcoal-500">manager@pressonfund.com</p>
+                <p className="font-inter text-sm font-medium text-pov-charcoal">Role</p>
+                <p className="font-poppins text-xs text-presson-textMuted">
+                  {session.data?.user.role ?? 'Unavailable'}
+                </p>
               </div>
-              <Button variant="outline" size="sm">Change</Button>
+              <Button variant="outline" size="sm" disabled>
+                Change
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -76,16 +81,20 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Email Digests</p>
-                <p className="font-poppins text-xs text-charcoal-500">Weekly portfolio summary</p>
+                <p className="font-poppins text-xs text-presson-textMuted">
+                  Weekly portfolio summary
+                </p>
               </div>
-              <Switch />
+              <Switch aria-label="Email Digests" />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">KPI Reminders</p>
-                <p className="font-poppins text-xs text-charcoal-500">Notify when company updates are due</p>
+                <p className="font-poppins text-xs text-presson-textMuted">
+                  Notify when company updates are due
+                </p>
               </div>
-              <Switch defaultChecked />
+              <Switch defaultChecked aria-label="KPI Reminders" />
             </div>
           </CardContent>
         </Card>
@@ -107,7 +116,9 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Export Data</p>
-                <p className="font-poppins text-xs text-charcoal-500">Download all fund data as CSV</p>
+                <p className="font-poppins text-xs text-presson-textMuted">
+                  Download all fund data as CSV
+                </p>
               </div>
               <Button variant="outline" size="sm">
                 <Database className="h-4 w-4 mr-2" />
@@ -125,7 +136,8 @@ export default function SettingsPage() {
               <div>
                 <CardTitle className="font-inter text-lg">Deferred Surfaces</CardTitle>
                 <CardDescription className="font-poppins text-sm">
-                  These tools are intentionally outside the default runtime perimeter during stabilization
+                  These tools are intentionally outside the default runtime perimeter during
+                  stabilization
                 </CardDescription>
               </div>
             </div>
@@ -135,8 +147,10 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Activity className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
-                  <p className="font-inter text-sm font-medium text-pov-charcoal">Secondary Market</p>
-                  <p className="font-poppins text-xs text-charcoal-500">
+                  <p className="font-inter text-sm font-medium text-pov-charcoal">
+                    Secondary Market
+                  </p>
+                  <p className="font-poppins text-xs text-presson-textMuted">
                     Deferred until the core internal workflow perimeter is stabilized
                   </p>
                 </div>
@@ -149,8 +163,10 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-pov-charcoal/60" />
                 <div>
-                  <p className="font-inter text-sm font-medium text-pov-charcoal">Notion Integration</p>
-                  <p className="font-poppins text-xs text-charcoal-500">
+                  <p className="font-inter text-sm font-medium text-pov-charcoal">
+                    Notion Integration
+                  </p>
+                  <p className="font-poppins text-xs text-presson-textMuted">
                     Deferred until the default runtime perimeter is reduced and hardened
                   </p>
                 </div>

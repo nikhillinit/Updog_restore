@@ -11,6 +11,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
+import { useFundContext } from '@/contexts/FundContext';
 import type { ReactNode } from 'react';
 import { Link, useRoute } from 'wouter';
 import { CurrentPlanAcceptancePanel, FinancialEvidenceDrawer } from '@/components/fund-results';
@@ -68,6 +69,7 @@ import type { LifecycleStatus } from './fund-model-results/types';
 // ============================================================================
 
 function FundModelResultsPage() {
+  const { currentFund } = useFundContext();
   const [, params] = useRoute('/fund-model-results/:fundId');
   const fundId = params?.fundId ?? null;
 
@@ -135,7 +137,13 @@ function FundModelResultsPage() {
     <FundWorkspaceProvider fundId={routeFundNumber}>
       <WorkspaceNav
         fundId={navFundId}
-        fundLabel={navFundId !== null ? `Fund ${navFundId}` : 'No fund'}
+        fundLabel={
+          navFundId !== null
+            ? String(currentFund?.id) === navFundId
+              ? currentFund!.name
+              : `Fund ${navFundId}`
+            : 'No fund'
+        }
         active="summary"
         indicator={<WorkspaceBasisIndicator mode="construction" />}
       />

@@ -168,7 +168,7 @@ export default function InvestmentRoundsStepV2() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-8 pb-32">
+        <div className="flex-1 overflow-y-auto p-8 pb-32">
           <div className="max-w-5xl mx-auto">
             {/* Profile Header */}
             <ProfileHeader
@@ -230,7 +230,7 @@ export default function InvestmentRoundsStepV2() {
               </Button>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     </ModernStepContainer>
   );

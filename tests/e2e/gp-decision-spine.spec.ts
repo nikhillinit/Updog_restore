@@ -77,11 +77,10 @@ test('partner completes the truthful GP decision spine with fail-closed gaps dis
     page.getByRole('heading', { level: 1, name: 'Financial Modeling & Forecasting', exact: true })
   ).toBeVisible();
   await expectWorkspaceNav(page, 'forecast', 'Basis: Construction and Current — side by side');
-  const fundValueForecastTitle = page.getByText('Fund Value Forecast', { exact: true });
-  const fundValueForecastCard = fundValueForecastTitle.locator('..').locator('..');
-  await expect(fundValueForecastTitle).toBeVisible();
-  await expect(fundValueForecastCard.getByText('Construction Plan', { exact: true })).toBeVisible();
-  await expect(fundValueForecastCard.getByText('Current Forecast', { exact: true })).toBeVisible();
+  await expect(page.getByText('Forecast comparison unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Published target metrics are unavailable/)).toBeVisible();
+  await expect(page.getByText('Fund Value Forecast', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Forecast drift summary')).toHaveCount(0);
   const allocationEvidence = page.getByRole('note', { name: 'Portfolio allocation evidence' });
   const allocationCard = allocationEvidence.locator('..').locator('..');
   await expect(allocationEvidence).toContainText('Valuation freshness unavailable:');

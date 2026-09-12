@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import HeaderKpis from './HeaderKpis';
 import { Badge } from '@/components/ui/badge';
 import { HeaderMetricCard } from '@/components/layout/HeaderMetricCard';
@@ -82,6 +83,7 @@ export default function DynamicFundHeader() {
           ))}
         </div>
 
+        <p className="mt-3 text-xs text-charcoal-600">{PORTFOLIO_METRICS_BASIS}</p>
         <div className="mt-3 flex items-center justify-between text-xs text-charcoal-500">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>{viewModel.lastUpdatedText}</span>

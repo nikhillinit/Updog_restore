@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import { useFundContext } from '@/contexts/FundContext';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
@@ -115,26 +116,31 @@ function PerformanceMetricsPanel({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
-          label="IRR"
-          value={formatRate(metrics.actual.irr)}
-          detail={`Target ${formatRate(metrics.variance.performanceVariance.targetIRR)}`}
+          label="IRR estimate"
+          value={formatRate(
+            metrics.actual.availability?.irr?.status === 'unavailable' ? null : metrics.actual.irr
+          )}
+          detail={
+            metrics.actual.availability?.irr?.message ?? 'Dated investment and valuation basis'
+          }
         />
         <MetricTile
-          label="TVPI"
+          label="TVPI estimate"
           value={formatMultiple(metrics.actual.tvpi)}
-          detail="Total value to paid-in"
+          detail="Total value to recorded investment capital"
         />
         <MetricTile
-          label="DPI"
+          label="DPI estimate"
           value={formatMultiple(metrics.actual.dpi)}
-          detail="Distributions to paid-in"
+          detail="Recorded distributions to investment capital"
         />
         <MetricTile
-          label="RVPI"
+          label="RVPI estimate"
           value={formatMultiple(metrics.actual.rvpi)}
-          detail="Residual value to paid-in"
+          detail="Residual value to recorded investment capital"
         />
       </div>
+      <p className="text-sm text-charcoal-600">{PORTFOLIO_METRICS_BASIS}</p>
       <div className="rounded-md border border-pov-beige bg-pov-gray p-4 text-sm text-charcoal-700">
         <p className="font-medium text-pov-charcoal">Benchmark and attribution unavailable</p>
         <p className="mt-1">

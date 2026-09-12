@@ -1,4 +1,5 @@
 import { HeaderMetricCard } from '@/components/layout/HeaderMetricCard';
+import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { buildCompactHeaderViewModel, shouldFetchCompactMetrics } from './fund-header-metrics';
@@ -63,8 +64,9 @@ export default function HeaderKpis() {
         ))}
       </div>
 
-      <div className="min-w-0 truncate text-xs text-charcoal-600 sm:ml-auto sm:text-sm">
-        {viewModel.fundName}
+      <div className="min-w-0 text-xs text-charcoal-600 sm:ml-auto">
+        <p className="font-medium">{viewModel.fundName}</p>
+        <p className="mt-1 max-w-sm">{PORTFOLIO_METRICS_BASIS}</p>
       </div>
     </div>
   );
