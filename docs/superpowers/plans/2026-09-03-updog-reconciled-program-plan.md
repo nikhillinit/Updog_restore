@@ -31,10 +31,87 @@ Source admission, production authority, candidate certification, qualifying
 production topology, organic soak and activation gates remain unchanged. The
 decision records no readiness pass and performs no runtime or provider action.
 
+## September 12, 2026 external roadmap review disposition
+
+This is a disposition of the supplied summary, not exhaustive coverage of the
+original external proposal, whose text was not supplied. Retained source:
+`pasted-text.txt`, attachment `3ae5b364-08d7-48a2-8734-76771288d29b`, SHA-256
+`feae79023af20a7ee76466798983e9d096a762d7ea400ef62fc08e9f1d6d0d57`. R01-R08
+identify its eight correction topics (lines 84-110); locators below paraphrase
+that summary and are not quotations from the original. Repository evidence here
+is pinned to `fc4053b8487608173b2a3cd8d5afd46a067a9d82` unless labeled unmerged.
+
+| ID / summary locator                                            | Disposition                          | Exact evidence and sequencing impact                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R01 / lines 84-88: baseline and real-actuals prerequisite       | Correct                              | #1506, merge `517134c0aaf7e97cac6e166c085828752e42f501`, retired the pilot prerequisite. Preserve the owner boundary above. A Task 7 Step 1b still needs source identity and automatic execution evidence for a compatible synthetic or real platform target; real Fund I data is not a new gate.                                                                                                                                                                             |
+| R02 / lines 89-93: omitted F_1.13.0-F_1.15.0 work               | Adopt with source distinctions       | The source-state rows below retain F_1.13.0 owner scope and open tasks, F_1.14.0 draft status, and #1505 source admission separately from unmerged F_1.15.0 planning documents. Proposal Milestone 2 maps to F_1.13.0 open work plus A Task 7 Steps 1-1b, not a second implementation program or prerequisite to synthetic acceptance.                                                                                                                                        |
+| R03 / lines 94-97: timeout boundary                             | Correct                              | `server/services/fund-scenario-capital-calculation-service.ts:285-324` checks the 5000ms service deadline once before snapshot persistence, with no second check after it. `server/db/pg-circuit.ts:20-21,196-212` defaults statement/query timeouts to configurable 10s values; `transaction()` bypasses the circuit breaker. Neither is an overall five-second transaction guarantee. Measure the existing capacity protocol before proposing an execution-boundary change. |
+| R04 / lines 98-101: decision acceptance beyond automated checks | Adopt with explicit pending criteria | `scripts/run-f115-capital-planning-e2e.mjs` supplies named automated paths at its tested source, not owner acceptance. The five-row checklist below defines two sessions and three economic/source cases. Missing fixture inputs and oracle values remain owner decisions, not implied passes.                                                                                                                                                                                |
+| R05 / lines 102-103: independent C chains                       | Correct                              | `docs/specs/C3c-reserve-evidence-decision-workflow.md:73-78` requires C1's evidence-linked decision command. Keep C1 -> C2 and C3a -> C3b -> C3c, plus C1-command -> C3c; C3c does not require all C2 work. Resource order does not waive C entry gates.                                                                                                                                                                                                                      |
+| R06 / lines 104-105: marginal MOIC denominator                  | Correct                              | `docs/adr/ADR-033-marginal-next-dollar-reserve-moic.md:37-43` and `docs/specs/C3a-marginal-reserve-metric-admission.md:73-115` define probability-weighted expected capital delta, not deployed capital. Any financial-method change needs its own reviewed scope and independent expected values.                                                                                                                                                                            |
+| R07 / lines 106-108: Tactyc and actuals/plan recomputation      | Reject as repository authority       | External Tactyc prose is background only. F_1.13.0 and ADR-100 in `DECISIONS.md` define the repository's restatement/recompute contract. Reuse those sources; do not import PDFs or treat external prose as a product specification.                                                                                                                                                                                                                                          |
+| R08 / lines 109-110: proposed roadmap versus approval           | Adopt                                | This roadmap remains PROPOSED. The inactive C1 exception and all existing source, candidate, runtime, owner and production gates remain in force. Proposed operating choices below record no activated approval.                                                                                                                                                                                                                                                              |
+
+### Proposed operating choices
+
+Capital-planning decision acceptance gets the proposed active implementation
+slot. At most one additional read-only readiness/specification lane prepares A
+or C decisions. Existing owner-authorized operational obligations are scheduled
+separately under their action gates; this staffing proposal neither pauses them
+nor grants new dispatch authority. F_1.13.0 closure, real Fund I data and C work
+are not serial prerequisites to hypothetical capital-planning acceptance.
+
+Assess readiness per consumer and source identity, using existing evaluator
+reasons and typed refusals.
+`shared/lib/financial-facts/payload5-consumer-evaluator.ts:44-119` distinguishes
+forecast and reserves prerequisites and keeps periodic analysis and economics
+unavailable under `unsupported_payload_policy`. Classify each blocker as missing
+evidence, unsupported interpretation, or operational unreadiness; the
+classification explains the next action and does not replace a refusal or an
+existing gate. A recurring decision question blocked by an unsupported
+interpretation becomes a separately reviewed financial-method proposal with
+independent expected values.
+
+Historical saved results remain valid for their recorded identities. Fresh work
+must satisfy current-source integrity and eligibility; completed-run replay does
+not establish current readiness. Preserve that distinction through
+`server/services/fund-scenario-capital-calculation-service.ts:59-136`.
+
+### Proposed decision-usefulness acceptance
+
+These are downstream acceptance tasks, not results of this documentation change.
+The workspace owner confirms the economic fixtures and scoring before a run.
+
+| Row                                | Evidence and pass condition                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeatable decision                | Two separately started sessions use the same saved source/config/variant identities and produce the same economic outputs. Record timestamps and result identities, excluding only documented volatile metadata. In each session the owner records a selected alternative, reason and constraint. An unresolved blocking refusal cannot pass. |
+| Check-size tradeoff                | A fully specified hypothetical $20M fixture compares $500k and $750k initial checks. Record fee/reserve budget, participation, pricing/dilution assumptions and binding constraint. Independent expected capacity and ownership values must match under a declared tolerance; unsupported outputs remain typed unavailable.                   |
+| Follow-on sensitivity              | Change only the specified participation assumption. Record independently computed probability-weighted follow-on demand and its budget effect. Deployed capital or an unsupported MOIC proxy cannot substitute for expected capital.                                                                                                          |
+| Save/source integrity              | Cover both replay of an old completed run after current-source change and fresh work against changed source. Replay retains saved identity/results; fresh work uses the admitted current identity or returns its documented refusal. Save/retry/reload evidence names the actual covered path and source SHA.                                 |
+| Interpretation and operational fit | Preserve unavailable/refusal reasons, assumptions and data origin. For each case the owner records whether it answers the decision question without a blocking interpretation gap. Capacity evidence separately reuses the protocol below; any additional end-to-end product latency claim needs its own boundary and threshold.              |
+
+Before acceptance, the workspace owner must record all fixed economic inputs,
+independent expected values, tolerance and scoring in the follow-up acceptance
+record. These decisions are **UNSET** and block the affected economic/owner
+acceptance claims. A $20M/$500k quotient alone is not a fund-capacity oracle.
+The workspace owner also decides any additional end-to-end product latency
+budget; **UNSET** blocks only that additional claim.
+
+Reuse `scripts/measure-f115-capital-plan-capacity.mjs:70-77,680-684,894-904`:
+fresh-calculate-and-persist, maximum-shape fixture, frozen independent oracle
+and source identity, 3 cold plus 20 warm samples, create and calculate each
+<=5000ms, 262144 transport bytes, and replay measured separately. Its terminal
+`FRESH_CAPACITY_PASSED_BOUNDARY_EVIDENCE_PENDING` status is partial evidence,
+not full admission. Retained protocol/run evidence must identify its exact
+source, including unmerged revisions; it cannot be transferred to a changed
+source. Do not run acceptance or capacity measurements as documentation checks.
+This bounded two-session usefulness check is independent of the unchanged four
+qualifying seven-day production windows.
+
 ## Overview and current baseline
 
-This is the current Programs A-C sequencing roadmap, refreshed September 7, 2026
-against protected `origin/main@2a6372557a3dd1ba8a13e99c6867434ede3f9299`.
+This is the current Programs A-C sequencing roadmap, refreshed September 12,
+2026 against protected `origin/main@fc4053b8487608173b2a3cd8d5afd46a067a9d82`.
 Remaining work has shifted from prerequisite implementation to operational
 readiness, candidate certification, organic soak, and product-specification
 decisions. This proposal reprioritizes that work without introducing a feature
@@ -42,10 +119,11 @@ version or authorizing implementation, GitHub writes, or production actions.
 
 PR #1486 merged September 7 at 09:22:22 UTC. Its terminal PR head was
 `6e7afdba643354f18b0d347d6a46b975d09344ab`; `CI Gate Status` succeeded at
-09:19:33 UTC in run `34104059645`. The merge commit is the inspected main SHA
-above. This establishes source admission, not activation-candidate certification
-or deployed state. September 3/6 instructions to implement and admit Phase
-P/Program B are historical.
+09:19:33 UTC in run `34104059645`. Its historical merge commit is
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`, an ancestor of the inspected
+baseline. This establishes source admission, not activation-candidate
+certification or deployed state. September 3/6 instructions to implement and
+admit Phase P/Program B are historical.
 
 | Area                         | Verified source state                                                                                                                                                       | Remaining gate                                                                                                                               |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -59,8 +137,40 @@ P/Program B are historical.
 B input/normalizer remains `2.0.1`; receipt, serializer, event engine and
 composite implementation are `2.4.0`; deal-by-deal waterfall is `2.3.0`;
 whole-fund remains `2.2.0`. These differ from future C3 reserve receipt V3. The
-migration journal ends at `0055_current_forecast_recompute_commands`; F_1.12.0
-added no DDL.
+source migration journal now ends at `0058_capital_plan_override`, following
+admitted 0056/0057 actuals migrations. This is source evidence only, not proof
+of any production schema apply. F_1.12.0 itself added no DDL.
+
+### F_1.13.0-F_1.15.0 evidence and remaining work
+
+These rows describe the inspected source, not live runtime readback. Plan
+checkboxes report retained evidence; this amendment does not rerun those tests.
+
+| Workstream / source locator                                                                                                                                                               | Source admission                                                                                                                                                                                                                                   | Local evidence                                                                                                                                                                                                                                  | Hosted evidence                                                                                                                                                                                                                       | Runtime and owner boundary / remaining work                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F_1.13.0 / `docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md:17-32,801-844`                                                                                           | #1489/#1493/#1495 admitted actuals draft/restatement work; the plan remains DRAFT.                                                                                                                                                                 | Checked tasks record synthetic, database, truth and browser paths, including restatement/recompute follow-up. They do not prove exact Fund I completeness.                                                                                      | Merged source is retained provenance; no fresh F_1.13.0 hosted gate or runtime certification is claimed here.                                                                                                                         | Owner selected and authorized the full roadmap on September 8. Unchecked work retains recovery producer/proof validation, retention definition and final runtime admission; isolated exact-input validation after missing F1 facts; enable/publish only after separate authority; shared production-admission engineering and live evidence. |
+| F_1.14.0 / `docs/1-plans/F_1.14.0_internal-planning-and-actuals-preparation.plan.md:17-29,612-666`                                                                                        | The source plan remains DRAFT and records bounded local scope selected/authorized September 9.                                                                                                                                                     | Core synthetic actuals, hypothetical comparisons and preparation milestones are checked. Release-stage source-hash/surface-matrix validation on the final clean commit remains unchecked; plan checkboxes do not certify a different candidate. | No fresh F_1.14.0 hosted/candidate evidence is established by this amendment.                                                                                                                                                         | Bounded local authorization is distinct from C approval, release or production authority. Real Fund I publication and recovery admission remain separately gated.                                                                                                                                                                            |
+| F_1.15.0 capital planning / `server/services/fund-scenario-capital-calculation-service.ts`; `scripts/run-f115-capital-planning-e2e.mjs`; `scripts/measure-f115-capital-plan-capacity.mjs` | #1505 admitted source, including browser/capacity scripts and fixture. #1498 and its #1499 revert remain historical provenance, not the current implementation. The separate F_1.15.0 plan/acceptance documents remain unmerged worktree evidence. | Admitted scripts name runnable cases/protocols; retained run evidence applies only to its exact source. No fresh browser/capacity run or two-session owner acceptance is claimed here.                                                          | #1505 `CI Gate Status` SUCCESS at exact head `f2cb91b094a196b153af1fa712aca815dd12d48e`; merged September 12, 05:42:21 UTC as `0322c62a3a04ea216b314d4e0425dc47eb0b10c2`. This is source admission, not proof of every protocol case. | Owner decision acceptance, candidate/runtime admission and production actions remain unverified or separately gated. Resolve the proposed acceptance checklist above without treating another plan's local authorization as approval of this roadmap.                                                                                        |
+
+#1506 subsequently admitted the owner boundary above at exact head
+`54154f883470dfd3ce09a05b4af5f91407deb69a`, with `CI Gate Status` SUCCESS,
+merged September 12, 09:03:40 UTC as `517134c0aaf7e97cac6e166c085828752e42f501`.
+#1507 cleanup is the later inspected baseline; neither merge establishes product
+or production readiness.
+
+Unmerged F_1.15.0 planning is present in the `codex/f115-plan-review-20260909`
+and `codex/f115-trip-refinement-20260910` worktrees, both inspected at HEAD
+`f01c9668a12684b5a1e191c26bbaeb1fb37a0ffc`. Their dirty/untracked plan bytes are
+not identified by HEAD alone. The retained plan path is
+`docs/1-plans/F_1.15.0_capital-planning-feasibility-workflow.plan.md`; the
+refinement tree also contains
+`docs/1-plans/references/F_1.15.0_acceptance-spec.md`. Inspected SHA-256 values:
+review plan `44903d494882d10f1a9ad481a2a6000a5912e30fc7d7412912fb0d4d82914bd9`;
+refinement plan
+`dc21b6e78c6d2a15d95c4bacd9c6dfad04962f8cef1a85df1d52df382ba6802c`; refinement
+acceptance `8a3840280aaa08a958dc0204061eb4453ce3af492de9238c0b20bf775c4917c4`.
+Rebind exact document bytes before future implementation; absence from main is
+not absence of ongoing work.
 
 ## Authority and architecture
 
@@ -104,10 +214,14 @@ in this roadmap.
 Optional F_1.12.0 pilot lane: Phase 8 Gate A and publication/trigger acceptance
   -> pilot-only result; no dependency into general product or A readiness
 
-C specification approvals (parallel with A; product work waits A GO)
+Proposed active implementation slot: F_1.15.0 decision-usefulness acceptance
+  -> fixed owner-confirmed fixtures/oracles -> two-session acceptance record
+  (no F_1.13.0 closure, real Fund I data, or C prerequisite)
+
+C specification approvals (one read-only lane; product work waits for A GO)
   -> C1 approval -> C1 implementation -> C2 (reuses C1's decision command)
-  -> C3a approval -> C3b approval -> C3a -> C3b -> C3c (C3c also needs
-     accepted reserve V3 and V2-to-V3 equivalence)
+  -> C3a approval -> C3b approval -> C3a -> C3b -> C3c (C3c also needs accepted reserve V3 and V2-to-V3 equivalence)
+  C1 evidence-linked decision command -> C3c (all C2 work is not required)
 
 Fee/economics (separate lane): #1337 -> #1338/#1321 -> #1318/#1339/#1320
 Waterfall (governance-blocked): #1305 -> (#1306, #1307); #1321 also gates #1307
@@ -133,25 +247,31 @@ remain.
 
 ## Reprioritized remaining work
 
-This is a proposed resource priority. Named policy/product gates remain
-requirements; independent lanes are not new serial prerequisites.
+This is proposed resource priority, not activated approval. Capital acceptance
+gets the active implementation slot; one read-only lane prepares A or C. A
+operational priorities 1-3 retain their internal order and separately authorized
+schedule. Named policy/product gates remain requirements; independent lanes are
+not new serial prerequisites.
 
-| Priority              | Work and owner role                                               | Next result                                                                                                                                 | Dependency / stop condition                                                                                                             |
-| --------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1                     | A readiness — release operator prepares, repository owner selects | A Task 7 Steps 1-1b: #1283 readiness and #1287 target decision, including organic fact source                                               | Resolve source, topology, database/queue, recovery and caller identity before candidate selection. UNKNOWN blocks its dependent action. |
-| 2                     | A certification/binding — release operator                        | A Task 7 freeze, then Tasks 8-11 and #1294-#1297 exact-candidate evidence                                                                   | Fresh main candidate containing #1486; exact-SHA checks; applicable action-specific dispatches.                                         |
-| 3                     | A soak/decision — operator and repository owner                   | Four qualifying seven-day windows, then #1299 NO-GO or verified GO and containment                                                          | One bound candidate/runtime/database/fact source; real organic activity and all evidence predicates.                                    |
-| Parallel now          | C specification decisions — product/financial reviewers owner     | Revise/review C1 source contract to admit a distinct persisted comparable after-assumption source, then approve exact bodies when justified | Planning may proceed during A. C implementation/merge/deployment/serving waits A GO/final runtime identity.                             |
-| Optional, independent | F_1.12.0 trial — pilot owner/operator                             | Phase 8 isolated Gate A STOP/GO                                                                                                             | Optional pilot acceptance only; excluded from general product and Program A readiness prerequisites.                                    |
-| 4, after entry gates  | C1 then C2 — workspace owner                                      | Variance evidence and atomic linked-decision command, then scenario comparison reusing it                                                   | Approved specs/plans and A GO; C2 consumes C1's admitted command.                                                                       |
-| 4, separate lane      | Fee/economics — fee owner/domain reviewers                        | #1337 production FeeProfile truth, then parity/fee-authority decisions and dependent consumers                                              | Preserve F_1.3.0 ratification, truth and G5 gates; no blanket promotion into A.                                                         |
-| 5                     | C3a then C3b then C3c — reserve/financial owners                  | Metric admission, deployed reserve MOIC, then evidence-linked decisions                                                                     | A GO, approved specs, B lineage, accepted reserve V3 and equivalence evidence as applicable.                                            |
-| Deferred              | Waterfall, broad construction/KPI work, dependency migrations     | Reassess when a concrete need appears or existing gate clears                                                                               | Preserve F_1.4.0 ADR conflicts/quarantine and dependency deferrals.                                                                     |
+| Priority                          | Work and owner role                                                      | Next result                                                                                                                                 | Dependency / stop condition                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Now, proposed implementation slot | F_1.15.0 capital-planning decision acceptance — workspace owner          | Five-row scorecard, two sessions, check-size/follow-on/source-change cases and source-bound capacity evidence                               | Confirm pending fixture/oracle/tolerance choices first. Unsupported interpretation blocks its claim and needs separate financial-method review; no production authorization. |
+| Read-only preparation             | F_1.13.0 open work and A Task 7 Steps 1-1b — plan owner/release operator | Map recovery, exact-input, publication and admission gaps to existing owner scope; prepare target evidence                                  | One shared preparation lane with C. Real Fund I inputs block only claims that depend on those inputs. Existing authorized operations remain separately scheduled.            |
+| 1                                 | A readiness — release operator prepares, repository owner selects        | A Task 7 Steps 1-1b: #1283 readiness and #1287 target decision, including organic fact source                                               | Resolve source, topology, database/queue, recovery and caller identity before candidate selection. UNKNOWN blocks its dependent action.                                      |
+| 2                                 | A certification/binding — release operator                               | A Task 7 freeze, then Tasks 8-11 and #1294-#1297 exact-candidate evidence                                                                   | Fresh main candidate containing #1486; exact-SHA checks; applicable action-specific dispatches.                                                                              |
+| 3                                 | A soak/decision — operator and repository owner                          | Four qualifying seven-day windows, then #1299 NO-GO or verified GO and containment                                                          | One bound candidate/runtime/database/fact source; real organic activity and all evidence predicates.                                                                         |
+| Read-only, same preparation slot  | C specification decisions — product/financial reviewers owner            | Revise/review C1 source contract to admit a distinct persisted comparable after-assumption source, then approve exact bodies when justified | Planning may proceed during A. C implementation/merge/deployment/serving waits A GO/final runtime identity.                                                                  |
+| Optional, independent             | F_1.12.0 trial — pilot owner/operator                                    | Phase 8 isolated Gate A STOP/GO                                                                                                             | Optional pilot acceptance only; excluded from general product and Program A readiness prerequisites.                                                                         |
+| 4, after entry gates              | C1 then C2 — workspace owner                                             | Variance evidence and atomic linked-decision command, then scenario comparison reusing it                                                   | Approved specs/plans and A GO; C2 consumes C1's admitted command.                                                                                                            |
+| 4, separate lane                  | Fee/economics — fee owner/domain reviewers                               | #1337 production FeeProfile truth, then parity/fee-authority decisions and dependent consumers                                              | Preserve F_1.3.0 ratification, truth and G5 gates; no blanket promotion into A.                                                                                              |
+| 5                                 | C3a then C3b then C3c — reserve/financial owners                         | Metric admission, deployed reserve MOIC, then evidence-linked decisions                                                                     | A GO, approved specs, B lineage, accepted reserve V3/equivalence, and C1's admitted decision command for C3c; all C2 work is not required.                                   |
+| Deferred                          | Waterfall, broad construction/KPI work, dependency migrations            | Reassess when a concrete need appears or existing gate clears                                                                               | Preserve F_1.4.0 ADR conflicts/quarantine and dependency deferrals.                                                                                                          |
 
-Priorities 1-3 lead because four seven-day windows require at least 28
-qualifying days after valid entry, excluding preparation/resets. Calendar time
-alone never satisfies the gate. During the hold, favor reviews, decisions and
-read-only audits over source changes that alter the candidate.
+Capital acceptance leads proposed implementation. A operational priorities 1-3
+remain ordered because four seven-day windows require at least 28 qualifying
+days after valid entry, excluding preparation/resets; they are not a competing
+implementation slot. Calendar time alone never satisfies the gate. During a
+hold, retain the frozen candidate and existing exception/identity rules.
 
 ### 1. Resolve target and organic source first
 
@@ -253,7 +373,7 @@ All five `docs/specs/C*.md` are DRAFT/unapproved, with unset reviewer, owner,
 timestamp and approval-hash fields; their five plans are PROPOSED. All 116
 source-manifest rows match the previous `38fa722d...` source and inspected main,
 but the squash merge left that former pin outside main ancestry. Task 6 requires
-ancestry as well as equal source bytes. This refresh therefore rebinds all five
+ancestry as well as equal source bytes. The September 7 refresh rebound all five
 draft `source_sha` values to `2a6372557a3dd1ba8a13e99c6867434ede3f9299`,
 preserving unapproved fields. The source-pin refresh preserved bodies and
 hashes; the later C3b admission clarification updates its body and hash without
@@ -279,8 +399,9 @@ matches.
   instead of adding a second decision/evidence transaction.
 - C3a/C3b/C3c: approve metric identity and missing-data/refusal semantics first.
   B source is admitted, but does not supply reserve V3 admission/equivalence.
-  C3c requires admitted C3a/C3b, accepted reserve receipt V3 and V2-to-V3 proof.
-  Keep actuals and modeled evidence distinct.
+  C3c requires admitted C3a/C3b, accepted reserve receipt V3 and V2-to-V3 proof,
+  plus C1's admitted evidence-linked decision command; it does not require all
+  C2 work. Keep actuals and modeled evidence distinct.
 
 Carry full `FinancialFactsBasisRef` through applicable input/result/request/
 receipt/evidence identities. Preserve policy 1.4/payload 5 same-head/stale-basis
@@ -311,50 +432,16 @@ maintenance outside the frozen candidate.
 
 ## Files and documentation impact
 
-This candidate updates the existing roadmap and companion plans, shadow-soak
-runbook, five C specifications, and source-admission annotations in
-`CHANGELOG.md`, `DECISIONS.md`, `docs/ARCHI.md`, and
-`docs/STABILIZATION-ROADMAP.md`. In addition to source/date metadata, it
-corrects C3b's source-admission body and hash and adds the already-required
-`basisRef` to C3a's named request interface.
+The September 12 amendment changes only this program plan, Current Program
+Navigation in `docs/STABILIZATION-ROADMAP.md`, and one Unreleased entry in
+`CHANGELOG.md`. The completed milestone table remains unchanged. No owner plan,
+C specification, code, schema, tracker or generated routing file is changed.
 
-The C1 draft and its companion
-`docs/superpowers/plans/2026-09-03-forecast-variance-decision-workflow.md`
-record the owner-selected after-assumption direction, source-admission
-requirements and baseline-only omissions. This preparation does not approve or
-implement C1.
-
-The candidate also repairs `.gitleaks.toml`: one historical synthetic-fixture
-exception is rebound from its orphan pre-squash commit to the admitted squash
-commit. The exact rule, path, anchored fixture line and AND condition remain
-unchanged. Verification includes the admitted-commit scan and negative controls
-for other values, paths and commits; hosted full-history proof is outstanding.
-No application code, specification approval or production configuration changes
-are included. No new SemVer plan is needed for this reconciliation.
-
-Non-TRIP follow-up synchronization:
-
-- `CHANGELOG.md`: September 6 pending-source language is overtaken by #1486;
-  record admission while preserving operational UNKNOWNs.
-- `DECISIONS.md`: reconcile ADR-098/ADR-099 pre-merge annotations with the
-  merged decision record. Preserve ADR-097; do not allocate new IDs or invent
-  another source-admission/production-authorization gate.
-- `docs/STABILIZATION-ROADMAP.md`: align milestone navigation with admitted A/B
-  and remaining activation/product gates after review.
-- `README.md`, `.env.example`, `docs/ARCHI.md`, `docs/INDEX.md` and
-  `docs/workflows/PRODUCTION_SCRIPTS.md`: #1486 supplied capability/default-off
-  documentation. Do not schedule repeat feature-doc implementation; future
-  runtime changes synchronize their actual scope.
-- `docs/runbooks/current-forecast-shadow-soak.md`: remains the window/mode
-  procedure. This refresh adds the Task 12 organic-run, manual-row and
-  two-distinct-bases predicates that its ADR-057 section omitted, so an operator
-  following the runbook alone applies the full green predicate. Amend further
-  only for an approved target/source or procedure change, and before candidate
-  freeze; a post-freeze runbook edit changes the candidate SHA.
-
-#1458 and #1296-#1299 need the factual status, mode and predicate corrections
-above. No issue is closed/edited by this pass; reread state before separately
-authorized writes.
+Earlier September 7 roadmap/specification, runbook, ADR and `.gitleaks.toml`
+reconciliation records describe historical work, not this amendment's scope.
+Their exact-source evidence does not certify the current candidate. Future
+runtime changes synchronize documentation for their own reviewed scope; issue
+wording cannot authorize operations or waive the gates above.
 
 ## Test impact and verification
 
@@ -379,6 +466,14 @@ authorized writes.
       admission clarification has a refreshed body hash.
 - [x] Reconcile A Task 6 admission evidence with #1486 and record
       ADR-098/ADR-099 status against the merged decision; allocate no new IDs.
+- [ ] Complete the proposed F_1.15.0 five-row, two-session acceptance after the
+      workspace owner resolves fixture/oracle/tolerance decisions. Record
+      exact-source capacity evidence separately; no owner or runtime pass is
+      claimed by source admission or this amendment.
+- [ ] Reconcile F_1.13.0 remaining recovery, exact-input, publication and
+      production-admission work within its owner-selected scope; prepare A Task
+      7 Steps 1-1b without making real Fund I data a general-readiness
+      prerequisite.
 - [ ] Complete #1283 readiness and #1287 target/organic-source binding.
 - [ ] Optional pilot lane only: complete F_1.12.0 Gate A and publication/trigger
       acceptance if separately pursued; this item does not block general product
