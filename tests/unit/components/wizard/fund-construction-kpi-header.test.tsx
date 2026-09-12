@@ -30,7 +30,9 @@ describe('FundConstructionKpiHeader', () => {
     expect(investedCard).toHaveTextContent('Total Invested');
     expect(investedCard).toHaveTextContent('$75.0M');
     expect(
-      within(investedCard).getByRole('button', { name: 'Planned capital from Builder Fund I' })
+      within(investedCard).getByRole('button', {
+        name: 'Total Invested: $75.0M. Planned capital from Builder Fund I',
+      })
     ).toBeInTheDocument();
 
     expect(screen.getByTestId('construction-kpi-dpi')).toHaveTextContent('DPI');

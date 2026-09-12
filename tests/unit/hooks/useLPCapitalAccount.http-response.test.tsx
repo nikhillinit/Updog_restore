@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLPCapitalAccount } from '@/hooks/useLPCapitalAccount';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 
 const { mockUseLPContext } = vi.hoisted(() => ({
   mockUseLPContext: vi.fn(),
@@ -50,7 +51,7 @@ describe('useLPCapitalAccount HTTP response handling', () => {
     vi.clearAllMocks();
   });
 
-  it('surfaces API message payloads when capital account fetch fails', async () => {
+  it('suppresses server message payloads when capital account fetch fails', async () => {
     mockFetchResponse(JSON.stringify({ message: 'Capital account unavailable' }), 503);
 
     const { result } = renderHook(() => useLPCapitalAccount(), {
@@ -59,11 +60,14 @@ describe('useLPCapitalAccount HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Capital account unavailable');
+    expect(result.current.error?.message).toBe(SERVER_ERROR_MESSAGE);
   });
 
-  it('falls back to the HTTP status message when capital account error JSON is unreadable', async () => {
-    mockFetchResponse('not-json', 500);
+  it.each([
+    { status: 400, message: 'HTTP 400: Failed to fetch capital account' },
+    { status: 500, message: SERVER_ERROR_MESSAGE },
+  ])('handles unreadable HTTP $status capital account error JSON', async ({ status, message }) => {
+    mockFetchResponse('not-json', status);
 
     const { result } = renderHook(() => useLPCapitalAccount(), {
       wrapper: createWrapper(),
@@ -71,6 +75,6 @@ describe('useLPCapitalAccount HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('HTTP 500: Failed to fetch capital account');
+    expect(result.current.error?.message).toBe(message);
   });
 });

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLPPerformance } from '@/hooks/useLPPerformance';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 
 const { mockUseLPContext } = vi.hoisted(() => ({
   mockUseLPContext: vi.fn(),
@@ -50,7 +51,7 @@ describe('useLPPerformance HTTP response handling', () => {
     vi.clearAllMocks();
   });
 
-  it('surfaces API message payloads when performance fetch fails', async () => {
+  it('suppresses server message payloads when performance fetch fails', async () => {
     mockFetchResponse(JSON.stringify({ message: 'Performance unavailable' }), 503);
 
     const { result } = renderHook(() => useLPPerformance({ fundId: 7 }), {
@@ -59,11 +60,14 @@ describe('useLPPerformance HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Performance unavailable');
+    expect(result.current.error?.message).toBe(SERVER_ERROR_MESSAGE);
   });
 
-  it('falls back to the HTTP status message when performance error JSON is unreadable', async () => {
-    mockFetchResponse('not-json', 500);
+  it.each([
+    { status: 400, message: 'HTTP 400: Failed to fetch performance' },
+    { status: 500, message: SERVER_ERROR_MESSAGE },
+  ])('handles unreadable HTTP $status performance error JSON', async ({ status, message }) => {
+    mockFetchResponse('not-json', status);
 
     const { result } = renderHook(() => useLPPerformance({ fundId: 7 }), {
       wrapper: createWrapper(),
@@ -71,6 +75,6 @@ describe('useLPPerformance HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('HTTP 500: Failed to fetch performance');
+    expect(result.current.error?.message).toBe(message);
   });
 });
