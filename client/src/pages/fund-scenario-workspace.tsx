@@ -629,16 +629,7 @@ export function FundScenarioWorkspacePage({
     () => resolveSeedDeepLink(search, seedPickerEnabled),
     [search, seedPickerEnabled]
   );
-
-  useEffect(() => {
-    if (seedDeepLink.kind === 'open') {
-      setIsSeedPickerOpen(true);
-    } else {
-      // Review P3-6: an in-place transition to an invalid/flag-off deep link
-      // (or away from the deep link) explicitly closes the picker.
-      setIsSeedPickerOpen(false);
-    }
-  }, [seedDeepLink]);
+  const handledSeedDeepLinkRef = useRef<typeof seedDeepLink | null>(null);
 
   const scenarioSetsQuery = useQuery({
     queryKey: fundId ? scenarioSetListQueryKey(fundId) : ['fund-scenario-workspace', 'invalid'],
@@ -651,6 +642,15 @@ export function FundScenarioWorkspacePage({
     queryFn: () => fetchFundResults(fundId ?? ''),
     enabled: fundId != null,
   });
+  const legacyScenarioDataAvailable = scenarioSetsQuery.isSuccess && resultsQuery.isSuccess;
+
+  useEffect(() => {
+    if (handledSeedDeepLinkRef.current === seedDeepLink) return;
+    if (seedDeepLink.kind === 'open' && !legacyScenarioDataAvailable) return;
+
+    handledSeedDeepLinkRef.current = seedDeepLink;
+    setIsSeedPickerOpen(seedDeepLink.kind === 'open');
+  }, [legacyScenarioDataAvailable, seedDeepLink]);
 
   const scenarioSets = scenarioSetsQuery.data ?? EMPTY_SCENARIO_SETS;
 
@@ -860,7 +860,7 @@ export function FundScenarioWorkspacePage({
                       New capital planning scenario
                     </Button>
                   )}
-                  {seedPickerEnabled && (
+                  {seedPickerEnabled && legacyScenarioDataAvailable && (
                     <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>
                       Start case from portfolio actuals
                     </Button>

@@ -330,6 +330,10 @@ export const fundScenarioVariants = pgTable(
       table.sortOrder,
       table.id
     ),
+    overrideTypeCheck: check(
+      'fund_scenario_variants_override_type_check',
+      sql`${table.overrideType} IN ('fee_profile', 'reserve_allocation', 'allocation', 'sector_profile', 'methodology', 'capital_plan')`
+    ),
   })
 );
 

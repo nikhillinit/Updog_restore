@@ -118,9 +118,11 @@ test('partner completes the truthful GP decision spine with fail-closed gaps dis
     waitUntil: 'domcontentloaded',
   });
   await expectWorkspaceNav(page, 'scenarios', 'Basis: Construction');
-  await expect(page.getByRole('alert')).toContainText(
-    'Scenario workspace data could not be loaded.'
-  );
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'Legacy scenario data unavailable. Capital plans remain usable.' })
+  ).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Start case from portfolio actuals' })).toHaveCount(
     0
   );

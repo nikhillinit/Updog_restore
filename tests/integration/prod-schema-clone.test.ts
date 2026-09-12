@@ -245,6 +245,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'current-forecast-recompute-commands',
   'actuals-draft-revisions',
   'actuals-restatement-commands',
+  'capital-plan-override',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -898,6 +899,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...OPERATING_DECISIONS_SPINE_MANIFEST_TABLES,
         ...CURRENT_FORECAST_RECOMPUTE_COMMAND_MANIFEST_TABLES,
         ...ACTUALS_MANIFEST_TABLES,
+        'fund_scenario_variants',
       ])
     );
 

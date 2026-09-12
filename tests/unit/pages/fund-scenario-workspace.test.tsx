@@ -47,7 +47,10 @@ describe('FundScenarioWorkspacePage', () => {
     vi.useRealTimers();
   });
 
-  function renderWorkspace(path = '/fund-model-results/123/scenarios') {
+  function renderWorkspace(
+    path = '/fund-model-results/123/scenarios',
+    capitalPlanEnabled: boolean | null = false
+  ) {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -58,10 +61,15 @@ describe('FundScenarioWorkspacePage', () => {
 
     return {
       goto,
+      queryClient,
       ...render(
         <QueryClientProvider client={queryClient}>
           <Wrapper>
-            <FundScenarioWorkspacePage capitalPlanEnabled={false} />
+            {capitalPlanEnabled === null ? (
+              <FundScenarioWorkspacePage />
+            ) : (
+              <FundScenarioWorkspacePage capitalPlanEnabled={capitalPlanEnabled} />
+            )}
           </Wrapper>
         </QueryClientProvider>
       ),
@@ -770,6 +778,156 @@ describe('FundScenarioWorkspacePage', () => {
       await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
     ).toBeInTheDocument();
     expect(screen.queryByTestId('seed-source-unavailable')).not.toBeInTheDocument();
+  });
+
+  it('keeps default-enabled capital planning accessible when legacy data fails', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString(), 'http://localhost');
+      const isCapitalList =
+        url.pathname === '/api/funds/123/scenario-sets' && url.searchParams.has('representation');
+
+      if (isCapitalList) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/1.0.0',
+            representation: 'capital-plan-v1',
+            scenarioSets: [],
+          })
+        );
+      }
+
+      return Promise.resolve(new Response('server error', { status: 500 }));
+    });
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101', null);
+
+    expect(
+      await screen.findByText('Legacy scenario data unavailable. Capital plans remain usable.')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Summary' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'New capital planning scenario' })).toBeVisible();
+  });
+
+  it('retains the company-scenario idempotency key through a legacy refetch failure', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches({ seedResponse: disclosedScenarioSeedsResponse() });
+    const fallback = fetchSpy.getMockImplementation();
+    let legacyFails = false;
+    let createAttempts = 0;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (
+        method === 'GET' &&
+        (url === '/api/funds/123/scenario-sets' || url === '/api/funds/123/results') &&
+        legacyFails
+      ) {
+        return Promise.resolve(new Response('server error', { status: 500 }));
+      }
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets?representation=capital-plan-v1&includeArchived=false'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/1.0.0',
+            representation: 'capital-plan-v1',
+            scenarioSets: [],
+          })
+        );
+      }
+      if (method === 'POST' && url === '/api/companies/101/scenarios') {
+        createAttempts += 1;
+        return Promise.resolve(
+          createAttempts === 1
+            ? statusJsonResponse({ error: 'temporary_failure' }, 500)
+            : statusJsonResponse(
+                {
+                  scenario: {
+                    id: '00000000-0000-4000-8000-000000000102',
+                    name: 'New Scenario',
+                    version: 1,
+                    updatedAt: '2026-07-15T10:00:00.000Z',
+                    isLocked: false,
+                    caseCount: 0,
+                  },
+                  replay: true,
+                },
+                201
+              )
+        );
+      }
+      if (!fallback) throw new Error(`Unexpected request: ${method} ${url}`);
+      return fallback(input, init);
+    });
+
+    const { queryClient } = renderWorkspace(
+      '/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101',
+      null
+    );
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked());
+    fireEvent.click(screen.getByRole('button', { name: /create new scenario/i }));
+    expect(await screen.findByText(/scenario creation failed/i)).toBeInTheDocument();
+
+    legacyFails = true;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    expect(
+      await screen.findByText('Legacy scenario data unavailable. Capital plans remain usable.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeVisible();
+
+    legacyFails = false;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Legacy scenario data unavailable. Capital plans remain usable.')
+      ).not.toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /create new scenario/i }));
+    await waitFor(() => expect(createAttempts).toBe(2));
+
+    const createCalls = fetchSpy.mock.calls.filter(([input, init]) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return url === '/api/companies/101/scenarios' && (init?.method ?? 'GET') === 'POST';
+    });
+    const firstHeaders = createCalls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = createCalls[1]?.[1]?.headers as Record<string, string>;
+    expect(firstHeaders['Idempotency-Key']).toBe(secondHeaders['Idempotency-Key']);
+
+    const dialog = screen.getByRole('dialog', { name: /start case from portfolio actuals/i });
+    expect(await within(dialog).findByRole('radio', { name: /new scenario/i })).toBeChecked();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+      ).not.toBeInTheDocument()
+    );
+
+    legacyFails = true;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    legacyFails = false;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
   });
 
   it('preselects the seedCompany disclosed by the page-level seed response', async () => {
