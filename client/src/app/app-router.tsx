@@ -190,7 +190,12 @@ interface AppRouterProps {
 export function AppRouter({ enforceAuth = import.meta.env.PROD }: AppRouterProps = {}) {
   const [location] = useLocation();
   const isPublicEntry = isPublicEntryLocation(location);
-  const session = useAuthSession(enforceAuth && !isPublicEntry);
+  const session = useAuthSession(location === '/login' || (enforceAuth && !isPublicEntry));
+
+  if (location === '/login') {
+    if (session.isPending) return <PageLoadingFallback />;
+    if (session.data) return <Redirect to="/" />;
+  }
 
   if (isPublicEntry) {
     return <PublicEntryRouter />;

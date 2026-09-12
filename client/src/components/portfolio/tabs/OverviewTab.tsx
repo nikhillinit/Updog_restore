@@ -8,6 +8,9 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { exportCsv } from '@/utils/exporters';
 import {
   Table,
   TableBody,
@@ -200,6 +203,8 @@ function PortfolioCard({
 }
 
 export function OverviewTab() {
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
   const { fundId } = useFundContext();
   const [location, setLocation] = useLocation();
   const search = useSearch();
@@ -267,6 +272,44 @@ export function OverviewTab() {
   const isHistoricalEmpty = isHistoricalMode && !meta.historicalAvailable;
   const historicalLabel = formatMonthLabel(meta.resolvedAsOf ?? activeAsOf);
   const monthInputValue = activeAsOf ? activeAsOf.slice(0, 7) : '';
+
+  const handleExport = async () => {
+    if (!data || isUnavailable || isLoading || isExporting || filteredCompanies.length === 0)
+      return;
+    setIsExporting(true);
+    try {
+      const visibleIds = new Set(filteredCompanies.map((company) => company.id));
+      await exportCsv(
+        data.companies
+          .filter((company) => visibleIds.has(company.id))
+          .map((company) => ({
+            Company: company.name,
+            Sector: company.sector,
+            Stage: company.stage,
+            Status: company.status,
+            Invested: company.invested,
+            'Current value': company.currentValue,
+            MOIC: company.moic,
+            Currency: data.currency,
+            'As of': data.meta.resolvedAsOf ?? 'Current records; source dates unavailable',
+            'Overview generated at': data.generatedAt,
+          })),
+        `portfolio-${fundId}-${activeAsOf ?? 'current'}.csv`
+      );
+      toast({
+        title: 'Portfolio export started',
+        description: 'CSV download requested for the filtered companies.',
+      });
+    } catch {
+      toast({
+        title: 'Portfolio export failed',
+        description: 'Try downloading the CSV again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const mobileMetrics: MetricCardData[] = portfolioMetrics
     ? [
@@ -410,6 +453,7 @@ export function OverviewTab() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-presson-textMuted" />
               <Input
                 placeholder="Search companies..."
+                aria-label="Search companies"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 border-presson-borderSubtle focus:ring-presson-highlight"
@@ -418,7 +462,10 @@ export function OverviewTab() {
 
             <div className="flex gap-2 w-full md:w-auto">
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full md:w-40 border-presson-borderSubtle">
+                <SelectTrigger
+                  aria-label="Company status"
+                  className="w-full md:w-40 border-presson-borderSubtle"
+                >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -431,7 +478,10 @@ export function OverviewTab() {
               </Select>
 
               <Select value={filterSector} onValueChange={setFilterSector}>
-                <SelectTrigger className="w-full md:w-40 border-presson-borderSubtle">
+                <SelectTrigger
+                  aria-label="Company sector"
+                  className="w-full md:w-40 border-presson-borderSubtle"
+                >
                   <SelectValue placeholder="Sector" />
                 </SelectTrigger>
                 <SelectContent>
@@ -448,12 +498,18 @@ export function OverviewTab() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border border-presson-borderSubtle px-3 py-2 bg-white">
               <Calendar className="h-4 w-4 text-presson-textMuted" />
-              <span className="text-sm font-medium text-presson-text">Time Machine</span>
+              <Label
+                htmlFor="portfolio-as-of-month"
+                className="text-sm font-medium text-presson-text"
+              >
+                As-of month
+              </Label>
               <Input
+                id="portfolio-as-of-month"
                 type="month"
                 value={monthInputValue}
                 onChange={(e) => handleMonthChange(e.target.value)}
-                className="h-8 w-[9.5rem] border-none p-0 shadow-none focus-visible:ring-0"
+                className="h-8 w-[9.5rem] border-none p-0 shadow-none"
               />
             </div>
             {isHistoricalMode && (
@@ -466,9 +522,18 @@ export function OverviewTab() {
               variant="outline"
               size="sm"
               className="border-presson-borderSubtle hover:bg-presson-accent hover:text-presson-accentOn"
+              onClick={() => void handleExport()}
+              disabled={isExporting || isLoading || isUnavailable || filteredCompanies.length === 0}
+              title={
+                isUnavailable
+                  ? 'Portfolio data unavailable'
+                  : filteredCompanies.length === 0
+                    ? 'No companies to export'
+                    : 'Download filtered companies as CSV'
+              }
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {isExporting ? 'Exporting...' : 'Export CSV'}
             </Button>
             <Button
               size="sm"

@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFundContext } from '@/contexts/FundContext';
 import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -607,7 +608,14 @@ function ScenarioComparisonWorkspace({
 export function FundScenarioWorkspacePage({
   capitalPlanEnabled = true,
 }: { capitalPlanEnabled?: boolean } = {}) {
+  const { currentFund } = useFundContext();
   const fundId = useWorkspaceFundId();
+  const fundLabel =
+    fundId !== null
+      ? String(currentFund?.id) === fundId
+        ? currentFund!.name
+        : `Fund ${fundId}`
+      : 'No fund';
   const queryClient = useQueryClient();
   const [pendingScenarioSetId, setPendingScenarioSetId] = useState<string | null>(null);
   const [reserveNotices, setReserveNotices] = useState<Record<string, ReserveCommandNotice>>({});
@@ -791,7 +799,7 @@ export function FundScenarioWorkspacePage({
     <FundWorkspaceProvider fundId={routeFundNumber}>
       <WorkspaceNav
         fundId={fundId}
-        fundLabel={fundId !== null ? `Fund ${fundId}` : 'No fund'}
+        fundLabel={fundLabel}
         active="scenarios"
         indicator={<WorkspaceBasisIndicator mode="construction" />}
       />
@@ -846,7 +854,7 @@ export function FundScenarioWorkspacePage({
       <FundWorkspaceProvider fundId={routeFundNumber}>
         <WorkspaceNav
           fundId={fundId}
-          fundLabel={fund ? fund.name : `Fund ${fundId}`}
+          fundLabel={fund ? fund.name : fundLabel}
           active="scenarios"
           indicator={<WorkspaceBasisIndicator mode="construction" />}
         />

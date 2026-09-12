@@ -221,10 +221,7 @@ export function NumericInput({
   return (
     <div className={cn('space-y-2', className)}>
       {/* Label with required indicator */}
-      <Label
-        htmlFor={inputId}
-        className="font-poppins font-medium text-sm text-pov-charcoal"
-      >
+      <Label htmlFor={inputId} className="font-poppins font-medium text-sm text-pov-charcoal">
         {label}
         {required && <span className="text-pov-error ml-1">*</span>}
       </Label>
@@ -273,9 +270,7 @@ export function NumericInput({
               : 'border-lightGray hover:border-charcoal/30',
 
             // Disabled states
-            disabled
-              ? 'bg-lightGray cursor-not-allowed opacity-60'
-              : 'bg-white',
+            disabled ? 'bg-lightGray cursor-not-allowed opacity-60' : 'bg-white',
 
             // Placeholder
             'placeholder:text-charcoal/40',
@@ -295,7 +290,7 @@ export function NumericInput({
 
       {/* Help text or error message */}
       {error && (
-        <p id={errorId} className="font-poppins text-xs text-pov-error" role="alert">
+        <p id={errorId} className="font-poppins text-xs text-error-dark" role="alert">
           {error}
         </p>
       )}
