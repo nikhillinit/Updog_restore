@@ -5,6 +5,7 @@ import {
   CapitalIssuesV1Schema,
   CapitalPlanningDraftV1Schema,
   CAPITAL_PLANNING_PROVISIONAL_LIMITS,
+  type CapitalBenchmarkSnapshotV1,
   type CapitalPlanningInputV1,
   type CapitalBenchmarkSelectionV1,
   type CapitalIssueV1,
@@ -138,6 +139,16 @@ function rawCopy<T>(value: T): RawCapital<T> {
   return value as RawCapital<T>;
 }
 
+function copyBenchmarkSelection(
+  snapshot: CapitalBenchmarkSnapshotV1
+): RawCapital<CapitalBenchmarkSelectionV1> {
+  return rawCopy({
+    target: snapshot.target,
+    selector: snapshot.selector,
+    ...(snapshot.overrides === undefined ? {} : { overrides: snapshot.overrides }),
+  });
+}
+
 export function duplicateCapitalDraft(
   detail: FundScenarioCapitalDetailResponseV1
 ): CapitalPlanDraft {
@@ -147,12 +158,30 @@ export function duplicateCapitalDraft(
     source: null,
     // The current source is loaded separately; saved array-index units require fresh consent.
     declarations: {},
-    variants: detail.variants.map((variant) => ({
-      variantId: crypto.randomUUID(),
-      name: variant.name,
-      input: rawCopy(variant.override.payload.input),
-      benchmarkSelections: [],
-    })),
+    variants: detail.variants.map((variant) => {
+      const input = rawCopy(variant.override.payload.input);
+      const benchmarkSelections = (variant.override.payload.benchmarkSnapshots ?? []).map(
+        (snapshot) => {
+          const target = snapshot.target;
+          const allocation = input.allocations.find(
+            (item) => item.allocationId === target.allocationId
+          );
+          if (target.kind === 'entry') delete allocation?.entryFinancing;
+          else {
+            const { roundId } = target;
+            const round = allocation?.followOnRounds.find((item) => item.roundId === roundId);
+            delete round?.financing;
+          }
+          return copyBenchmarkSelection(snapshot);
+        }
+      );
+      return {
+        variantId: crypto.randomUUID(),
+        name: variant.name,
+        input,
+        benchmarkSelections,
+      };
+    }),
   };
 }
 

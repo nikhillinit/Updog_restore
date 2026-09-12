@@ -49,6 +49,13 @@ export const CAPITAL_SCENARIO_CALC_VERSION = '1.0.0';
 const SYNC_TIMEOUT_MS = 5000;
 type RunLookup = Omit<ScenarioCalculationRunIdentity, 'correlationId' | 'jobId'>;
 
+function assertWithinSyncDeadline(startedAt: number): void {
+  if (performance.now() - startedAt <= SYNC_TIMEOUT_MS) return;
+  throw createHttpError(503, 'Capital calculation exceeded its synchronous deadline', {
+    code: 'scenario_calculation_timeout',
+  });
+}
+
 function assertRunIdentity(run: ScenarioCalculationRunRecord, identity: RunLookup): void {
   if (
     run.fundId !== identity.fundId ||
@@ -275,6 +282,7 @@ export async function calculateFundScenarioCapitalSet(
       calculatedAt: new Date().toISOString(),
       variants,
     };
+    assertWithinSyncDeadline(startedAt);
     const snapshot = await persistCapitalScenarioSnapshot(
       client,
       { payload, correlationId },
@@ -312,11 +320,6 @@ export async function calculateFundScenarioCapitalSet(
       },
     });
     const response = prepareCapitalCalculateResponse(snapshot);
-    if (performance.now() - startedAt > SYNC_TIMEOUT_MS) {
-      throw createHttpError(503, 'Capital calculation exceeded its synchronous deadline', {
-        code: 'scenario_calculation_timeout',
-      });
-    }
     return response;
   });
 }
