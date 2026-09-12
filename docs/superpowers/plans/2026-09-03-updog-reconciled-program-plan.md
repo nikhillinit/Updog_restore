@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-09
+last_updated: 2026-09-12
 owner: Repository Owner
 categories: [release, current-forecast, economics, decision-workspace]
 keywords:
@@ -9,6 +9,27 @@ keywords:
 ---
 
 # Updog Restore Reconciled Program Implementation Plan
+
+## September 12, 2026 owner-directed readiness boundary
+
+The configured-pilot requirement is retired as a blocker for general product
+readiness. Pilot nomination, F_1.12.0 Gate A, pilot publication-to-forecast
+repair and pilot-specific reconciliation are optional pilot acceptance work, not
+prerequisites for the general platform or Program A readiness path. This
+decision supersedes earlier pilot-dependent sequencing and target-nomination
+assumptions.
+
+Product readiness must still be supported by a demonstrated compatible platform
+path, including exact input/plan identity, permissions, automatic execution,
+persistence, replay, containment and recovery. Synthetic or real inputs are
+eligible subject to those predicates. Pilot setup or an existing real-investment
+fund is not required; missing platform evidence still blocks readiness.
+
+Keep pilot results separate: incomplete or failed pilot acceptance does not set
+the general result to deferred, and a platform pass does not certify the pilot.
+Source admission, production authority, candidate certification, qualifying
+production topology, organic soak and activation gates remain unchanged. The
+decision records no readiness pass and performs no runtime or provider action.
 
 ## Overview and current baseline
 
@@ -26,14 +47,14 @@ above. This establishes source admission, not activation-candidate certification
 or deployed state. September 3/6 instructions to implement and admit Phase
 P/Program B are historical.
 
-| Area                         | Verified source state                                                                                                                                                       | Remaining gate                                                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| F_1.7.0-F_1.10.0 foundations | Source-pinned scenarios, construction reconciliation, operating decisions, context rail, operations workspace and durable recompute landed in the earlier roadmap sequence. | Reuse these surfaces; do not rebuild them as C.                                                                                      |
-| F_1.11.0 / A Phase P         | #1469/#1470 supplied P0b. #1486 admitted journaled 0050-0055 schema controls, isolated rehearsal, guarded production-action runner and authenticated database identity.     | Target readiness, candidate certification, provider binding, organic soak and #1299.                                                 |
-| F_1.12.0 pilot               | #1476 admitted plan/ADR-097; #1478/#1479 admitted publication; #1484 added tenant-context/RLS hardening; #1486 synchronized documentation.                                  | Independent Phase 8 Gate A STOP/GO and selected pilot environment/grant/data evidence. Default-off remains.                          |
-| B / #1458                    | #1486 admitted relief-row-derived security lineage, per-security proceeds, exact pool lookup, collision refusals, versions and changed-case manifest v3.                    | Include in A candidate; affected-consumer compatibility and release/serving evidence. #1458 remains open for tracker reconciliation. |
-| C                            | #1486 admitted five DRAFT specifications and five PROPOSED implementation plans. No C product workflow landed.                                                              | Exact-body/source review, named approval, A GO/final runtime identity and each workstream's predecessors.                            |
-| Maintenance                  | #1474/#1482 cleanup and #1484 auth/queue/ML/contract fixes landed.                                                                                                          | #1373 matrix/dependency work and deferred migrations remain separate.                                                                |
+| Area                         | Verified source state                                                                                                                                                       | Remaining gate                                                                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| F_1.7.0-F_1.10.0 foundations | Source-pinned scenarios, construction reconciliation, operating decisions, context rail, operations workspace and durable recompute landed in the earlier roadmap sequence. | Reuse these surfaces; do not rebuild them as C.                                                                                              |
+| F_1.11.0 / A Phase P         | #1469/#1470 supplied P0b. #1486 admitted journaled 0050-0055 schema controls, isolated rehearsal, guarded production-action runner and authenticated database identity.     | Target readiness, candidate certification, provider binding, organic soak and #1299.                                                         |
+| F_1.12.0 pilot               | #1476 admitted plan/ADR-097; #1478/#1479 admitted publication; #1484 added tenant-context/RLS hardening; #1486 synchronized documentation.                                  | Optional pilot-only Gate A STOP/GO and selected pilot environment/grant/data evidence; no general-readiness dependency. Default-off remains. |
+| B / #1458                    | #1486 admitted relief-row-derived security lineage, per-security proceeds, exact pool lookup, collision refusals, versions and changed-case manifest v3.                    | Include in A candidate; affected-consumer compatibility and release/serving evidence. #1458 remains open for tracker reconciliation.         |
+| C                            | #1486 admitted five DRAFT specifications and five PROPOSED implementation plans. No C product workflow landed.                                                              | Exact-body/source review, named approval, A GO/final runtime identity and each workstream's predecessors.                                    |
+| Maintenance                  | #1474/#1482 cleanup and #1484 auth/queue/ML/contract fixes landed.                                                                                                          | #1373 matrix/dependency work and deferred migrations remain separate.                                                                        |
 
 B input/normalizer remains `2.0.1`; receipt, serializer, event engine and
 composite implementation are `2.4.0`; deal-by-deal waterfall is `2.3.0`;
@@ -80,8 +101,8 @@ in this roadmap.
   -> A Task 12 four qualifying seven-day windows (#1298)
   -> A Task 13 #1299 NO-GO, or GO -> activate -> kill-to-held -> resume
 
-F_1.12.0 Phase 8 Gate A (pilot lane only)
-  -> prerequisite for a shared pilot/soak target; otherwise independent of A
+Optional F_1.12.0 pilot lane: Phase 8 Gate A and publication/trigger acceptance
+  -> pilot-only result; no dependency into general product or A readiness
 
 C specification approvals (parallel with A; product work waits A GO)
   -> C1 approval -> C1 implementation -> C2 (reuses C1's decision command)
@@ -115,17 +136,17 @@ remain.
 This is a proposed resource priority. Named policy/product gates remain
 requirements; independent lanes are not new serial prerequisites.
 
-| Priority                  | Work and owner role                                               | Next result                                                                                                                                 | Dependency / stop condition                                                                                                             |
-| ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 1                         | A readiness — release operator prepares, repository owner selects | A Task 7 Steps 1-1b: #1283 readiness and #1287 target decision, including organic fact source                                               | Resolve source, topology, database/queue, recovery and caller identity before candidate selection. UNKNOWN blocks its dependent action. |
-| 2                         | A certification/binding — release operator                        | A Task 7 freeze, then Tasks 8-11 and #1294-#1297 exact-candidate evidence                                                                   | Fresh main candidate containing #1486; exact-SHA checks; applicable action-specific dispatches.                                         |
-| 3                         | A soak/decision — operator and repository owner                   | Four qualifying seven-day windows, then #1299 NO-GO or verified GO and containment                                                          | One bound candidate/runtime/database/fact source; real organic activity and all evidence predicates.                                    |
-| Parallel now              | C specification decisions — product/financial reviewers owner     | Revise/review C1 source contract to admit a distinct persisted comparable after-assumption source, then approve exact bodies when justified | Planning may proceed during A. C implementation/merge/deployment/serving waits A GO/final runtime identity.                             |
-| Parallel, target-specific | F_1.12.0 trial — pilot owner/operator                             | Phase 8 isolated Gate A STOP/GO                                                                                                             | Required for pilot lane; not a universal blocker for an independently eligible non-pilot A target.                                      |
-| 4, after entry gates      | C1 then C2 — workspace owner                                      | Variance evidence and atomic linked-decision command, then scenario comparison reusing it                                                   | Approved specs/plans and A GO; C2 consumes C1's admitted command.                                                                       |
-| 4, separate lane          | Fee/economics — fee owner/domain reviewers                        | #1337 production FeeProfile truth, then parity/fee-authority decisions and dependent consumers                                              | Preserve F_1.3.0 ratification, truth and G5 gates; no blanket promotion into A.                                                         |
-| 5                         | C3a then C3b then C3c — reserve/financial owners                  | Metric admission, deployed reserve MOIC, then evidence-linked decisions                                                                     | A GO, approved specs, B lineage, accepted reserve V3 and equivalence evidence as applicable.                                            |
-| Deferred                  | Waterfall, broad construction/KPI work, dependency migrations     | Reassess when a concrete need appears or existing gate clears                                                                               | Preserve F_1.4.0 ADR conflicts/quarantine and dependency deferrals.                                                                     |
+| Priority              | Work and owner role                                               | Next result                                                                                                                                 | Dependency / stop condition                                                                                                             |
+| --------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1                     | A readiness — release operator prepares, repository owner selects | A Task 7 Steps 1-1b: #1283 readiness and #1287 target decision, including organic fact source                                               | Resolve source, topology, database/queue, recovery and caller identity before candidate selection. UNKNOWN blocks its dependent action. |
+| 2                     | A certification/binding — release operator                        | A Task 7 freeze, then Tasks 8-11 and #1294-#1297 exact-candidate evidence                                                                   | Fresh main candidate containing #1486; exact-SHA checks; applicable action-specific dispatches.                                         |
+| 3                     | A soak/decision — operator and repository owner                   | Four qualifying seven-day windows, then #1299 NO-GO or verified GO and containment                                                          | One bound candidate/runtime/database/fact source; real organic activity and all evidence predicates.                                    |
+| Parallel now          | C specification decisions — product/financial reviewers owner     | Revise/review C1 source contract to admit a distinct persisted comparable after-assumption source, then approve exact bodies when justified | Planning may proceed during A. C implementation/merge/deployment/serving waits A GO/final runtime identity.                             |
+| Optional, independent | F_1.12.0 trial — pilot owner/operator                             | Phase 8 isolated Gate A STOP/GO                                                                                                             | Optional pilot acceptance only; excluded from general product and Program A readiness prerequisites.                                    |
+| 4, after entry gates  | C1 then C2 — workspace owner                                      | Variance evidence and atomic linked-decision command, then scenario comparison reusing it                                                   | Approved specs/plans and A GO; C2 consumes C1's admitted command.                                                                       |
+| 4, separate lane      | Fee/economics — fee owner/domain reviewers                        | #1337 production FeeProfile truth, then parity/fee-authority decisions and dependent consumers                                              | Preserve F_1.3.0 ratification, truth and G5 gates; no blanket promotion into A.                                                         |
+| 5                     | C3a then C3b then C3c — reserve/financial owners                  | Metric admission, deployed reserve MOIC, then evidence-linked decisions                                                                     | A GO, approved specs, B lineage, accepted reserve V3 and equivalence evidence as applicable.                                            |
+| Deferred              | Waterfall, broad construction/KPI work, dependency migrations     | Reassess when a concrete need appears or existing gate clears                                                                               | Preserve F_1.4.0 ADR conflicts/quarantine and dependency deferrals.                                                                     |
 
 Priorities 1-3 lead because four seven-day windows require at least 28
 qualifying days after valid entry, excluding preparation/resets. Calendar time
@@ -140,34 +161,40 @@ any still-applicable G1 owner record; do not infer a generic open admission gate
 from pre-merge pending prose. #1486's regenerated matrix remains evidence for
 its named scope.
 
-Prove which real fact-commit path produces qualifying shadow comparisons.
+Prove which supported fact-commit path produces qualifying shadow comparisons.
 F_1.12.0 publication currently returns its receipt with cache invalidation only.
 Existing organic triggers run downstream of the legacy facts builder, which
-rejects the configured pilot fund. Choose explicitly:
+rejects the configured pilot fund. Qualify a compatible platform target through
+A Task 7 Step 1b using a source trace and retained non-production proof of
+automatic shadow execution without manual recompute or a writer/policy refusal.
+Synthetic input is eligible; its origin does not replace identity, facts/plan,
+runtime or qualifying-soak evidence. Record pilot configuration only to classify
+compatibility; an unset pilot does not create a setup prerequisite.
 
-- Eligible non-pilot target: its fund ID differs from the configured
-  `ACTUALS_PILOT_FUND_ID`, and A Task 7 Step 1b records a source trace plus an
-  isolated proof that the legacy facts-commit path reaches shadow execution for
-  that fund without manual recompute or a writer/policy refusal. Independent
-  pilot Gate A need not delay this lane.
-- Shared pilot/soak target only after applicable Gate A and a separately
-  planned/admitted compatible organic-trigger change, followed by a fresh
-  candidate selection and certification.
+Record the unsupported pilot-publication path in the optional pilot lane. Its
+Gate A, publication repair and pilot-specific reconciliation do not delay
+general product readiness. A later shared pilot target must prove its own
+compatible producer and applicable pilot controls; no result transfers between
+targets, and a source change still requires fresh candidate certification.
 
-The owner selected F1 / Fund One from the supplied ledger (10 companies and 11
-transactions). Read-only inspection of the configured Railway-bound database
-found only Phase 0 Integration Fund (ID 1, one company and one transaction), not
-a verified F1 target. Vercel's database binding remains unknown. Establish the
-serving API's actual database and fund context before deciding whether import is
-necessary; import necessity is not established by this inspection. Complete
-authenticated runtime/fund binding before choosing the eligible organic
-producer. Business labels and supplied ledger rows do not establish a configured
-soak source. Manual trial/recompute calls cannot substitute organic activity;
-manual recompute during shadow remains a blocker.
+Historically, the owner selected F1 / Fund One from the supplied ledger (10
+companies and 11 transactions). Read-only inspection of the configured
+Railway-bound database found only Phase 0 Integration Fund (ID 1, one company
+and one transaction), not a verified F1 target. Vercel's database binding
+remains unknown. Establish the serving API's actual database and fund context
+before deciding whether import is necessary; import necessity is not established
+by this inspection. Complete authenticated runtime/fund binding before choosing
+the eligible organic producer. Business labels and supplied ledger rows do not
+establish a configured soak source. Under the September 12 decision, this
+historical nomination and its reconciliation gaps do not block a different
+compatible platform target. Manual trial/recompute calls cannot substitute
+organic activity; manual recompute during shadow remains a blocker.
 
 The supplied capital totals also leave $1.6M unresolved: $19M consolidated minus
-$15M F1 and $2.4M SPVs. Preserve this gap before certification; do not create a
-balancing entry. Its investigation does not gate this documentation closeout.
+$15M F1 and $2.4M SPVs. Preserve this gap for any financial claim or
+certification that relies on those totals; do not create a balancing entry. It
+does not block a synthetic platform test or general readiness evidence
+independent of that real-investment basis.
 
 ### 2. Certify and bind one new candidate
 
@@ -186,10 +213,10 @@ preview isolation, grants or runtime state.
 Tracker corrections for a later authorized sync cover #1283, #1287 and
 #1296-#1299. #1283 and #1287 still cite `main@591f73f61`. #1287's checklist
 decides only production-side versus synced-copy topology; it must also record
-the pilot/non-pilot fund choice and the organic producer proven in Task 7 Step
-1b, otherwise its closure leaves Priority 1 unresolved. #1296, #1297 and #1298
-still describe deployed spine/shadow activity with mode `off`. Follow A Tasks
-10-11: promote the exact candidate while mode is `off`, then separately dispatch
+the platform target, input origin and organic producer proven in Task 7 Step 1b,
+otherwise its closure leaves Priority 1 unresolved. #1296, #1297 and #1298 still
+describe deployed spine/shadow activity with mode `off`. Follow A Tasks 10-11:
+promote the exact candidate while mode is `off`, then separately dispatch
 `enter-shadow` before the deployed decision spine and organic windows. Verify
 the mode API returns `configuredMode=shadow` and `effectiveMode=shadow`, while
 authoritative serving remains V1/unchanged. Configured/effective mode and served
@@ -353,7 +380,9 @@ authorized writes.
 - [x] Reconcile A Task 6 admission evidence with #1486 and record
       ADR-098/ADR-099 status against the merged decision; allocate no new IDs.
 - [ ] Complete #1283 readiness and #1287 target/organic-source binding.
-- [ ] Complete target-specific F_1.12.0 Gate A when pursuing pilot lane.
+- [ ] Optional pilot lane only: complete F_1.12.0 Gate A and publication/trigger
+      acceptance if separately pursued; this item does not block general product
+      or Program A readiness.
 - [ ] Select, certify and bind A candidate through Tasks 7-11.
 - [ ] Complete four qualifying windows and record #1299 NO-GO or verified GO,
       with separate activation/containment/resume evidence for GO.
