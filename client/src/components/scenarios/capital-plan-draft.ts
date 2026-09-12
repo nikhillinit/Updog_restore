@@ -162,14 +162,14 @@ export function duplicateCapitalDraft(
       const input = rawCopy(variant.override.payload.input);
       const benchmarkSelections = (variant.override.payload.benchmarkSnapshots ?? []).map(
         (snapshot) => {
+          const target = snapshot.target;
           const allocation = input.allocations.find(
-            (item) => item.allocationId === snapshot.target.allocationId
+            (item) => item.allocationId === target.allocationId
           );
-          if (snapshot.target.kind === 'entry') delete allocation?.entryFinancing;
+          if (target.kind === 'entry') delete allocation?.entryFinancing;
           else {
-            const round = allocation?.followOnRounds.find(
-              (item) => item.roundId === snapshot.target.roundId
-            );
+            const { roundId } = target;
+            const round = allocation?.followOnRounds.find((item) => item.roundId === roundId);
             delete round?.financing;
           }
           return copyBenchmarkSelection(snapshot);
