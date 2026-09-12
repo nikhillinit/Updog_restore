@@ -1,9 +1,9 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import type { LucideIcon} from "lucide-react";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import type { LucideIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatCardProps {
   title: string;
@@ -30,8 +30,8 @@ export function StatCard({
   icon: Icon,
   trend,
   badge,
-  className = "",
-  loading = false
+  className = '',
+  loading = false,
 }: StatCardProps) {
   if (loading) {
     return (
@@ -76,7 +76,7 @@ export function StatCard({
   };
 
   return (
-    <Card className={cn("hover:shadow-md transition-shadow", className)}>
+    <Card className={cn('hover:shadow-md transition-shadow', className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-charcoal-600">{title}</CardTitle>
         {Icon && (
@@ -91,9 +91,8 @@ export function StatCard({
             {typeof value === 'number' && value > 1000000
               ? `$${(value / 1000000).toFixed(1)}M`
               : typeof value === 'number' && value > 1000
-              ? `$${(value / 1000).toFixed(1)}K`
-              : value
-            }
+                ? `$${(value / 1000).toFixed(1)}K`
+                : value}
           </div>
           {badge && (
             <Badge variant={badge.variant || 'default'} className="ml-2">
@@ -103,16 +102,17 @@ export function StatCard({
         </div>
 
         {trend && (
-          <div className={cn("flex items-center space-x-1 text-sm", getTrendColor())}>
+          <div className={cn('flex items-center space-x-1 text-sm', getTrendColor())}>
             {getTrendIcon()}
-            <span className="font-medium">{trend.value > 0 ? '+' : ''}{trend.value}%</span>
-            <span className="text-charcoal-500">{trend.label}</span>
+            <span className="font-medium">
+              {trend.value > 0 ? '+' : ''}
+              {trend.value}%
+            </span>
+            <span className="text-presson-textMuted">{trend.label}</span>
           </div>
         )}
 
-        {description && (
-          <p className="text-xs text-charcoal-500">{description}</p>
-        )}
+        {description && <p className="text-xs text-presson-textMuted">{description}</p>}
       </CardContent>
     </Card>
   );
@@ -120,13 +120,13 @@ export function StatCard({
 
 export function StatCardGrid({
   children,
-  className = ""
+  className = '',
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4", className)}>
+    <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4', className)}>
       {children}
     </div>
   );

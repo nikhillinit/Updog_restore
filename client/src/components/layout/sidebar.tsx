@@ -21,7 +21,7 @@ interface SidebarProps {
 
 function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
   return cn(
-    'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
+    'w-full min-h-11 min-w-11 flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
     isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
     isDisabled
       ? 'text-charcoal-300 cursor-not-allowed bg-pov-gray'
@@ -110,7 +110,7 @@ function NavigationButton({
   const disabledReasonId = disabledReason ? `sidebar-disabled-reason-${item.id}` : undefined;
   const className = compact
     ? cn(
-        'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
+        'w-full min-h-11 min-w-11 flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
         isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
         isActive
           ? 'bg-pov-charcoal text-pov-white font-medium'
@@ -166,6 +166,8 @@ function NavigationButton({
 
 export default function Sidebar({ activeModule, className }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const isExpanded = isHovered || isFocused;
   const [location] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
@@ -181,11 +183,15 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
     <aside
       className={cn(
         'bg-white shadow-card border-r border-beige-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
-        isHovered ? 'w-64' : 'w-16',
+        isExpanded ? 'w-64' : 'w-16',
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocusCapture={() => setIsFocused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsFocused(false);
+      }}
     >
       <div className="p-3 border-b border-charcoal/7 bg-pov-charcoal">
         <div className="flex items-center mb-4">
@@ -193,17 +199,17 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
             <POVIcon variant="white" size="md" />
           </div>
           <div
-            className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
+            className={`ml-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
           >
-            <h1 className="font-inter font-bold text-lg text-pov-white whitespace-nowrap">
+            <p className="font-inter font-bold text-lg text-pov-white whitespace-nowrap">
               {BRANDING.app.nameStyled}
-            </h1>
+            </p>
             <p className="font-poppins text-xs text-charcoal-300 whitespace-nowrap">
               Fund Management
             </p>
           </div>
         </div>
-        {currentFund && isHovered && (
+        {currentFund && isExpanded && (
           <div className="bg-white/10 rounded-lg p-3 border border-white/10 transition-all duration-300">
             <p className="font-poppins font-medium text-sm text-pov-white truncate">
               {currentFund.name}
@@ -215,8 +221,8 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
-        {needsSetup && isHovered && (
+      <nav aria-label="Primary" className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
+        {needsSetup && isExpanded && (
           <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 mb-4 transition-all duration-300">
             <div className="flex items-center space-x-2 mb-2">
               <Plus className="h-4 w-4 text-warning-dark" />
@@ -249,7 +255,7 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
                   href={href}
                   isActive={isActive}
                   isDisabled={isDisabled}
-                  isHovered={isHovered}
+                  isHovered={isExpanded}
                 />
               </li>
             );
@@ -272,7 +278,7 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
                     href={href}
                     isActive={isActive}
                     isDisabled={isDisabled}
-                    isHovered={isHovered}
+                    isHovered={isExpanded}
                     compact
                   />
                 </li>

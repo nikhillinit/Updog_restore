@@ -1,11 +1,14 @@
 import { isRecord } from '@shared/utils/type-guards';
 
+export const SERVER_ERROR_MESSAGE = 'The service is temporarily unavailable. Please try again.';
+
 /**
  * Extract an error message string from an unknown payload
  * @param payload The unknown response payload
  * @returns The message string if present, undefined otherwise
  */
-export function getErrorMessage(payload: unknown): string | undefined {
+export function getErrorMessage(payload: unknown, status: number): string | undefined {
+  if (status >= 500) return SERVER_ERROR_MESSAGE;
   if (!isRecord(payload)) {
     return undefined;
   }
@@ -34,6 +37,9 @@ export async function readHttpErrorMessage(
   response: Response,
   fallbackMessage: string
 ): Promise<string> {
+  if (response.status >= 500) return SERVER_ERROR_MESSAGE;
   const errorData = await readJsonResponse(response).catch(() => null);
-  return getErrorMessage(errorData) || `HTTP ${response.status}: ${fallbackMessage}`;
+  return (
+    getErrorMessage(errorData, response.status) || `HTTP ${response.status}: ${fallbackMessage}`
+  );
 }

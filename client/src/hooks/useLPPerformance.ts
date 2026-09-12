@@ -67,7 +67,8 @@ export function useLPPerformance(options: UseLPPerformanceOptions) {
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
         throw new Error(
-          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch performance`
+          getErrorMessage(errorData, response.status) ||
+            `HTTP ${response.status}: Failed to fetch performance`
         );
       }
 
@@ -128,7 +129,8 @@ export function useLPHoldings(options: UseLPHoldingsOptions) {
       if (!response.ok) {
         const errorData = await readJsonResponse(response).catch(() => null);
         throw new Error(
-          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch holdings`
+          getErrorMessage(errorData, response.status) ||
+            `HTTP ${response.status}: Failed to fetch holdings`
         );
       }
 

@@ -36,7 +36,7 @@ function MetricTile({ label, value, detail }: { label: string; value: string; de
     <div className="rounded-md border border-pov-beige bg-white p-4">
       <p className="text-sm text-charcoal-600">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-pov-charcoal">{value}</p>
-      <p className="mt-1 text-xs text-charcoal-500">{detail}</p>
+      <p className="mt-1 text-xs text-presson-textMuted">{detail}</p>
     </div>
   );
 }
@@ -175,7 +175,7 @@ export default function ModernDashboard() {
 
     const body = (await response.json()) as unknown;
     if (!response.ok) {
-      throw new Error(getErrorMessage(body) ?? 'Failed to create share link');
+      throw new Error(getErrorMessage(body, response.status) ?? 'Failed to create share link');
     }
 
     const typed = body as {
@@ -217,7 +217,7 @@ export default function ModernDashboard() {
   }
 
   const dashboardTabs = (
-    <Tabs value={activeView} className="space-y-8">
+    <>
       {/* Overview Tab */}
       <TabsContent value="overview" className="space-y-8">
         <PremiumCard
@@ -250,7 +250,7 @@ export default function ModernDashboard() {
       <TabsContent value="cashflow" className="space-y-8">
         <CashflowDashboard fundId={String(currentFund?.id || 'default')} className="max-w-none" />
       </TabsContent>
-    </Tabs>
+    </>
   );
 
   return (
@@ -262,33 +262,35 @@ export default function ModernDashboard() {
       />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <Tabs
+        value={activeView}
+        onValueChange={setActiveView}
+        className="max-w-7xl mx-auto px-6 py-8"
+      >
         {/* Top Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center space-x-4">
-            <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-              <TabsList className="bg-pov-white border border-pov-gray">
-                <TabsTrigger
-                  value="overview"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="performance"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  Performance
-                </TabsTrigger>
-                <TabsTrigger
-                  value="cashflow"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Cashflow
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <TabsList className="bg-pov-white border border-pov-gray">
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="performance"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                Performance
+              </TabsTrigger>
+              <TabsTrigger
+                value="cashflow"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Cashflow
+              </TabsTrigger>
+            </TabsList>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -320,7 +322,7 @@ export default function ModernDashboard() {
         ) : (
           dashboardTabs
         )}
-      </div>
+      </Tabs>
     </div>
   );
 }

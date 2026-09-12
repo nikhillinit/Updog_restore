@@ -32,7 +32,9 @@ function intent(key = 'test-key-1'): ReserveCalculationIntent {
   return { idempotencyKey: key, body: { calculationMode: 'async_reserve_allocation' } };
 }
 
-function execute(overrides: { intent?: ReserveCalculationIntent; sleep?: (ms: number) => Promise<void> } = {}) {
+function execute(
+  overrides: { intent?: ReserveCalculationIntent; sleep?: (ms: number) => Promise<void> } = {}
+) {
   return executeReserveCalculationCommand({
     fundId: FUND_ID,
     scenarioSetId: SCENARIO_SET_ID,
@@ -178,10 +180,7 @@ describe('executeReserveCalculationCommand', () => {
 
   it('maps 503 scenario_calculation_queue_unavailable to queue_unavailable', async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse(
-        { error: 'internal_error', code: 'scenario_calculation_queue_unavailable' },
-        503
-      )
+      jsonResponse({ error: 'internal_error', code: 'scenario_calculation_queue_unavailable' }, 503)
     );
 
     expect(await execute()).toEqual({ kind: 'queue_unavailable' });
@@ -210,7 +209,11 @@ describe('executeReserveCalculationCommand', () => {
 
       const outcome = await execute();
 
-      expect(outcome).toEqual({ kind: 'retryable_error', message: 'Try again' });
+      expect(outcome).toEqual({
+        kind: 'retryable_error',
+        message:
+          status >= 500 ? 'The service is temporarily unavailable. Please try again.' : 'Try again',
+      });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     }
   );

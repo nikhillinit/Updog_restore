@@ -53,9 +53,9 @@ export default function DynamicFundHeader() {
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold text-pov-charcoal sm:text-2xl">
+              <p className="truncate text-xl font-bold text-pov-charcoal sm:text-2xl">
                 {currentFund.name}
-              </h1>
+              </p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-charcoal-600">
                 <span className="tabular-nums">Fund Size: {viewModel.fundSizeText}</span>
                 <Separator orientation="vertical" className="h-4" />

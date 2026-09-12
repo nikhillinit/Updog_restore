@@ -32,7 +32,8 @@ export function useDualForecast(
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch dual forecast`
+          getErrorMessage(errorData, response.status) ||
+            `HTTP ${response.status}: Failed to fetch dual forecast`
         );
       }
 

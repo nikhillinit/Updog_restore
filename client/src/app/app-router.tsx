@@ -4,7 +4,8 @@ import { AdminRoute } from '@/components/AdminRoute';
 import { LPProvider } from '@/contexts/LPContext';
 import { FundProvider, useFundContext } from '@/contexts/FundContext';
 import { resolveRouteControlFlag } from '@/app/route-control-flags';
-import { requiresFundContextRecovery } from '@/lib/fund-routes';
+import { isFundResultsRoute } from '@/lib/fund-routes';
+import { Button } from '@/components/ui/button';
 import { useAuthSession, type AuthSession } from '@/lib/auth-session';
 import { queryClient } from '@/lib/queryClient';
 import { AppLayout } from '@/app/app-layout';
@@ -28,8 +29,30 @@ import {
   type LPRouteEntry,
 } from '@/app/app-routes';
 
+function FundContextRecovery() {
+  return (
+    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <div
+        role="alert"
+        className="max-w-2xl rounded-lg border border-error/50 bg-error/10 p-6 text-error-dark"
+      >
+        <h1 className="text-2xl font-semibold">Unable to load fund context</h1>
+        <p className="mt-2 text-sm">
+          Fund information is temporarily unavailable. Try loading it again.
+        </p>
+        <Button
+          className="mt-4 min-h-11"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/funds'] })}
+        >
+          Retry loading funds
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function HomeRoute() {
-  const { needsSetup, isLoading } = useFundContext();
+  const { needsSetup, isLoading, fundLoadError } = useFundContext();
 
   if (isLoading) {
     return (
@@ -39,6 +62,7 @@ function HomeRoute() {
     );
   }
 
+  if (fundLoadError) return <FundContextRecovery />;
   return needsSetup ? <Redirect to="/fund-setup" /> : <Redirect to="/dashboard" />;
 }
 
@@ -49,7 +73,7 @@ interface ProtectedRouteProps {
 
 function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps) {
   const [location] = useLocation();
-  const { needsSetup, isLoading, fundLoadError, fundLoadErrorMessage } = useFundContext();
+  const { needsSetup, isLoading, fundLoadError } = useFundContext();
 
   if (isLoading) {
     return (
@@ -59,31 +83,7 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
     );
   }
 
-  if (fundLoadError && requiresFundContextRecovery(location)) {
-    return (
-      <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <div className="max-w-2xl rounded-lg border border-error/50 bg-error/10 p-6 text-error-dark">
-          <h1 className="text-2xl font-semibold">Unable to load fund context</h1>
-          <p className="mt-2 text-sm text-error-dark">
-            The fund list could not be loaded, so this workspace cannot determine whether setup is
-            required. Retry once the API is reachable.
-          </p>
-          {fundLoadErrorMessage && (
-            <p className="mt-3 rounded-md bg-pov-white/70 px-3 py-2 font-mono text-xs text-error-dark">
-              {fundLoadErrorMessage}
-            </p>
-          )}
-          <button
-            type="button"
-            className="mt-4 rounded-md bg-pov-charcoal px-4 py-2 text-sm font-medium text-pov-white hover:bg-charcoal-700"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/funds'] })}
-          >
-            Retry loading funds
-          </button>
-        </div>
-      </main>
-    );
-  }
+  if (fundLoadError && !isFundResultsRoute(location)) return <FundContextRecovery />;
 
   if (needsSetup) {
     return <Redirect to="/fund-setup" />;
