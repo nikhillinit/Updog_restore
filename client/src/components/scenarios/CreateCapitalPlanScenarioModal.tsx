@@ -36,6 +36,7 @@ import {
 import type { FundScenarioCapitalCreateResponseV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   capitalDraftRequest,
+  capitalDraftSourceDeclarations,
   capitalErrorIssues,
   capitalIssuePath,
   capitalSourceIdentity,
@@ -65,6 +66,7 @@ type Reviewed = Extract<Awaited<ReturnType<typeof reviewCapitalPlanDraft>>, { ok
 type SaveOperation = {
   command: NonNullable<ReturnType<typeof getCapitalSaveIntent>>;
   generation: number;
+  recovering: boolean;
 };
 const sourceIdentityShape = CapitalSourceProjectionV1Schema.innerType().shape;
 const SourceConflictDetailsSchema = z
@@ -129,7 +131,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   const [busy, setBusy] = useState<'review' | 'save' | null>(null);
   const [notice, setNotice] = useState(() =>
     getCapitalSaveIntent(fundId)
-      ? 'A prior save is unconfirmed. Retry capital save uses its original reviewed request and key. Edits start a new intent.'
+      ? 'A prior save is unconfirmed. Retry capital save uses its original reviewed request and key. Resolve it before editing this draft.'
       : ''
   );
   const [focusPath, setFocusPath] = useState<string | null>(null);
@@ -140,6 +142,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   const intent = useRef(getCapitalSaveIntent(fundId));
   const submitting = useRef<SaveOperation | null>(null);
   const refreshing = useRef(false);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const sourceQuery = useQuery({
     queryKey: capitalScenarioSourceQueryKey(fundId),
     queryFn: () => fetchCapitalScenarioSource(fundId),
@@ -151,16 +154,27 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     sourceQuery.data &&
     capitalSourceIdentity(draft.source) !== capitalSourceIdentity(sourceQuery.data)
   );
+  const sourceDeclarations = capitalDraftSourceDeclarations(draft);
+  const sourceDeclarationPaths = new Set(sourceDeclarations.map(({ path }) => path));
+  const unresolvedSourceDeclarations = sourceDeclarations.filter(
+    ({ path, allowedUnits }) => !allowedUnits.some((unit) => unit === draft.declarations[path])
+  );
+  const hasUnconfirmedSave = intent.current !== null;
 
   function replace(next: CapitalPlanDraft) {
+    const pending = intent.current ?? getCapitalSaveIntent(fundId);
+    if (pending) {
+      intent.current = pending;
+      setNotice('A prior save is unconfirmed. Retry capital save before editing this draft.');
+      return false;
+    }
     generation.current += 1;
-    intent.current = null;
-    retainCapitalSaveIntent(fundId, null);
     setReviewed(null);
     setSourceConflict(null);
     setBusy((current) => (current === 'review' ? null : current));
     retainCapitalDraft(fundId, next);
     setDraft(next);
+    return true;
   }
   function edit(path: Path, value: unknown) {
     const next = structuredClone(draft);
@@ -183,7 +197,15 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     }
   }, [draft, fundId, sourceQuery.data]);
   useEffect(() => {
-    if (sourceChanged && !refreshing.current) {
+    // Query notifications can render before an already-retained refresh reaches draft state.
+    const currentSource = getCapitalDraft(fundId).source;
+    if (
+      sourceChanged &&
+      !refreshing.current &&
+      currentSource &&
+      sourceQuery.data &&
+      capitalSourceIdentity(currentSource) !== capitalSourceIdentity(sourceQuery.data)
+    ) {
       generation.current += 1;
       setReviewed(null);
       setBusy((current) => (current === 'review' ? null : current));
@@ -193,7 +215,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           : 'Current source changed. Refresh source and review before saving.'
       );
     }
-  }, [sourceChanged]);
+  }, [fundId, sourceChanged, sourceQuery.data]);
   useEffect(
     () => () => {
       generation.current += 1;
@@ -211,7 +233,8 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   }, [focusPath, step, variantIndex, open, issues]);
 
   function normalizedIssuePath(path: string): string {
-    if (draft.source?.remainingDeclarations.some((item) => item.path === path)) return path;
+    const sourcePath = path.replace(/^unitDeclarations\./, '');
+    if (sourceDeclarationPaths.has(sourcePath)) return sourcePath;
     return path
       .replace(/^inputs\[(\d+)\]/, 'variants[$1].override.payload.input')
       .replace(/^input(?=\.|$)/, `variants[${variantIndex}].override.payload.input`);
@@ -226,7 +249,15 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           Number(benchmarkIndex[1])
         ]
       : undefined;
-    setStep(selection ? (selection.target.kind === 'follow_on' ? 2 : 1) : stepFor(path));
+    setStep(
+      sourceDeclarationPaths.has(path)
+        ? 0
+        : selection
+          ? selection.target.kind === 'follow_on'
+            ? 2
+            : 1
+          : stepFor(path)
+    );
     setFocusPath(path);
   }
   function refuse(nextIssues: CapitalIssueV1[]) {
@@ -253,6 +284,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     const value = readPath(draft, path);
     const props = {
       id,
+      disabled: hasUnconfirmedSave,
       value: typeof value === 'string' ? value : '',
       'aria-invalid': errors.length > 0,
       'aria-describedby': errors.length ? `${id}-error` : undefined,
@@ -262,7 +294,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     };
     return (
       <div className="min-w-0 space-y-1" key={id}>
-        <label htmlFor={id} className="block text-sm font-medium">
+        <label htmlFor={id} className="block break-words text-sm font-medium">
           {label}
         </label>
         {options?.choices ? (
@@ -336,6 +368,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           <input
             id={id}
             type="checkbox"
+            disabled={hasUnconfirmedSave}
             checked={present}
             aria-invalid={errors.length > 0}
             aria-describedby={errors.length ? `${id}-error` : undefined}
@@ -410,6 +443,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           <select
             aria-label={name}
             className={CONTROL}
+            disabled={hasUnconfirmedSave}
             value={selection?.selector.stage ?? ''}
             onChange={(event) => {
               const next = structuredClone(draft);
@@ -465,6 +499,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                   <label className="flex gap-2">
                     <input
                       type="checkbox"
+                      disabled={hasUnconfirmedSave}
                       checked={Boolean(enabled)}
                       onChange={(event) => {
                         const next = structuredClone(draft);
@@ -567,7 +602,22 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     const serverIssues = capitalErrorIssues(error);
     setIssues(serverIssues);
     if (serverIssues[0]) focusIssue(serverIssues[0]);
-    if (error instanceof ApiError && error.errorCode === 'scenario_source_config_stale') {
+    if (
+      !operation.recovering &&
+      error instanceof ApiError &&
+      error.status === 422 &&
+      error.errorCode === 'invalid_scenario_set_v3_payload'
+    ) {
+      clearSaveIntent(operation.command);
+      setReviewed(null);
+      setNotice(
+        'Save was rejected before creating a scenario. Correct the draft and review again before saving.'
+      );
+    } else if (
+      error instanceof ApiError &&
+      error.status === 409 &&
+      error.errorCode === 'scenario_source_config_stale'
+    ) {
       clearSaveIntent(operation.command);
       setReviewed(null);
       const conflict = SourceConflictDetailsSchema.safeParse(error.details);
@@ -588,8 +638,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   async function save() {
     if ((!reviewed && !intent.current) || (sourceChanged && !intent.current) || submitting.current)
       return;
+    const recovering = intent.current !== null;
     const command = intent.current ?? { request: reviewed!.request, key: crypto.randomUUID() };
-    const operation = { command, generation: generation.current };
+    const operation = { command, generation: generation.current, recovering };
     intent.current = command;
     retainCapitalSaveIntent(fundId, command);
     submitting.current = operation;
@@ -613,22 +664,46 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     const result = await sourceQuery.refetch();
     refreshing.current = false;
     if (captured !== generation.current) return;
-    if (result.data) {
+    if (result.isSuccess && result.data) {
       setSourceConflict(null);
-      const next = { ...getCapitalDraft(fundId), source: result.data };
+      const current = getCapitalDraft(fundId);
+      const changed =
+        current.source &&
+        capitalSourceIdentity(current.source) !== capitalSourceIdentity(result.data);
+      const next = {
+        ...current,
+        source: result.data,
+        declarations: changed ? {} : current.declarations,
+      };
       retainCapitalDraft(fundId, next);
       setDraft(next);
       setNotice(
         intent.current
-          ? 'Source refreshed. The prior save is still unconfirmed; retry its original request before a new review.'
-          : 'Source refreshed. Your entries are retained; review again.'
+          ? 'Source refreshed. The prior save is still unconfirmed; retry its original request before confirming source units or editing this draft.'
+          : changed
+            ? 'Source refreshed. Confirm source units again for the changed source. Your scenario entries are retained.'
+            : 'Source refreshed. Your entries are retained; review again.'
       );
     } else setNotice('Source could not be refreshed. Your draft is retained.');
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto bg-presson-surface text-presson-text">
+      <DialogContent
+        className="max-h-[90vh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto bg-presson-surface text-presson-text"
+        onOpenAutoFocus={() => {
+          const target = document.activeElement;
+          returnFocusRef.current = target instanceof HTMLElement ? target : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          const target = returnFocusRef.current;
+          // A fund change unmounts an open editor; it must not reclaim the next fund's focus.
+          if (!open && target?.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>New capital planning scenario</DialogTitle>
           <DialogDescription>
@@ -639,6 +714,30 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
         <p role="status" aria-live="polite" className="text-sm">
           {notice}
         </p>
+        {step !== 0 && unresolvedSourceDeclarations.length > 0 && (
+          <section aria-label="Source unit choices" className="space-y-2 text-sm">
+            <p>
+              {hasUnconfirmedSave
+                ? 'Resolve the prior save before confirming source units or editing this draft. Recovery uses its original request and key.'
+                : `${unresolvedSourceDeclarations.length} source unit choices need confirmation for the current selections.`}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={hasUnconfirmedSave && busy !== null}
+              onClick={() => {
+                if (intent.current) {
+                  void save();
+                  return;
+                }
+                setStep(0);
+                setFocusPath(unresolvedSourceDeclarations[0]!.path);
+              }}
+            >
+              {hasUnconfirmedSave ? 'Recover prior save' : 'Confirm source units'}
+            </Button>
+          </section>
+        )}
         {sourceConflict && (
           <section
             aria-label="Source conflict identities"
@@ -715,7 +814,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             <Button
               type="button"
               variant="outline"
-              disabled={draft.variants.length >= 5}
+              disabled={hasUnconfirmedSave || draft.variants.length >= 5}
               onClick={() => {
                 const next = structuredClone(draft);
                 const added: RawCapitalVariant = {
@@ -724,8 +823,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                   name: '',
                 };
                 next.variants.push(added);
-                replace(next);
-                setVariantIndex(next.variants.length - 1);
+                if (replace(next)) setVariantIndex(next.variants.length - 1);
               }}
             >
               Add variant
@@ -733,12 +831,11 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             <Button
               type="button"
               variant="outline"
-              disabled={variantIndex === 0}
+              disabled={hasUnconfirmedSave || variantIndex === 0}
               onClick={() => {
                 const next = structuredClone(draft);
                 next.variants.splice(variantIndex, 1);
-                replace(next);
-                setVariantIndex(0);
+                if (replace(next)) setVariantIndex(0);
               }}
             >
               Remove variant
@@ -776,7 +873,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       </p>
                     ))}
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {source.remainingDeclarations.map(({ path, allowedUnits }) =>
+                      {sourceDeclarations.map(({ path, allowedUnits }) =>
                         field(`Source unit: ${path}`, ['declarations', path], {
                           errorPath: path,
                           choices: allowedUnits.map((unit) => [unit, unit] as const),
@@ -784,15 +881,14 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       )}
                     </div>
                     {Object.keys(draft.declarations)
-                      .filter(
-                        (path) => !source.remainingDeclarations.some((item) => item.path === path)
-                      )
+                      .filter((path) => !sourceDeclarationPaths.has(path))
                       .map((path) => (
                         <div key={path} className="break-words">
                           Retained declaration {path}: {draft.declarations[path]}{' '}
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={hasUnconfirmedSave}
                             onClick={() => edit(['declarations', path], undefined)}
                           >
                             Remove declaration {path}
@@ -863,7 +959,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={variant.input.allocations.length === 1}
+                        disabled={hasUnconfirmedSave || variant.input.allocations.length === 1}
                         onClick={() => {
                           const next = structuredClone(draft);
                           const current = next.variants[variantIndex]!;
@@ -882,7 +978,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={variant.input.allocations.length >= limits.maxAllocations}
+                  disabled={
+                    hasUnconfirmedSave || variant.input.allocations.length >= limits.maxAllocations
+                  }
                   onClick={() =>
                     edit(
                       [...ipath, 'allocations'],
@@ -959,6 +1057,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={hasUnconfirmedSave}
                             onClick={() => {
                               const next = structuredClone(draft);
                               next.variants[variantIndex]!.input.allocations[
@@ -982,7 +1081,10 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={allocation.followOnRounds.length >= limits.maxFollowOnRounds}
+                      disabled={
+                        hasUnconfirmedSave ||
+                        allocation.followOnRounds.length >= limits.maxFollowOnRounds
+                      }
                       onClick={() =>
                         edit(
                           [...ipath, 'allocations', ai, 'followOnRounds'],
@@ -1011,6 +1113,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={hasUnconfirmedSave}
                       onClick={() => edit([...ipath, 'performanceCase'], emptyCapitalCompanion())}
                     >
                       Add companion
@@ -1021,6 +1124,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={hasUnconfirmedSave}
                       onClick={() => edit([...ipath, 'performanceCase'], undefined)}
                     >
                       Remove companion
@@ -1081,6 +1185,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     <label className="flex gap-2">
                       <input
                         type="checkbox"
+                        disabled={hasUnconfirmedSave}
                         checked={
                           variant.input.performanceCase.manualOwnershipOverrideRatio !== undefined
                         }
@@ -1114,6 +1219,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     <label className="flex gap-2">
                       <input
                         type="checkbox"
+                        disabled={hasUnconfirmedSave}
                         checked={
                           variant.input.performanceCase.participationCap.type === 'total_payout'
                         }
@@ -1140,6 +1246,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                         <label className="flex gap-2">
                           <input
                             type="checkbox"
+                            disabled={hasUnconfirmedSave}
                             checked={Boolean(variant.input.performanceCase?.[key])}
                             onChange={(event) =>
                               edit(
@@ -1303,8 +1410,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           <Button
             type="button"
             variant="outline"
+            disabled={hasUnconfirmedSave}
             onClick={() => {
-              replace(newCapitalDraft());
+              if (!replace(newCapitalDraft())) return;
               setVariantIndex(0);
               setStep(0);
               setIssues([]);

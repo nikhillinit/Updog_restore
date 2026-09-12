@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWouterWrapper } from '../../utils/withWouter';
 import frozen from '../../fixtures/capital-planning/workspace-b8.json';
+import { makeCapitalRawConfig } from '../../fixtures/capital-planning/fixtures';
 import { FundScenarioWorkspacePage } from '../../../client/src/pages/fund-scenario-workspace';
 import { CreateCapitalPlanScenarioModal } from '../../../client/src/components/scenarios/CreateCapitalPlanScenarioModal';
 import {
@@ -17,12 +18,21 @@ import * as keys from '../../../client/src/lib/fund-scenario-workspace-query-key
 import * as review from '../../../client/src/lib/capital-plan-review';
 import { apiRequest } from '../../../client/src/lib/queryClient';
 import {
+  capitalDraftRequest,
+  capitalDraftSourceDeclarations,
+  duplicateCapitalDraft,
+  emptyCapitalRound,
   getCapitalDraft,
   getCapitalSaveIntent,
   newCapitalDraft,
   retainCapitalDraft,
   retainCapitalSaveIntent,
 } from '../../../client/src/components/scenarios/capital-plan-draft';
+import {
+  inspectCapitalSourcePreview,
+  materializeCapitalProjectionPreview,
+} from '../../../shared/lib/capital-planning/source-materialization-core';
+import { sha256CanonicalJson } from '../../../shared/lib/canonical-json';
 import { FundResultsReadV1Schema } from '../../../shared/contracts/fund-results-v1.contract';
 import {
   CapitalPlanningMemoV1Schema,
@@ -72,11 +82,14 @@ const readState = {
 };
 
 function sourceResponse(extraIssues: CapitalIssueV1[] = []): FundScenarioCapitalSourceResponseV1 {
-  // These are inspector-shaped test metadata, not a claimed recorded source GET.
-  const remainingDeclarations = Object.entries(bundle.unitDeclarations).map(([path, unit]) => ({
-    path,
-    allowedUnits: unit === 'usd' ? ['usd', 'usd_millions'] : [unit],
-  }));
+  // Source GET inspects global branches before any scenario selection exists.
+  // These wrappers are synthetic; the recorded financial bundle remains unchanged.
+  const remainingDeclarations = Object.entries(bundle.unitDeclarations)
+    .filter(([path]) => !/^(capitalPlanAllocations|pipelineProfiles)\[/.test(path))
+    .map(([path, unit]) => ({
+      path,
+      allowedUnits: unit === 'usd' ? ['usd', 'usd_millions'] : [unit],
+    }));
   return FundScenarioCapitalSourceResponseV1Schema.parse({
     contractVersion: 'fund-scenario-capital-source/1.0.0',
     representation: REPRESENTATION,
@@ -497,11 +510,6 @@ function step(name: string) {
 async function fillDraft() {
   await screen.findByLabelText('Scenario name', { exact: true });
   change('Scenario name', 'Independent component plan');
-  for (const [path, unit] of Object.entries(bundle.unitDeclarations)) {
-    fireEvent.change(screen.getByLabelText(`Source unit: ${path}`, { exact: true }), {
-      target: { value: unit },
-    });
-  }
   step('Allocations');
   const variant = screen.queryByLabelText('Variant name', { exact: true });
   if (variant) fireEvent.change(variant, { target: { value: 'Baseline' } });
@@ -517,6 +525,13 @@ async function fillDraft() {
     ['Deployment period (years)', '1'],
   ])
     change(name!, value!);
+  step('Source and budget');
+  for (const [path, unit] of Object.entries(bundle.unitDeclarations)) {
+    fireEvent.change(screen.getByLabelText(`Source unit: ${path}`, { exact: true }), {
+      target: { value: unit },
+    });
+  }
+  step('Allocations');
 }
 async function reviewDraft() {
   await fillDraft();
@@ -1068,6 +1083,452 @@ describe('B9 negotiated API and one-client cache isolation', () => {
 });
 
 describe('B9 public guided review and raw drafts', () => {
+  it.each(['Escape', 'Close and keep draft'])(
+    'UI-R3-005 returns keyboard focus to the workspace opener after %s',
+    async (closeAction) => {
+      dispatch();
+      renderWorkspace();
+      const user = userEvent.setup();
+      const opener = await screen.findByRole('button', {
+        name: 'New capital planning scenario',
+        exact: true,
+      });
+      opener.focus();
+      await user.keyboard('{Enter}');
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toContainElement(document.activeElement as HTMLElement);
+      if (closeAction === 'Escape') await user.keyboard('{Escape}');
+      else await user.click(within(dialog).getByRole('button', { name: closeAction }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(opener).toHaveFocus());
+    }
+  );
+
+  it.each([
+    { keepOpener: true, nextOpen: false },
+    { keepOpener: false, nextOpen: false },
+    { keepOpener: true, nextOpen: true },
+  ])(
+    'UI-R3-005 leaves next-fund focus intact (opener connected: $keepOpener, next editor open: $nextOpen)',
+    async ({ keepOpener, nextOpen }) => {
+      dispatch();
+      const queryClient = client();
+      function FocusHarness({ fundId }: { fundId: string }) {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button key={keepOpener ? 'opener' : fundId} onClick={() => setOpen(true)}>
+              Open capital draft
+            </button>
+            {fundId !== FUND && !nextOpen && <button autoFocus>Next fund action</button>}
+            <CreateCapitalPlanScenarioModal
+              fundId={fundId}
+              open={open && (fundId === FUND || nextOpen)}
+              onOpenChange={setOpen}
+              onSuccess={vi.fn()}
+            />
+          </>
+        );
+      }
+      function page(fundId: string) {
+        return (
+          <QueryClientProvider client={queryClient}>
+            <React.StrictMode>
+              <FocusHarness fundId={fundId} />
+            </React.StrictMode>
+          </QueryClientProvider>
+        );
+      }
+      const view = render(page(FUND));
+      const user = userEvent.setup();
+      const opener = screen.getByRole('button', { name: 'Open capital draft' });
+      await user.click(opener);
+      await screen.findByRole('dialog');
+      view.rerender(page('203'));
+      const nextTarget = nextOpen
+        ? screen.getByLabelText('Scenario name', { exact: true })
+        : screen.getByRole('button', { name: 'Next fund action' });
+      if (nextOpen) nextTarget.focus();
+      // Radix dispatches close-auto-focus in the next timer turn after unmount.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(opener.isConnected).toBe(keepOpener);
+      expect(nextTarget).toHaveFocus();
+      if (nextOpen) expect(screen.getByRole('dialog')).toContainElement(nextTarget);
+    }
+  );
+
+  it('B10 selected source units appear with partial numeric entries after global-only inspection', async () => {
+    const source = sourceResponse();
+    expect(source.remainingDeclarations.map(({ path }) => path)).toEqual([
+      'fundSize',
+      'funds.size',
+      'economicsAssumptions.gpCommitmentModel.commitmentAmount',
+      'economicsAssumptions.expenseModel.annualExpenses[0].amount',
+    ]);
+    dispatch();
+    renderModal();
+    await screen.findByLabelText('Scenario name', { exact: true });
+    expect(
+      screen.queryByLabelText('Source unit: capitalPlanAllocations[0].capitalAllocationPct')
+    ).not.toBeInTheDocument();
+    step('Allocations');
+    change('Source allocation', 'a1');
+    change('Pipeline profile', 'p1');
+    change('Entry stage', 's0');
+    change('Initial check (USD)', '1.');
+    step('Source and budget');
+    expect(
+      screen.getByLabelText('Source unit: capitalPlanAllocations[0].capitalAllocationPct')
+    ).toHaveValue('');
+    expect(screen.getByLabelText('Source unit: pipelineProfiles[0].stages[0].esopPct')).toHaveValue(
+      ''
+    );
+    expect(
+      screen.queryByLabelText('Source unit: capitalPlanAllocations[0].initialOwnershipPct')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Source unit: allocations[0].percentage')
+    ).not.toBeInTheDocument();
+    step('Allocations');
+    expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1.');
+  });
+
+  it('B10 newly selected source units offer a keyboard link without a second live announcement', async () => {
+    dispatch();
+    renderModal();
+    await screen.findByLabelText('Source unit: funds.size', { exact: true });
+    for (const { path } of sourceResponse().remainingDeclarations)
+      change(`Source unit: ${path}`, bundle.unitDeclarations[path]!);
+    step('Allocations');
+    change('Source allocation', 'a1');
+    change('Pipeline profile', 'p1');
+    change('Entry stage', 's0');
+    const notice = screen.getByRole('region', { name: 'Source unit choices' });
+    expect(notice).toHaveTextContent('8 source unit choices need confirmation');
+    expect(notice.querySelector('[aria-live]')).toBeNull();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    const link = within(notice).getByRole('button', { name: 'Confirm source units' });
+    link.focus();
+    await userEvent.keyboard('{Enter}');
+    const first = screen.getByLabelText(
+      'Source unit: capitalPlanAllocations[0].capitalAllocationPct'
+    );
+    await waitFor(() => expect(first).toHaveFocus());
+    for (const [path, unit] of Object.entries(bundle.unitDeclarations))
+      change(`Source unit: ${path}`, unit);
+    step('Allocations');
+    expect(screen.queryByRole('region', { name: 'Source unit choices' })).not.toBeInTheDocument();
+  });
+
+  it('B10 stage selection retains raw unit choices while requests contain only active declarations', () => {
+    const draft = duplicateCapitalDraft(capitalDetail());
+    draft.source = sourceResponse();
+    draft.declarations = { ...bundle.unitDeclarations };
+    const facts = draft.source.projection.facts;
+    const stages = facts.find((fact) => fact.path === 'pipelineProfiles[0].stages');
+    if (stages?.state === 'array') stages.length = 2;
+    // Synthetic source options exercise draft serialization, not source-hash admission.
+    facts.push(
+      ...facts
+        .filter(({ path }) => path.startsWith('pipelineProfiles[0].stages[0].'))
+        .map((fact) => ({
+          ...fact,
+          path: fact.path.replace('.stages[0]', '.stages[1]'),
+          ...(fact.path.endsWith('.id') ? { rawValue: 's1' } : {}),
+        }))
+    );
+    for (const [path, unit] of Object.entries(bundle.unitDeclarations)) {
+      if (path.startsWith('pipelineProfiles[0].stages[0].'))
+        draft.declarations[path.replace('.stages[0]', '.stages[1]')] = unit;
+    }
+    const retained = structuredClone(draft.declarations);
+    draft.variants[0]!.input.allocations[0]!.entryStageId = 's1';
+    const changed = capitalDraftRequest(draft);
+    expect(changed.ok).toBe(true);
+    if (!changed.ok) throw new Error('The complete raw draft must serialize');
+    expect(
+      changed.request.unitDeclarations['pipelineProfiles[0].stages[0].roundSize']
+    ).toBeUndefined();
+    expect(changed.request.unitDeclarations['pipelineProfiles[0].stages[1].roundSize']).toBe('usd');
+    expect(draft.declarations).toEqual(retained);
+
+    draft.variants[0]!.input.allocations[0]!.entryStageId = 's0';
+    const restored = capitalDraftRequest(draft);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) throw new Error('Returning to the original selection must serialize');
+    expect(restored.request.unitDeclarations).toEqual(bundle.unitDeclarations);
+    expect(draft.declarations).toEqual(retained);
+  });
+
+  it.each([
+    'capitalPlanAllocations[0].capitalAllocationPct',
+    'pipelineProfiles[0].stages[0].graduationRate',
+  ])('B10 empty selected source unit focuses its exact control: %s', async (path) => {
+    dispatch();
+    renderModal();
+    await fillDraft();
+    step('Source and budget');
+    change(`Source unit: ${path}`, '');
+    step('Review');
+    step('Review capital plan');
+    const field = await screen.findByLabelText(`Source unit: ${path}`, { exact: true });
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveValue('');
+    const summary = screen.getByRole('region', { name: 'Validation errors' });
+    fireEvent.click(within(summary).getAllByRole('button')[0]!);
+    expect(field).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();
+  });
+
+  it('B10 descriptor-driven declarations satisfy the actual materializer and every offered path is consumed', () => {
+    const draft = duplicateCapitalDraft(capitalDetail());
+    draft.source = sourceResponse();
+    const declarations = Object.fromEntries(
+      capitalDraftSourceDeclarations(draft).map(({ path }) => [path, bundle.unitDeclarations[path]])
+    );
+    const materialize = (unitDeclarations: Record<string, unknown>) =>
+      materializeCapitalProjectionPreview({
+        source: draft.source!,
+        inputs: [saved.result.input],
+        unitDeclarations,
+        expectedInterpretationVersion: bundle.interpretationVersion,
+      });
+    expect(materialize(declarations).ok).toBe(true);
+    for (const path of Object.keys(declarations)) {
+      const missing = { ...declarations };
+      delete missing[path];
+      const result = materialize(missing);
+      expect(result.ok, path).toBe(false);
+      if (result.ok) throw new Error(`The materializer must require ${path}`);
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({ code: 'UNIT_PROVENANCE_UNRESOLVED', path })
+      );
+    }
+  });
+
+  it.each(['direct retry', 'unit notice'] as const)(
+    'B10 actual source inspection and reordered source refresh preserve the original save through %s',
+    async (recovery) => {
+      const raw = makeCapitalRawConfig();
+      raw.capitalPlanAllocations!.push({
+        ...raw.capitalPlanAllocations![0]!,
+        id: 'a2',
+        name: 'Alternate allocation',
+        initialCheckAmount: 7,
+      });
+      raw.pipelineProfiles![0]!.stages.push({
+        ...raw.pipelineProfiles![0]!.stages[0]!,
+        id: 's1',
+        name: 'Alternate stage',
+      });
+      raw.pipelineProfiles!.push({
+        ...structuredClone(raw.pipelineProfiles![0]!),
+        id: 'p2',
+        name: 'Alternate profile',
+      });
+      const reordered = structuredClone(raw);
+      reordered.capitalPlanAllocations!.reverse();
+      reordered.pipelineProfiles!.reverse();
+      for (const profile of reordered.pipelineProfiles!) profile.stages.reverse();
+      const [originalSource, nextSource] = [raw, reordered].map((sourceRaw, index) => {
+        const inspection = inspectCapitalSourcePreview(
+          {
+            fund: { id: Number(FUND), size: '100.00', baseCurrency: 'USD' },
+            config: {
+              id: bundle.projection.sourceConfigId,
+              version: bundle.projection.sourceConfigVersion + index,
+              raw: sourceRaw,
+              publishedAt: TIME,
+            },
+          },
+          sha256CanonicalJson
+        );
+        return FundScenarioCapitalSourceResponseV1Schema.parse({
+          contractVersion: 'fund-scenario-capital-source/1.0.0',
+          representation: REPRESENTATION,
+          ...inspection,
+          publishedAt: TIME,
+          interpretationVersion: bundle.interpretationVersion,
+          interpretationCompatibility: readState.interpretationCompatibility,
+        });
+      });
+      expect(originalSource!.remainingDeclarations.map(({ path }) => path)).toEqual([
+        'funds.size',
+        'fundSize',
+        'economicsAssumptions.gpCommitmentModel.commitmentAmount',
+        'economicsAssumptions.expenseModel.annualExpenses[0].amount',
+      ]);
+      let reads = 0;
+      let writes = 0;
+      let completeRecovery!: () => void;
+      dispatch(({ method, url }) => {
+        if (url.pathname.endsWith('/source-config'))
+          return ++reads === 1 ? originalSource : nextSource;
+        if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+        if (++writes === 1) throw new TypeError('Reorder test response was lost');
+        const created = {
+          contractVersion: 'fund-scenario-capital-create/1.0.0',
+          representation: REPRESENTATION,
+          scenarioSetId: SET,
+        };
+        return recovery === 'unit notice'
+          ? new Promise((resolve) => {
+              completeRecovery = () => resolve(created);
+            })
+          : created;
+      });
+      const view = renderModal();
+      await fillDraft();
+      change('Source allocation', 'a2');
+      change('Pipeline profile', 'p2');
+      change('Entry stage', 's1');
+      step('Source and budget');
+      change('Source unit: capitalPlanAllocations[1].initialCheckAmount', 'usd_millions');
+      change('Source unit: pipelineProfiles[1].stages[1].roundSize', 'usd_millions');
+      step('Allocations');
+      change('Source allocation', 'a1');
+      change('Pipeline profile', 'p1');
+      change('Entry stage', 's0');
+      step('Review');
+      step('Review capital plan');
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeEnabled()
+      );
+      step('Save capital scenario');
+      await screen.findByText('Reorder test response was lost', { exact: false });
+      const originalIntent = getCapitalSaveIntent(FUND);
+      const originalRequest = structuredClone(originalIntent!.request);
+      step('Source and budget');
+      step('Refresh source');
+      await screen.findByText(/Source refreshed/);
+      expect(
+        screen.getByLabelText('Source unit: capitalPlanAllocations[1].initialCheckAmount')
+      ).toHaveValue('');
+      expect(
+        screen.getByLabelText('Source unit: pipelineProfiles[1].stages[1].roundSize')
+      ).toHaveValue('');
+      expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+      expect(getCapitalSaveIntent(FUND)!.request).toEqual(originalRequest);
+      expect(getCapitalDraft(FUND).declarations).toEqual({});
+      step('Allocations');
+      expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1');
+      if (recovery === 'unit notice') {
+        const notice = screen.getByRole('region', { name: 'Source unit choices' });
+        fireEvent.click(within(notice).getByRole('button'));
+        step('Source and budget');
+        const unit = screen.getByLabelText(
+          'Source unit: capitalPlanAllocations[1].initialCheckAmount'
+        );
+        fireEvent.change(unit, { target: { value: 'usd_millions' } });
+        expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+        expect(getCapitalSaveIntent(FUND)!.request).toEqual(originalRequest);
+        expect(getCapitalDraft(FUND).declarations).toEqual({});
+        expect(unit).toBeDisabled();
+        expect(screen.getByLabelText('Scenario name')).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'New empty draft' })).toBeDisabled();
+        await waitFor(() => expect(completeRecovery).toBeTypeOf('function'));
+        await act(async () => completeRecovery());
+      } else step('Retry capital save');
+      await waitFor(() => expect(view.onSuccess).toHaveBeenCalledOnce());
+      const requests = calls.filter(({ method }) => method === 'POST');
+      expect(requests).toHaveLength(2);
+      expect(requests[1]!.body).toEqual(requests[0]!.body);
+      expect(requests[1]!.headers.get('Idempotency-Key')).toBe(
+        requests[0]!.headers.get('Idempotency-Key')
+      );
+      expect(requests[1]!.body).toEqual(originalRequest);
+    }
+  );
+
+  it('B10 source controls cover all variants and selected follow-ons, including zero optional facts only', async () => {
+    const draft = duplicateCapitalDraft(capitalDetail());
+    const source = sourceResponse();
+    draft.source = source;
+    const facts = source.projection.facts;
+    // Synthetic projection options exercise presentation; source-integrity admission uses
+    // the unchanged recorded projection in the separate actual-materializer test above.
+    function extendRows(path: string, length: number) {
+      const fact = facts.find((item) => item.path === path);
+      if (fact?.state !== 'array') throw new Error(`Missing source array ${path}`);
+      fact.length = length;
+    }
+    function copyRow(from: string, to: string, id: string) {
+      facts.push(
+        ...facts
+          .filter(({ path }) => path.startsWith(`${from}.`))
+          .map((fact) => ({
+            ...fact,
+            path: `${to}${fact.path.slice(from.length)}`,
+            ...(fact.path === `${from}.id` ? { rawValue: id } : {}),
+          }))
+      );
+    }
+    facts.push(
+      { path: 'capitalPlanAllocations[0].initialOwnershipPct', state: 'present', rawValue: 0 },
+      { path: 'capitalPlanAllocations[0].followOnAmount', state: 'present', rawValue: 0 },
+      { path: 'sectorProfiles', state: 'array', length: 1 },
+      { path: 'sectorProfiles[0].id', state: 'present', rawValue: 'sector1' },
+      { path: 'sectorProfiles[0].name', state: 'present', rawValue: 'Synthetic sector' },
+      { path: 'sectorProfiles[0].targetPercentage', state: 'present', rawValue: 100 },
+      { path: 'capitalPlanAllocations[0].sectorProfileId', state: 'present', rawValue: 'sector1' }
+    );
+    extendRows('capitalPlanAllocations', 3);
+    copyRow('capitalPlanAllocations[0]', 'capitalPlanAllocations[1]', 'a2');
+    copyRow('capitalPlanAllocations[0]', 'capitalPlanAllocations[2]', 'unused-allocation');
+    extendRows('pipelineProfiles', 2);
+    copyRow('pipelineProfiles[0]', 'pipelineProfiles[1]', 'p2');
+    extendRows('pipelineProfiles[0].stages', 3);
+    copyRow('pipelineProfiles[0].stages[0]', 'pipelineProfiles[0].stages[1]', 's1');
+    copyRow('pipelineProfiles[0].stages[0]', 'pipelineProfiles[0].stages[2]', 'unused-stage');
+    draft.variants.push({ ...structuredClone(draft.variants[0]!), variantId: crypto.randomUUID() });
+    draft.variants[1]!.input.allocations[0]!.allocationId = 'a2';
+    draft.variants[1]!.input.allocations[0]!.pipelineProfileId = 'p2';
+    draft.variants[0]!.input.allocations[0]!.followOnRounds.push({
+      ...emptyCapitalRound(),
+      stageId: 's1',
+    });
+    draft.declarations = {};
+    retainCapitalDraft(FUND, draft);
+    dispatch(({ url }) => (url.pathname.endsWith('/source-config') ? source : undefined));
+    renderModal();
+    await screen.findByLabelText('Scenario name', { exact: true });
+
+    for (const path of [
+      'capitalPlanAllocations[0].initialOwnershipPct',
+      'capitalPlanAllocations[0].followOnAmount',
+      'capitalPlanAllocations[1].initialOwnershipPct',
+      'capitalPlanAllocations[1].followOnAmount',
+      'pipelineProfiles[0].stages[1].roundSize',
+      'pipelineProfiles[1].stages[0].graduationRate',
+    ])
+      expect(screen.getByLabelText(`Source unit: ${path}`)).toHaveValue('');
+    const money = screen.getByLabelText('Source unit: capitalPlanAllocations[1].followOnAmount');
+    expect(
+      within(money)
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('value'))
+    ).toEqual(['', 'usd', 'usd_millions']);
+    const rate = screen.getByLabelText(
+      'Source unit: capitalPlanAllocations[1].initialOwnershipPct'
+    );
+    expect(
+      within(rate)
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('value'))
+    ).toEqual(['', 'ratio', 'percent_points']);
+    for (const path of [
+      'capitalPlanAllocations[2].capitalAllocationPct',
+      'pipelineProfiles[0].stages[2].roundSize',
+      'sectorProfiles[0].targetPercentage',
+      'allocations[0].percentage',
+      'pipelineProfiles[0].stages[0].exitRate',
+    ])
+      expect(screen.queryByLabelText(`Source unit: ${path}`)).not.toBeInTheDocument();
+  });
+
   it('UI-R3-003 direct modal fund changes preserve both raw draft stores when only the next source is cached', async () => {
     const nextFund = '202';
     const original = newCapitalDraft();
@@ -1561,8 +2022,16 @@ describe('B9 public guided review and raw drafts', () => {
       currentSourceConfigVersion: 17,
       currentSourceBundleHash: 'b'.repeat(64),
     };
-    dispatch(({ method, url }) =>
-      method === 'POST' && url.pathname.endsWith('/scenario-sets')
+    const replacement = sourceResponse();
+    // Synthetic published identity for refresh ownership; replacement is never calculated.
+    replacement.projection.sourceConfigId = details.currentSourceConfigId;
+    replacement.projection.sourceConfigVersion = details.currentSourceConfigVersion;
+    replacement.sourceBundleHash = details.currentSourceBundleHash;
+    let reads = 0;
+    dispatch(({ method, url }) => {
+      if (url.pathname.endsWith('/source-config'))
+        return ++reads === 1 ? sourceResponse() : replacement;
+      return method === 'POST' && url.pathname.endsWith('/scenario-sets')
         ? new Response(
             JSON.stringify({
               error: 'scenario_source_config_stale',
@@ -1571,8 +2040,8 @@ describe('B9 public guided review and raw drafts', () => {
             }),
             { status: 409 }
           )
-        : undefined
-    );
+        : undefined;
+    });
     const view = renderModal();
     await reviewDraft();
     step('Allocations');
@@ -1600,16 +2069,101 @@ describe('B9 public guided review and raw drafts', () => {
     expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1.000000');
     const before = calls.filter(({ url }) => url.pathname.endsWith('/source-config')).length;
     step('Source and budget');
-    step('Refresh source');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Refresh source' }));
     await waitFor(() =>
       expect(calls.filter(({ url }) => url.pathname.endsWith('/source-config'))).toHaveLength(
         before + 1
       )
     );
+    await screen.findByText(
+      'Source refreshed. Confirm source units again for the changed source. Your scenario entries are retained.'
+    );
+    expect(getCapitalDraft(FUND).source).toEqual(replacement);
+    expect(getCapitalDraft(FUND).declarations).toEqual({});
+    expect(getCapitalSaveIntent(FUND)).toBeNull();
+    step('Allocations');
+    expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1.000000');
     step('Review');
     expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();
     expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(1);
   });
+
+  it.each(['ambiguous save', 'confirmed source conflict'] as const)(
+    'B10 failed source refetch preserves cached draft and recovery state after %s',
+    async (outcome) => {
+      const details = {
+        suppliedSourceConfigId: bundle.projection.sourceConfigId,
+        suppliedSourceConfigVersion: bundle.projection.sourceConfigVersion,
+        suppliedSourceBundleHash: bundle.sourceBundleHash,
+        currentSourceConfigId: 912,
+        currentSourceConfigVersion: 17,
+        currentSourceBundleHash: 'b'.repeat(64),
+      };
+      let reads = 0;
+      let writes = 0;
+      dispatch(({ method, url }) => {
+        if (url.pathname.endsWith('/source-config') && ++reads > 1)
+          throw new TypeError('Refresh transport failed');
+        if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+        if (++writes === 1) {
+          if (outcome === 'ambiguous save') throw new TypeError('Save response was lost');
+          return new Response(
+            JSON.stringify({
+              error: 'scenario_source_config_stale',
+              message: 'Published source identity changed',
+              details,
+            }),
+            { status: 409 }
+          );
+        }
+        return {
+          contractVersion: 'fund-scenario-capital-create/1.0.0',
+          representation: REPRESENTATION,
+          scenarioSetId: SET,
+        };
+      });
+      const view = renderModal();
+      await reviewDraft();
+      step('Save capital scenario');
+      if (outcome === 'ambiguous save')
+        await screen.findByText('Save response was lost', { exact: false });
+      else await screen.findByRole('region', { name: 'Source conflict identities' });
+      const priorDraft = getCapitalDraft(FUND);
+      const priorIntent = getCapitalSaveIntent(FUND);
+      step('Source and budget');
+      step('Refresh source');
+      await waitFor(() =>
+        expect(
+          view.queryClient.getQueryState(keys.capitalScenarioSourceQueryKey(FUND))?.status
+        ).toBe('error')
+      );
+      expect(view.queryClient.getQueryData(keys.capitalScenarioSourceQueryKey(FUND))).toEqual(
+        priorDraft.source
+      );
+      expect(
+        await screen.findByText('Source could not be refreshed. Your draft is retained.')
+      ).toBeVisible();
+      expect(screen.queryByText(/Source refreshed/)).not.toBeInTheDocument();
+      expect(getCapitalDraft(FUND)).toBe(priorDraft);
+      expect(getCapitalSaveIntent(FUND)).toBe(priorIntent);
+      if (outcome === 'confirmed source conflict') {
+        expect(
+          screen.getByRole('region', { name: 'Source conflict identities' })
+        ).toHaveTextContent(details.currentSourceBundleHash);
+        expect(priorIntent).toBeNull();
+      } else {
+        expect(screen.getByRole('button', { name: 'Retry capital save' })).toBeEnabled();
+        step('Retry capital save');
+        await waitFor(() => expect(view.onSuccess).toHaveBeenCalledOnce());
+        const requests = calls.filter(({ method }) => method === 'POST');
+        expect(requests).toHaveLength(2);
+        expect(requests[1]!.body).toEqual(requests[0]!.body);
+        expect(requests[1]!.headers.get('Idempotency-Key')).toBe(
+          requests[0]!.headers.get('Idempotency-Key')
+        );
+      }
+    }
+  );
 
   it('UI-R3-003 duplicate Save activation sends once and source invalidation releases busy state without accepting the late response', async () => {
     let release!: (value: unknown) => void;
@@ -1688,6 +2242,16 @@ describe('B9 public guided review and raw drafts', () => {
     first.unmount();
     const second = renderModal(queryClient);
     await screen.findByLabelText('Scenario name');
+    step('Retry capital save');
+    await waitFor(() => expect(releases).toHaveLength(2));
+    const recoveryRequests = calls.filter(({ method }) => method === 'POST');
+    expect(recoveryRequests[1]!.body).toEqual(recoveryRequests[0]!.body);
+    expect(recoveryRequests[1]!.headers.get('Idempotency-Key')).toBe(
+      recoveryRequests[0]!.headers.get('Idempotency-Key')
+    );
+    await act(async () => releases[1]!(created));
+    await waitFor(() => expect(second.onSuccess).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen capital draft' }));
     step('Allocations');
     change('Initial check (USD)', '2');
     step('Review');
@@ -1696,20 +2260,155 @@ describe('B9 public guided review and raw drafts', () => {
       expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeEnabled()
     );
     step('Save capital scenario');
-    await waitFor(() => expect(releases).toHaveLength(2));
+    await waitFor(() => expect(releases).toHaveLength(3));
     const newIntent = getCapitalSaveIntent(FUND);
     expect(newIntent?.key).not.toBe(oldIntent?.key);
     await act(async () => releases[0]!(created));
     expect(first.onSuccess).not.toHaveBeenCalled();
-    expect(second.onSuccess).not.toHaveBeenCalled();
+    expect(second.onSuccess).toHaveBeenCalledOnce();
     expect(getCapitalSaveIntent(FUND)).toEqual(newIntent);
     expect(screen.getByRole('button', { name: 'Saving capital scenario' })).toBeDisabled();
     expect(getCapitalDraft(FUND).variants[0]!.input.allocations[0]!.initialCheckUsd).toBe('2');
-    await act(async () => releases[1]!(created));
-    await waitFor(() => expect(second.onSuccess).toHaveBeenCalledOnce());
+    await act(async () => releases[2]!(created));
+    await waitFor(() => expect(second.onSuccess).toHaveBeenCalledTimes(2));
     expect(first.onSuccess).not.toHaveBeenCalled();
     expect(getCapitalSaveIntent(FUND)).toBeNull();
   });
+
+  it('B10 first-attempt documented payload rejection preserves raw draft and unlocks a newly reviewed Save', async () => {
+    let attempts = 0;
+    dispatch(({ method, url }) => {
+      if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+      // Synthetic API rejection exercises response handling, not invalid UI payload creation.
+      if (++attempts === 1)
+        return new Response(
+          JSON.stringify({
+            error: 'invalid_scenario_set_v3_payload',
+            message: 'Synthetic first-attempt payload rejection',
+          }),
+          { status: 422 }
+        );
+      return {
+        contractVersion: 'fund-scenario-capital-create/1.0.0',
+        representation: REPRESENTATION,
+        scenarioSetId: SET,
+      };
+    });
+    const { onSuccess } = renderModal();
+    await fillDraft();
+    change('Initial check (USD)', '1.000000');
+    step('Review');
+    step('Review capital plan');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeEnabled()
+    );
+    const originalDraft = structuredClone(getCapitalDraft(FUND));
+    step('Save capital scenario');
+    await waitFor(() => expect(screen.getByLabelText('Scenario name')).toBeEnabled());
+    expect(getCapitalDraft(FUND)).toEqual(originalDraft);
+    expect(getCapitalSaveIntent(FUND)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review capital plan' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'New empty draft' })).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent(/review again before saving/i);
+    change('Scenario name', 'Corrected after documented rejection');
+    step('Allocations');
+    expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1.000000');
+    step('Review');
+    step('Review capital plan');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeEnabled()
+    );
+    step('Save capital scenario');
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
+    const writes = calls.filter(({ method }) => method === 'POST');
+    expect(writes).toHaveLength(2);
+    expect(CreateFundScenarioSetV3Schema.safeParse(writes[0]!.body).success).toBe(true);
+    expect(writes[1]!.body.name).toBe('Corrected after documented rejection');
+    expect(writes[1]!.headers.get('Idempotency-Key')).not.toBe(
+      writes[0]!.headers.get('Idempotency-Key')
+    );
+  });
+
+  it('B10 documented payload rejection during recovery keeps the original request locked until recovery succeeds', async () => {
+    let attempts = 0;
+    dispatch(({ method, url }) => {
+      if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+      if (++attempts === 1) throw new TypeError('Synthetic initial response lost');
+      // A rejection before lookup cannot disprove commitment of the prior ambiguous request.
+      if (attempts === 2)
+        return new Response(
+          JSON.stringify({
+            error: 'invalid_scenario_set_v3_payload',
+            message: 'Synthetic recovery payload rejection',
+          }),
+          { status: 422 }
+        );
+      return {
+        contractVersion: 'fund-scenario-capital-create/1.0.0',
+        representation: REPRESENTATION,
+        scenarioSetId: SET,
+      };
+    });
+    const queryClient = client();
+    const first = renderModal(queryClient);
+    await reviewDraft();
+    step('Save capital scenario');
+    await screen.findByText('Synthetic initial response lost', { exact: false });
+    const originalIntent = getCapitalSaveIntent(FUND);
+    const originalDraft = getCapitalDraft(FUND);
+    first.unmount();
+    const second = renderModal(queryClient);
+    await screen.findByLabelText('Scenario name');
+    step('Retry capital save');
+    await screen.findByText('Synthetic recovery payload rejection', { exact: false });
+    expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+    expect(getCapitalDraft(FUND)).toBe(originalDraft);
+    expect(screen.getByLabelText('Scenario name')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review capital plan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'New empty draft' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retry capital save' })).toBeEnabled();
+    step('Retry capital save');
+    await waitFor(() => expect(second.onSuccess).toHaveBeenCalledOnce());
+    expect(getCapitalSaveIntent(FUND)).toBeNull();
+    const writes = calls.filter(({ method }) => method === 'POST');
+    expect(writes).toHaveLength(3);
+    for (const retry of writes.slice(1)) {
+      expect(retry.body).toEqual(writes[0]!.body);
+      expect(retry.headers.get('Idempotency-Key')).toBe(writes[0]!.headers.get('Idempotency-Key'));
+    }
+  });
+
+  it.each([
+    { status: 400, code: 'invalid_scenario_set_v3_payload' },
+    { status: 422, code: 'unknown_payload_rejection' },
+    { status: 422, code: 'scenario_source_config_stale' },
+  ])(
+    'B10 unclassified first-attempt rejection $status/$code preserves the pending command',
+    async ({ status, code }) => {
+      dispatch(({ method, url }) =>
+        method === 'POST' && url.pathname.endsWith('/scenario-sets')
+          ? new Response(
+              JSON.stringify({ error: code, message: 'Synthetic unclassified rejection' }),
+              { status }
+            )
+          : undefined
+      );
+      renderModal();
+      await reviewDraft();
+      const originalDraft = getCapitalDraft(FUND);
+      step('Save capital scenario');
+      const originalIntent = getCapitalSaveIntent(FUND);
+      await screen.findByText('Synthetic unclassified rejection', { exact: false });
+      expect(originalIntent).not.toBeNull();
+      expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+      expect(getCapitalDraft(FUND)).toBe(originalDraft);
+      expect(screen.getByLabelText('Scenario name')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Review capital plan' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Retry capital save' })).toBeEnabled();
+      expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(1);
+    }
+  );
 
   it('UI-R3-003 failed save retains draft and retries identical reviewed V3 bytes and idempotency key', async () => {
     let attempts = 0;
@@ -1776,30 +2475,59 @@ describe('B9 public guided review and raw drafts', () => {
     );
   });
 
-  it('UI-R3-003 an edit after ambiguous Save requires fresh Review and a different create intent', async () => {
-    dispatch(({ method, url }) =>
-      method === 'POST' && url.pathname.endsWith('/scenario-sets')
-        ? Promise.reject(new TypeError('Response lost'))
-        : undefined
-    );
-    renderModal();
+  it('UI-R3-003 edits and New empty draft cannot discard an ambiguous Save before recovery', async () => {
+    let writes = 0;
+    dispatch(({ method, url }) => {
+      if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+      if (++writes === 1) throw new TypeError('Response lost');
+      return {
+        contractVersion: 'fund-scenario-capital-create/1.0.0',
+        representation: REPRESENTATION,
+        scenarioSetId: SET,
+      };
+    });
+    const view = renderModal();
     await reviewDraft();
     step('Save capital scenario');
     await screen.findByText('Response lost', { exact: false });
+    const originalIntent = getCapitalSaveIntent(FUND);
+    const originalDraft = getCapitalDraft(FUND);
+    step('Allocations');
+    change('Initial check (USD)', '2');
+    change('Seed benchmark', 'seed');
+    step('Add variant');
+    step('New empty draft');
+    expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1');
+    expect(screen.getByLabelText('Initial check (USD)')).toBeDisabled();
+    expect(screen.getByLabelText('Seed benchmark')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add variant' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'New empty draft' })).toBeDisabled();
+    expect(getCapitalDraft(FUND)).toBe(originalDraft);
+    expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+    step('Review');
+    expect(screen.getByRole('button', { name: 'Review capital plan' })).toBeDisabled();
+    step('Retry capital save');
+    await waitFor(() => expect(view.onSuccess).toHaveBeenCalledOnce());
+    const recovered = calls.filter(({ method }) => method === 'POST');
+    expect(recovered).toHaveLength(2);
+    expect(recovered[1]!.body).toEqual(recovered[0]!.body);
+    expect(recovered[1]!.headers.get('Idempotency-Key')).toBe(
+      recovered[0]!.headers.get('Idempotency-Key')
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen capital draft' }));
     step('Allocations');
     change('Initial check (USD)', '2');
     step('Review');
-    expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();
     step('Review capital plan');
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeEnabled()
     );
     step('Save capital scenario');
-    await waitFor(() => expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(2));
-    const writes = calls.filter(({ method }) => method === 'POST');
-    expect(writes[1]!.body).not.toEqual(writes[0]!.body);
-    expect(writes[1]!.headers.get('Idempotency-Key')).not.toBe(
-      writes[0]!.headers.get('Idempotency-Key')
+    await waitFor(() => expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(3));
+    const requests = calls.filter(({ method }) => method === 'POST');
+    expect(requests[2]!.body).not.toEqual(requests[0]!.body);
+    expect(requests[2]!.headers.get('Idempotency-Key')).not.toBe(
+      requests[0]!.headers.get('Idempotency-Key')
     );
   });
 
@@ -1896,8 +2624,79 @@ describe('B9 public guided review and raw drafts', () => {
     expect(new Set(request.variants.map(({ variantId }) => variantId)).size).toBe(2);
   });
 
-  it('UI-R3-003 Duplicate draft copies a saved capital scenario into independent raw inputs without writing', async () => {
-    dispatch();
+  it('B10 closing then Duplicate reopens the original ambiguous save for recovery', async () => {
+    let writes = 0;
+    dispatch(({ method, url }) => {
+      if (method !== 'POST' || !url.pathname.endsWith('/scenario-sets')) return undefined;
+      if (++writes === 1) throw new TypeError('Duplicate recovery response lost');
+      return {
+        contractVersion: 'fund-scenario-capital-create/1.0.0',
+        representation: REPRESENTATION,
+        scenarioSetId: SET,
+      };
+    });
+    renderWorkspace();
+    const duplicate = await screen.findByRole('button', {
+      name: 'Duplicate to draft',
+      exact: true,
+    });
+    await waitFor(() => expect(duplicate).toBeEnabled());
+    fireEvent.click(duplicate);
+    await reviewDraft();
+    step('Save capital scenario');
+    await screen.findByText('Duplicate recovery response lost', { exact: false });
+    const originalDraft = getCapitalDraft(FUND);
+    const originalIntent = getCapitalSaveIntent(FUND);
+    step('Close and keep draft');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate to draft', exact: true }));
+    await screen.findByLabelText('Scenario name');
+    expect(getCapitalSaveIntent(FUND)).toBe(originalIntent);
+    expect(getCapitalDraft(FUND)).toBe(originalDraft);
+    expect(screen.getByLabelText('Scenario name')).toHaveValue('Independent component plan');
+    expect(screen.getByLabelText('Scenario name')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review capital plan' })).toBeDisabled();
+    step('Retry capital save');
+    await waitFor(() => expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(2));
+    const requests = calls.filter(({ method }) => method === 'POST');
+    expect(requests[1]!.body).toEqual(requests[0]!.body);
+    expect(requests[1]!.headers.get('Idempotency-Key')).toBe(
+      requests[0]!.headers.get('Idempotency-Key')
+    );
+  });
+
+  it('B10 UI-R3-003 Duplicate draft copies raw inputs but requires unit confirmation against the current reordered source', async () => {
+    const raw = makeCapitalRawConfig();
+    raw.capitalPlanAllocations!.unshift({ ...raw.capitalPlanAllocations![0]!, id: 'a2' });
+    raw.pipelineProfiles![0]!.stages.unshift({
+      ...raw.pipelineProfiles![0]!.stages[0]!,
+      id: 's1',
+    });
+    raw.pipelineProfiles!.unshift({ ...structuredClone(raw.pipelineProfiles![0]!), id: 'p2' });
+    const currentSource = FundScenarioCapitalSourceResponseV1Schema.parse({
+      contractVersion: 'fund-scenario-capital-source/1.0.0',
+      representation: REPRESENTATION,
+      ...inspectCapitalSourcePreview(
+        {
+          fund: { id: Number(FUND), size: '100.00', baseCurrency: 'USD' },
+          config: {
+            id: bundle.projection.sourceConfigId,
+            version: bundle.projection.sourceConfigVersion + 1,
+            raw,
+            publishedAt: TIME,
+          },
+        },
+        sha256CanonicalJson
+      ),
+      publishedAt: TIME,
+      interpretationVersion: bundle.interpretationVersion,
+      interpretationCompatibility: readState.interpretationCompatibility,
+    });
+    dispatch(({ url }) =>
+      url.pathname.endsWith('/source-config') && url.searchParams.has('representation')
+        ? currentSource
+        : undefined
+    );
     renderWorkspace();
     const duplicate = await screen.findByRole('button', {
       name: 'Duplicate to draft',
@@ -1907,13 +2706,21 @@ describe('B9 public guided review and raw drafts', () => {
     fireEvent.click(duplicate);
     await screen.findByLabelText('Scenario name');
     expect(screen.getByLabelText('Scenario name')).toHaveValue(capitalDetail().name);
+    const fundUnits = await screen.findByLabelText('Source unit: funds.size');
+    expect(fundUnits).toHaveValue('');
+    expect(
+      screen.getByLabelText('Source unit: capitalPlanAllocations[1].initialCheckAmount')
+    ).toHaveValue('');
+    expect(
+      screen.getByLabelText('Source unit: pipelineProfiles[1].stages[1].roundSize')
+    ).toHaveValue('');
     step('Allocations');
     expect(screen.getByLabelText('Initial check (USD)')).toHaveValue(
       saved.result.input.allocations[0]!.initialCheckUsd
     );
     const copy = getCapitalDraft(FUND);
     expect(copy.variants[0]!.variantId).not.toBe(saved.variantId);
-    expect(copy.declarations).toEqual(bundle.unitDeclarations);
+    expect(copy.declarations).toEqual({});
     change('Initial check (USD)', '2.');
     expect(saved.result.input.allocations[0]!.initialCheckUsd).toBe('1.000000');
     expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();

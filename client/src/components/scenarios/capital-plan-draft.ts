@@ -145,7 +145,8 @@ export function duplicateCapitalDraft(
     name: detail.name,
     description: detail.description ?? '',
     source: null,
-    declarations: { ...detail.variants[0]!.override.payload.sourceBundle.unitDeclarations },
+    // The current source is loaded separately; saved array-index units require fresh consent.
+    declarations: {},
     variants: detail.variants.map((variant) => ({
       variantId: crypto.randomUUID(),
       name: variant.name,
@@ -223,12 +224,76 @@ function normalizeRaw(value: unknown, path: string, issues: CapitalIssueV1[], ke
   return value;
 }
 
+/** Describe explicit source-unit choices without interpreting partial numeric draft entries. */
+export function capitalDraftSourceDeclarations(
+  draft: CapitalPlanDraft
+): FundScenarioCapitalSourceResponseV1['remainingDeclarations'] {
+  if (!draft.source) return [];
+  const { facts } = draft.source.projection;
+  const declarations = new Map(
+    draft.source.remainingDeclarations.map((declaration) => [declaration.path, declaration])
+  );
+  const present = new Set(facts.filter((fact) => fact.state === 'present').map(({ path }) => path));
+  const money = ['usd', 'usd_millions'] as const;
+  const rate = ['ratio', 'percent_points'] as const;
+  function selectedPath(prefix: string, id: string): string | undefined {
+    if (!id) return undefined;
+    const matches = facts.filter(
+      (fact) =>
+        fact.state === 'present' &&
+        fact.rawValue === id &&
+        fact.path.startsWith(prefix) &&
+        /^\[\d+\]\.id$/.test(fact.path.slice(prefix.length))
+    );
+    return matches.length === 1 ? matches[0]!.path.replace(/\.id$/, '') : undefined;
+  }
+  function addFields(
+    prefix: string | undefined,
+    fields: Record<string, typeof money | typeof rate>
+  ) {
+    if (!prefix) return;
+    for (const [field, allowedUnits] of Object.entries(fields)) {
+      const path = `${prefix}.${field}`;
+      if (present.has(path)) declarations.set(path, { path, allowedUnits: [...allowedUnits] });
+    }
+  }
+  for (const variant of draft.variants) {
+    for (const allocation of variant.input.allocations) {
+      addFields(selectedPath('capitalPlanAllocations', allocation.allocationId), {
+        capitalAllocationPct: rate,
+        initialCheckAmount: money,
+        initialOwnershipPct: rate,
+        followOnAmount: money,
+        followOnParticipationPct: rate,
+      });
+      const profile = selectedPath('pipelineProfiles', allocation.pipelineProfileId);
+      if (!profile) continue;
+      for (const stageId of [
+        allocation.entryStageId,
+        ...allocation.followOnRounds.map((round) => round.stageId),
+      ]) {
+        addFields(selectedPath(`${profile}.stages`, stageId), {
+          roundSize: money,
+          valuation: money,
+          exitValuation: money,
+          esopPct: rate,
+          graduationRate: rate,
+        });
+      }
+    }
+  }
+  return [...declarations.values()];
+}
+
 export function capitalDraftRequest(
   draft: CapitalPlanDraft
 ): { ok: true; request: CreateFundScenarioSetV3 } | { ok: false; issues: CapitalIssueV1[] } {
   if (!draft.source)
     return { ok: false, issues: [invalid('source', 'Load and review the published source.')] };
   const issues: CapitalIssueV1[] = [];
+  const activeDeclarationPaths = new Set(
+    capitalDraftSourceDeclarations(draft).map(({ path }) => path)
+  );
   const request = {
     contractVersion: 'fund-scenario-set-create/3.0.0',
     name: draft.name,
@@ -238,7 +303,9 @@ export function capitalDraftRequest(
     expectedSourceConfigVersion: draft.source.projection.sourceConfigVersion,
     expectedSourceBundleHash: draft.source.sourceBundleHash,
     expectedInterpretationVersion: draft.source.interpretationVersion,
-    unitDeclarations: draft.declarations,
+    unitDeclarations: Object.fromEntries(
+      Object.entries(draft.declarations).filter(([path]) => activeDeclarationPaths.has(path))
+    ),
     variants: draft.variants.map((variant, index) => ({
       variantId: variant.variantId,
       name: variant.name,

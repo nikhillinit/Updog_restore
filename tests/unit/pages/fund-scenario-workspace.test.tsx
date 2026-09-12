@@ -61,7 +61,7 @@ describe('FundScenarioWorkspacePage', () => {
       ...render(
         <QueryClientProvider client={queryClient}>
           <Wrapper>
-            <FundScenarioWorkspacePage />
+            <FundScenarioWorkspacePage capitalPlanEnabled={false} />
           </Wrapper>
         </QueryClientProvider>
       ),

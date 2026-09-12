@@ -23,7 +23,7 @@ import { CapitalScenarioCard } from '@/components/scenarios/CapitalScenarioCard'
 import {
   duplicateCapitalDraft,
   retainCapitalDraft,
-  retainCapitalSaveIntent,
+  getCapitalSaveIntent,
 } from '@/components/scenarios/capital-plan-draft';
 import { capitalScenarioListQueryKey } from '@/lib/fund-scenario-workspace-query-keys';
 import { fetchCapitalScenarioList } from '@/lib/fund-scenario-workspace-api';
@@ -605,7 +605,7 @@ function ScenarioComparisonWorkspace({
 }
 
 export function FundScenarioWorkspacePage({
-  capitalPlanEnabled = false,
+  capitalPlanEnabled = true,
 }: { capitalPlanEnabled?: boolean } = {}) {
   const fundId = useWorkspaceFundId();
   const queryClient = useQueryClient();
@@ -957,8 +957,8 @@ export function FundScenarioWorkspacePage({
                     fundId={fundId}
                     summary={item.summary}
                     onDuplicate={(detail) => {
-                      retainCapitalDraft(fundId, duplicateCapitalDraft(detail));
-                      retainCapitalSaveIntent(fundId, null);
+                      if (!getCapitalSaveIntent(fundId))
+                        retainCapitalDraft(fundId, duplicateCapitalDraft(detail));
                       setCapitalDraftRevision((value) => value + 1);
                       setIsCreateCapitalOpen(true);
                     }}

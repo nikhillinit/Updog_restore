@@ -82,6 +82,7 @@ export default defineConfig({
         '**/navigation-and-routing.spec.ts',
         '**/fund-setup-workflow.spec.ts',
         '**/fund-setup.spec.ts',
+        '**/e2e/fund-scenario-capital-planning.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['smoke'],
