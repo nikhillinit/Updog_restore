@@ -244,7 +244,7 @@ describe('OverviewTab', () => {
     fireEvent.change(screen.getByLabelText(/company name/i), {
       target: { value: 'Northwind AI' },
     });
-    await user.click(screen.getByLabelText(/sector/i));
+    await user.click(screen.getByLabelText(/^sector/i));
     await user.click(screen.getByRole('option', { name: 'AI / ML' }));
     fireEvent.change(screen.getByLabelText(/initial investment/i), {
       target: { value: '1,500,000' },

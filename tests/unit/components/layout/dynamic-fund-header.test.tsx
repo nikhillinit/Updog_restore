@@ -150,7 +150,7 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Deployed').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('N/A');
-    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI estimate').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Active').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Remaining').parentElement).toHaveTextContent('N/A');
     expect(screen.getAllByText('Metrics unavailable').length).toBeGreaterThanOrEqual(1);
@@ -168,7 +168,7 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Deployed').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('N/A');
-    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI estimate').parentElement).toHaveTextContent('N/A');
     expect(screen.getAllByText('Metrics loading').length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('$12M')).not.toBeInTheDocument();
     expect(screen.queryByText('$46M')).not.toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Deployed').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Total Invested').parentElement).toHaveTextContent('N/A');
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('N/A');
-    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI estimate').parentElement).toHaveTextContent('N/A');
     expect(screen.getAllByText('Metrics unavailable').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Metrics source unavailable')).toBeInTheDocument();
     expect(screen.queryByText('$12M')).not.toBeInTheDocument();
@@ -203,9 +203,9 @@ describe('DynamicFundHeader', () => {
     expect(metricLabel('Current Value').parentElement).toHaveTextContent('$46M');
     expect(screen.getByText('$46M')).toHaveClass('tabular-nums');
     expect(metricLabel('Remaining').parentElement).toHaveTextContent('$38M');
-    expect(metricLabel('Net IRR').parentElement).toHaveTextContent('—');
-    expect(metricLabel('TVPI').parentElement).toHaveTextContent('2.30x');
-    expect(metricLabel('DPI').parentElement).toHaveTextContent('—');
+    expect(metricLabel('IRR estimate').parentElement).toHaveTextContent('—');
+    expect(metricLabel('TVPI estimate').parentElement).toHaveTextContent('2.30x');
+    expect(metricLabel('DPI estimate').parentElement).toHaveTextContent('—');
     expect(metricLabel('Active').parentElement).toHaveTextContent('3');
     expect(screen.queryByText('Avg Check')).not.toBeInTheDocument();
     expect(screen.getByText('24% Deployed')).toBeInTheDocument();
@@ -302,8 +302,8 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    expect(metricLabel('Net IRR').parentElement).toHaveTextContent('18.3%');
-    expect(metricLabel('DPI').parentElement).toHaveTextContent('0.42x');
+    expect(metricLabel('IRR estimate').parentElement).toHaveTextContent('18.3%');
+    expect(metricLabel('DPI estimate').parentElement).toHaveTextContent('0.42x');
   });
 
   it('does not render TVPI as 0.00x when paid-in capital is unavailable', () => {
@@ -319,7 +319,7 @@ describe('DynamicFundHeader', () => {
 
     render(<DynamicFundHeader />);
 
-    expect(metricLabel('TVPI').parentElement).toHaveTextContent('N/A');
+    expect(metricLabel('TVPI estimate').parentElement).toHaveTextContent('N/A');
     expect(screen.queryByText('0.00x')).not.toBeInTheDocument();
   });
 
@@ -450,7 +450,7 @@ describe('DynamicFundHeader', () => {
       expect.stringContaining('NAV'),
       expect.stringContaining('TVPI'),
       expect.stringContaining('DPI'),
-      expect.stringContaining('Net IRR'),
+      expect.stringContaining('IRR estimate'),
     ]);
     expect(screen.getByTestId('compact-kpi-deployed')).toHaveTextContent('24.0%');
     expect(screen.getByTestId('compact-kpi-remaining')).toHaveTextContent('$38.0M');

@@ -91,7 +91,7 @@ function MetricCard({
   const trendConfig = {
     up: { symbol: '^', color: 'text-presson-positive' },
     down: { symbol: 'v', color: 'text-presson-negative' },
-    stable: { symbol: '>', color: 'text-charcoal-500' },
+    stable: { symbol: '>', color: 'text-presson-textMuted' },
   };
 
   const config = severityConfig[metric.severity];
@@ -140,11 +140,11 @@ function MetricCard({
 
         {/* Content */}
         <div className="space-y-1 flex-grow">
-          <p className={cn('font-poppins text-xs', config.text, 'opacity-70')}>{metric.title}</p>
+          <p className={cn('font-poppins text-xs', config.text)}>{metric.title}</p>
           <p className={cn('font-inter font-bold text-2xl', config.text, compactMode && 'text-xl')}>
             {metric.value}
           </p>
-          <p className={cn('font-mono text-xs', config.text, 'opacity-60')}>{metric.subtitle}</p>
+          <p className={cn('font-mono text-xs', config.text)}>{metric.subtitle}</p>
         </div>
 
         {/* Active indicator */}

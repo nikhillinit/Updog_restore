@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MetricAvailabilityDetail } from '@shared/types/metrics';
 import {
   formatCompactKpiDisplayValue,
+  formatLastUpdated,
   formatPerformanceMetric,
   formatUnavailableMetric,
 } from '@/lib/fund-header-metric-formatters';
@@ -26,6 +27,13 @@ const unavailableCashflows: MetricAvailabilityDetail = {
 };
 
 describe('fund header metric formatters', () => {
+  it('never invents a computation timestamp and preserves its calendar date', () => {
+    expect(formatLastUpdated(undefined)).toBe('Unavailable');
+    expect(formatLastUpdated('invalid')).toBe('Unavailable');
+    expect(formatLastUpdated('2026-04-04T12:00:00Z')).toBe(
+      new Date('2026-04-04T12:00:00Z').toLocaleString()
+    );
+  });
   describe('formatUnavailableMetric', () => {
     it('uses N/A when no availability detail exists', () => {
       expect(formatUnavailableMetric(undefined)).toBe('N/A');

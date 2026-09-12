@@ -515,7 +515,7 @@
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
-    "client/src/app/app-router.tsx": "365f5db9d9c824a7531351047ace1c56c70656b97e635498c90ea67c880dcf11",
+    "client/src/app/app-router.tsx": "d9c3cb332577c53b0fda8429cbe53f08f20d89f3eb3a638c0ada6e452a4e4c70",
     "client/src/main.tsx": "2be1496402b1cb8550e760c0703a1e01893e713fcc50e6401b0c731204435071",
     "client/src/pages/v2/cash.tsx": "af0441819b330da326f652d90e48d64bf0e865ff822873f08212c126e094dd78",
     "client/src/pages/v2/company.tsx": "9308f0355f0ef5949b86acf25b52ece84bef06a73768250cb18fa9c345c2efe4",

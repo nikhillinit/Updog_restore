@@ -308,7 +308,7 @@ function makeDualForecast() {
     ],
     sources: {
       construction: 'construction_forecast_jcurve',
-      current: 'projected_metrics_calculator',
+      current: 'current_forecast_v2',
       actual: 'actual_metrics_calculator',
     },
     config: {
@@ -320,6 +320,20 @@ function makeDualForecast() {
     actualsFacts: null,
     navAnchoring: null,
     currentProjection: { status: 'projected', fallbackReason: null },
+    currentForecastV2: {
+      status: 'live',
+      engineStatus: 'available',
+      asOfDate: '2026-03-31',
+      currentPlanVersionId: '21',
+      financialFactsSnapshotId: '31',
+      inputHash: 'a'.repeat(64),
+      resultHash: 'b'.repeat(64),
+      assumptionsHash: 'c'.repeat(64),
+      engineVersion: 'current-forecast-v2-engine/1.0.0',
+      methodologyVersion: 'cohort-projection-v2/1.0.0',
+      unavailableReasons: [],
+      held: null,
+    },
     warnings: [],
   };
 }
@@ -568,17 +582,14 @@ describe('DualForecastDashboard', () => {
 
     renderWithQueryClient();
 
-    expect(await screen.findByText('Dashboard IRR')).toBeInTheDocument();
+    expect(await screen.findByText('Current AUM')).toBeInTheDocument();
+    expect(screen.queryByText('Dashboard IRR')).toBeNull();
+    expect(screen.queryByText('Deployment')).toBeNull();
     expect(
       screen.getByText(/fund_metrics\.totalvalue · fund 42 · as of 2026-04-01/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/fund_metrics\.irr · fund 42 · as of 2026-04-01/i)).toBeInTheDocument();
-    expect(screen.getByText(/not authoritative IRR\/XIRR/i)).toBeInTheDocument();
     expect(
       screen.getByText(/storage\.getPortfolioCompanies\.count · fund 42 · timestamp unavailable/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/funds\.deployed_capital \/ funds\.size · fund 42 · timestamp unavailable/i)
     ).toBeInTheDocument();
 
     // CP2 (D4): the Portfolio Allocation surfaces stopped claiming "actuals" —
@@ -680,7 +691,7 @@ describe('DualForecastDashboard', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the degraded-projection notice with the server reason', async () => {
+  it('blocks fallback projections while preserving their server evidence in attribution', async () => {
     setActiveFundContext();
     const payload = {
       ...makePopulatedDualForecast(),
@@ -693,11 +704,28 @@ describe('DualForecastDashboard', () => {
 
     renderWithQueryClient();
 
+    expect(await screen.findByText('Forecast comparison unavailable')).toBeInTheDocument();
     expect(
-      await screen.findByText('Current-forecast quarters are using default projections')
+      screen.getByText(/Default projections cannot be used for fund comparison/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/reason: projection engine timeout/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Forecast drift summary')).toBeNull();
   });
+
+  it.each(['unavailable', 'failed'])(
+    'does not chart a %s current engine result',
+    async (engineStatus) => {
+      setActiveFundContext();
+      const payload = makeDualForecast();
+      payload.currentForecastV2.engineStatus = engineStatus;
+      stubFetch({ forecast: { body: payload } });
+      renderWithQueryClient();
+      expect(await screen.findByText('Forecast comparison unavailable')).toBeInTheDocument();
+      expect(
+        screen.getByText(/could not be calculated from the available inputs/)
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText('Forecast drift summary')).toBeNull();
+    }
+  );
 
   it('shows the held-forecast notice with the incident reason and age (Task 13.2)', async () => {
     setActiveFundContext();
@@ -782,10 +810,7 @@ describe('DualForecastDashboard', () => {
 
     renderWithQueryClient();
 
-    expect(
-      await screen.findByText('Current-forecast quarters are using default projections')
-    ).toBeInTheDocument();
-    expect(screen.getByText(/no further detail was reported/i)).toBeInTheDocument();
+    expect(await screen.findByText('Forecast comparison unavailable')).toBeInTheDocument();
     expect(screen.queryByText(/reason: null/i)).toBeNull();
   });
 

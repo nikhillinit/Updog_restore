@@ -1,5 +1,5 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 interface KpiCardProps {
   label: string;
@@ -15,12 +15,12 @@ export const KpiCard = React.forwardRef<HTMLDivElement, KpiCardProps>(
     const getDeltaStyles = () => {
       switch (intent) {
         case 'positive':
-          return 'text-success';
+          return 'text-presson-positive';
         case 'negative':
-          return 'text-error';
+          return 'text-error-dark';
         case 'neutral':
         default:
-          return 'text-charcoal/60';
+          return 'text-presson-textMuted';
       }
     };
 
@@ -28,29 +28,22 @@ export const KpiCard = React.forwardRef<HTMLDivElement, KpiCardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-lg bg-white border border-lightGray shadow-card font-poppins p-6",
-          "transition-all duration-200 hover:shadow-elevated",
+          'rounded-lg bg-white border border-lightGray shadow-card font-poppins p-6',
+          'transition-all duration-200 hover:shadow-elevated',
           className
         )}
       >
         <div className="flex flex-col space-y-2">
           {/* Label */}
-          <p className="text-sm font-medium text-charcoal/70">
-            {label}
-          </p>
+          <p className="text-sm font-medium text-charcoal/70">{label}</p>
 
           {/* Value */}
-          <p className="text-2xl font-bold text-charcoal tabular-nums">
-            {value}
-          </p>
+          <p className="text-2xl font-bold text-charcoal tabular-nums">{value}</p>
 
           {/* Delta (optional) */}
           {delta && (
             <div className="flex items-center">
-              <span className={cn(
-                "text-sm font-medium tabular-nums",
-                getDeltaStyles()
-              )}>
+              <span className={cn('text-sm font-medium tabular-nums', getDeltaStyles())}>
                 {delta}
               </span>
             </div>
@@ -61,4 +54,4 @@ export const KpiCard = React.forwardRef<HTMLDivElement, KpiCardProps>(
   }
 );
 
-KpiCard.displayName = "KpiCard";
+KpiCard.displayName = 'KpiCard';

@@ -11,7 +11,7 @@ import { Bar } from 'recharts/es6/cartesian/Bar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, DollarSign, Target, PieChart } from 'lucide-react';
+import { DollarSign, PieChart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import type { DashboardKpiEvidence, DashboardSummary } from '@/types/fund';
@@ -28,6 +28,7 @@ import {
   formatSignedMillion,
   formatSignedPercent,
   getLatestForecastDrift,
+  getForecastUnavailableReason,
   SUMMARY_UNAVAILABLE_NOTICE_COPY,
   type ForecastChartPoint,
   type ForecastMetricDrift,
@@ -376,7 +377,9 @@ export default function DualForecastDashboard() {
   const currentMetrics = dashboardData?.metrics;
   const baseValue =
     currentMetrics?.totalValue != null ? parseNumericValue(currentMetrics.totalValue) : null;
-  const currentIRR = currentMetrics?.irr != null ? parseNumericValue(currentMetrics.irr) : null;
+  const forecastUnavailableReason = dualForecast
+    ? getForecastUnavailableReason(dualForecast)
+    : null;
   const latestDrift = getLatestForecastDrift(forecastData);
   const navAnchoring = dualForecast?.navAnchoring ?? null;
   const noFactsCount = countNoFactsRows(attributionRows);
@@ -406,7 +409,7 @@ export default function DualForecastDashboard() {
           <p className="mt-1 text-xs text-charcoal-600">{SUMMARY_UNAVAILABLE_NOTICE_COPY.body}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -426,41 +429,11 @@ export default function DualForecastDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Dashboard IRR</p>
-                  <p className="text-2xl font-bold">
-                    {currentIRR === null ? 'Unavailable' : `${(currentIRR * 100).toFixed(1)}%`}
-                  </p>
-                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.irr} />
-                </div>
-                <TrendingUp className="h-8 w-8 text-charcoal-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
                   <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
                   <KpiEvidenceLine evidence={dashboardData.evidence.kpis.portfolioCompanies} />
                 </div>
                 <PieChart className="h-8 w-8 text-charcoal-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Deployment</p>
-                  <p className="text-2xl font-bold">
-                    {dashboardData.summary.deploymentRate.toFixed(0)}%
-                  </p>
-                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.deployment} />
-                </div>
-                <Target className="h-8 w-8 text-charcoal-600" />
               </div>
             </CardContent>
           </Card>
@@ -477,6 +450,15 @@ export default function DualForecastDashboard() {
                 <p className="text-error-dark font-medium">Unable to load forecast data</p>
                 <p className="text-muted-foreground mt-2">Please check API connectivity</p>
               </div>
+            </CardContent>
+          </Card>
+        ) : forecastUnavailableReason ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Forecast comparison unavailable</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p role="status">{forecastUnavailableReason}</p>
             </CardContent>
           </Card>
         ) : (
@@ -602,7 +584,7 @@ export default function DualForecastDashboard() {
       ) : null}
 
       {/* Deployment Timeline */}
-      {!forecastFailed && dualForecast ? (
+      {!forecastFailed && dualForecast && !forecastUnavailableReason ? (
         <Card>
           <CardHeader>
             <CardTitle>Capital Deployment Forecast</CardTitle>

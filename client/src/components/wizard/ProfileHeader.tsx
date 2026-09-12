@@ -30,7 +30,7 @@ export function ProfileHeader({
   profileName,
   isDefault,
   stageCount,
-  lastEdited = 'just now',
+  lastEdited,
   onRename,
   onDuplicate,
   onDelete,
@@ -49,8 +49,8 @@ export function ProfileHeader({
           )}
         </div>
         <p className="text-sm text-charcoal-500 font-poppins">
-          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited{' '}
-          {lastEdited}
+          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined
+          {lastEdited ? ` - Last edited ${lastEdited}` : ''}
         </p>
       </div>
 
