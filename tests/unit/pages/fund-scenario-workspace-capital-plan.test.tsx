@@ -29,6 +29,10 @@ import {
   retainCapitalSaveIntent,
 } from '../../../client/src/components/scenarios/capital-plan-draft';
 import {
+  CAPITAL_BENCHMARK_CATALOG_VERSION,
+  getCapitalBenchmarkPresetV1,
+} from '../../../shared/lib/capital-planning/benchmark-presets';
+import {
   inspectCapitalSourcePreview,
   materializeCapitalProjectionPreview,
 } from '../../../shared/lib/capital-planning/source-materialization-core';
@@ -1307,6 +1311,26 @@ describe('B9 public guided review and raw drafts', () => {
         expect.objectContaining({ code: 'UNIT_PROVENANCE_UNRESOLVED', path })
       );
     }
+  });
+
+  it('duplicates saved benchmark intent by rebuilding selectors and clearing materialized financing', () => {
+    const detail = capitalDetail();
+    const selection = { version: CAPITAL_BENCHMARK_CATALOG_VERSION, stage: 'seed' } as const;
+    const preset = getCapitalBenchmarkPresetV1(selection);
+    detail.variants[0]!.override.payload.benchmarkSnapshots = [
+      {
+        target: { kind: 'entry', allocationId: 'a1' },
+        selector: selection,
+        ...preset,
+      },
+    ];
+    detail.variants[0]!.override.payload.input.allocations[0]!.entryFinancing =
+      preset.baselineFinancing;
+    const draft = duplicateCapitalDraft(detail);
+    expect(draft.variants[0]!.benchmarkSelections).toEqual([
+      { target: { kind: 'entry', allocationId: 'a1' }, selector: selection },
+    ]);
+    expect(draft.variants[0]!.input.allocations[0]!.entryFinancing).toBeUndefined();
   });
 
   it.each(['direct retry', 'unit notice'] as const)(
