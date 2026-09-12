@@ -1,13 +1,35 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-07
+last_updated: 2026-09-12
 owner: Repository Owner
 categories: [release, current-forecast, production-governance]
 keywords: [F_1.11.0, activation, shadow-soak, '0055', Vercel, Railway, Neon]
 ---
 
 # Current Forecast Capability-First Activation Train Implementation Plan
+
+## September 12, 2026 product-readiness boundary
+
+The owner retired the configured-pilot requirement as a blocker for general
+product readiness. Pilot nomination, F_1.12.0 Gate A, pilot
+publication-to-forecast repair and pilot-specific reconciliation belong to the
+optional pilot lane; they are not Task 7 or general product-readiness
+prerequisites. This boundary supersedes earlier shared-pilot sequencing language
+below.
+
+General readiness still requires a demonstrated compatible platform path with
+verified target identity, permissions, exact facts/plan binding, automatic
+forecast entry, persistence, replay, containment and recovery evidence.
+Synthetic or real inputs may support that claim; neither an existing real fund
+nor a configured pilot is required. Missing platform evidence remains a blocker.
+Pilot failure cannot substitute for that evidence or require completing the
+pilot before qualifying another compatible target.
+
+This change records no readiness pass. It preserves source admission, candidate
+certification, production topology, organic-soak, activation and action-specific
+authority requirements, plus all pilot writer and policy refusals. A synthetic
+functional test is not automatically a qualifying soak.
 
 ## September 7, 2026 post-merge planning status
 
@@ -24,12 +46,12 @@ are ADR-098/ADR-099. Older implementation checkboxes below describe the original
 procedure, not a new source backlog. Inspect action-specific evidence records
 without treating historical G1-pending language as another aggregate merge gate.
 
-Use the September 7 reconciled roadmap for current priorities. Resolve the
-organic producer for the selected target before candidate selection. An eligible
-non-pilot target can proceed independently of F_1.12.0's Gate A; a shared
-pilot/soak target needs its applicable trial and admitted compatible
-organic-trigger wiring. Manual pilot/recompute runs never count as soak.
-Provider operations, shadow entry, activation and kill/resume remain gated.
+Use the reconciled roadmap and September 12 boundary for current priorities.
+Resolve the organic producer for the selected platform target before candidate
+selection. Pilot-specific readiness remains in its optional lane and does not
+delay a compatible platform path. Manual pilot/recompute runs never count as
+soak. Provider operations, shadow entry, activation and kill/resume remain
+gated.
 
 ## Historical September 6 planning amendment
 
@@ -49,17 +71,13 @@ any collision blocks further editing/admission until reassigned consistently.
 Accepted ADR-097 must retain its actuals meaning. The allocation record is
 coordination only; the Phase P all-or-nothing admission boundary remains.
 
-Before Task 7 candidate selection, reconcile F_1.12.0's fact-source behavior,
-config and grant state with the intended soak corpus. Its isolated trial Gate A
-is separate from #1299; manual trial/recompute evidence cannot be counted as
-organic soak. Preserve typed refusal of payload 5 by economics and periodic
-analysis. Do not assume the publisher supplies qualifying automatic shadow
-activity. The publisher currently invalidates cache only, and both shipped
-organic trigger paths are downstream of the legacy builder's pilot-fund fence.
-Before selecting a shared pilot/soak target, demonstrate a qualifying organic
-event source; otherwise choose an eligible non-pilot target or separately plan
-and admit compatible trigger wiring. Trial runs cannot close this prerequisite.
-The schema journal still ends at 0055; publication introduced no DDL.
+The September 12 boundary retires this amendment's pilot-dependent candidate
+sequencing. The source limitation remains: publication invalidates cache only,
+and both shipped organic trigger paths are downstream of the legacy builder's
+pilot-fund fence. Preserve typed refusal of payload 5 by economics and periodic
+analysis. An unsupported pilot path is not qualifying platform evidence; pilot
+trial or trigger repair remains separate optional work. The historical schema
+journal ended at 0055; publication introduced no DDL.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (recommended) or
@@ -1120,6 +1138,11 @@ Record the merge SHA/tree. No provider or schema action follows automatically.
 **Files:** No repository source changes. Tracker edits require separate owner
 authorization.
 
+**Scope:** Assess the compatible platform path. Do not require pilot nomination,
+Gate A completion, real-investment reconciliation or pilot publication repair
+for general product readiness. Optional pilot acceptance is reported separately
+and cannot set the platform result to `DEFERRED` by itself.
+
 **Interfaces:**
 
 - Consumes: the admitted Phase P merge SHA from Task 6.
@@ -1175,8 +1198,10 @@ not substitute for admitted commits. Re-run these checks if main changes.
 
 - [ ] **Step 1b: Prove target and organic-event-source compatibility**
 
-For every proposed soak fund, record its ID, intended fact policy/producer,
-`ACTUALS_PILOT_FUND_ID` configuration match, and the exact source entrypoint
+For every proposed soak fund, record its verified ID, synthetic/real input
+origin, intended fact policy/producer, and whether the configured
+`ACTUALS_PILOT_FUND_ID` matches or is unset. This classification does not
+require configuring or selecting a pilot. Record the exact source entrypoint
 that will create qualifying automatic shadow execution. Retain a source trace
 and an isolated, non-production proof that the named path reaches shadow
 execution without manual recompute or an unsupported facts-policy/writer
@@ -1186,11 +1211,13 @@ Consume retained proof from prerequisite local verification; Task 7 itself
 performs no database writes or provider actions. If new proof is needed, return
 to the prerequisite source/verification lane before completing readiness.
 
-A configured pilot fund is `DEFERRED` with current publication wiring. Admit and
-prove a separately scoped compatible trigger change before selecting it, or
-select an eligible non-pilot fund with a demonstrated qualifying path. Unknown
-fund/config/producer identity, missing proof, a writer/policy refusal or
-reliance on manual trial/recompute runs blocks `READY_TO_CUT`.
+Current publication wiring cannot qualify the configured pilot path. Record that
+limitation in the optional pilot lane and qualify a compatible platform target
+through the existing target-selection process; pilot trial or repair is not a
+prerequisite. Do not bypass a writer or policy refusal. Unknown identity,
+missing proof, a refusal on the selected platform path or reliance on manual
+trial/recompute still blocks that path and `READY_TO_CUT`. A separate pilot gap
+does not block a demonstrated compatible platform path.
 
 - [ ] **Step 2: Record current authenticated provider topology**
 
