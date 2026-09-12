@@ -1149,21 +1149,22 @@ describe('fund scenario calculation service', () => {
   });
 
   it('getAllScenarioResultsForFund returns none_exist when no active scenario sets exist', async () => {
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
-      .mockResolvedValueOnce({ rows: [] });
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({ rows: [] });
 
     const result = await getAllScenarioResultsForFund(1);
 
     expect(result).toEqual({ kind: 'none_exist' });
-    expect(queryMock.mock.calls[2]?.[0]).toContain('JOIN LATERAL');
-    expect(queryMock.mock.calls[2]?.[0]).toContain('ADR-022 scenario-aware');
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock.mock.calls.some(([sql]) => String(sql).includes('fund_snapshots'))).toBe(
+      false
+    );
   });
 
   it('getAllScenarioResultsForFund returns none_calculated when sets have no snapshots', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
       .mockResolvedValueOnce({ rows: [{ version: 4 }] })
       .mockResolvedValueOnce({
         rows: [
@@ -1181,11 +1182,15 @@ describe('fund scenario calculation service', () => {
     const result = await getAllScenarioResultsForFund(1);
 
     expect(result).toEqual({ kind: 'none_calculated', scenarioSetCount: 1 });
+    expect(queryMock.mock.calls[4]?.[0]).toContain('ADR-022 scenario-aware');
+    expect(queryMock.mock.calls[4]?.[1]).toEqual([1, [scenarioSetId]]);
   });
 
   it('getAllScenarioResultsForFund returns summary-only calculated scenario sets', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
       .mockResolvedValueOnce({ rows: [{ version: 7 }] })
       .mockResolvedValueOnce({
         rows: [
@@ -1222,6 +1227,8 @@ describe('fund scenario calculation service', () => {
 
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
       .mockResolvedValueOnce({ rows: [{ version: 7 }] })
       .mockResolvedValueOnce({
         rows: [
@@ -1247,6 +1254,8 @@ describe('fund scenario calculation service', () => {
   it('getAllScenarioResultsForFund rejects malformed scenario snapshots', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
       .mockResolvedValueOnce({ rows: [{ version: 4 }] })
       .mockResolvedValueOnce({
         rows: [

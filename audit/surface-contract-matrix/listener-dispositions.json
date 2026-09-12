@@ -191,6 +191,63 @@
     "decision_evidence": "UNAPPROVED proposal for listeners:tooling-scripts-orchestrate-ts; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
   },
   {
+    "candidate_path": "scripts/run-f115-capital-planning-e2e.mjs",
+    "listener_id": "tooling-scripts-run-f115-capital-planning-e2e-mjs",
+    "disposition": "non-product-tooling",
+    "rationale": "Disposable synthetic capital-planning browser test harness. API and port probes bind loopback; the script is not a deployed product entrypoint.",
+    "evidence": [
+      {
+        "file": "scripts/run-f115-capital-planning-e2e.mjs",
+        "line": 380,
+        "pattern": "node-listen",
+        "text": "server.listen(5000, '127.0.0.1', () => {"
+      },
+      {
+        "file": "scripts/run-f115-capital-planning-e2e.mjs",
+        "line": 456,
+        "pattern": "node-http-server-creation",
+        "text": "server = await createServer({"
+      },
+      {
+        "file": "scripts/run-f115-capital-planning-e2e.mjs",
+        "line": 464,
+        "pattern": "node-listen",
+        "text": "await server.listen();"
+      },
+      {
+        "file": "scripts/run-f115-capital-planning-e2e.mjs",
+        "line": 489,
+        "pattern": "node-listen",
+        "text": "probe.listen({ port, host: '127.0.0.1', exclusive: true }, resolve);"
+      }
+    ],
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 380,
+        "text": "server.listen(5000, '127.0.0.1', () => {"
+      },
+      {
+        "kind": "node-http-server-creation",
+        "line": 456,
+        "text": "server = await createServer({"
+      },
+      {
+        "kind": "node-listen",
+        "line": 464,
+        "text": "await server.listen();"
+      },
+      {
+        "kind": "node-listen",
+        "line": 489,
+        "text": "probe.listen({ port, host: '127.0.0.1', exclusive: true }, resolve);"
+      }
+    ],
+    "decision_status": "approved",
+    "decision_evidence": "F115 B10 local implementation review by root: classify the user-authorized disposable synthetic browser runner as test tooling. Source evidence is bound by this disposition fingerprint. This classification adds no deployment exposure or production authority.",
+    "fingerprint": "91e4b4190d984d3fdf0beb7e8fcaa580d4d3fa6f9f3c3ebb76aa3771835b76ed"
+  },
+  {
     "candidate_path": "server/bootstrap.ts",
     "listener_id": "server-bootstrap",
     "fingerprint": "ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0",

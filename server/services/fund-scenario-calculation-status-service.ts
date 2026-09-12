@@ -1,4 +1,11 @@
 import { transaction } from '../db/pg-circuit.js';
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import {
+  createHttpError,
+  fetchRawScenarioSet,
+  requireScenarioSetFamily,
+  verifyFundExists,
+} from './fund-scenario-set-service.js';
 import {
   FundScenarioCalculationStatusV1Schema,
   type FundScenarioCalculationStatusV1,
@@ -232,8 +239,19 @@ function buildCalculationStatus(input: {
 
 export async function getFundScenarioCalculationStatus(
   fundId: number,
-  scenarioSetId: string
+  scenarioSetId: string,
+  representation?: ScenarioRepresentation
 ): Promise<FundScenarioCalculationStatusV1> {
+  await transaction(async (client) => {
+    await verifyFundExists(client, fundId);
+    const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);
+    if (raw.family === 'capital_plan') {
+      throw createHttpError(409, 'Capital planning is synchronous and has no calculation status', {
+        code: 'capital_plan_calculation_status_not_applicable',
+      });
+    }
+    requireScenarioSetFamily(raw, representation ? 'capital_plan' : 'legacy');
+  });
   const identity = await getReserveScenarioCalculationIdentity(fundId, scenarioSetId);
 
   return transaction(async (client) => {

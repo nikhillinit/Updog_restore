@@ -11,13 +11,15 @@ export class ApiError extends Error {
   readonly errorCode: string | undefined;
   readonly issues: Array<{ path: (string | number)[]; message: string }> | undefined;
   readonly retryAfterMs: number | undefined;
+  readonly details: unknown;
 
   constructor(
     status: number,
     message: string,
     errorCode?: string,
     issues?: Array<{ path: (string | number)[]; message: string }>,
-    retryAfterMs?: number
+    retryAfterMs?: number,
+    details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -25,6 +27,7 @@ export class ApiError extends Error {
     this.errorCode = errorCode;
     this.issues = issues;
     this.retryAfterMs = retryAfterMs;
+    this.details = details;
   }
 
   /** Map Zod issues to { fieldName: errorMessage } for form integration */
@@ -121,7 +124,14 @@ export async function apiRequest<TResponse = unknown>(
     const errorMessage =
       errorData.message || errorData.error || `API request failed: ${response.statusText}`;
     const errorCode = errorData.code ?? errorData.error;
-    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues, retryAfterMs);
+    throw new ApiError(
+      response.status,
+      errorMessage,
+      errorCode,
+      errorData.issues,
+      retryAfterMs,
+      errorData.details
+    );
   }
 
   if (response.status === 204) return undefined as TResponse;

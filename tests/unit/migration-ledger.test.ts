@@ -67,6 +67,7 @@ const expectedJournaledDriftPatchFiles = [
   '0054_operating_decisions_spine.sql',
   '0055_current_forecast_recompute_commands.sql',
   '0057_actuals_restatement_commands.sql',
+  '0058_capital_plan_override.sql',
 ].sort();
 
 afterEach(() => {
@@ -77,6 +78,24 @@ afterEach(() => {
 });
 
 describe('migration ledger helpers', () => {
+  it('registers capital-plan override once at index 59 after the existing 0057 entry', () => {
+    const entries = readDrizzleJournal(repoRoot).entries;
+    const matches = entries.filter((entry) => entry.tag === '0058_capital_plan_override');
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      idx: 59,
+      tag: '0058_capital_plan_override',
+      when: 1788998400000,
+      breakpoints: true,
+    });
+    const previous = entries.find((entry) => entry.tag === '0057_actuals_restatement_commands');
+    expect(previous).toMatchObject({ idx: 58, when: 1788912000000 });
+    expect(matches[0]!.when).toBeGreaterThan(previous!.when);
+    expect(entries.findIndex((entry) => entry.tag === matches[0]!.tag)).toBe(
+      entries.indexOf(previous!) + 1
+    );
+  });
+
   it('reads journaled migration files in journal order and throws when a journal tag has no file', () => {
     const root = makeFixtureRoot();
     writeJournal(root, [

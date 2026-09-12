@@ -8,6 +8,7 @@ import {
   loadManifests,
   isPinnedActualsDraftMigrationSource,
   readManifestSql,
+  splitSqlStatements,
   validateManifestSql,
 } from '../../scripts/reconcile-prod-schema.mjs';
 
@@ -178,7 +179,54 @@ describe('prod-schema manifest sentinels', () => {
       '32-current-forecast-recompute-commands.json',
       '33-actuals-draft-revisions.json',
       '34-actuals-restatement-commands.json',
+      '35-capital-plan-override.json',
     ]);
+  });
+
+  it('pins manifest 35 to an atomic six-mode CHECK replacement on existing variants', async () => {
+    const entry = manifests.find((candidate) => candidate.file === '35-capital-plan-override.json');
+    expect(entry).toBeDefined();
+    const manifest = entry!.manifest;
+    const modes = [
+      'fee_profile',
+      'reserve_allocation',
+      'allocation',
+      'sector_profile',
+      'methodology',
+      'capital_plan',
+    ];
+    expect(manifest).toMatchObject({
+      name: 'capital-plan-override',
+      order: 35,
+      missingTablePolicy: 'existing_table_required',
+      sqlFiles: ['migrations/0058_capital_plan_override.sql'],
+      allowedCreateTables: [],
+    });
+    expect(manifest.expectedTables).toHaveLength(1);
+    expect(manifest.expectedTables![0]).toMatchObject({
+      name: 'fund_scenario_variants',
+      sharedTable: true,
+      constraints: ['fund_scenario_variants_override_type_check'],
+    });
+    expect(manifest.applyPolicy?.allowConstraintReplacements).toEqual([
+      {
+        table: 'fund_scenario_variants',
+        name: 'fund_scenario_variants_override_type_check',
+        expectedDefinition: { requiredFragments: ['override_type'], stringLiterals: modes },
+      },
+    ]);
+    expect(manifest.dropObjects ?? []).toEqual([]);
+    const files = await readManifestSql(manifest);
+    expect(() => validateManifestSql(manifest, files)).not.toThrow();
+    const sql = fs.readFileSync(path.join(repoRoot, manifest.sqlFiles![0]!), 'utf8');
+    const statements = splitSqlStatements(sql);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^DO\s+\$\$/m);
+    expect(statements[0]).toMatch(
+      /DROP CONSTRAINT IF EXISTS "fund_scenario_variants_override_type_check";[\s\S]*ADD CONSTRAINT "fund_scenario_variants_override_type_check"/
+    );
+    expect([...sql.matchAll(/'([^']+)'/g)].map((match) => match[1])).toEqual(modes);
+    expect(sql).not.toMatch(/\b(?:UPDATE|DELETE|TRUNCATE|INSERT|NOT\s+VALID)\b/i);
   });
 
   it('pins manifest 23 to additive certification DDL on the existing run table', () => {

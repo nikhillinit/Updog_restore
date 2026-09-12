@@ -414,6 +414,13 @@
       "when": 1788912000000,
       "tag": "0057_actuals_restatement_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788998400000,
+      "tag": "0058_capital_plan_override",
+      "breakpoints": true
     }
   ]
 }
