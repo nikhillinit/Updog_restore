@@ -115,6 +115,7 @@ function idFor(path: string): string {
   return `capital-field-${encodeURIComponent(path)}`;
 }
 function stepFor(path: string): number {
+  if (path.includes('assumptionEvidence')) return 3;
   if (path.includes('performanceCase')) return 3;
   if (path.includes('followOnRounds')) return 2;
   if (path.includes('allocations')) return 1;
