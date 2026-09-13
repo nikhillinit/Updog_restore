@@ -2,6 +2,7 @@ import {
   CAPITAL_PLANNING_DISCLOSURES,
   type CapitalPlanningMemoV1,
 } from '@shared/contracts/capital-planning-v1.contract';
+import type { CapitalPlanningMemo } from '@shared/contracts/capital-planning-v2.contract';
 import { formatDecimalCurrency } from '@/lib/format/lp-reporting/decimal';
 import { MoneyDecimalStringSchema } from '@shared/lib/decimal-string';
 
@@ -11,6 +12,13 @@ export interface CapitalMemoSection {
 }
 
 const LABELS: Record<string, string> = {
+  expectedCountRoundingResidual: 'Expected count rounding residual',
+  initialAllocationRoundingResidualUsd: 'Initial allocation rounding residual (USD)',
+  capitalRoundingResidualUsd: 'Capital rounding residual (USD)',
+  initialScheduleRoundingResidualUsd: 'Initial schedule rounding residual (USD)',
+  followOnScheduleRoundingResidualUsd: 'Follow on schedule rounding residual (USD)',
+  pathDemandRoundingResidualUsd: 'Path demand rounding residual (USD)',
+  pathProbabilityRoundingResidual: 'Path probability rounding residual',
   inputSupport: 'Input support',
   lifetimeCapacity: 'Lifetime capacity',
   allocationBudget: 'Allocation budget',
@@ -102,7 +110,7 @@ function rowsOf(value: unknown, prefix = '', key = ''): CapitalMemoSection['rows
 }
 
 /** Both the view and clipboard use these rows; neither recomputes financial output. */
-export function capitalPlanMemoSections(
+function legacyCapitalPlanMemoSections(
   memo: CapitalPlanningMemoV1,
   preview = false
 ): CapitalMemoSection[] {
@@ -251,7 +259,193 @@ export function capitalPlanMemoSections(
   return sections;
 }
 
-export function formatCapitalPlanMemo(memo: CapitalPlanningMemoV1): string {
+export function capitalPlanMemoSections(
+  memo: CapitalPlanningMemo,
+  preview = false
+): CapitalMemoSection[] {
+  if (memo.result.contractVersion !== 'capital-planning/2.0.0')
+    return legacyCapitalPlanMemoSections(memo as CapitalPlanningMemoV1, preview);
+  const result = memo.result;
+  const { construction, input, sourceBundle } = result;
+  const saved = !preview && memo.readState.calculationReadiness.context === 'saved_input';
+  return [
+    {
+      title: saved ? 'Capital plan memo' : 'Capital plan preview',
+      rows: [
+        { label: 'Fund', value: String(memo.fundId) },
+        { label: 'Scenario set', value: memo.scenarioSetName },
+        { label: 'Variant', value: memo.variantName },
+        { label: 'Scenario set ID', value: saved ? memo.scenarioSetId : 'Not saved' },
+        { label: 'Calculation method version', value: result.contractVersion },
+        { label: 'Rounding policy', value: result.roundingPolicy },
+        {
+          label: 'Solve mode',
+          value: construction.solution.mode === 'fixed_fund' ? 'Fixed fund' : 'Fixed portfolio',
+        },
+        { label: 'Count basis', value: 'Expected fractional company counts' },
+        { label: 'Source bundle hash', value: sourceBundle.sourceBundleHash },
+        { label: 'Source interpretation version', value: sourceBundle.interpretationVersion },
+        { label: 'Source published at', value: sourceBundle.publishedAt },
+      ],
+    },
+    { title: 'Read state', rows: rowsOf(memo.readState) },
+    {
+      title: 'Source capital and hypothetical commitments',
+      rows: [
+        ...rowsOf(construction.budgetBridge),
+        {
+          label: 'Required commitments basis',
+          value: 'Hypothetical comparison only; source commitments remain unchanged',
+        },
+      ],
+    },
+    {
+      title: 'Initial investment pool and reconciliation',
+      rows: [
+        ...rowsOf(construction.solution),
+        {
+          label: 'Residual treatment',
+          value:
+            'Signed rounding residuals are disclosed; never redistributed into allocations, counts, schedules, or paths',
+        },
+      ],
+    },
+    {
+      title: 'Initial dollar weights and fractional counts',
+      rows: construction.allocations.flatMap((allocation) =>
+        rowsOf(
+          {
+            initialPoolShareRatio: allocation.initialPoolShareRatio,
+            initialCheckUsd: allocation.initialCheckUsd,
+            expectedCompanyCount: allocation.expectedCompanyCount,
+            initialDemandUsd: allocation.initialDemandUsd,
+            reserveUsd: allocation.reserveUsd,
+            initialScheduleRoundingResidualUsd: allocation.initialScheduleRoundingResidualUsd,
+            followOnScheduleRoundingResidualUsd: allocation.followOnScheduleRoundingResidualUsd,
+          },
+          allocation.name
+        )
+      ),
+    },
+    {
+      title: 'Explicit entered portfolio selections',
+      rows: [
+        {
+          label: 'Entered selection basis',
+          value: 'User-supplied integer counts; expected solve unchanged',
+        },
+        ...construction.allocations.flatMap((allocation) =>
+          allocation.entered
+            ? rowsOf(allocation.entered, allocation.name)
+            : [{ label: allocation.name, value: 'Not entered' }]
+        ),
+      ],
+    },
+    {
+      title: 'Ownership and participation histories',
+      rows: construction.allocations.flatMap((allocation) => {
+        const last = allocation.rounds.at(-1);
+        const live = last?.paths.filter((path) => path.state === 'live').length ?? 0;
+        const stopped = new Set(
+          allocation.rounds.flatMap((round) =>
+            round.paths
+              .filter((path) => path.state === 'stopped')
+              .map((path) => `${path.roundIndex}:${path.participationHistory}`)
+          )
+        ).size;
+        return [
+          { label: `${allocation.name} / Live graduated histories`, value: String(live) },
+          { label: `${allocation.name} / Stopped non-graduated histories`, value: String(stopped) },
+          { label: `${allocation.name} / Retained states`, value: String(live + stopped) },
+          {
+            label: `${allocation.name} / Stopped-state basis`,
+            value: 'Non-graduation stops financing; it does not imply failure, exit, or disposal',
+          },
+          ...rowsOf(allocation.rounds, allocation.name),
+        ];
+      }),
+    },
+    {
+      title: 'Financing, pool, and timing declarations',
+      rows: input.allocations.flatMap((allocation) => [
+        ...rowsOf(
+          {
+            scheduleAnchor: allocation.scheduleAnchor,
+            deploymentCadence: allocation.deploymentCadence,
+          },
+          allocation.name
+        ),
+        ...[
+          { label: allocation.entryRound, financing: allocation.entryFinancing },
+          ...allocation.followOnRounds.map((round) => ({
+            label: round.roundLabel,
+            financing: round.financing,
+          })),
+        ].flatMap(({ label, financing }) => [
+          {
+            label: `${allocation.name} / ${label} / Primary capital denominator`,
+            value:
+              financing.primaryCapital.basis === 'total_primary_including_fund_check'
+                ? 'Fixed total primary capital whether fund participates or skips; other investors supply remainder'
+                : 'Fixed external primary capital; fund check adds to total',
+          },
+          ...rowsOf(financing, `${allocation.name} / ${label}`),
+        ]),
+        ...rowsOf(
+          allocation.followOnRounds.map(
+            ({
+              roundLabel,
+              timingBasis,
+              poolBasis,
+              incrementalPreMoneyPoolDilutionRatio,
+              lagMonthsFromPreviousRound,
+              eligibility,
+              participationPolicy,
+            }) => ({
+              roundLabel,
+              timingBasis,
+              poolBasis,
+              incrementalPreMoneyPoolDilutionRatio,
+              lagMonthsFromPreviousRound,
+              eligibility,
+              participationPolicy,
+            })
+          ),
+          allocation.name
+        ),
+      ]),
+    },
+    { title: 'Schedule', rows: rowsOf(construction.annualSchedule) },
+    { title: 'Stress results', rows: rowsOf(construction.stresses) },
+    {
+      title: 'Assumptions and provenance',
+      rows: [
+        {
+          label: 'Default evidence status',
+          value:
+            'Manager assumptions; no empirical graduation, participation, pool, timing, or exit policy installed',
+        },
+        ...rowsOf(input.assumptionEvidence ?? [], 'Explicit evidence'),
+        ...rowsOf(result.provenance, 'Source provenance'),
+        ...rowsOf(sourceBundle.unitDeclarations, 'Source units'),
+      ],
+    },
+    {
+      title: 'Disclosures',
+      rows: [
+        ...rowsOf(construction.disclosures),
+        ...rowsOf(construction.assumptions),
+        {
+          label: 'Monthly detail',
+          value: `${construction.monthlyDetail.length} rows; complete saved memo download retains all rows`,
+        },
+        ...memo.limitations.map((value) => ({ label: 'Limitation', value })),
+      ],
+    },
+  ];
+}
+
+export function formatCapitalPlanMemo(memo: CapitalPlanningMemo): string {
   return capitalPlanMemoSections(memo)
     .map(
       (section) =>

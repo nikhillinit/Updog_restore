@@ -7,6 +7,10 @@
  */
 
 import { z } from 'zod';
+import {
+  CapitalPlanningMemoV2Schema,
+  type CapitalPlanningMemoV2,
+} from './capital-planning-v2.contract';
 import { ScenarioEvidenceStateV1Schema } from './fund-scenario-sets-v1.contract';
 import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../lib/decimal-string';
 import { CapitalPlanRepresentationV1Schema } from './fund-scenario-sets-v1.contract';
@@ -385,61 +389,105 @@ export const FundScenarioCapitalComparisonV1Schema = z
     calculatedAt: DateTimeStringSchema.nullable(),
   })
   .strict()
-  .superRefine((value, ctx) => {
-    if (value.comparisonStatus === 'no_scenario_results') {
-      if (
-        value.snapshotId !== null ||
-        value.baseline !== null ||
-        value.variants.length !== 0 ||
-        value.calculatedAt !== null
-      )
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['baseline'],
-          message: 'Absent results cannot expose calculated comparison values',
-        });
-    } else if (
-      value.snapshotId === null ||
-      value.baseline === null ||
-      value.calculatedAt === null
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['snapshotId'],
-        message: 'Comparison requires persisted baseline and snapshot identity',
-      });
-    }
+  .superRefine(refineCapitalComparison);
+
+function refineCapitalComparison(
+  value: {
+    comparisonStatus: string;
+    snapshotId: number | null;
+    calculatedAt: string | null;
+    baselineVariantId: string;
+    fundId: number;
+    scenarioSetId: string;
+    baseline: { variantId: string; fundId: number; scenarioSetId: string } | null;
+    variants: {
+      variantId: string;
+      memo: { variantId: string; fundId: number; scenarioSetId: string };
+    }[];
+  },
+  ctx: z.RefinementCtx
+) {
+  if (value.comparisonStatus === 'no_scenario_results') {
     if (
-      value.baseline &&
-      (value.baseline.variantId !== value.baselineVariantId ||
-        value.baseline.fundId !== value.fundId ||
-        value.baseline.scenarioSetId !== value.scenarioSetId)
+      value.snapshotId !== null ||
+      value.baseline !== null ||
+      value.variants.length !== 0 ||
+      value.calculatedAt !== null
     )
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['baseline'],
-        message: 'Baseline identity mismatch',
+        message: 'Absent results cannot expose calculated comparison values',
       });
-    for (const [index, variant] of value.variants.entries()) {
-      if (
-        variant.variantId !== variant.memo.variantId ||
-        variant.memo.scenarioSetId !== value.scenarioSetId ||
-        variant.memo.fundId !== value.fundId ||
-        variant.variantId === value.baselineVariantId
-      )
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['variants', index],
-          message: 'Comparison variant identity mismatch',
-        });
-    }
-    if (new Set(value.variants.map((variant) => variant.variantId)).size !== value.variants.length)
+  } else if (value.snapshotId === null || value.baseline === null || value.calculatedAt === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['snapshotId'],
+      message: 'Comparison requires persisted baseline and snapshot identity',
+    });
+  }
+  if (
+    value.baseline &&
+    (value.baseline.variantId !== value.baselineVariantId ||
+      value.baseline.fundId !== value.fundId ||
+      value.baseline.scenarioSetId !== value.scenarioSetId)
+  )
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['baseline'],
+      message: 'Baseline identity mismatch',
+    });
+  for (const [index, variant] of value.variants.entries()) {
+    if (
+      variant.variantId !== variant.memo.variantId ||
+      variant.memo.scenarioSetId !== value.scenarioSetId ||
+      variant.memo.fundId !== value.fundId ||
+      variant.variantId === value.baselineVariantId
+    )
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['variants'],
-        message: 'Comparison variants must be unique',
+        path: ['variants', index],
+        message: 'Comparison variant identity mismatch',
       });
+  }
+  if (new Set(value.variants.map((variant) => variant.variantId)).size !== value.variants.length)
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['variants'],
+      message: 'Comparison variants must be unique',
+    });
+}
+
+export type CapitalComparisonVariantV2 = Omit<
+  z.infer<typeof CapitalComparisonVariantV1Schema>,
+  'memo'
+> & { memo: CapitalPlanningMemoV2 };
+export const CapitalComparisonVariantV2Schema: z.ZodType<CapitalComparisonVariantV2> =
+  CapitalComparisonVariantV1Schema.extend({
+    memo: CapitalPlanningMemoV2Schema,
   });
+export type FundScenarioCapitalComparisonV2 = Omit<
+  FundScenarioCapitalComparisonV1,
+  'contractVersion' | 'representation' | 'baseline' | 'variants'
+> & {
+  contractVersion: 'fund-scenario-capital-comparison/2.0.0';
+  representation: 'capital-plan-v2';
+  baseline: CapitalPlanningMemoV2 | null;
+  variants: CapitalComparisonVariantV2[];
+};
+export const FundScenarioCapitalComparisonV2Schema: z.ZodType<FundScenarioCapitalComparisonV2> =
+  FundScenarioCapitalComparisonV1Schema.innerType()
+    .extend({
+      contractVersion: z.literal('fund-scenario-capital-comparison/2.0.0'),
+      representation: z.literal('capital-plan-v2'),
+      baseline: CapitalPlanningMemoV2Schema.nullable(),
+      variants: z.array(CapitalComparisonVariantV2Schema).max(4),
+    })
+    .superRefine(refineCapitalComparison);
+export const FundScenarioCapitalComparisonSchema: z.ZodType<FundScenarioCapitalComparison> =
+  z.union([FundScenarioCapitalComparisonV1Schema, FundScenarioCapitalComparisonV2Schema]);
+export type FundScenarioCapitalComparison =
+  FundScenarioCapitalComparisonV1 | FundScenarioCapitalComparisonV2;
 
 export type CapitalComparisonMetricDeltaV1 = z.infer<typeof CapitalComparisonMetricDeltaV1Schema>;
 export type CapitalChangedInputV1 = z.infer<typeof CapitalChangedInputV1Schema>;

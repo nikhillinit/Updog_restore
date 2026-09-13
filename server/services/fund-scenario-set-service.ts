@@ -1,12 +1,14 @@
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import { capitalSavedExecutionIssues } from '@shared/lib/scenarios/scenario-input-envelope';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
   CAPITAL_PLAN_REPRESENTATION,
   FundScenarioCapitalArchiveResponseV1Schema,
-  FundScenarioCapitalDetailResponseV1Schema,
-  FundScenarioCapitalListResponseV1Schema,
+  FundScenarioCapitalDetailResponseSchema,
+  FundScenarioCapitalListResponseSchema,
   FundScenarioCapitalSourceResponseV1Schema,
-  FundScenarioCapitalStoredOverrideV1Schema,
+  FundScenarioCapitalStoredOverrideSchema,
   FundScenarioSourceConfigResponseV1Schema,
   FundScenarioSetDetailV1Schema,
   FundScenarioSetSummaryV1Schema,
@@ -16,10 +18,10 @@ import {
   type FundScenarioSetSummaryV1,
   type FundScenarioSourceConfigResponseV1,
   type FundScenarioVariantV1,
-  type FundScenarioCapitalDetailResponseV1,
-  type FundScenarioCapitalListResponseV1,
+  type FundScenarioCapitalDetailResponse,
+  type FundScenarioCapitalListResponse,
   type FundScenarioCapitalSourceResponseV1,
-  type FundScenarioCapitalStoredOverrideV1,
+  type FundScenarioCapitalStoredOverride,
   type FundScenarioCapitalSetSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
@@ -116,6 +118,17 @@ export function classifyScenarioSetFamily(
     });
   }
   return capital ? 'capital_plan' : 'legacy';
+}
+
+export function requireCapitalScenarioRepresentation(
+  actual: NonNullable<ScenarioRepresentation>,
+  requested?: ScenarioRepresentation
+): void {
+  if (requested !== undefined && requested !== actual)
+    throw createHttpError(406, 'Requested representation does not match this capital scenario', {
+      code: 'scenario_representation_not_applicable',
+      details: { representation: actual },
+    });
 }
 
 export function requireScenarioSetFamily(
@@ -564,7 +577,7 @@ export async function loadCurrentCapitalRawSource(
 }
 
 export function buildCapitalReadState(
-  savedOverrides: readonly FundScenarioCapitalStoredOverrideV1[],
+  savedOverrides: readonly FundScenarioCapitalStoredOverride[],
   currentSource: CapitalRawSource | null
 ): CapitalReadStateV1 {
   const first = savedOverrides[0];
@@ -575,7 +588,7 @@ export function buildCapitalReadState(
   }
   let firstBundleJson: string | undefined;
   for (const override of savedOverrides) {
-    if (!FundScenarioCapitalStoredOverrideV1Schema.safeParse(override).success) {
+    if (!FundScenarioCapitalStoredOverrideSchema.safeParse(override).success) {
       throw createHttpError(500, 'Stored capital scenario input is invalid', {
         code: 'scenario_saved_data_invalid',
       });
@@ -593,6 +606,7 @@ export function buildCapitalReadState(
   const bundle = first.payload.sourceBundle;
   const savedVersion = bundle.interpretationVersion;
   const supported = savedVersion === CAPITAL_SOURCE_INTERPRETATION_VERSION;
+  const policyIssues = capitalSavedExecutionIssues(savedOverrides);
   let sourceFreshness: CapitalReadStateV1['sourceFreshness'] = 'STALE_SOURCE_UNAVAILABLE';
   if (currentSource) {
     if (
@@ -616,9 +630,9 @@ export function buildCapitalReadState(
     sourceFreshness,
     calculationReadiness: {
       context: 'saved_input',
-      state: supported ? 'READY' : 'UNSUPPORTED',
+      state: supported && policyIssues.length === 0 ? 'READY' : 'UNSUPPORTED',
       issues: supported
-        ? []
+        ? policyIssues
         : [
             {
               code: 'INTERPRETATION_VERSION_UNSUPPORTED',
@@ -639,8 +653,8 @@ export function buildCapitalReadState(
 export async function fetchCapitalScenarioSetDetailFromRaw(
   client: PoolClient,
   raw: RawFundScenarioSet,
-  options: { readCurrentSource?: boolean } = {}
-): Promise<FundScenarioCapitalDetailResponseV1> {
+  options: { readCurrentSource?: boolean; representation?: ScenarioRepresentation } = {}
+): Promise<FundScenarioCapitalDetailResponse> {
   requireScenarioSetFamily(raw, 'capital_plan');
   const variants = raw.variants.map((variant) => ({
     id: variant.id,
@@ -653,14 +667,14 @@ export async function fetchCapitalScenarioSetDetailFromRaw(
     updatedAt: toIsoString(variant.updated_at),
   }));
   const overrides = variants.map((variant) => {
-    const parsed = FundScenarioCapitalStoredOverrideV1Schema.safeParse(variant.override);
+    const parsed = FundScenarioCapitalStoredOverrideSchema.safeParse(variant.override);
     if (!parsed.success) {
       throw createHttpError(500, 'Stored capital scenario input is invalid', {
         code: 'scenario_saved_data_invalid',
       });
     }
     // Validation must not default, trim, or rebuild historical saved fields.
-    return variant.override as FundScenarioCapitalStoredOverrideV1;
+    return variant.override as FundScenarioCapitalStoredOverride;
   });
   const first = overrides[0]!;
   const readState = buildCapitalReadState(
@@ -672,8 +686,14 @@ export async function fetchCapitalScenarioSetDetailFromRaw(
   );
   const detail = {
     ...mapScenarioSetSummary({ ...raw.row, variant_count: variants.length }),
-    contractVersion: 'fund-scenario-capital-detail/1.0.0' as const,
-    representation: CAPITAL_PLAN_REPRESENTATION,
+    contractVersion:
+      first.payload.input.contractVersion === 'capital-planning/2.0.0'
+        ? ('fund-scenario-capital-detail/2.0.0' as const)
+        : ('fund-scenario-capital-detail/1.0.0' as const),
+    representation:
+      first.payload.input.contractVersion === 'capital-planning/2.0.0'
+        ? ('capital-plan-v2' as const)
+        : CAPITAL_PLAN_REPRESENTATION,
     overrideType: 'capital_plan' as const,
     baselineVariantId: variants[0]!.id,
     sourceBundleHash: first.payload.sourceBundleHash,
@@ -681,12 +701,13 @@ export async function fetchCapitalScenarioSetDetailFromRaw(
     readState,
     variants,
   };
-  if (!FundScenarioCapitalDetailResponseV1Schema.safeParse(detail).success) {
+  if (!FundScenarioCapitalDetailResponseSchema.safeParse(detail).success) {
     throw createHttpError(500, 'Stored capital scenario detail is inconsistent', {
       code: 'scenario_saved_data_invalid',
     });
   }
-  return detail as FundScenarioCapitalDetailResponseV1;
+  requireCapitalScenarioRepresentation(detail.representation, options.representation);
+  return detail as FundScenarioCapitalDetailResponse;
 }
 
 export async function getFundScenarioCapitalSourceConfig(
@@ -740,24 +761,29 @@ export async function getFundScenarioCapitalSourceConfig(
 
 export async function listFundScenarioCapitalSets(
   fundId: number,
-  options: { includeArchived?: boolean } = {}
-): Promise<FundScenarioCapitalListResponseV1> {
+  options: { includeArchived?: boolean; representation?: ScenarioRepresentation } = {}
+): Promise<FundScenarioCapitalListResponse> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     const rawSets = await fetchRawScenarioSets(client, fundId, options);
+    const correctedList = options.representation === 'capital-plan-v2';
     const scenarioSets = [];
     for (const raw of rawSets.filter((set) => set.family === 'capital_plan')) {
       const {
         contractVersion: _version,
-        representation: _representation,
+        representation,
         variants: _variants,
         ...summary
       } = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
-      scenarioSets.push(summary);
+      if (representation === 'capital-plan-v2') {
+        if (correctedList) scenarioSets.push({ ...summary, representation });
+      } else scenarioSets.push(summary);
     }
-    return FundScenarioCapitalListResponseV1Schema.parse({
-      contractVersion: 'fund-scenario-capital-list/1.0.0',
-      representation: CAPITAL_PLAN_REPRESENTATION,
+    return FundScenarioCapitalListResponseSchema.parse({
+      contractVersion: correctedList
+        ? 'fund-scenario-capital-list/2.0.0'
+        : 'fund-scenario-capital-list/1.0.0',
+      representation: correctedList ? 'capital-plan-v2' : CAPITAL_PLAN_REPRESENTATION,
       scenarioSets,
     });
   });
@@ -765,13 +791,15 @@ export async function listFundScenarioCapitalSets(
 
 export async function getFundScenarioCapitalSet(
   fundId: number,
-  scenarioSetId: string
-): Promise<FundScenarioCapitalDetailResponseV1> {
+  scenarioSetId: string,
+  representation?: ScenarioRepresentation
+): Promise<FundScenarioCapitalDetailResponse> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     return fetchCapitalScenarioSetDetailFromRaw(
       client,
-      await fetchRawScenarioSet(client, fundId, scenarioSetId)
+      await fetchRawScenarioSet(client, fundId, scenarioSetId),
+      { representation }
     );
   });
 }
@@ -801,7 +829,8 @@ export async function archiveFundScenarioCapitalSet(
   fundId: number,
   scenarioSetId: string,
   actorInput: FundScenarioMutationActor = {},
-  input: ArchiveFundScenarioSetV1 = {}
+  input: ArchiveFundScenarioSetV1 = {},
+  representation?: ScenarioRepresentation
 ): Promise<{
   response: FundScenarioCapitalSetSummaryV1 & { archivedAt: string };
   serializedResponse: string;
@@ -810,6 +839,7 @@ export async function archiveFundScenarioCapitalSet(
     await verifyFundExists(client, fundId);
     const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId, { forUpdate: true });
     requireScenarioSetFamily(raw, 'capital_plan');
+    const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw, { representation });
     if (raw.row.archived_at === null) {
       const actor = normalizeActor(actorInput);
       raw.row = await updateArchivedScenarioSet(client, fundId, scenarioSetId, actor);
@@ -821,7 +851,6 @@ export async function archiveFundScenarioCapitalSet(
         changeSummary: buildArchiveChangeSummary(input.reason),
       });
     }
-    const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
     const response = {
       ...mapScenarioSetSummary(raw.row),
       overrideType: 'capital_plan' as const,
@@ -829,7 +858,7 @@ export async function archiveFundScenarioCapitalSet(
       sourceBundleHash: detail.sourceBundleHash,
       interpretationVersion: detail.interpretationVersion,
       readState: detail.readState,
-      archivedAt: detail.archivedAt!,
+      archivedAt: toIsoString(raw.row.archived_at!),
     };
     if (!FundScenarioCapitalArchiveResponseV1Schema.safeParse(response).success) {
       throw createHttpError(500, 'Capital archive response failed validation', {

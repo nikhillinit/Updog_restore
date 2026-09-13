@@ -5,9 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   FundScenarioCapitalCalculateResponseV1Schema,
+  FundScenarioCapitalCalculateResponseV2Schema,
+  FundScenarioCapitalCreateResponseV2Schema,
+  FundScenarioCapitalDetailResponseV2Schema,
   FundScenarioCapitalCreateResponseV1Schema,
   FundScenarioCapitalDetailResponseV1Schema,
   FundScenarioCapitalResultsResponseV1Schema,
+  FundScenarioCapitalListResponseV1Schema,
+  FundScenarioCapitalListResponseV2Schema,
 } from '../../shared/contracts/fund-scenario-sets-v1.contract';
 import { CapitalPlanningDraftV1Schema } from '../../shared/contracts/capital-planning-v1.contract';
 import { CAPITAL_BENCHMARK_CATALOG_VERSION } from '../../shared/lib/capital-planning/benchmark-presets';
@@ -18,6 +23,10 @@ import {
 } from '../fixtures/capital-planning/fixtures';
 import { fingerprintCapitalSource } from '../../shared/lib/capital-planning/materialize-from-fund-draft';
 import { createCapitalScenarioInputHash } from '../../server/lib/scenarios/scenario-input-hash';
+import {
+  canonicalCapitalScenarioInputString,
+  resolveScenarioInputLineage,
+} from '../../shared/lib/scenarios/scenario-input-envelope';
 import {
   makeCapitalCreateBody,
   startCapitalScenarioHttpRuntime,
@@ -49,8 +58,8 @@ async function create(body = makeCapitalCreateBody(runtime), key = randomUUID())
   });
   return { body, key, response, id: parsedCreate(response).scenarioSetId };
 }
-async function archive(id: string) {
-  const response = await runtime.request('POST', `${setPath(id)}/archive${SELECTOR}`, { body: {} });
+async function archive(id: string, selector = SELECTOR) {
+  const response = await runtime.request('POST', `${setPath(id)}/archive${selector}`, { body: {} });
   expect(response.status, response.rawBody.toString()).toBe(200);
 }
 async function unchanged(
@@ -69,6 +78,44 @@ async function unchanged(
   evidence.push({ label, status, responseBody: response.body, before, after, refusalProof });
   if (refusalProof) expect(refusalProof.violations).toEqual([]);
   return response;
+}
+
+function correctedBody() {
+  const body = makeCapitalCreateBody(runtime);
+  const legacy = makeCapitalInput();
+  const { budgetShareRatio, ...allocation } = legacy.allocations[0]!;
+  return {
+    ...body,
+    contractVersion: 'fund-scenario-set-create/4.0.0',
+    variants: body.variants.map((variant) => ({
+      ...variant,
+      override: {
+        overrideType: 'capital_plan',
+        payload: {
+          contractVersion: 'capital-planning/2.0.0',
+          roundingPolicy: 'capital-planning-rounding/half-up-money-6-ratio-12/1.0.0',
+          solve: { mode: 'fixed_fund' },
+          allocations: [
+            {
+              ...allocation,
+              initialPoolShareRatio: budgetShareRatio,
+              scheduleAnchor: 'entry_deployment_month',
+              deploymentCadence: 'uniform_monthly_over_deployment_period',
+              entryFinancing: {
+                valuationUsd: '10.000000',
+                valuationBasis: 'pre_money',
+                primaryCapital: {
+                  basis: 'total_primary_including_fund_check',
+                  totalPrimaryAmountUsd: '2.000000',
+                  primary_only_excludes_secondary: true,
+                },
+              },
+            },
+          ],
+        },
+      },
+    })),
+  };
 }
 
 describe('B8 capital persistence through actual application and migrated PostgreSQL', () => {
@@ -598,6 +645,311 @@ describe('B8 capital persistence through actual application and migrated Postgre
     }
     await archive(pending.id);
     await archive(done.id);
+  });
+});
+
+// Each real app keeps the production route write ceiling; corrected cases get a fresh app lifetime.
+describe('V2 capital persistence through a separate actual application lifetime', () => {
+  beforeAll(async () => {
+    await mkdir(EVIDENCE, { recursive: true });
+    runtime = await startCapitalScenarioHttpRuntime({
+      label: 'corrected-persistence',
+      evidenceDir: EVIDENCE,
+      rateLimitMax: 1000,
+    });
+  }, 120_000);
+  afterAll(async () => {
+    if (runtime) {
+      const lifecycle = await runtime.close();
+      evidence.push({ label: 'corrected-persistence-lifecycle', lifecycle });
+      expect(lifecycle.api.graceful).toBe(true);
+      expect(lifecycle.containerStopped).toBe(true);
+      expect(lifecycle.errors).toEqual([]);
+    }
+    await writeFile(
+      path.join(EVIDENCE, 'persistence-cases.json'),
+      `${JSON.stringify(evidence, null, 2)}\n`
+    );
+  }, 30_000);
+
+  it('V2 saves unrun, executes recorded policy, and replays exact completed bytes', async () => {
+    const body = correctedBody();
+    const selector = '?representation=capital-plan-v2';
+    const created = await runtime.request('POST', setPath() + selector, {
+      body,
+      headers: { 'Idempotency-Key': randomUUID() },
+    });
+    expect(created.status, created.rawBody.toString()).toBe(201);
+    const id = FundScenarioCapitalCreateResponseV2Schema.parse(created.body).scenarioSetId;
+    const detailResponse = await runtime.request('GET', setPath(id) + selector);
+    const detail = FundScenarioCapitalDetailResponseV2Schema.parse(detailResponse.body);
+    expect(detail.sourceBundleHash).toBe(body.expectedSourceBundleHash);
+    expect(detail.variants[0]!.override.payload.methodVersion).toBe('capital-planning/2.0.0');
+    const before = await runtime.pool.query(
+      'SELECT id FROM fund_scenario_calculation_runs WHERE scenario_set_id=$1',
+      [id]
+    );
+    expect(before.rows).toHaveLength(0);
+    const calculated = await runtime.request('POST', `${setPath(id)}/calculate${selector}`, {
+      body: {},
+    });
+    expect(calculated.status, calculated.rawBody.toString()).toBe(200);
+    const payload = FundScenarioCapitalCalculateResponseV2Schema.parse(calculated.body).payload;
+    expect(payload.variants[0]!.result.construction.solution.countBasis).toBe('expected');
+    expect(payload.variants[0]!.result.roundingPolicy).toBe(
+      body.variants[0]!.override.payload.roundingPolicy
+    );
+    const replay = await unchanged(
+      'V2-completed-replay',
+      () => runtime.request('POST', `${setPath(id)}/calculate${selector}`, { body: {} }),
+      200
+    );
+    expect(replay.rawBody).toEqual(calculated.rawBody);
+    await archive(id, '?representation=capital-plan-v2');
+  });
+
+  it.each(['roundingPolicy', 'methodVersion'])(
+    'V2 refuses unknown saved %s before acquiring a calculation run',
+    async (field) => {
+      const created = await runtime.request('POST', `${setPath()}?representation=capital-plan-v2`, {
+        body: correctedBody(),
+        headers: { 'Idempotency-Key': randomUUID() },
+      });
+      expect(created.status, created.rawBody.toString()).toBe(201);
+      const id = FundScenarioCapitalCreateResponseV2Schema.parse(created.body).scenarioSetId;
+      const fieldPath = field === 'roundingPolicy' ? ['input', field] : [field];
+      const unknownVersion =
+        field === 'roundingPolicy'
+          ? 'capital-planning-rounding/future/1.0.0'
+          : 'capital-planning/99.0.0';
+      await runtime.pool.query(
+        `UPDATE fund_scenario_variants
+      SET override_payload=jsonb_set(override_payload, $2::text[], to_jsonb($3::text))
+      WHERE scenario_set_id=$1`,
+        [id, fieldPath, unknownVersion]
+      );
+      await unchanged(
+        'V2-unknown-policy-no-run',
+        () =>
+          runtime.request('POST', `${setPath(id)}/calculate?representation=capital-plan-v2`, {
+            body: {},
+          }),
+        422,
+        'POLICY_UNSUPPORTED'
+      );
+      const runs = await runtime.pool.query(
+        'SELECT id FROM fund_scenario_calculation_runs WHERE scenario_set_id=$1',
+        [id]
+      );
+      expect(runs.rows).toHaveLength(0);
+      await archive(id, '?representation=capital-plan-v2');
+    }
+  );
+
+  it('V2 explicit policy update creates new identity while retaining old scenarios and completed result', async () => {
+    const selector = '?representation=capital-plan-v2';
+    async function createCorrected() {
+      const body = correctedBody();
+      const response = await runtime.request('POST', setPath() + selector, {
+        body,
+        headers: { 'Idempotency-Key': randomUUID() },
+      });
+      expect(response.status, response.rawBody.toString()).toBe(201);
+      return FundScenarioCapitalCreateResponseV2Schema.parse(response.body).scenarioSetId;
+    }
+    async function detail(id: string) {
+      return FundScenarioCapitalDetailResponseV2Schema.parse(
+        (await runtime.request('GET', setPath(id) + selector)).body
+      );
+    }
+    function identity(saved: ReturnType<typeof FundScenarioCapitalDetailResponseV2Schema.parse>) {
+      const source = saved.variants[0]!.override.payload.sourceBundle;
+      const lineage = resolveScenarioInputLineage(source.modelInputsAsOfDate ?? undefined);
+      const envelope = {
+        contractVersion: 'fund-scenarios-v1' as const,
+        fundId: saved.fundId,
+        scenarioSetId: saved.id,
+        sourceConfigId: saved.sourceConfigId,
+        sourceConfigVersion: saved.sourceConfigVersion,
+        calculationDomain: 'capital_plan' as const,
+        calculationMode: 'sync_capital_plan' as const,
+        overrideType: 'capital_plan' as const,
+        capitalPreimageVersion: 'capital-preimage/1.0.0' as const,
+        methodVersion: saved.variants[0]!.override.payload.methodVersion,
+        interpretationVersion: saved.interpretationVersion,
+        engineVersion: '1.0.0',
+        baselineVariantId: saved.baselineVariantId,
+        sourceBundleHash: saved.sourceBundleHash,
+        variants: saved.variants.map((variant) => ({
+          variantId: variant.id,
+          sortOrder: variant.sortOrder,
+          override: variant.override,
+        })),
+      };
+      const versioned =
+        lineage.hashKind === 'scenario-input-hash-v2'
+          ? {
+              ...envelope,
+              version: lineage.hashKind,
+              modelInputsAsOfDate: lineage.modelInputsAsOfDate,
+            }
+          : { ...envelope, version: lineage.hashKind };
+      return {
+        hash: createCapitalScenarioInputHash(versioned),
+        preimage: canonicalCapitalScenarioInputString(versioned),
+      };
+    }
+    const completedId = await createCorrected();
+    const completed = await runtime.request(
+      'POST',
+      `${setPath(completedId)}/calculate${selector}`,
+      { body: {} }
+    );
+    expect(completed.status, completed.rawBody.toString()).toBe(200);
+    const completedPayload = FundScenarioCapitalCalculateResponseV2Schema.parse(
+      completed.body
+    ).payload;
+    const priorId = await createCorrected();
+    // Test-only saved-unrun fixture: no existing completed payload is rewritten.
+    await runtime.pool.query(
+      `UPDATE fund_scenario_variants SET override_payload=jsonb_set(
+      override_payload, '{input,roundingPolicy}', to_jsonb($2::text)) WHERE scenario_set_id=$1`,
+      [priorId, 'capital-planning-rounding/future/1.0.0']
+    );
+    const prior = await detail(priorId);
+    const before = await runtime.pool.query(
+      'SELECT * FROM fund_scenario_variants WHERE scenario_set_id=ANY($1::uuid[]) ORDER BY id',
+      [[completedId, priorId]]
+    );
+    const oldIdentity = identity(prior);
+    const supportedPolicyOnly = structuredClone(prior);
+    for (const variant of supportedPolicyOnly.variants)
+      variant.override.payload.input.roundingPolicy =
+        'capital-planning-rounding/half-up-money-6-ratio-12/1.0.0';
+    expect(identity(supportedPolicyOnly).hash).not.toBe(oldIdentity.hash);
+    const updatedId = await createCorrected();
+    const updated = await detail(updatedId);
+    const newIdentity = identity(updated);
+    expect(new Set([completedId, priorId, updatedId]).size).toBe(3);
+    expect(newIdentity.hash).not.toBe(oldIdentity.hash);
+    expect(newIdentity.preimage).not.toBe(oldIdentity.preimage);
+    expect(updated.sourceBundleHash).toBe(prior.sourceBundleHash);
+    expect(updated.sourceBundleHash).toBe(completedPayload.sourceBundleHash);
+    const calculated = await runtime.request('POST', `${setPath(updatedId)}/calculate${selector}`, {
+      body: {},
+    });
+    expect(calculated.status, calculated.rawBody.toString()).toBe(200);
+    expect(
+      FundScenarioCapitalCalculateResponseV2Schema.parse(calculated.body).payload.inputHash
+    ).toBe(newIdentity.hash);
+    const after = await runtime.pool.query(
+      'SELECT * FROM fund_scenario_variants WHERE scenario_set_id=ANY($1::uuid[]) ORDER BY id',
+      [[completedId, priorId]]
+    );
+    expect(after.rows).toEqual(before.rows);
+    expect(await detail(priorId)).toEqual(prior);
+    const replay = await runtime.request('POST', `${setPath(completedId)}/calculate${selector}`, {
+      body: {},
+    });
+    expect(replay.status, replay.rawBody.toString()).toBe(200);
+    expect(replay.rawBody).toEqual(completed.rawBody);
+    evidence.push({
+      label: 'V2-explicit-policy-update-new-identity',
+      completedId,
+      priorId,
+      updatedId,
+      oldIdentity,
+      newIdentity,
+      sourceBundleHash: updated.sourceBundleHash,
+      originalCompletedBytesUnchanged: replay.rawBody.equals(completed.rawBody),
+      originalVariantRowsUnchanged: true,
+    });
+    for (const id of [completedId, priorId, updatedId])
+      await archive(id, '?representation=capital-plan-v2');
+  });
+
+  it('V2 representation selectors refuse mismatched reads and mutations while preserving legacy lists', async () => {
+    const legacy = await create();
+    // Like the original V3 contract, a V4 body can select its create representation without a query.
+    const body = correctedBody();
+    const created = await runtime.request('POST', setPath(), {
+      body,
+      headers: { 'Idempotency-Key': randomUUID() },
+    });
+    expect(created.status, created.rawBody.toString()).toBe(201);
+    const correctedId = FundScenarioCapitalCreateResponseV2Schema.parse(created.body).scenarioSetId;
+    const legacyList = FundScenarioCapitalListResponseV1Schema.parse(
+      (await runtime.request('GET', setPath() + SELECTOR)).body
+    );
+    expect(legacyList.scenarioSets.some((row) => row.id === legacy.id)).toBe(true);
+    expect(legacyList.scenarioSets.some((row) => row.id === correctedId)).toBe(false);
+    const mixedList = FundScenarioCapitalListResponseV2Schema.parse(
+      (await runtime.request('GET', `${setPath()}?representation=capital-plan-v2`)).body
+    );
+    expect(mixedList.scenarioSets.find((row) => row.id === correctedId)).toMatchObject({
+      representation: 'capital-plan-v2',
+    });
+    expect(mixedList.scenarioSets.find((row) => row.id === legacy.id)).not.toHaveProperty(
+      'representation'
+    );
+    for (const [id, matching, wrong] of [
+      [legacy.id, 'capital-plan-v1', 'capital-plan-v2'],
+      [correctedId, 'capital-plan-v2', 'capital-plan-v1'],
+    ] as const) {
+      for (const suffix of ['', '/results', '/comparison'])
+        await unchanged(
+          `selector-${matching}-${suffix || 'detail'}`,
+          () => runtime.request('GET', `${setPath(id)}${suffix}?representation=${wrong}`),
+          406,
+          'scenario_representation_not_applicable'
+        );
+      for (const command of ['calculate', 'archive'])
+        await unchanged(
+          `selector-${matching}-${command}`,
+          () =>
+            runtime.request('POST', `${setPath(id)}/${command}?representation=${wrong}`, {
+              body: {},
+            }),
+          406,
+          'scenario_representation_not_applicable'
+        );
+      const calculated = await runtime.request(
+        'POST',
+        `${setPath(id)}/calculate?representation=${matching}`,
+        { body: {} }
+      );
+      expect(calculated.status, calculated.rawBody.toString()).toBe(200);
+      await unchanged(
+        `selector-${matching}-completed`,
+        () =>
+          runtime.request('POST', `${setPath(id)}/calculate?representation=${wrong}`, { body: {} }),
+        406,
+        'scenario_representation_not_applicable'
+      );
+      const replay = await runtime.request(
+        'POST',
+        `${setPath(id)}/calculate?representation=${matching}`,
+        { body: {} }
+      );
+      expect(replay.rawBody).toEqual(calculated.rawBody);
+    }
+    for (const [request, wrong] of [
+      [correctedBody(), 'capital-plan-v1'],
+      [makeCapitalCreateBody(runtime), 'capital-plan-v2'],
+    ] as const) {
+      await unchanged(
+        `selector-create-${wrong}`,
+        () =>
+          runtime.request('POST', `${setPath()}?representation=${wrong}`, {
+            body: request,
+            headers: { 'Idempotency-Key': randomUUID() },
+          }),
+        406,
+        'scenario_representation_not_applicable'
+      );
+    }
+    await archive(legacy.id);
+    await archive(correctedId, '?representation=capital-plan-v2');
   });
 });
 
@@ -1720,6 +2072,7 @@ describe('B8 full durable transaction rollback at each capital calculation bound
   let calculator: typeof import('../../shared/lib/capital-planning/capital-planning-v1');
   let contracts: typeof import('../../shared/contracts/fund-scenario-sets-v1.contract');
   let benchmarkProvider: typeof import('../../shared/lib/capital-planning/benchmark-presets');
+  let savedPolicy: typeof import('../../shared/lib/scenarios/scenario-input-envelope');
   beforeAll(async () => {
     runtime = await startCapitalScenarioHttpRuntime({
       label: 'rollback',
@@ -1734,6 +2087,7 @@ describe('B8 full durable transaction rollback at each capital calculation bound
         calculator = await import('../../shared/lib/capital-planning/capital-planning-v1');
         contracts = await import('../../shared/contracts/fund-scenario-sets-v1.contract');
         benchmarkProvider = await import('../../shared/lib/capital-planning/benchmark-presets');
+        savedPolicy = await import('../../shared/lib/scenarios/scenario-input-envelope');
       },
     });
     const previous = await create();
@@ -1755,6 +2109,60 @@ describe('B8 full durable transaction rollback at each capital calculation bound
       `${JSON.stringify(evidence, null, 2)}\n`
     );
   }, 30_000);
+  it('V2 completed replay precedes withdrawn current policy support over real PostgreSQL HTTP', async () => {
+    const selector = '?representation=capital-plan-v2';
+    async function createCorrected() {
+      const response = await runtime.request('POST', setPath() + selector, {
+        body: correctedBody(),
+        headers: { 'Idempotency-Key': randomUUID() },
+      });
+      expect(response.status, response.rawBody.toString()).toBe(201);
+      return FundScenarioCapitalCreateResponseV2Schema.parse(response.body).scenarioSetId;
+    }
+    const completedId = await createCorrected();
+    const pendingId = await createCorrected();
+    const completed = await runtime.request(
+      'POST',
+      `${setPath(completedId)}/calculate${selector}`,
+      { body: {} }
+    );
+    expect(completed.status, completed.rawBody.toString()).toBe(200);
+    // Existing admission function is an in-process test seam, not a production policy toggle.
+    const policy = vi.spyOn(savedPolicy, 'capitalSavedExecutionIssues').mockReturnValue([
+      {
+        code: 'POLICY_UNSUPPORTED',
+        path: 'roundingPolicy',
+        message: 'Current executable policy support withdrawn in test',
+        support: 'unsupported',
+      },
+    ]);
+    const before = await runtime.snapshot();
+    const refused = await runtime.request('POST', `${setPath(pendingId)}/calculate${selector}`, {
+      body: {},
+    });
+    expect(refused.status, refused.rawBody.toString()).toBe(422);
+    expect(refused.body).toMatchObject({ code: 'POLICY_UNSUPPORTED' });
+    expect(policy).toHaveBeenCalled();
+    const replay = await runtime.request('POST', `${setPath(completedId)}/calculate${selector}`, {
+      body: {},
+    });
+    expect(replay.status, replay.rawBody.toString()).toBe(200);
+    expect(replay.rawBody).toEqual(completed.rawBody);
+    expect(await runtime.snapshot()).toEqual(before);
+    evidence.push({
+      label: 'V2-completed-before-current-policy-admission',
+      mode: 'in-process',
+      policySeam: 'capitalSavedExecutionIssues',
+      pendingRefusalStatus: refused.status,
+      completedReplayStatus: replay.status,
+      completedBytesUnchanged: true,
+      databaseUnchanged: true,
+    });
+    policy.mockRestore();
+    await archive(completedId, '?representation=capital-plan-v2');
+    await archive(pendingId, '?representation=capital-plan-v2');
+  });
+
   it('CP-029 persists a trusted preset and replays saved bytes without re-entering the current catalog resolver', async () => {
     const resolver = vi.spyOn(benchmarkProvider, 'resolveCapitalPlanningDraftV1');
     const draft = CapitalPlanningDraftV1Schema.parse({

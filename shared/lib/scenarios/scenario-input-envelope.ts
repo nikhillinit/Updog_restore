@@ -1,8 +1,14 @@
+import {
+  CAPITAL_PLANNING_V2_VERSION,
+  CAPITAL_PLANNING_V2_ROUNDING_POLICY,
+  type CapitalPlanningStoredInputV2,
+} from '../../contracts/capital-planning-v2.contract';
 import { canonicalJson, canonicalizeScenarioValue } from './canonicalize';
 import { z } from 'zod';
 import {
   CAPITAL_PLANNING_VERSION,
   CAPITAL_PREIMAGE_VERSION,
+  CAPITAL_SOURCE_INTERPRETATION_VERSION,
   CapitalHashV1Schema,
   CapitalVersionV1Schema,
   CAPITAL_PLANNING_PROVISIONAL_LIMITS,
@@ -11,7 +17,10 @@ import {
   type CapitalIssueV1,
   type CapitalPlanningInputV1,
 } from '../../contracts/capital-planning-v1.contract';
-import { FundScenarioCapitalStoredOverrideV1Schema } from '../../contracts/fund-scenario-sets-v1.contract';
+import {
+  FundScenarioCapitalStoredOverrideSchema,
+  type FundScenarioCapitalStoredOverride,
+} from '../../contracts/fund-scenario-sets-v1.contract';
 
 export const SCENARIO_INPUT_HASH_V1_VERSION = 'scenario-input-hash-v1' as const;
 export const SCENARIO_INPUT_HASH_V2_VERSION = 'scenario-input-hash-v2' as const;
@@ -19,7 +28,9 @@ export const SCENARIO_INPUT_HASH_VERSION = SCENARIO_INPUT_HASH_V2_VERSION;
 export const COMPARISON_LINEAGE_VERSION = 'comparison-lineage-v1' as const;
 export const FUND_SCENARIOS_CONTRACT_VERSION = 'fund-scenarios-v1' as const;
 
-export function expandedCapitalRows(inputs: readonly CapitalPlanningInputV1[]): number {
+export function expandedCapitalRows(
+  inputs: readonly (CapitalPlanningInputV1 | CapitalPlanningStoredInputV2)[]
+): number {
   return inputs.reduce(
     (total, input) =>
       total +
@@ -306,7 +317,7 @@ const capitalEnvelopeFields = {
   calculationMode: z.literal('sync_capital_plan'),
   overrideType: z.literal('capital_plan'),
   capitalPreimageVersion: z.literal(CAPITAL_PREIMAGE_VERSION),
-  methodVersion: z.literal(CAPITAL_PLANNING_VERSION),
+  methodVersion: CapitalVersionV1Schema,
   interpretationVersion: CapitalVersionV1Schema,
   engineVersion: z.string().min(1).max(20),
   baselineVariantId: z.string().uuid(),
@@ -317,7 +328,7 @@ const capitalEnvelopeFields = {
         .object({
           variantId: z.string().uuid(),
           sortOrder: z.number().int().min(0).max(4),
-          override: FundScenarioCapitalStoredOverrideV1Schema,
+          override: FundScenarioCapitalStoredOverrideSchema,
         })
         .strict()
     )
@@ -325,7 +336,17 @@ const capitalEnvelopeFields = {
     .max(5),
 };
 
-const CapitalScenarioInputHashEnvelopeSchema = z.discriminatedUnion('version', [
+type CapitalEnvelopeVersion =
+  | { version: typeof SCENARIO_INPUT_HASH_V1_VERSION }
+  | { version: typeof SCENARIO_INPUT_HASH_V2_VERSION; modelInputsAsOfDate: string };
+type CapitalEnvelopeFieldsSchema = z.ZodObject<typeof capitalEnvelopeFields>;
+type CapitalEnvelopeOutput = z.output<CapitalEnvelopeFieldsSchema> & CapitalEnvelopeVersion;
+type CapitalEnvelopeInput = z.input<CapitalEnvelopeFieldsSchema> & CapitalEnvelopeVersion;
+const CapitalScenarioInputHashEnvelopeSchema: z.ZodType<
+  CapitalEnvelopeOutput,
+  z.ZodTypeDef,
+  CapitalEnvelopeInput
+> = z.discriminatedUnion('version', [
   z
     .object({ ...capitalEnvelopeFields, version: z.literal(SCENARIO_INPUT_HASH_V1_VERSION) })
     .strict(),
@@ -371,6 +392,8 @@ export function normalizeCapitalScenarioInputEnvelope(envelope: CapitalScenarioI
         bundle.projection.sourceConfigId !== envelope.sourceConfigId ||
         bundle.projection.sourceConfigVersion !== envelope.sourceConfigVersion ||
         bundle.interpretationVersion !== envelope.interpretationVersion ||
+        (variant.override.payload.methodVersion ??
+          variant.override.payload.input.contractVersion) !== envelope.methodVersion ||
         bundle.modelInputsAsOfDate !== businessDate ||
         canonicalJson(bundle) !== canonicalJson(firstBundle)
       );
@@ -396,4 +419,51 @@ export function canonicalCapitalScenarioInputString(
   envelope: CapitalScenarioInputHashEnvelope
 ): string {
   return canonicalJson(normalizeCapitalScenarioInputEnvelope(envelope));
+}
+
+/** Support admission is separate from strict saved representation decoding. */
+export function capitalSavedExecutionIssues(
+  overrides: readonly FundScenarioCapitalStoredOverride[]
+): CapitalIssueV1[] {
+  for (const override of overrides) {
+    const stored = override.payload;
+    const method = stored.methodVersion ?? stored.input.contractVersion;
+    if (
+      (method !== CAPITAL_PLANNING_VERSION && method !== CAPITAL_PLANNING_V2_VERSION) ||
+      method !== stored.input.contractVersion
+    )
+      return [
+        {
+          code: 'POLICY_UNSUPPORTED',
+          path: 'methodVersion',
+          message: 'The saved method cannot start a new calculation',
+          support: 'unsupported',
+        },
+      ];
+    const roundingPolicy =
+      stored.input.contractVersion === CAPITAL_PLANNING_V2_VERSION
+        ? stored.input.roundingPolicy
+        : 'roundingPolicy' in stored
+          ? stored.roundingPolicy
+          : undefined;
+    const supportedPolicy =
+      method === CAPITAL_PLANNING_V2_VERSION
+        ? CAPITAL_PLANNING_V2_ROUNDING_POLICY
+        : 'capital-planning-rounding/legacy-v1-half-up-6-12/1.0.0';
+    if (
+      (roundingPolicy === undefined &&
+        (method !== CAPITAL_PLANNING_VERSION ||
+          stored.sourceBundle.interpretationVersion !== CAPITAL_SOURCE_INTERPRETATION_VERSION)) ||
+      (roundingPolicy !== undefined && roundingPolicy !== supportedPolicy)
+    )
+      return [
+        {
+          code: 'POLICY_UNSUPPORTED',
+          path: 'roundingPolicy',
+          message: 'The saved rounding policy cannot start a new calculation',
+          support: 'unsupported',
+        },
+      ];
+  }
+  return [];
 }

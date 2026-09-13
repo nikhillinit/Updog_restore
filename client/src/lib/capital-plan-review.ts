@@ -1,12 +1,13 @@
 import {
   CAPITAL_SOURCE_INTERPRETATION_VERSION,
+  CapitalPlanningInputV1Schema,
   type CapitalIssueV1,
   type CapitalPlanningResultV1,
 } from '@shared/contracts/capital-planning-v1.contract';
 import {
-  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioCapitalSetSchema,
   FundScenarioCapitalSourceResponseV1Schema,
-  type CreateFundScenarioSetV3,
+  type CreateFundScenarioCapitalSet,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 import {
@@ -14,6 +15,11 @@ import {
   parseCalculation,
   refuseCalculation,
 } from '@shared/lib/capital-planning/calculation-support';
+import { calculateCapitalPlanningV2 } from '@shared/lib/capital-planning/capital-planning-v2';
+import {
+  CapitalPlanningInputV2Schema,
+  type CapitalPlanningResultV2,
+} from '@shared/contracts/capital-planning-v2.contract';
 import { calculateCapitalPlanningV1 } from '@shared/lib/capital-planning/capital-planning-v1';
 import {
   materializeCapitalProjectionPreview,
@@ -24,9 +30,9 @@ import { sha256Bytes } from './hash';
 export type CapitalPlanReviewResult =
   | {
       ok: true;
-      request: CreateFundScenarioSetV3;
+      request: CreateFundScenarioCapitalSet;
       materialization: Extract<CapitalMaterializationResult, { ok: true }>;
-      results: CapitalPlanningResultV1[];
+      results: (CapitalPlanningResultV1 | CapitalPlanningResultV2)[];
     }
   | { ok: false; issues: CapitalIssueV1[] };
 
@@ -43,7 +49,7 @@ export async function reviewCapitalPlanDraft(args: {
       args.source,
       'source'
     );
-    const request = parseCalculation(CreateFundScenarioSetV3Schema, args.request, 'request');
+    const request = parseCalculation(CreateFundScenarioCapitalSetSchema, args.request, 'request');
     const pins = [
       ['fundId', source.projection.fundId, args.fundId],
       ['expectedSourceConfigId', source.projection.sourceConfigId, request.expectedSourceConfigId],
@@ -107,14 +113,24 @@ export async function reviewCapitalPlanDraft(args: {
     if (!materialization.ok) return { ok: false, issues: materialization.issues };
     const results = request.variants.map((variant, index) => {
       const payload = variant.override.payload;
-      return calculateCapitalPlanningV1({
-        input:
-          materialization.resolvedInputs?.[index] ?? ('input' in payload ? payload.input : payload),
+      const input =
+        materialization.resolvedInputs?.[index] ?? ('input' in payload ? payload.input : payload);
+      const calculation = {
+        input,
         sourceBundle: materialization.sourceBundle,
         ...(materialization.benchmarkSnapshotsByInput === undefined
           ? {}
           : { benchmarkSnapshots: materialization.benchmarkSnapshotsByInput[index]! }),
-      });
+      };
+      return input.contractVersion === 'capital-planning/2.0.0'
+        ? calculateCapitalPlanningV2({
+            ...calculation,
+            input: CapitalPlanningInputV2Schema.parse(input),
+          })
+        : calculateCapitalPlanningV1({
+            ...calculation,
+            input: CapitalPlanningInputV1Schema.parse(input),
+          });
     });
     return { ok: true, request, materialization, results };
   } catch (error) {

@@ -664,7 +664,8 @@ export function FundScenarioWorkspacePage({
 
   const capitalSetsQuery = useQuery({
     queryKey: capitalScenarioListQueryKey(fundId ?? '', includeArchivedCapital),
-    queryFn: () => fetchCapitalScenarioList(fundId ?? '', includeArchivedCapital),
+    queryFn: () =>
+      fetchCapitalScenarioList(fundId ?? '', includeArchivedCapital, 'capital-plan-v2'),
     enabled: capitalPlanEnabled && fundId !== null,
   });
   const combinedScenarioSets = [

@@ -1,11 +1,11 @@
 import React, { useId, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import type { CapitalPlanningMemoV1 } from '@shared/contracts/capital-planning-v1.contract';
-import type { FundScenarioCapitalComparisonV1 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import type { CapitalPlanningMemo } from '@shared/contracts/capital-planning-v2.contract';
+import type { FundScenarioCapitalComparison } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import { capitalPlanMemoSections, formatCapitalPlanMemo } from './capital-plan-memo-presentation';
 
 export interface CapitalPlanResultViewProps {
-  memo: CapitalPlanningMemoV1;
+  memo: CapitalPlanningMemo;
   copyAllowed?: boolean;
   preview?: boolean;
 }
@@ -137,7 +137,7 @@ function comparedValue(value: string | number | boolean | null): string {
 export function CapitalPlanComparisonTable({
   comparison,
 }: {
-  comparison: FundScenarioCapitalComparisonV1;
+  comparison: FundScenarioCapitalComparison;
 }) {
   const id = useId();
   return (

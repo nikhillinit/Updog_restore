@@ -413,7 +413,9 @@ function dispatch(overrides?: Dispatcher) {
       let body = await overrides?.(call);
       if (body === undefined) {
         const path = url.pathname;
-        const capital = url.searchParams.get('representation') === REPRESENTATION;
+        const capital = [REPRESENTATION, 'capital-plan-v2'].includes(
+          url.searchParams.get('representation') ?? ''
+        );
         if (call.method === 'GET' && path === `/api/funds/${FUND}/results` && !capital)
           body = legacyResults();
         else if (call.method === 'GET' && path === `/api/funds/${FUND}/scenario-sets/source-config`)

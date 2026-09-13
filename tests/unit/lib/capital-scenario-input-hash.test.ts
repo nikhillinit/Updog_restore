@@ -408,6 +408,24 @@ describe('capital scenario input identity', () => {
     );
   });
 
+  it('binds explicit saved method and policy without rewriting source facts', () => {
+    const input = envelope();
+    const originalHash = createCapitalScenarioInputHash(input);
+    for (const variant of input.variants)
+      Object.assign(variant.override.payload, {
+        methodVersion: input.methodVersion,
+        roundingPolicy: 'capital-planning-rounding/future/1.0.0',
+      });
+    expect(createCapitalScenarioInputHash(input)).not.toBe(originalHash);
+    expect(input.sourceBundleHash).toBe(envelope().sourceBundleHash);
+  });
+
+  it('refuses mixed recorded methods before hashing', () => {
+    const input = envelope();
+    Object.assign(input.variants[1]!.override.payload, { methodVersion: 'capital-planning/2.0.0' });
+    expect(() => createCapitalScenarioInputHash(input)).toThrow('identity is inconsistent');
+  });
+
   it('binds exact unit declarations even when raw fingerprint is unchanged', () => {
     const input = envelope();
     for (const variant of input.variants)

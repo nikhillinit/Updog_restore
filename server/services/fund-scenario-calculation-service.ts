@@ -3,8 +3,8 @@ import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
-  FundScenarioCapitalResultsResponseV1Schema,
-  type FundScenarioCapitalResultsResponseV1,
+  FundScenarioCapitalResultsResponseSchema,
+  type FundScenarioCapitalResultsResponse,
   FundScenarioCalculationResponseV1Schema,
   ScenarioSetResultSummaryV1Schema,
   type FundScenarioCalculationModeV1,
@@ -776,30 +776,33 @@ export function getScenarioResults(
 export function getScenarioResults(
   fundId: number,
   scenarioSetId: string,
-  representation: 'capital-plan-v1'
-): Promise<FundScenarioCapitalResultsResponseV1>;
+  representation: 'capital-plan-v1' | 'capital-plan-v2'
+): Promise<FundScenarioCapitalResultsResponse>;
 // eslint-disable-next-line no-redeclare -- Implementation of the representation overloads.
 export async function getScenarioResults(
   fundId: number,
   scenarioSetId: string,
   representation?: ScenarioRepresentation
-): Promise<FundScenarioCalculationResponseV1 | FundScenarioCapitalResultsResponseV1 | null> {
+): Promise<FundScenarioCalculationResponseV1 | FundScenarioCapitalResultsResponse | null> {
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     if (representation) {
       const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);
-      const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
+      const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw, { representation });
       const savedResult = await fetchCapitalSavedSnapshot(client, detail);
-      const response: FundScenarioCapitalResultsResponseV1 = {
-        contractVersion: 'fund-scenario-capital-results/1.0.0',
-        representation,
+      const response = {
+        contractVersion:
+          detail.representation === 'capital-plan-v2'
+            ? 'fund-scenario-capital-results/2.0.0'
+            : 'fund-scenario-capital-results/1.0.0',
+        representation: detail.representation,
         scenarioSetId,
         savedResult,
         unavailableReason: savedResult === null ? 'NO_CALCULATED_RESULT' : null,
         readState: detail.readState,
       };
-      FundScenarioCapitalResultsResponseV1Schema.parse(response);
-      return response;
+      FundScenarioCapitalResultsResponseSchema.parse(response);
+      return response as FundScenarioCapitalResultsResponse;
     }
     await fetchScenarioSetDetail(client, fundId, scenarioSetId);
 

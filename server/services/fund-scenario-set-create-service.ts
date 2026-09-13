@@ -1,3 +1,9 @@
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import {
+  CAPITAL_PLANNING_V2_VERSION,
+  CapitalPlanningInputV2Schema,
+} from '@shared/contracts/capital-planning-v2.contract';
+import { calculateCapitalPlanningV2 } from '@shared/lib/capital-planning/capital-planning-v2';
 import crypto from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import type { PoolClient } from 'pg';
@@ -8,17 +14,18 @@ import type {
   CreateFundScenarioSetV2,
   FundScenarioSourceConfigResponseV1,
   FundScenarioSetDetailV1,
-  CreateFundScenarioSetV3,
-  FundScenarioCapitalCreateResponseV1,
-  FundScenarioCapitalStoredOverrideV1,
+  CreateFundScenarioCapitalSet,
+  FundScenarioCapitalCreateResponse,
+  FundScenarioCapitalStoredOverride,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   CreateFundScenarioSetV1Schema,
   CreateFundScenarioSetV2Schema,
-  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioCapitalSetSchema,
   FundScenarioCapitalCreateResponseV1Schema,
-  FundScenarioCapitalStoredOverrideV1Schema,
-  FundScenarioCapitalCalculationPayloadV1Schema,
+  FundScenarioCapitalCreateResponseV2Schema,
+  FundScenarioCapitalStoredOverrideSchema,
+  FundScenarioCapitalCalculationPayloadSchema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   CAPITAL_PLANNING_PROVISIONAL_LIMITS,
@@ -55,6 +62,7 @@ import {
   fetchScenarioSetDetail,
   fetchRawScenarioSet,
   requireScenarioSetFamily,
+  requireCapitalScenarioRepresentation,
   insertScenarioSetEvent,
   normalizeActor,
   normalizeNullableText,
@@ -118,7 +126,7 @@ function capitalIssues(issues: CapitalIssueV1[], status = 422): never {
 
 /** Aggregate saved input admission shared by create and new calculation, never replay. */
 export function assertCapitalScenarioStoredInputLimits(
-  overrides: readonly FundScenarioCapitalStoredOverrideV1[]
+  overrides: readonly FundScenarioCapitalStoredOverride[]
 ): void {
   const limits = CAPITAL_PLANNING_PROVISIONAL_LIMITS;
   assertCalculationSize(overrides, limits.maxInputBytes, 'storedVariants');
@@ -136,7 +144,7 @@ export function assertCapitalScenarioStoredInputLimits(
     ]);
   }
   overrides.forEach((override, index) => {
-    const parsed = FundScenarioCapitalStoredOverrideV1Schema.safeParse(override);
+    const parsed = FundScenarioCapitalStoredOverrideSchema.safeParse(override);
     if (!parsed.success)
       throw new CapitalPlanningCalculationError(
         capitalSchemaIssues(parsed.error.issues, override, `storedVariants[${index}]`)
@@ -157,36 +165,54 @@ export function assertCapitalScenarioStoredInputLimits(
   }
 }
 
-function prepareCapitalCreateResponse(scenarioSetId: string): {
-  response: FundScenarioCapitalCreateResponseV1;
+function prepareCapitalCreateResponse(
+  scenarioSetId: string,
+  corrected = false
+): {
+  response: FundScenarioCapitalCreateResponse;
   serializedResponse: string;
 } {
   const response = {
-    contractVersion: 'fund-scenario-capital-create/1.0.0' as const,
-    representation: 'capital-plan-v1' as const,
+    contractVersion: corrected
+      ? ('fund-scenario-capital-create/2.0.0' as const)
+      : ('fund-scenario-capital-create/1.0.0' as const),
+    representation: corrected ? ('capital-plan-v2' as const) : ('capital-plan-v1' as const),
     scenarioSetId,
   };
-  if (!FundScenarioCapitalCreateResponseV1Schema.safeParse(response).success) {
+  const responseSchema = corrected
+    ? FundScenarioCapitalCreateResponseV2Schema
+    : FundScenarioCapitalCreateResponseV1Schema;
+  if (!responseSchema.safeParse(response).success) {
     throw createHttpError(500, 'Capital create response failed validation', {
       code: 'scenario_response_invalid',
     });
   }
-  return { response, serializedResponse: JSON.stringify(response) };
+  return {
+    response: response as FundScenarioCapitalCreateResponse,
+    serializedResponse: JSON.stringify(response),
+  };
 }
 
 /** V3 has a separate admission path; legacy V1/V2 parsing and request hashes stay unchanged. */
 export async function createFundScenarioCapitalSet(
   fundId: number,
-  input: CreateFundScenarioSetV3,
+  input: CreateFundScenarioCapitalSet,
   actorInput: FundScenarioMutationActor = {},
-  options: CreateFundScenarioSetOptions = {}
-): Promise<{ response: FundScenarioCapitalCreateResponseV1; serializedResponse: string }> {
-  const parsed = CreateFundScenarioSetV3Schema.safeParse(input);
+  options: CreateFundScenarioSetOptions = {},
+  representation?: ScenarioRepresentation
+): Promise<{ response: FundScenarioCapitalCreateResponse; serializedResponse: string }> {
+  const parsed = CreateFundScenarioCapitalSetSchema.safeParse(input);
   if (!parsed.success) {
     const issues = capitalSchemaIssues(parsed.error.issues, input);
     capitalIssues(issues);
   }
   const request = parsed.data;
+  const corrected = request.contractVersion === 'fund-scenario-set-create/4.0.0';
+  const methodVersion = corrected ? CAPITAL_PLANNING_V2_VERSION : CAPITAL_PLANNING_VERSION;
+  requireCapitalScenarioRepresentation(
+    corrected ? 'capital-plan-v2' : 'capital-plan-v1',
+    representation
+  );
   try {
     assertCalculationSize(request, CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxInputBytes, 'input');
     return await transaction(async (client) => {
@@ -204,7 +230,7 @@ export async function createFundScenarioCapitalSet(
             await fetchRawScenarioSet(client, fundId, existing.id),
             'capital_plan'
           );
-          return prepareCapitalCreateResponse(existing.id);
+          return prepareCapitalCreateResponse(existing.id, corrected);
         }
       }
       if (request.expectedInterpretationVersion !== CAPITAL_SOURCE_INTERPRETATION_VERSION) {
@@ -244,16 +270,17 @@ export async function createFundScenarioCapitalSet(
       });
       if (!materialized.ok) capitalIssues(materialized.issues, materialized.status);
       const overrides = request.variants.map(
-        (variant, index): FundScenarioCapitalStoredOverrideV1 => {
+        (variant, index): FundScenarioCapitalStoredOverride => {
           const supplied = variant.override.payload;
           const normalizedInput =
             materialized.resolvedInputs?.[index] ??
             ('input' in supplied ? supplied.input : supplied);
           const snapshots = materialized.benchmarkSnapshotsByInput?.[index];
-          return FundScenarioCapitalStoredOverrideV1Schema.parse({
+          return FundScenarioCapitalStoredOverrideSchema.parse({
             overrideType: 'capital_plan',
             payload: {
               input: normalizedInput,
+              ...(corrected ? { methodVersion } : {}),
               sourceBundle: materialized.sourceBundle,
               sourceBundleHash: materialized.sourceBundle.sourceBundleHash,
               ...(snapshots === undefined ? {} : { benchmarkSnapshots: snapshots }),
@@ -276,7 +303,7 @@ export async function createFundScenarioCapitalSet(
         calculationMode: 'sync_capital_plan' as const,
         overrideType: 'capital_plan' as const,
         capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
-        methodVersion: CAPITAL_PLANNING_VERSION,
+        methodVersion,
         interpretationVersion: materialized.sourceBundle.interpretationVersion,
         engineVersion: '1.0.0',
         baselineVariantId: request.baselineVariantId,
@@ -296,12 +323,14 @@ export async function createFundScenarioCapitalSet(
             }
           : { ...envelope, version: lineage.hashKind }
       );
-      const payload = FundScenarioCapitalCalculationPayloadV1Schema.parse({
-        contractVersion: 'fund-scenario-capital-calculation/1.0.0',
+      const payload = FundScenarioCapitalCalculationPayloadSchema.parse({
+        contractVersion: corrected
+          ? 'fund-scenario-capital-calculation/2.0.0'
+          : 'fund-scenario-capital-calculation/1.0.0',
         calculationDomain: 'capital_plan',
         calculationMode: 'sync_capital_plan',
         capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
-        methodVersion: CAPITAL_PLANNING_VERSION,
+        methodVersion,
         interpretationVersion: materialized.sourceBundle.interpretationVersion,
         calculationVersion: '1.0.0',
         inputHash,
@@ -318,15 +347,21 @@ export async function createFundScenarioCapitalSet(
           scenarioSetId,
           name: variant.name,
           overrideType: 'capital_plan',
-          result: calculateCapitalPlanningV1({
-            input: overrides[index]!.payload.input,
-            sourceBundle: materialized.sourceBundle,
-            ...(overrides[index]!.payload.benchmarkSnapshots === undefined
-              ? {}
-              : {
-                  benchmarkSnapshots: overrides[index]!.payload.benchmarkSnapshots,
-                }),
-          }),
+          result: (() => {
+            const stored = overrides[index]!.payload;
+            const args = {
+              sourceBundle: materialized.sourceBundle,
+              ...(stored.benchmarkSnapshots === undefined
+                ? {}
+                : { benchmarkSnapshots: stored.benchmarkSnapshots }),
+            };
+            return stored.input.contractVersion === CAPITAL_PLANNING_V2_VERSION
+              ? calculateCapitalPlanningV2({
+                  ...args,
+                  input: CapitalPlanningInputV2Schema.parse(stored.input),
+                })
+              : calculateCapitalPlanningV1({ ...args, input: stored.input });
+          })(),
         })),
       });
       assertCalculationSize(
@@ -378,7 +413,7 @@ export async function createFundScenarioCapitalSet(
         version: source.config.version,
         config: source.config.raw,
       });
-      return prepareCapitalCreateResponse(persistedId);
+      return prepareCapitalCreateResponse(persistedId, corrected);
     });
   } catch (error) {
     if (error instanceof CapitalPlanningCalculationError) capitalIssues(error.issues);

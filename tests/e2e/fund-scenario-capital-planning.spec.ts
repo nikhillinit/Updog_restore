@@ -5,6 +5,7 @@ import type {
   AggregatePreferenceInputV1,
 } from '../../shared/contracts/capital-planning-v1.contract';
 import { CreateFundScenarioSetV3Schema } from '../../shared/contracts/fund-scenario-sets-v1.contract';
+import { FundScenarioCapitalComparisonV2Schema } from '../../shared/contracts/fund-scenario-comparison-v1.contract';
 import frozen from '../fixtures/capital-planning/workspace-b8.json' with { type: 'json' };
 import {
   test,
@@ -17,6 +18,332 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 test.setTimeout(240_000);
+
+test('CORRECTED-V2: explicit assumptions, history ownership, saved comparison and replay', async ({
+  capital,
+}) => {
+  await capital.workspace();
+  const source = await capital.source();
+  await capital.publication(
+    capital.config.fundId,
+    {
+      id: source.projection.sourceConfigId,
+      version: source.projection.sourceConfigVersion,
+    },
+    (raw) => {
+      const profiles = raw['pipelineProfiles'] as { stages: Record<string, unknown>[] }[];
+      profiles[0]!.stages.push({
+        ...profiles[0]!.stages[0],
+        id: 's1',
+        name: 'Series A',
+        monthsToGraduate: 12,
+      });
+    }
+  );
+  await capital.reload();
+  await expect(
+    capital.page.getByRole('button', { name: 'New capital planning scenario', exact: true })
+  ).toBeVisible({ timeout: 60_000 });
+  const dialog = await capital.openDraft('Corrected history plan');
+  await capital.receipt(
+    'corrected-dialog-label',
+    await capital.page.locator('[role="dialog"]').evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        label: node.getAttribute('aria-label'),
+        labelledBy: node.getAttribute('aria-labelledby'),
+        heading: node.querySelector('h2')?.outerHTML,
+        labelTarget: document.getElementById(node.getAttribute('aria-labelledby') ?? '')?.outerHTML,
+      }))
+    )
+  );
+  await capital.keyboard.select(
+    dialog.getByRole('combobox', { name: 'Calculation method', exact: true }),
+    'corrected'
+  );
+  await expect(dialog.getByLabel('Solve mode', { exact: true })).toHaveValue('');
+  await capital.keyboard.select(dialog.getByLabel('Solve mode', { exact: true }), 'fixed_fund');
+  await declarations(capital, capital.config.fundId);
+  await step(capital, 'Allocations');
+  for (const [label, value] of [
+    ['Source allocation', 'a1'],
+    ['Pipeline profile', 'p1'],
+    ['Entry stage', 's0'],
+    ['Schedule anchor', 'entry_deployment_month'],
+    ['Initial deployment cadence', 'uniform_monthly_over_deployment_period'],
+  ] as const)
+    await capital.keyboard.select(dialog.getByLabel(label, { exact: true }), value);
+  for (const [label, value] of [
+    ['Allocation name', 'Seed'],
+    ['Entry round', 'Seed'],
+    ['Initial investment dollar weight (ratio)', '1'],
+    ['Initial check (USD)', '1'],
+    ['Deployment period (years)', '1'],
+  ] as const)
+    await capital.keyboard.fill(dialog.getByLabel(label, { exact: true }), value);
+  async function financing(pre: string, primary: string) {
+    await capital.keyboard.fill(dialog.getByLabel('Valuation (USD)', { exact: true }), pre);
+    await capital.keyboard.select(
+      dialog.getByLabel('Valuation basis', { exact: true }),
+      'pre_money'
+    );
+    await capital.keyboard.select(
+      dialog.getByLabel('Primary capital denominator', { exact: true }),
+      'total_primary_including_fund_check'
+    );
+    await capital.keyboard.fill(
+      dialog.getByLabel('Total primary capital (USD)', { exact: true }),
+      primary
+    );
+    await capital.keyboard.check(
+      dialog.getByLabel('Primary capital only; excludes all secondary sales', { exact: true })
+    );
+  }
+  await financing('9', '1');
+  await step(capital, 'Follow-ons');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Add follow-on round', exact: true })
+  );
+  for (const [label, value] of [
+    ['Stage', 's1'],
+    ['Follow-on eligibility', 'all'],
+    ['Participation policy', 'homogeneous_conditional_probability'],
+    ['Check policy', 'pro_rata'],
+    ['Timing basis', 'interval_from_previous_round'],
+    ['Pool basis', 'incremental_pre_money'],
+  ] as const)
+    await capital.keyboard.select(dialog.getByLabel(label, { exact: true }), value);
+  for (const [label, value] of [
+    ['Round label', 'Series A'],
+    ['Graduation (ratio)', '0.5'],
+    ['Conditional participation probability (ratio)', '0.5'],
+    ['Pro-rata exercise (ratio)', '1'],
+    ['Months after previous round', '12'],
+    ['Incremental pool dilution (ratio)', '0'],
+  ] as const)
+    await capital.keyboard.fill(dialog.getByLabel(label, { exact: true }), value);
+  await financing('20', '2');
+  await step(capital, 'Assumption evidence');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Add assumption evidence', exact: true })
+  );
+  const managerEvidence = dialog.getByRole('group', { name: 'Assumption evidence 1', exact: true });
+  await capital.keyboard.fill(
+    managerEvidence.getByLabel('Assumption input path', { exact: true }),
+    'allocations[0].initialPoolShareRatio'
+  );
+  await capital.keyboard.select(
+    managerEvidence.getByLabel('Evidence origin', { exact: true }),
+    'manager_assumption'
+  );
+  await capital.keyboard.fill(
+    managerEvidence.getByLabel('Source document (optional)', { exact: true }),
+    'Synthetic manager policy'
+  );
+  await managerEvidence.getByLabel('Source date (optional)', { exact: true }).fill('2026-09-12');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Add assumption evidence', exact: true })
+  );
+  const marketEvidence = dialog.getByRole('group', { name: 'Assumption evidence 2', exact: true });
+  await capital.keyboard.fill(
+    marketEvidence.getByLabel('Assumption input path', { exact: true }),
+    'allocations[0].initialCheckUsd'
+  );
+  await capital.keyboard.select(
+    marketEvidence.getByLabel('Evidence origin', { exact: true }),
+    'market_observation'
+  );
+  for (const [label, value] of [
+    ['publisher', 'Synthetic browser observation'],
+    ['geography', 'US'],
+    ['population', 'Synthetic seed cohort'],
+    ['statistic Type', 'median'],
+    ['measurement Basis', 'initial primary check'],
+  ] as const)
+    await capital.keyboard.fill(marketEvidence.getByLabel(label, { exact: true }), value);
+  await marketEvidence.getByLabel('publication Date', { exact: true }).fill('2026-09-12');
+  await marketEvidence.getByLabel('observation Cutoff', { exact: true }).fill('2026-06-30');
+  await step(capital, 'Follow-ons');
+  await capital.keyboard.activate(dialog.getByRole('button', { name: 'Add variant', exact: true }));
+  await capital.keyboard.fill(
+    dialog.getByLabel('Variant name', { exact: true }),
+    'External primary target'
+  );
+  await capital.keyboard.select(
+    dialog.getByLabel('Primary capital denominator', { exact: true }),
+    'external_primary_excluding_fund_check'
+  );
+  await capital.keyboard.fill(
+    dialog.getByLabel('External primary capital (USD)', { exact: true }),
+    '2'
+  );
+  await capital.keyboard.check(
+    dialog.getByLabel('Primary capital only; excludes all secondary sales', { exact: true })
+  );
+  await declarations(capital, capital.config.fundId);
+  await capital.keyboard.select(
+    dialog.getByLabel('Solve mode', { exact: true }),
+    'fixed_portfolio'
+  );
+  await capital.keyboard.fill(
+    dialog.getByLabel('Total expected company count', { exact: true }),
+    '50'
+  );
+  await step(capital, 'Review');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Review capital plan', exact: true })
+  );
+  const saveButton = dialog.getByRole('button', { name: 'Save capital scenario', exact: true });
+  await expect(saveButton).toBeEnabled();
+  await expect(dialog.getByText('capital-planning/2.0.0', { exact: true }).first()).toBeVisible();
+  await capital.waitForScenarioBudget(capital.config.fundId, 'mutate');
+  const savedResponse = capital.page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname === `/api/funds/${capital.config.fundId}/scenario-sets`
+  );
+  await capital.keyboard.activate(saveButton);
+  const saved = await savedResponse;
+  expect(saved.status()).toBe(201);
+  const { scenarioSetId } = (await saved.json()) as { scenarioSetId: string };
+  const card = capital.page.locator(`article[data-scenario-id="${scenarioSetId}"]`);
+  await expect(card).toHaveAttribute('data-representation', 'capital-plan-v2');
+  await expect(card).toBeVisible();
+  await capital.waitForScenarioBudget(capital.config.fundId, 'mutate');
+  const calculatedResponse = capital.page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname.endsWith(`/${scenarioSetId}/calculate`)
+  );
+  await capital.keyboard.activate(
+    card.getByRole('button', { name: 'Calculate capital scenario', exact: true })
+  );
+  const calculated = await calculatedResponse;
+  expect(calculated.status()).toBe(200);
+  const calculationBytes = await calculated.text();
+  const comparisonResponse = await capital.xhr(
+    scenarioURL(capital.config.fundId, `/${scenarioSetId}/comparison`).replace(
+      'capital-plan-v1',
+      'capital-plan-v2'
+    )
+  );
+  expect(comparisonResponse.status).toBe(200);
+  const comparison = FundScenarioCapitalComparisonV2Schema.parse(
+    JSON.parse(comparisonResponse.text)
+  );
+  const result = comparison.baseline!.result;
+  const externalResult = comparison.variants[0]!.memo.result;
+  expect(externalResult.construction.solution).toMatchObject({
+    mode: 'fixed_portfolio',
+    totalExpectedCompanyCount: '50.000000000000',
+  });
+  expect(externalResult.construction.budgetBridge.committedCapitalUsd).toBe(
+    result.construction.budgetBridge.committedCapitalUsd
+  );
+  expect(externalResult.construction.allocations[0]!.rounds[0]!.paths).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        outcome: 'participated',
+        ownershipRatio: '0.100000000000',
+        checkUsd: '0.222222',
+      }),
+      expect.objectContaining({
+        outcome: 'eligible_zero_election',
+        ownershipRatio: '0.090909090909',
+        checkUsd: '0.000000',
+      }),
+    ])
+  );
+  expect(result.construction.allocations[0]!.rounds[0]!.paths).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        outcome: 'participated',
+        ownershipRatio: '0.100000000000',
+        checkUsd: '0.200000',
+      }),
+      expect.objectContaining({
+        outcome: 'eligible_zero_election',
+        ownershipRatio: '0.090909090909',
+        checkUsd: '0.000000',
+      }),
+      expect.objectContaining({
+        outcome: 'non_graduation',
+        state: 'stopped',
+        ownershipRatio: '0.100000000000',
+      }),
+    ])
+  );
+  await expect(card.getByText(result.roundingPolicy, { exact: true }).first()).toBeVisible();
+  await capital.keyboard.activate(
+    card.getByText('Assumptions and provenance', { exact: true }).first()
+  );
+  for (const text of [
+    'manager_assumption',
+    'market_observation',
+    'Synthetic manager policy',
+    'Synthetic browser observation',
+    '2026-06-30',
+    'Synthetic seed cohort',
+    'median',
+    'initial primary check',
+  ])
+    await expect(card.getByText(text, { exact: true }).first()).toBeVisible();
+  expect(result.input.assumptionEvidence).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        origin: 'manager_assumption',
+        sourceDocument: 'Synthetic manager policy',
+        sourceDate: '2026-09-12',
+      }),
+      expect.objectContaining({
+        origin: 'market_observation',
+        geography: 'US',
+        publicationDate: '2026-09-12',
+        observationCutoff: '2026-06-30',
+        statisticType: 'median',
+        measurementBasis: 'initial primary check',
+      }),
+    ])
+  );
+
+  await capital.keyboard.activate(
+    card.getByRole('button', { name: 'Copy capital memo: Baseline', exact: true })
+  );
+  await expect
+    .poll(() => capital.page.evaluate(() => navigator.clipboard.readText()))
+    .toContain(result.roundingPolicy);
+  const copied = await capital.page.evaluate(() => navigator.clipboard.readText());
+  for (const text of [
+    'manager_assumption',
+    'market_observation',
+    'Synthetic browser observation',
+    '2026-06-30',
+    'initial primary check',
+  ])
+    expect(copied).toContain(text);
+  const before = await capital.snapshot();
+  const replay = await capital.xhr(
+    scenarioURL(capital.config.fundId, `/${scenarioSetId}/calculate`).replace(
+      'capital-plan-v1',
+      'capital-plan-v2'
+    ),
+    { method: 'POST', csrf: 'valid' }
+  );
+  expect(replay.status).toBe(200);
+  expect(replay.text).toBe(calculationBytes);
+  expect((await capital.snapshot()).sha256).toBe(before.sha256);
+  await capital.page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      capital.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    )
+    .toBe(true);
+  await capital.receipt('corrected-v2-result', {
+    scenarioSetId,
+    result,
+    comparisonResponse,
+    replaySha256: sha256(replay.text),
+  });
+});
 
 const expectedDisclosures = [
   frozen.calculate.payload.variants[0]!.result.construction.disclosures.timing,
