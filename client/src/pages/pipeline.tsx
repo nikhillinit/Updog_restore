@@ -152,7 +152,7 @@ function EmptyPipelineState({
         </h3>
       </CardHeader>
       <CardContent className="text-center">
-        <p className="font-poppins text-sm text-charcoal-500 mb-6 max-w-md mx-auto">
+        <p className="font-poppins text-sm text-presson-textMuted mb-6 max-w-md mx-auto">
           Add deals to track diligence, scoring, and next steps. Import existing deals from a
           spreadsheet or add them manually.
         </p>
@@ -303,7 +303,7 @@ function ListView({
             </div>
             <div>
               <h4 className="font-inter font-semibold text-pov-charcoal">{deal.companyName}</h4>
-              <p className="font-poppins text-xs text-charcoal-500">
+              <p className="font-poppins text-xs text-presson-textMuted">
                 {deal.sector} • {deal.stage}
               </p>
             </div>
@@ -545,7 +545,7 @@ export default function PipelinePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <h2 className="font-inter text-2xl font-bold text-pov-charcoal">Deal Pipeline</h2>
-            <p className="font-poppins text-sm text-charcoal-500">
+            <p className="font-poppins text-sm text-presson-textMuted">
               {hasDeals
                 ? `${deals.length} deal${deals.length !== 1 ? 's' : ''} in pipeline`
                 : 'Manage your deal flow'}
@@ -606,6 +606,7 @@ export default function PipelinePage() {
           >
             <SelectTrigger
               className="w-[140px] bg-white border-pov-beige"
+              aria-label="Filter by status"
               data-testid="pipeline-status-filter"
             >
               <SelectValue placeholder="Status" />
@@ -627,6 +628,7 @@ export default function PipelinePage() {
           >
             <SelectTrigger
               className="w-[130px] bg-white border-pov-beige"
+              aria-label="Filter by priority"
               data-testid="pipeline-priority-filter"
             >
               <SelectValue placeholder="Priority" />
@@ -643,6 +645,7 @@ export default function PipelinePage() {
           <Select value={filters.sort} onValueChange={(v) => setFilter('sort', v)}>
             <SelectTrigger
               className="w-[160px] bg-white border-pov-beige"
+              aria-label="Sort deals"
               data-testid="pipeline-sort"
             >
               <SelectValue />
@@ -692,7 +695,7 @@ export default function PipelinePage() {
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="text-charcoal-500 hover:text-charcoal-700"
+              className="text-presson-textMuted hover:text-charcoal-700"
             >
               <X className="h-3 w-3 mr-1" />
               Clear
@@ -712,6 +715,7 @@ export default function PipelinePage() {
             <Select onValueChange={(status) => bulkStatusMutation.mutate({ status })}>
               <SelectTrigger
                 className="w-[150px] bg-white border-pov-beige"
+                aria-label="Move selected deals to status"
                 data-testid="bulk-status-select"
               >
                 <SelectValue placeholder="Move to..." />
@@ -738,12 +742,17 @@ export default function PipelinePage() {
               variant="ghost"
               size="sm"
               onClick={clearSelection}
-              className="text-charcoal-500"
+              className="text-presson-textMuted"
             >
               Clear
             </Button>
             {deals.length > selectedIds.size && (
-              <Button variant="ghost" size="sm" onClick={selectAll} className="text-charcoal-500">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectAll}
+                className="text-presson-textMuted"
+              >
                 Select all ({deals.length})
               </Button>
             )}
@@ -773,7 +782,7 @@ export default function PipelinePage() {
               <CardContent className="pt-6 text-center">
                 <Search className="h-8 w-8 text-charcoal-300 mx-auto mb-3" />
                 <p className="font-inter font-medium text-pov-charcoal mb-1">No matching deals</p>
-                <p className="font-poppins text-sm text-charcoal-500 mb-4">
+                <p className="font-poppins text-sm text-presson-textMuted mb-4">
                   Try adjusting your filters or search terms.
                 </p>
                 <Button variant="outline" onClick={clearFilters} className="border-pov-beige">
@@ -800,7 +809,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Deal Scoring
                 </h3>
-                <p className="font-poppins text-xs text-charcoal-500">
+                <p className="font-poppins text-xs text-presson-textMuted">
                   Score deals on team, market, product, and traction metrics
                 </p>
               </CardContent>
@@ -810,7 +819,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Diligence Tracking
                 </h3>
-                <p className="font-poppins text-xs text-charcoal-500">
+                <p className="font-poppins text-xs text-presson-textMuted">
                   Track diligence checklist progress and key findings
                 </p>
               </CardContent>
@@ -820,7 +829,7 @@ export default function PipelinePage() {
                 <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-2">
                   Decision Workflow
                 </h3>
-                <p className="font-poppins text-xs text-charcoal-500">
+                <p className="font-poppins text-xs text-presson-textMuted">
                   Move deals through stages from sourcing to close
                 </p>
               </CardContent>

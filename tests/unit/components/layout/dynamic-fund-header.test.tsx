@@ -342,7 +342,7 @@ describe('DynamicFundHeader', () => {
     expect(tvpiCard).toHaveTextContent('N/A');
     expect(
       within(tvpiCard).getByRole('button', {
-        name: 'TVPI is unavailable until paid-in capital is available.',
+        name: /TVPI is unavailable until paid-in capital is available\./,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
@@ -364,7 +364,7 @@ describe('DynamicFundHeader', () => {
 
     const tvpiCard = screen.getByTestId('compact-kpi-tvpi');
     const info = within(tvpiCard).getByRole('button', {
-      name: 'TVPI is unavailable until paid-in capital is available.',
+      name: /TVPI is unavailable until paid-in capital is available\./,
     });
     act(() => {
       info.focus();
@@ -381,7 +381,7 @@ describe('DynamicFundHeader', () => {
     expect(panel).toHaveTextContent('—');
     expect(
       within(panel).getByRole('button', {
-        name: 'DPI is unavailable because no distributions have been recorded.',
+        name: /DPI is unavailable because no distributions have been recorded\./,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText('DPI:')).not.toBeInTheDocument();
@@ -421,7 +421,7 @@ describe('DynamicFundHeader', () => {
     expect(navCard).toHaveTextContent('—');
     expect(
       within(navCard).getByRole('button', {
-        name: 'NAV is unavailable until investment facts are recorded for valued portfolio companies.',
+        name: /NAV is unavailable until investment facts are recorded for valued portfolio companies\./,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText('$46.0M')).not.toBeInTheDocument();
@@ -473,7 +473,7 @@ describe('DynamicFundHeader', () => {
     expect(panel).toHaveTextContent('—');
     expect(
       within(panel).getByRole('button', {
-        name: 'Metrics unavailable because the live metrics source is unavailable.',
+        name: /Metrics unavailable because the live metrics source is unavailable\./,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText('$12M')).not.toBeInTheDocument();

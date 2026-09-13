@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 import { useAuthSession } from '@/lib/auth-session';
+import { Link } from 'wouter';
 import { Settings as SettingsIcon, User, Bell, Shield, Database, Activity } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -72,7 +73,7 @@ export default function SettingsPage() {
               <div>
                 <CardTitle className="font-inter text-lg">Notifications</CardTitle>
                 <CardDescription className="font-poppins text-sm">
-                  Configure alerts and reminders
+                  Notification preferences are not available in this workspace.
                 </CardDescription>
               </div>
             </div>
@@ -85,7 +86,7 @@ export default function SettingsPage() {
                   Weekly portfolio summary
                 </p>
               </div>
-              <Switch aria-label="Email Digests" />
+              <Switch disabled aria-label="Email Digests" />
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -94,7 +95,7 @@ export default function SettingsPage() {
                   Notify when company updates are due
                 </p>
               </div>
-              <Switch defaultChecked aria-label="KPI Reminders" />
+              <Switch disabled aria-label="KPI Reminders" />
             </div>
           </CardContent>
         </Card>
@@ -117,12 +118,14 @@ export default function SettingsPage() {
               <div>
                 <p className="font-inter text-sm font-medium text-pov-charcoal">Export Data</p>
                 <p className="font-poppins text-xs text-presson-textMuted">
-                  Download all fund data as CSV
+                  Download company records from the Portfolio page.
                 </p>
               </div>
-              <Button variant="outline" size="sm">
-                <Database className="h-4 w-4 mr-2" />
-                Export
+              <Button asChild variant="outline" className="min-h-11">
+                <Link href="/portfolio">
+                  <Database className="h-4 w-4 mr-2" />
+                  Open portfolio
+                </Link>
               </Button>
             </div>
           </CardContent>

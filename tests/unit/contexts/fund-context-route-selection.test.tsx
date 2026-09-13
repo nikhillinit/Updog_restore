@@ -443,7 +443,28 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('still requires setup on /financial-modeling when no funds can be loaded', async () => {
+  it('retains resolved fund context when a background refetch fails', async () => {
+    mockUseQuery.mockReturnValue({
+      data: mockFunds,
+      isLoading: false,
+      error: new Error('API temporarily unavailable'),
+    });
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+      expect(screen.getByTestId('fund-load-error')).toHaveTextContent('false');
+      expect(screen.getByTestId('fund-load-error-message')).toHaveTextContent('none');
+    });
+  });
+
+  it('does not require setup while fund loading has failed', async () => {
     mockUseQuery.mockReturnValue({
       data: null,
       isLoading: false,
@@ -461,7 +482,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
     });
   });
 
@@ -484,11 +505,13 @@ describe('FundProvider route-aware selection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('fund-load-error')).toHaveTextContent('true');
-      expect(screen.getByTestId('fund-load-error-message')).toHaveTextContent('API unavailable');
+      expect(screen.getByTestId('fund-load-error-message')).toHaveTextContent(
+        'Fund information is unavailable. Please try again.'
+      );
     });
   });
 
-  it('requires setup instead of synthesizing a demo fund when funds cannot be loaded', async () => {
+  it('keeps fund failure distinct from a successfully empty fund list', async () => {
     mockUseQuery.mockReturnValue({
       data: null,
       isLoading: false,
@@ -506,7 +529,7 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
     });
   });
 

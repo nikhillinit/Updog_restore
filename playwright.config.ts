@@ -138,6 +138,7 @@ export default defineConfig({
       testMatch: [
         '**/gp-usability-audit-regression.spec.ts',
         '**/ui-ux-qa-regressions.spec.ts',
+        '**/ui-ux-visual-followup.spec.ts',
         '**/visual-audit-screenshots.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'] },

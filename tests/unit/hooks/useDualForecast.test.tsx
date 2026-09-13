@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 const factsWarning = {
@@ -196,7 +197,7 @@ describe('useDualForecast', () => {
     expect(result.current.data).toBeUndefined();
   });
 
-  it('surfaces API error messages', async () => {
+  it('suppresses server error messages', async () => {
     mockFetchJson({ message: 'Forecast unavailable' }, false);
 
     const { result } = renderHook(() => useDualForecast(7, { retry: false }), {
@@ -205,6 +206,6 @@ describe('useDualForecast', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Forecast unavailable');
+    expect(result.current.error?.message).toBe(SERVER_ERROR_MESSAGE);
   });
 });

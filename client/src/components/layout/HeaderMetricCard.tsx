@@ -9,7 +9,7 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { HeaderMetricIcon, HeaderMetricTheme } from '@/types/fund-header-metrics';
 
@@ -55,39 +55,47 @@ export function HeaderMetricCard({
   testId?: string;
 }) {
   const Icon = HEADER_ICON_COMPONENTS[card.icon];
+  const content = (
+    <>
+      <span className="min-w-0">
+        <span className="flex items-center gap-1">
+          <span className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>
+            {card.title}
+          </span>
+          {card.titleText && <Info aria-hidden="true" className="h-3 w-3 text-charcoal-600" />}
+        </span>
+        <span className="block truncate text-sm font-bold leading-tight text-pov-charcoal tabular-nums">
+          {card.displayValue}
+        </span>
+      </span>
+      <Icon
+        aria-hidden="true"
+        className={`h-4 w-4 flex-shrink-0 ${ICON_CLASS_NAMES[card.theme]}`}
+      />
+    </>
+  );
 
   return (
     <Card
       className={`${CARD_CLASS_NAMES[card.theme]} shadow-sm hover:shadow-md transition-shadow`}
       data-testid={testId}
     >
-      <CardContent className="p-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              <p className={`text-xs ${LABEL_CLASS_NAMES[card.theme]} font-medium`}>{card.title}</p>
-              {card.titleText && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger
-                      type="button"
-                      aria-label={card.titleText}
-                      className="flex-shrink-0 rounded text-charcoal-400 hover:text-charcoal-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400"
-                    >
-                      <Info className="h-3 w-3" />
-                    </TooltipTrigger>
-                    <TooltipContent>{card.titleText}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            <p className="truncate text-sm font-bold leading-tight text-pov-charcoal tabular-nums">
-              {card.displayValue}
-            </p>
-          </div>
-          <Icon className={`h-4 w-4 flex-shrink-0 ${ICON_CLASS_NAMES[card.theme]}`} />
-        </div>
-      </CardContent>
+      {card.titleText ? (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              type="button"
+              aria-label={`${card.title}: ${card.displayValue}. ${card.titleText}`}
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal focus-visible:ring-offset-2"
+            >
+              {content}
+            </TooltipTrigger>
+            <TooltipContent>{card.titleText}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <div className="flex min-h-11 items-center justify-between gap-2 p-2">{content}</div>
+      )}
     </Card>
   );
 }
