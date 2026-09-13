@@ -15,6 +15,11 @@ import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+  deriveFundScenarioPolicy,
+  reserveStatusPollIntervalMs,
+  type FundScenarioSetPolicy,
+} from '@/lib/fund-scenario-policy';
+import {
   ALLOCATION_MODEL_LIMITATION,
   CreateAllocationScenarioModal,
 } from '@/components/scenarios/CreateAllocationScenarioModal';
@@ -53,12 +58,10 @@ import {
   FundScenarioCalculationResponseV1Schema,
   FundScenarioCalculationStatusV1Schema,
   FundScenarioSetDetailV1Schema,
-  type FundScenarioCalculationModeV1,
   type FundScenarioCalculationStatusV1,
   type FundScenarioOverrideTypeV1,
   type FundScenarioSetDetailV1,
   type FundScenarioSetSummaryV1,
-  type ScenarioSetResultSummaryV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FundScenarioComparisonV1Schema,
@@ -93,17 +96,6 @@ const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
   methodology: 'Methodology',
 };
 const EMPTY_SCENARIO_SETS: FundScenarioSetSummaryV1[] = [];
-const RESERVE_STATUS_POLL_INTERVAL_MS = 4000;
-
-// Poll while a reserve calculation is in flight; stop at terminal/idle states.
-// A transient poll error leaves the last successful status in query.state.data, so
-// polling continues through transient failures until a terminal status.
-export function reserveStatusPollIntervalMs(
-  status: FundScenarioCalculationStatusV1['status'] | undefined
-): number | false {
-  return status === 'queued' || status === 'calculating' ? RESERVE_STATUS_POLL_INTERVAL_MS : false;
-}
-
 async function fetchScenarioSetDetail(fundId: string, scenarioSetId: string) {
   const raw = await apiRequest('GET', scenarioSetApiPath(fundId, scenarioSetId));
   return FundScenarioSetDetailV1Schema.parse(raw);
@@ -125,12 +117,6 @@ async function fetchFundResults(fundId: string) {
 async function fetchScenarioComparison(fundId: string, scenarioSetId: string) {
   const raw = await apiRequest('GET', scenarioSetApiPath(fundId, scenarioSetId, '/comparison'));
   return FundScenarioComparisonV1Schema.parse(raw);
-}
-
-function scenarioSetOverrideType(
-  detail: FundScenarioSetDetailV1
-): FundScenarioOverrideTypeV1 | null {
-  return detail.variants[0]?.override.overrideType ?? null;
 }
 
 // Reserve sets go through the durable idempotent command runner instead
@@ -247,114 +233,6 @@ function scenarioStatusTone(status: FundScenarioCalculationStatusV1['status'] | 
   return 'bg-beige-100 text-charcoal-600';
 }
 
-function syncCalculationModeForOverrideType(
-  overrideType: Exclude<FundScenarioOverrideTypeV1, 'reserve_allocation'>
-): FundScenarioCalculationModeV1 {
-  switch (overrideType) {
-    case 'fee_profile':
-      return 'sync_fee_profile';
-    case 'allocation':
-      return 'sync_allocation';
-    case 'sector_profile':
-      return 'sync_sector_profile';
-    case 'methodology':
-      return 'sync_methodology';
-  }
-}
-
-function actionLabelFor(summary: FundScenarioSetSummaryV1, detail: FundScenarioSetDetailV1 | null) {
-  const overrideType = detail ? scenarioSetOverrideType(detail) : null;
-  return overrideType === 'reserve_allocation'
-    ? `Queue ${summary.name}`
-    : `Calculate ${summary.name}`;
-}
-
-function actionButtonText(detail: FundScenarioSetDetailV1 | null) {
-  const overrideType = detail ? scenarioSetOverrideType(detail) : null;
-  return overrideType === 'reserve_allocation' ? 'Queue' : 'Calculate';
-}
-
-function detailMapFromQueries(
-  queries: Array<{ data: FundScenarioSetDetailV1 | undefined }>
-): Map<string, FundScenarioSetDetailV1> {
-  return new Map(
-    queries.flatMap((query) => (query.data ? [[query.data.id, query.data] as const] : []))
-  );
-}
-
-function statusMapFromQueries(
-  queries: Array<{ data: FundScenarioCalculationStatusV1 | undefined }>
-): Map<string, FundScenarioCalculationStatusV1> {
-  return new Map(
-    queries.flatMap((query) =>
-      query.data ? [[query.data.scenarioSetId, query.data] as const] : []
-    )
-  );
-}
-
-function resultMapFromScenarioPayload(
-  scenarioPayload: ReturnType<typeof scenarioPayloadFromResults>
-): Map<string, ScenarioSetResultSummaryV1> {
-  return new Map(scenarioPayload?.sets.map((set) => [set.scenarioSetId, set] as const) ?? []);
-}
-
-function syncStatusFromDetailAndResults({
-  summary,
-  detail,
-  result,
-}: {
-  summary: FundScenarioSetSummaryV1;
-  detail: FundScenarioSetDetailV1 | undefined;
-  result: ScenarioSetResultSummaryV1 | undefined;
-}): FundScenarioCalculationStatusV1 | null {
-  if (!detail) return null;
-
-  const overrideType = scenarioSetOverrideType(detail);
-  if (!overrideType || overrideType === 'reserve_allocation') return null;
-
-  return {
-    fundId: summary.fundId,
-    scenarioSetId: summary.id,
-    calculationMode: syncCalculationModeForOverrideType(overrideType),
-    status: result ? 'succeeded' : 'not_requested',
-    jobId: null,
-    correlationId: null,
-    snapshotId: null,
-    failureCode: null,
-    lastEventAt: result?.calculatedAt ?? null,
-    lastError: null,
-  };
-}
-
-function displayStatusMapFromSources({
-  scenarioSets,
-  detailById,
-  reserveStatusQueries,
-  scenarioResultById,
-}: {
-  scenarioSets: FundScenarioSetSummaryV1[];
-  detailById: Map<string, FundScenarioSetDetailV1>;
-  reserveStatusQueries: Array<{ data: FundScenarioCalculationStatusV1 | undefined }>;
-  scenarioResultById: Map<string, ScenarioSetResultSummaryV1>;
-}): Map<string, FundScenarioCalculationStatusV1> {
-  const statusById = statusMapFromQueries(reserveStatusQueries);
-
-  for (const summary of scenarioSets) {
-    if (statusById.has(summary.id)) continue;
-
-    const status = syncStatusFromDetailAndResults({
-      summary,
-      detail: detailById.get(summary.id),
-      result: scenarioResultById.get(summary.id),
-    });
-    if (status) {
-      statusById.set(summary.id, status);
-    }
-  }
-
-  return statusById;
-}
-
 function comparisonDataFromQueries(
   queries: Array<{ data: FundScenarioComparisonV1 | undefined }>
 ): FundScenarioComparisonV1[] {
@@ -424,23 +302,21 @@ function ScenarioSectionEmpty({ results }: { results: FundResultsReadV1 | undefi
 
 function ScenarioSetActionCard({
   summary,
-  detail,
-  status,
+  policy,
   notice,
   pendingScenarioSetId,
   isHighlighted,
   onCalculate,
 }: {
   summary: FundScenarioSetSummaryV1;
-  detail: FundScenarioSetDetailV1 | null;
-  status: FundScenarioCalculationStatusV1 | null;
+  policy: FundScenarioSetPolicy;
   notice: ReserveCommandNotice | null;
   pendingScenarioSetId: string | null;
   isHighlighted?: boolean;
-  onCalculate: (detail: FundScenarioSetDetailV1) => void;
+  onCalculate: (policy: FundScenarioSetPolicy) => void;
 }) {
   const isPending = pendingScenarioSetId === summary.id;
-  const overrideType = detail ? scenarioSetOverrideType(detail) : null;
+  const { detail, status, overrideType } = policy;
   const disabled = !detail || isPending;
   const disabledTitle = !detail && !isPending ? 'Loading scenario details…' : undefined;
 
@@ -478,13 +354,13 @@ function ScenarioSetActionCard({
         <Button
           type="button"
           variant="outline"
-          aria-label={actionLabelFor(summary, detail)}
+          aria-label={policy.actionLabel}
           disabled={disabled}
           title={disabledTitle}
-          onClick={() => detail && onCalculate(detail)}
+          onClick={() => detail && onCalculate(policy)}
         >
           {isPending && <RefreshCw className="h-4 w-4 animate-spin" />}
-          {isPending ? 'Submitting' : actionButtonText(detail)}
+          {isPending ? 'Submitting' : policy.actionText}
         </Button>
       </div>
       {overrideType === 'allocation' && (
@@ -507,7 +383,7 @@ function ScenarioSetActionCard({
               variant="outline"
               size="sm"
               disabled={disabled}
-              onClick={() => detail && onCalculate(detail)}
+              onClick={() => detail && onCalculate(policy)}
             >
               Retry
             </Button>
@@ -520,20 +396,18 @@ function ScenarioSetActionCard({
 
 function ScenarioActionList({
   scenarioSets,
-  detailById,
-  statusById,
+  policyById,
   noticeById,
   pendingScenarioSetId,
   highlightedScenarioSetId,
   onCalculate,
 }: {
   scenarioSets: FundScenarioSetSummaryV1[];
-  detailById: Map<string, FundScenarioSetDetailV1>;
-  statusById: Map<string, FundScenarioCalculationStatusV1>;
+  policyById: Map<string, FundScenarioSetPolicy>;
   noticeById: Record<string, ReserveCommandNotice>;
   pendingScenarioSetId: string | null;
   highlightedScenarioSetId?: string | null;
-  onCalculate: (detail: FundScenarioSetDetailV1) => void;
+  onCalculate: (policy: FundScenarioSetPolicy) => void;
 }) {
   return (
     <section className="space-y-4">
@@ -548,8 +422,7 @@ function ScenarioActionList({
           <ScenarioSetActionCard
             key={summary.id}
             summary={summary}
-            detail={detailById.get(summary.id) ?? null}
-            status={statusById.get(summary.id) ?? null}
+            policy={policyById.get(summary.id)!}
             notice={noticeById[summary.id] ?? null}
             pendingScenarioSetId={pendingScenarioSetId}
             isHighlighted={summary.id === highlightedScenarioSetId}
@@ -688,17 +561,14 @@ export function FundScenarioWorkspacePage({
     })),
   });
 
-  const detailById = useMemo(() => detailMapFromQueries(detailQueries), [detailQueries]);
-  const reserveScenarioSetIds = useMemo(
-    () =>
-      scenarioSets
-        .filter((summary) => {
-          const detail = detailById.get(summary.id);
-          return detail ? scenarioSetOverrideType(detail) === 'reserve_allocation' : false;
-        })
-        .map((summary) => summary.id),
-    [detailById, scenarioSets]
-  );
+  const scenarioPayload = scenarioPayloadFromResults(resultsQuery.data);
+  const scenarioEvidence = {
+    scenarioSets,
+    details: detailQueries.map((query) => query.data),
+    results: scenarioPayload?.sets ?? [],
+  };
+  const { reserveScenarioSetIds, comparisonScenarioSetIds } =
+    deriveFundScenarioPolicy(scenarioEvidence);
 
   const statusQueries = useQueries({
     queries: reserveScenarioSetIds.map((scenarioSetId) => ({
@@ -710,15 +580,8 @@ export function FundScenarioWorkspacePage({
     })),
   });
 
-  const scenarioPayload = scenarioPayloadFromResults(resultsQuery.data);
-  const scenarioResultById = useMemo(
-    () => resultMapFromScenarioPayload(scenarioPayload),
-    [scenarioPayload]
-  );
-  const calculatedScenarioSetIds = scenarioPayload?.sets.map((set) => set.scenarioSetId) ?? [];
-
   const comparisonQueries = useQueries({
-    queries: calculatedScenarioSetIds.map((scenarioSetId) => ({
+    queries: comparisonScenarioSetIds.map((scenarioSetId) => ({
       queryKey: scenarioComparisonQueryKey(fundId ?? '', scenarioSetId),
       queryFn: () => fetchScenarioComparison(fundId ?? '', scenarioSetId),
       enabled: fundId != null,
@@ -769,6 +632,16 @@ export function FundScenarioWorkspacePage({
     }
   }
 
+  function calculateScenario({ detail, calculationPath }: FundScenarioSetPolicy) {
+    if (!detail) return;
+    if (calculationPath === 'reserve') {
+      void runReserveCalculation(detail);
+      return;
+    }
+    setPendingScenarioSetId(detail.id);
+    calculateMutation.mutate(detail);
+  }
+
   const createReserveOptimizationMutation = useMutation({
     mutationFn: () => createReserveOptimizationScenarioSet(fundId ?? ''),
     onSuccess: async () => {
@@ -777,16 +650,10 @@ export function FundScenarioWorkspacePage({
     },
   });
 
-  const statusById = useMemo(
-    () =>
-      displayStatusMapFromSources({
-        scenarioSets,
-        detailById,
-        reserveStatusQueries: statusQueries,
-        scenarioResultById,
-      }),
-    [detailById, scenarioResultById, scenarioSets, statusQueries]
-  );
+  const { byId: policyById } = deriveFundScenarioPolicy({
+    ...scenarioEvidence,
+    reserveStatuses: statusQueries.map((query) => query.data),
+  });
   const comparisons = useMemo(
     () => comparisonDataFromQueries(comparisonQueries),
     [comparisonQueries]
@@ -976,38 +843,22 @@ export function FundScenarioWorkspacePage({
                   <ScenarioActionList
                     key={`legacy-${item.summary.id}`}
                     scenarioSets={[item.summary]}
-                    detailById={detailById}
-                    statusById={statusById}
+                    policyById={policyById}
                     noticeById={reserveNotices}
                     pendingScenarioSetId={pendingScenarioSetId}
                     highlightedScenarioSetId={highlightedScenarioSetId}
-                    onCalculate={(detail) => {
-                      if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
-                        void runReserveCalculation(detail);
-                        return;
-                      }
-                      setPendingScenarioSetId(detail.id);
-                      calculateMutation.mutate(detail);
-                    }}
+                    onCalculate={calculateScenario}
                   />
                 )
               )
             ) : (
               <ScenarioActionList
                 scenarioSets={scenarioSets}
-                detailById={detailById}
-                statusById={statusById}
+                policyById={policyById}
                 noticeById={reserveNotices}
                 pendingScenarioSetId={pendingScenarioSetId}
                 highlightedScenarioSetId={highlightedScenarioSetId}
-                onCalculate={(detail) => {
-                  if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
-                    void runReserveCalculation(detail);
-                    return;
-                  }
-                  setPendingScenarioSetId(detail.id);
-                  calculateMutation.mutate(detail);
-                }}
+                onCalculate={calculateScenario}
               />
             )}
 

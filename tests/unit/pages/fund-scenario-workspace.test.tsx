@@ -3,8 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWouterWrapper } from '../../utils/withWouter';
-import FundScenarioWorkspacePage, {
+import {
+  deriveFundScenarioPolicy,
   reserveStatusPollIntervalMs,
+} from '../../../client/src/lib/fund-scenario-policy';
+import { ScenarioSetResultSummaryV1Schema } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
+import FundScenarioWorkspacePage, {
   resolveSeedDeepLink,
 } from '../../../client/src/pages/fund-scenario-workspace';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
@@ -30,6 +34,66 @@ describe('reserveStatusPollIntervalMs', () => {
     expect(reserveStatusPollIntervalMs('failed')).toBe(false);
     expect(reserveStatusPollIntervalMs('not_requested')).toBe(false);
     expect(reserveStatusPollIntervalMs(undefined)).toBe(false);
+  });
+});
+
+describe('Fund scenario policy', () => {
+  it('keeps sync and reserve decisions consistent while comparison evidence arrives independently', () => {
+    const fee = feeScenarioSetDetail();
+    const reserve = reserveScenarioSetDetail();
+    const result = ScenarioSetResultSummaryV1Schema.parse(scenariosPayload().sets[0]);
+    const unmatchedResult = { ...result, scenarioSetId: '00000000-0000-0000-0000-000000000999' };
+    const reserveStatus = statusResponse('failed', null, reserve.id, 'async_reserve_allocation');
+    const policy = deriveFundScenarioPolicy({
+      scenarioSets: [fee, reserve],
+      details: [fee, reserve],
+      results: [result, unmatchedResult],
+      reserveStatuses: [reserveStatus],
+    });
+
+    expect(policy.byId.get(fee.id)).toMatchObject({
+      calculationPath: 'sync',
+      actionText: 'Calculate',
+      actionLabel: 'Calculate Fee sensitivity',
+      status: {
+        status: 'succeeded',
+        calculationMode: 'sync_fee_profile',
+        lastEventAt: result.calculatedAt,
+      },
+    });
+    expect(policy.byId.get(reserve.id)).toMatchObject({
+      calculationPath: 'reserve',
+      actionText: 'Queue',
+      actionLabel: 'Queue Reserve plan',
+      status: reserveStatus,
+    });
+    expect(policy.reserveScenarioSetIds).toEqual([reserve.id]);
+    expect(policy.comparisonScenarioSetIds).toEqual([fee.id, unmatchedResult.scenarioSetId]);
+  });
+
+  it('retains loading presentation without details and gives returned status precedence over results', () => {
+    const fee = feeScenarioSetDetail();
+    const result = ScenarioSetResultSummaryV1Schema.parse(scenariosPayload().sets[0]);
+    const evidence = { scenarioSets: [fee], details: [undefined], results: [result] };
+    const loading = deriveFundScenarioPolicy(evidence);
+    expect(loading.byId.get(fee.id)).toMatchObject({
+      detail: null,
+      overrideType: null,
+      status: null,
+      calculationPath: 'sync',
+      actionText: 'Calculate',
+      actionLabel: 'Calculate Fee sensitivity',
+    });
+    expect(loading.reserveScenarioSetIds).toEqual([]);
+    expect(loading.comparisonScenarioSetIds).toEqual([fee.id]);
+
+    const returnedStatus = statusResponse('failed', null, fee.id, 'sync_fee_profile');
+    const loaded = deriveFundScenarioPolicy({
+      ...evidence,
+      details: [fee],
+      reserveStatuses: [returnedStatus],
+    });
+    expect(loaded.byId.get(fee.id)?.status).toBe(returnedStatus);
   });
 });
 
@@ -85,6 +149,19 @@ describe('FundScenarioWorkspacePage', () => {
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = init?.method ?? 'GET';
+
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets?representation=capital-plan-v2&includeArchived=false'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/2.0.0',
+            representation: 'capital-plan-v2',
+            scenarioSets: [],
+          })
+        );
+      }
 
       if (method === 'GET' && url === '/api/funds/123/scenario-sets') {
         return Promise.resolve(jsonResponse({ scenarioSets: scenarioSetSummaries() }));
@@ -579,60 +656,105 @@ describe('FundScenarioWorkspacePage', () => {
     expect(statusUrls).toEqual([]);
   });
 
-  it('uses the fee-profile calculation endpoint for fee scenario sets', async () => {
+  it.each([false, true])(
+    'uses the fee-profile calculation endpoint for fee scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate fee sensitivity/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the reserve queue endpoint for reserve scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /queue reserve plan/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculate-reserve',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the sync calculation endpoint for allocation scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate allocation mix/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the sync calculation endpoint for sector-profile scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate sector mix/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it('calculates a scenario with empty variants without synthesizing status or polling', async () => {
     mockWorkspaceFetches();
+    const existingFetch = fetchSpy.getMockImplementation()!;
+    const detail = { ...feeScenarioSetDetail(), variantCount: 0, variants: [] };
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (
+        input === `/api/funds/123/scenario-sets/${detail.id}` &&
+        (init?.method ?? 'GET') === 'GET'
+      ) {
+        return Promise.resolve(jsonResponse(detail));
+      }
+      return existingFetch(input, init);
+    });
     renderWorkspace();
 
-    fireEvent.click(await screen.findByRole('button', { name: /calculate fee sensitivity/i }));
-
-    await waitFor(() => {
+    const card = await screen.findByTestId(`scenario-workspace-set-${detail.id}`);
+    const calculate = within(card).getByRole('button', { name: 'Calculate Fee sensitivity' });
+    await waitFor(() => expect(calculate).toBeEnabled());
+    expect(within(card).getByText('Loading')).toBeInTheDocument();
+    expect(within(card).queryByText('Fee profile')).not.toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      `/api/funds/123/scenario-sets/${detail.id}/calculation-status`,
+      expect.anything()
+    );
+    fireEvent.click(calculate);
+    await waitFor(() =>
       expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate',
+        `/api/funds/123/scenario-sets/${detail.id}/calculate`,
         expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the reserve queue endpoint for reserve scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /queue reserve plan/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculate-reserve',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the sync calculation endpoint for allocation scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /calculate allocation mix/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the sync calculation endpoint for sector-profile scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /calculate sector mix/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
+      )
+    );
   });
 
   it('shows the Methodology badge and Calculate button for methodology scenario sets', async () => {
@@ -648,19 +770,24 @@ describe('FundScenarioWorkspacePage', () => {
     ).toBeInTheDocument();
   });
 
-  it('uses the sync calculation endpoint for methodology scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
+  it.each([false, true])(
+    'uses the sync calculation endpoint for methodology scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
 
-    fireEvent.click(await screen.findByRole('button', { name: /calculate waterfall comparison/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
-        expect.objectContaining({ method: 'POST' })
+      fireEvent.click(
+        await screen.findByRole('button', { name: /calculate waterfall comparison/i })
       );
-    });
-  });
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
 
   it('creates an optimized reserve scenario set from the workspace', async () => {
     mockWorkspaceFetches();
