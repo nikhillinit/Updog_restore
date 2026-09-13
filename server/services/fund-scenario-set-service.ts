@@ -776,8 +776,11 @@ export async function listFundScenarioCapitalSets(
         ...summary
       } = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
       if (representation === 'capital-plan-v2') {
-        if (correctedList) scenarioSets.push({ ...summary, representation });
-      } else scenarioSets.push(summary);
+        if (!correctedList) continue;
+        scenarioSets.push({ ...summary, representation });
+        continue;
+      }
+      scenarioSets.push(summary);
     }
     return FundScenarioCapitalListResponseSchema.parse({
       contractVersion: correctedList
