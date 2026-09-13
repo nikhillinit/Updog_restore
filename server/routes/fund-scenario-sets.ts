@@ -6,7 +6,7 @@ import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
   CreateFundScenarioSetV2Schema,
-  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioCapitalSetSchema,
   CreateReserveOptimizationScenarioSetV1Schema,
   FundScenarioReserveCalculationRequestV1Schema,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
@@ -187,7 +187,9 @@ router.get(
     const representation = parseScenarioRepresentation(req, res);
     if (representation === null) return;
     if (representation) {
-      return res.status(200).json(await listFundScenarioCapitalSets(fundId, { includeArchived }));
+      return res
+        .status(200)
+        .json(await listFundScenarioCapitalSets(fundId, { includeArchived, representation }));
     }
     const scenarioSets = await listFundScenarioSets(fundId, { includeArchived });
     return res.status(200).json({ scenarioSets });
@@ -207,6 +209,12 @@ router.get(
 
     const representation = parseScenarioRepresentation(req, res);
     if (representation === null) return;
+    if (representation === 'capital-plan-v2') {
+      return res.status(406).json({
+        error: 'scenario_representation_not_applicable',
+        message: 'Shared capital source requires representation=capital-plan-v1',
+      });
+    }
     const sourceConfig = representation
       ? await getFundScenarioCapitalSourceConfig(fundId)
       : await getFundScenarioSourceConfig(fundId);
@@ -229,7 +237,7 @@ router.get(
     const representation = parseScenarioRepresentation(req, res);
     if (representation === null) return;
     const scenarioSet = representation
-      ? await getFundScenarioCapitalSet(fundId, scenarioSetId)
+      ? await getFundScenarioCapitalSet(fundId, scenarioSetId, representation)
       : await getFundScenarioSet(fundId, scenarioSetId);
     return res.status(200).json(scenarioSet);
   })
@@ -249,8 +257,11 @@ router.post(
 
     const representation = parseScenarioRepresentation(req, res);
     if (representation === null) return;
-    if (isScenarioSetPayloadVersion(req.body, 'fund-scenario-set-create/3.0.0')) {
-      const parsed = CreateFundScenarioSetV3Schema.safeParse(req.body);
+    if (
+      isScenarioSetPayloadVersion(req.body, 'fund-scenario-set-create/3.0.0') ||
+      isScenarioSetPayloadVersion(req.body, 'fund-scenario-set-create/4.0.0')
+    ) {
+      const parsed = CreateFundScenarioCapitalSetSchema.safeParse(req.body);
       if (!parsed.success) {
         const issues = capitalSchemaIssues(parsed.error.issues, req.body);
         if (issues.some((issue) => issue.code !== 'INVALID_INPUT')) {
@@ -262,9 +273,15 @@ router.post(
           details: parsed.error.format(),
         });
       }
-      const result = await createFundScenarioCapitalSet(fundId, parsed.data, parseActor(req), {
-        idempotencyKey: getIdempotencyKey(req),
-      });
+      const result = await createFundScenarioCapitalSet(
+        fundId,
+        parsed.data,
+        parseActor(req),
+        {
+          idempotencyKey: getIdempotencyKey(req),
+        },
+        representation
+      );
       return res.status(201).type('application/json').send(result.serializedResponse);
     }
     if (representation) {
@@ -358,7 +375,12 @@ router.post(
     const representation = parseScenarioRepresentation(req, res);
     if (representation === null) return;
     if (representation) {
-      const result = await calculateFundScenarioCapitalSet(fundId, scenarioSetId, parseActor(req));
+      const result = await calculateFundScenarioCapitalSet(
+        fundId,
+        scenarioSetId,
+        parseActor(req),
+        representation
+      );
       return res.status(200).type('application/json').send(result.serializedResponse);
     }
     const result = await calculateFundScenarioSet(fundId, scenarioSetId, parseActor(req));
@@ -513,7 +535,8 @@ router.post(
         fundId,
         scenarioSetId,
         parseActor(req),
-        parsed.data
+        parsed.data,
+        representation
       );
       return res.status(200).type('application/json').send(result.serializedResponse);
     }

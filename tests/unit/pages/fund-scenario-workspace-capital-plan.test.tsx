@@ -27,7 +27,9 @@ import {
   newCapitalDraft,
   retainCapitalDraft,
   retainCapitalSaveIntent,
+  type RawCapitalInputV2,
 } from '../../../client/src/components/scenarios/capital-plan-draft';
+import { v2Bundle, v2Input } from '../../fixtures/capital-planning/v2-fixtures';
 import {
   CAPITAL_BENCHMARK_CATALOG_VERSION,
   getCapitalBenchmarkPresetV1,
@@ -413,7 +415,9 @@ function dispatch(overrides?: Dispatcher) {
       let body = await overrides?.(call);
       if (body === undefined) {
         const path = url.pathname;
-        const capital = url.searchParams.get('representation') === REPRESENTATION;
+        const capital = [REPRESENTATION, 'capital-plan-v2'].includes(
+          url.searchParams.get('representation') ?? ''
+        );
         if (call.method === 'GET' && path === `/api/funds/${FUND}/results` && !capital)
           body = legacyResults();
         else if (call.method === 'GET' && path === `/api/funds/${FUND}/scenario-sets/source-config`)
@@ -1672,6 +1676,75 @@ describe('B9 public guided review and raw drafts', () => {
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Save capital scenario' })).toBeDisabled();
     expect(calls.every(({ method }) => method === 'GET')).toBe(true);
+  });
+
+  it('UI-R3-004 corrected assumption evidence issue opens its step and focuses publisher', async () => {
+    const input = v2Input();
+    input.assumptionEvidence = [
+      {
+        inputPath: 'allocations[0].initialCheckUsd',
+        origin: 'market_observation',
+        publisher: '',
+        publicationDate: '2026-09-01',
+        observationCutoff: '2026-09-01',
+        geography: 'United States',
+        population: 'Seed rounds',
+        statisticType: 'median',
+        measurementBasis: 'Priced primary rounds',
+      },
+    ];
+    const sourceBundle = v2Bundle(input);
+    const source = FundScenarioCapitalSourceResponseV1Schema.parse({
+      contractVersion: 'fund-scenario-capital-source/1.0.0',
+      representation: REPRESENTATION,
+      projection: sourceBundle.projection,
+      sourceBundleHash: sourceBundle.sourceBundleHash,
+      publishedAt: sourceBundle.publishedAt,
+      interpretationVersion: sourceBundle.interpretationVersion,
+      remainingDeclarations: [],
+      materialized: null,
+      calculationReadiness: {
+        context: 'current_preview',
+        state: 'INPUT_REQUIRED',
+        issues: [
+          {
+            code: 'INVALID_INPUT',
+            path: 'inputs',
+            message: selectionMessage,
+            support: 'incomplete',
+          },
+        ],
+      },
+      interpretationCompatibility: readState.interpretationCompatibility,
+    });
+    const draft = newCapitalDraft();
+    draft.name = 'Corrected evidence focus';
+    draft.source = source;
+    draft.declarations = sourceBundle.unitDeclarations;
+    draft.variants[0]!.input = JSON.parse(JSON.stringify(input), (_key, value: unknown) =>
+      typeof value === 'number' ? String(value) : value
+    ) as RawCapitalInputV2;
+    retainCapitalDraft(FUND, draft);
+    dispatch(({ url }) =>
+      url.pathname.endsWith('/source-config') ? structuredClone(source) : undefined
+    );
+    renderModal();
+
+    step('Review');
+    step('Review capital plan');
+
+    const evidenceStep = screen.getByRole('button', { name: '4. Assumption evidence' });
+    expect(evidenceStep).toHaveAttribute('aria-current', 'step');
+    const publisher = screen.getByLabelText('publisher', { exact: true });
+    await waitFor(() => expect(publisher).toHaveFocus());
+    expect(publisher).toHaveAttribute('aria-invalid', 'true');
+    publisher.blur();
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Validation errors' })).getByRole('button', {
+        name: /assumptionEvidence\[0\]\.publisher/,
+      })
+    );
+    expect(publisher).toHaveFocus();
   });
 
   it('UI-R3-004 missing check policy focuses its select and links the first error without losing the entered amount', async () => {

@@ -30,10 +30,10 @@ import {
   CapitalHashV1Schema,
   CapitalSourceProjectionV1Schema,
   type CapitalIssueV1,
-  type CapitalPlanningMemoV1,
   type CapitalBenchmarkSelectionV1,
 } from '@shared/contracts/capital-planning-v1.contract';
-import type { FundScenarioCapitalCreateResponseV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import type { CapitalPlanningMemo } from '@shared/contracts/capital-planning-v2.contract';
+import type { FundScenarioCapitalCreateResponse } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   capitalDraftRequest,
   capitalDraftSourceDeclarations,
@@ -41,6 +41,10 @@ import {
   capitalIssuePath,
   capitalSourceIdentity,
   emptyCapitalAllocation,
+  emptyCorrectedCapitalAllocation,
+  emptyCorrectedCapitalRound,
+  correctedCapitalInput,
+  type RawCapitalInputV1,
   emptyCapitalCompanion,
   emptyCapitalRound,
   getCapitalDraft,
@@ -83,7 +87,7 @@ type Props = {
   fundId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (created: FundScenarioCapitalCreateResponseV1) => void;
+  onSuccess: (created: FundScenarioCapitalCreateResponse) => void;
 };
 
 function readPath(value: unknown, path: Path): unknown {
@@ -111,6 +115,7 @@ function idFor(path: string): string {
   return `capital-field-${encodeURIComponent(path)}`;
 }
 function stepFor(path: string): number {
+  if (path.includes('assumptionEvidence')) return 3;
   if (path.includes('performanceCase')) return 3;
   if (path.includes('followOnRounds')) return 2;
   if (path.includes('allocations')) return 1;
@@ -327,6 +332,11 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   const variant = draft.variants[variantIndex] ?? draft.variants[0]!;
   const vpath: Path = ['variants', variantIndex];
   const ipath: Path = [...vpath, 'input'];
+  const corrected = 'solve' in variant.input;
+  const stepNames = STEPS.map((name, index) =>
+    corrected && index === 3 ? 'Assumption evidence' : name
+  );
+  const legacyInput = variant.input as RawCapitalInputV1;
   const source = draft.source;
   function sourceRows(prefix: string): [string, string][] {
     if (!source) return [];
@@ -403,6 +413,182 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
       </div>
     );
   }
+  function correctedFinancing(path: Path) {
+    const capitalPath = [...path, 'primaryCapital'];
+    const basis = readPath(draft, [...capitalPath, 'basis']);
+    return (
+      <fieldset className="space-y-3 rounded-md border border-presson-borderSubtle p-3">
+        <legend>Primary financing declaration</legend>
+        <p className="text-sm">
+          Manager assumption. Transaction size and secondary sales are not primary financing inputs.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field('Valuation (USD)', [...path, 'valuationUsd'])}
+          {field('Valuation basis', [...path, 'valuationBasis'], {
+            choices: [
+              ['pre_money', 'Pre-money'],
+              ['post_money', 'Post-money (inclusive primary basis only)'],
+            ],
+          })}
+          {field('Primary capital denominator', [...capitalPath, 'basis'], {
+            choices: [
+              [
+                'total_primary_including_fund_check',
+                'Fixed total primary capital whether fund participates or skips; other investors supply remainder',
+              ],
+              [
+                'external_primary_excluding_fund_check',
+                'Fixed external primary capital; fund check adds to total',
+              ],
+            ],
+            onChange: (value) =>
+              edit(capitalPath, {
+                basis: value,
+                [value === 'external_primary_excluding_fund_check'
+                  ? 'externalPrimaryAmountUsd'
+                  : 'totalPrimaryAmountUsd']: '',
+                primary_only_excludes_secondary: false,
+              }),
+          })}
+          {Boolean(basis) &&
+            field(
+              basis === 'external_primary_excluding_fund_check'
+                ? 'External primary capital (USD)'
+                : 'Total primary capital (USD)',
+              [
+                ...capitalPath,
+                basis === 'external_primary_excluding_fund_check'
+                  ? 'externalPrimaryAmountUsd'
+                  : 'totalPrimaryAmountUsd',
+              ]
+            )}
+        </div>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            disabled={hasUnconfirmedSave}
+            checked={readPath(draft, [...capitalPath, 'primary_only_excludes_secondary']) === true}
+            onChange={(event) =>
+              edit([...capitalPath, 'primary_only_excludes_secondary'], event.target.checked)
+            }
+          />
+          Primary capital only; excludes all secondary sales
+        </label>
+      </fieldset>
+    );
+  }
+  function correctedParticipation(path: Path, roundIndex: number) {
+    const eligibilityPath = [...path, 'eligibility'];
+    const policyPath = [...path, 'participationPolicy'];
+    const policy = readPath(draft, [...policyPath, 'type']);
+    const histories = Array.from({ length: 2 ** roundIndex }, (_, n) =>
+      roundIndex === 0 ? '' : n.toString(2).padStart(roundIndex, '0')
+    );
+    const rawSelected = readPath(draft, [...eligibilityPath, 'eligibleParticipationHistories']);
+    const selected = Array.isArray(rawSelected)
+      ? rawSelected.filter((item): item is string => typeof item === 'string')
+      : [];
+    return (
+      <div className="space-y-3 sm:col-span-2">
+        {field('Follow-on eligibility', [...eligibilityPath, 'type'], {
+          choices: [
+            ['all', 'All graduated histories'],
+            ['by_history', 'Explicit eligible histories'],
+          ],
+          onChange: (type) =>
+            edit(
+              eligibilityPath,
+              type === 'by_history' ? { type, eligibleParticipationHistories: [] } : { type }
+            ),
+        })}
+        {readPath(draft, [...eligibilityPath, 'type']) === 'by_history' && (
+          <fieldset className="space-y-2">
+            <legend>Eligible prior participation histories (1 participated, 0 skipped)</legend>
+            {histories.map((history) => (
+              <label key={history} className="flex gap-2">
+                <input
+                  type="checkbox"
+                  disabled={hasUnconfirmedSave}
+                  checked={selected.includes(history)}
+                  onChange={(event) =>
+                    edit(
+                      [...eligibilityPath, 'eligibleParticipationHistories'],
+                      event.target.checked
+                        ? [...selected, history]
+                        : selected.filter((item) => item !== history)
+                    )
+                  }
+                />
+                {history || 'Entry history'}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        {field('Participation policy', [...policyPath, 'type'], {
+          choices: [
+            ['all_eligible', 'All eligible'],
+            ['none', 'None'],
+            [
+              'homogeneous_conditional_probability',
+              'Same conditional probability for every eligible history',
+            ],
+            ['conditional_probability_by_history', 'Conditional probability by history'],
+          ],
+          onChange: (type) =>
+            edit(
+              policyPath,
+              type === 'homogeneous_conditional_probability'
+                ? { type, probability: '' }
+                : type === 'conditional_probability_by_history'
+                  ? { type, probabilitiesByReachableHistory: {} }
+                  : { type }
+            ),
+        })}
+        {policy === 'homogeneous_conditional_probability' &&
+          field('Conditional participation probability (ratio)', [...policyPath, 'probability'])}
+        {policy === 'conditional_probability_by_history' && (
+          <fieldset className="space-y-2">
+            <legend>Reachable eligible history probabilities</legend>
+            <p className="text-sm">
+              Select only histories reachable under earlier graduation and participation choices.
+              Review rejects missing or unreachable histories.
+            </p>
+            {histories.map((history) => {
+              const map = readPath(draft, [
+                ...policyPath,
+                'probabilitiesByReachableHistory',
+              ]) as Record<string, string>;
+              const enabled = Object.prototype.hasOwnProperty.call(map, history);
+              return (
+                <div key={history}>
+                  <label className="flex gap-2">
+                    <input
+                      type="checkbox"
+                      disabled={hasUnconfirmedSave}
+                      checked={enabled}
+                      onChange={(event) =>
+                        edit(
+                          [...policyPath, 'probabilitiesByReachableHistory', history],
+                          event.target.checked ? '' : undefined
+                        )
+                      }
+                    />
+                    {history || 'Entry history'}
+                  </label>
+                  {enabled &&
+                    field(`History ${history || 'entry'} participation probability (ratio)`, [
+                      ...policyPath,
+                      'probabilitiesByReachableHistory',
+                      history,
+                    ])}
+                </div>
+              );
+            })}
+          </fieldset>
+        )}
+      </div>
+    );
+  }
   function benchmark(allocationIndex: number, roundIndex?: number) {
     const allocation = variant.input.allocations[allocationIndex]!;
     const round = roundIndex === undefined ? undefined : allocation.followOnRounds[roundIndex];
@@ -426,6 +612,35 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     const name = round
       ? `${round.roundLabel || 'Follow-on'} benchmark`
       : `${allocation.name || 'Entry'} benchmark`;
+    if (corrected)
+      return (
+        <div className="space-y-3">
+          {correctedFinancing(financingPath)}
+          <details>
+            <summary>Benchmark catalog evidence (not applied)</summary>
+            <p className="text-sm">
+              Direct preset application is unavailable for corrected planning: separate valuation
+              and cash-raised medians do not establish primary-only financing. Enter and document
+              each manager assumption explicitly.
+            </p>
+            {(['seed', 'series_a', 'series_b', 'series_c', 'series_d'] as const).map((stage) => (
+              <details key={stage}>
+                <summary>{stage.replaceAll('_', ' ')}</summary>
+                <pre className="whitespace-pre-wrap break-words text-xs">
+                  {JSON.stringify(
+                    getCapitalBenchmarkPresetV1({
+                      version: CAPITAL_BENCHMARK_CATALOG_VERSION,
+                      stage,
+                    }),
+                    null,
+                    2
+                  )}
+                </pre>
+              </details>
+            ))}
+          </details>
+        </div>
+      );
     let preset: ReturnType<typeof getCapitalBenchmarkPresetV1> | undefined;
     if (selection) {
       try {
@@ -457,7 +672,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     stage: event.target.value,
                   },
                 });
-                writePath(next, financingPath, undefined);
+                if (!corrected) writePath(next, financingPath, undefined);
               }
               replace(next);
             }}
@@ -537,6 +752,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             })}
           </>
         ) : (
+          !corrected &&
           financing(
             financingPath,
             round ? 'Declare follow-on financing' : 'Declare entry financing'
@@ -589,7 +805,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     if (intent.current === command) intent.current = null;
     if (getCapitalSaveIntent(fundId) === command) retainCapitalSaveIntent(fundId, null);
   }
-  function saveSucceeded(operation: SaveOperation, created: FundScenarioCapitalCreateResponseV1) {
+  function saveSucceeded(operation: SaveOperation, created: FundScenarioCapitalCreateResponse) {
     if (!ownsSave(operation)) return;
     setNotice('Capital scenario saved. Calculate its saved inputs in the workspace.');
     setReviewed(null);
@@ -777,7 +993,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
           </section>
         )}
         <nav aria-label="Capital planning steps" className="flex flex-wrap gap-2">
-          {STEPS.map((name, index) => (
+          {stepNames.map((name, index) => (
             <Button
               key={name}
               type="button"
@@ -842,8 +1058,8 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             </Button>
           </div>
           {field('Variant name', [...vpath, 'name'])}
-          <section aria-label={STEPS[step]} className="min-w-0 space-y-4">
-            <h2 className="font-heading text-lg font-semibold">{STEPS[step]}</h2>
+          <section aria-label={stepNames[step]} className="min-w-0 space-y-4">
+            <h2 className="font-heading text-lg font-semibold">{stepNames[step]}</h2>
             {step === 0 && (
               <>
                 <p>
@@ -914,6 +1130,60 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                     </details>
                   </>
                 )}
+                <label className="block space-y-1">
+                  Calculation method
+                  <select
+                    className={CONTROL}
+                    disabled={hasUnconfirmedSave}
+                    value={corrected ? 'corrected' : 'legacy'}
+                    onChange={(event) => {
+                      const next = structuredClone(draft);
+                      next.variants = next.variants.map((item) => ({
+                        ...item,
+                        input:
+                          event.target.value === 'corrected'
+                            ? correctedCapitalInput()
+                            : newCapitalDraft().variants[0]!.input,
+                        benchmarkSelections: [],
+                      }));
+                      replace(next);
+                    }}
+                  >
+                    <option value="legacy">Legacy capital planning (V1)</option>
+                    <option value="corrected">Corrected capital planning (V2)</option>
+                  </select>
+                </label>
+                <p className="text-sm">
+                  Changing method starts blank inputs for every variant. Saved historical scenarios
+                  remain unchanged.
+                </p>
+                {corrected && (
+                  <>
+                    {field('Solve mode', [...ipath, 'solve', 'mode'], {
+                      choices: [
+                        ['fixed_fund', 'Fixed fund'],
+                        ['fixed_portfolio', 'Fixed portfolio'],
+                      ],
+                      onChange: (mode) =>
+                        edit(
+                          [...ipath, 'solve'],
+                          mode === 'fixed_portfolio'
+                            ? { mode, totalExpectedCompanyCount: '' }
+                            : { mode }
+                        ),
+                    })}
+                    {readPath(draft, [...ipath, 'solve', 'mode']) === 'fixed_portfolio' &&
+                      field('Total expected company count', [
+                        ...ipath,
+                        'solve',
+                        'totalExpectedCompanyCount',
+                      ])}
+                    <p className="break-words text-sm">
+                      Rounding policy: {readPath(draft, [...ipath, 'roundingPolicy']) as string}.
+                      Required commitments are hypothetical; source commitments are preserved.
+                    </p>
+                  </>
+                )}
                 {field('Planning budget (USD, optional)', [...ipath, 'netInvestableCapitalUsd'])}
                 <p className="text-sm">
                   An explicit planning budget changes planning demand; it does not replace lifetime
@@ -924,8 +1194,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             {step === 1 && (
               <>
                 <p>
-                  Expected companies = allocated investment capital / initial check. Entered counts
-                  are separate from fractional expectations. Allocation shares must not exceed one.
+                  {corrected
+                    ? 'Initial investment dollar weights must sum exactly to one. Expected company counts remain fractional; reserve demand is solved across participation histories.'
+                    : 'Expected companies = allocated investment capital / initial check. Entered counts are separate from fractional expectations. Allocation shares must not exceed one.'}
                 </p>
                 {variant.input.allocations.map((allocation, index) => {
                   const path: Path = [...ipath, 'allocations', index];
@@ -947,7 +1218,12 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           choices: stages(allocation.pipelineProfileId),
                         })}
                         {field('Entry round', [...path, 'entryRound'])}
-                        {field('Budget share (ratio)', [...path, 'budgetShareRatio'])}
+                        {field(
+                          corrected
+                            ? 'Initial investment dollar weight (ratio)'
+                            : 'Budget share (ratio)',
+                          [...path, corrected ? 'initialPoolShareRatio' : 'budgetShareRatio']
+                        )}
                         {field('Initial check (USD)', [...path, 'initialCheckUsd'])}
                         {field('Deployment period (years)', [...path, 'deploymentPeriodYears'])}
                         {field('Planned company count (optional)', [
@@ -955,6 +1231,21 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           'plannedCompanyCount',
                         ])}
                       </div>
+                      {corrected && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {field('Schedule anchor', [...path, 'scheduleAnchor'], {
+                            choices: [['entry_deployment_month', 'Each initial deployment month']],
+                          })}
+                          {field('Initial deployment cadence', [...path, 'deploymentCadence'], {
+                            choices: [
+                              [
+                                'uniform_monthly_over_deployment_period',
+                                'Uniform monthly over deployment period',
+                              ],
+                            ],
+                          })}
+                        </div>
+                      )}
                       {benchmark(index)}
                       <Button
                         type="button"
@@ -984,7 +1275,10 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                   onClick={() =>
                     edit(
                       [...ipath, 'allocations'],
-                      [...variant.input.allocations, emptyCapitalAllocation()]
+                      [
+                        ...variant.input.allocations,
+                        corrected ? emptyCorrectedCapitalAllocation() : emptyCapitalAllocation(),
+                      ]
                     )
                   }
                 >
@@ -1019,7 +1313,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                               choices: stages(allocation.pipelineProfileId),
                             })}
                             {field('Graduation (ratio)', [...path, 'graduationRatio'])}
-                            {field('Participation (ratio)', [...path, 'participationRatio'])}
+                            {corrected
+                              ? correctedParticipation(path, ri)
+                              : field('Participation (ratio)', [...path, 'participationRatio'])}
                             {field('Check policy', [...path, 'checkPolicy', 'type'], {
                               choices: [
                                 ['fixed_check', 'Fixed check'],
@@ -1042,8 +1338,20 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                               : field('Check (USD)', [...path, 'checkPolicy', 'checkUsd'])}
                             {field('Months after previous round', [
                               ...path,
-                              'monthsAfterPreviousRound',
+                              corrected ? 'lagMonthsFromPreviousRound' : 'monthsAfterPreviousRound',
                             ])}
+                            {corrected &&
+                              field('Timing basis', [...path, 'timingBasis'], {
+                                choices: [
+                                  ['interval_from_previous_round', 'Interval from previous round'],
+                                ],
+                              })}
+                            {corrected &&
+                              field('Pool basis', [...path, 'poolBasis'], {
+                                choices: [
+                                  ['incremental_pre_money', 'Incremental pre-money dilution'],
+                                ],
+                              })}
                             {field('Incremental pool dilution (ratio)', [
                               ...path,
                               'incrementalPreMoneyPoolDilutionRatio',
@@ -1088,7 +1396,10 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       onClick={() =>
                         edit(
                           [...ipath, 'allocations', ai, 'followOnRounds'],
-                          [...allocation.followOnRounds, emptyCapitalRound()]
+                          [
+                            ...allocation.followOnRounds,
+                            corrected ? emptyCorrectedCapitalRound() : emptyCapitalRound(),
+                          ]
                         )
                       }
                     >
@@ -1098,13 +1409,121 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 ))}
               </>
             )}
-            {step === 3 && (
+            {step === 3 && corrected && (
+              <div className="space-y-4">
+                <p>
+                  Corrected capital planning models financing and ownership only. Exit probabilities
+                  and returns are not modeled. Supplied values are manager assumptions unless
+                  matching market measurement evidence is recorded.
+                </p>
+                {(
+                  (readPath(draft, [...ipath, 'assumptionEvidence']) ?? []) as Array<{
+                    origin: string;
+                  }>
+                ).map((evidence, index) => {
+                  const path = [...ipath, 'assumptionEvidence', index];
+                  return (
+                    <fieldset
+                      key={index}
+                      className="space-y-3 border border-presson-borderSubtle p-3"
+                    >
+                      <legend>Assumption evidence {index + 1}</legend>
+                      {field('Assumption input path', [...path, 'inputPath'])}
+                      {field('Evidence origin', [...path, 'origin'], {
+                        choices: [
+                          ['manager_assumption', 'Manager assumption'],
+                          ['market_observation', 'Market observation'],
+                        ],
+                        onChange: (origin) =>
+                          edit(
+                            path,
+                            origin === 'market_observation'
+                              ? {
+                                  inputPath: readPath(draft, [...path, 'inputPath']),
+                                  origin,
+                                  publisher: '',
+                                  publicationDate: '',
+                                  observationCutoff: '',
+                                  geography: '',
+                                  population: '',
+                                  statisticType: '',
+                                  measurementBasis: '',
+                                }
+                              : { inputPath: readPath(draft, [...path, 'inputPath']), origin }
+                          ),
+                      })}
+                      {evidence.origin === 'manager_assumption' ? (
+                        <>
+                          {field('Source document (optional)', [...path, 'sourceDocument'])}
+                          {field('Source date (optional)', [...path, 'sourceDate'], {
+                            type: 'date',
+                          })}
+                        </>
+                      ) : (
+                        <>
+                          {(
+                            [
+                              'publisher',
+                              'publicationDate',
+                              'observationCutoff',
+                              'geography',
+                              'population',
+                              'statisticType',
+                              'measurementBasis',
+                            ] as const
+                          ).map((key) =>
+                            field(
+                              key.replace(/([A-Z])/g, ' $1'),
+                              [...path, key],
+                              key.includes('Date') || key === 'observationCutoff'
+                                ? { type: 'date' }
+                                : undefined
+                            )
+                          )}
+                        </>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={hasUnconfirmedSave}
+                        onClick={() => {
+                          const values = structuredClone(
+                            readPath(draft, [...ipath, 'assumptionEvidence']) as unknown[]
+                          );
+                          values.splice(index, 1);
+                          edit([...ipath, 'assumptionEvidence'], values);
+                        }}
+                      >
+                        Remove evidence
+                      </Button>
+                    </fieldset>
+                  );
+                })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={hasUnconfirmedSave}
+                  onClick={() =>
+                    edit(
+                      [...ipath, 'assumptionEvidence'],
+                      [
+                        ...((readPath(draft, [...ipath, 'assumptionEvidence']) ?? []) as unknown[]),
+                        { inputPath: '', origin: '' },
+                      ]
+                    )
+                  }
+                >
+                  Add assumption evidence
+                </Button>
+              </div>
+            )}
+            {step === 3 && !corrected && (
               <>
                 <p>
                   The optional representative performance case is separate from construction
                   feasibility. Its FMV does not change proceeds, MOIC or construction.
                 </p>
-                {!variant.input.performanceCase ? (
+                {!legacyInput.performanceCase ? (
                   <>
                     <p>
                       Companion unavailable: no performance case selected. FMV and MOIC are
@@ -1187,11 +1606,13 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                         type="checkbox"
                         disabled={hasUnconfirmedSave}
                         checked={
-                          variant.input.performanceCase.manualOwnershipOverrideRatio !== undefined
+                          legacyInput.performanceCase.manualOwnershipOverrideRatio !== undefined
                         }
                         onChange={(event) => {
                           const next = structuredClone(draft);
-                          const companion = next.variants[variantIndex]!.input.performanceCase!;
+                          const companion = (
+                            next.variants[variantIndex]!.input as RawCapitalInputV1
+                          ).performanceCase!;
                           if (event.target.checked) companion.manualOwnershipOverrideRatio = '';
                           else {
                             delete companion.manualOwnershipOverrideRatio;
@@ -1202,7 +1623,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       />
                       Manual ownership override
                     </label>
-                    {variant.input.performanceCase.manualOwnershipOverrideRatio !== undefined && (
+                    {legacyInput.performanceCase.manualOwnershipOverrideRatio !== undefined && (
                       <div className="grid gap-3 sm:grid-cols-2">
                         {field('Manual ownership override (ratio)', [
                           ...ipath,
@@ -1221,7 +1642,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                         type="checkbox"
                         disabled={hasUnconfirmedSave}
                         checked={
-                          variant.input.performanceCase.participationCap.type === 'total_payout'
+                          legacyInput.performanceCase.participationCap.type === 'total_payout'
                         }
                         onChange={(event) =>
                           edit(
@@ -1234,7 +1655,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       />
                       Cap total payout
                     </label>
-                    {variant.input.performanceCase.participationCap.type === 'total_payout' &&
+                    {legacyInput.performanceCase.participationCap.type === 'total_payout' &&
                       field('Total payout cap (USD)', [
                         ...ipath,
                         'performanceCase',
@@ -1247,7 +1668,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           <input
                             type="checkbox"
                             disabled={hasUnconfirmedSave}
-                            checked={Boolean(variant.input.performanceCase?.[key])}
+                            checked={Boolean(legacyInput.performanceCase?.[key])}
                             onChange={(event) =>
                               edit(
                                 [...ipath, 'performanceCase', key],
@@ -1263,7 +1684,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           />
                           {key === 'manualFmvOverride' ? 'Manual FMV override' : 'Position FMV'}
                         </label>
-                        {variant.input.performanceCase?.[key] && (
+                        {legacyInput.performanceCase?.[key] && (
                           <div className="grid gap-3 sm:grid-cols-2">
                             {field(
                               `${key === 'manualFmvOverride' ? 'Manual' : 'Position'} FMV (USD)`,
@@ -1309,8 +1730,11 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 </p>
                 {!reviewed && <p>Review is required after every draft or source change.</p>}
                 {reviewed?.results.map((result, index) => {
-                  const memo: CapitalPlanningMemoV1 = {
-                    contractVersion: 'capital-planning-memo/1.0.0',
+                  const memo = {
+                    contractVersion:
+                      result.contractVersion === 'capital-planning/2.0.0'
+                        ? 'capital-planning-memo/2.0.0'
+                        : 'capital-planning-memo/1.0.0',
                     fundId: Number(fundId),
                     scenarioSetId: '00000000-0000-4000-8000-000000000000',
                     variantId: reviewed.request.variants[index]!.variantId,
@@ -1331,7 +1755,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                       'Unsaved local preview; server revalidates the original source when saving.',
                     ],
                     detailScope: 'complete',
-                  };
+                  } as CapitalPlanningMemo;
                   return (
                     <CapitalPlanResultView
                       key={memo.variantId}

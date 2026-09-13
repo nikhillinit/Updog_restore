@@ -1,10 +1,10 @@
 import type { PoolClient } from 'pg';
 import {
-  FundScenarioCapitalCalculationPayloadV1Schema,
-  FundScenarioCapitalCalculateResponseV1Schema,
-  type FundScenarioCapitalCalculationPayloadV1,
-  type FundScenarioCapitalDetailResponseV1,
-  type FundScenarioCapitalResultsResponseV1,
+  FundScenarioCapitalCalculationPayloadSchema,
+  FundScenarioCapitalCalculateResponseSchema,
+  type FundScenarioCapitalCalculationPayload,
+  type FundScenarioCapitalDetailResponse,
+  type FundScenarioCapitalResultsResponse,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { canonicalJson, sha256CanonicalJson } from '@shared/lib/canonical-json';
 import { createHttpError } from './fund-scenario-set-service';
@@ -31,21 +31,13 @@ export interface CapitalSavedScenarioContext {
   baselineVariantId: string;
   variants: ReadonlyArray<
     Pick<
-      FundScenarioCapitalDetailResponseV1['variants'][number],
+      FundScenarioCapitalDetailResponse['variants'][number],
       'id' | 'scenarioSetId' | 'sortOrder' | 'override'
     >
   >;
 }
 
-export type CapitalSavedResult = NonNullable<FundScenarioCapitalResultsResponseV1['savedResult']>;
-
-const READABLE_INTERPRETATIONS = new Set([
-  'capital-source-interpretation/1.0.0',
-  'capital-source-interpretation/1.0.1',
-]);
-const calculateResponseMetadataSchema = FundScenarioCapitalCalculateResponseV1Schema.omit({
-  payload: true,
-});
+export type CapitalSavedResult = NonNullable<FundScenarioCapitalResultsResponse['savedResult']>;
 
 function invalidSnapshot(): never {
   throw createHttpError(500, 'Stored capital snapshot identity or payload is invalid', {
@@ -58,16 +50,11 @@ export function decodeCapitalSavedSnapshot(
   row: CapitalSnapshotRow,
   detail: CapitalSavedScenarioContext
 ): CapitalSavedResult {
-  if (!FundScenarioCapitalCalculationPayloadV1Schema.safeParse(row.payload).success) {
+  if (!FundScenarioCapitalCalculationPayloadSchema.safeParse(row.payload).success) {
     invalidSnapshot();
   }
   // A successful parse is evidence of validity, not a replacement payload.
-  const payload = row.payload as FundScenarioCapitalCalculationPayloadV1;
-  if (!READABLE_INTERPRETATIONS.has(payload.interpretationVersion)) {
-    throw createHttpError(409, 'The saved capital snapshot version is not readable', {
-      code: 'scenario_saved_version_unsupported',
-    });
-  }
+  const payload = row.payload as FundScenarioCapitalCalculationPayload;
   if (
     row.fund_id !== detail.fundId ||
     row.scenario_set_id !== detail.id ||
@@ -81,6 +68,9 @@ export function decodeCapitalSavedSnapshot(
     payload.sourceConfigVersion !== detail.sourceConfigVersion ||
     payload.sourceBundleHash !== detail.sourceBundleHash ||
     payload.interpretationVersion !== detail.interpretationVersion ||
+    payload.methodVersion !==
+      (detail.variants[0]?.override.payload.methodVersion ??
+        detail.variants[0]?.override.payload.input.contractVersion) ||
     payload.baselineVariantId !== detail.baselineVariantId ||
     payload.variants.length !== detail.variants.length
   ) {
@@ -111,24 +101,27 @@ export function decodeCapitalSavedSnapshot(
     payload,
   };
   if (
-    !calculateResponseMetadataSchema.safeParse({
-      contractVersion: 'fund-scenario-capital-calculate/1.0.0',
-      representation: 'capital-plan-v1',
-      snapshotId: savedResult.snapshotId,
-      correlationId: savedResult.correlationId,
-      source: savedResult.source,
+    !FundScenarioCapitalCalculateResponseSchema.safeParse({
+      contractVersion:
+        payload.contractVersion === 'fund-scenario-capital-calculation/2.0.0'
+          ? 'fund-scenario-capital-calculate/2.0.0'
+          : 'fund-scenario-capital-calculate/1.0.0',
+      representation:
+        payload.contractVersion === 'fund-scenario-capital-calculation/2.0.0'
+          ? 'capital-plan-v2'
+          : 'capital-plan-v1',
+      ...savedResult,
     }).success
-  ) {
+  )
     invalidSnapshot();
-  }
-  return savedResult;
+  return savedResult as CapitalSavedResult;
 }
 
 /** Read and validate persisted results without rebuilding any saved field. */
 export async function fetchCapitalSavedSnapshot(
   client: PoolClient,
-  detail: FundScenarioCapitalDetailResponseV1
-): Promise<FundScenarioCapitalResultsResponseV1['savedResult']> {
+  detail: FundScenarioCapitalDetailResponse
+): Promise<FundScenarioCapitalResultsResponse['savedResult']> {
   const result = await client.query<CapitalSnapshotRow>(
     `SELECT id, fund_id, scenario_set_id, config_id, config_version,
             calc_version, state_hash, correlation_id, payload

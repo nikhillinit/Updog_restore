@@ -447,7 +447,7 @@ describe('B7 negotiated reader routes through actual adapters', () => {
         expect(result.body).toMatchObject({
           error: 'invalid_representation',
           parameter: 'representation',
-          allowedValues: ['capital-plan-v1'],
+          allowedValues: ['capital-plan-v1', 'capital-plan-v2'],
         });
       }
       expect(familyQueryMock).not.toHaveBeenCalled();
@@ -455,6 +455,15 @@ describe('B7 negotiated reader routes through actual adapters', () => {
     30_000
   );
 
+  it('refuses V2 selector on the shared V1 source endpoint', async () => {
+    const app = await makeAppWithTestAuth();
+    const result = await request(app)
+      .get(`${prefix}/source-config?representation=capital-plan-v2`)
+      .set('Authorization', await authorizationHeader());
+    expect(result.status).toBe(406);
+    expect(result.body).toMatchObject({ error: 'scenario_representation_not_applicable' });
+    expect(familyQueryMock).not.toHaveBeenCalled();
+  });
   it('dispatches source/list/detail/results/comparison using actual capital readers', async () => {
     const app = await makeAppWithTestAuth();
     const authorization = await authorizationHeader();

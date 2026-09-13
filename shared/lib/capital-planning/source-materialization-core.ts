@@ -1,5 +1,12 @@
 import type { z } from 'zod';
 import {
+  CAPITAL_PLANNING_V2_VERSION,
+  capitalPlanningAssumptionEntriesV2,
+  CapitalPlanningDraftV2Schema,
+  CapitalPlanningInputV2Schema,
+  type CapitalPlanningInputV2,
+} from '../../contracts/capital-planning-v2.contract';
+import {
   CAPITAL_FEE_METHOD_VERSION,
   CAPITAL_GP_METHOD_VERSION,
   CAPITAL_PLANNING_PROVISIONAL_LIMITS as limits,
@@ -43,6 +50,8 @@ const SOURCE_SELECTION_REQUIRED_MESSAGE =
   'Scenario selections are required to determine construction sources and declarations';
 
 type RawConfig = z.input<typeof FundDraftWriteV1Schema>;
+type CapitalSourceInput = CapitalPlanningInputV1 | CapitalPlanningInputV2;
+type CapitalSourceDraft = CapitalPlanningDraftV1 | { input: CapitalPlanningInputV2 };
 type RawFact = CapitalSourceProjectionV1['facts'][number];
 type PersistedTag = CapitalSourceProjectionV1['configSchemaTag'];
 type BundleFacts = Pick<
@@ -91,7 +100,7 @@ export type CapitalMaterializationResult =
       sourceBundle: CapitalSourceBundleV1;
       availableConstructionCapitalUsd: string;
       assumptionProvenanceByInput: CapitalAssumptionProvenanceV1[][];
-      resolvedInputs?: CapitalPlanningInputV1[];
+      resolvedInputs?: CapitalSourceInput[];
       benchmarkSnapshotsByInput?: CapitalBenchmarkSnapshotV1[][];
       readiness: Readiness;
     }
@@ -545,7 +554,7 @@ function normalizeSource(
   raw: RawConfig,
   fund: CapitalRawSource['fund'],
   declarations: CapitalUnitDeclarationsV1,
-  inputs: CapitalPlanningInputV1[]
+  inputs: CapitalSourceInput[]
 ): BundleFacts & { availableConstructionCapitalUsd: string } {
   // Presence determines whether a supported schedule exists before selected money or rates
   // are normalized. The caller validates the entire persisted source before this step.
@@ -1069,7 +1078,7 @@ type RateReader = (
 
 function selectConstruction(
   raw: RawConfig,
-  inputs: CapitalPlanningInputV1[],
+  inputs: CapitalSourceInput[],
   money: MoneyReader,
   rate: RateReader
 ): CapitalConstructionSourceFactsV1 {
@@ -1294,23 +1303,42 @@ function admittedInputs(
   inputs: readonly unknown[],
   raw: RawConfig,
   allowDraft = false
-): CapitalPlanningDraftV1[] {
+): CapitalSourceDraft[] {
   if (inputs.length === 0)
     refuse('INVALID_INPUT', 'inputs', 'At least one scenario input is required', 'incomplete');
   bounded(inputs.length, limits.maxVariants, 'inputs');
+  const versions = new Set(
+    inputs.map((value) => {
+      if (!value || typeof value !== 'object') return undefined;
+      const candidate = 'input' in value ? value.input : value;
+      return candidate && typeof candidate === 'object' && 'contractVersion' in candidate
+        ? candidate.contractVersion
+        : undefined;
+    })
+  );
+  if (versions.size > 1)
+    refuse('INVALID_INPUT', 'inputs', 'Each scenario set must use one capital method version');
   return inputs.map((input) => {
     const isDraft =
       allowDraft &&
       typeof input === 'object' &&
       input !== null &&
       Object.prototype.hasOwnProperty.call(input, 'input');
-    const parsed = isDraft
-      ? CapitalPlanningDraftV1Schema.safeParse(input)
-      : CapitalPlanningInputV1Schema.safeParse(input);
+    const candidate = isDraft ? (input as { input: unknown }).input : input;
+    const corrected =
+      candidate !== null &&
+      typeof candidate === 'object' &&
+      'contractVersion' in candidate &&
+      candidate.contractVersion === CAPITAL_PLANNING_V2_VERSION;
+    const parsed = corrected
+      ? (isDraft ? CapitalPlanningDraftV2Schema : CapitalPlanningInputV2Schema).safeParse(input)
+      : isDraft
+        ? CapitalPlanningDraftV1Schema.safeParse(input)
+        : CapitalPlanningInputV1Schema.safeParse(input);
     if (parsed.success)
       return isDraft
-        ? (parsed.data as CapitalPlanningDraftV1)
-        : { input: parsed.data as CapitalPlanningInputV1 };
+        ? (parsed.data as CapitalSourceDraft)
+        : ({ input: parsed.data as CapitalSourceInput } as CapitalSourceDraft);
     throw new AdmissionRefusal(
       parsed.error.issues.map((originalIssue): CapitalIssueV1 => {
         const issue =
@@ -1362,11 +1390,29 @@ function admittedInputs(
 }
 
 /** Trace editable assumptions to the selected source, without overwriting scenario choices. */
-function assumptionProvenance(
-  input: CapitalPlanningInputV1,
+export function capitalAssumptionProvenance(
+  input: CapitalSourceInput,
   bundle: CapitalSourceBundleV1
 ): CapitalAssumptionProvenanceV1[] {
   const result: CapitalAssumptionProvenanceV1[] = [];
+  if (input.contractVersion === CAPITAL_PLANNING_V2_VERSION) {
+    for (const [inputPath, effectiveValue] of capitalPlanningAssumptionEntriesV2(input)) {
+      result.push({
+        inputPath,
+        effectiveValue,
+        origin: 'user_entered',
+        sourcePath: null,
+        sourceValue: null,
+        profileId: null,
+        stageId: null,
+        effectiveDate: bundle.modelInputsAsOfDate,
+        sourceVintage: null,
+        benchmark: null,
+        note: 'Explicit corrected-model assumption; no source policy inferred.',
+      });
+    }
+    return result;
+  }
   for (const [ai, allocation] of input.allocations.entries()) {
     const source = bundle.construction.capitalPlanAllocations.find(
       (item) => item.id === allocation.allocationId
@@ -1567,8 +1613,21 @@ function finishCapitalSourceMaterialization(
     },
     'sourceBundle'
   );
-  const resolutions = drafts.some((draft) => (draft.benchmarkSelections?.length ?? 0) > 0)
-    ? drafts.map((draft) => resolveCapitalPlanningDraftV1({ draft, sourceBundle }))
+  const resolutions = drafts.some(
+    (draft) => 'benchmarkSelections' in draft && (draft.benchmarkSelections?.length ?? 0) > 0
+  )
+    ? drafts.map((draft) => {
+        if (draft.input.contractVersion === CAPITAL_PLANNING_V2_VERSION)
+          refuse(
+            'INVALID_INPUT',
+            'inputs',
+            'Corrected assumptions require explicit primary financing'
+          );
+        return resolveCapitalPlanningDraftV1({
+          draft: draft as CapitalPlanningDraftV1,
+          sourceBundle,
+        });
+      })
     : undefined;
   return {
     ok: true,
@@ -1577,11 +1636,11 @@ function finishCapitalSourceMaterialization(
     assumptionProvenanceByInput: resolutions
       ? resolutions.map((resolution) =>
           applyCapitalBenchmarkProvenanceV1(
-            assumptionProvenance(resolution.input, sourceBundle),
+            capitalAssumptionProvenance(resolution.input, sourceBundle),
             resolution.financingProvenance
           )
         )
-      : inputs.map((input) => assumptionProvenance(input, sourceBundle)),
+      : inputs.map((input) => capitalAssumptionProvenance(input, sourceBundle)),
     ...(resolutions
       ? {
           resolvedInputs: resolutions.map((resolution) => resolution.input),

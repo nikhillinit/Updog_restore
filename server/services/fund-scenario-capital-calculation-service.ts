@@ -1,12 +1,17 @@
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import {
+  CAPITAL_PLANNING_V2_VERSION,
+  CapitalPlanningInputV2Schema,
+} from '@shared/contracts/capital-planning-v2.contract';
+import { calculateCapitalPlanningV2 } from '@shared/lib/capital-planning/capital-planning-v2';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import type { PoolClient } from 'pg';
 import {
-  CAPITAL_PLANNING_VERSION,
   CAPITAL_PREIMAGE_VERSION,
   CAPITAL_SOURCE_INTERPRETATION_VERSION,
 } from '@shared/contracts/capital-planning-v1.contract';
-import type { FundScenarioCapitalCalculationPayloadV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import type { FundScenarioCapitalCalculationPayload } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { sha256CanonicalJson } from '@shared/lib/canonical-json';
 import { calculateCapitalPlanningV1 } from '@shared/lib/capital-planning/capital-planning-v1';
 import { CapitalPlanningCalculationError } from '@shared/lib/capital-planning/calculation-support';
@@ -14,6 +19,7 @@ import { verifyPinnedCapitalSourceBundle } from '@shared/lib/capital-planning/ma
 import {
   FUND_SCENARIOS_CONTRACT_VERSION,
   resolveScenarioInputLineage,
+  capitalSavedExecutionIssues,
 } from '@shared/lib/scenarios/scenario-input-envelope';
 import { transaction } from '../db/pg-circuit.js';
 import { createCapitalScenarioInputHash } from '../lib/scenarios/scenario-input-hash.js';
@@ -139,7 +145,8 @@ async function verifyHistoricalSource(client: PoolClient, saved: CapitalSavedSce
 export async function calculateFundScenarioCapitalSet(
   fundId: number,
   scenarioSetId: string,
-  actorInput: FundScenarioMutationActor = {}
+  actorInput: FundScenarioMutationActor = {},
+  representation?: ScenarioRepresentation
 ): Promise<ReturnType<typeof prepareCapitalCalculateResponse>> {
   const startedAt = performance.now();
   return transaction(async (client) => {
@@ -153,9 +160,13 @@ export async function calculateFundScenarioCapitalSet(
     }
     const saved = await fetchCapitalScenarioSetDetailFromRaw(client, raw, {
       readCurrentSource: false,
+      representation,
     });
     const source = saved.variants[0]!.override.payload.sourceBundle;
     const lineage = resolveScenarioInputLineage(source.modelInputsAsOfDate ?? undefined);
+    const firstStored = saved.variants[0]!.override.payload;
+    const methodVersion = firstStored.methodVersion ?? firstStored.input.contractVersion;
+    const corrected = firstStored.input.contractVersion === CAPITAL_PLANNING_V2_VERSION;
     const envelope = {
       contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
       fundId,
@@ -166,7 +177,7 @@ export async function calculateFundScenarioCapitalSet(
       calculationMode: 'sync_capital_plan' as const,
       overrideType: 'capital_plan' as const,
       capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
-      methodVersion: CAPITAL_PLANNING_VERSION,
+      methodVersion,
       interpretationVersion: saved.interpretationVersion,
       engineVersion: CAPITAL_SCENARIO_CALC_VERSION,
       baselineVariantId: saved.baselineVariantId,
@@ -209,6 +220,10 @@ export async function calculateFundScenarioCapitalSet(
         },
       ]);
     }
+    const policyIssues = capitalSavedExecutionIssues(
+      saved.variants.map((variant) => variant.override)
+    );
+    if (policyIssues.length) throw new CapitalPlanningCalculationError(policyIssues);
     assertCapitalScenarioStoredInputLimits(saved.variants.map((variant) => variant.override));
     await verifyHistoricalSource(client, saved);
     const latest = await findLatestScenarioRun(client, identity);
@@ -248,13 +263,19 @@ export async function calculateFundScenarioCapitalSet(
     }
     const variants = saved.variants.map((variant) => {
       const stored = variant.override.payload;
-      const result = calculateCapitalPlanningV1({
-        input: stored.input,
+      const args = {
         sourceBundle: stored.sourceBundle,
         ...(stored.benchmarkSnapshots === undefined
           ? {}
           : { benchmarkSnapshots: stored.benchmarkSnapshots }),
-      });
+      };
+      const result =
+        stored.input.contractVersion === CAPITAL_PLANNING_V2_VERSION
+          ? calculateCapitalPlanningV2({
+              ...args,
+              input: CapitalPlanningInputV2Schema.parse(stored.input),
+            })
+          : calculateCapitalPlanningV1({ ...args, input: stored.input });
       return {
         variantId: variant.id,
         scenarioSetId,
@@ -263,12 +284,14 @@ export async function calculateFundScenarioCapitalSet(
         result,
       };
     });
-    const payload: FundScenarioCapitalCalculationPayloadV1 = {
-      contractVersion: 'fund-scenario-capital-calculation/1.0.0',
+    const payload = {
+      contractVersion: corrected
+        ? 'fund-scenario-capital-calculation/2.0.0'
+        : 'fund-scenario-capital-calculation/1.0.0',
       calculationDomain: 'capital_plan',
       calculationMode: 'sync_capital_plan',
       capitalPreimageVersion: CAPITAL_PREIMAGE_VERSION,
-      methodVersion: CAPITAL_PLANNING_VERSION,
+      methodVersion,
       interpretationVersion: saved.interpretationVersion,
       calculationVersion: CAPITAL_SCENARIO_CALC_VERSION,
       inputHash,
@@ -285,7 +308,7 @@ export async function calculateFundScenarioCapitalSet(
     assertWithinSyncDeadline(startedAt);
     const snapshot = await persistCapitalScenarioSnapshot(
       client,
-      { payload, correlationId },
+      { payload: payload as FundScenarioCapitalCalculationPayload, correlationId },
       saved
     );
     if (snapshot.correlationId !== correlationId) {

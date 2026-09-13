@@ -12,21 +12,32 @@ import {
 } from '@shared/contracts/capital-planning-v1.contract';
 import {
   CreateFundScenarioSetV3Schema,
-  type CreateFundScenarioSetV3,
+  CreateFundScenarioSetV4Schema,
+  type CreateFundScenarioCapitalSet,
   type FundScenarioCapitalSourceResponseV1,
-  type FundScenarioCapitalDetailResponseV1,
+  type FundScenarioCapitalDetailResponse,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  CAPITAL_PLANNING_V2_VERSION,
+  CAPITAL_PLANNING_V2_ROUNDING_POLICY,
+  CapitalPlanningDraftV2Schema,
+  type CapitalPlanningInputV2,
+} from '@shared/contracts/capital-planning-v2.contract';
 import Decimal from '@shared/lib/decimal-config';
 
 export type RawCapital<T> = T extends readonly (infer V)[]
   ? RawCapital<V>[]
   : T extends object
     ? { [K in keyof T]: RawCapital<T[K]> }
-    : T extends string | number
-      ? string
-      : T;
-export type RawCapitalInput = RawCapital<CapitalPlanningInputV1>;
-export type RawCapitalAllocation = RawCapitalInput['allocations'][number];
+    : T extends boolean
+      ? boolean
+      : T extends string | number
+        ? string
+        : T;
+export type RawCapitalInputV1 = RawCapital<CapitalPlanningInputV1>;
+export type RawCapitalInputV2 = RawCapital<CapitalPlanningInputV2>;
+export type RawCapitalInput = RawCapitalInputV1 | RawCapitalInputV2;
+export type RawCapitalAllocation = RawCapitalInputV1['allocations'][number];
 export type RawCapitalRound = RawCapitalAllocation['followOnRounds'][number];
 export type RawCapitalVariant = {
   variantId: string;
@@ -44,7 +55,7 @@ export type CapitalPlanDraft = {
 
 // Drafts survive modal and route return in this tab. Only explicit New draft replaces them.
 const drafts = new Map<string, CapitalPlanDraft>();
-type SaveIntent = { request: CreateFundScenarioSetV3; key: string };
+type SaveIntent = { request: CreateFundScenarioCapitalSet; key: string };
 const saveIntents = new Map<string, SaveIntent>();
 
 export function getCapitalSaveIntent(fundId: string): SaveIntent | null {
@@ -80,7 +91,59 @@ export function emptyCapitalRound(): RawCapitalRound {
     timeOrigin: 'previous_round',
   };
 }
-export function emptyCapitalCompanion(): NonNullable<RawCapitalInput['performanceCase']> {
+export function emptyCorrectedCapitalFinancing(): RawCapitalInputV2['allocations'][number]['entryFinancing'] {
+  return {
+    valuationUsd: '',
+    valuationBasis: '',
+    primaryCapital: {
+      basis: '',
+      totalPrimaryAmountUsd: '',
+      primary_only_excludes_secondary: false,
+    },
+  };
+}
+export function emptyCorrectedCapitalRound(): RawCapitalInputV2['allocations'][number]['followOnRounds'][number] {
+  return {
+    roundId: crypto.randomUUID(),
+    stageId: '',
+    roundLabel: '',
+    graduationRatio: '',
+    eligibility: { type: '' },
+    participationPolicy: { type: '' },
+    checkPolicy: { type: '', checkUsd: '' },
+    lagMonthsFromPreviousRound: '',
+    timingBasis: '',
+    poolBasis: '',
+    incrementalPreMoneyPoolDilutionRatio: '',
+    financing: emptyCorrectedCapitalFinancing(),
+  };
+}
+export function emptyCorrectedCapitalAllocation(): RawCapitalInputV2['allocations'][number] {
+  return {
+    allocationId: '',
+    name: '',
+    entryRound: '',
+    pipelineProfileId: '',
+    entryStageId: '',
+    initialPoolShareRatio: '',
+    initialCheckUsd: '',
+    deploymentPeriodYears: '',
+    scheduleAnchor: '',
+    deploymentCadence: '',
+    entryFinancing: emptyCorrectedCapitalFinancing(),
+    followOnRounds: [],
+  };
+}
+export function correctedCapitalInput(): RawCapitalInputV2 {
+  return {
+    contractVersion: CAPITAL_PLANNING_V2_VERSION,
+    roundingPolicy: CAPITAL_PLANNING_V2_ROUNDING_POLICY,
+    solve: { mode: '' },
+    allocations: [emptyCorrectedCapitalAllocation()],
+  };
+}
+
+export function emptyCapitalCompanion(): NonNullable<RawCapitalInputV1['performanceCase']> {
   return {
     methodVersion: AGGREGATE_PREFERENCE_FORECAST_VERSION,
     issuerLabel: '',
@@ -149,9 +212,7 @@ function copyBenchmarkSelection(
   });
 }
 
-export function duplicateCapitalDraft(
-  detail: FundScenarioCapitalDetailResponseV1
-): CapitalPlanDraft {
+export function duplicateCapitalDraft(detail: FundScenarioCapitalDetailResponse): CapitalPlanDraft {
   return {
     name: detail.name,
     description: detail.description ?? '',
@@ -166,11 +227,13 @@ export function duplicateCapitalDraft(
           const allocation = input.allocations.find(
             (item) => item.allocationId === target.allocationId
           );
-          if (target.kind === 'entry') delete allocation?.entryFinancing;
-          else {
+          if (input.contractVersion === CAPITAL_PLANNING_VERSION && target.kind === 'entry')
+            delete (allocation as RawCapitalAllocation | undefined)?.entryFinancing;
+          else if (target.kind === 'follow_on') {
             const { roundId } = target;
             const round = allocation?.followOnRounds.find((item) => item.roundId === roundId);
-            delete round?.financing;
+            if (input.contractVersion === CAPITAL_PLANNING_VERSION)
+              delete (round as RawCapitalRound | undefined)?.financing;
           }
           return copyBenchmarkSelection(snapshot);
         }
@@ -201,6 +264,7 @@ const integers = new Set([
   'deploymentPeriodYears',
   'plannedCompanyCount',
   'monthsAfterPreviousRound',
+  'lagMonthsFromPreviousRound',
 ]);
 const optionalBlanks = new Set([
   'netInvestableCapitalUsd',
@@ -209,6 +273,8 @@ const optionalBlanks = new Set([
   'ownershipOverrideExplanation',
   'incrementalPreMoneyPoolDilutionRatio',
   'explanation',
+  'sourceDocument',
+  'sourceDate',
 ]);
 
 function normalizeRaw(value: unknown, path: string, issues: CapitalIssueV1[], key = ''): unknown {
@@ -233,7 +299,14 @@ function normalizeRaw(value: unknown, path: string, issues: CapitalIssueV1[], ke
     }
     return Number(value);
   }
-  const precision = key.endsWith('Usd') ? 6 : key.endsWith('Ratio') ? 12 : null;
+  const precision = key.endsWith('Usd')
+    ? 6
+    : key.endsWith('Ratio') ||
+        key === 'probability' ||
+        key === 'totalExpectedCompanyCount' ||
+        /^[01]{0,6}$/.test(key)
+      ? 12
+      : null;
   if (precision !== null) {
     if (
       typeof value !== 'string' ||
@@ -316,15 +389,27 @@ export function capitalDraftSourceDeclarations(
 
 export function capitalDraftRequest(
   draft: CapitalPlanDraft
-): { ok: true; request: CreateFundScenarioSetV3 } | { ok: false; issues: CapitalIssueV1[] } {
+): { ok: true; request: CreateFundScenarioCapitalSet } | { ok: false; issues: CapitalIssueV1[] } {
   if (!draft.source)
     return { ok: false, issues: [invalid('source', 'Load and review the published source.')] };
   const issues: CapitalIssueV1[] = [];
+  for (const [index, variant] of draft.variants.entries()) {
+    if ('solve' in variant.input && variant.benchmarkSelections.length)
+      issues.push(
+        invalid(
+          `variants[${index}].override.payload.benchmarkSelections`,
+          'Direct benchmark application is unavailable for corrected planning. Enter explicit primary financing assumptions and retain catalog evidence separately.'
+        )
+      );
+  }
   const activeDeclarationPaths = new Set(
     capitalDraftSourceDeclarations(draft).map(({ path }) => path)
   );
   const request = {
-    contractVersion: 'fund-scenario-set-create/3.0.0',
+    contractVersion:
+      draft.variants[0]?.input.contractVersion === CAPITAL_PLANNING_V2_VERSION
+        ? 'fund-scenario-set-create/4.0.0'
+        : 'fund-scenario-set-create/3.0.0',
     name: draft.name,
     ...(draft.description === '' ? {} : { description: draft.description }),
     baselineVariantId: draft.variants[0]?.variantId,
@@ -357,7 +442,12 @@ export function capitalDraftRequest(
   };
   if (issues.length) return { ok: false, issues };
   for (const [index, variant] of request.variants.entries()) {
-    const payload = CapitalPlanningDraftV1Schema.safeParse(variant.override.payload);
+    const rawInput = variant.override.payload.input as { contractVersion?: string };
+    const payload = (
+      rawInput.contractVersion === CAPITAL_PLANNING_V2_VERSION
+        ? CapitalPlanningDraftV2Schema
+        : CapitalPlanningDraftV1Schema
+    ).safeParse(variant.override.payload);
     if (!payload.success) {
       issues.push(
         ...payload.error.issues.map((issue) =>
@@ -370,7 +460,11 @@ export function capitalDraftRequest(
     }
   }
   if (issues.length) return { ok: false, issues };
-  const parsed = CreateFundScenarioSetV3Schema.safeParse(request);
+  const parsed = (
+    request.contractVersion === 'fund-scenario-set-create/4.0.0'
+      ? CreateFundScenarioSetV4Schema
+      : CreateFundScenarioSetV3Schema
+  ).safeParse(request);
   return parsed.success
     ? { ok: true, request: parsed.data }
     : {

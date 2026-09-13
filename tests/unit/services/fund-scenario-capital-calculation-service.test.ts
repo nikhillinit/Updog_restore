@@ -17,6 +17,7 @@ const {
   markScenarioCalculationRunRunningMock,
   markScenarioCalculationRunCompletedMock,
   persistCapitalScenarioSnapshotMock,
+  findReusableCapitalScenarioSnapshotMock,
   prepareCapitalCalculateResponseMock,
   calculateCapitalPlanningV1Mock,
   verifyPinnedCapitalSourceBundleMock,
@@ -34,6 +35,7 @@ const {
   markScenarioCalculationRunRunningMock: vi.fn(),
   markScenarioCalculationRunCompletedMock: vi.fn(),
   persistCapitalScenarioSnapshotMock: vi.fn(),
+  findReusableCapitalScenarioSnapshotMock: vi.fn(),
   prepareCapitalCalculateResponseMock: vi.fn(),
   calculateCapitalPlanningV1Mock: vi.fn(),
   verifyPinnedCapitalSourceBundleMock: vi.fn(),
@@ -72,7 +74,7 @@ vi.mock('../../../server/services/fund-scenario-calculation-run-service.js', () 
 }));
 
 vi.mock('../../../server/services/fund-scenario-capital-snapshot-store.js', () => ({
-  findReusableCapitalScenarioSnapshot: vi.fn(),
+  findReusableCapitalScenarioSnapshot: findReusableCapitalScenarioSnapshotMock,
   persistCapitalScenarioSnapshot: persistCapitalScenarioSnapshotMock,
   prepareCapitalCalculateResponse: prepareCapitalCalculateResponseMock,
 }));
@@ -81,7 +83,10 @@ vi.mock('../../../server/lib/scenarios/scenario-input-hash.js', () => ({
   createCapitalScenarioInputHash: () => 'a'.repeat(64),
 }));
 
-vi.mock('../../../shared/lib/scenarios/scenario-input-envelope', () => ({
+vi.mock('../../../shared/lib/scenarios/scenario-input-envelope', async () => ({
+  ...(await vi.importActual<typeof import('../../../shared/lib/scenarios/scenario-input-envelope')>(
+    '../../../shared/lib/scenarios/scenario-input-envelope'
+  )),
   FUND_SCENARIOS_CONTRACT_VERSION: 'fund-scenarios/1.0.0',
   resolveScenarioInputLineage: () => ({
     hashKind: 'scenario-input-hash-v1',
@@ -102,11 +107,13 @@ import { calculateFundScenarioCapitalSet } from '../../../server/services/fund-s
 
 describe('calculateFundScenarioCapitalSet', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     const config = { modelInputsAsOfDate: null };
     const sourceBundle = {
       sourceBundleHash: 'b'.repeat(64),
       projection: { rawConfigHash: sha256CanonicalJson(config) },
       modelInputsAsOfDate: null,
+      interpretationVersion: CAPITAL_SOURCE_INTERPRETATION_VERSION,
     };
     transactionMock.mockImplementation(
       async (callback: (client: { query: ReturnType<typeof vi.fn> }) => unknown) =>
@@ -175,6 +182,58 @@ describe('calculateFundScenarioCapitalSet', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('replays completed saved bytes before unsupported-policy admission', async () => {
+    const saved = await fetchCapitalScenarioSetDetailFromRawMock();
+    saved.variants[0].override.payload.roundingPolicy = 'capital-planning-rounding/future/1.0.0';
+    const { run } = await acquireScenarioCalculationRunWithCreationMock();
+    vi.clearAllMocks();
+    findCompletedScenarioRunMock.mockResolvedValue({ ...run, snapshotId: 7 });
+    findReusableCapitalScenarioSnapshotMock.mockResolvedValue({
+      snapshotId: 7,
+      correlationId: run.correlationId,
+    });
+    const original = { response: { saved: true }, serializedResponse: '{"saved":true}' };
+    prepareCapitalCalculateResponseMock.mockReturnValue(original);
+    expect(await calculateFundScenarioCapitalSet(1, 'scenario-set-1')).toBe(original);
+    expect(acquireScenarioCalculationRunWithCreationMock).not.toHaveBeenCalled();
+    expect(calculateCapitalPlanningV1Mock).not.toHaveBeenCalled();
+    expect(verifyPinnedCapitalSourceBundleMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves interpretation refusal before missing-policy admission for an unproven legacy pair', async () => {
+    const saved = await fetchCapitalScenarioSetDetailFromRawMock();
+    saved.interpretationVersion = 'capital-source-interpretation/1.0.0';
+    saved.variants[0].override.payload.sourceBundle.interpretationVersion =
+      saved.interpretationVersion;
+    await expect(calculateFundScenarioCapitalSet(1, 'scenario-set-1')).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'INTERPRETATION_VERSION_UNSUPPORTED',
+          path: 'interpretationVersion',
+        }),
+      ]),
+    });
+    expect(acquireScenarioCalculationRunWithCreationMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unsupported recorded rounding policy before acquiring a run', async () => {
+    const saved = await fetchCapitalScenarioSetDetailFromRawMock();
+    saved.variants[0].override.payload.roundingPolicy = 'capital-planning-rounding/future/1.0.0';
+    await expect(calculateFundScenarioCapitalSet(1, 'scenario-set-1')).rejects.toMatchObject({
+      issues: expect.arrayContaining([expect.objectContaining({ code: 'POLICY_UNSUPPORTED' })]),
+    });
+    expect(acquireScenarioCalculationRunWithCreationMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unsupported recorded method before acquiring a run', async () => {
+    const saved = await fetchCapitalScenarioSetDetailFromRawMock();
+    saved.variants[0].override.payload.methodVersion = 'capital-planning/99.0.0';
+    await expect(calculateFundScenarioCapitalSet(1, 'scenario-set-1')).rejects.toMatchObject({
+      issues: expect.arrayContaining([expect.objectContaining({ code: 'POLICY_UNSUPPORTED' })]),
+    });
+    expect(acquireScenarioCalculationRunWithCreationMock).not.toHaveBeenCalled();
   });
 
   it('fails before durable writes when sync deadline already elapsed', async () => {

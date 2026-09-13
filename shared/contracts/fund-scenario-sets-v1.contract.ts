@@ -1,3 +1,9 @@
+import {
+  CapitalPlanningInputV2Schema,
+  CapitalPlanningDraftV2Schema,
+  CapitalPlanningStoredInputV2Schema,
+  CapitalPlanningStoredResultV2Schema,
+} from './capital-planning-v2.contract';
 /**
  * FundScenarioSetsV1 -- Canonical contract for ADR-022 fund-results scenarios.
  *
@@ -1068,4 +1074,472 @@ export type FundScenarioCapitalRequestInputV1 = z.infer<
 >;
 export type FundScenarioCapitalArchiveResponseV1 = z.infer<
   typeof FundScenarioCapitalArchiveResponseV1Schema
+>;
+
+// Corrected representation is opt-in; legacy schemas above retain their exact wire shape.
+export const FundScenarioCapitalRequestInputV2Schema = z.union([
+  CapitalPlanningInputV2Schema,
+  CapitalPlanningDraftV2Schema,
+]);
+export const FundScenarioCapitalOverrideV2Schema = z
+  .object({
+    overrideType: z.literal('capital_plan'),
+    payload: FundScenarioCapitalRequestInputV2Schema,
+  })
+  .strict();
+
+export const CreateFundScenarioCapitalVariantV4Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    name: CapitalScenarioNameV1Schema,
+    description: z.string().trim().max(4000).nullable().optional(),
+    override: FundScenarioCapitalOverrideV2Schema,
+  })
+  .strict();
+
+export const CreateFundScenarioSetV4Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-set-create/4.0.0'),
+    name: CapitalScenarioNameV1Schema,
+    description: z.string().trim().max(4000).nullable().optional(),
+    variants: z.array(CreateFundScenarioCapitalVariantV4Schema).min(1).max(5),
+    baselineVariantId: z.string().uuid(),
+    expectedSourceConfigId: z.number().int().positive(),
+    expectedSourceConfigVersion: z.number().int().positive(),
+    expectedSourceBundleHash: CapitalHashV1Schema,
+    expectedInterpretationVersion: CapitalVersionV1Schema,
+    unitDeclarations: CapitalUnitDeclarationsV1Schema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.baselineVariantId !== value.variants[0]?.variantId)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['baselineVariantId'],
+        message: 'The first named variant is the stable baseline',
+      });
+    if (new Set(value.variants.map((variant) => variant.variantId)).size !== value.variants.length)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants'],
+        message: 'Variant IDs must be unique',
+      });
+    const rows = value.variants.reduce((total, variant) => {
+      const payload = variant.override.payload;
+      const input = 'input' in payload ? payload.input : payload;
+      return (
+        total +
+        input.allocations.reduce(
+          (sum, allocation) =>
+            sum +
+            allocation.deploymentPeriodYears *
+              12 *
+              (1 + allocation.followOnRounds.length) *
+              (allocation.plannedCompanyCount === undefined ? 1 : 2),
+          0
+        )
+      );
+    }, 0);
+    if (rows > CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxExpandedRows)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants'],
+        message: 'INPUT_TOO_LARGE: provisional monthly row ceiling exceeded',
+      });
+  });
+
+export const FundScenarioCapitalRecordedOverrideV1Schema = z
+  .object({
+    overrideType: z.literal('capital_plan'),
+    payload: z
+      .object({
+        input: CapitalPlanningInputV1Schema,
+        methodVersion: CapitalVersionV1Schema.optional(),
+        roundingPolicy: CapitalVersionV1Schema.optional(),
+        sourceBundle: CapitalSourceBundleV1Schema,
+        sourceBundleHash: CapitalHashV1Schema,
+        benchmarkSnapshots: z
+          .array(CapitalBenchmarkSnapshotV1Schema)
+          .max(
+            CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxAllocations *
+              (CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxFollowOnRounds + 1)
+          )
+          .optional(),
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.payload.sourceBundleHash !== value.payload.sourceBundle.sourceBundleHash)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['payload', 'sourceBundleHash'],
+        message: 'SOURCE_BUNDLE_INCONSISTENT',
+      });
+  });
+
+export const FundScenarioCapitalStoredOverrideV2Schema = z
+  .object({
+    overrideType: z.literal('capital_plan'),
+    payload: z
+      .object({
+        input: CapitalPlanningStoredInputV2Schema,
+        methodVersion: CapitalVersionV1Schema,
+        sourceBundle: CapitalSourceBundleV1Schema,
+        sourceBundleHash: CapitalHashV1Schema,
+        benchmarkSnapshots: z
+          .array(CapitalBenchmarkSnapshotV1Schema)
+          .max(
+            CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxAllocations *
+              (CAPITAL_PLANNING_PROVISIONAL_LIMITS.maxFollowOnRounds + 1)
+          )
+          .optional(),
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.payload.sourceBundleHash !== value.payload.sourceBundle.sourceBundleHash)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['payload', 'sourceBundleHash'],
+        message: 'SOURCE_BUNDLE_INCONSISTENT',
+      });
+  });
+
+export const FundScenarioCapitalRecordedVariantV1Schema = z
+  .object({
+    id: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: CapitalScenarioNameV1Schema,
+    description: z.string().max(4000).nullable(),
+    sortOrder: z.number().int().min(0).max(4),
+    override: FundScenarioCapitalRecordedOverrideV1Schema,
+    createdAt: DateTimeStringSchema,
+    updatedAt: DateTimeStringSchema,
+  })
+  .strict();
+
+export const FundScenarioCapitalRecordedDetailResponseV1Schema =
+  FundScenarioCapitalSetSummaryV1Schema.extend({
+    contractVersion: z.literal('fund-scenario-capital-detail/1.0.0'),
+    representation: CapitalPlanRepresentationV1Schema,
+    variants: z.array(FundScenarioCapitalRecordedVariantV1Schema).min(1).max(5),
+  })
+    .strict()
+    .superRefine((value, ctx) => {
+      if (
+        value.variants.length !== value.variantCount ||
+        value.variants[0]?.id !== value.baselineVariantId
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants'],
+          message: 'Variant count/baseline mismatch',
+        });
+      const firstBundle = value.variants[0]?.override.payload.sourceBundle;
+      let firstBundleJson: string | undefined;
+      for (const [index, variant] of value.variants.entries()) {
+        const bundle = variant.override.payload.sourceBundle;
+        if (
+          variant.scenarioSetId !== value.id ||
+          variant.sortOrder !== index ||
+          bundle.sourceBundleHash !== value.sourceBundleHash ||
+          bundle.interpretationVersion !== value.interpretationVersion ||
+          bundle.projection.fundId !== value.fundId ||
+          bundle.projection.sourceConfigId !== value.sourceConfigId ||
+          bundle.projection.sourceConfigVersion !== value.sourceConfigVersion ||
+          canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(firstBundle))
+        )
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['variants', index],
+            message: 'Capital variant source/set/order mismatch',
+          });
+      }
+      if (new Set(value.variants.map((variant) => variant.id)).size !== value.variants.length)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants'],
+          message: 'Variant IDs must be unique',
+        });
+    });
+
+export const FundScenarioCapitalVariantV2Schema = z
+  .object({
+    id: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: CapitalScenarioNameV1Schema,
+    description: z.string().max(4000).nullable(),
+    sortOrder: z.number().int().min(0).max(4),
+    override: FundScenarioCapitalStoredOverrideV2Schema,
+    createdAt: DateTimeStringSchema,
+    updatedAt: DateTimeStringSchema,
+  })
+  .strict();
+
+export const FundScenarioCapitalDetailResponseV2Schema =
+  FundScenarioCapitalSetSummaryV1Schema.extend({
+    contractVersion: z.literal('fund-scenario-capital-detail/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    variants: z.array(FundScenarioCapitalVariantV2Schema).min(1).max(5),
+  })
+    .strict()
+    .superRefine((value, ctx) => {
+      if (
+        value.variants.length !== value.variantCount ||
+        value.variants[0]?.id !== value.baselineVariantId
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants'],
+          message: 'Variant count/baseline mismatch',
+        });
+      const firstBundle = value.variants[0]?.override.payload.sourceBundle;
+      let firstBundleJson: string | undefined;
+      for (const [index, variant] of value.variants.entries()) {
+        const bundle = variant.override.payload.sourceBundle;
+        if (
+          variant.scenarioSetId !== value.id ||
+          variant.sortOrder !== index ||
+          bundle.sourceBundleHash !== value.sourceBundleHash ||
+          bundle.interpretationVersion !== value.interpretationVersion ||
+          bundle.projection.fundId !== value.fundId ||
+          bundle.projection.sourceConfigId !== value.sourceConfigId ||
+          bundle.projection.sourceConfigVersion !== value.sourceConfigVersion ||
+          canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(firstBundle))
+        )
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['variants', index],
+            message: 'Capital variant source/set/order mismatch',
+          });
+      }
+      if (new Set(value.variants.map((variant) => variant.id)).size !== value.variants.length)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants'],
+          message: 'Variant IDs must be unique',
+        });
+    });
+
+export const FundScenarioCapitalCalculationVariantV2Schema = z
+  .object({
+    variantId: z.string().uuid(),
+    scenarioSetId: z.string().uuid(),
+    name: CapitalScenarioNameV1Schema,
+    overrideType: z.literal('capital_plan'),
+    result: CapitalPlanningStoredResultV2Schema,
+  })
+  .strict();
+
+export const FundScenarioCapitalCalculationPayloadV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-capital-calculation/2.0.0'),
+    calculationDomain: z.literal('capital_plan'),
+    calculationMode: z.literal('sync_capital_plan'),
+    capitalPreimageVersion: z.literal(CAPITAL_PREIMAGE_VERSION),
+    methodVersion: CapitalVersionV1Schema,
+    interpretationVersion: CapitalVersionV1Schema,
+    calculationVersion: z.string().min(1).max(20),
+    inputHash: CapitalHashV1Schema,
+    lineage: CapitalScenarioLineageV1Schema,
+    fundId: z.number().int().positive(),
+    scenarioSetId: z.string().uuid(),
+    baselineVariantId: z.string().uuid(),
+    sourceConfigId: z.number().int().positive(),
+    sourceConfigVersion: z.number().int().positive(),
+    sourceBundleHash: CapitalHashV1Schema,
+    calculatedAt: DateTimeStringSchema,
+    variants: z.array(FundScenarioCapitalCalculationVariantV2Schema).min(1).max(5),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      value.variants[0]?.variantId !== value.baselineVariantId ||
+      new Set(value.variants.map((variant) => variant.variantId)).size !== value.variants.length
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants'],
+        message: 'Stable baseline/variant identities required',
+      });
+    const firstBundle = value.variants[0]?.result.sourceBundle;
+    let firstBundleJson: string | undefined;
+    for (const [index, variant] of value.variants.entries()) {
+      const bundle = variant.result.sourceBundle;
+      if (
+        variant.scenarioSetId !== value.scenarioSetId ||
+        bundle.sourceBundleHash !== value.sourceBundleHash ||
+        bundle.projection.fundId !== value.fundId ||
+        bundle.projection.sourceConfigId !== value.sourceConfigId ||
+        bundle.projection.sourceConfigVersion !== value.sourceConfigVersion ||
+        bundle.interpretationVersion !== value.interpretationVersion ||
+        bundle.modelInputsAsOfDate !== value.lineage.modelInputsAsOfDate ||
+        canonicalJson(bundle) !== (firstBundleJson ??= canonicalJson(firstBundle))
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['variants', index],
+          message: 'Saved capital identity/lineage/bundle mismatch',
+        });
+    }
+  });
+
+export const FundScenarioCapitalCreateResponseV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-capital-create/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    scenarioSetId: z.string().uuid(),
+  })
+  .strict();
+
+export const FundScenarioCapitalCalculateResponseV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-capital-calculate/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    snapshotId: z.number().int().positive(),
+    correlationId: z.string().uuid(),
+    source: z.literal('fund_snapshots'),
+    payload: FundScenarioCapitalCalculationPayloadV2Schema,
+  })
+  .strict();
+
+export const FundScenarioCapitalResultsResponseV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-capital-results/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    scenarioSetId: z.string().uuid(),
+    savedResult: z
+      .object({
+        snapshotId: z.number().int().positive(),
+        correlationId: z.string().uuid(),
+        source: z.literal('fund_snapshots'),
+        payload: FundScenarioCapitalCalculationPayloadV2Schema,
+      })
+      .strict()
+      .nullable(),
+    unavailableReason: z.literal('NO_CALCULATED_RESULT').nullable(),
+    readState: CapitalReadStateV1Schema,
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if ((value.savedResult === null) !== (value.unavailableReason !== null))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['unavailableReason'],
+        message: 'Only absent results carry an unavailable reason',
+      });
+    if (value.savedResult && value.savedResult.payload.scenarioSetId !== value.scenarioSetId)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['savedResult'],
+        message: 'Saved result must belong to requested scenario set',
+      });
+  });
+
+export const CreateFundScenarioCapitalSetSchema = z.union([
+  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioSetV4Schema,
+]);
+export type CreateFundScenarioCapitalSet = z.infer<typeof CreateFundScenarioCapitalSetSchema>;
+export type CreateFundScenarioSetV4 = z.infer<typeof CreateFundScenarioSetV4Schema>;
+export const FundScenarioCapitalStoredOverrideSchema = z.union([
+  FundScenarioCapitalRecordedOverrideV1Schema,
+  FundScenarioCapitalStoredOverrideV2Schema,
+]);
+export type FundScenarioCapitalStoredOverride = z.infer<
+  typeof FundScenarioCapitalStoredOverrideSchema
+>;
+export type FundScenarioCapitalStoredOverrideV2 = z.infer<
+  typeof FundScenarioCapitalStoredOverrideV2Schema
+>;
+export const FundScenarioCapitalDetailResponseSchema = z.union([
+  FundScenarioCapitalRecordedDetailResponseV1Schema,
+  FundScenarioCapitalDetailResponseV2Schema,
+]);
+export type FundScenarioCapitalDetailResponse = z.infer<
+  typeof FundScenarioCapitalDetailResponseSchema
+>;
+export type FundScenarioCapitalDetailResponseV2 = z.infer<
+  typeof FundScenarioCapitalDetailResponseV2Schema
+>;
+export const FundScenarioCapitalCalculationPayloadSchema: z.ZodType<
+  FundScenarioCapitalCalculationPayload,
+  z.ZodTypeDef,
+  | z.input<typeof FundScenarioCapitalCalculationPayloadV1Schema>
+  | z.input<typeof FundScenarioCapitalCalculationPayloadV2Schema>
+> = z.union([
+  FundScenarioCapitalCalculationPayloadV1Schema,
+  FundScenarioCapitalCalculationPayloadV2Schema,
+]);
+export type FundScenarioCapitalCalculationPayload =
+  FundScenarioCapitalCalculationPayloadV1 | FundScenarioCapitalCalculationPayloadV2;
+export type FundScenarioCapitalCalculationPayloadV2 = z.infer<
+  typeof FundScenarioCapitalCalculationPayloadV2Schema
+>;
+export const FundScenarioCapitalCreateResponseSchema = z.union([
+  FundScenarioCapitalCreateResponseV1Schema,
+  FundScenarioCapitalCreateResponseV2Schema,
+]);
+export type FundScenarioCapitalCreateResponse = z.infer<
+  typeof FundScenarioCapitalCreateResponseSchema
+>;
+export type FundScenarioCapitalCreateResponseV2 = z.infer<
+  typeof FundScenarioCapitalCreateResponseV2Schema
+>;
+export const FundScenarioCapitalCalculateResponseSchema: z.ZodType<
+  FundScenarioCapitalCalculateResponse,
+  z.ZodTypeDef,
+  | z.input<typeof FundScenarioCapitalCalculateResponseV1Schema>
+  | z.input<typeof FundScenarioCapitalCalculateResponseV2Schema>
+> = z.union([
+  FundScenarioCapitalCalculateResponseV1Schema,
+  FundScenarioCapitalCalculateResponseV2Schema,
+]);
+export type FundScenarioCapitalCalculateResponse =
+  FundScenarioCapitalCalculateResponseV1 | FundScenarioCapitalCalculateResponseV2;
+export type FundScenarioCapitalCalculateResponseV2 = z.infer<
+  typeof FundScenarioCapitalCalculateResponseV2Schema
+>;
+export const FundScenarioCapitalResultsResponseSchema: z.ZodType<
+  FundScenarioCapitalResultsResponse,
+  z.ZodTypeDef,
+  | z.input<typeof FundScenarioCapitalResultsResponseV1Schema>
+  | z.input<typeof FundScenarioCapitalResultsResponseV2Schema>
+> = z.union([
+  FundScenarioCapitalResultsResponseV1Schema,
+  FundScenarioCapitalResultsResponseV2Schema,
+]);
+export type FundScenarioCapitalResultsResponse =
+  FundScenarioCapitalResultsResponseV1 | FundScenarioCapitalResultsResponseV2;
+export type FundScenarioCapitalResultsResponseV2 = z.infer<
+  typeof FundScenarioCapitalResultsResponseV2Schema
+>;
+
+// V1 list remains strict; the V2 list carries both legacy and corrected summaries.
+export const FundScenarioCapitalSetSummaryV2Schema = FundScenarioCapitalSetSummaryV1Schema.extend({
+  representation: z.literal('capital-plan-v2'),
+}).strict();
+export const FundScenarioCapitalSetSummarySchema = z.union([
+  FundScenarioCapitalSetSummaryV1Schema,
+  FundScenarioCapitalSetSummaryV2Schema,
+]);
+export type FundScenarioCapitalSetSummary = z.infer<typeof FundScenarioCapitalSetSummarySchema>;
+export const FundScenarioCapitalListResponseV2Schema = z
+  .object({
+    contractVersion: z.literal('fund-scenario-capital-list/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    scenarioSets: z.array(FundScenarioCapitalSetSummarySchema),
+  })
+  .strict();
+export const FundScenarioCapitalListResponseSchema = z.union([
+  FundScenarioCapitalListResponseV1Schema,
+  FundScenarioCapitalListResponseV2Schema,
+]);
+export type FundScenarioCapitalListResponse = z.infer<typeof FundScenarioCapitalListResponseSchema>;
+
+export type FundScenarioCapitalSetSummaryV2 = z.infer<typeof FundScenarioCapitalSetSummaryV2Schema>;
+export type FundScenarioCapitalListResponseV2 = z.infer<
+  typeof FundScenarioCapitalListResponseV2Schema
 >;

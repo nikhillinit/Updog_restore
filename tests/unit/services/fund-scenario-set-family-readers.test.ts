@@ -333,6 +333,19 @@ afterEach(() => {
 });
 
 describe('B7 real raw-family reader adapters', () => {
+  it('refuses a V2 selector for decoded V1 detail and results without writing', async () => {
+    await expect(
+      source.getFundScenarioCapitalSet(FUND, CAPITAL_ID, 'capital-plan-v2')
+    ).rejects.toMatchObject({
+      statusCode: 406,
+      code: 'scenario_representation_not_applicable',
+    });
+    await expect(getScenarioResults(FUND, CAPITAL_ID, 'capital-plan-v2')).rejects.toMatchObject({
+      statusCode: 406,
+      code: 'scenario_representation_not_applicable',
+    });
+  });
+
   it('pins completed historical bytes from the immutable 1.0.0 producer without adding benchmark fields', () => {
     const parsed = FundScenarioCapitalCalculationPayloadV1Schema.parse(fixture.snapshot.payload);
     expect(JSON.stringify(parsed)).toBe(fixture.payloadSerialized);

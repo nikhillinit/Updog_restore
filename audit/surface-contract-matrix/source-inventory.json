@@ -582,7 +582,7 @@
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba",
-    "server/routes/fund-scenario-sets.ts": "c321f28dd02d860f20c88c0df7deb5c7ed331dd119798069d1ab4371b1e43436",
+    "server/routes/fund-scenario-sets.ts": "de4d651ce5ecfedcb86d7c5dfb8cbd8b9f67fa6b8973fb1ba5741698d3f07d35",
     "server/routes/funds.ts": "6d712d6b211eda9ee05fde7cbfff7bca162c8d59ecb3e6ccad416b1889571393",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
     "server/routes/health.ts": "9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",

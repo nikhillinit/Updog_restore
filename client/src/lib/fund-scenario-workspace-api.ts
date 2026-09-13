@@ -4,17 +4,17 @@ import {
   FundScenarioSourceConfigResponseV1Schema,
   type FundScenarioSourceConfigResponseV1,
   CAPITAL_PLAN_REPRESENTATION,
-  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioCapitalSetSchema,
   FundScenarioCapitalSourceResponseV1Schema,
-  FundScenarioCapitalListResponseV1Schema,
-  FundScenarioCapitalDetailResponseV1Schema,
-  FundScenarioCapitalResultsResponseV1Schema,
-  FundScenarioCapitalCreateResponseV1Schema,
-  FundScenarioCapitalCalculateResponseV1Schema,
+  FundScenarioCapitalListResponseSchema,
+  FundScenarioCapitalDetailResponseSchema,
+  FundScenarioCapitalResultsResponseSchema,
+  FundScenarioCapitalCreateResponseSchema,
+  FundScenarioCapitalCalculateResponseSchema,
   FundScenarioCapitalArchiveResponseV1Schema,
-  type CreateFundScenarioSetV3,
+  type CreateFundScenarioCapitalSet,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
-import { FundScenarioCapitalComparisonV1Schema } from '@shared/contracts/fund-scenario-comparison-v1.contract';
+import { FundScenarioCapitalComparisonSchema } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import { z } from 'zod';
 
 const FUND_ID_PATTERN = /^\d+$/;
@@ -114,8 +114,12 @@ export async function fetchScenarioSourceConfig(
   return FundScenarioSourceConfigResponseV1Schema.parse(raw);
 }
 
-function capitalPath(path: string): string {
-  return `${path}?representation=${CAPITAL_PLAN_REPRESENTATION}`;
+type CapitalRepresentation = 'capital-plan-v1' | 'capital-plan-v2';
+function capitalPath(
+  path: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+): string {
+  return `${path}?representation=${representation}`;
 }
 
 export async function fetchCapitalScenarioSource(fundId: string) {
@@ -124,56 +128,93 @@ export async function fetchCapitalScenarioSource(fundId: string) {
   );
 }
 
-export async function fetchCapitalScenarioList(fundId: string, includeArchived = false) {
-  return FundScenarioCapitalListResponseV1Schema.parse(
+export async function fetchCapitalScenarioList(
+  fundId: string,
+  includeArchived = false,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
+  return FundScenarioCapitalListResponseSchema.parse(
     await apiRequest(
       'GET',
-      `${capitalPath(scenarioApiPath(fundId, '/scenario-sets'))}&includeArchived=${includeArchived}`
+      `${capitalPath(scenarioApiPath(fundId, '/scenario-sets'), representation)}&includeArchived=${includeArchived}`
     )
   );
 }
 
-export async function fetchCapitalScenarioDetail(fundId: string, scenarioSetId: string) {
-  return FundScenarioCapitalDetailResponseV1Schema.parse(
-    await apiRequest('GET', capitalPath(scenarioSetApiPath(fundId, scenarioSetId)))
+export async function fetchCapitalScenarioDetail(
+  fundId: string,
+  scenarioSetId: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
+  return FundScenarioCapitalDetailResponseSchema.parse(
+    await apiRequest('GET', capitalPath(scenarioSetApiPath(fundId, scenarioSetId), representation))
   );
 }
 
-export async function fetchCapitalScenarioResults(fundId: string, scenarioSetId: string) {
-  return FundScenarioCapitalResultsResponseV1Schema.parse(
-    await apiRequest('GET', capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/results')))
+export async function fetchCapitalScenarioResults(
+  fundId: string,
+  scenarioSetId: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
+  return FundScenarioCapitalResultsResponseSchema.parse(
+    await apiRequest(
+      'GET',
+      capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/results'), representation)
+    )
   );
 }
 
-export async function fetchCapitalScenarioComparison(fundId: string, scenarioSetId: string) {
-  return FundScenarioCapitalComparisonV1Schema.parse(
-    await apiRequest('GET', capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/comparison')))
+export async function fetchCapitalScenarioComparison(
+  fundId: string,
+  scenarioSetId: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
+  return FundScenarioCapitalComparisonSchema.parse(
+    await apiRequest(
+      'GET',
+      capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/comparison'), representation)
+    )
   );
 }
 
 export async function createCapitalScenario(
   fundId: string,
-  request: CreateFundScenarioSetV3,
+  request: CreateFundScenarioCapitalSet,
   idempotencyKey: string
 ) {
-  return FundScenarioCapitalCreateResponseV1Schema.parse(
+  return FundScenarioCapitalCreateResponseSchema.parse(
     await apiRequest(
       'POST',
-      capitalPath(scenarioApiPath(fundId, '/scenario-sets')),
-      CreateFundScenarioSetV3Schema.parse(request),
+      `${scenarioApiPath(fundId, '/scenario-sets')}?representation=${request.contractVersion === 'fund-scenario-set-create/4.0.0' ? 'capital-plan-v2' : CAPITAL_PLAN_REPRESENTATION}`,
+      CreateFundScenarioCapitalSetSchema.parse(request),
       { headers: { 'Idempotency-Key': idempotencyKey } }
     )
   );
 }
 
-export async function calculateCapitalScenario(fundId: string, scenarioSetId: string) {
-  return FundScenarioCapitalCalculateResponseV1Schema.parse(
-    await apiRequest('POST', capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/calculate')))
+export async function calculateCapitalScenario(
+  fundId: string,
+  scenarioSetId: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
+  return FundScenarioCapitalCalculateResponseSchema.parse(
+    await apiRequest(
+      'POST',
+      capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/calculate'), representation)
+    )
   );
 }
 
-export async function archiveCapitalScenario(fundId: string, scenarioSetId: string) {
+export async function archiveCapitalScenario(
+  fundId: string,
+  scenarioSetId: string,
+  representation: CapitalRepresentation = CAPITAL_PLAN_REPRESENTATION
+) {
   return FundScenarioCapitalArchiveResponseV1Schema.parse(
-    await apiRequest('POST', capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/archive')), {})
+    await apiRequest(
+      'POST',
+      capitalPath(scenarioSetApiPath(fundId, scenarioSetId, '/archive'), representation),
+      {}
+    )
   );
 }

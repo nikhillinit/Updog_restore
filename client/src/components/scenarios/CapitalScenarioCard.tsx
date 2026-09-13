@@ -16,8 +16,8 @@ import {
   workspaceQueryKey,
 } from '@/lib/fund-scenario-workspace-query-keys';
 import type {
-  FundScenarioCapitalSetSummaryV1,
-  FundScenarioCapitalDetailResponseV1,
+  FundScenarioCapitalSetSummary,
+  FundScenarioCapitalDetailResponse,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 
 export function CapitalScenarioCard({
@@ -26,25 +26,26 @@ export function CapitalScenarioCard({
   onDuplicate,
 }: {
   fundId: string;
-  summary: FundScenarioCapitalSetSummaryV1;
-  onDuplicate: (detail: FundScenarioCapitalDetailResponseV1) => void;
+  summary: FundScenarioCapitalSetSummary;
+  onDuplicate: (detail: FundScenarioCapitalDetailResponse) => void;
 }) {
+  const representation = 'representation' in summary ? summary.representation : 'capital-plan-v1';
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const detail = useQuery({
     queryKey: capitalScenarioDetailQueryKey(fundId, summary.id),
-    queryFn: () => fetchCapitalScenarioDetail(fundId, summary.id),
+    queryFn: () => fetchCapitalScenarioDetail(fundId, summary.id, representation),
   });
   const results = useQuery({
     queryKey: capitalScenarioResultsQueryKey(fundId, summary.id),
-    queryFn: () => fetchCapitalScenarioResults(fundId, summary.id),
+    queryFn: () => fetchCapitalScenarioResults(fundId, summary.id, representation),
   });
   const comparison = useQuery({
     queryKey: capitalScenarioComparisonQueryKey(fundId, summary.id),
-    queryFn: () => fetchCapitalScenarioComparison(fundId, summary.id),
+    queryFn: () => fetchCapitalScenarioComparison(fundId, summary.id, representation),
   });
   const calculate = useMutation({
-    mutationFn: () => calculateCapitalScenario(fundId, summary.id),
+    mutationFn: () => calculateCapitalScenario(fundId, summary.id, representation),
     onMutate: () => setMessage('Calculating saved capital inputs.'),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) });
@@ -56,7 +57,7 @@ export function CapitalScenarioCard({
       ),
   });
   const archive = useMutation({
-    mutationFn: () => archiveCapitalScenario(fundId, summary.id),
+    mutationFn: () => archiveCapitalScenario(fundId, summary.id, representation),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) });
       setMessage('Capital scenario archived. Saved history remains readable.');
@@ -67,7 +68,7 @@ export function CapitalScenarioCard({
     <article
       className="min-w-0 space-y-4 rounded-presson-md border border-presson-borderSubtle bg-presson-surface p-4 text-presson-text"
       data-scenario-id={summary.id}
-      data-representation="capital-plan-v1"
+      data-representation={representation}
     >
       <header>
         <h2 className="break-words font-heading text-lg font-semibold">{summary.name}</h2>

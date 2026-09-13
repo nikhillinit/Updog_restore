@@ -1,18 +1,18 @@
 import type { PoolClient } from 'pg';
-import type {
-  CapitalPlanningMemoV1,
-  CapitalPlanningResultV1,
-} from '@shared/contracts/capital-planning-v1.contract';
+import {
+  CAPITAL_PLANNING_V2_VERSION,
+  type CapitalPlanningMemo,
+} from '@shared/contracts/capital-planning-v2.contract';
 import {
   calculateCapitalComparisonDeltaV1,
-  FundScenarioCapitalComparisonV1Schema,
+  FundScenarioCapitalComparisonSchema,
   type CapitalChangedInputV1,
   type CapitalComparisonMetricDeltaV1,
-  type FundScenarioCapitalComparisonV1,
+  type FundScenarioCapitalComparison,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
 import type {
-  FundScenarioCapitalCalculationPayloadV1,
-  FundScenarioCapitalDetailResponseV1,
+  FundScenarioCapitalCalculationPayload,
+  FundScenarioCapitalDetailResponse,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   fetchCapitalScenarioSetDetailFromRaw,
@@ -20,6 +20,8 @@ import {
   verifyFundExists,
 } from './fund-scenario-set-service.js';
 import { fetchCapitalSavedSnapshot } from './fund-scenario-capital-read-service.js';
+
+type SavedCapitalResult = FundScenarioCapitalCalculationPayload['variants'][number]['result'];
 
 type CountBasis = CapitalComparisonMetricDeltaV1['countBasis'];
 type UnavailableReason = NonNullable<CapitalComparisonMetricDeltaV1['unavailableReason']>;
@@ -100,9 +102,20 @@ function delta(
 }
 
 function savedMetricDeltas(
-  baseline: CapitalPlanningResultV1,
-  variant: CapitalPlanningResultV1
+  baseline: SavedCapitalResult,
+  variant: SavedCapitalResult
 ): CapitalComparisonMetricDeltaV1[] {
+  if (
+    baseline.contractVersion === CAPITAL_PLANNING_V2_VERSION ||
+    variant.contractVersion === CAPITAL_PLANNING_V2_VERSION
+  ) {
+    if (
+      baseline.contractVersion !== CAPITAL_PLANNING_V2_VERSION ||
+      variant.contractVersion !== CAPITAL_PLANNING_V2_VERSION
+    )
+      throw new Error('Cannot compare different capital method versions');
+    return correctedMetricDeltas(baseline, variant);
+  }
   const deltas: CapitalComparisonMetricDeltaV1[] = [];
   for (const countBasis of ['expected', 'entered'] as const) {
     for (const [metric, label] of BUDGET_METRICS) {
@@ -153,22 +166,71 @@ function savedMetricDeltas(
   return deltas;
 }
 
+function correctedMetricDeltas(
+  baseline: Extract<SavedCapitalResult, { contractVersion: typeof CAPITAL_PLANNING_V2_VERSION }>,
+  variant: Extract<SavedCapitalResult, { contractVersion: typeof CAPITAL_PLANNING_V2_VERSION }>
+): CapitalComparisonMetricDeltaV1[] {
+  const rows = BUDGET_METRICS.map(([metric, label]) =>
+    delta(
+      metric,
+      label,
+      'construction',
+      'expected',
+      baseline.construction.budgetBridge[metric],
+      variant.construction.budgetBridge[metric],
+      'NOT_MODELED'
+    )
+  );
+  const metrics = [
+    ['companyCount', 'Expected company count', 'totalExpectedCompanyCount'],
+    ['initialDemandUsd', 'Initial deployment', 'initialPoolUsd'],
+    ['lifetimeFollowOnUsd', 'Follow-on reserve demand', 'totalReserveUsd'],
+    ['totalDemandUsd', 'Required construction capital', 'requiredConstructionCapitalUsd'],
+  ] as const;
+  for (const [metric, label, key] of metrics)
+    rows.push(
+      delta(
+        metric,
+        label,
+        'construction',
+        'expected',
+        baseline.construction.solution[key],
+        variant.construction.solution[key],
+        'NOT_MODELED'
+      )
+    );
+  return rows;
+}
+
 function inputGroup(path: string): CapitalChangedInputV1['group'] {
   if (path.startsWith('input.performanceCase.')) return 'companion';
   if (path.startsWith('provenance[') || path.startsWith('benchmarkSnapshots[')) return 'provenance';
   if (path === 'input.netInvestableCapitalUsd' || path.startsWith('sourceBundle.gp.'))
     return 'budget_gp_deemed';
   if (path.includes('graduationRatio')) return 'graduation';
-  if (path.includes('participationRatio') || path.includes('proRataExerciseRatio'))
+  if (
+    path.includes('participationRatio') ||
+    path.includes('participationPolicy') ||
+    path.includes('eligibility') ||
+    path.includes('proRataExerciseRatio')
+  )
     return 'participation';
   if (path.includes('PoolDilution')) return 'pool_dilution';
   if (path.includes('.financing.') || path.includes('.entryFinancing.'))
     return 'valuation_round_size';
-  if (path.includes('budgetShareRatio') || path.includes('designatedFollowOnReserve'))
+  if (
+    path.includes('budgetShareRatio') ||
+    path.includes('initialPoolShareRatio') ||
+    path.includes('designatedFollowOnReserve')
+  )
     return 'earmarks';
   if (
     path.includes('deploymentPeriodYears') ||
     path.includes('monthsAfterPreviousRound') ||
+    path.includes('lagMonthsFromPreviousRound') ||
+    path.includes('timingBasis') ||
+    path.includes('scheduleAnchor') ||
+    path.includes('deploymentCadence') ||
     path.endsWith('.timeOrigin')
   )
     return 'timing';
@@ -206,8 +268,8 @@ function scalarLeaves(
 }
 
 function changedInputs(
-  baseline: CapitalPlanningResultV1,
-  variant: CapitalPlanningResultV1
+  baseline: SavedCapitalResult,
+  variant: SavedCapitalResult
 ): CapitalChangedInputV1[] {
   const before = new Map<string, CapitalChangedInputV1['baseline']>();
   const after = new Map<string, CapitalChangedInputV1['baseline']>();
@@ -233,47 +295,68 @@ function changedInputs(
 }
 
 function memo(
-  detail: FundScenarioCapitalDetailResponseV1,
-  variant: FundScenarioCapitalCalculationPayloadV1['variants'][number]
-): CapitalPlanningMemoV1 {
-  return {
-    contractVersion: 'capital-planning-memo/1.0.0',
+  detail: FundScenarioCapitalDetailResponse,
+  variant: FundScenarioCapitalCalculationPayload['variants'][number]
+): CapitalPlanningMemo {
+  const common = {
     fundId: detail.fundId,
     scenarioSetId: detail.id,
     variantId: variant.variantId,
     scenarioSetName: detail.name,
     variantName: variant.name,
-    result: variant.result,
     readState: detail.readState,
-    countBasis: 'expected',
+    countBasis: 'expected' as const,
     limitations: [
       'Planning estimates under saved assumptions; not a liquidity forecast.',
       'Simultaneous input changes do not assign additive causes to output differences.',
       'Comparison rows use saved values; entered rows cover only allocations with entered counts.',
     ],
-    detailScope: 'complete',
+    detailScope: 'complete' as const,
   };
+  return variant.result.contractVersion === CAPITAL_PLANNING_V2_VERSION
+    ? {
+        ...common,
+        contractVersion: 'capital-planning-memo/2.0.0',
+        result: variant.result,
+        limitations: [
+          'Planning estimates under explicit manager assumptions; not a liquidity forecast.',
+          'Expected fractional counts; entered-count comparisons do not change the solve.',
+          'Simultaneous input changes do not assign additive causes to output differences.',
+        ],
+      }
+    : { ...common, contractVersion: 'capital-planning-memo/1.0.0', result: variant.result };
 }
 
 export async function buildFundScenarioCapitalComparison(
   client: PoolClient,
   fundId: number,
   scenarioSetId: string
-): Promise<FundScenarioCapitalComparisonV1> {
+): Promise<FundScenarioCapitalComparison> {
   await verifyFundExists(client, fundId);
   const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);
   const detail = await fetchCapitalScenarioSetDetailFromRaw(client, raw);
   const saved = await fetchCapitalSavedSnapshot(client, detail);
-  const response: FundScenarioCapitalComparisonV1 = {
-    contractVersion: 'fund-scenario-capital-comparison/1.0.0',
-    representation: 'capital-plan-v1',
+  const response = {
+    contractVersion:
+      detail.representation === 'capital-plan-v2'
+        ? 'fund-scenario-capital-comparison/2.0.0'
+        : 'fund-scenario-capital-comparison/1.0.0',
+    representation: detail.representation,
     fundId,
     scenarioSetId,
-    comparisonStatus: saved ? 'comparable' : 'no_scenario_results',
+    comparisonStatus: saved ? ('comparable' as const) : ('no_scenario_results' as const),
     snapshotId: saved?.snapshotId ?? null,
     baselineVariantId: detail.baselineVariantId,
-    baseline: null,
-    variants: [],
+    baseline: null as CapitalPlanningMemo | null,
+    variants: [] as {
+      variantId: string;
+      name: string;
+      overrideType: 'capital_plan';
+      memo: CapitalPlanningMemo;
+      changedInputs: CapitalChangedInputV1[];
+      metricDeltas: CapitalComparisonMetricDeltaV1[];
+      companionComparison: 'same_issuer' | 'different_issuers' | 'companion_unavailable';
+    }[],
     readState: detail.readState,
     calculatedAt: saved?.payload.calculatedAt ?? null,
   };
@@ -289,7 +372,10 @@ export async function buildFundScenarioCapitalComparison(
       changedInputs: changedInputs(baseline.result, variant.result),
       metricDeltas: savedMetricDeltas(baseline.result, variant.result),
       companionComparison:
-        !baseline.result.performance || !variant.result.performance
+        !('performance' in baseline.result) ||
+        !('performance' in variant.result) ||
+        !baseline.result.performance ||
+        !variant.result.performance
           ? 'companion_unavailable'
           : baseline.result.performance.input.issuerLabel ===
                 variant.result.performance.input.issuerLabel &&
@@ -300,6 +386,6 @@ export async function buildFundScenarioCapitalComparison(
     }));
   }
   // Validation must not replace or normalize the immutable historical result objects.
-  FundScenarioCapitalComparisonV1Schema.parse(response);
-  return response;
+  FundScenarioCapitalComparisonSchema.parse(response);
+  return response as FundScenarioCapitalComparison;
 }

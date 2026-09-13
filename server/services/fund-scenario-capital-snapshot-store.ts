@@ -1,9 +1,9 @@
 import type { PoolClient } from 'pg';
 import {
-  FundScenarioCapitalCalculationPayloadV1Schema,
-  FundScenarioCapitalCalculateResponseV1Schema,
-  type FundScenarioCapitalCalculationPayloadV1,
-  type FundScenarioCapitalCalculateResponseV1,
+  FundScenarioCapitalCalculationPayloadSchema,
+  FundScenarioCapitalCalculateResponseSchema,
+  type FundScenarioCapitalCalculationPayload,
+  type FundScenarioCapitalCalculateResponse,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { CAPITAL_PLANNING_PROVISIONAL_LIMITS } from '@shared/contracts/capital-planning-v1.contract';
 import { assertCalculationSize } from '@shared/lib/capital-planning/calculation-support';
@@ -64,13 +64,13 @@ export async function findReusableCapitalScenarioSnapshot(
 export async function persistCapitalScenarioSnapshot(
   client: PoolClient,
   input: {
-    payload: FundScenarioCapitalCalculationPayloadV1;
+    payload: FundScenarioCapitalCalculationPayload;
     correlationId: string;
     metadata?: Record<string, unknown>;
   },
   context: CapitalSavedScenarioContext
 ): Promise<CapitalSavedResult> {
-  if (!FundScenarioCapitalCalculationPayloadV1Schema.safeParse(input.payload).success) {
+  if (!FundScenarioCapitalCalculationPayloadSchema.safeParse(input.payload).success) {
     throw createHttpError(500, 'Capital calculation payload failed validation', {
       code: 'scenario_response_invalid',
     });
@@ -130,18 +130,27 @@ export async function persistCapitalScenarioSnapshot(
 
 /** Call before the owning transaction returns; transport sends these exact bytes. */
 export function prepareCapitalCalculateResponse(savedResult: CapitalSavedResult): {
-  response: FundScenarioCapitalCalculateResponseV1;
+  response: FundScenarioCapitalCalculateResponse;
   serializedResponse: string;
 } {
   const response = {
-    contractVersion: 'fund-scenario-capital-calculate/1.0.0' as const,
-    representation: 'capital-plan-v1' as const,
+    contractVersion:
+      savedResult.payload.contractVersion === 'fund-scenario-capital-calculation/2.0.0'
+        ? ('fund-scenario-capital-calculate/2.0.0' as const)
+        : ('fund-scenario-capital-calculate/1.0.0' as const),
+    representation:
+      savedResult.payload.contractVersion === 'fund-scenario-capital-calculation/2.0.0'
+        ? ('capital-plan-v2' as const)
+        : ('capital-plan-v1' as const),
     ...savedResult,
   };
-  if (!FundScenarioCapitalCalculateResponseV1Schema.safeParse(response).success) {
+  if (!FundScenarioCapitalCalculateResponseSchema.safeParse(response).success) {
     throw createHttpError(500, 'Capital calculation response failed validation', {
       code: 'scenario_response_invalid',
     });
   }
-  return { response, serializedResponse: JSON.stringify(response) };
+  return {
+    response: response as FundScenarioCapitalCalculateResponse,
+    serializedResponse: JSON.stringify(response),
+  };
 }
