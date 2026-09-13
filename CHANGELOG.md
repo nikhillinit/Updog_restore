@@ -22,6 +22,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Documentation (2026-09-12)
+
+- Reconcile the existing program roadmap and navigation against #1505/#1506 and
+  main `fc4053b8487608173b2a3cd8d5afd46a067a9d82`: record the supplied summary's
+  eight-topic disposition, F_1.13.0-F_1.15.0 source/evidence distinctions,
+  proposed two-session decision acceptance and C1-command dependency for C3c.
+  Preserve PROPOSED status, the September 12 owner boundary and all existing
+  action gates.
+
 ### Added (2026-09-09)
 
 - Add a connected synthetic actuals workflow covering saved drafts, restore,
