@@ -62,6 +62,15 @@ interface ManifestTable {
     expectedDefaultExpression?: string;
     characterMaximumLength?: number | null;
     expectedCharacterMaximumLength?: number;
+    expectedSequence?: {
+      name: string;
+      dataType: string;
+      startValue: string;
+      minimumValue: string;
+      maximumValue: string;
+      increment: string;
+      cycleOption: string;
+    };
   }>;
   constraints?: string[];
   constraintDefinitions?: ConstraintDefinition[];
@@ -135,7 +144,12 @@ interface MockCatalog {
     is_nullable: 'YES' | 'NO';
     column_default?: string | null;
     character_maximum_length?: number | null;
+    domain_name?: string | null;
+    collation_name?: string | null;
+    is_generated?: string;
+    is_identity?: string;
   }>;
+  sequences?: ReadonlyArray<Record<string, string>>;
   constraints?: ReadonlyArray<{ table_name: string; conname: string; definition: string }>;
   indexes?: ReadonlyArray<{ tablename: string; indexname: string; indexdef: string }>;
   triggers?: readonly TriggerRow[];
@@ -152,6 +166,9 @@ function createMockClient(catalog: MockCatalog) {
       }
       if (text.includes('information_schema.columns')) {
         return Promise.resolve({ rows: [...(catalog.columns ?? [])] });
+      }
+      if (text.includes('information_schema.sequences')) {
+        return Promise.resolve({ rows: [...(catalog.sequences ?? [])] });
       }
       if (text.includes('pg_get_triggerdef')) {
         return Promise.resolve({ rows: [...(catalog.triggers ?? [])] });
@@ -197,7 +214,27 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
         column_default: column.expectedDefaultExpression ?? column.defaultExpression ?? null,
         character_maximum_length:
           column.expectedCharacterMaximumLength ?? column.characterMaximumLength ?? null,
+        is_generated: 'NEVER',
+        is_identity: 'NO',
       }))
+    ),
+    sequences: tables.flatMap((table) =>
+      (table.columns ?? []).flatMap((column) => {
+        const sequence = column.expectedSequence;
+        return sequence
+          ? [
+              {
+                sequence_name: sequence.name,
+                data_type: sequence.dataType,
+                start_value: sequence.startValue,
+                minimum_value: sequence.minimumValue,
+                maximum_value: sequence.maximumValue,
+                increment: sequence.increment,
+                cycle_option: sequence.cycleOption,
+              },
+            ]
+          : [];
+      })
     ),
     constraints: tables.flatMap((table) =>
       (table.constraints ?? []).map((conname) => ({
@@ -235,6 +272,49 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
 describe('task update command catalog audit', () => {
   const manifest = loadTaskUpdateManifest();
   const tableName = 'task_update_commands';
+
+  it.each([null, 'true', 1, {}])(
+    'rejects malformed enforceInsertContract %j',
+    async (enforceInsertContract) => {
+      const malformed = {
+        ...manifest,
+        expectedTables: manifest.expectedTables!.map((table) => ({
+          ...table,
+          enforceInsertContract,
+        })),
+      };
+      await expect(auditManifest(createMockClient({}), malformed)).rejects.toThrow(
+        /enforceInsertContract/
+      );
+    }
+  );
+
+  it.each([
+    null,
+    { dataType: 'text' },
+    { name: 'wrong' },
+    { increment: '0' },
+    { maximumValue: '0' },
+  ])('rejects malformed expectedSequence %j', async (change) => {
+    const malformed = {
+      ...manifest,
+      expectedTables: manifest.expectedTables!.map((table) => ({
+        ...table,
+        columns: table.columns!.map((column) =>
+          column.name === 'id'
+            ? {
+                ...column,
+                expectedSequence:
+                  change === null ? null : { ...column.expectedSequence, ...change },
+              }
+            : column
+        ),
+      })),
+    };
+    await expect(auditManifest(createMockClient({}), malformed)).rejects.toThrow(
+      /expectedSequence/
+    );
+  });
 
   it('audits SKIP only when the receipt table, constraints, trigger, and function match', async () => {
     const audit = await auditManifest(createMockClient(matchingCatalog(manifest)), manifest);
@@ -402,6 +482,10 @@ describe('task update command catalog audit', () => {
             ...column,
             column_default: 'legacy_default_not_audited()',
             character_maximum_length: column.data_type === 'character varying' ? 1 : null,
+            is_generated: 'ALWAYS',
+            is_identity: 'YES',
+            domain_name: 'legacy_domain_not_audited',
+            collation_name: 'legacy_collation_not_audited',
           })),
         }),
         legacyManifest

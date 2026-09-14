@@ -20,7 +20,7 @@ const dbMock = vi.hoisted(() => {
         captured.insertedValues = v;
         if (table === taskUpdateCommands) {
           captured.receiptRows = [v];
-          return Promise.resolve();
+          return { returning: vi.fn(async () => captured.receiptRows) };
         }
         return {
           onConflictDoNothing: vi.fn(() => ({

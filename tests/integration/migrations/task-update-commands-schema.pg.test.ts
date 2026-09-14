@@ -6,6 +6,10 @@ import { escapeIdentifier, Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  TaskCreateSchema,
+  TaskResponseSchema,
+} from '../../../shared/contracts/operating-objects/task.contract';
+import {
   ACTION_REFUSE_FOR_HUMAN,
   ACTION_SKIP,
   auditManifest,
@@ -196,6 +200,235 @@ describe.skipIf(skipIfNoDocker)('task update command migration PostgreSQL proof'
   ])('rejects a receipt referencing $name', async ({ input }) => {
     await inTransaction(async (client) => {
       await expect(insertReceipt(client, input)).rejects.toMatchObject({ code: '23503' });
+    });
+  });
+
+  it.each([
+    {
+      name: 'unlisted required column',
+      sql: 'ALTER TABLE task_update_commands ADD COLUMN receipt_source text NOT NULL',
+      code: '23502',
+      delta: 'unexpected-column',
+    },
+    {
+      name: 'nullable actor made required',
+      sql: 'ALTER TABLE task_update_commands ALTER COLUMN created_by SET NOT NULL',
+      code: '23502',
+      delta: 'column-nullability-mismatch',
+    },
+    {
+      name: 'omitted nullable domain rejects NULL',
+      sql: `CREATE DOMAIN receipt_nonnull AS integer CHECK (VALUE IS NOT NULL);
+        ALTER TABLE task_update_commands ADD COLUMN receipt_extra receipt_nonnull`,
+      code: '23514',
+      delta: 'unexpected-column',
+    },
+    {
+      name: 'supplied actor domain rejects supported NULL',
+      sql: `CREATE DOMAIN receipt_actor AS integer CHECK (VALUE IS NOT NULL);
+        ALTER TABLE task_update_commands ALTER COLUMN created_by TYPE receipt_actor`,
+      code: '23514',
+      delta: 'column-domain-mismatch',
+    },
+    {
+      name: 'nondeterministic hash collation rejects regex validation',
+      sql: `CREATE COLLATION receipt_hash_collation
+        (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+        ALTER TABLE task_update_commands ALTER COLUMN request_hash
+        TYPE varchar(64) COLLATE receipt_hash_collation`,
+      code: '0A000',
+      delta: 'column-collation-mismatch',
+    },
+    {
+      name: 'omitted required generated NULL',
+      sql: `ALTER TABLE task_update_commands ADD COLUMN receipt_extra integer
+        GENERATED ALWAYS AS (NULL::integer) STORED NOT NULL`,
+      code: '23502',
+      delta: 'unexpected-column',
+    },
+    {
+      name: 'omitted nullable generated expression rejects INSERT',
+      sql: `ALTER TABLE task_update_commands ADD COLUMN receipt_extra integer GENERATED ALWAYS AS
+        (1 / (CASE WHEN idempotency_key = 'candidate-command' THEN 0 ELSE 1 END)) STORED`,
+      code: '22012',
+      delta: 'unexpected-column',
+    },
+    {
+      name: 'omitted nullable default rejects INSERT',
+      sql: `CREATE FUNCTION receipt_reject_default() RETURNS integer LANGUAGE plpgsql AS $$
+        BEGIN RAISE EXCEPTION 'receipt_default_rejected'; END $$;
+        ALTER TABLE task_update_commands ADD COLUMN receipt_extra integer;
+        ALTER TABLE task_update_commands ALTER COLUMN receipt_extra SET DEFAULT receipt_reject_default()`,
+      code: 'P0001',
+      delta: 'unexpected-column',
+    },
+    {
+      name: 'supplied actor made generated',
+      sql: `ALTER TABLE task_update_commands DROP COLUMN created_by;
+        ALTER TABLE task_update_commands ADD COLUMN created_by integer GENERATED ALWAYS AS (${userId}) STORED;
+        ALTER TABLE task_update_commands ADD CONSTRAINT task_update_commands_created_by_users_id_fk FOREIGN KEY (created_by) REFERENCES users(id)`,
+      code: '428C9',
+      delta: 'column-generation-mismatch',
+    },
+    {
+      name: 'narrowed serial sequence capacity',
+      sql: 'ALTER SEQUENCE task_update_commands_id_seq RESTART WITH 2 MAXVALUE 2',
+      code: '2200H',
+      delta: 'column-sequence-mismatch',
+    },
+    {
+      name: 'unexpected rejecting CHECK',
+      sql: 'ALTER TABLE task_update_commands ADD CONSTRAINT receipt_disabled CHECK (false)',
+      code: '23514',
+      delta: 'unexpected-constraint',
+    },
+    {
+      name: 'unexpected rejecting INSERT trigger',
+      sql: `CREATE TRIGGER receipt_reject_insert BEFORE INSERT ON task_update_commands
+        FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()`,
+      code: 'P0001',
+      delta: 'unexpected-trigger',
+    },
+    {
+      name: 'unexpected uniqueness restriction',
+      sql: 'CREATE UNIQUE INDEX receipt_one_per_task ON task_update_commands(task_id)',
+      code: '23505',
+      delta: 'unexpected-index',
+    },
+    {
+      name: 'unique index borrowing a CHECK constraint name',
+      sql: 'CREATE UNIQUE INDEX task_update_commands_request_hash_check ON task_update_commands(task_id)',
+      code: '23505',
+      delta: 'unexpected-index',
+    },
+    {
+      name: 'unexpected expression index that rejects valid inserts',
+      sql: `CREATE INDEX receipt_failing_expression ON task_update_commands
+        ((1 / (CASE WHEN idempotency_key = 'candidate-command' THEN 0 ELSE 1 END)))`,
+      code: '22012',
+      delta: 'unexpected-index',
+    },
+  ])('refuses insert-breaking catalog drift: $name', async ({ sql, code, delta }) => {
+    await inTransaction(async (client) => {
+      await client.query('DELETE FROM task_update_commands');
+      await client.query(sql);
+      if (code === '2200H' || code === '23505') {
+        await insertReceipt(client, { key: 'first-command' });
+      }
+      const audit = await auditManifest(client, manifest);
+      await expect(insertReceipt(client, { createdBy: null })).rejects.toMatchObject({ code });
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+        expect.objectContaining({ kind: delta, additiveSafe: false, humanReviewRequired: true })
+      );
+    });
+  });
+
+  it('refuses an INSERT suppression trigger even when PostgreSQL reports no error', async () => {
+    await inTransaction(async (client) => {
+      await client.query(`CREATE FUNCTION receipt_suppress_insert() RETURNS trigger LANGUAGE plpgsql
+        AS $$ BEGIN RETURN NULL; END; $$;
+        CREATE TRIGGER receipt_skip_insert BEFORE INSERT ON task_update_commands
+        FOR EACH ROW EXECUTE FUNCTION receipt_suppress_insert()`);
+      const audit = await auditManifest(client, manifest);
+      await insertReceipt(client, { key: 'suppressed-command' });
+      expect(
+        (
+          await client.query(
+            "SELECT count(*)::integer AS count FROM task_update_commands WHERE idempotency_key = 'suppressed-command'"
+          )
+        ).rows[0].count
+      ).toBe(0);
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+        expect.objectContaining({
+          kind: 'unexpected-trigger',
+          additiveSafe: false,
+          humanReviewRequired: true,
+        })
+      );
+    });
+  });
+
+  it('accepts an omitted nullable column and an ordinary nonunique index', async () => {
+    await inTransaction(async (client) => {
+      await client.query(`ALTER TABLE task_update_commands ADD COLUMN optional_note text;
+        CREATE INDEX receipt_created_at_search ON task_update_commands(created_at)`);
+      await expectMatchingCatalog(client);
+      await insertReceipt(client, { key: 'harmless-extra-objects' });
+      const result = await client.query(
+        "SELECT optional_note FROM task_update_commands WHERE idempotency_key = 'harmless-extra-objects'"
+      );
+      expect(result.rows).toEqual([{ optional_note: null }]);
+    });
+  });
+
+  it.each(['integer DEFAULT 42', 'integer NOT NULL DEFAULT 42'])(
+    'requires review of an unlisted default even when compatible: %s',
+    async (definition) => {
+      await inTransaction(async (client) => {
+        await client.query(
+          `ALTER TABLE task_update_commands ADD COLUMN receipt_extra ${definition}`
+        );
+        const audit = await auditManifest(client, manifest);
+        await insertReceipt(client);
+        expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+        expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+          expect.objectContaining({ kind: 'unexpected-column', humanReviewRequired: true })
+        );
+      });
+    }
+  );
+
+  it.each(['(response_body)', '(task_id) INCLUDE (response_body)'])(
+    'refuses a nonunique index that rejects a valid receipt by size: %s',
+    async (columns) => {
+      await inTransaction(async (client) => {
+        await client.query(`CREATE INDEX receipt_body_search ON task_update_commands ${columns}`);
+        const input = TaskCreateSchema.parse({
+          fundId,
+          title: 'Valid receipt',
+          description: Array.from({ length: 2000 }, (_, i) =>
+            String.fromCharCode(0x4e00 + ((i * 7919) % 20000))
+          ).join(''),
+        });
+        const responseBody = TaskResponseSchema.parse({
+          ...input,
+          id: taskId,
+          status: 'open',
+          ownerId: null,
+          dueDate: null,
+          createdAt: '2026-09-14T00:00:00.000Z',
+          updatedAt: '2026-09-14T00:00:00.000Z',
+          etag: '"1"',
+        });
+        const audit = await auditManifest(client, manifest);
+        await expect(insertReceipt(client, { responseBody })).rejects.toMatchObject({
+          code: '54000',
+        });
+        expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+        expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+          expect.objectContaining({ kind: 'unexpected-index', humanReviewRequired: true })
+        );
+      });
+    }
+  );
+
+  it('refuses a collation that merges case-distinct idempotency keys', async () => {
+    await inTransaction(async (client) => {
+      await client.query(`CREATE COLLATION receipt_key_collation
+        (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+        ALTER TABLE task_update_commands ALTER COLUMN idempotency_key
+        TYPE varchar(128) COLLATE receipt_key_collation`);
+      const audit = await auditManifest(client, manifest);
+      await insertReceipt(client, { key: 'Case-Key' });
+      await expect(insertReceipt(client, { key: 'case-key' })).rejects.toMatchObject({
+        code: '23505',
+      });
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+        expect.objectContaining({ kind: 'column-collation-mismatch', humanReviewRequired: true })
+      );
     });
   });
 

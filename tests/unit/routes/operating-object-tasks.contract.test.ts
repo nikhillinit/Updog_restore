@@ -33,7 +33,7 @@ const dbState = vi.hoisted(() => {
         state.insertedValues = payload;
         if (table === taskUpdateCommands) {
           state.receiptRows = [payload];
-          return Promise.resolve();
+          return { returning: vi.fn(async () => state.receiptRows) };
         }
         return {
           onConflictDoNothing: vi.fn(() => ({

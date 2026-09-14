@@ -345,11 +345,25 @@ describe('prod-schema manifest sentinels', () => {
     expect(manifest?.expectedTables).toHaveLength(1);
     const table = manifest!.expectedTables[0];
     expect(table.name).toBe('task_update_commands');
+    expect(table.enforceInsertContract).toBe(true);
+    expect(table.indexes).toEqual([
+      'task_update_commands_pkey',
+      'task_update_commands_scope_unique',
+    ]);
     expect(table.columns).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: 'id',
           expectedDefaultExpression: "nextval('task_update_commands_id_seq'::regclass)",
+          expectedSequence: {
+            name: 'task_update_commands_id_seq',
+            dataType: 'integer',
+            startValue: '1',
+            minimumValue: '1',
+            maximumValue: '2147483647',
+            increment: '1',
+            cycleOption: 'NO',
+          },
         }),
         expect.objectContaining({ name: 'created_at', expectedDefaultExpression: 'now()' }),
         expect.objectContaining({ name: 'idempotency_key', expectedCharacterMaximumLength: 128 }),
@@ -654,11 +668,15 @@ describe('prod-schema manifest sentinels', () => {
     );
   });
 
-  it('no duplicate sentinel names within a manifest', () => {
+  it('no duplicate sentinel names within each catalog in a manifest', () => {
     for (const { file, manifest } of manifests) {
       const seen: string[] = [];
       for (const table of manifest.expectedTables ?? []) {
-        seen.push(...(table.constraints ?? []), ...(table.indexes ?? []));
+        // PK/UNIQUE constraints share names with their backing indexes.
+        seen.push(
+          ...(table.constraints ?? []).map((name) => `constraint:${name}`),
+          ...(table.indexes ?? []).map((name) => `index:${name}`)
+        );
       }
       const duplicates = seen.filter((name, index) => seen.indexOf(name) !== index);
       expect(duplicates, `${file} duplicate sentinels`).toEqual([]);

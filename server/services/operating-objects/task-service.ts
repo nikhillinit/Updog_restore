@@ -282,14 +282,24 @@ export async function updateTask(
           });
         }
         const response = toTaskResponse(splitXmin(updated).row, rowVersionETag(updated.rowXmin));
-        await transaction.insert(taskUpdateCommands).values({
-          fundId,
-          taskId,
-          idempotencyKey,
-          requestHash,
-          responseBody: response,
-          createdBy: args.createdBy,
-        });
+        const [receipt] = await transaction
+          .insert(taskUpdateCommands)
+          .values({
+            fundId,
+            taskId,
+            idempotencyKey,
+            requestHash,
+            responseBody: response,
+            createdBy: args.createdBy,
+          })
+          .returning({ id: taskUpdateCommands.id });
+        if (!receipt) {
+          throw new IdempotentCommandError(
+            500,
+            'TASK_UPDATE_RECEIPT_WRITE_FAILED',
+            'Failed to persist task update receipt.'
+          );
+        }
         return response;
       },
     });

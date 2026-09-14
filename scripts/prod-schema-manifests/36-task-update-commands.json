@@ -8,12 +8,22 @@
   "expectedTables": [
     {
       "name": "task_update_commands",
+      "enforceInsertContract": true,
       "columns": [
         {
           "name": "id",
           "type": "integer",
           "nullable": false,
-          "expectedDefaultExpression": "nextval('task_update_commands_id_seq'::regclass)"
+          "expectedDefaultExpression": "nextval('task_update_commands_id_seq'::regclass)",
+          "expectedSequence": {
+            "name": "task_update_commands_id_seq",
+            "dataType": "integer",
+            "startValue": "1",
+            "minimumValue": "1",
+            "maximumValue": "2147483647",
+            "increment": "1",
+            "cycleOption": "NO"
+          }
         },
         { "name": "fund_id", "type": "integer", "nullable": false },
         { "name": "task_id", "type": "integer", "nullable": false },
@@ -47,6 +57,10 @@
         "task_update_commands_request_hash_check",
         "task_update_commands_key_nonempty_check",
         "task_update_commands_response_identity_check"
+      ],
+      "indexes": [
+        "task_update_commands_pkey",
+        "task_update_commands_scope_unique"
       ],
       "constraintDefinitions": [
         {

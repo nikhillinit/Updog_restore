@@ -1166,27 +1166,30 @@ describe.skipIf(skipIfNoDocker)('operating decisions spine PostgreSQL proof', ()
         ).rows[0].count
       ).toBe(2);
 
-      // A receipt failure happens after UPDATE; the transaction must restore fields and xmin.
-      await pool.query(`CREATE FUNCTION reject_w1_receipt() RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN RAISE EXCEPTION 'w1_receipt_insert_failed'; END $$;
-        CREATE TRIGGER reject_w1_receipt BEFORE INSERT ON task_update_commands
-          FOR EACH ROW EXECUTE FUNCTION reject_w1_receipt();`);
+      // Receipt rejection and silent suppression must both restore task fields and xmin.
       const rollbackCommand = {
         ...command,
         ifMatch: later.response.etag,
         idempotencyKey: 'rollback',
         patch: { title: 'Must roll back' },
       };
-      await expect(updateTask(rollbackCommand, options)).rejects.toThrow();
-      expect(await loadTask(basis.fundId, taskId, options)).toEqual(afterLater);
-      expect(
-        (
-          await pool.query(
-            "SELECT count(*)::integer AS count FROM task_update_commands WHERE idempotency_key = 'rollback'"
-          )
-        ).rows[0].count
-      ).toBe(0);
-      await pool.query('DROP TRIGGER reject_w1_receipt ON task_update_commands');
+      for (const triggerBody of ["RAISE EXCEPTION 'w1_receipt_insert_failed';", 'RETURN NULL;']) {
+        await pool.query(`CREATE OR REPLACE FUNCTION reject_w1_receipt() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN ${triggerBody} END $$;
+          CREATE TRIGGER reject_w1_receipt BEFORE INSERT ON task_update_commands
+            FOR EACH ROW EXECUTE FUNCTION reject_w1_receipt();`);
+        await expect(updateTask(rollbackCommand, options)).rejects.toThrow();
+        expect(await loadTask(basis.fundId, taskId, options)).toEqual(afterLater);
+        expect(
+          (
+            await pool.query(
+              'SELECT count(*)::integer AS count FROM task_update_commands WHERE task_id = $1',
+              [taskId]
+            )
+          ).rows[0].count
+        ).toBe(2);
+        await pool.query('DROP TRIGGER reject_w1_receipt ON task_update_commands');
+      }
       expect((await updateTask(rollbackCommand, options)).replayed).toBe(false);
 
       await expect(
