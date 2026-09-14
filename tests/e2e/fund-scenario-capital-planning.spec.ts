@@ -237,8 +237,9 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   const linked = await linkedPromise;
   expect(linked.status()).toBe(201);
   expect((await linked.json()).target).toEqual({ kind: 'analysis_reference', id: targetId });
+  await capital.waitForScenarioBudget(config.fundId, 'navigate');
   const reloadBoundary = capital.requests.length;
-  await capital.reload();
+  await page.reload();
   await expect(
     row.getByRole('heading', { name: 'Retained conflict draft', exact: true })
   ).toBeVisible();
