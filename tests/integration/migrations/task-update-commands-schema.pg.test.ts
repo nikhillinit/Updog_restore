@@ -158,6 +158,37 @@ describe.skipIf(skipIfNoDocker)('task update command migration PostgreSQL proof'
   );
 
   it.each([
+    { column: 'idempotency_key', expected: 128 },
+    { column: 'request_hash', expected: 64 },
+  ])(
+    'refuses narrowed $column and insertion of valid receipt widths',
+    async ({ column, expected }) => {
+      await inTransaction(async (client) => {
+        await client.query('DELETE FROM task_update_commands');
+        await client.query(
+          `ALTER TABLE task_update_commands ALTER COLUMN ${escapeIdentifier(column)} TYPE varchar(16)`
+        );
+        const audit = await auditManifest(client, manifest);
+
+        await expect(insertReceipt(client, { key: 'k'.repeat(128) })).rejects.toMatchObject({
+          code: '22001',
+        });
+        expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+        const table = audit.objects.find((object) => object.table === 'task_update_commands');
+        expect(table?.populated).toBe(false);
+        expect(table?.deltas).toContainEqual({
+          kind: 'column-length-mismatch',
+          name: `task_update_commands.${column}`,
+          expected,
+          actual: 16,
+          additiveSafe: false,
+          humanReviewRequired: true,
+        });
+      });
+    }
+  );
+
+  it.each([
     { name: 'a task from another fund', input: { fundId: otherFundId } },
     { name: 'a missing task', input: { taskId: 229_059_999 } },
     { name: 'a missing fund', input: { fundId: 229_059_999 } },

@@ -1225,6 +1225,22 @@ function validateFunctionDefinitions(manifest) {
 function validateExpectedTables(manifest) {
   for (const table of manifest?.expectedTables ?? []) {
     for (const column of table.columns ?? []) {
+      if (
+        column.expectedCharacterMaximumLength !== undefined &&
+        (!Number.isSafeInteger(column.expectedCharacterMaximumLength) ||
+          column.expectedCharacterMaximumLength <= 0)
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} column ${table.name}.${column.name} expectedCharacterMaximumLength must be a positive safe integer`,
+          {
+            kind: 'invalid-column-length',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: column.name,
+          }
+        );
+      }
+
       if (column.expectedDefaultExpression === undefined) continue;
       if (
         typeof column.expectedDefaultExpression !== 'string' ||
@@ -2423,6 +2439,20 @@ async function auditTable({
     }
 
     if (
+      expectedColumn.expectedCharacterMaximumLength !== undefined &&
+      actualColumn.characterMaximumLength !== expectedColumn.expectedCharacterMaximumLength
+    ) {
+      deltas.push({
+        kind: 'column-length-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        expected: expectedColumn.expectedCharacterMaximumLength,
+        actual: actualColumn.characterMaximumLength,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+
+    if (
       expectedColumn.expectedDefaultExpression !== undefined &&
       actualColumn.defaultExpression !== expectedColumn.expectedDefaultExpression
     ) {
@@ -2537,7 +2567,8 @@ async function loadPresentTables(client, tableNames) {
 async function loadColumns(client, tableNames) {
   const result = await client.query(
     `
-      SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
+      SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default,
+             character_maximum_length
       FROM information_schema.columns
       WHERE table_schema = 'public'
         AND table_name = ANY($1::text[])
@@ -2552,6 +2583,7 @@ async function loadColumns(client, tableNames) {
       udtName: row.udt_name,
       nullable: row.is_nullable === 'YES',
       defaultExpression: row.column_default ?? null,
+      characterMaximumLength: row.character_maximum_length ?? null,
     });
     columns.set(row.table_name, tableColumns);
   }

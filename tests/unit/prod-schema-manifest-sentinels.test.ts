@@ -352,6 +352,8 @@ describe('prod-schema manifest sentinels', () => {
           expectedDefaultExpression: "nextval('task_update_commands_id_seq'::regclass)",
         }),
         expect.objectContaining({ name: 'created_at', expectedDefaultExpression: 'now()' }),
+        expect.objectContaining({ name: 'idempotency_key', expectedCharacterMaximumLength: 128 }),
+        expect.objectContaining({ name: 'request_hash', expectedCharacterMaximumLength: 64 }),
       ])
     );
     expect(table.constraintDefinitions.map(({ name }: { name: string }) => name).sort()).toEqual(

@@ -17,8 +17,18 @@
         },
         { "name": "fund_id", "type": "integer", "nullable": false },
         { "name": "task_id", "type": "integer", "nullable": false },
-        { "name": "idempotency_key", "type": "varchar", "nullable": false },
-        { "name": "request_hash", "type": "varchar", "nullable": false },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false,
+          "expectedCharacterMaximumLength": 128
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false,
+          "expectedCharacterMaximumLength": 64
+        },
         { "name": "response_body", "type": "jsonb", "nullable": false },
         { "name": "created_by", "type": "integer", "nullable": true },
         {

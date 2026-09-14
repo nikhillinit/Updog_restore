@@ -60,6 +60,8 @@ interface ManifestTable {
     nullable: boolean;
     defaultExpression?: string | null;
     expectedDefaultExpression?: string;
+    characterMaximumLength?: number | null;
+    expectedCharacterMaximumLength?: number;
   }>;
   constraints?: string[];
   constraintDefinitions?: ConstraintDefinition[];
@@ -132,6 +134,7 @@ interface MockCatalog {
     udt_name?: string;
     is_nullable: 'YES' | 'NO';
     column_default?: string | null;
+    character_maximum_length?: number | null;
   }>;
   constraints?: ReadonlyArray<{ table_name: string; conname: string; definition: string }>;
   indexes?: ReadonlyArray<{ tablename: string; indexname: string; indexdef: string }>;
@@ -192,6 +195,8 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
         ...dataTypeFor(column.type ?? 'text'),
         is_nullable: column.nullable ? ('YES' as const) : ('NO' as const),
         column_default: column.expectedDefaultExpression ?? column.defaultExpression ?? null,
+        character_maximum_length:
+          column.expectedCharacterMaximumLength ?? column.characterMaximumLength ?? null,
       }))
     ),
     constraints: tables.flatMap((table) =>
@@ -296,6 +301,61 @@ describe('task update command catalog audit', () => {
     }
   );
 
+  it.each([
+    { column: 'idempotency_key', actual: 16, expected: 128 },
+    { column: 'request_hash', actual: 16, expected: 64 },
+    { column: 'idempotency_key', actual: null, expected: 128 },
+    { column: 'request_hash', actual: null, expected: 64 },
+    { column: 'idempotency_key', actual: 256, expected: 128 },
+    { column: 'request_hash', actual: 128, expected: 64 },
+  ])(
+    'refuses receipt $column width drift to $actual on an empty table',
+    async ({ column, actual, expected }) => {
+      const catalog = matchingCatalog(manifest);
+      const audit = await auditManifest(
+        createMockClient({
+          ...catalog,
+          columns: catalog.columns.map((entry) =>
+            entry.column_name === column ? { ...entry, character_maximum_length: actual } : entry
+          ),
+        }),
+        manifest
+      );
+
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.find((object) => object.table === tableName)?.populated).toBe(false);
+      expect(audit.objects.find((object) => object.table === tableName)?.deltas).toContainEqual({
+        kind: 'column-length-mismatch',
+        name: `${tableName}.${column}`,
+        expected,
+        actual,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+  );
+
+  it.each([null, 0, -1, 1.5, '128', Number.MAX_SAFE_INTEGER + 1])(
+    'rejects malformed expectedCharacterMaximumLength %j on a column without a default pin',
+    async (value) => {
+      const malformed = {
+        ...manifest,
+        expectedTables: manifest.expectedTables!.map((table) => ({
+          ...table,
+          columns: table.columns!.map((column) =>
+            column.name === 'idempotency_key'
+              ? { ...column, expectedCharacterMaximumLength: value }
+              : column
+          ),
+        })),
+      };
+
+      await expect(auditManifest(createMockClient({}), malformed)).rejects.toThrow(
+        /expectedCharacterMaximumLength/
+      );
+    }
+  );
+
   it.each([null, '', ' ', 42, {}])(
     'rejects malformed expectedDefaultExpression %j',
     async (value) => {
@@ -319,30 +379,38 @@ describe('task update command catalog audit', () => {
     '22-internal-economics-policy-runs.json',
     '33-actuals-draft-revisions.json',
     '34-actuals-restatement-commands.json',
-  ])('preserves audits without opt-in defaults, including legacy metadata in %s', async (file) => {
-    const legacyManifest = JSON.parse(
-      fs.readFileSync(path.join(repoRoot, 'scripts/prod-schema-manifests', file), 'utf8')
-    ) as Manifest;
-    const catalog = matchingCatalog(legacyManifest);
-    expect(
-      legacyManifest
-        .expectedTables!.flatMap((table) => table.columns ?? [])
-        .every((column) => column.expectedDefaultExpression === undefined)
-    ).toBe(true);
-    const audit = await auditManifest(
-      createMockClient({
-        ...catalog,
-        columns: catalog.columns.map((column) => ({
-          ...column,
-          column_default: 'legacy_default_not_audited()',
-        })),
-      }),
-      legacyManifest
-    );
+  ])(
+    'preserves audits without opt-in defaults or widths, including legacy metadata in %s',
+    async (file) => {
+      const legacyManifest = JSON.parse(
+        fs.readFileSync(path.join(repoRoot, 'scripts/prod-schema-manifests', file), 'utf8')
+      ) as Manifest;
+      const catalog = matchingCatalog(legacyManifest);
+      expect(
+        legacyManifest
+          .expectedTables!.flatMap((table) => table.columns ?? [])
+          .every(
+            (column) =>
+              column.expectedDefaultExpression === undefined &&
+              column.expectedCharacterMaximumLength === undefined
+          )
+      ).toBe(true);
+      const audit = await auditManifest(
+        createMockClient({
+          ...catalog,
+          columns: catalog.columns.map((column) => ({
+            ...column,
+            column_default: 'legacy_default_not_audited()',
+            character_maximum_length: column.data_type === 'character varying' ? 1 : null,
+          })),
+        }),
+        legacyManifest
+      );
 
-    expect(audit.action).toBe(ACTION_SKIP);
-    expect(audit.objects.every((object) => object.deltas.length === 0)).toBe(true);
-  });
+      expect(audit.action).toBe(ACTION_SKIP);
+      expect(audit.objects.every((object) => object.deltas.length === 0)).toBe(true);
+    }
+  );
 
   it.each(manifest.expectedTables![0]!.constraints!)(
     'reports missing receipt constraint %s',
