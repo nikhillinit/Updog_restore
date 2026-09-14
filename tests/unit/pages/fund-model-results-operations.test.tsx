@@ -655,6 +655,96 @@ describe('operations page', () => {
     expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
   });
 
+  it.each([task.title, ''])(
+    'recovers a committed update after response loss before accepting later title %j',
+    (laterTitle) => {
+      const committed = { ...task, title: 'Committed title', etag: 'W/"committed-title"' };
+      mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+      mocks.updateTask.mockImplementationOnce((_input, options) => {
+        mocks.tasks.mockReturnValue({ data: [committed], isLoading: false, error: null });
+        mocks.updateTaskError = new TypeError('Connection lost');
+        options.onError(mocks.updateTaskError);
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: committed.title } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+      view.rerenderPage();
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: laterTitle } });
+      mocks.updateTask.mockImplementationOnce((_input, options) => {
+        mocks.updateTaskError = null;
+        options.onSuccess(committed);
+      });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual(originalCommand);
+      expect(within(row).queryByText('No changes to save.')).not.toBeInTheDocument();
+      expect(within(row).getByLabelText('Title')).toHaveValue(laterTitle);
+      expect(within(row).getByRole('status')).toHaveTextContent(
+        'Previous save confirmed. Review your remaining edits, then save again.'
+      );
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+      if (laterTitle === '') {
+        fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+        expect(mocks.updateTask).toHaveBeenCalledTimes(2);
+        fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+      }
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[2]?.[0]).toEqual({
+        taskId: task.id,
+        etag: committed.etag,
+        input: { title: task.title },
+      });
+    }
+  );
+
+  it('retains an uncertain command after a later authorization refusal', () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new TypeError('Connection lost');
+      options.onError(mocks.updateTaskError);
+    });
+    renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), {
+      target: { value: 'Unconfirmed title' },
+    });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new ApiError(403, 'Fund write role required');
+      options.onError(mocks.updateTaskError);
+    });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    expect(mocks.updateTask.mock.calls.slice(1).map(([command]) => command)).toEqual([
+      originalCommand,
+      originalCommand,
+    ]);
+    expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+    expect(within(row).queryByText('No changes to save.')).not.toBeInTheDocument();
+  });
+
+  it('allows a settled no-op after an initial authorization refusal', () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new ApiError(403, 'Fund write role required');
+      options.onError(mocks.updateTaskError);
+    });
+    renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'Refused title' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    expect(mocks.updateTask).toHaveBeenCalledTimes(1);
+    expect(within(row).getByText('No changes to save.')).toBeInTheDocument();
+  });
+
   it.each([task.description, '', null])(
     'preserves concurrent changes to untouched fields after refreshing description %j',
     async (description) => {

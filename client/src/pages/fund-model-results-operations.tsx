@@ -861,25 +861,43 @@ function editableTask(task: TaskResponse) {
   };
 }
 
-function taskDraftChanges(draft: ReturnType<typeof editableTask>) {
+function taskDraftFields(draft: ReturnType<typeof editableTask>) {
   const owner = draft.ownerId.trim();
-  const baseline = {
-    ...draft.baseline,
-    title: draft.baseline.title.trim(),
-    description: draft.baseline.description || null,
-  };
-  const fields = {
+  return {
     title: draft.title.trim(),
     description: draft.description || null,
     ownerId: owner ? positiveInteger(owner) : null,
     dueDate: draft.dueDate || null,
     status: draft.status,
   };
+}
+
+function taskDraftChanges(
+  draft: ReturnType<typeof editableTask>,
+  baseline = editableTask(draft.baseline)
+) {
+  const fields = taskDraftFields(draft);
+  const prior = taskDraftFields(baseline);
   return Object.fromEntries(
-    Object.entries(fields).filter(
-      ([field, value]) => value !== baseline[field as keyof typeof fields]
-    )
+    Object.entries(fields).filter(([field, value]) => value !== prior[field as keyof typeof fields])
   );
+}
+
+function refreshTaskDraft(
+  values: ReturnType<typeof editableTask>,
+  current: TaskResponse,
+  baseline = editableTask(values.baseline)
+) {
+  const changes = taskDraftChanges(values, baseline);
+  const refreshed = editableTask(current);
+  return {
+    ...refreshed,
+    title: 'title' in changes ? values.title : refreshed.title,
+    description: 'description' in changes ? values.description : refreshed.description,
+    ownerId: 'ownerId' in changes ? values.ownerId : refreshed.ownerId,
+    dueDate: 'dueDate' in changes ? values.dueDate : refreshed.dueDate,
+    status: 'status' in changes ? values.status : refreshed.status,
+  };
 }
 
 function TaskCard({
@@ -892,6 +910,10 @@ function TaskCard({
   onRefresh: () => Promise<TaskResponse | undefined>;
 }) {
   const updateTask = useUpdateTask(String(fundId));
+  const pendingUpdate = useRef<{
+    variables: Parameters<typeof updateTask.mutate>[0];
+    submittedDraft: ReturnType<typeof editableTask>;
+  } | null>(null);
   const createEvidenceLink = useCreateTaskEvidenceLink(String(fundId));
   const [draft, setDraft] = useState<ReturnType<typeof editableTask> | null>(null);
   const [editing, setEditing] = useState(false);
@@ -914,35 +936,65 @@ function TaskCard({
   }, [editing, busy, notice]);
 
   const save = (values: ReturnType<typeof editableTask>) => {
-    const changes = taskDraftChanges(values);
-    if ('ownerId' in changes && changes['ownerId'] === undefined) {
-      setValidationError('Owner ID must be a positive integer.');
-      return;
+    const recovering = pendingUpdate.current !== null;
+    if (!pendingUpdate.current) {
+      const changes = taskDraftChanges(values);
+      if ('ownerId' in changes && changes['ownerId'] === undefined) {
+        setValidationError('Owner ID must be a positive integer.');
+        return;
+      }
+      if (Object.keys(changes).length === 0) {
+        setValidationError(null);
+        setNotice('No changes to save.');
+        return;
+      }
+      const parsed = TaskPatchSchema.safeParse(changes);
+      if (!parsed.success) {
+        setValidationError(parsed.error.issues[0]?.message ?? 'Review the task fields.');
+        return;
+      }
+      pendingUpdate.current = {
+        variables: { taskId: task.id, etag: values.etag, input: parsed.data },
+        submittedDraft: values,
+      };
     }
-    if (Object.keys(changes).length === 0) {
-      setValidationError(null);
-      setNotice('No changes to save.');
-      return;
-    }
-    const parsed = TaskPatchSchema.safeParse(changes);
-    if (!parsed.success) {
-      setValidationError(parsed.error.issues[0]?.message ?? 'Review the task fields.');
-      return;
-    }
+    const command = pendingUpdate.current;
     setValidationError(null);
     setNotice(null);
-    updateTask.mutate(
-      { taskId: task.id, etag: values.etag, input: parsed.data },
-      {
-        onSuccess: () => {
-          setDraft(null);
-          setEditing(false);
-          setNotice('Task updated.');
-          editButton.current?.focus();
-        },
-        onError: () => setEditing(true),
-      }
-    );
+    updateTask.mutate(command.variables, {
+      onSuccess: (saved) => {
+        pendingUpdate.current = null;
+        if (
+          recovering &&
+          Object.keys(taskDraftChanges(values, command.submittedDraft)).length > 0
+        ) {
+          setDraft(refreshTaskDraft(values, saved, command.submittedDraft));
+          setEditing(true);
+          setNotice('Previous save confirmed. Review your remaining edits, then save again.');
+          return;
+        }
+        setDraft(null);
+        setEditing(false);
+        setNotice('Task updated.');
+        editButton.current?.focus();
+      },
+      onError: (error) => {
+        const initialRefusal =
+          !recovering &&
+          error instanceof ApiError &&
+          ([400, 401, 403, 404, 428].includes(error.status) ||
+            (error.status === 409 && error.errorCode === 'IDEMPOTENCY_KEY_REUSE'));
+        // Exact receipt replay precedes 412, so that refusal resolves this command.
+        if (initialRefusal || (error instanceof ApiError && error.status === 412)) {
+          pendingUpdate.current = null;
+        } else {
+          setNotice(
+            'Previous save is unconfirmed. Save again to confirm it before saving further edits.'
+          );
+        }
+        setEditing(true);
+      },
+    });
   };
 
   const refreshVersion = async () => {
@@ -951,19 +1003,8 @@ function TaskCard({
     try {
       const current = await onRefresh();
       if (!current) throw new Error('Task is no longer available. Your edits are retained.');
-      setDraft((values) => {
-        if (!values) return values;
-        const changes = taskDraftChanges(values);
-        const refreshed = editableTask(current);
-        return {
-          ...refreshed,
-          title: 'title' in changes ? values.title : refreshed.title,
-          description: 'description' in changes ? values.description : refreshed.description,
-          ownerId: 'ownerId' in changes ? values.ownerId : refreshed.ownerId,
-          dueDate: 'dueDate' in changes ? values.dueDate : refreshed.dueDate,
-          status: 'status' in changes ? values.status : refreshed.status,
-        };
-      });
+      setDraft((values) => (values ? refreshTaskDraft(values, current) : values));
+      pendingUpdate.current = null;
       updateTask.reset();
       setNotice('Current task refreshed. Your edits are retained; review the row before saving.');
     } catch (error) {
@@ -1063,6 +1104,7 @@ function TaskCard({
           id={`task-${task.id}-editor`}
           aria-label={`Edit task ${task.id}`}
           aria-busy={busy}
+          noValidate={pendingUpdate.current !== null}
           className="mt-4 space-y-3 border-t border-presson-borderSubtle pt-3"
           onSubmit={(event) => {
             event.preventDefault();

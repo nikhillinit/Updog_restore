@@ -84,6 +84,7 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
     [config.fundId, task.id, committed.key]
   );
   expect(receiptBeforeRetry.rows).toEqual([{ response_body: JSON.parse(committed.body) }]);
+  await keyboard.fill(page.locator(`#task-${task.id}-title`), task.title);
   const replayPromise = patchResponse();
   await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
   const replay = await replayPromise;
@@ -105,6 +106,19 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
     row.getByRole('heading', { name: 'Edited after response loss', exact: true })
   ).toBeVisible();
   await expect(row.getByText('No owner assigned', { exact: true })).toBeVisible();
+  await expect(page.locator(`#task-${task.id}-title`)).toHaveValue(task.title);
+  await expect(
+    row.getByText('Previous save confirmed. Review your remaining edits, then save again.')
+  ).toBeVisible();
+  const reversionPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  const reversion = await reversionPromise;
+  expect(reversion.status()).toBe(200);
+  expect(JSON.parse(reversion.request().postData()!)).toEqual({ title: task.title });
+  expect(reversion.request().headers()['idempotency-key']).not.toBe(committed.key);
+  expect(reversion.request().headers()['if-match']).toBe(JSON.parse(committed.body).etag);
+  const revertedTask = (await reversion.json()) as TaskResponse;
+  expect(revertedTask.title).toBe(task.title);
   await expect(row.getByRole('button', { name: 'Edit task', exact: true })).toBeFocused();
 
   await keyboard.activate(row.getByRole('button', { name: 'Edit task', exact: true }));
@@ -128,7 +142,7 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
       });
       return { status: response.status, body: await response.json() };
     },
-    { url: taskURL, etag: (JSON.parse(committed.body) as TaskResponse).etag, key: randomUUID() }
+    { url: taskURL, etag: revertedTask.etag, key: randomUUID() }
   );
   expect(concurrent.status).toBe(200);
   const conflictPromise = patchResponse();
@@ -204,6 +218,7 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   await capital.receipt('task-lifecycle', {
     taskId: task.id,
     originalCommand: committed,
+    revertedTask,
     replayedResponse: await replay.text(),
     conflictStatus: conflict.status(),
     finalTask: await completed.json(),
