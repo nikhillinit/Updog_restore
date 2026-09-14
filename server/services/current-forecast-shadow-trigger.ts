@@ -12,7 +12,9 @@ import {
   type CurrentForecastRecomputeCommand,
 } from '../../shared/schema/current-forecast-recompute-commands';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
-import { db } from '../db';
+import { db, runWithDatabaseContext } from '../db';
+import { DatabaseContextTimeoutError, getRequestDatabaseScope } from '../db/request-context';
+import type { UserContext } from '../lib/secure-context';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { logger } from '../lib/logger';
 import {
@@ -392,6 +394,31 @@ export interface RunManualCurrentForecastRecomputeInput {
   idempotencyKey: string;
   actorId: number | null;
   database?: CurrentForecastDatabase;
+  context?: UserContext;
+}
+
+type ManualRecomputeTransaction = <T>(
+  callback: (database: CurrentForecastDatabase) => Promise<T>,
+  timeoutMs?: number
+) => Promise<T>;
+
+function manualRecomputeTransaction(input: {
+  fundId: number;
+  database?: CurrentForecastDatabase;
+  context?: UserContext;
+}): ManualRecomputeTransaction {
+  const scope = getRequestDatabaseScope();
+  const context = input.context ?? scope?.context;
+  // Explicit isolated databases are the existing non-HTTP test/service seam.
+  if (input.database && input.database !== db && !context)
+    return (callback) => input.database!.transaction(callback);
+  if (!context?.userId || context.fundId !== String(input.fundId))
+    throw new Error('Verified current-forecast fund context required');
+  const verifiedContext = { ...context };
+  return (callback, timeoutMs) =>
+    runWithDatabaseContext(verifiedContext, callback, {
+      timeoutMs: timeoutMs ?? FAILURE_PERSIST_TIMEOUT_MS,
+    });
 }
 
 class ManualCurrentForecastRecomputeOwnershipLostError extends Error {
@@ -453,17 +480,16 @@ export async function findManualCurrentForecastRecomputeCommandId(params: {
   fundId: number;
   idempotencyKey: string;
   database?: CurrentForecastDatabase;
+  context?: UserContext;
 }): Promise<number | null> {
-  const command = await loadManualCurrentForecastRecomputeCommand(
-    params.database ?? db,
-    params.fundId,
-    params.idempotencyKey
+  const command = await manualRecomputeTransaction(params)((database) =>
+    loadManualCurrentForecastRecomputeCommand(database, params.fundId, params.idempotencyKey)
   );
   return command?.id ?? null;
 }
 
 async function claimManualCurrentForecastRecompute(params: {
-  database: CurrentForecastDatabase;
+  transaction: ManualRecomputeTransaction;
   fundId: number;
   idempotencyKey: string;
   requestHash: string;
@@ -476,7 +502,7 @@ async function claimManualCurrentForecastRecompute(params: {
   // per-fund lock as the activation check-and-flip, so a claim can never land
   // between the activation blocker read and the flip (F_1.11.0 P0b item 4).
   // No non-transactional fallback (ADR-093).
-  return params.database.transaction(async (transaction) => {
+  return params.transaction(async (transaction) => {
     await lockCurrentForecastFund(transaction, params.fundId);
 
     const [claimed] = await transaction
@@ -565,13 +591,13 @@ async function claimManualCurrentForecastRecompute(params: {
 }
 
 async function finalizeManualCurrentForecastRecomputeFailure(params: {
-  database: CurrentForecastDatabase;
+  transaction: ManualRecomputeTransaction;
   commandId: number;
   fundId: number;
   idempotencyKey: string;
   failureCode: 'execution_timeout' | 'execution_error';
 }): Promise<ManualCurrentForecastRecomputeOutcome> {
-  return params.database.transaction(async (transaction) => {
+  return params.transaction(async (transaction) => {
     await lockCurrentForecastFund(transaction, params.fundId);
     const [finalized] = await transaction
       .update(currentForecastRecomputeCommands)
@@ -605,16 +631,16 @@ async function finalizeManualCurrentForecastRecomputeFailure(params: {
 }
 
 async function executeOwnedManualCurrentForecastRecompute(params: {
-  database: CurrentForecastDatabase;
+  transaction: ManualRecomputeTransaction;
   commandId: number;
   fundId: number;
 }): Promise<ManualCurrentForecastRecomputeOutcome> {
-  const resolution = await resolveCurrentForecastModeResolution(
-    params.fundId,
-    currentForecastModeReaderForDatabase(params.database)
-  );
-  if (resolution.mode !== 'shadow') {
-    return params.database.transaction(async (transaction) => {
+  return params.transaction(async (transaction) => {
+    const resolution = await resolveCurrentForecastModeResolution(
+      params.fundId,
+      currentForecastModeReaderForDatabase(transaction)
+    );
+    if (resolution.mode !== 'shadow') {
       await lockCurrentForecastFund(transaction, params.fundId);
       const [skipped] = await transaction
         .update(currentForecastRecomputeCommands)
@@ -636,12 +662,10 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
         throw new ManualCurrentForecastRecomputeOwnershipLostError(params.commandId);
       }
       return manualRecomputeOutcomeFromCommand(skipped, false);
-    });
-  }
+    }
 
-  const clock = new Date().toISOString();
+    const clock = new Date().toISOString();
 
-  return params.database.transaction(async (transaction) => {
     const receipt = await getOrCreateCurrentForecastV2WithReceipt({
       fundId: params.fundId,
       clock,
@@ -703,19 +727,20 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
       shadowReconciliationId: reconciliation.id,
       replayed: false,
     };
-  });
+  }, DEFAULT_TRIGGER_TIMEOUT_MS);
 }
 
 export async function runManualCurrentForecastRecompute(
   input: RunManualCurrentForecastRecomputeInput
 ): Promise<ManualCurrentForecastRecomputeOutcome> {
-  const database = input.database ?? db;
+  const context = input.context ?? getRequestDatabaseScope()?.context;
+  const transaction = manualRecomputeTransaction(input);
   const requestHash = canonicalSha256({
     route: CURRENT_FORECAST_RECOMPUTE_ROUTE,
     fundId: input.fundId,
   });
   const claim = await claimManualCurrentForecastRecompute({
-    database,
+    transaction,
     fundId: input.fundId,
     idempotencyKey: input.idempotencyKey,
     requestHash,
@@ -724,15 +749,13 @@ export async function runManualCurrentForecastRecompute(
   if (!claim.owned) return claim.outcome;
 
   const execution = executeOwnedManualCurrentForecastRecompute({
-    database,
+    transaction,
     commandId: claim.commandId,
     fundId: input.fundId,
   }).catch(async (error: unknown) => {
     if (error instanceof ManualCurrentForecastRecomputeOwnershipLostError) {
-      const winner = await loadManualCurrentForecastRecomputeCommand(
-        database,
-        input.fundId,
-        input.idempotencyKey
+      const winner = await transaction((database) =>
+        loadManualCurrentForecastRecomputeCommand(database, input.fundId, input.idempotencyKey)
       );
       if (winner && winner.status !== 'pending') {
         return manualRecomputeOutcomeFromCommand(winner, false);
@@ -745,19 +768,24 @@ export async function runManualCurrentForecastRecompute(
       'Manual current-forecast recompute execution failed'
     );
     return finalizeManualCurrentForecastRecomputeFailure({
-      database,
+      transaction,
       commandId: claim.commandId,
       fundId: input.fundId,
       idempotencyKey: input.idempotencyKey,
-      failureCode: 'execution_error',
+      failureCode:
+        error instanceof DatabaseContextTimeoutError ? 'execution_timeout' : 'execution_error',
     });
   });
+
+  // The owned database deadline rolls back before failure finalization. The
+  // explicit database seam below retains its existing test/service supervisor.
+  if (context) return execution;
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<ManualCurrentForecastRecomputeOutcome>((resolve, reject) => {
     timer = setTimeout(() => {
       void finalizeManualCurrentForecastRecomputeFailure({
-        database,
+        transaction,
         commandId: claim.commandId,
         fundId: input.fundId,
         idempotencyKey: input.idempotencyKey,

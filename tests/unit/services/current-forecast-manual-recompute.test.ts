@@ -199,7 +199,9 @@ describe('runManualCurrentForecastRecompute', () => {
       expect.anything(),
       harness.transactionDb
     );
-    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(harness.database);
+    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(
+      harness.transactionDb
+    );
     expect(modeService.resolveCurrentForecastModeResolution).toHaveBeenCalledWith(
       FUND_ID,
       expect.any(Function)
