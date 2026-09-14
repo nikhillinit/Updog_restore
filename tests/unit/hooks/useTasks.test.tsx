@@ -221,43 +221,50 @@ describe('useTasks', () => {
     expect(TaskResponseSchema.safeParse(sampleTask).success).toBe(true);
   });
 
-  it('retries an ambiguous task update with the original ETag and command key', async () => {
-    let key = 0;
-    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `update-${++key}`) });
-    const saved = { ...sampleTask, status: 'done', etag: 'W/"accepted-update"' };
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockRejectedValueOnce(new TypeError('Connection lost'))
-      .mockResolvedValueOnce(jsonResponse(saved))
-      .mockResolvedValueOnce(jsonResponse(saved));
-    const client = createClient();
-    const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
-    const { result } = renderHook(() => useUpdateTask('7'), { wrapper: createWrapper(client) });
-    const command = { taskId: 1, etag: sampleTask.etag, input: { status: 'done' as const } };
+  it.each(['connection loss', 'lock refusal'])(
+    'mounted task update retries %s with the original body, ETag and command key',
+    async (failure) => {
+      let key = 0;
+      vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `update-${++key}`) });
+      const saved = { ...sampleTask, status: 'done', etag: 'W/"accepted-update"' };
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+      if (failure === 'lock refusal') {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Failed to update task' }, 500));
+      } else {
+        fetchMock.mockRejectedValueOnce(new TypeError('Connection lost'));
+      }
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(saved))
+        .mockResolvedValueOnce(jsonResponse(saved));
+      const client = createClient();
+      const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+      const { result } = renderHook(() => useUpdateTask('7'), { wrapper: createWrapper(client) });
+      const command = { taskId: 1, etag: sampleTask.etag, input: { status: 'done' as const } };
 
-    await act(async () => {
-      await result.current.mutateAsync(command).catch(() => undefined);
-    });
-    await act(async () => {
-      await result.current.mutateAsync(command);
-    });
-    await waitFor(() => expect(result.current.data).toEqual(saved));
-    await act(async () => {
-      await result.current.mutateAsync(command);
-    });
+      await act(async () => {
+        await result.current.mutateAsync(command).catch(() => undefined);
+      });
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
+      await waitFor(() => expect(result.current.data).toEqual(saved));
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
 
-    const requests = fetchMock.mock.calls.map(([, init]) => init as RequestInit);
-    expect(requests[0]).toMatchObject({
-      method: 'PATCH',
-      body: JSON.stringify(command.input),
-      headers: { 'If-Match': sampleTask.etag, 'Idempotency-Key': 'update-1' },
-    });
-    expect(requests[1]).toEqual(requests[0]);
-    expect(requests[2]?.headers).toMatchObject({ 'Idempotency-Key': 'update-2' });
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/funds/7/tasks/1');
-    expect(invalidate).toHaveBeenCalledTimes(2);
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['tasks', '7'] });
-  });
+      const requests = fetchMock.mock.calls.map(([, init]) => init as RequestInit);
+      expect(requests[0]).toMatchObject({
+        method: 'PATCH',
+        body: JSON.stringify(command.input),
+        headers: { 'If-Match': sampleTask.etag, 'Idempotency-Key': 'update-1' },
+      });
+      expect(requests[1]).toEqual(requests[0]);
+      expect(requests[2]?.headers).toMatchObject({ 'Idempotency-Key': 'update-2' });
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/funds/7/tasks/1');
+      expect(invalidate).toHaveBeenCalledTimes(2);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['tasks', '7'] });
+    }
+  );
 
   it('changes task command identity for changed fields, version, task, fund, or explicit reset', async () => {
     let key = 0;

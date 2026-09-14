@@ -19,6 +19,7 @@ import { rowVersionETag } from '../../../server/lib/http-preconditions';
 import { signToken, verifyAccessToken } from '../../../server/lib/auth/jwt';
 import { clearIdempotencyCache, idempotency } from '../../../server/middleware/idempotency';
 import tasksRouter from '../../../server/routes/operating-object-tasks';
+import decisionsRouter from '../../../server/routes/operating-object-decisions';
 
 const routeDatabase = vi.hoisted(() => ({ current: undefined as unknown }));
 vi.mock('../../../server/db', () => ({
@@ -1299,6 +1300,245 @@ describe.skipIf(skipIfNoDocker)('operating decisions spine PostgreSQL proof', ()
     });
   }, 180_000);
 
+  it('decision HTTP writes refuse invalid follow-up owners without mutation and allow corrected retry', async () => {
+    const { connectionString } = await createMigratedDatabase('decision-owner-refusal');
+    await withPool(connectionString, async (pool) => {
+      const basis = await seedSpineBasis(pool, 'decision-owner-refusal');
+      const database = drizzle(pool, { logger: false });
+      const options = { database: database as never };
+      routeDatabase.current = database;
+      try {
+        expect((await pool.query('SHOW timezone')).rows[0].TimeZone).toBe('UTC');
+        const token = signToken({
+          sub: String(basis.userId),
+          role: 'partner',
+          fundIds: [basis.fundId],
+        });
+        const invalidOwner = 2147483647;
+        expect(
+          (await pool.query('SELECT id FROM users WHERE id = $1', [invalidOwner])).rows
+        ).toEqual([]);
+        for (const middleware of [false, true]) {
+          clearIdempotencyCache();
+          const app = express();
+          app.use(express.json());
+          if (middleware) app.use(idempotency());
+          app.use(decisionsRouter);
+          for (const operation of ['create', 'transition', 'supersede']) {
+            const key = `owner-${middleware}-${operation}`;
+            const fields = {
+              fundId: basis.fundId,
+              title: key,
+              recommendation: 'Review allocation',
+            };
+            let source: Awaited<ReturnType<typeof createDecision>> | undefined;
+            if (operation !== 'create') {
+              const created = await createDecision(
+                { ...fields, actorId: basis.userId, idempotencyKey: `${key}-source` },
+                options
+              );
+              if (operation === 'supersede') {
+                const accepted = await transitionDecision(
+                  {
+                    fundId: basis.fundId,
+                    decisionId: created.row.id,
+                    expectedXmin: created.xmin,
+                    transition: { status: 'accepted' },
+                  },
+                  options
+                );
+                source = { ...accepted, replayed: false };
+              } else {
+                source = created;
+              }
+            }
+            const before = await pool.query(
+              'SELECT *, xmin::text AS row_xmin FROM operating_decisions ORDER BY id'
+            );
+            const send = (followUpOwnerId: number) => {
+              if (operation === 'transition') {
+                return request(app)
+                  .patch(`/api/funds/${basis.fundId}/decisions/${source!.row.id}`)
+                  .set('Authorization', `Bearer ${token}`)
+                  .set('If-Match', rowVersionETag(source!.xmin))
+                  .send({ status: 'deferred', followUpOwnerId, followUpDate: '2026-10-01' });
+              }
+              return request(app)
+                .post(
+                  `/api/funds/${basis.fundId}/decisions${operation === 'supersede' ? `/${source!.row.id}/supersede` : ''}`
+                )
+                .set('Authorization', `Bearer ${token}`)
+                .set('Idempotency-Key', key)
+                .send({ ...fields, followUpOwnerId });
+            };
+            for (let refusal = 0; refusal < 2; refusal += 1) {
+              const response = await send(invalidOwner);
+              expect(response.status).toBe(400);
+              expect(response.body).toEqual({
+                error: 'INVALID_FOLLOW_UP_OWNER',
+                message: 'Follow-up owner does not exist.',
+              });
+              expect(response.text).not.toMatch(
+                /23503|operating_decisions|constraint|INSERT|UPDATE/
+              );
+              expect(
+                (
+                  await pool.query(
+                    'SELECT *, xmin::text AS row_xmin FROM operating_decisions ORDER BY id'
+                  )
+                ).rows
+              ).toEqual(before.rows);
+            }
+            const corrected = await send(basis.userId);
+            expect(corrected.status).toBe(operation === 'transition' ? 200 : 201);
+            expect(corrected.body.followUpOwnerId).toBe(basis.userId);
+            if (operation === 'supersede') {
+              expect(await loadDecision(basis.fundId, source!.row.id, options)).toEqual({
+                row: source!.row,
+                xmin: source!.xmin,
+              });
+              expect(corrected.body.supersedesDecisionId).toBe(source!.row.id);
+            }
+            expect(
+              (
+                await pool.query(
+                  'SELECT count(*)::integer AS count FROM operating_decisions WHERE idempotency_key = $1',
+                  [key]
+                )
+              ).rows[0].count
+            ).toBe(operation === 'transition' ? 0 : 1);
+          }
+        }
+      } finally {
+        routeDatabase.current = undefined;
+      }
+    });
+  }, 180_000);
+
+  it('task updates: real PostgreSQL lock timeout refuses without writes and frozen HTTP retry commits once', async () => {
+    const { connectionString } = await createMigratedDatabase(
+      'task-lock-refusal',
+      TASK_UPDATE_MIGRATION_TAG
+    );
+    await withPool(connectionString, async (pool) => {
+      const basis = await seedSpineBasis(pool, 'task-lock-refusal');
+      const requestPool = new Pool({
+        connectionString,
+        max: 4,
+        application_name: 'w1-task-lock-refusal',
+        // Match applyRLSContext request limits while testing this PG-backed router assembly.
+        options: '-c lock_timeout=2s -c statement_timeout=10s -c timezone=UTC',
+      });
+      const database = drizzle(requestPool, { logger: false });
+      const blocker = await pool.connect();
+      routeDatabase.current = database;
+      try {
+        expect((await requestPool.query('SHOW timezone')).rows[0].TimeZone).toBe('UTC');
+        expect((await requestPool.query('SHOW lock_timeout')).rows[0].lock_timeout).toBe('2s');
+        expect((await requestPool.query('SHOW statement_timeout')).rows[0].statement_timeout).toBe(
+          '10s'
+        );
+        for (const middleware of [false, true]) {
+          clearIdempotencyCache();
+          const taskId = await insertedId(
+            pool,
+            "INSERT INTO tasks (fund_id, title) VALUES ($1, 'Lock original') RETURNING id",
+            [basis.fundId]
+          );
+          const original = (await loadTask(basis.fundId, taskId, { database: database as never }))!;
+          const before = await pool.query(
+            'SELECT *, xmin::text AS row_xmin FROM tasks WHERE id = $1',
+            [taskId]
+          );
+          const receiptsBefore = await pool.query(
+            'SELECT * FROM task_update_commands WHERE task_id = $1',
+            [taskId]
+          );
+          const app = express();
+          app.use(express.json());
+          if (middleware) app.use(idempotency());
+          app.use(tasksRouter);
+          const token = signToken({
+            sub: String(basis.userId),
+            role: 'partner',
+            fundIds: [basis.fundId],
+          });
+          const body = Object.freeze({ title: 'Lock retry committed' });
+          const etag = rowVersionETag(original.xmin);
+          const key = `lock-refusal-${middleware}`;
+          const send = () =>
+            request(app)
+              .patch(`/api/funds/${basis.fundId}/tasks/${taskId}`)
+              .set('Authorization', `Bearer ${token}`)
+              .set('If-Match', etag)
+              .set('Idempotency-Key', key)
+              .send(body)
+              .timeout({ response: 3_000, deadline: 4_000 });
+          await blocker.query('BEGIN');
+          await blocker.query('SELECT id FROM tasks WHERE id = $1 FOR UPDATE', [taskId]);
+          try {
+            const started = performance.now();
+            const pending = send().then((response) => response);
+            await vi.waitFor(
+              async () => {
+                const waiting = await pool.query(
+                  "SELECT pid FROM pg_stat_activity WHERE application_name = 'w1-task-lock-refusal' AND wait_event_type = 'Lock'"
+                );
+                expect(waiting.rows).toHaveLength(1);
+              },
+              { timeout: 1_000, interval: 10 }
+            );
+            const refused = await pending;
+            expect(refused.status).toBe(500);
+            expect(refused.body).toEqual({ error: 'Failed to update task' });
+            expect(performance.now() - started).toBeLessThan(2_500);
+            expect(
+              (
+                await pool.query('SELECT *, xmin::text AS row_xmin FROM tasks WHERE id = $1', [
+                  taskId,
+                ])
+              ).rows
+            ).toEqual(before.rows);
+            expect(
+              (await pool.query('SELECT * FROM task_update_commands WHERE task_id = $1', [taskId]))
+                .rows
+            ).toEqual(receiptsBefore.rows);
+          } finally {
+            await blocker.query('ROLLBACK');
+          }
+          const accepted = await send();
+          expect(accepted.status).toBe(200);
+          expect(accepted.body.title).toBe(body.title);
+          expect(accepted.body.etag).not.toBe(etag);
+          const committed = await pool.query(
+            'SELECT *, xmin::text AS row_xmin FROM tasks WHERE id = $1',
+            [taskId]
+          );
+          expect((await send()).body).toEqual(accepted.body);
+          expect(
+            (
+              await pool.query('SELECT *, xmin::text AS row_xmin FROM tasks WHERE id = $1', [
+                taskId,
+              ])
+            ).rows
+          ).toEqual(committed.rows);
+          expect(
+            (
+              await pool.query(
+                'SELECT count(*)::integer AS count FROM task_update_commands WHERE task_id = $1',
+                [taskId]
+              )
+            ).rows[0].count
+          ).toBe(1);
+        }
+      } finally {
+        routeDatabase.current = undefined;
+        blocker.release();
+        await requestPool.end();
+      }
+    });
+  }, 180_000);
+
   it('task updates: both HTTP surfaces reauthorize before replay against PostgreSQL', async () => {
     const { connectionString } = await createMigratedDatabase(
       'task-update-auth',
@@ -1353,6 +1593,9 @@ describe.skipIf(skipIfNoDocker)('operating decisions spine PostgreSQL proof', ()
             expect(denied.status).toBe(403);
             expect(denied.body).not.toHaveProperty('title');
             expect(denied.body).not.toHaveProperty('etag');
+            expect(denied.text).not.toMatch(
+              /Private original|Protected edit|"(?:xmin|row_xmin|task|receipt|responseBody)"/
+            );
           }
           const claims = verifyAccessToken(token);
           await pool.query(
@@ -1363,6 +1606,9 @@ describe.skipIf(skipIfNoDocker)('operating decisions spine PostgreSQL proof', ()
           const revoked = await send(token);
           expect(revoked.status).toBe(401);
           expect(revoked.body).not.toHaveProperty('title');
+          expect(revoked.text).not.toMatch(
+            /Private original|Protected edit|"(?:etag|xmin|row_xmin|task|receipt|responseBody)"/
+          );
           expect(
             (
               await pool.query('SELECT *, xmin::text AS row_xmin FROM tasks WHERE id = $1', [

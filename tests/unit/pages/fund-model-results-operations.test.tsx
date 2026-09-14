@@ -624,36 +624,41 @@ describe('operations page', () => {
     }
   );
 
-  it('retains edited values and original ETag across an ambiguous failure, refetch, and editor close', () => {
-    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
-    const view = renderPage();
-    const row = screen.getByTestId('task-row-51');
-    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
-    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'My pending edit' } });
-    fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '21' } });
-    fireEvent.change(within(row).getByLabelText('Due date'), { target: { value: '2026-10-01' } });
-    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
-    const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
-    mocks.updateTaskError = new Error('Connection lost');
-    mocks.tasks.mockReturnValue({
-      data: [{ ...task, title: 'A remote edit', ownerId: 30, etag: 'W/"background"' }],
-      isLoading: false,
-      error: null,
-    });
-    view.rerenderPage();
-    expect(within(row).getByText('A remote edit')).toBeInTheDocument();
-    expect(within(row).getByRole('alert')).toHaveTextContent('Connection lost');
-    expect(within(row).getByLabelText('Title')).toHaveValue('My pending edit');
-    fireEvent.click(within(row).getByRole('button', { name: 'Close editor' }));
-    expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
-    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
-    expect(within(row).getByLabelText('Owner ID')).toHaveValue(21);
-    expect(within(row).getByLabelText('Due date')).toHaveValue('2026-10-01');
-    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
-    expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual(originalCommand);
-    expect(mocks.updateTask.mock.calls[1]?.[0].etag).toBe(task.etag);
-    expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
-  });
+  it.each([new Error('Connection lost'), new ApiError(500, 'Failed to update task')])(
+    'mounted task editor retains values and original ETag after %s, refetch, and editor close',
+    (failure) => {
+      mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), {
+        target: { value: 'My pending edit' },
+      });
+      fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '21' } });
+      fireEvent.change(within(row).getByLabelText('Due date'), { target: { value: '2026-10-01' } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+      mocks.updateTaskError = failure;
+      mocks.tasks.mockReturnValue({
+        data: [{ ...task, title: 'A remote edit', ownerId: 30, etag: 'W/"background"' }],
+        isLoading: false,
+        error: null,
+      });
+      view.rerenderPage();
+      expect(within(row).getByText('A remote edit')).toBeInTheDocument();
+      expect(within(row).getByRole('alert')).toHaveTextContent(failure.message);
+      expect(within(row).getByLabelText('Title')).toHaveValue('My pending edit');
+      fireEvent.click(within(row).getByRole('button', { name: 'Close editor' }));
+      expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      expect(within(row).getByLabelText('Owner ID')).toHaveValue(21);
+      expect(within(row).getByLabelText('Due date')).toHaveValue('2026-10-01');
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual(originalCommand);
+      expect(mocks.updateTask.mock.calls[1]?.[0].etag).toBe(task.etag);
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+    }
+  );
 
   it.each([task.title, ''])(
     'recovers a committed update after response loss before accepting later title %j',

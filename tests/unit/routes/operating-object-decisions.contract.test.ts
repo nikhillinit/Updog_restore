@@ -298,6 +298,36 @@ describe('operating-object decision route contracts', () => {
     expect(response.body.error).toBe('IF_MATCH_REQUIRED');
   });
 
+  it.each(['create', 'transition', 'supersede'])(
+    '%s preserves the typed invalid follow-up owner refusal',
+    async (operation) => {
+      const error = new DecisionServiceError(
+        400,
+        'INVALID_FOLLOW_UP_OWNER',
+        'Follow-up owner does not exist.'
+      );
+      decisionService.createDecision.mockRejectedValue(error);
+      decisionService.transitionDecision.mockRejectedValue(error);
+      decisionService.supersedeDecision.mockRejectedValue(error);
+      decisionService.loadDecision.mockResolvedValue({ row: decisionRow(), xmin: '7' });
+      const app = makeApp({ actorId: '3' });
+      const invalidOwner = { ...createBody(), followUpOwnerId: 999999 };
+      const response =
+        operation === 'transition'
+          ? await request(app)
+              .patch('/api/funds/1/decisions/10')
+              .set('If-Match', rowVersionETag('7'))
+              .send({ status: 'deferred', followUpOwnerId: 999999, followUpDate: '2026-10-01' })
+          : await request(app)
+              .post(`/api/funds/1/decisions${operation === 'supersede' ? '/10/supersede' : ''}`)
+              .set('Idempotency-Key', 'owner-refusal')
+              .send(invalidOwner);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: error.code, message: error.message });
+      expect(response.text).not.toMatch(/23503|operating_decisions|constraint|INSERT|UPDATE/);
+    }
+  );
+
   it('PATCH returns 412 with current ETag for a stale version', async () => {
     decisionService.loadDecision.mockResolvedValue({ row: decisionRow(), xmin: '9' });
 
