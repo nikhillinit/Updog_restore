@@ -851,6 +851,7 @@ function TaskCreateForm({ fundId }: { fundId: number }) {
 
 function editableTask(task: TaskResponse) {
   return {
+    baseline: task,
     etag: task.etag,
     title: task.title,
     description: task.description ?? '',
@@ -858,6 +859,27 @@ function editableTask(task: TaskResponse) {
     dueDate: task.dueDate ?? '',
     status: task.status,
   };
+}
+
+function taskDraftChanges(draft: ReturnType<typeof editableTask>) {
+  const owner = draft.ownerId.trim();
+  const baseline = {
+    ...draft.baseline,
+    title: draft.baseline.title.trim(),
+    description: draft.baseline.description || null,
+  };
+  const fields = {
+    title: draft.title.trim(),
+    description: draft.description || null,
+    ownerId: owner ? positiveInteger(owner) : null,
+    dueDate: draft.dueDate || null,
+    status: draft.status,
+  };
+  return Object.fromEntries(
+    Object.entries(fields).filter(
+      ([field, value]) => value !== baseline[field as keyof typeof fields]
+    )
+  );
 }
 
 function TaskCard({
@@ -892,19 +914,17 @@ function TaskCard({
   }, [editing, busy, notice]);
 
   const save = (values: ReturnType<typeof editableTask>) => {
-    const owner = values.ownerId.trim();
-    const ownerId = owner ? positiveInteger(owner) : null;
-    if (ownerId === undefined) {
+    const changes = taskDraftChanges(values);
+    if ('ownerId' in changes && changes['ownerId'] === undefined) {
       setValidationError('Owner ID must be a positive integer.');
       return;
     }
-    const parsed = TaskPatchSchema.safeParse({
-      title: values.title.trim(),
-      description: values.description || null,
-      ownerId,
-      dueDate: values.dueDate || null,
-      status: values.status,
-    });
+    if (Object.keys(changes).length === 0) {
+      setValidationError(null);
+      setNotice('No changes to save.');
+      return;
+    }
+    const parsed = TaskPatchSchema.safeParse(changes);
     if (!parsed.success) {
       setValidationError(parsed.error.issues[0]?.message ?? 'Review the task fields.');
       return;
@@ -931,7 +951,19 @@ function TaskCard({
     try {
       const current = await onRefresh();
       if (!current) throw new Error('Task is no longer available. Your edits are retained.');
-      setDraft((values) => (values ? { ...values, etag: current.etag } : values));
+      setDraft((values) => {
+        if (!values) return values;
+        const changes = taskDraftChanges(values);
+        const refreshed = editableTask(current);
+        return {
+          ...refreshed,
+          title: 'title' in changes ? values.title : refreshed.title,
+          description: 'description' in changes ? values.description : refreshed.description,
+          ownerId: 'ownerId' in changes ? values.ownerId : refreshed.ownerId,
+          dueDate: 'dueDate' in changes ? values.dueDate : refreshed.dueDate,
+          status: 'status' in changes ? values.status : refreshed.status,
+        };
+      });
       updateTask.reset();
       setNotice('Current task refreshed. Your edits are retained; review the row before saving.');
     } catch (error) {

@@ -17,7 +17,8 @@ import {
   type DatabaseSnapshot,
 } from './fixtures/fund-scenario-capital-planning';
 
-test.describe.configure({ mode: 'serial' });
+// The runner keeps one worker; each fund-scoped case can fail independently.
+test.describe.configure({ mode: 'default' });
 test.setTimeout(240_000);
 
 test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, complete and link evidence', async ({
@@ -139,10 +140,18 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   await keyboard.activate(row.getByRole('button', { name: 'Refresh task version', exact: true }));
   await expect(row.getByRole('button', { name: 'Save task', exact: true })).toBeEnabled();
   await expect(page.locator(`#task-${task.id}-title`)).toHaveValue('Retained conflict draft');
+  await expect(page.locator(`#task-${task.id}-description`)).toHaveValue(
+    concurrent.body.description
+  );
   const recoveredPromise = patchResponse();
   await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
   const recovered = await recoveredPromise;
   expect(recovered.status()).toBe(200);
+  expect(JSON.parse(recovered.request().postData()!)).toEqual({
+    title: 'Retained conflict draft',
+    ownerId: config.userId,
+  });
+  expect((await recovered.json()).description).toBe(concurrent.body.description);
   expect(recovered.request().headers()['if-match']).toBe(concurrent.body.etag);
   expect(recovered.request().headers()['idempotency-key']).not.toBe(
     conflict.request().headers()['idempotency-key']
@@ -153,6 +162,7 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   const completed = await completedPromise;
   expect(completed.status()).toBe(200);
   expect((await completed.json()).status).toBe('done');
+  expect((await completed.json()).description).toBe(concurrent.body.description);
 
   // Synthetic target rows exercise linking only; they do not certify an analysis projection.
   const targetKey = randomUUID();
@@ -188,6 +198,7 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
     row.getByRole('heading', { name: 'Retained conflict draft', exact: true })
   ).toBeVisible();
   await expect(row.getByRole('button', { name: 'Complete task', exact: true })).toHaveCount(0);
+  await expect(row.getByText(concurrent.body.description, { exact: true })).toBeVisible();
   await keyboard.activate(page.getByTestId(`task-evidence-toggle-${task.id}`));
   await expect(row.getByText(`Analysis reference #${targetId}`, { exact: true })).toBeVisible();
   await capital.receipt('task-lifecycle', {

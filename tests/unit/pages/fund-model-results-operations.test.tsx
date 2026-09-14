@@ -596,35 +596,33 @@ describe('operations page', () => {
     );
   });
 
-  it('completes a task through the protected update and shows the returned state', async () => {
-    const completed = { ...task, status: 'done', etag: 'W/"completed"' };
-    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
-    mocks.updateTask.mockImplementation((_input, options) => {
-      mocks.tasks.mockReturnValue({ data: [completed], isLoading: false, error: null });
-      options.onSuccess();
-    });
-    const view = renderPage();
-    const row = screen.getByTestId('task-row-51');
-    fireEvent.click(within(row).getByRole('button', { name: 'Complete task' }));
-    expect(mocks.updateTask).toHaveBeenCalledWith(
-      {
-        taskId: 51,
-        etag: task.etag,
-        input: {
-          title: task.title,
-          description: task.description,
-          ownerId: task.ownerId,
-          dueDate: task.dueDate,
-          status: 'done',
+  it.each([task.description, '', null])(
+    'completes a task with description %j through a status-only update',
+    async (description) => {
+      const original = { ...task, description };
+      const completed = { ...original, status: 'done', etag: 'W/"completed"' };
+      mocks.tasks.mockReturnValue({ data: [original], isLoading: false, error: null });
+      mocks.updateTask.mockImplementation((_input, options) => {
+        mocks.tasks.mockReturnValue({ data: [completed], isLoading: false, error: null });
+        options.onSuccess();
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Complete task' }));
+      expect(mocks.updateTask).toHaveBeenCalledWith(
+        {
+          taskId: 51,
+          etag: task.etag,
+          input: { status: 'done' },
         },
-      },
-      expect.any(Object)
-    );
-    view.rerenderPage();
-    await waitFor(() => expect(within(row).getByText('done')).toBeInTheDocument());
-    expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
-    expect(within(row).queryByRole('button', { name: 'Complete task' })).not.toBeInTheDocument();
-  });
+        expect.any(Object)
+      );
+      view.rerenderPage();
+      await waitFor(() => expect(within(row).getByText('done')).toBeInTheDocument());
+      expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
+      expect(within(row).queryByRole('button', { name: 'Complete task' })).not.toBeInTheDocument();
+    }
+  );
 
   it('retains edited values and original ETag across an ambiguous failure, refetch, and editor close', () => {
     mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
@@ -657,55 +655,86 @@ describe('operations page', () => {
     expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
   });
 
-  it('keeps stale edits blocked until explicit refresh succeeds, then requires a separate save', async () => {
-    mocks.tasks.mockReturnValue({
-      data: [task],
-      isLoading: false,
-      error: null,
-      refetch: mocks.refetchTasks,
-    });
-    const view = renderPage();
-    const row = screen.getByTestId('task-row-51');
-    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
-    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'My stale edit' } });
-    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
-    mocks.updateTaskError = new ApiError(412, 'Task changed');
-    const refreshed = { ...task, etag: 'W/"refreshed"', title: 'Current saved task' };
-    mocks.tasks.mockReturnValue({
-      data: [refreshed],
-      isLoading: false,
-      error: null,
-      refetch: mocks.refetchTasks,
-    });
-    view.rerenderPage();
-    expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
-    expect(within(row).getByRole('alert')).toHaveTextContent(
-      'Task changed since this edit started'
-    );
-    mocks.refetchTasks.mockResolvedValueOnce({
-      error: new Error('Refresh unavailable'),
-      data: undefined,
-    });
-    fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
-    await waitFor(() => expect(within(row).getByText('Refresh unavailable')).toBeInTheDocument());
-    expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
-    expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
-    expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
-    mocks.refetchTasks.mockResolvedValueOnce({ error: null, data: [refreshed] });
-    fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
-    await waitFor(() =>
-      expect(within(row).getByRole('button', { name: 'Save task' })).toBeEnabled()
-    );
-    expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
-    expect(mocks.updateTask).toHaveBeenCalledTimes(1);
-    expect(mocks.resetTaskUpdate).toHaveBeenCalledOnce();
-    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
-    expect(mocks.updateTask.mock.calls[1]?.[0]).toMatchObject({
-      taskId: 51,
-      etag: refreshed.etag,
-      input: { title: 'My stale edit' },
-    });
-  });
+  it.each([task.description, '', null])(
+    'preserves concurrent changes to untouched fields after refreshing description %j',
+    async (description) => {
+      mocks.tasks.mockReturnValue({
+        data: [{ ...task, description }],
+        isLoading: false,
+        error: null,
+        refetch: mocks.refetchTasks,
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'My stale edit' } });
+      fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '21' } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      mocks.updateTaskError = new ApiError(412, 'Task changed');
+      const refreshed = {
+        ...task,
+        etag: 'W/"refreshed"',
+        title: 'Current saved task',
+        ownerId: 30,
+        description: 'Concurrent description',
+        dueDate: '2026-10-15',
+        status: 'in_progress',
+      };
+      mocks.tasks.mockReturnValue({
+        data: [refreshed],
+        isLoading: false,
+        error: null,
+        refetch: mocks.refetchTasks,
+      });
+      view.rerenderPage();
+      expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
+      expect(within(row).getByRole('alert')).toHaveTextContent(
+        'Task changed since this edit started'
+      );
+      mocks.refetchTasks.mockResolvedValueOnce({
+        error: new Error('Refresh unavailable'),
+        data: undefined,
+      });
+      fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
+      await waitFor(() => expect(within(row).getByText('Refresh unavailable')).toBeInTheDocument());
+      expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
+      expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+      mocks.refetchTasks.mockResolvedValueOnce({ error: null, data: [refreshed] });
+      fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
+      await waitFor(() =>
+        expect(within(row).getByRole('button', { name: 'Save task' })).toBeEnabled()
+      );
+      expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
+      expect(within(row).getByLabelText('Owner ID')).toHaveValue(21);
+      expect(within(row).getByLabelText('Description')).toHaveValue('Concurrent description');
+      expect(within(row).getByLabelText('Due date')).toHaveValue('2026-10-15');
+      expect(within(row).getByLabelText('Status')).toHaveValue('in_progress');
+      expect(mocks.updateTask).toHaveBeenCalledTimes(1);
+      expect(mocks.resetTaskUpdate).toHaveBeenCalledOnce();
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual({
+        taskId: 51,
+        etag: refreshed.etag,
+        input: { title: 'My stale edit', ownerId: 21 },
+      });
+    }
+  );
+
+  it.each([task.description, '', null])(
+    'retains an unchanged draft with description %j without sending an update',
+    (description) => {
+      const original = { ...task, description, title: ` ${task.title} ` };
+      mocks.tasks.mockReturnValue({ data: [original], isLoading: false, error: null });
+      renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask).not.toHaveBeenCalled();
+      expect(within(row).getByText('No changes to save.')).toBeInTheDocument();
+      expect(within(row).getByLabelText('Title')).toHaveValue(original.title);
+    }
+  );
 
   it('disables task fields during a pending update and retains values after authorization failure', () => {
     mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
