@@ -610,7 +610,7 @@
     "server/routes/monte-carlo.ts": "1298a814d0aa443ddbd1e0d6e85fb705d22ffa3ff7e65e13e41a7ac8a0d46a3f",
     "server/routes/mount-common-routes.ts": "ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb",
     "server/routes/operating-object-decisions.ts": "b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-    "server/routes/operating-object-tasks.ts": "e13d9ef5e23a94fe17978c20c97cab4d082e950d97d3f7e2d02e1cf5c49a6dbf",
+    "server/routes/operating-object-tasks.ts": "8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
     "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
     "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
     "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",
