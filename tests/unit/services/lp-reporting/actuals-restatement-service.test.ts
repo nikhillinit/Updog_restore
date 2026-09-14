@@ -230,7 +230,7 @@ describe('receipt-backed actuals replacement projection', () => {
     expect(() => projectActualsEffectiveBasis(alter(fixture()))).toThrow();
   });
 
-  it('refuses an older-date valuation target or a changed valuation scope', () => {
+  it('returns the historical-mark refusal code and rejects a changed valuation scope', () => {
     const input = fixture('valuation');
     const marks = input.valuationMarks;
     expect(() =>
@@ -238,7 +238,7 @@ describe('receipt-backed actuals replacement projection', () => {
         ...input,
         valuationMarks: [{ ...marks[0]!, effectiveDate: '2026-09-07' }, marks[1]!],
       })
-    ).toThrow();
+    ).toThrowError(expect.objectContaining({ code: 'HISTORICAL_MARK_RESTATEMENT_UNSUPPORTED' }));
     expect(() =>
       projectActualsEffectiveBasis({
         ...input,
