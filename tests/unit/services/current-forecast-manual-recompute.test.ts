@@ -189,6 +189,9 @@ describe('runManualCurrentForecastRecompute', () => {
       replayed: false,
     });
 
+    expect(forecastService.getOrCreateCurrentForecastV2WithReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ database: harness.transactionDb })
+    );
     expect(forecastService.runCurrentForecastV2).toHaveBeenCalledWith(
       expect.objectContaining({ database: harness.transactionDb })
     );

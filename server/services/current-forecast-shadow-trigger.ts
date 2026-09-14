@@ -640,25 +640,26 @@ async function executeOwnedManualCurrentForecastRecompute(params: {
   }
 
   const clock = new Date().toISOString();
-  const receipt = await getOrCreateCurrentForecastV2WithReceipt({
-    fundId: params.fundId,
-    clock,
-    database: params.database,
-  });
-  const financialFactsSnapshotId = Number.parseInt(receipt.result.financialFactsSnapshotId, 10);
-  const currentPlanVersionId = Number.parseInt(receipt.result.currentPlanVersionId, 10);
-  const base = pinnedBase(
-    {
-      fundId: params.fundId,
-      financialFactsSnapshotId,
-      currentPlanVersionId,
-      clock,
-      receipt,
-    },
-    receipt
-  );
 
   return params.database.transaction(async (transaction) => {
+    const receipt = await getOrCreateCurrentForecastV2WithReceipt({
+      fundId: params.fundId,
+      clock,
+      database: transaction,
+    });
+    const financialFactsSnapshotId = Number.parseInt(receipt.result.financialFactsSnapshotId, 10);
+    const currentPlanVersionId = Number.parseInt(receipt.result.currentPlanVersionId, 10);
+    const base = pinnedBase(
+      {
+        fundId: params.fundId,
+        financialFactsSnapshotId,
+        currentPlanVersionId,
+        clock,
+        receipt,
+      },
+      receipt
+    );
+
     const result = await runCurrentForecastV2({
       fundId: params.fundId,
       currentPlanVersionId: String(currentPlanVersionId),
