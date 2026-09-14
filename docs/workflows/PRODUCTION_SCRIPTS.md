@@ -121,12 +121,13 @@ a prior report grants admission. Pre-apply validation collects the references
 again; the production apply guards remain closed pending qualifying proof
 contracts and final runtime admission.
 
-The named restore producer is absent from the inspected source. The current
-forecast rehearsal's actuals selectors still encounter production-prerequisite
-refusal before provider creation; that rehearsal does not substitute for a
-successful actuals restore producer. The remaining payload, authenticated
-producer-attempt/digest binding, independent verifier and follow-on refusal
-tests are proposed in
+The named restore-proof workflow produces a fixed synthetic witness. It does not
+restore a database or supply qualifying restore evidence, and the recovery
+collector does not consume its attestation. The current forecast rehearsal's
+actuals selectors still encounter production-prerequisite refusal before
+provider creation; that rehearsal does not substitute for a successful actuals
+restore producer. The remaining payload, authenticated producer-attempt/digest
+binding, independent verifier and follow-on refusal tests are proposed in
 [the F1 release plan](../1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md#remaining-recovery-producer-and-admission-specification).
 Its design must establish restore completion time, the actual recovered source,
 returned isolated target, exact migration and manifest hashes, target
