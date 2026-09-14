@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator } from '@playwright/test';
+import { FinancialFactsPayloadV3Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import type { TaskResponse } from '../../shared/contracts/operating-objects/task.contract';
 import type {
   CapitalPlanningMemoV1,
@@ -180,6 +181,35 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
 
   // Synthetic target rows exercise linking only; they do not certify an analysis projection.
   const targetKey = randomUUID();
+  const targetHash = sha256(targetKey);
+  const syntheticFactsPayload = FinancialFactsPayloadV3Schema.parse({
+    companyActuals: {
+      fundId: config.fundId,
+      asOfDate: '2026-06-30',
+      facts: [],
+      inputHash: targetHash,
+    },
+    sourceObservationIds: [],
+    workingValueSelectionIds: [],
+    participationTermRefs: [],
+    cashFlowSeries: {
+      series: [],
+      totals: {
+        contributions: '0.000000',
+        distributions: '0.000000',
+        recallableDistributions: '0.000000',
+      },
+      warnings: [],
+    },
+    marksSeries: { marks: [], periodNav: [], warnings: [] },
+    vehicleRoster: [],
+    positionRefs: [],
+    positionComponentRefs: [],
+    ownershipRefs: [],
+    valuationRefs: [],
+    observationRefs: [],
+    openingAccountingState: null,
+  });
   const target = await capital.pool.query<{ id: number }>(
     `WITH facts AS (
       INSERT INTO financial_facts_snapshots (
@@ -187,13 +217,13 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
         vehicle_scope, vehicle_ids, selection_set_hash, source_facts_input_hash,
         snapshot_input_hash, payload, consumer_evaluations, idempotency_key, request_hash
       ) VALUES ($1, 'financial-facts-policy/1.2.0', 'financial-facts-payload/3', '2026-06-30', NOW(),
-        'fund_all', '[]'::jsonb, $4::text, $4::text, $4::text, '{}'::jsonb, '[]'::jsonb,
+        'fund_all', '[]'::jsonb, $4::text, $4::text, $4::text, $5::jsonb, '[]'::jsonb,
         $3::text, $4::text) RETURNING id
     ) INSERT INTO internal_analysis_references (
       fund_id, period_kind, period_start, period_end, knowledge_cutoff,
       financial_facts_snapshot_id, created_by, idempotency_key, request_hash
     ) SELECT $1, 'quarterly', '2026-04-01', '2026-06-30', NOW(), id, $2, $3::text, $4::text FROM facts RETURNING id`,
-    [config.fundId, config.userId, targetKey, sha256(targetKey)]
+    [config.fundId, config.userId, targetKey, targetHash, JSON.stringify(syntheticFactsPayload)]
   );
   const targetId = target.rows[0]!.id;
   await keyboard.activate(page.getByTestId(`task-evidence-toggle-${task.id}`));
@@ -207,7 +237,13 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   const linked = await linkedPromise;
   expect(linked.status()).toBe(201);
   expect((await linked.json()).target).toEqual({ kind: 'analysis_reference', id: targetId });
+  const latestFactsResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/funds/${config.fundId}/financial-facts/latest` &&
+      response.request().method() === 'GET'
+  );
   await capital.reload();
+  expect((await latestFactsResponse).status()).toBe(200);
   await expect(
     row.getByRole('heading', { name: 'Retained conflict draft', exact: true })
   ).toBeVisible();
