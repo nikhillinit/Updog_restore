@@ -6,18 +6,22 @@ on:
   push:
     branches: [main]
     paths:
+      - '*.md'
       - 'docs/**/*.md'
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
+      - '.claude/**/*.json'
       - 'docs/DISCOVERY-MAP.source.yaml'
       - 'docs/_generated/router-fast.json'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   pull_request:
     paths:
+      - '*.md'
       - 'docs/**/*.md'
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
+      - '.claude/**/*.json'
       - 'docs/DISCOVERY-MAP.source.yaml'
       - 'docs/_generated/router-fast.json'
       - 'scripts/generate-discovery-map.ts'

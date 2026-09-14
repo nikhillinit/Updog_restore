@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
 import picomatch from 'picomatch';
@@ -97,6 +98,29 @@ describe('Testcontainers path-filter parity', () => {
       expect(trigger?.paths).not.toContain('docs/_generated/staleness-report.md');
     }
   });
+
+  it.each(['push', 'pull_request'] as const)(
+    'triggers routing validation for every eligible tracked input on %s',
+    (event) => {
+      const workflow = YAML.parse(
+        fs.readFileSync('.github/workflows/docs-routing-check.yml', 'utf8')
+      );
+      const { configuration } = YAML.parse(
+        fs.readFileSync('docs/DISCOVERY-MAP.source.yaml', 'utf8')
+      );
+      const included = picomatch(configuration.scan_paths, { dot: true });
+      const excluded = picomatch(configuration.exclude_paths, { dot: true });
+      const tracked = execFileSync('git', ['ls-files', '-z'], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+      }).split('\0');
+      const eligible = tracked.filter((file) => included(file) && !excluded(file));
+      const triggers = picomatch(workflow.on[event].paths, { dot: true });
+
+      expect(eligible.length).toBeGreaterThan(0);
+      expect(eligible.filter((file) => !triggers(file))).toEqual([]);
+    }
+  );
 
   it('matches every canonical Testcontainers include with schema_tests', () => {
     const patterns = schemaTestPatterns();
