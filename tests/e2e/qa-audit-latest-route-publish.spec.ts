@@ -108,7 +108,9 @@ const ROUTE_DUAL_FORECAST = makeDualForecastResponse({
   fundName: FUND_ONE.name,
   asOfDate: ROUTE_UNIFIED_METRICS.actual.asOfDate,
   actual: ROUTE_UNIFIED_METRICS.actual,
+  currentForecastV2: 'live',
 });
+ROUTE_DUAL_FORECAST.sources.current = 'current_forecast_v2';
 
 const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
 

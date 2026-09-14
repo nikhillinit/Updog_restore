@@ -3,6 +3,11 @@ import { Pool as PgPool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { WebSocketServer, WebSocket } from 'ws';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanupTestContainers,
+  getPostgresConnectionString,
+  setupTestContainers,
+} from '../helpers/testcontainers';
 
 // Actual installed Neon adapter, using its documented wsProxy configuration.
 // The proxy has one fixed local PostgreSQL destination; no provider is contacted.
@@ -16,6 +21,7 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
   let contextModule: typeof import('../../server/db/request-context');
   let fault: string | undefined;
   let dropped = 0;
+  let startedTestContainers = false;
   const sockets = new Set<Socket>();
   const originalEnvironment = { ...process.env };
   const context = {
@@ -50,7 +56,11 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
   }
 
   beforeAll(async () => {
-    const url = new URL(process.env.TEST_DATABASE_URL ?? '');
+    if (!process.env.TEST_DATABASE_URL) {
+      await setupTestContainers();
+      startedTestContainers = true;
+    }
+    const url = new URL(process.env.TEST_DATABASE_URL ?? getPostgresConnectionString());
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
       throw new Error('Owned local PostgreSQL required');
     const port = Number(url.port || '5432');
@@ -61,7 +71,8 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
     });
     databaseName = `cf_neon_${branch}_${process.pid}_${Date.now()}`;
     await admin.query(`CREATE DATABASE "${databaseName}"`);
-    await admin.query(`CREATE ROLE "${databaseName}" LOGIN`);
+    await admin.query(`CREATE ROLE "${databaseName}" LOGIN PASSWORD '${databaseName}'`);
+    await admin.query(`ALTER ROLE "${databaseName}" SET timezone TO 'UTC'`);
     url.pathname = `/${databaseName}`;
     observer = new PgPool({
       connectionString: url.toString(),
@@ -129,6 +140,7 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
     if (branch === 'vercel') process.env.VERCEL = '1';
     else delete process.env.VERCEL;
     url.username = databaseName;
+    url.password = databaseName;
     // An .invalid host selects the remote adapter. wsProxy replaces its transport.
     if (branch === 'remote') url.hostname = 'owned-neon-adapter.invalid';
     process.env.DATABASE_URL = url.toString();
@@ -136,7 +148,7 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
     neon = await import('@neondatabase/serverless');
     neon.neonConfig.wsProxy = () => `127.0.0.1:${(proxy.address() as AddressInfo).port}`;
     neon.neonConfig.useSecureWebSocket = false;
-    neon.neonConfig.pipelineConnect = false; // Local cluster uses trust authentication.
+    neon.neonConfig.pipelineConnect = false; // Keep startup separate for proxy fault injection.
     neon.neonConfig.forceDisablePgSSL = true;
     database = await import('../../server/db');
     contextModule = await import('../../server/db/request-context');
@@ -144,7 +156,7 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
     expect((database.pool as InstanceType<typeof neon.Pool>).options.connectionTimeoutMillis).toBe(
       2_000
     );
-  }, 15_000);
+  }, 120_000);
 
   beforeEach(() => {
     fault = undefined;
@@ -165,11 +177,12 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
       await admin.query(`DROP ROLE "${databaseName}"`);
     }
     await admin?.end();
+    if (startedTestContainers) await cleanupTestContainers();
     for (const key of Object.keys(process.env))
       if (!(key in originalEnvironment)) delete process.env[key];
     Object.assign(process.env, originalEnvironment);
     vi.resetModules();
-  }, 15_000);
+  }, 60_000);
 
   it('bounds an unavailable adapter handshake at 2 seconds without a pending lease', async () => {
     fault = 'ACQUIRE';

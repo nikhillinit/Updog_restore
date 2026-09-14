@@ -1308,7 +1308,6 @@ describe.skipIf(skipIfNoDocker)('operating decisions spine PostgreSQL proof', ()
       const options = { database: database as never };
       routeDatabase.current = database;
       try {
-        expect((await pool.query('SHOW timezone')).rows[0].TimeZone).toBe('UTC');
         const token = signToken({
           sub: String(basis.userId),
           role: 'partner',

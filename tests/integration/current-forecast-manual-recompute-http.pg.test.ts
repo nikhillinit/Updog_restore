@@ -6,6 +6,11 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 import { manageIsolatedDatabasePool } from '../helpers/isolated-postgres-database';
+import {
+  cleanupTestContainers,
+  getPostgresConnectionString,
+  setupTestContainers,
+} from '../helpers/testcontainers';
 import * as schema from '@shared/schema';
 import type { CurrentForecastV2 } from '../../shared/contracts/current-forecast-v2.contract';
 import { CURRENT_FORECAST_FUND_LOCK_CLASS } from '../../server/services/current-forecast-fund-lock';
@@ -30,6 +35,7 @@ let providers:
   Awaited<ReturnType<(typeof import('../../server/providers'))['buildProviders']>> | undefined;
 let fundSequence = 229_096_100;
 let contextModule: typeof import('../../server/db/request-context');
+let startedTestContainers = false;
 const originalEnvironment = { ...process.env };
 
 function deferred<T>() {
@@ -165,7 +171,11 @@ async function fixture() {
 
 describe('manual recompute HTTP default database ownership', () => {
   beforeAll(async () => {
-    const url = new URL(process.env.TEST_DATABASE_URL ?? '');
+    if (!process.env.TEST_DATABASE_URL) {
+      await setupTestContainers();
+      startedTestContainers = true;
+    }
+    const url = new URL(process.env.TEST_DATABASE_URL ?? getPostgresConnectionString());
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
       throw new Error('Owned local PostgreSQL required');
     admin = new Pool({ connectionString: url.toString(), max: 1 });
@@ -176,7 +186,8 @@ describe('manual recompute HTTP default database ownership', () => {
     observer = new Pool({ connectionString: url.toString(), max: 3 });
     await observer.query(`INSERT INTO users (id, username, password) VALUES
       (7, 'recompute-http', 'unused') ON CONFLICT DO NOTHING`);
-    await admin.query(`CREATE ROLE "${databaseName}" LOGIN`);
+    await admin.query(`CREATE ROLE "${databaseName}" LOGIN PASSWORD '${databaseName}'`);
+    await admin.query(`ALTER ROLE "${databaseName}" SET timezone TO 'UTC'`);
     await observer.query(`GRANT USAGE ON SCHEMA public TO "${databaseName}";
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${databaseName}";
       GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "${databaseName}"`);
@@ -197,6 +208,7 @@ describe('manual recompute HTTP default database ownership', () => {
             AND current_setting('app.current_org', true) = 'recompute-org')`);
     }
     url.username = databaseName;
+    url.password = databaseName;
     Object.assign(process.env, {
       DATABASE_URL: url.toString(),
       _EXPLICIT_DATABASE_URL: '1',
@@ -229,6 +241,7 @@ describe('manual recompute HTTP default database ownership', () => {
       await manageIsolatedDatabasePool(observer).dropDatabase(admin, databaseName);
     if (databaseName) await admin.query(`DROP ROLE IF EXISTS "${databaseName}"`);
     await admin?.end();
+    if (startedTestContainers) await cleanupTestContainers();
     for (const key of Object.keys(process.env))
       if (!(key in originalEnvironment)) delete process.env[key];
     Object.assign(process.env, originalEnvironment);
