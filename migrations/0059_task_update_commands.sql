@@ -1,5 +1,5 @@
 -- @drift-patch
--- Task edits commit with an immutable response receipt; creation keys stay intact.
+-- Reason: Task edits commit with an immutable response receipt; creation keys stay intact.
 CREATE TABLE IF NOT EXISTS "task_update_commands" (
   "id" serial PRIMARY KEY,
   "fund_id" integer NOT NULL CONSTRAINT "task_update_commands_fund_id_funds_id_fk"

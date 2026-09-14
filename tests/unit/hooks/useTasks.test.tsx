@@ -241,7 +241,7 @@ describe('useTasks', () => {
     await act(async () => {
       await result.current.mutateAsync(command);
     });
-    expect(result.current.data).toEqual(saved);
+    await waitFor(() => expect(result.current.data).toEqual(saved));
     await act(async () => {
       await result.current.mutateAsync(command);
     });
