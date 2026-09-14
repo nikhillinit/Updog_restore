@@ -149,14 +149,6 @@ export default function FundSetup() {
     });
   }, [key]);
 
-  // Add completed status to steps based on current progress
-  const stepsWithStatus = WIZARD_STEPS.map((step) => ({
-    ...step,
-    completed:
-      WIZARD_STEPS.findIndex((s) => s.id === key) > WIZARD_STEPS.findIndex((s) => s.id === step.id),
-    current: step.id === key,
-  }));
-
   return (
     <ErrorBoundary
       fallback={<StepNotFound />}
@@ -175,7 +167,7 @@ export default function FundSetup() {
     >
       <div data-testid="fund-setup-wizard" className="min-h-screen bg-pov-gray">
         {/* Modern Progress Header - Single unified progress indicator */}
-        <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
+        <ModernWizardProgress steps={WIZARD_STEPS} currentStepId={key} />
 
         {isHydrating && draftFundId != null ? (
           <div
