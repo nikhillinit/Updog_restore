@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 import { useRoute } from 'wouter';
 
@@ -6,8 +6,14 @@ import type {
   DecisionStatus,
   DecisionV1,
 } from '@shared/contracts/operating-objects/decision.contract';
-import type { TaskResponse } from '@shared/contracts/operating-objects/task.contract';
-import type { TaskEvidenceTarget } from '@shared/contracts/operating-objects/task-evidence-link.contract';
+import {
+  TaskPatchSchema,
+  type TaskResponse,
+} from '@shared/contracts/operating-objects/task.contract';
+import {
+  TaskEvidenceLinkCreateRequestSchema,
+  type TaskEvidenceTarget,
+} from '@shared/contracts/operating-objects/task-evidence-link.contract';
 import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +31,13 @@ import {
   useSupersedeDecision,
   useTransitionDecision,
 } from '@/hooks/useDecisions';
-import { useCreateTask, useTaskEvidenceLinks, useTasks } from '@/hooks/useTasks';
+import {
+  useCreateTask,
+  useCreateTaskEvidenceLink,
+  useTaskEvidenceLinks,
+  useTasks,
+  useUpdateTask,
+} from '@/hooks/useTasks';
 import { ApiError } from '@/lib/queryClient';
 import { parseFundIdParam } from '@/pages/fund-model-results-analysis';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
@@ -837,9 +849,120 @@ function TaskCreateForm({ fundId }: { fundId: number }) {
   );
 }
 
-function TaskCard({ task, fundId }: { task: TaskResponse; fundId: number }) {
+function editableTask(task: TaskResponse) {
+  return {
+    etag: task.etag,
+    title: task.title,
+    description: task.description ?? '',
+    ownerId: task.ownerId?.toString() ?? '',
+    dueDate: task.dueDate ?? '',
+    status: task.status,
+  };
+}
+
+function TaskCard({
+  task,
+  fundId,
+  onRefresh,
+}: {
+  task: TaskResponse;
+  fundId: number;
+  onRefresh: () => Promise<TaskResponse | undefined>;
+}) {
+  const updateTask = useUpdateTask(String(fundId));
+  const createEvidenceLink = useCreateTaskEvidenceLink(String(fundId));
+  const [draft, setDraft] = useState<ReturnType<typeof editableTask> | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [evidenceValidationError, setEvidenceValidationError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const titleInput = useRef<HTMLInputElement>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const evidenceQuery = useTaskEvidenceLinks(String(fundId), task.id, { enabled: evidenceOpen });
+  const conflict = updateTask.error instanceof ApiError && updateTask.error.status === 412;
+  const busy = updateTask.isPending || refreshing;
+
+  useEffect(() => {
+    if (editing && !busy) titleInput.current?.focus();
+  }, [editing, busy]);
+  useEffect(() => {
+    if (!editing && !busy && notice === 'Task updated.') editButton.current?.focus();
+  }, [editing, busy, notice]);
+
+  const save = (values: ReturnType<typeof editableTask>) => {
+    const owner = values.ownerId.trim();
+    const ownerId = owner ? positiveInteger(owner) : null;
+    if (ownerId === undefined) {
+      setValidationError('Owner ID must be a positive integer.');
+      return;
+    }
+    const parsed = TaskPatchSchema.safeParse({
+      title: values.title.trim(),
+      description: values.description || null,
+      ownerId,
+      dueDate: values.dueDate || null,
+      status: values.status,
+    });
+    if (!parsed.success) {
+      setValidationError(parsed.error.issues[0]?.message ?? 'Review the task fields.');
+      return;
+    }
+    setValidationError(null);
+    setNotice(null);
+    updateTask.mutate(
+      { taskId: task.id, etag: values.etag, input: parsed.data },
+      {
+        onSuccess: () => {
+          setDraft(null);
+          setEditing(false);
+          setNotice('Task updated.');
+          editButton.current?.focus();
+        },
+        onError: () => setEditing(true),
+      }
+    );
+  };
+
+  const refreshVersion = async () => {
+    setRefreshing(true);
+    setValidationError(null);
+    try {
+      const current = await onRefresh();
+      if (!current) throw new Error('Task is no longer available. Your edits are retained.');
+      setDraft((values) => (values ? { ...values, etag: current.etag } : values));
+      updateTask.reset();
+      setNotice('Current task refreshed. Your edits are retained; review the row before saving.');
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : 'Task refresh failed.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleEvidenceCreate = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const parsed = TaskEvidenceLinkCreateRequestSchema.safeParse({
+      target: { kind: data.get('kind'), id: positiveInteger(data.get('targetId')) },
+    });
+    if (!parsed.success) {
+      setEvidenceValidationError('Choose a supported evidence type and positive target ID.');
+      return;
+    }
+    setEvidenceValidationError(null);
+    createEvidenceLink.mutate(
+      { taskId: task.id, input: parsed.data },
+      {
+        onSuccess: () => {
+          form.reset();
+          setNotice('Task evidence linked.');
+        },
+      }
+    );
+  };
 
   return (
     <article
@@ -866,6 +989,162 @@ function TaskCard({ task, fundId }: { task: TaskResponse; fundId: number }) {
         {task.ownerId === null ? 'No owner assigned' : `Owner: User #${task.ownerId}`}
       </p>
 
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          ref={editButton}
+          type="button"
+          variant="outline"
+          aria-expanded={editing}
+          aria-controls={`task-${task.id}-editor`}
+          disabled={busy}
+          onClick={() => {
+            setDraft((values) => values ?? editableTask(task));
+            setEditing(true);
+          }}
+          className="border-presson-borderSubtle text-presson-text hover:bg-presson-surfaceSubtle"
+        >
+          Edit task
+        </Button>
+        {task.status !== 'done' && draft === null ? (
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const values = { ...editableTask(task), status: 'done' as const };
+              setDraft(values);
+              setEditing(true);
+              save(values);
+            }}
+            className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
+          >
+            Complete task
+          </Button>
+        ) : null}
+      </div>
+      {notice ? (
+        <p role="status" className="mt-3 text-sm text-presson-textMuted">
+          {notice}
+        </p>
+      ) : null}
+      {editing && draft ? (
+        <form
+          id={`task-${task.id}-editor`}
+          aria-label={`Edit task ${task.id}`}
+          aria-busy={busy}
+          className="mt-4 space-y-3 border-t border-presson-borderSubtle pt-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!busy && !conflict) save(draft);
+          }}
+        >
+          <fieldset disabled={busy} className="space-y-3">
+            <legend className="sr-only">Task fields</legend>
+            <div className="space-y-1">
+              <Label htmlFor={`task-${task.id}-title`}>Title</Label>
+              <Input
+                ref={titleInput}
+                id={`task-${task.id}-title`}
+                value={draft.title}
+                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                maxLength={200}
+                required
+                className="border-presson-borderSubtle text-presson-text"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`task-${task.id}-description`}>Description</Label>
+              <Textarea
+                id={`task-${task.id}-description`}
+                value={draft.description}
+                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+                maxLength={2000}
+                className="border-presson-borderSubtle text-presson-text"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor={`task-${task.id}-owner`}>Owner ID</Label>
+                <Input
+                  id={`task-${task.id}-owner`}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.ownerId}
+                  onChange={(event) => setDraft({ ...draft, ownerId: event.target.value })}
+                  className="border-presson-borderSubtle text-presson-text"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`task-${task.id}-due-date`}>Due date</Label>
+                <Input
+                  id={`task-${task.id}-due-date`}
+                  type="date"
+                  value={draft.dueDate}
+                  onChange={(event) => setDraft({ ...draft, dueDate: event.target.value })}
+                  className="border-presson-borderSubtle text-presson-text"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`task-${task.id}-status`}>Status</Label>
+              <select
+                id={`task-${task.id}-status`}
+                value={draft.status}
+                onChange={(event) =>
+                  setDraft({ ...draft, status: event.target.value as TaskResponse['status'] })
+                }
+                className="h-10 w-full rounded-md border border-presson-borderSubtle bg-presson-surface px-3 text-sm text-presson-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-presson-accent/30"
+              >
+                <option value="open">Open</option>
+                <option value="in_progress">In progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+            {validationError ? (
+              <p role="alert" className="text-sm text-presson-negative">
+                {validationError}
+              </p>
+            ) : null}
+            {conflict ? (
+              <div className="space-y-2">
+                <p role="alert" className="text-sm text-presson-negative">
+                  Task changed since this edit started. Your edits are retained. Refresh the current
+                  task, review it, then save again.
+                </p>
+                <Button type="button" variant="outline" onClick={() => void refreshVersion()}>
+                  Refresh task version
+                </Button>
+              </div>
+            ) : (
+              <ErrorNotice error={updateTask.error} />
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="submit"
+                disabled={conflict}
+                className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
+              >
+                {updateTask.isPending
+                  ? 'Saving task...'
+                  : refreshing
+                    ? 'Refreshing task...'
+                    : 'Save task'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditing(false);
+                  editButton.current?.focus();
+                }}
+              >
+                Close editor
+              </Button>
+            </div>
+          </fieldset>
+        </form>
+      ) : null}
+
       <details
         className="mt-4 border-t border-presson-borderSubtle pt-3"
         onToggle={(event) => setEvidenceOpen(event.currentTarget.open)}
@@ -878,12 +1157,60 @@ function TaskCard({ task, fundId }: { task: TaskResponse; fundId: number }) {
         </summary>
         <div className="mt-3 space-y-3">
           {evidenceQuery.isLoading ? (
-            <p className="text-sm text-presson-textMuted">Loading task evidence...</p>
+            <p role="status" className="text-sm text-presson-textMuted">
+              Loading task evidence...
+            </p>
           ) : null}
           <ErrorNotice error={evidenceQuery.error} />
           {!evidenceQuery.isLoading && !evidenceQuery.error ? (
             <EvidenceList links={evidenceQuery.data ?? []} />
           ) : null}
+          <form
+            onSubmit={handleEvidenceCreate}
+            aria-label={`Task ${task.id} evidence`}
+            aria-busy={createEvidenceLink.isPending}
+          >
+            <fieldset disabled={createEvidenceLink.isPending} className="grid gap-3 sm:grid-cols-2">
+              <legend className="sr-only">Attach task evidence</legend>
+              <div className="space-y-1">
+                <Label htmlFor={`task-${task.id}-evidence-kind`}>Evidence type</Label>
+                <select
+                  id={`task-${task.id}-evidence-kind`}
+                  name="kind"
+                  defaultValue="analysis_reference"
+                  className="h-10 w-full rounded-md border border-presson-borderSubtle bg-presson-surface px-3 text-sm text-presson-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-presson-accent/30"
+                >
+                  <option value="analysis_reference">Analysis reference</option>
+                  <option value="internal_economics_run">Internal economics run</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`task-${task.id}-evidence-id`}>Target ID</Label>
+                <Input
+                  id={`task-${task.id}-evidence-id`}
+                  name="targetId"
+                  type="number"
+                  min={1}
+                  step={1}
+                  required
+                  className="border-presson-borderSubtle text-presson-text"
+                />
+              </div>
+              <Button
+                type="submit"
+                variant="outline"
+                className="justify-self-start border-presson-borderSubtle text-presson-text hover:bg-presson-surfaceSubtle"
+              >
+                {createEvidenceLink.isPending ? 'Linking...' : 'Link evidence'}
+              </Button>
+            </fieldset>
+          </form>
+          {evidenceValidationError ? (
+            <p role="alert" className="text-sm text-presson-negative">
+              {evidenceValidationError}
+            </p>
+          ) : null}
+          <ErrorNotice error={createEvidenceLink.error} />
         </div>
       </details>
     </article>
@@ -967,7 +1294,7 @@ function OperationsContent({ fundId }: { fundId: number }) {
               Tasks
             </h2>
             <p className="mt-1 text-sm text-presson-textMuted">
-              Record fund-scoped operational work and inspect linked evidence.
+              Assign, update, and complete fund-scoped work with linked evidence.
             </p>
           </div>
           <TaskCreateForm fundId={fundId} />
@@ -982,7 +1309,16 @@ function OperationsContent({ fundId }: { fundId: number }) {
           ) : null}
           <div className="space-y-4">
             {(tasksQuery.data ?? []).map((task) => (
-              <TaskCard key={task.id} task={task} fundId={fundId} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                fundId={fundId}
+                onRefresh={async () => {
+                  const refreshed = await tasksQuery.refetch();
+                  if (refreshed.error) throw refreshed.error;
+                  return refreshed.data?.find((current) => current.id === task.id);
+                }}
+              />
             ))}
           </div>
         </section>
