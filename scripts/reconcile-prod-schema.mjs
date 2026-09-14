@@ -1224,6 +1224,24 @@ function validateFunctionDefinitions(manifest) {
 
 function validateExpectedTables(manifest) {
   for (const table of manifest?.expectedTables ?? []) {
+    for (const column of table.columns ?? []) {
+      if (column.expectedDefaultExpression === undefined) continue;
+      if (
+        typeof column.expectedDefaultExpression !== 'string' ||
+        column.expectedDefaultExpression.trim().length === 0
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} column ${table.name}.${column.name} expectedDefaultExpression must be a nonempty catalog expression`,
+          {
+            kind: 'invalid-column-default',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: column.name,
+          }
+        );
+      }
+    }
+
     const indexes = new Set(table.indexes ?? []);
     const seenIndexDefinitions = new Set();
 
@@ -2403,6 +2421,20 @@ async function auditTable({
         additiveSafe: widensToNullable,
       });
     }
+
+    if (
+      expectedColumn.expectedDefaultExpression !== undefined &&
+      actualColumn.defaultExpression !== expectedColumn.expectedDefaultExpression
+    ) {
+      deltas.push({
+        kind: 'column-default-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        expected: expectedColumn.expectedDefaultExpression,
+        actual: actualColumn.defaultExpression,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
   }
 
   const missingSentinels = findMissingSentinels({
@@ -2505,7 +2537,7 @@ async function loadPresentTables(client, tableNames) {
 async function loadColumns(client, tableNames) {
   const result = await client.query(
     `
-      SELECT table_name, column_name, data_type, udt_name, is_nullable
+      SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default
       FROM information_schema.columns
       WHERE table_schema = 'public'
         AND table_name = ANY($1::text[])
@@ -2519,6 +2551,7 @@ async function loadColumns(client, tableNames) {
       dataType: row.data_type,
       udtName: row.udt_name,
       nullable: row.is_nullable === 'YES',
+      defaultExpression: row.column_default ?? null,
     });
     columns.set(row.table_name, tableColumns);
   }

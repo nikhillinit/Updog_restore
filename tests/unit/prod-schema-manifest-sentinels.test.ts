@@ -345,6 +345,15 @@ describe('prod-schema manifest sentinels', () => {
     expect(manifest?.expectedTables).toHaveLength(1);
     const table = manifest!.expectedTables[0];
     expect(table.name).toBe('task_update_commands');
+    expect(table.columns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'id',
+          expectedDefaultExpression: "nextval('task_update_commands_id_seq'::regclass)",
+        }),
+        expect.objectContaining({ name: 'created_at', expectedDefaultExpression: 'now()' }),
+      ])
+    );
     expect(table.constraintDefinitions.map(({ name }: { name: string }) => name).sort()).toEqual(
       [...table.constraints].sort()
     );

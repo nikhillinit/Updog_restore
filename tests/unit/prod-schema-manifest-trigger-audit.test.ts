@@ -54,7 +54,13 @@ interface ConstraintDefinition {
 interface ManifestTable {
   name: string;
   sharedTable?: boolean;
-  columns?: Array<{ name: string; type?: string; nullable: boolean }>;
+  columns?: Array<{
+    name: string;
+    type?: string;
+    nullable: boolean;
+    defaultExpression?: string | null;
+    expectedDefaultExpression?: string;
+  }>;
   constraints?: string[];
   constraintDefinitions?: ConstraintDefinition[];
   indexes?: string[];
@@ -125,6 +131,7 @@ interface MockCatalog {
     data_type: string;
     udt_name?: string;
     is_nullable: 'YES' | 'NO';
+    column_default?: string | null;
   }>;
   constraints?: ReadonlyArray<{ table_name: string; conname: string; definition: string }>;
   indexes?: ReadonlyArray<{ tablename: string; indexname: string; indexdef: string }>;
@@ -184,6 +191,7 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
         column_name: column.name,
         ...dataTypeFor(column.type ?? 'text'),
         is_nullable: column.nullable ? ('YES' as const) : ('NO' as const),
+        column_default: column.expectedDefaultExpression ?? column.defaultExpression ?? null,
       }))
     ),
     constraints: tables.flatMap((table) =>
@@ -253,6 +261,87 @@ describe('task update command catalog audit', () => {
         }),
       ])
     );
+  });
+
+  it.each([
+    { column: 'id', actual: null },
+    { column: 'id', actual: "nextval('tasks_id_seq'::regclass)" },
+    { column: 'created_at', actual: null },
+    { column: 'created_at', actual: "'2000-01-01 00:00:00+00'::timestamp with time zone" },
+  ])(
+    'refuses receipt $column default drift to $actual on an empty table',
+    async ({ column, actual }) => {
+      const catalog = matchingCatalog(manifest);
+      const audit = await auditManifest(
+        createMockClient({
+          ...catalog,
+          columns: catalog.columns.map((entry) =>
+            entry.column_name === column ? { ...entry, column_default: actual } : entry
+          ),
+        }),
+        manifest
+      );
+
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.find((object) => object.table === tableName)?.populated).toBe(false);
+      expect(audit.objects.find((object) => object.table === tableName)?.deltas).toContainEqual({
+        kind: 'column-default-mismatch',
+        name: `${tableName}.${column}`,
+        expected: manifest.expectedTables![0]!.columns!.find((entry) => entry.name === column)!
+          .expectedDefaultExpression,
+        actual,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+  );
+
+  it.each([null, '', ' ', 42, {}])(
+    'rejects malformed expectedDefaultExpression %j',
+    async (value) => {
+      const malformed = {
+        ...manifest,
+        expectedTables: manifest.expectedTables!.map((table) => ({
+          ...table,
+          columns: table.columns!.map((column) =>
+            column.name === 'id' ? { ...column, expectedDefaultExpression: value } : column
+          ),
+        })),
+      };
+
+      await expect(auditManifest(createMockClient({}), malformed)).rejects.toThrow(
+        /expectedDefaultExpression/
+      );
+    }
+  );
+
+  it.each([
+    '22-internal-economics-policy-runs.json',
+    '33-actuals-draft-revisions.json',
+    '34-actuals-restatement-commands.json',
+  ])('preserves audits without opt-in defaults, including legacy metadata in %s', async (file) => {
+    const legacyManifest = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'scripts/prod-schema-manifests', file), 'utf8')
+    ) as Manifest;
+    const catalog = matchingCatalog(legacyManifest);
+    expect(
+      legacyManifest
+        .expectedTables!.flatMap((table) => table.columns ?? [])
+        .every((column) => column.expectedDefaultExpression === undefined)
+    ).toBe(true);
+    const audit = await auditManifest(
+      createMockClient({
+        ...catalog,
+        columns: catalog.columns.map((column) => ({
+          ...column,
+          column_default: 'legacy_default_not_audited()',
+        })),
+      }),
+      legacyManifest
+    );
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects.every((object) => object.deltas.length === 0)).toBe(true);
   });
 
   it.each(manifest.expectedTables![0]!.constraints!)(

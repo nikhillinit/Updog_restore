@@ -124,6 +124,40 @@ describe.skipIf(skipIfNoDocker)('task update command migration PostgreSQL proof'
   });
 
   it.each([
+    { column: 'id', populated: true },
+    { column: 'created_at', populated: true },
+    { column: 'id', populated: false },
+    { column: 'created_at', populated: false },
+  ])(
+    'refuses a missing $column default with populated=$populated before receipt inserts fail',
+    async ({ column, populated }) => {
+      await inTransaction(async (client) => {
+        if (!populated) await client.query('DELETE FROM task_update_commands');
+        await client.query(
+          `ALTER TABLE task_update_commands ALTER COLUMN ${escapeIdentifier(column)} DROP DEFAULT`
+        );
+        const audit = await auditManifest(client, manifest);
+
+        await expect(
+          insertReceipt(client, { key: `without-${column}-default` })
+        ).rejects.toMatchObject({ code: '23502', column });
+        expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+        expect(
+          audit.objects.find((object) => object.table === 'task_update_commands')?.populated
+        ).toBe(populated);
+        expect(audit.objects.flatMap((object) => object.deltas)).toContainEqual(
+          expect.objectContaining({
+            kind: 'column-default-mismatch',
+            name: `task_update_commands.${column}`,
+            actual: null,
+            additiveSafe: false,
+          })
+        );
+      });
+    }
+  );
+
+  it.each([
     { name: 'a task from another fund', input: { fundId: otherFundId } },
     { name: 'a missing task', input: { taskId: 229_059_999 } },
     { name: 'a missing fund', input: { fundId: 229_059_999 } },
@@ -186,6 +220,16 @@ describe.skipIf(skipIfNoDocker)('task update command migration PostgreSQL proof'
             ALTER TABLE task_update_commands ADD CONSTRAINT task_update_commands_scope_unique
             UNIQUE (fund_id, task_id, idempotency_key, created_by)`,
       delta: 'constraint-definition-mismatch',
+    },
+    {
+      name: 'receipt ID default using another table sequence',
+      sql: "ALTER TABLE task_update_commands ALTER COLUMN id SET DEFAULT nextval('tasks_id_seq'::regclass)",
+      delta: 'column-default-mismatch',
+    },
+    {
+      name: 'receipt timestamp default fixed in the past',
+      sql: "ALTER TABLE task_update_commands ALTER COLUMN created_at SET DEFAULT '2000-01-01 00:00:00+00'::timestamptz",
+      delta: 'column-default-mismatch',
     },
     {
       name: 'task foreign key without fund scope',
