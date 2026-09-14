@@ -163,11 +163,12 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
         vehicle_scope, vehicle_ids, selection_set_hash, source_facts_input_hash,
         snapshot_input_hash, payload, consumer_evaluations, idempotency_key, request_hash
       ) VALUES ($1, 'financial-facts-policy/1.2.0', 'financial-facts-payload/3', '2026-06-30', NOW(),
-        'fund_all', '[]'::jsonb, $4, $4, $4, '{}'::jsonb, '[]'::jsonb, $3, $4) RETURNING id
+        'fund_all', '[]'::jsonb, $4::text, $4::text, $4::text, '{}'::jsonb, '[]'::jsonb,
+        $3::text, $4::text) RETURNING id
     ) INSERT INTO internal_analysis_references (
       fund_id, period_kind, period_start, period_end, knowledge_cutoff,
       financial_facts_snapshot_id, created_by, idempotency_key, request_hash
-    ) SELECT $1, 'quarterly', '2026-04-01', '2026-06-30', NOW(), id, $2, $3, $4 FROM facts RETURNING id`,
+    ) SELECT $1, 'quarterly', '2026-04-01', '2026-06-30', NOW(), id, $2, $3::text, $4::text FROM facts RETURNING id`,
     [config.fundId, config.userId, targetKey, sha256(targetKey)]
   );
   const targetId = target.rows[0]!.id;
