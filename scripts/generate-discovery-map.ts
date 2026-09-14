@@ -6,8 +6,8 @@
  *
  * Usage:
  *   npm run docs:routing:generate  # Generate artifacts
- *   npm run docs:routing:check     # Verify strict artifact sync
- *   npm run docs:routing:check:ci  # Verify routing behavior; warn on inventory-only drift
+ *   npm run docs:routing:check     # Validate inventory and committed fast-router structure
+ *   npm run docs:routing:check:ci  # Same strict validation in CI
  *
  * Output:
  *   docs/_generated/router-index.json    # Machine-readable routing index
@@ -473,17 +473,42 @@ function getTrackedFileSet(): Set<string> {
   }
 }
 
-/**
- * Simple glob pattern matching
- * In production, use fast-glob package
- */
-async function globFiles(patterns: string[], excludes: string[]): Promise<string[]> {
+async function globFiles(
+  patterns: string[],
+  excludes: string[],
+  trackedFiles: Set<string>
+): Promise<{ files: string[]; expectedFiles: string[] }> {
   const includeRegexes = patterns.map(globPatternToRegExp);
   const excludeRegexes = excludes.map(globPatternToRegExp);
   const includeExtensions = getIncludedExtensions(patterns);
   const results: string[] = [];
 
+  function isExcluded(filePath: string): boolean {
+    for (let current = filePath; current !== '.'; current = path.posix.dirname(current)) {
+      if (excludeRegexes.some((regex) => regex.test(current))) return true;
+    }
+    return false;
+  }
+
+  function matchesFile(filePath: string): boolean {
+    return (
+      includeExtensions.has(path.extname(filePath).toLowerCase()) &&
+      includeRegexes.some((regex) => regex.test(filePath)) &&
+      !isExcluded(filePath)
+    );
+  }
+
+  const expectedFiles = [...trackedFiles].filter(matchesFile).sort(compareStrings);
+  const expectedDirectories = new Set<string>();
+  for (const file of expectedFiles) {
+    for (let dir = path.posix.dirname(file); dir !== '.'; dir = path.posix.dirname(dir)) {
+      expectedDirectories.add(dir);
+    }
+  }
+
   async function walkDir(dir: string): Promise<void> {
+    // Untracked and intentionally excluded subtrees cannot contribute documents.
+    if (!expectedDirectories.has(normalizePath(dir))) return;
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
       entries.sort((a, b) => compareStrings(a.name, b.name));
@@ -491,22 +516,14 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
         const fullPath = path.join(dir, entry.name);
         const relativePath = normalizePath(fullPath);
 
-        // Check excludes
-        const isExcluded = excludeRegexes.some((regex) => regex.test(relativePath));
-        if (isExcluded) continue;
-
         if (entry.isDirectory()) {
           await walkDir(fullPath);
-        } else if (includeExtensions.has(path.extname(entry.name).toLowerCase())) {
-          // Check if matches any pattern
-          const matches = includeRegexes.some((regex) => regex.test(relativePath));
-          if (matches) {
-            results.push(relativePath);
-          }
+        } else if (trackedFiles.has(relativePath) && matchesFile(relativePath)) {
+          results.push(relativePath);
         }
       }
-    } catch {
-      // Directory doesn't exist, skip
+    } catch (error) {
+      throw new Error(`Could not scan tracked documentation directory ${dir}: ${String(error)}`);
     }
   }
 
@@ -529,17 +546,12 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
       const entries = await fs.readdir('.', { withFileTypes: true });
       entries.sort((a, b) => compareStrings(a.name, b.name));
       for (const entry of entries) {
-        if (!entry.isDirectory() && includeExtensions.has(path.extname(entry.name).toLowerCase())) {
-          const matches = patterns.some((pat) => {
-            return pathMatchesGlob(entry.name, pat);
-          });
-          if (matches) {
-            results.push(entry.name);
-          }
+        if (!entry.isDirectory() && trackedFiles.has(entry.name) && matchesFile(entry.name)) {
+          results.push(entry.name);
         }
       }
-    } catch {
-      // Current directory scan failed, skip
+    } catch (error) {
+      throw new Error(`Could not scan documentation root: ${String(error)}`);
     }
   }
 
@@ -547,7 +559,7 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
     await walkDir(dir);
   }
 
-  return [...new Set(results)].sort(compareStrings);
+  return { files: [...new Set(results)].sort(compareStrings), expectedFiles };
 }
 
 /**
@@ -826,7 +838,6 @@ function extractField(content: string, field: string): string | null {
 async function main(): Promise<void> {
   const isCheckMode = process.argv.includes('--check');
   const isVerbose = process.argv.includes('--verbose');
-  const allowDocInventoryDrift = process.argv.includes('--allow-doc-inventory-drift');
   const generatedAt = isCheckMode
     ? '1970-01-01T00:00:00.000Z'
     : `${new Date().toISOString().split('T')[0]}T00:00:00.000Z`;
@@ -898,11 +909,11 @@ async function main(): Promise<void> {
 
   // 3. Scan Files
   console.log('Scanning documentation files...');
-  const files = (
-    await globFiles(config.configuration.scan_paths, config.configuration.exclude_paths)
-  )
-    .filter((file) => trackedFiles.has(normalizePath(file)))
-    .sort(compareStrings);
+  const { files, expectedFiles } = await globFiles(
+    config.configuration.scan_paths,
+    config.configuration.exclude_paths,
+    trackedFiles
+  );
 
   if (isVerbose) {
     console.log(`Found ${files.length} files`);
@@ -969,10 +980,8 @@ async function main(): Promise<void> {
       if (isStale) stats.stale_docs++;
       if (isMarkdown && Object.keys(parsed.data).length === 0) stats.missing_frontmatter++;
       stats.by_status[status] = (stats.by_status[status] || 0) + 1;
-    } catch {
-      if (isVerbose) {
-        console.warn(`WARNING: Could not process file: ${file}`);
-      }
+    } catch (error) {
+      throw new Error(`Could not process tracked documentation file ${file}: ${String(error)}`);
     }
   }
 
@@ -1141,151 +1150,56 @@ Documents without proper YAML frontmatter:
 *See: docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details.*
 `;
 
-  // 6. Write or Check
+  // 6. Validate generated reports without requiring saved copies.
+  const docPaths = getRouterDocPaths(routerIndex);
+  const expectedPaths = new Set(expectedFiles);
+  const processedPaths = new Set(docPaths);
+  const missingPaths = expectedFiles.filter((file) => !processedPaths.has(file));
+  const unexpectedPaths = docPaths.filter((file) => !expectedPaths.has(file));
+  if (stableStringify(docPaths) !== stableStringify(expectedFiles)) {
+    throw new Error(
+      `Generated document inventory differs from eligible tracked files. Missing: ${missingPaths.join(', ')}; unexpected: ${unexpectedPaths.join(', ')}`
+    );
+  }
+  if (getRouterTotalDocs(routerIndex) !== docPaths.length) {
+    throw new Error('Generated router-index.json stats.total_docs does not match docs.length');
+  }
+  const untrackedDocPaths = getUntrackedPaths(docPaths, trackedFiles);
+  const localPollutionMentions = [
+    ...findUntrackedLocalPathMentions(jsonOutput, trackedFiles),
+    ...findUntrackedLocalPathMentions(mdOutput, trackedFiles),
+  ];
+  if (untrackedDocPaths.length > 0 || localPollutionMentions.length > 0) {
+    throw new Error(
+      `Generated reports contain untracked local paths: ${[...untrackedDocPaths, ...localPollutionMentions].join(', ')}`
+    );
+  }
+
+  // 7. Write reports or check only the committed fast router's stable structure.
   if (isCheckMode) {
-    let existingJson = '';
-    let existingFast = '';
-    let existingStaleness = '';
-
+    let existingFast: unknown;
     try {
-      existingJson = await fs.readFile(OUT_JSON, 'utf8');
-    } catch {
-      // File doesn't exist
-    }
-
-    try {
-      existingFast = await fs.readFile(OUT_FAST, 'utf8');
-    } catch {
-      // File doesn't exist
-    }
-
-    try {
-      existingStaleness = await fs.readFile(OUT_STALENESS, 'utf8');
-    } catch {
-      // File doesn't exist
-    }
-
-    // For check mode, compare deterministic structure and doc path inventory,
-    // not timestamps or staleness volatility.
-    const existingParsed: unknown = existingJson ? JSON.parse(existingJson) : null;
-    const newParsed: unknown = JSON.parse(jsonOutput);
-    const existingFastParsed: unknown = existingFast ? JSON.parse(existingFast) : null;
-    const newFastParsed: unknown = JSON.parse(fastOutput);
-
-    function toStructuralRouterIndex(obj: unknown): Record<string, unknown> | null {
-      if (!obj || typeof obj !== 'object') return null;
-      const record = obj as Record<string, unknown>;
-      return {
-        version: record.version ?? null,
-        config: record.config ?? null,
-        decision_tree: record.decision_tree ?? null,
-        patterns: record.patterns ?? null,
-        agents: record.agents ?? null,
-      };
+      existingFast = JSON.parse(await fs.readFile(OUT_FAST, 'utf8'));
+    } catch (error) {
+      throw new Error(`Could not read valid ${OUT_FAST}: ${String(error)}`);
     }
 
     function toStructuralRouterFast(obj: unknown): Record<string, unknown> | null {
-      if (!obj || typeof obj !== 'object') return null;
-      const record = obj as Record<string, unknown>;
+      if (!isPlainObject(obj)) return null;
       return {
-        version: record.version ?? null,
-        scoring: record.scoring ?? null,
-        config: record.config ?? null,
-        patterns: record.patterns ?? null,
-        keyword_to_docs: record.keyword_to_docs ?? null,
+        version: obj.version ?? null,
+        scoring: obj.scoring ?? null,
+        config: obj.config ?? null,
+        patterns: obj.patterns ?? null,
+        keyword_to_docs: obj.keyword_to_docs ?? null,
       };
     }
 
-    const existingDocPaths = getRouterDocPaths(existingParsed);
-    const newDocPaths = getRouterDocPaths(newParsed);
-    const existingUntrackedDocPaths = getUntrackedPaths(existingDocPaths, trackedFiles);
-    const localPollutionMentions = [
-      ...findUntrackedLocalPathMentions(existingJson, trackedFiles).map(
-        (filePath) => `${OUT_JSON}: ${filePath}`
-      ),
-      ...findUntrackedLocalPathMentions(existingStaleness, trackedFiles).map(
-        (filePath) => `${OUT_STALENESS}: ${filePath}`
-      ),
-    ].sort(compareStrings);
-
-    const jsonMatch =
-      stableStringify(toStructuralRouterIndex(existingParsed)) ===
-      stableStringify(toStructuralRouterIndex(newParsed));
-    const docsInventoryMatch = stableStringify(existingDocPaths) === stableStringify(newDocPaths);
-    const existingStatsMatch = getRouterTotalDocs(existingParsed) === existingDocPaths.length;
-    const newStatsMatch = getRouterTotalDocs(newParsed) === newDocPaths.length;
-    const fastMatch =
-      stableStringify(toStructuralRouterFast(existingFastParsed)) ===
-      stableStringify(toStructuralRouterFast(newFastParsed));
-
-    // For staleness report, just check if it exists (content will differ due to timestamps)
-    const stalenessExists = existingStaleness.length > 0;
-    const trackedInventoryOnly = existingUntrackedDocPaths.length === 0;
-    const noLocalPollutionMentions = localPollutionMentions.length === 0;
-    const docInventoryFailure =
-      !docsInventoryMatch || !trackedInventoryOnly || !noLocalPollutionMentions;
-    const shouldFailDocInventory = docInventoryFailure && !allowDocInventoryDrift;
-
     if (
-      !jsonMatch ||
-      shouldFailDocInventory ||
-      !existingStatsMatch ||
-      !newStatsMatch ||
-      !fastMatch ||
-      !stalenessExists
+      stableStringify(toStructuralRouterFast(existingFast)) !==
+      stableStringify(toStructuralRouterFast(routerFast))
     ) {
-      console.error('ERROR: Generated files are out of sync with source!');
-      console.error('Run: npm run docs:routing:generate');
-      if (!jsonMatch) console.error('  - router-index.json needs regeneration');
-      if (!docsInventoryMatch) {
-        console.error('  - router-index.json doc inventory differs from deterministic scan');
-      }
-      if (!existingStatsMatch) {
-        console.error('  - existing router-index.json stats.total_docs does not match docs.length');
-      }
-      if (!newStatsMatch) {
-        console.error(
-          '  - generated router-index.json stats.total_docs does not match docs.length'
-        );
-      }
-      if (!trackedInventoryOnly) {
-        console.error('  - existing router-index.json contains untracked doc paths:');
-        for (const filePath of existingUntrackedDocPaths) {
-          console.error(`    - ${filePath}`);
-        }
-      }
-      if (!noLocalPollutionMentions) {
-        console.error('  - generated artifacts contain untracked local path mentions:');
-        for (const mention of localPollutionMentions) {
-          console.error(`    - ${mention}`);
-        }
-      }
-      if (!fastMatch) console.error('  - router-fast.json needs regeneration');
-      if (!stalenessExists) console.error('  - staleness-report.md is missing');
-      process.exit(1);
-    }
-
-    if (docInventoryFailure && allowDocInventoryDrift) {
-      console.warn('WARNING: Documentation inventory changed, but routing behavior is in sync.');
-      console.warn(
-        'Run npm run docs:routing:generate to refresh router-index.json and staleness-report.md.'
-      );
-      console.warn('CI will generate and upload current discovery-routing-artifacts for review.');
-      if (!docsInventoryMatch) {
-        console.warn('  - router-index.json doc inventory differs from deterministic scan');
-      }
-      if (!trackedInventoryOnly) {
-        console.warn('  - existing router-index.json contains untracked doc paths:');
-        for (const filePath of existingUntrackedDocPaths) {
-          console.warn(`    - ${filePath}`);
-        }
-      }
-      if (!noLocalPollutionMentions) {
-        console.warn('  - generated artifacts contain untracked local path mentions:');
-        for (const mention of localPollutionMentions) {
-          console.warn(`    - ${mention}`);
-        }
-      }
+      throw new Error(`${OUT_FAST} is out of sync. Run: npm run docs:routing:generate`);
     }
 
     console.log('PASS: Discovery map is in sync.');

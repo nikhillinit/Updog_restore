@@ -42,9 +42,7 @@
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
 # runs, which are safe; missing outputs also fail to fast-path, also safe):
-#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
-#                                        docs/_generated/router-fast.json
-#                                        docs/_generated/staleness-report.md
+#   scripts/generate-discovery-map.ts -> docs/_generated/router-fast.json
 #   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
 #                                        docs/skills/WIZARD_INDEX.md
 #
@@ -58,17 +56,13 @@
 #     while CodeQL is configured for javascript-typescript only.
 
 auto_docs:
-  - 'docs/_generated/router-index.json'
   - 'docs/_generated/router-fast.json'
-  - 'docs/_generated/staleness-report.md'
   - 'docs/skills/SKILLS_INDEX.md'
   - 'docs/skills/WIZARD_INDEX.md'
 
 not_auto_docs:
   - '**'
-  - '!docs/_generated/router-index.json'
   - '!docs/_generated/router-fast.json'
-  - '!docs/_generated/staleness-report.md'
   - '!docs/skills/SKILLS_INDEX.md'
   - '!docs/skills/WIZARD_INDEX.md'
 

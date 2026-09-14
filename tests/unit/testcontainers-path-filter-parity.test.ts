@@ -26,9 +26,7 @@ interface PathFilters {
 }
 
 const EXACT_AUTO_DOCS_ALLOWLIST = [
-  'docs/_generated/router-index.json',
   'docs/_generated/router-fast.json',
-  'docs/_generated/staleness-report.md',
   'docs/skills/SKILLS_INDEX.md',
   'docs/skills/WIZARD_INDEX.md',
 ] as const;
@@ -72,7 +70,7 @@ function expectSchemaTestPaths(
 }
 
 describe('Testcontainers path-filter parity', () => {
-  it('keeps the reviewed light path to the exact five generated outputs', () => {
+  it('keeps the reviewed light path to the exact three committed generated outputs', () => {
     const filters = YAML.parse(fs.readFileSync(PATH_FILTERS, 'utf8')) as PathFilters;
 
     expect(filters.auto_docs).toEqual(EXACT_AUTO_DOCS_ALLOWLIST);
@@ -80,6 +78,24 @@ describe('Testcontainers path-filter parity', () => {
       '**',
       ...EXACT_AUTO_DOCS_ALLOWLIST.map((lightPath) => `!${lightPath}`),
     ]);
+  });
+
+  it('retains only the fast discovery router in the generated-output policy', () => {
+    const gitignore = fs.readFileSync('.gitignore', 'utf8');
+    const workflow = YAML.parse(
+      fs.readFileSync('.github/workflows/docs-routing-check.yml', 'utf8')
+    ) as { on?: { push?: { paths?: string[] }; pull_request?: { paths?: string[] } } };
+
+    expect(gitignore).toContain('/docs/_generated/*');
+    expect(gitignore).toContain('!/docs/_generated/router-fast.json');
+    for (const report of ['router-index.json', 'staleness-report.md']) {
+      expect(gitignore).not.toContain(`!/docs/_generated/${report}`);
+    }
+    for (const trigger of [workflow.on?.push, workflow.on?.pull_request]) {
+      expect(trigger?.paths).toContain('docs/_generated/router-fast.json');
+      expect(trigger?.paths).not.toContain('docs/_generated/router-index.json');
+      expect(trigger?.paths).not.toContain('docs/_generated/staleness-report.md');
+    }
   });
 
   it('matches every canonical Testcontainers include with schema_tests', () => {
