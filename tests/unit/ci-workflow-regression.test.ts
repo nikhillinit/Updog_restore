@@ -77,14 +77,12 @@ function classifyRawDiff(tokens: readonly string[]): {
 
 describe('CI fail-closed change classification', () => {
   const lightPaths = [
-    'docs/_generated/router-index.json',
     'docs/_generated/router-fast.json',
-    'docs/_generated/staleness-report.md',
     'docs/skills/SKILLS_INDEX.md',
     'docs/skills/WIZARD_INDEX.md',
   ] as const;
 
-  it('allows each reviewed generated output and all five together', () => {
+  it('allows each retained generated output and all three together', () => {
     for (const lightPath of lightPaths) {
       const classified = classifyRawDiff(rawChange('M', [lightPath]));
       expect(classified.status, classified.stderr).toBe(0);
@@ -103,7 +101,7 @@ describe('CI fail-closed change classification', () => {
     expect(classified.status, classified.stderr).toBe(0);
     expect(classified.result).toEqual({
       autoDocsOnly: true,
-      changeCount: 5,
+      changeCount: 3,
       financialCalcRelevant: false,
       heavyCiRelevant: false,
       valid: true,
@@ -111,32 +109,34 @@ describe('CI fail-closed change classification', () => {
   });
 
   it.each([
+    ['untracked full index', rawChange('M', ['docs/_generated/router-index.json'])],
+    ['untracked staleness report', rawChange('M', ['docs/_generated/staleness-report.md'])],
     ['unknown path', rawChange('A', ['unknown/new-tool.bin'], '000000', '100644')],
     [
       'mixed paths',
       [
-        ...rawChange('M', ['docs/_generated/router-index.json']),
+        ...rawChange('M', ['docs/_generated/router-fast.json']),
         ...rawChange('M', ['docs/governance-policy.md']),
       ],
     ],
     [
       'rename into allowlist',
-      rawChange('R100', ['docs/legacy-router.json', 'docs/_generated/router-index.json']),
+      rawChange('R100', ['docs/_generated/router-index.json', 'docs/_generated/router-fast.json']),
     ],
     [
       'rename out of allowlist',
-      rawChange('R100', ['docs/_generated/router-index.json', 'docs/legacy-router.json']),
+      rawChange('R100', ['docs/_generated/router-fast.json', 'docs/_generated/router-index.json']),
     ],
     ['deleted executable', rawChange('D', ['scripts/release/deploy.mjs'], '100755', '000000')],
     [
       'allowlisted executable-bit change',
-      rawChange('M', ['docs/_generated/router-index.json'], '100644', '100755'),
+      rawChange('M', ['docs/_generated/router-fast.json'], '100644', '100755'),
     ],
     [
       'allowlisted type change',
-      rawChange('T', ['docs/_generated/router-index.json'], '100644', '120000'),
+      rawChange('T', ['docs/_generated/router-fast.json'], '100644', '120000'),
     ],
-    ['allowlisted unmerged status', rawChange('U', ['docs/_generated/router-index.json'])],
+    ['allowlisted unmerged status', rawChange('U', ['docs/_generated/router-fast.json'])],
   ] as const)('routes %s to heavy CI', (_caseName, tokens) => {
     const classified = classifyRawDiff(tokens);
     expect(classified.status, classified.stderr).toBe(0);
@@ -155,7 +155,7 @@ describe('CI fail-closed change classification', () => {
     expect(deleted.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
 
     const renamed = classifyRawDiff(
-      rawChange('R100', ['docs/_generated/router-fast.json', 'docs/_generated/router-index.json'])
+      rawChange('R100', ['docs/_generated/router-fast.json', 'docs/skills/SKILLS_INDEX.md'])
     );
     expect(renamed.status, renamed.stderr).toBe(0);
     expect(renamed.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });

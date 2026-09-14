@@ -334,6 +334,12 @@ jobs:
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
 
+      - name: Validate active schema drift
+        if: matrix.group == 'validate-core' && needs.changes.outputs.schema == 'true'
+        run: npm run validate:schema-drift
+        env:
+          TZ: UTC
+
       - name: Setup database
         if: matrix.group == 'integration' || matrix.group == 'e2e' || matrix.group == 'validate-core'
         run: npm run db:push

@@ -18,6 +18,10 @@ db-migration:
     - 'migrations/**/*'
     - 'server/db.ts'
     - 'drizzle.config.ts'
+    - 'shared/schema.ts'
+    - 'shared/schema/**/*'
+    - 'shared/schema-lp-reporting.ts'
+    - 'shared/schema-lp-sprint3.ts'
 
 # Infrastructure changes
 infrastructure:

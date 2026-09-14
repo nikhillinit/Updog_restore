@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+vi.unmock('fs');
 
 import {
   analyzeScriptAliasPolicy,
@@ -6,6 +9,13 @@ import {
 } from '../../../scripts/guardrails/script-alias-policy.mjs';
 
 describe('script-alias-policy', () => {
+  it('keeps local and CI routing checks identical and strict', () => {
+    const { scripts } = JSON.parse(readFileSync('package.json', 'utf8'));
+
+    expect(scripts['docs:routing:check']).toBe('npx tsx scripts/generate-discovery-map.ts --check');
+    expect(scripts['docs:routing:check:ci']).toBe(scripts['docs:routing:check']);
+  });
+
   it('allows existing legacy phase and wave aliases while rejecting new ones', () => {
     const scripts = {
       'test:unit': 'vitest run',

@@ -62,9 +62,10 @@ For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 | Architecture decisions                           | DECISIONS.md                                                               |
 | Milestone governance / PR scope                  | docs/STABILIZATION-ROADMAP.md                                              |
 
-**Machine-readable index**: `docs/_generated/router-index.json` **Staleness
-report**: `docs/_generated/staleness-report.md` **Regenerate**:
-`npm run docs:routing:generate`
+**Generated routing outputs**: `npm run docs:routing:generate` writes
+`docs/_generated/router-index.json`, `router-fast.json`, and
+`staleness-report.md`. Only `router-fast.json` is committed; CI uploads the full
+index and staleness report as short-retention artifacts.
 
 ## Non-Negotiable Rules (always loaded)
 

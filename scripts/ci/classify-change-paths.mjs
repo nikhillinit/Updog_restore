@@ -5,9 +5,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const EXACT_LIGHT_ALLOWLIST = [
-  'docs/_generated/router-index.json',
   'docs/_generated/router-fast.json',
-  'docs/_generated/staleness-report.md',
   'docs/skills/SKILLS_INDEX.md',
   'docs/skills/WIZARD_INDEX.md',
 ];
@@ -83,7 +81,7 @@ function loadLightAllowlist(filtersPath) {
     configured.some((value, index) => value !== EXACT_LIGHT_ALLOWLIST[index])
   ) {
     throw new Error(
-      `auto_docs must equal the reviewed five-file allowlist in ${filtersPath}`
+      `auto_docs must equal the reviewed three-file allowlist in ${filtersPath}`
     );
   }
 

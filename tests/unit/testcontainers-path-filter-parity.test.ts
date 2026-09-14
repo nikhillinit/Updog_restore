@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
 import picomatch from 'picomatch';
@@ -26,9 +27,7 @@ interface PathFilters {
 }
 
 const EXACT_AUTO_DOCS_ALLOWLIST = [
-  'docs/_generated/router-index.json',
   'docs/_generated/router-fast.json',
-  'docs/_generated/staleness-report.md',
   'docs/skills/SKILLS_INDEX.md',
   'docs/skills/WIZARD_INDEX.md',
 ] as const;
@@ -72,7 +71,7 @@ function expectSchemaTestPaths(
 }
 
 describe('Testcontainers path-filter parity', () => {
-  it('keeps the reviewed light path to the exact five generated outputs', () => {
+  it('keeps the reviewed light path to the exact three committed generated outputs', () => {
     const filters = YAML.parse(fs.readFileSync(PATH_FILTERS, 'utf8')) as PathFilters;
 
     expect(filters.auto_docs).toEqual(EXACT_AUTO_DOCS_ALLOWLIST);
@@ -81,6 +80,47 @@ describe('Testcontainers path-filter parity', () => {
       ...EXACT_AUTO_DOCS_ALLOWLIST.map((lightPath) => `!${lightPath}`),
     ]);
   });
+
+  it('retains only the fast discovery router in the generated-output policy', () => {
+    const gitignore = fs.readFileSync('.gitignore', 'utf8');
+    const workflow = YAML.parse(
+      fs.readFileSync('.github/workflows/docs-routing-check.yml', 'utf8')
+    ) as { on?: { push?: { paths?: string[] }; pull_request?: { paths?: string[] } } };
+
+    expect(gitignore).toContain('/docs/_generated/*');
+    expect(gitignore).toContain('!/docs/_generated/router-fast.json');
+    for (const report of ['router-index.json', 'staleness-report.md']) {
+      expect(gitignore).not.toContain(`!/docs/_generated/${report}`);
+    }
+    for (const trigger of [workflow.on?.push, workflow.on?.pull_request]) {
+      expect(trigger?.paths).toContain('docs/_generated/router-fast.json');
+      expect(trigger?.paths).not.toContain('docs/_generated/router-index.json');
+      expect(trigger?.paths).not.toContain('docs/_generated/staleness-report.md');
+    }
+  });
+
+  it.each(['push', 'pull_request'] as const)(
+    'triggers routing validation for every eligible tracked input on %s',
+    (event) => {
+      const workflow = YAML.parse(
+        fs.readFileSync('.github/workflows/docs-routing-check.yml', 'utf8')
+      );
+      const { configuration } = YAML.parse(
+        fs.readFileSync('docs/DISCOVERY-MAP.source.yaml', 'utf8')
+      );
+      const included = picomatch(configuration.scan_paths, { dot: true });
+      const excluded = picomatch(configuration.exclude_paths, { dot: true });
+      const tracked = execFileSync('git', ['ls-files', '-z'], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+      }).split('\0');
+      const eligible = tracked.filter((file) => included(file) && !excluded(file));
+      const triggers = picomatch(workflow.on[event].paths, { dot: true });
+
+      expect(eligible.length).toBeGreaterThan(0);
+      expect(eligible.filter((file) => !triggers(file))).toEqual([]);
+    }
+  );
 
   it('matches every canonical Testcontainers include with schema_tests', () => {
     const patterns = schemaTestPatterns();
