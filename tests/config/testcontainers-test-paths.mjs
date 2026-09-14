@@ -41,6 +41,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/internal-economics/economics-linkage-schema.pg.test.ts',
   'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts',
   'tests/integration/migrations/current-forecast-recompute-commands-schema.pg.test.ts',
+  'tests/integration/migrations/task-update-commands-schema.pg.test.ts',
   'tests/integration/current-forecast-manual-recompute.pg.test.ts',
   'tests/integration/current-forecast-reference.pg.test.ts',
 ]);

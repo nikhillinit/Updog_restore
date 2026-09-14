@@ -90,12 +90,16 @@ function loadManifest22(): Manifest {
 function loadManifest24(): Manifest {
   return JSON.parse(
     fs.readFileSync(
-      path.join(
-        repoRoot,
-        'scripts',
-        'prod-schema-manifests',
-        '24-internal-economics-linkage.json'
-      ),
+      path.join(repoRoot, 'scripts', 'prod-schema-manifests', '24-internal-economics-linkage.json'),
+      'utf8'
+    )
+  ) as Manifest;
+}
+
+function loadTaskUpdateManifest(): Manifest {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, 'scripts/prod-schema-manifests/36-task-update-commands.json'),
       'utf8'
     )
   ) as Manifest;
@@ -214,6 +218,154 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
     })),
   };
 }
+
+describe('task update command catalog audit', () => {
+  const manifest = loadTaskUpdateManifest();
+  const tableName = 'task_update_commands';
+
+  it('audits SKIP only when the receipt table, constraints, trigger, and function match', async () => {
+    const audit = await auditManifest(createMockClient(matchingCatalog(manifest)), manifest);
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects.every((object) => object.deltas.length === 0)).toBe(true);
+  });
+
+  it('reports a missing receipt table and refuses automated trigger creation', async () => {
+    const catalog = matchingCatalog(manifest);
+    const audit = await auditManifest(
+      createMockClient({
+        ...catalog,
+        presentTables: [],
+        columns: [],
+        constraints: [],
+        triggers: [],
+      }),
+      manifest
+    );
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects.find((object) => object.table === tableName)?.deltas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'missing-table', name: tableName }),
+        expect.objectContaining({
+          kind: 'missing-trigger',
+          name: 'task_update_commands_forbid_update_trigger',
+        }),
+      ])
+    );
+  });
+
+  it.each(manifest.expectedTables![0]!.constraints!)(
+    'reports missing receipt constraint %s',
+    async (name) => {
+      const catalog = matchingCatalog(manifest);
+      const audit = await auditManifest(
+        createMockClient({
+          ...catalog,
+          constraints: catalog.constraints.filter((constraint) => constraint.conname !== name),
+        }),
+        manifest
+      );
+
+      expect(audit.action).not.toBe(ACTION_SKIP);
+      expect(audit.objects.find((object) => object.table === tableName)?.deltas).toContainEqual(
+        expect.objectContaining({ kind: 'missing-constraint', name })
+      );
+    }
+  );
+
+  it.each([
+    {
+      name: 'task_update_commands_scope_unique',
+      definition: 'UNIQUE (fund_id, task_id, idempotency_key, created_by)',
+    },
+    {
+      name: 'task_update_commands_task_fund_fk',
+      definition: 'FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE',
+    },
+    {
+      name: 'task_update_commands_fund_id_funds_id_fk',
+      definition: 'FOREIGN KEY (fund_id) REFERENCES users(id) ON DELETE CASCADE',
+    },
+    {
+      name: 'task_update_commands_created_by_users_id_fk',
+      definition: 'FOREIGN KEY (created_by) REFERENCES funds(id)',
+    },
+  ])(
+    'refuses changed receipt constraint $name under the same name',
+    async ({ name, definition }) => {
+      const catalog = matchingCatalog(manifest);
+      const audit = await auditManifest(
+        createMockClient({
+          ...catalog,
+          constraints: catalog.constraints.map((constraint) =>
+            constraint.conname === name ? { ...constraint, definition } : constraint
+          ),
+        }),
+        manifest
+      );
+
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.find((object) => object.table === tableName)?.deltas).toContainEqual(
+        expect.objectContaining({ kind: 'constraint-definition-mismatch', name })
+      );
+    }
+  );
+
+  it.each(['missing', 'disabled', 'changed'] as const)(
+    'refuses a %s receipt immutability trigger',
+    async (state) => {
+      const catalog = matchingCatalog(manifest);
+      const triggers =
+        state === 'missing'
+          ? []
+          : catalog.triggers.map((trigger) => ({
+              ...trigger,
+              tgenabled: state === 'disabled' ? 'D' : trigger.tgenabled,
+              definition:
+                state === 'changed'
+                  ? trigger.definition.replace('BEFORE UPDATE', 'AFTER UPDATE')
+                  : trigger.definition,
+            }));
+      const audit = await auditManifest(createMockClient({ ...catalog, triggers }), manifest);
+
+      expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+      expect(audit.objects.find((object) => object.table === tableName)?.deltas).toContainEqual(
+        expect.objectContaining({
+          kind:
+            state === 'missing'
+              ? 'missing-trigger'
+              : state === 'disabled'
+                ? 'trigger-disabled'
+                : 'trigger-definition-mismatch',
+        })
+      );
+    }
+  );
+
+  it('refuses a same-named immutability function that permits updates', async () => {
+    const catalog = matchingCatalog(manifest);
+    const audit = await auditManifest(
+      createMockClient({
+        ...catalog,
+        functions: [
+          {
+            proname: 'internal_economics_forbid_update',
+            definition:
+              'CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN RETURN NEW; END; $function$',
+          },
+        ],
+      }),
+      manifest
+    );
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(
+      audit.objects.find((object) => object.table === 'function:internal_economics_forbid_update')
+        ?.deltas
+    ).toContainEqual(expect.objectContaining({ kind: 'function-definition-mismatch' }));
+  });
+});
 
 describe('manifest 22 trigger/function audit (T-A5)', () => {
   const manifest = loadManifest22();
@@ -490,11 +642,7 @@ describe('manifest 24 economics-linkage trigger/function audit', () => {
     const before = await auditManifest(
       createMockClient({
         ...catalog,
-        presentTables: [
-          'internal_analysis_drafts',
-          'internal_analysis_references',
-          'tasks',
-        ],
+        presentTables: ['internal_analysis_drafts', 'internal_analysis_references', 'tasks'],
         triggers: [],
       }),
       manifest
@@ -503,9 +651,7 @@ describe('manifest 24 economics-linkage trigger/function audit', () => {
     expect(before.action).toBe(ACTION_REFUSE_FOR_HUMAN);
     const evidenceBefore = before.objects.find((object) => object.table === 'task_evidence_links');
     expect(
-      evidenceBefore?.deltas.some(
-        (delta: { kind: string }) => delta.kind === 'missing-trigger'
-      )
+      evidenceBefore?.deltas.some((delta: { kind: string }) => delta.kind === 'missing-trigger')
     ).toBe(true);
 
     const after = await auditManifest(createMockClient(catalog), manifest);
