@@ -237,13 +237,8 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   const linked = await linkedPromise;
   expect(linked.status()).toBe(201);
   expect((await linked.json()).target).toEqual({ kind: 'analysis_reference', id: targetId });
-  const latestFactsResponse = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === `/api/funds/${config.fundId}/financial-facts/latest` &&
-      response.request().method() === 'GET'
-  );
+  const reloadBoundary = capital.requests.length;
   await capital.reload();
-  expect((await latestFactsResponse).status()).toBe(200);
   await expect(
     row.getByRole('heading', { name: 'Retained conflict draft', exact: true })
   ).toBeVisible();
@@ -251,6 +246,19 @@ test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, 
   await expect(row.getByText(concurrent.body.description, { exact: true })).toBeVisible();
   await keyboard.activate(page.getByTestId(`task-evidence-toggle-${task.id}`));
   await expect(row.getByText(`Analysis reference #${targetId}`, { exact: true })).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        capital.requests
+          .slice(reloadBoundary)
+          .find(
+            (request) =>
+              request.method === 'GET' &&
+              request.path === `/api/funds/${config.fundId}/financial-facts/latest`
+          )?.response?.status ?? null,
+      { timeout: 30_000 }
+    )
+    .toBe(200);
   await capital.receipt('task-lifecycle', {
     taskId: task.id,
     originalCommand: committed,
