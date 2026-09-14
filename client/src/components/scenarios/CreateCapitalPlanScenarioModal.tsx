@@ -908,6 +908,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 </li>
               ))}
             </ul>
+            {issues.some((issue) => issue.code === 'FEE_BASIS_UNSUPPORTED') && (
+              <p>Capital Planning currently supports fee tiers based on committed capital.</p>
+            )}
           </section>
         )}
         <nav aria-label="Capital planning steps" className="flex flex-wrap gap-2">
@@ -1006,6 +1009,13 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                         {issue.code}: {issue.path} — {issue.message}
                       </p>
                     ))}
+                    {source.calculationReadiness.issues.some(
+                      (issue) => issue.code === 'FEE_BASIS_UNSUPPORTED'
+                    ) && (
+                      <p>
+                        Capital Planning currently supports fee tiers based on committed capital.
+                      </p>
+                    )}
                     <div className="grid gap-3 sm:grid-cols-2">
                       {sourceDeclarations.map(({ path, allowedUnits }) =>
                         field(`Source unit: ${path}`, ['declarations', path], {
