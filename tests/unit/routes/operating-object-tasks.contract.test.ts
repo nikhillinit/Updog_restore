@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Request, Response } from 'express';
 import express from 'express';
 import request from 'supertest';
+import { taskUpdateCommands } from '../../../shared/schema/operating-objects';
 import { rowVersionETag } from '../../../server/lib/http-preconditions';
 
 const fundScopeState = vi.hoisted(() => ({
@@ -18,14 +19,22 @@ const dbState = vi.hoisted(() => {
     insertResult: [] as unknown[],
     selectResult: [] as unknown[], // list path (.orderBy)
     loadQueue: [] as unknown[][], // each .limit(1) shifts one array (loadTask)
-    updateResult: [] as unknown[], // .returning({ id })
+    updateResult: [] as unknown[],
+    receiptRows: [] as unknown[],
     insertedValues: undefined as unknown,
     updatedValues: undefined as unknown,
   };
   const db = {
-    insert: vi.fn(() => ({
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>): Promise<unknown> =>
+      callback(db)
+    ),
+    insert: vi.fn((table: unknown) => ({
       values: vi.fn((payload: unknown) => {
         state.insertedValues = payload;
+        if (table === taskUpdateCommands) {
+          state.receiptRows = [payload];
+          return Promise.resolve();
+        }
         return {
           onConflictDoNothing: vi.fn(() => ({
             returning: vi.fn(() => Promise.resolve(state.insertResult)),
@@ -42,13 +51,16 @@ const dbState = vi.hoisted(() => {
       }),
     })),
     select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          orderBy: vi.fn(() => Promise.resolve(state.selectResult)),
-          limit: vi.fn(() =>
-            Promise.resolve(state.loadQueue.length > 0 ? state.loadQueue.shift() : [])
-          ),
-        })),
+      from: vi.fn((table: unknown) => ({
+        where: vi.fn(() => {
+          const query = {
+            orderBy: vi.fn(async () => state.selectResult),
+            limit: vi.fn(async () =>
+              table === taskUpdateCommands ? state.receiptRows : (state.loadQueue.shift() ?? [])
+            ),
+          };
+          return { ...query, for: vi.fn(() => query) };
+        }),
       })),
     })),
   };
@@ -152,6 +164,7 @@ describe('operating-object tasks route contracts', () => {
     dbState.state.selectResult = [];
     dbState.state.loadQueue = [];
     dbState.state.updateResult = [];
+    dbState.state.receiptRows = [];
     dbState.state.insertedValues = undefined;
     dbState.state.updatedValues = undefined;
   });
@@ -329,6 +342,7 @@ describe('operating-object tasks PATCH route', () => {
     dbState.state.selectResult = [];
     dbState.state.loadQueue = [];
     dbState.state.updateResult = [];
+    dbState.state.receiptRows = [];
     dbState.state.insertedValues = undefined;
     dbState.state.updatedValues = undefined;
   });
@@ -338,6 +352,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects a non-canonical fundId before scope/If-Match/DB', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/01/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'x' });
     expect(res.status).toBe(400);
@@ -350,6 +365,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects a non-canonical taskId', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/01')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'x' });
     expect(res.status).toBe(400);
@@ -361,6 +377,7 @@ describe('operating-object tasks PATCH route', () => {
     denyOnce();
     const res = await request(makeApp())
       .patch('/api/funds/2/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'x' });
     expect(res.status).toBe(403);
@@ -379,6 +396,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects an empty patch (400) when If-Match is present', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({});
     expect(res.status).toBe(400);
@@ -389,6 +407,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects a fundId-only patch (400, no DB read)', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ fundId: 1 });
     expect(res.status).toBe(400);
@@ -398,6 +417,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects unknown body keys (.strict)', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'x', bogus: 1 });
     expect(res.status).toBe(400);
@@ -407,6 +427,7 @@ describe('operating-object tasks PATCH route', () => {
   it('rejects a body fundId that does not match the path (400, no DB read)', async () => {
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ fundId: 2, title: 'x' });
     expect(res.status).toBe(400);
@@ -418,6 +439,7 @@ describe('operating-object tasks PATCH route', () => {
     dbState.state.loadQueue = [[]];
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'x' });
     expect(res.status).toBe(404);
@@ -428,6 +450,7 @@ describe('operating-object tasks PATCH route', () => {
     dbState.state.loadQueue = [[dbRow({ rowXmin: '1' })]];
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('2'))
       .send({ title: 'x' });
     expect(res.status).toBe(412);
@@ -440,9 +463,10 @@ describe('operating-object tasks PATCH route', () => {
       [dbRow({ rowXmin: '1' })],
       [dbRow({ rowXmin: '2', title: 'Updated' })],
     ];
-    dbState.state.updateResult = [{ id: 10 }];
+    dbState.state.updateResult = dbState.state.loadQueue.pop()!;
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ title: 'Updated' });
     expect(res.status).toBe(200);
@@ -458,9 +482,10 @@ describe('operating-object tasks PATCH route', () => {
       [dbRow({ rowXmin: '1', status: 'open' })],
       [dbRow({ rowXmin: '2', status: 'done' })],
     ];
-    dbState.state.updateResult = [{ id: 10 }];
+    dbState.state.updateResult = dbState.state.loadQueue.pop()!;
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ status: 'done' });
     expect(res.status).toBe(200);
@@ -473,9 +498,10 @@ describe('operating-object tasks PATCH route', () => {
       [dbRow({ rowXmin: '1', status: 'done' })],
       [dbRow({ rowXmin: '2', status: 'open' })],
     ];
-    dbState.state.updateResult = [{ id: 10 }];
+    dbState.state.updateResult = dbState.state.loadQueue.pop()!;
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ status: 'open' });
     expect(res.status).toBe(200);
@@ -487,9 +513,10 @@ describe('operating-object tasks PATCH route', () => {
       [dbRow({ rowXmin: '1', ownerId: 42 })],
       [dbRow({ rowXmin: '2', ownerId: null })],
     ];
-    dbState.state.updateResult = [{ id: 10 }];
+    dbState.state.updateResult = dbState.state.loadQueue.pop()!;
     const res = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
+      .set('Idempotency-Key', 'task-edit-1')
       .set('If-Match', etagFor('1'))
       .send({ ownerId: null });
     expect(res.status).toBe(200);
@@ -497,26 +524,68 @@ describe('operating-object tasks PATCH route', () => {
     expect(dbState.state.updatedValues).toMatchObject({ ownerId: null });
   });
 
-  it('returns 412 when the atomic update touches zero rows but the row still exists', async () => {
-    dbState.state.loadQueue = [[dbRow({ rowXmin: '1' })], [dbRow({ rowXmin: '9' })]];
-    dbState.state.updateResult = [];
-    const res = await request(makeApp())
+  it('requires a valid Idempotency-Key before body validation', async () => {
+    const missing = await request(makeApp())
       .patch('/api/funds/1/tasks/10')
       .set('If-Match', etagFor('1'))
-      .send({ title: 'x' });
-    expect(res.status).toBe(412);
-    expect(res.body).toMatchObject({ current: etagFor('9') });
+      .send({});
+    expect(missing.status).toBe(428);
+    expect(missing.body.error).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    const malformed = await request(makeApp())
+      .patch('/api/funds/1/tasks/10')
+      .set('If-Match', etagFor('1'))
+      .set('Idempotency-Key', 'bad key')
+      .send({});
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+    expect(dbState.db.select).not.toHaveBeenCalled();
   });
 
-  it('returns 404 when the row vanishes between precondition and update', async () => {
-    dbState.state.loadQueue = [[dbRow({ rowXmin: '1' })], []];
-    dbState.state.updateResult = [];
-    const res = await request(makeApp())
-      .patch('/api/funds/1/tasks/10')
-      .set('If-Match', etagFor('1'))
-      .send({ title: 'x' });
-    expect(res.status).toBe(404);
-  });
+  it.each([false, true])(
+    'replays and reauthorizes task PATCH with middleware=%s',
+    async (railwayMiddleware) => {
+      const app = makeApp({ railwayMiddleware });
+      const send = (title = 'Updated') =>
+        request(app)
+          .patch('/api/funds/1/tasks/10')
+          .set('If-Match', etagFor('1'))
+          .set('Idempotency-Key', 'task-update-parity')
+          .send({ title });
+      dbState.state.loadQueue = [[dbRow()]];
+      dbState.state.updateResult = [dbRow({ rowXmin: '2', title: 'Updated' })];
+      const first = await send();
+      expect(first.status).toBe(200);
+      expect(first.body).not.toHaveProperty('requestHash');
+      expect(first.body).not.toHaveProperty('createdBy');
+      dbState.state.loadQueue = [[dbRow({ rowXmin: '9', title: 'Later edit' })]];
+      dbState.db.update.mockClear();
+      dbState.db.insert.mockClear();
+      const replay = await send();
+      expect(replay.status).toBe(200);
+      expect(replay.body).toEqual(first.body);
+      expect(replay.headers['idempotency-replay']).toBeUndefined();
+      dbState.state.loadQueue.push([dbRow({ rowXmin: '9' })]);
+      const reuse = await send('Changed');
+      expect(reuse.status).toBe(409);
+      expect(reuse.body.error).toBe('IDEMPOTENCY_KEY_REUSE');
+      expect(dbState.db.update).not.toHaveBeenCalled();
+      expect(dbState.db.insert).not.toHaveBeenCalled();
+      dbState.db.select.mockClear();
+      denyOnce();
+      const denied = await send();
+      expect(denied.status).toBe(403);
+      expect(denied.body).not.toHaveProperty('title');
+      expect(dbState.db.select).not.toHaveBeenCalled();
+      fundScopeState.enforceTeamWriteRole.mockImplementationOnce((_req, res) => {
+        res.status(403).json({ error: 'Forbidden', code: 'TEAM_WRITE_REQUIRED' });
+        return false;
+      });
+      const readOnly = await send();
+      expect(readOnly.status).toBe(403);
+      expect(readOnly.body).not.toHaveProperty('title');
+      expect(dbState.db.select).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('operating-object task evidence POST route', () => {

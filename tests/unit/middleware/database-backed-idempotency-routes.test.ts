@@ -7,6 +7,9 @@ import { clearIdempotencyCache, idempotency } from '../../../server/middleware/i
 
 describe('database-backed idempotency route classification', () => {
   it.each([
+    ['PATCH', '/api/funds/1/tasks/2'],
+    ['PATCH', '/api/FUNDS/1/TASKS/2/?mode=edit#receipt'],
+    ['PATCH', '/api/funds/invalid/tasks/00'],
     ['POST', '/api/funds/1/internal-economics/runs'],
     ['POST', '/api/funds/0/internal-economics/runs'],
     ['POST', '/api/funds/01/internal-economics/runs'],
@@ -47,6 +50,15 @@ describe('database-backed idempotency route classification', () => {
   });
 
   it.each([
+    ['POST', '/api/funds/1/tasks/2'],
+    ['GET', '/api/funds/1/tasks/2'],
+    ['PUT', '/api/funds/1/tasks/2'],
+    ['patch', '/api/funds/1/tasks/2'],
+    ['PATCH', '/api/funds/1/tasks'],
+    ['PATCH', '/api/funds/1/tasks/2/evidence-links'],
+    ['PATCH', '/api/funds/1/tasks/2/extra'],
+    ['PATCH', '/api/funds/1/tasks/2//'],
+    ['PATCH', '/prefix/api/funds/1/tasks/2'],
     ['GET', '/api/funds/1/internal-economics/runs'],
     ['PUT', '/api/funds/1/internal-economics/runs'],
     ['post', '/api/funds/1/internal-economics/runs'],

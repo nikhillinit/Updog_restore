@@ -1,17 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { taskUpdateCommands } from '../../../../shared/schema/operating-objects';
+import { parseETag, rowVersionETag } from '../../../../server/lib/http-preconditions';
 
 const captured = vi.hoisted(() => ({
   insertedValues: undefined as unknown,
   updatedValues: undefined as unknown,
   selectRows: [] as unknown[], // list path (.orderBy)
   loadQueue: [] as unknown[][], // each .limit(1) shifts one array (loadTask)
-  updateResult: [] as unknown[], // .returning({ id })
+  updateResult: [] as unknown[],
+  receiptRows: [] as unknown[],
 }));
-const dbMock = vi.hoisted(() => ({
-  db: {
-    insert: vi.fn(() => ({
+const dbMock = vi.hoisted(() => {
+  const db = {
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>): Promise<unknown> =>
+      callback(db)
+    ),
+    insert: vi.fn((table: unknown) => ({
       values: vi.fn((v: unknown) => {
         captured.insertedValues = v;
+        if (table === taskUpdateCommands) {
+          captured.receiptRows = [v];
+          return Promise.resolve();
+        }
         return {
           onConflictDoNothing: vi.fn(() => ({
             returning: vi.fn(async () => captured.selectRows),
@@ -26,17 +36,23 @@ const dbMock = vi.hoisted(() => ({
       }),
     })),
     select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          orderBy: vi.fn(async () => captured.selectRows),
-          limit: vi.fn(async () =>
-            captured.loadQueue.length > 0 ? captured.loadQueue.shift() : []
-          ),
-        })),
+      from: vi.fn((table: unknown) => ({
+        where: vi.fn(() => {
+          const query = {
+            orderBy: vi.fn(async () => captured.selectRows),
+            limit: vi.fn(async () =>
+              table === taskUpdateCommands
+                ? captured.receiptRows
+                : (captured.loadQueue.shift() ?? [])
+            ),
+          };
+          return { ...query, for: vi.fn(() => query) };
+        }),
       })),
     })),
-  },
-}));
+  };
+  return { db };
+});
 vi.mock('../../../../server/db', () => dbMock);
 
 import {
@@ -44,6 +60,7 @@ import {
   listTasksForFund,
   loadTask,
   updateTask,
+  toTaskResponse,
 } from '../../../../server/services/operating-objects/task-service';
 import { TASK_CONTRACT_VERSION } from '../../../../shared/contracts/operating-objects/task.contract';
 import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
@@ -82,6 +99,7 @@ describe('task-service', () => {
     captured.selectRows = [];
     captured.loadQueue = [];
     captured.updateResult = [];
+    captured.receiptRows = [];
     dbMock.db.insert.mockClear();
     dbMock.db.update.mockClear();
     dbMock.db.select.mockClear();
@@ -181,75 +199,100 @@ describe('task-service', () => {
     expect(await loadTask(1, 999)).toBeUndefined();
   });
 
-  it('updateTask sets only provided fields + updatedAt and reloads the fresh xmin', async () => {
-    captured.updateResult = [{ id: 10 }];
-    captured.loadQueue = [[record({ rowXmin: '2', title: 'Updated' })]];
-    const out = await updateTask({
-      fundId: 1,
-      taskId: 10,
-      expectedXmin: '1',
-      patch: { title: 'Updated' },
-    });
-    expect(out?.xmin).toBe('2'); // post-update reload, NOT the preloaded xmin
-    expect(out?.row.title).toBe('Updated');
-    const v = captured.updatedValues as Record<string, unknown>;
-    expect(v['title']).toBe('Updated');
-    expect(v['updatedAt']).toBeInstanceOf(Date);
-    expect('ownerId' in v).toBe(false);
-    expect('dueDate' in v).toBe(false);
-    expect('description' in v).toBe(false);
+  const command = (patch: Parameters<typeof updateTask>[0]['patch']) => ({
+    fundId: 1,
+    taskId: 10,
+    ifMatch: rowVersionETag('1'),
+    idempotencyKey: 'task-edit-1',
+    createdBy: null,
+    patch,
   });
 
-  it('updateTask clears nullable fields on explicit null (in-semantics)', async () => {
-    captured.updateResult = [{ id: 10 }];
-    captured.loadQueue = [[record()]];
-    await updateTask({
+  it('updateTask commits the fresh response with only the supplied fields', async () => {
+    captured.loadQueue = [[record({ rowXmin: '1' })]];
+    captured.updateResult = [record({ rowXmin: '2', title: 'Updated' })];
+    const out = await updateTask(command({ title: ' Updated ' }));
+    expect(out).toEqual({
+      response: toTaskResponse(record({ title: 'Updated' }), rowVersionETag('2')),
+      replayed: false,
+    });
+    expect(captured.updatedValues).toEqual({ title: 'Updated', updatedAt: expect.any(Date) });
+    expect(captured.insertedValues).toMatchObject({
       fundId: 1,
       taskId: 10,
-      expectedXmin: '1',
-      patch: { ownerId: null, dueDate: null, description: null },
+      idempotencyKey: 'task-edit-1',
+      responseBody: out.response,
+      requestHash: canonicalSha256({
+        commandKind: 'update_task',
+        contractVersion: TASK_CONTRACT_VERSION,
+        fundId: 1,
+        taskId: 10,
+        ifMatch: parseETag(rowVersionETag('1')),
+        patch: { title: 'Updated' },
+      }),
     });
-    const v = captured.updatedValues as Record<string, unknown>;
-    expect(v['ownerId']).toBeNull();
-    expect(v['dueDate']).toBeNull();
-    expect(v['description']).toBeNull();
+    expect(dbMock.db.transaction).toHaveBeenCalled();
   });
 
-  it('updateTask writes dueDate as a date-only string, never a Date', async () => {
-    captured.updateResult = [{ id: 10 }];
-    captured.loadQueue = [[record({ dueDate: '2026-07-01' })]];
-    await updateTask({
-      fundId: 1,
-      taskId: 10,
-      expectedXmin: '1',
-      patch: { dueDate: '2026-07-01' },
-    });
-    const v = captured.updatedValues as Record<string, unknown>;
-    expect(typeof v['dueDate']).toBe('string');
-    expect(v['dueDate']).toBe('2026-07-01');
+  it.each([
+    { ownerId: null, dueDate: null, description: null },
+    { ownerId: 12, dueDate: '2026-07-01', description: 'Follow up' },
+    { status: 'done' as const },
+    { status: 'open' as const },
+  ])('updateTask preserves nullable/date/status patch semantics: %j', async (patch) => {
+    captured.loadQueue = [[record({ rowXmin: '1' })]];
+    captured.updateResult = [record({ ...patch, rowXmin: '2' })];
+    await updateTask(command(patch));
+    expect(captured.updatedValues).toEqual({ ...patch, updatedAt: expect.any(Date) });
   });
 
-  it('updateTask sets status verbatim (free transition)', async () => {
-    captured.updateResult = [{ id: 10 }];
-    captured.loadQueue = [[record({ status: 'done' })]];
-    await updateTask({
-      fundId: 1,
-      taskId: 10,
-      expectedXmin: '1',
-      patch: { status: 'done' },
-    });
-    expect((captured.updatedValues as Record<string, unknown>)['status']).toBe('done');
+  it('replays the stored response before checking a later task ETag, across authorized actors', async () => {
+    const input = command({ title: 'Updated' });
+    captured.loadQueue = [[record({ rowXmin: '1' })]];
+    captured.updateResult = [record({ rowXmin: '2', title: 'Updated' })];
+    const first = await updateTask(input);
+    captured.loadQueue = [[record({ rowXmin: '9', title: 'Later edit' })]];
+    dbMock.db.update.mockClear();
+    dbMock.db.insert.mockClear();
+    expect(await updateTask({ ...input, createdBy: 99 })).toEqual({ ...first, replayed: true });
+    expect(dbMock.db.update).not.toHaveBeenCalled();
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
   });
 
-  it('updateTask returns undefined and does NOT reload when zero rows update', async () => {
-    captured.updateResult = [];
-    const out = await updateTask({
-      fundId: 1,
-      taskId: 10,
-      expectedXmin: '1',
-      patch: { title: 'x' },
+  it('refuses a different payload on the same key before stale-ETag rejection', async () => {
+    captured.loadQueue = [[record({ rowXmin: '1' })]];
+    captured.updateResult = [record({ rowXmin: '2', title: 'Updated' })];
+    await updateTask(command({ title: 'Updated' }));
+    captured.loadQueue = [[record({ rowXmin: '2' })]];
+    dbMock.db.update.mockClear();
+    await expect(updateTask(command({ title: 'Different' }))).rejects.toMatchObject({
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
     });
-    expect(out).toBeUndefined();
-    expect(dbMock.db.select).not.toHaveBeenCalled(); // no reload on the zero-row path
+    expect(dbMock.db.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a new stale command without mutation or receipt', async () => {
+    captured.loadQueue = [[record({ rowXmin: '9' })]];
+    await expect(updateTask(command({ title: 'Updated' }))).rejects.toMatchObject({
+      status: 412,
+      code: 'precondition_failed',
+      details: { current: rowVersionETag('9') },
+    });
+    expect(dbMock.db.update).not.toHaveBeenCalled();
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('returns missing-task refusal without receipt lookup or mutation', async () => {
+    await expect(updateTask(command({ title: 'Updated' }))).rejects.toMatchObject({ status: 404 });
+    expect(dbMock.db.select).toHaveBeenCalledTimes(1);
+    expect(dbMock.db.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects an inconsistent fund in a direct service call before database access', async () => {
+    await expect(updateTask(command({ fundId: 2, title: 'Updated' }))).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(dbMock.db.select).not.toHaveBeenCalled();
   });
 });
