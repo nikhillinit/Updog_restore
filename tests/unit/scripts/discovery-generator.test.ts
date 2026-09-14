@@ -143,6 +143,7 @@ describe('discovery generator CLI', () => {
     ['readdir', 'docs/nested'],
     ['omit', 'docs/nested'],
   ])('fails closed on %s failure for eligible tracked documents', (method, file) => {
+    // Keep the retired flag to prove old callers cannot downgrade strict validation.
     for (const args of [[], ['--check'], ['--check', '--allow-doc-inventory-drift']]) {
       const result = run(args, { method, file });
       expect(result.status, `${method}: ${result.stdout}\n${result.stderr}`).toBe(1);
