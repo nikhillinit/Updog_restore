@@ -38,7 +38,8 @@ const investments = [
     round: 'Seed Follow-on',
   },
 ];
-const expenses = [{ id: 'legal', category: 'legal', monthlyAmount: 5_000, startMonth: 0 }];
+// Wizard months are one-based: startMonth 1 = first fund month.
+const expenses = [{ id: 'legal', category: 'legal', monthlyAmount: 5_000, startMonth: 1 }];
 const asOf = new Date('2026-09-15T12:00:00.000Z');
 const BUFFER = 500_000;
 
@@ -134,6 +135,66 @@ describe('buildFundCashFlowInputs', () => {
       76_600 + 5_000 + BUFFER,
       4
     );
+  });
+
+  it('keeps vehicle-funded rows out of the main fund cash model', () => {
+    const spvRow = {
+      id: 20,
+      companyId: 30,
+      investmentDate: '2025-07-14T00:00:00.000Z',
+      amount: '500000.00',
+      round: 'Initial Check',
+      vehicleParticipationId: 3,
+    };
+    const { transactions, currentPosition } = buildFundCashFlowInputs({
+      fund,
+      investments: [...investments, spvRow],
+      asOf,
+      horizonMonths: 36,
+      config: { expenses, cashBuffer: BUFFER },
+    });
+
+    expect(currentPosition.totalDeployed).toBe(1_500_000);
+    expect(currentPosition.dryPowder).toBe(REMAINING_INVESTABLE);
+    expect(transactions.some((tx) => tx.portfolioCompanyId === '30')).toBe(false);
+  });
+
+  it('schedules fixed-term expenses on one-based wizard months', () => {
+    const fixedTerm = {
+      id: 'audit',
+      category: 'audit',
+      monthlyAmount: 2_000,
+      startMonth: 13,
+      endMonth: 24,
+    };
+    const { transactions, currentPosition, recurringExpenses } = buildFundCashFlowInputs({
+      fund,
+      investments,
+      asOf,
+      horizonMonths: 36,
+      config: { expenses: [fixedTerm], cashBuffer: BUFFER },
+    });
+    const audits = transactions.filter((tx) => tx.type === 'expense' && tx.category === 'audit');
+
+    // Fund starts 2024-03, so month 13 is 2025-03 and month 24 is 2026-02.
+    expect(audits.map((tx) => tx.plannedDate.toISOString().slice(0, 7))).toEqual([
+      '2025-03',
+      '2025-04',
+      '2025-05',
+      '2025-06',
+      '2025-07',
+      '2025-08',
+      '2025-09',
+      '2025-10',
+      '2025-11',
+      '2025-12',
+      '2026-01',
+      '2026-02',
+    ]);
+    expect(currentPosition.dryPowder).toBe(SIZE - SIZE * 0.02 * 10 - 2_000 * 12 - 1_500_000);
+    expect(recurringExpenses[0]?.startDate.toISOString().slice(0, 7)).toBe('2025-03');
+    expect(recurringExpenses[0]?.endDate?.toISOString().slice(0, 7)).toBe('2026-02');
+    expect(recurringExpenses[0]?.isActive).toBe(false);
   });
 
   it('defaults the buffer to the engine minimum and runs through the engine', () => {

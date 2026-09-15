@@ -33,13 +33,15 @@ export interface FundCashFlowInvestment {
   investmentDate: string | Date;
   amount: number | string;
   round: string;
+  /** Set on rows funded through an SPV or co-invest vehicle. */
+  vehicleParticipationId?: number | null;
 }
 
 export interface FundCashFlowExpense {
   id: string;
   category: string;
   monthlyAmount: number;
-  /** Months since fund start. */
+  /** One-based month of fund life, as the wizard stores it (1 = first month). */
   startMonth: number;
   endMonth?: number;
 }
@@ -130,9 +132,13 @@ export function buildFundCashFlowInputs(args: {
     });
   };
 
-  // Actual investments.
+  // Actual investments. Rows funded through a vehicle (SPV, co-invest) draw on
+  // that vehicle's commitments, not on this fund's size, so they stay out.
+  // ponytail: participation rows are SPV/co-invest today; if main-fund deals ever
+  // get participations, filter by vehicle type through the vehicles API instead.
   let deployed = 0;
   for (const investment of investments) {
+    if (investment.vehicleParticipationId != null) continue;
     const amount = Number(investment.amount);
     if (!Number.isFinite(amount) || amount <= 0) continue;
     deployed += amount;
@@ -162,11 +168,12 @@ export function buildFundCashFlowInputs(args: {
     });
   }
 
-  // Planned operating expenses from fund setup, monthly.
+  // Planned operating expenses from fund setup, monthly. Wizard months are
+  // one-based; offsets here are zero-based.
   let lifetimeExpenses = 0;
   for (const expense of expenses) {
-    const first = Math.max(0, expense.startMonth);
-    const last = Math.min(fundLifeYears * 12 - 1, expense.endMonth ?? Infinity);
+    const first = Math.max(0, expense.startMonth - 1);
+    const last = Math.min(fundLifeYears * 12 - 1, (expense.endMonth ?? Infinity) - 1);
     lifetimeExpenses += expense.monthlyAmount * Math.max(0, last - first + 1);
     for (let idx = startIdx + first; idx <= startIdx + last && idx <= lastPlannedIdx; idx += 1) {
       push({
@@ -272,8 +279,8 @@ export function buildFundCashFlowInputs(args: {
   };
 
   const recurringExpenses: RecurringExpense[] = expenses.map((expense) => {
-    const first = startIdx + Math.max(0, expense.startMonth);
-    const last = expense.endMonth == null ? null : startIdx + expense.endMonth;
+    const first = startIdx + Math.max(0, expense.startMonth - 1);
+    const last = expense.endMonth == null ? null : startIdx + expense.endMonth - 1;
     return {
       id: uuid(),
       fundId,

@@ -85,7 +85,12 @@ export class LiquidityEngine {
 
     // Project future cash flows
     const projectedInflows = this.projectInflows(transactions, recurringExpenses, months);
-    const projectedOutflows = this.projectOutflows(transactions, recurringExpenses, months);
+    const projectedOutflows = this.projectOutflows(
+      transactions,
+      recurringExpenses,
+      months,
+      startDate
+    );
 
     // Calculate base case scenario
     const baseCase = this.calculateBaseScenario(
@@ -397,13 +402,14 @@ export class LiquidityEngine {
   private projectOutflows(
     transactions: CashTransaction[],
     recurringExpenses: RecurringExpense[],
-    months: number
+    months: number,
+    from: Date
   ): ProjectedOutflows {
     // Project investments based on pipeline
     const investments = this.projectInvestments(transactions, months);
 
     // Project expenses from recurring schedule
-    const expenses = this.projectExpenses(recurringExpenses, months);
+    const expenses = this.projectExpenses(recurringExpenses, months, from);
 
     // Project management fees
     const managementFees = this.projectManagementFees(months);
@@ -595,7 +601,19 @@ export class LiquidityEngine {
     return monthlyAverage * months;
   }
 
-  private projectExpenses(recurringExpenses: RecurringExpense[], months: number): number {
+  /**
+   * Sum recurring expenses over the `months` calendar months after `from`,
+   * counting each expense only for the months inside its start/end window.
+   */
+  private projectExpenses(
+    recurringExpenses: RecurringExpense[],
+    months: number,
+    from: Date
+  ): number {
+    const monthIndex = (date: Date) => date.getUTCFullYear() * 12 + date.getUTCMonth();
+    const windowStart = monthIndex(from) + 1;
+    const windowEnd = monthIndex(from) + months;
+
     return recurringExpenses.reduce((total, expense) => {
       if (!expense.isActive) return total;
 
@@ -605,8 +623,12 @@ export class LiquidityEngine {
           : expense.frequency === 'quarterly'
             ? expense.amount / 3
             : expense.amount / 12;
+      const first = Math.max(windowStart, monthIndex(new Date(expense.startDate)));
+      const last = expense.endDate
+        ? Math.min(windowEnd, monthIndex(new Date(expense.endDate)))
+        : windowEnd;
 
-      return total + monthlyAmount * months;
+      return total + monthlyAmount * Math.max(0, last - first + 1);
     }, 0);
   }
 
