@@ -6,7 +6,8 @@
  *
  * Mirrors migrations/0020_operating_tasks_drift.sql,
  * 0047_internal_economics_linkage.sql, and
- * 0054_operating_decisions_spine.sql. Use the exported $inferSelect /
+ * 0054_operating_decisions_spine.sql, 0059_task_update_commands.sql.
+ * Use the exported $inferSelect /
  * $inferInsert types in services/contracts; never hand-declare a column type
  * in a consumer.
  *
@@ -21,6 +22,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -34,6 +36,7 @@ import { funds } from './fund';
 import { internalAnalysisReferences } from './internal-analysis';
 import { internalLpEconomicsRuns } from './internal-economics';
 import { users } from './user';
+import type { TaskResponse } from '../contracts/operating-objects/task.contract';
 
 // ============================================================================
 // TASKS (fund-scoped work items)
@@ -73,6 +76,50 @@ export const tasks = pgTable(
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
+
+export const taskUpdateCommands = pgTable(
+  'task_update_commands',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taskId: integer('task_id').notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    responseBody: jsonb('response_body').notNull().$type<TaskResponse>(),
+    createdBy: integer('created_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    taskFundFk: foreignKey({
+      columns: [table.taskId, table.fundId],
+      foreignColumns: [tasks.id, tasks.fundId],
+      name: 'task_update_commands_task_fund_fk',
+    }).onDelete('cascade'),
+    scopeUnique: unique('task_update_commands_scope_unique').on(
+      table.fundId,
+      table.taskId,
+      table.idempotencyKey
+    ),
+    requestHashCheck: check(
+      'task_update_commands_request_hash_check',
+      sql`${table.requestHash} ~ '^[0-9a-f]{64}$'`
+    ),
+    keyNonemptyCheck: check(
+      'task_update_commands_key_nonempty_check',
+      sql`length(${table.idempotencyKey}) > 0`
+    ),
+    responseIdentityCheck: check(
+      'task_update_commands_response_identity_check',
+      sql`
+      jsonb_typeof(${table.responseBody}) = 'object'
+      AND (${table.responseBody}->>'id') IS NOT DISTINCT FROM ${table.taskId}::text
+      AND (${table.responseBody}->>'fundId') IS NOT DISTINCT FROM ${table.fundId}::text
+    `
+    ),
+  })
+);
 
 export type TaskEvidenceTargetKind = 'analysis_reference' | 'internal_economics_run';
 export type DecisionEvidenceTargetKind = TaskEvidenceTargetKind;

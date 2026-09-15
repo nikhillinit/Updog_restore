@@ -189,6 +189,9 @@ describe('runManualCurrentForecastRecompute', () => {
       replayed: false,
     });
 
+    expect(forecastService.getOrCreateCurrentForecastV2WithReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ database: harness.transactionDb })
+    );
     expect(forecastService.runCurrentForecastV2).toHaveBeenCalledWith(
       expect.objectContaining({ database: harness.transactionDb })
     );
@@ -196,7 +199,9 @@ describe('runManualCurrentForecastRecompute', () => {
       expect.anything(),
       harness.transactionDb
     );
-    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(harness.database);
+    expect(modeService.currentForecastModeReaderForDatabase).toHaveBeenCalledWith(
+      harness.transactionDb
+    );
     expect(modeService.resolveCurrentForecastModeResolution).toHaveBeenCalledWith(
       FUND_ID,
       expect.any(Function)

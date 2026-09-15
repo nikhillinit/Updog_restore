@@ -1224,6 +1224,77 @@ function validateFunctionDefinitions(manifest) {
 
 function validateExpectedTables(manifest) {
   for (const table of manifest?.expectedTables ?? []) {
+    if (
+      table.enforceInsertContract !== undefined &&
+      typeof table.enforceInsertContract !== 'boolean'
+    ) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} table ${table.name} enforceInsertContract must be boolean`,
+        {
+          kind: 'invalid-exact-catalog',
+          table: table.name,
+        }
+      );
+    }
+    for (const column of table.columns ?? []) {
+      if (
+        column.expectedDefaultExpression !== undefined &&
+        (typeof column.expectedDefaultExpression !== 'string' ||
+          column.expectedDefaultExpression.trim().length === 0)
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} column ${table.name}.${column.name} expectedDefaultExpression must be a nonempty catalog expression`,
+          {
+            kind: 'invalid-column-default',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: column.name,
+          }
+        );
+      }
+      if (column.expectedSequence !== undefined) {
+        const sequence = column.expectedSequence;
+        if (
+          !sequence ||
+          !['smallint', 'integer', 'bigint'].includes(sequence.dataType) ||
+          !['YES', 'NO'].includes(sequence.cycleOption) ||
+          !['startValue', 'minimumValue', 'maximumValue', 'increment'].every(
+            (key) => typeof sequence[key] === 'string' && /^-?\d+$/.test(sequence[key])
+          ) ||
+          BigInt(sequence.increment) === 0n ||
+          BigInt(sequence.minimumValue) >= BigInt(sequence.maximumValue) ||
+          BigInt(sequence.minimumValue) > BigInt(sequence.startValue) ||
+          BigInt(sequence.startValue) > BigInt(sequence.maximumValue) ||
+          column.expectedDefaultExpression !== `nextval('${sequence.name}'::regclass)`
+        ) {
+          throw new ReconcileError(
+            `Manifest ${manifestLabel(manifest)} column ${table.name}.${column.name} expectedSequence must describe a valid sequence`,
+            {
+              kind: 'invalid-column-sequence',
+              table: table.name,
+              name: column.name,
+            }
+          );
+        }
+        assertSafeIdentifier(String(sequence.name ?? ''));
+      }
+      if (
+        column.expectedCharacterMaximumLength !== undefined &&
+        (!Number.isSafeInteger(column.expectedCharacterMaximumLength) ||
+          column.expectedCharacterMaximumLength <= 0)
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} column ${table.name}.${column.name} expectedCharacterMaximumLength must be a positive safe integer`,
+          {
+            kind: 'invalid-column-length',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: column.name,
+          }
+        );
+      }
+    }
+
     const indexes = new Set(table.indexes ?? []);
     const seenIndexDefinitions = new Set();
 
@@ -1787,6 +1858,7 @@ export async function auditManifest(client, manifest) {
   if (tableNames.length > 0) {
     const presentTables = await loadPresentTables(client, tableNames);
     const columns = await loadColumns(client, tableNames);
+    const sequences = await loadSequences(client, expectedTables);
     const constraints = await loadConstraints(client, tableNames, expectedTables);
     const indexes = await loadIndexes(client, expectedTables);
     const triggers = await loadTriggers(client, expectedTables);
@@ -1801,6 +1873,7 @@ export async function auditManifest(client, manifest) {
           expectedTable,
           tablePresent: presentTables.has(expectedTable.name),
           columns: columns.get(expectedTable.name) ?? new Map(),
+          sequences,
           constraints: tableConstraints,
           indexes,
           triggers,
@@ -1911,10 +1984,13 @@ async function loadTriggers(client, expectedTables) {
   const triggerNames = expectedTables.flatMap((table) =>
     (table.triggerDefinitions ?? []).map((triggerDefinition) => triggerDefinition.name)
   );
-  if (triggerNames.length === 0) return [];
+  const insertTables = expectedTables
+    .filter((table) => table.enforceInsertContract)
+    .map((table) => table.name);
+  if (triggerNames.length === 0 && insertTables.length === 0) return [];
   const lookupNames = triggerNames.map(pgIdentifier);
   const tableNames = expectedTables
-    .filter((table) => (table.triggerDefinitions ?? []).length > 0)
+    .filter((table) => table.enforceInsertContract || (table.triggerDefinitions ?? []).length > 0)
     .map((table) => table.name);
 
   const result = await client.query(
@@ -1930,9 +2006,9 @@ async function loadTriggers(client, expectedTables) {
       WHERE n.nspname = 'public'
         AND NOT t.tgisinternal
         AND c.relname = ANY($1::text[])
-        AND t.tgname = ANY($2::text[])
+        AND (t.tgname = ANY($2::text[])${insertTables.length ? ' OR c.relname = ANY($3::text[])' : ''})
     `,
-    [tableNames, lookupNames]
+    [tableNames, lookupNames, ...(insertTables.length ? [insertTables] : [])]
   );
   return result.rows;
 }
@@ -2329,6 +2405,7 @@ async function auditTable({
   expectedTable,
   tablePresent,
   columns,
+  sequences,
   constraints,
   indexes,
   triggers = [],
@@ -2363,6 +2440,45 @@ async function auditTable({
     };
   }
 
+  if (expectedTable.enforceInsertContract) {
+    const expectedNames = {
+      column: (expectedTable.columns ?? []).map((column) => column.name),
+      constraint: expectedTable.constraints ?? [],
+      index: expectedTable.indexes ?? [],
+      trigger: (expectedTable.triggerDefinitions ?? []).map((trigger) => trigger.name),
+    };
+    const actualNames = {
+      column: [...columns]
+        // Only ordinary nullable extras have no additional INSERT behavior.
+        // Defaults/generation require review; do not evaluate unknown SQL here.
+        .filter(
+          ([, column]) =>
+            !column.nullable ||
+            column.defaultExpression !== null ||
+            column.domainName !== null ||
+            column.isGenerated !== 'NEVER' ||
+            column.isIdentity !== 'NO'
+        )
+        .map(([name]) => name),
+      constraint: constraints.map((constraint) => constraint.conname),
+      index: indexes
+        .filter(
+          (index) => index.tablename === expectedTable.name && index.insert_restricting !== false
+        )
+        .map((index) => index.indexname),
+      trigger: triggers
+        .filter((trigger) => trigger.table_name === expectedTable.name)
+        .map((trigger) => trigger.tgname),
+    };
+    for (const kind of Object.keys(expectedNames)) {
+      const names = new Set(expectedNames[kind].map(pgIdentifier));
+      for (const name of actualNames[kind]) {
+        if (!names.has(name))
+          deltas.push({ kind: `unexpected-${kind}`, name: `${expectedTable.name}.${name}` });
+      }
+    }
+  }
+
   for (const expectedColumn of expectedTable.columns ?? []) {
     const actualColumn = columns.get(expectedColumn.name);
     if (!actualColumn) {
@@ -2375,6 +2491,45 @@ async function auditTable({
         additiveSafe: expectedColumn.nullable !== false || allowNonNullAdd,
       });
       continue;
+    }
+
+    if (expectedTable.enforceInsertContract && actualColumn.domainName !== null) {
+      deltas.push({
+        kind: 'column-domain-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        actual: actualColumn.domainName,
+      });
+    }
+    if (expectedTable.enforceInsertContract && actualColumn.collationName !== null) {
+      deltas.push({
+        kind: 'column-collation-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        actual: actualColumn.collationName,
+      });
+    }
+    if (
+      expectedTable.enforceInsertContract &&
+      (actualColumn.isGenerated !== 'NEVER' || actualColumn.isIdentity !== 'NO')
+    ) {
+      deltas.push({
+        kind: 'column-generation-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        actual: { generated: actualColumn.isGenerated, identity: actualColumn.isIdentity },
+      });
+    }
+    if (expectedColumn.expectedSequence) {
+      const expected = expectedColumn.expectedSequence;
+      const actual = sequences.get(expected.name) ?? null;
+      if (!actual || Object.keys(expected).some((key) => actual[key] !== expected[key])) {
+        deltas.push({
+          kind: 'column-sequence-mismatch',
+          name: `${expectedTable.name}.${expectedColumn.name}`,
+          expected,
+          actual,
+          additiveSafe: false,
+          humanReviewRequired: true,
+        });
+      }
     }
 
     if (
@@ -2401,6 +2556,34 @@ async function auditTable({
         expected: expectedColumn.nullable,
         actual: actualColumn.nullable,
         additiveSafe: widensToNullable,
+      });
+    }
+
+    if (
+      expectedColumn.expectedCharacterMaximumLength !== undefined &&
+      actualColumn.characterMaximumLength !== expectedColumn.expectedCharacterMaximumLength
+    ) {
+      deltas.push({
+        kind: 'column-length-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        expected: expectedColumn.expectedCharacterMaximumLength,
+        actual: actualColumn.characterMaximumLength,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+
+    if (
+      expectedColumn.expectedDefaultExpression !== undefined &&
+      actualColumn.defaultExpression !== expectedColumn.expectedDefaultExpression
+    ) {
+      deltas.push({
+        kind: 'column-default-mismatch',
+        name: `${expectedTable.name}.${expectedColumn.name}`,
+        expected: expectedColumn.expectedDefaultExpression,
+        actual: actualColumn.defaultExpression,
+        additiveSafe: false,
+        humanReviewRequired: true,
       });
     }
   }
@@ -2474,6 +2657,12 @@ async function auditTable({
     }
   }
 
+  // Insert-contract drift is review-only: even an empty table cannot authorize
+  // replaying CREATE IF NOT EXISTS as a repair for incompatible existing DDL.
+  if (expectedTable.enforceInsertContract) {
+    for (const delta of deltas)
+      Object.assign(delta, { additiveSafe: false, humanReviewRequired: true });
+  }
   const populated =
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
@@ -2505,7 +2694,8 @@ async function loadPresentTables(client, tableNames) {
 async function loadColumns(client, tableNames) {
   const result = await client.query(
     `
-      SELECT table_name, column_name, data_type, udt_name, is_nullable
+      SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default,
+             character_maximum_length, domain_name, collation_name, is_generated, is_identity
       FROM information_schema.columns
       WHERE table_schema = 'public'
         AND table_name = ANY($1::text[])
@@ -2519,6 +2709,12 @@ async function loadColumns(client, tableNames) {
       dataType: row.data_type,
       udtName: row.udt_name,
       nullable: row.is_nullable === 'YES',
+      defaultExpression: row.column_default ?? null,
+      characterMaximumLength: row.character_maximum_length ?? null,
+      domainName: row.domain_name ?? null,
+      collationName: row.collation_name ?? null,
+      isGenerated: row.is_generated ?? null,
+      isIdentity: row.is_identity ?? null,
     });
     columns.set(row.table_name, tableColumns);
   }
@@ -2527,7 +2723,10 @@ async function loadColumns(client, tableNames) {
 
 async function loadConstraints(client, tableNames, expectedTables) {
   const constraintNames = expectedTables.flatMap((table) => table.constraints ?? []);
-  if (constraintNames.length === 0) return [];
+  const insertTables = expectedTables
+    .filter((table) => table.enforceInsertContract)
+    .map((table) => table.name);
+  if (constraintNames.length === 0 && insertTables.length === 0) return [];
   const lookupNames = constraintNames.map(pgIdentifier);
 
   const result = await client.query(
@@ -2541,9 +2740,9 @@ async function loadConstraints(client, tableNames, expectedTables) {
       JOIN pg_namespace n ON n.oid = c.connamespace
       WHERE n.nspname = 'public'
         AND rel.relname = ANY($1::text[])
-        AND c.conname = ANY($2::text[])
+        AND (c.conname = ANY($2::text[])${insertTables.length ? ' OR rel.relname = ANY($3::text[])' : ''})
     `,
-    [tableNames, lookupNames]
+    [tableNames, lookupNames, ...(insertTables.length ? [insertTables] : [])]
   );
   return result.rows;
 }
@@ -2672,19 +2871,64 @@ function extractSqlStringLiterals(definition) {
 
 async function loadIndexes(client, expectedTables) {
   const indexNames = expectedTables.flatMap((table) => table.indexes ?? []);
-  if (indexNames.length === 0) return [];
+  const insertTables = expectedTables
+    .filter((table) => table.enforceInsertContract)
+    .map((table) => table.name);
+  if (indexNames.length === 0 && insertTables.length === 0) return [];
   const lookupNames = indexNames.map(pgIdentifier);
 
   const result = await client.query(
     `
-      SELECT tablename, indexname, indexdef
-      FROM pg_indexes
+      SELECT indexes.tablename, indexes.indexname, indexes.indexdef,
+             (index_info.indisunique OR index_info.indexprs IS NOT NULL OR index_info.indpred IS NOT NULL
+              OR EXISTS (
+                SELECT 1 FROM pg_attribute indexed_column
+                WHERE indexed_column.attrelid = index_info.indrelid
+                  AND indexed_column.attnum = ANY(index_info.indkey::smallint[])
+                  AND indexed_column.attlen < 0
+              )) AS insert_restricting
+      FROM pg_indexes AS indexes
+      JOIN pg_namespace namespace ON namespace.nspname = indexes.schemaname
+      JOIN pg_class index_relation ON index_relation.relnamespace = namespace.oid
+        AND index_relation.relname = indexes.indexname
+      JOIN pg_index index_info ON index_info.indexrelid = index_relation.oid
       WHERE schemaname = 'public'
-        AND indexname = ANY($1::text[])
+        AND (indexname = ANY($1::text[])${insertTables.length ? ' OR tablename = ANY($2::text[])' : ''})
     `,
-    [lookupNames]
+    [lookupNames, ...(insertTables.length ? [insertTables] : [])]
   );
   return result.rows;
+}
+
+async function loadSequences(client, expectedTables) {
+  const names = expectedTables.flatMap((table) =>
+    (table.columns ?? []).flatMap((column) =>
+      column.expectedSequence ? [column.expectedSequence.name] : []
+    )
+  );
+  if (names.length === 0) return new Map();
+  const { rows } = await client.query(
+    `
+    SELECT sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
+    FROM information_schema.sequences
+    WHERE sequence_schema = 'public' AND sequence_name = ANY($1::text[])
+  `,
+    [names]
+  );
+  return new Map(
+    rows.map((row) => [
+      row.sequence_name,
+      {
+        name: row.sequence_name,
+        dataType: row.data_type,
+        startValue: row.start_value,
+        minimumValue: row.minimum_value,
+        maximumValue: row.maximum_value,
+        increment: row.increment,
+        cycleOption: row.cycle_option,
+      },
+    ])
+  );
 }
 
 async function hasRows(client, tableName) {

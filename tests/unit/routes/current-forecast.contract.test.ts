@@ -42,6 +42,13 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
       roles: [authState.role],
       fundIds: [1],
     } as never;
+    req.context = {
+      userId: '7',
+      orgId: 'test-org',
+      email: 'test@example.com',
+      role: authState.role,
+      fundId: req.params['fundId'],
+    };
     next();
   },
   requireFundAccess: (_req: Request, res: Response, next: NextFunction) => {
@@ -327,6 +334,7 @@ describe('current-forecast route contract', () => {
       fundId: 1,
       idempotencyKey: 'recompute-1',
       actorId: 7,
+      context: expect.objectContaining({ userId: '7', fundId: '1' }),
     });
   });
 
@@ -365,6 +373,7 @@ describe('current-forecast route contract', () => {
     expect(service.findManualCurrentForecastRecomputeCommandId).toHaveBeenCalledWith({
       fundId: 1,
       idempotencyKey: 'recompute-malformed',
+      context: expect.objectContaining({ userId: '7', fundId: '1' }),
     });
   });
 

@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../../server/db', () => ({ db: {} }));
 
-import { recordOutcome } from '../../../../server/services/operating-objects/decision-service';
+import {
+  createDecision,
+  recordOutcome,
+  supersedeDecision,
+  transitionDecision,
+} from '../../../../server/services/operating-objects/decision-service';
 
 const captured = {
   loadQueue: [] as unknown[][],
@@ -55,6 +60,78 @@ const input = (overrides: Record<string, unknown> = {}) => ({
   outcome: 'validated',
   actorId: 11,
   ...overrides,
+});
+
+describe('decision-service follow-up owner writes', () => {
+  const ownerViolation = {
+    code: '23503',
+    constraint: 'operating_decisions_follow_up_owner_id_fk',
+  };
+  const write = (operation: string, error: unknown) => {
+    captured.loadQueue = [[record({ status: 'deferred' })]];
+    const returning = vi.fn().mockRejectedValue(error);
+    const failingDatabase = {
+      select,
+      insert: () => ({ values: () => ({ onConflictDoNothing: () => ({ returning }) }) }),
+      update: () => ({ set: () => ({ where: () => ({ returning }) }) }),
+      transaction: async (callback: (transaction: unknown) => Promise<unknown>) =>
+        callback(failingDatabase),
+    };
+    const options = { database: failingDatabase as never };
+    const fields = {
+      fundId: 1,
+      title: 'Follow up',
+      recommendation: 'Review allocation',
+      followUpOwnerId: 999999,
+      actorId: 3,
+      idempotencyKey: 'owner-check',
+    };
+    if (operation === 'create') return createDecision(fields, options);
+    if (operation === 'supersede') {
+      return supersedeDecision({ ...fields, supersedesDecisionId: 7 }, options);
+    }
+    return transitionDecision(
+      {
+        fundId: 1,
+        decisionId: 7,
+        expectedXmin: '5',
+        transition: { status: 'deferred', followUpOwnerId: 999999, followUpDate: '2026-10-01' },
+      },
+      options
+    );
+  };
+
+  it.each(['create', 'transition', 'supersede'])(
+    '%s maps raw and deeply wrapped owner FK violations',
+    async (operation) => {
+      for (const error of [ownerViolation, { cause: { cause: { cause: ownerViolation } } }]) {
+        await expect(write(operation, error)).rejects.toMatchObject({
+          status: 400,
+          code: 'INVALID_FOLLOW_UP_OWNER',
+          message: 'Follow-up owner does not exist.',
+        });
+      }
+    }
+  );
+
+  it.each(['create', 'transition', 'supersede'])(
+    '%s preserves unrelated, malformed and cyclic errors',
+    async (operation) => {
+      const cycle: { cause?: unknown } = {};
+      cycle.cause = cycle;
+      for (const error of [
+        { code: '23503', constraint: 'operating_decisions_created_by_fk' },
+        { code: '23503', constraint: 'operating_decisions_supersedes_fund_fk' },
+        { code: '23505', constraint: ownerViolation.constraint },
+        { code: '23503', message: ownerViolation.constraint },
+        { cause: { code: '42P01' } },
+        cycle,
+        null,
+      ]) {
+        await expect(write(operation, error)).rejects.toBe(error);
+      }
+    }
+  );
 });
 
 describe('decision-service recordOutcome', () => {

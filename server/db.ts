@@ -9,6 +9,7 @@ import type { Pool as NodePostgresPool, PoolClient as NodePostgresPoolClient } f
 import { createRequire } from 'node:module';
 import {
   applyRLSContext,
+  DatabaseContextTimeoutError,
   getRequestDatabaseScope,
   requestDatabaseStorage,
   type RequestDatabaseScope,
@@ -84,7 +85,7 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   // non-localhost WebSocket connection fail with "fetch failed".
   neonConfig.webSocketConstructor = ws.default;
 
-  const neonPool = new Pool({ connectionString });
+  const neonPool = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
   // Idle WebSocket failures emit 'error' on the pool; unhandled, they crash
   // the process. Surface them without dying - the pool replaces connections.
   neonPool.on('error', (error: Error) => {
@@ -127,7 +128,7 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     // See the Vercel branch above: the constructor lives on ws.default.
     neonConfig.webSocketConstructor = ws.default;
 
-    const neonPool = new Pool({ connectionString });
+    const neonPool = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
     neonPool.on('error', (error: Error) => {
       logger.error({ err: error }, 'Neon pool error');
     });
@@ -154,14 +155,51 @@ export { createClientDatabase };
 /** Own a durable transaction on the selected primary driver, including in background jobs. */
 export async function runWithDatabaseContext<T>(
   context: UserContext,
-  callback: (database: NodePgDatabase<CombinedSchema>, client: NodePostgresPoolClient) => Promise<T>
+  callback: (
+    database: NodePgDatabase<CombinedSchema>,
+    client: NodePostgresPoolClient
+  ) => Promise<T>,
+  options: { timeoutMs?: number } = {}
 ): Promise<T> {
+  getRequestDatabaseScope(); // A completed request cannot acquire a fresh connection.
+  if (!context.userId || typeof context.orgId !== 'string')
+    throw new Error('Verified database context required');
+  if (
+    options.timeoutMs !== undefined &&
+    (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
+  )
+    throw new Error('A positive database execution timeout is required');
+  context = { ...context };
   if (!pool) throw new Error('A PostgreSQL connection is required');
   const client = await (pool as NodePostgresPool).connect();
   let scope: RequestDatabaseScope | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timeoutError: DatabaseContextTimeoutError | undefined;
+  let released = false;
   try {
-    return await createClientDatabase(client).transaction(async (tx) => {
+    getRequestDatabaseScope();
+    const assertActive = () => {
+      if (timeoutError) throw timeoutError;
+      getRequestDatabaseScope();
+    };
+    // Acquisition has its own pool bound. This deadline covers BEGIN, RLS
+    // setup, the callback, and COMMIT/rollback on the acquired connection.
+    const deadline =
+      options.timeoutMs === undefined
+        ? undefined
+        : new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              timeoutError = new DatabaseContextTimeoutError();
+              if (scope) scope.completed = true;
+              released = true;
+              client.release(true);
+              reject(timeoutError);
+            }, options.timeoutMs);
+          });
+    const operation = createClientDatabase(client).transaction(async (tx) => {
+      assertActive();
       await applyRLSContext(client, context);
+      assertActive();
       scope = {
         context: { ...context },
         db: tx,
@@ -170,11 +208,23 @@ export async function runWithDatabaseContext<T>(
         runOwnedTransaction: (operation) =>
           runWithDatabaseContext(context, (_db, owned) => operation(owned)),
       };
-      return requestDatabaseStorage.run(scope, () => callback(tx, client));
+      if (options.timeoutMs !== undefined) {
+        await client.query("SET LOCAL idle_in_transaction_session_timeout = '0'");
+        assertActive();
+      }
+      const result = await requestDatabaseStorage.run(scope, () => callback(tx, client));
+      assertActive();
+      return result;
     });
+    // Promise.race keeps the driver's late rejection observed after a timeout.
+    return await (deadline ? Promise.race([operation, deadline]) : operation);
+  } catch (error) {
+    // A destroyed client's rollback also rejects; retain the actual deadline.
+    throw timeoutError ?? error;
   } finally {
+    if (timer !== undefined) clearTimeout(timer);
     if (scope) scope.completed = true;
-    client.release();
+    if (!released) client.release();
   }
 }
 

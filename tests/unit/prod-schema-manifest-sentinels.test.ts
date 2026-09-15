@@ -180,6 +180,7 @@ describe('prod-schema manifest sentinels', () => {
       '33-actuals-draft-revisions.json',
       '34-actuals-restatement-commands.json',
       '35-capital-plan-override.json',
+      '36-task-update-commands.json',
     ]);
   });
 
@@ -328,6 +329,68 @@ describe('prod-schema manifest sentinels', () => {
         [...(table.indexes ?? [])].sort()
       );
     }
+  });
+
+  it('pins task update command receipt identity and relationship sentinels to migration 0059', async () => {
+    const manifest = (await loadManifests()).find(
+      (candidate) => candidate.name === 'task-update-commands'
+    );
+    expect(manifest).toMatchObject({
+      order: 36,
+      manifestPath: 'scripts/prod-schema-manifests/36-task-update-commands.json',
+      missingTablePolicy: 'create_or_repair',
+      sqlFiles: ['migrations/0059_task_update_commands.sql'],
+      allowedCreateTables: ['task_update_commands'],
+    });
+    expect(manifest?.expectedTables).toHaveLength(1);
+    const table = manifest!.expectedTables[0];
+    expect(table.name).toBe('task_update_commands');
+    expect(table.enforceInsertContract).toBe(true);
+    expect(table.indexes).toEqual([
+      'task_update_commands_pkey',
+      'task_update_commands_scope_unique',
+    ]);
+    expect(table.columns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'id',
+          expectedDefaultExpression: "nextval('task_update_commands_id_seq'::regclass)",
+          expectedSequence: {
+            name: 'task_update_commands_id_seq',
+            dataType: 'integer',
+            startValue: '1',
+            minimumValue: '1',
+            maximumValue: '2147483647',
+            increment: '1',
+            cycleOption: 'NO',
+          },
+        }),
+        expect.objectContaining({ name: 'created_at', expectedDefaultExpression: 'now()' }),
+        expect.objectContaining({ name: 'idempotency_key', expectedCharacterMaximumLength: 128 }),
+        expect.objectContaining({ name: 'request_hash', expectedCharacterMaximumLength: 64 }),
+      ])
+    );
+    expect(table.constraintDefinitions.map(({ name }: { name: string }) => name).sort()).toEqual(
+      [...table.constraints].sort()
+    );
+    for (const name of [
+      'task_update_commands_pkey',
+      'task_update_commands_fund_id_funds_id_fk',
+      'task_update_commands_task_fund_fk',
+      'task_update_commands_created_by_users_id_fk',
+      'task_update_commands_scope_unique',
+      'task_update_commands_request_hash_check',
+      'task_update_commands_key_nonempty_check',
+      'task_update_commands_response_identity_check',
+    ]) {
+      expect(table.constraints).toContain(name);
+    }
+    expect(table.triggerDefinitions.map(({ name }: { name: string }) => name)).toEqual([
+      'task_update_commands_forbid_update_trigger',
+    ]);
+    expect(manifest!.functionDefinitions.map(({ name }: { name: string }) => name)).toEqual([
+      'internal_economics_forbid_update',
+    ]);
   });
 
   it('pins manifest 32 to definition-aware recompute command catalog sentinels', () => {
@@ -605,11 +668,15 @@ describe('prod-schema manifest sentinels', () => {
     );
   });
 
-  it('no duplicate sentinel names within a manifest', () => {
+  it('no duplicate sentinel names within each catalog in a manifest', () => {
     for (const { file, manifest } of manifests) {
       const seen: string[] = [];
       for (const table of manifest.expectedTables ?? []) {
-        seen.push(...(table.constraints ?? []), ...(table.indexes ?? []));
+        // PK/UNIQUE constraints share names with their backing indexes.
+        seen.push(
+          ...(table.constraints ?? []).map((name) => `constraint:${name}`),
+          ...(table.indexes ?? []).map((name) => `index:${name}`)
+        );
       }
       const duplicates = seen.filter((name, index) => seen.indexOf(name) !== index);
       expect(duplicates, `${file} duplicate sentinels`).toEqual([]);

@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/queryClient';
+import type { CapitalPlanReviewResult } from '@/lib/capital-plan-review';
 import {
   CAPITAL_PLANNING_VERSION,
   AGGREGATE_PREFERENCE_FORECAST_VERSION,
@@ -56,6 +58,12 @@ export type CapitalPlanDraft = {
 // Drafts survive modal and route return in this tab. Only explicit New draft replaces them.
 const drafts = new Map<string, CapitalPlanDraft>();
 type SaveIntent = { request: CreateFundScenarioCapitalSet; key: string };
+export type CapitalSaveOperation = {
+  command: SaveIntent;
+  generation: number;
+  recovering: boolean;
+};
+type ReviewedCapitalPlan = Extract<CapitalPlanReviewResult, { ok: true }>;
 const saveIntents = new Map<string, SaveIntent>();
 
 export function getCapitalSaveIntent(fundId: string): SaveIntent | null {
@@ -189,6 +197,173 @@ export function getCapitalDraft(fundId: string): CapitalPlanDraft {
 }
 export function retainCapitalDraft(fundId: string, draft: CapitalPlanDraft): void {
   drafts.set(fundId, draft);
+}
+
+export function replaceCapitalDraft(fundId: string, draft: CapitalPlanDraft): boolean {
+  if (getCapitalSaveIntent(fundId)) return false;
+  retainCapitalDraft(fundId, draft);
+  return true;
+}
+
+export function useCapitalPlanDraft(fundId: string) {
+  const [draft, setDraft] = useState(() => getCapitalDraft(fundId));
+  const [reviewed, setReviewed] = useState<ReviewedCapitalPlan | null>(null);
+  const [busy, setBusy] = useState<'review' | 'save' | null>(null);
+  const generation = useRef(0);
+  const intent = useRef(getCapitalSaveIntent(fundId));
+  const submitting = useRef<CapitalSaveOperation | null>(null);
+  const refreshing = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      generation.current += 1;
+      submitting.current = null;
+    },
+    []
+  );
+
+  const invalidateReview = useCallback(() => {
+    generation.current += 1;
+    setReviewed(null);
+    setBusy((current) => (current === 'review' ? null : current));
+    return generation.current;
+  }, []);
+  function isCurrent(captured: number) {
+    return captured === generation.current;
+  }
+  function replace(next: CapitalPlanDraft) {
+    if (intent.current || !replaceCapitalDraft(fundId, next)) {
+      intent.current ??= getCapitalSaveIntent(fundId);
+      return false;
+    }
+    invalidateReview();
+    setDraft(next);
+    return true;
+  }
+  const attachSource = useCallback(
+    (source: FundScenarioCapitalSourceResponseV1 | undefined) => {
+      if (!source || draft.source) return;
+      const next = { ...draft, source };
+      retainCapitalDraft(fundId, next);
+      setDraft(next);
+      invalidateReview();
+    },
+    [draft, fundId, invalidateReview]
+  );
+  function sourceChanged(source: FundScenarioCapitalSourceResponseV1 | undefined) {
+    return Boolean(
+      draft.source &&
+      source &&
+      capitalSourceIdentity(draft.source) !== capitalSourceIdentity(source)
+    );
+  }
+  const invalidateChangedSource = useCallback(
+    (source: FundScenarioCapitalSourceResponseV1 | undefined) => {
+      // Query notifications can precede the render of an already-retained refresh.
+      const currentSource = getCapitalDraft(fundId).source;
+      if (
+        refreshing.current !== null ||
+        !currentSource ||
+        !source ||
+        capitalSourceIdentity(currentSource) === capitalSourceIdentity(source)
+      )
+        return null;
+      invalidateReview();
+      return intent.current ? 'pending-save' : 'review-required';
+    },
+    [fundId, invalidateReview]
+  );
+  function beginReview() {
+    if (busy === 'save' || intent.current) return null;
+    const captured = invalidateReview();
+    setBusy('review');
+    return captured;
+  }
+  function completeReview(captured: number, result: ReviewedCapitalPlan) {
+    if (!isCurrent(captured)) return;
+    setReviewed(result);
+  }
+  function finishReview(captured: number) {
+    if (isCurrent(captured)) setBusy(null);
+  }
+  function beginSave(source: FundScenarioCapitalSourceResponseV1 | undefined) {
+    if (
+      (!reviewed && !intent.current) ||
+      (sourceChanged(source) && !intent.current) ||
+      submitting.current
+    )
+      return null;
+    const recovering = intent.current !== null;
+    const command = intent.current ?? { request: reviewed!.request, key: crypto.randomUUID() };
+    const operation = { command, generation: generation.current, recovering };
+    intent.current = command;
+    retainCapitalSaveIntent(fundId, command);
+    submitting.current = operation;
+    setBusy('save');
+    return operation;
+  }
+  function ownsSave(operation: CapitalSaveOperation) {
+    return (
+      submitting.current === operation &&
+      intent.current === operation.command &&
+      getCapitalSaveIntent(fundId) === operation.command &&
+      isCurrent(operation.generation)
+    );
+  }
+  function resolveSave(operation: CapitalSaveOperation) {
+    if (!ownsSave(operation)) return;
+    intent.current = null;
+    retainCapitalSaveIntent(fundId, null);
+    setReviewed(null);
+  }
+  function finishSave(operation: CapitalSaveOperation) {
+    if (submitting.current !== operation) return;
+    submitting.current = null;
+    setBusy(null);
+  }
+  function beginSourceRefresh() {
+    const captured = invalidateReview();
+    refreshing.current = captured;
+    return captured;
+  }
+  function completeSourceRefresh(
+    captured: number,
+    source: FundScenarioCapitalSourceResponseV1 | undefined
+  ) {
+    if (refreshing.current === captured) refreshing.current = null;
+    if (!isCurrent(captured)) return { status: 'obsolete' } as const;
+    if (!source) return { status: 'failed' } as const;
+    const current = getCapitalDraft(fundId);
+    const changed = Boolean(
+      current.source && capitalSourceIdentity(current.source) !== capitalSourceIdentity(source)
+    );
+    const next = { ...current, source, declarations: changed ? {} : current.declarations };
+    retainCapitalDraft(fundId, next);
+    setDraft(next);
+    return { status: 'refreshed', changed, hasUnconfirmedSave: intent.current !== null } as const;
+  }
+
+  return {
+    draft,
+    reviewed,
+    busy,
+    saveIntent: intent.current,
+    replace,
+    attachSource,
+    sourceChanged,
+    invalidateChangedSource,
+    beginReview,
+    isCurrent,
+    completeReview,
+    clearReview: () => setReviewed(null),
+    finishReview,
+    beginSave,
+    ownsSave,
+    resolveSave,
+    finishSave,
+    beginSourceRefresh,
+    completeSourceRefresh,
+  };
 }
 
 function rawCopy<T>(value: T): RawCapital<T> {

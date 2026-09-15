@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Page from '@/pages/fund-model-results-operations';
@@ -19,6 +20,14 @@ const mocks = vi.hoisted(() => ({
   supersedeDecision: vi.fn(),
   createDecisionEvidence: vi.fn(),
   createTask: vi.fn(),
+  updateTask: vi.fn(),
+  resetTaskUpdate: vi.fn(),
+  refetchTasks: vi.fn(),
+  createTaskEvidence: vi.fn(),
+  updateTaskError: null as Error | null,
+  updateTaskPending: false,
+  createTaskEvidenceError: null as Error | null,
+  createTaskEvidencePending: false,
   createDecisionError: null as Error | null,
   transitionDecisionError: null as Error | null,
   supersedeDecisionError: null as Error | null,
@@ -66,6 +75,17 @@ vi.mock('@/hooks/useTasks', () => ({
   useTasks: mocks.tasks,
   useCreateTask: () => ({ mutate: mocks.createTask, isPending: false, error: null }),
   useTaskEvidenceLinks: mocks.taskEvidence,
+  useUpdateTask: () => ({
+    mutate: mocks.updateTask,
+    reset: mocks.resetTaskUpdate,
+    isPending: mocks.updateTaskPending,
+    error: mocks.updateTaskError,
+  }),
+  useCreateTaskEvidenceLink: () => ({
+    mutate: mocks.createTaskEvidence,
+    isPending: mocks.createTaskEvidencePending,
+    error: mocks.createTaskEvidenceError,
+  }),
 }));
 
 vi.mock('@/hooks/useDualForecast', () => ({
@@ -122,13 +142,15 @@ const task = {
 
 function renderPage(path = '/fund-model-results/7/operations') {
   const { Wrapper } = createWouterWrapper(path);
-  return render(
+  const content = () => (
     <TestQueryClientProvider>
       <Wrapper>
         <Page />
       </Wrapper>
     </TestQueryClientProvider>
   );
+  const view = render(content());
+  return { ...view, rerenderPage: () => view.rerender(content()) };
 }
 
 function setDecisions(rows: ReturnType<typeof decisionRow>[]) {
@@ -143,6 +165,16 @@ describe('operations page', () => {
     mocks.createDecisionError = null;
     mocks.transitionDecisionError = null;
     mocks.supersedeDecisionError = null;
+    mocks.updateTaskError = null;
+    mocks.updateTaskPending = false;
+    mocks.createTaskEvidenceError = null;
+    mocks.createTaskEvidencePending = false;
+    mocks.updateTask.mockReset();
+    mocks.createTaskEvidence.mockReset();
+    mocks.refetchTasks.mockReset();
+    mocks.resetTaskUpdate.mockImplementation(() => {
+      mocks.updateTaskError = null;
+    });
     setDecisions([]);
     mocks.tasks.mockReturnValue({ data: [], isLoading: false, error: null });
     mocks.decisionEvidence.mockReturnValue({ data: [], isLoading: false, error: null });
@@ -524,6 +556,378 @@ describe('operations page', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Decision changed since it was loaded. Review refreshed row and retry action.'
+    );
+  });
+
+  it('opens task editing by keyboard and submits nullable fields with the captured ETag', async () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    const user = userEvent.setup();
+    renderPage();
+    const row = screen.getByTestId('task-row-51');
+    within(row).getByRole('button', { name: 'Edit task' }).focus();
+    await user.keyboard('{Enter}');
+    expect(within(row).getByLabelText('Title')).toHaveFocus();
+    fireEvent.change(within(row).getByLabelText('Title'), {
+      target: { value: '  Confirm runway  ' },
+    });
+    fireEvent.change(within(row).getByLabelText('Description'), { target: { value: '' } });
+    fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '' } });
+    fireEvent.change(within(row).getByLabelText('Due date'), { target: { value: '' } });
+    fireEvent.change(within(row).getByLabelText('Status'), { target: { value: 'in_progress' } });
+    expect(
+      within(within(row).getByLabelText('Status'))
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('value'))
+    ).toEqual(['open', 'in_progress', 'done']);
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    expect(mocks.updateTask).toHaveBeenCalledWith(
+      {
+        taskId: 51,
+        etag: task.etag,
+        input: {
+          title: 'Confirm runway',
+          description: null,
+          ownerId: null,
+          dueDate: null,
+          status: 'in_progress',
+        },
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
+    );
+  });
+
+  it.each([task.description, '', null])(
+    'completes a task with description %j through a status-only update',
+    async (description) => {
+      const original = { ...task, description };
+      const completed = { ...original, status: 'done', etag: 'W/"completed"' };
+      mocks.tasks.mockReturnValue({ data: [original], isLoading: false, error: null });
+      mocks.updateTask.mockImplementation((_input, options) => {
+        mocks.tasks.mockReturnValue({ data: [completed], isLoading: false, error: null });
+        options.onSuccess();
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Complete task' }));
+      expect(mocks.updateTask).toHaveBeenCalledWith(
+        {
+          taskId: 51,
+          etag: task.etag,
+          input: { status: 'done' },
+        },
+        expect.any(Object)
+      );
+      view.rerenderPage();
+      await waitFor(() => expect(within(row).getByText('done')).toBeInTheDocument());
+      expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
+      expect(within(row).queryByRole('button', { name: 'Complete task' })).not.toBeInTheDocument();
+    }
+  );
+
+  it.each([new Error('Connection lost'), new ApiError(500, 'Failed to update task')])(
+    'mounted task editor retains values and original ETag after %s, refetch, and editor close',
+    (failure) => {
+      mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), {
+        target: { value: 'My pending edit' },
+      });
+      fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '21' } });
+      fireEvent.change(within(row).getByLabelText('Due date'), { target: { value: '2026-10-01' } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+      mocks.updateTaskError = failure;
+      mocks.tasks.mockReturnValue({
+        data: [{ ...task, title: 'A remote edit', ownerId: 30, etag: 'W/"background"' }],
+        isLoading: false,
+        error: null,
+      });
+      view.rerenderPage();
+      expect(within(row).getByText('A remote edit')).toBeInTheDocument();
+      expect(within(row).getByRole('alert')).toHaveTextContent(failure.message);
+      expect(within(row).getByLabelText('Title')).toHaveValue('My pending edit');
+      fireEvent.click(within(row).getByRole('button', { name: 'Close editor' }));
+      expect(within(row).getByRole('button', { name: 'Edit task' })).toHaveFocus();
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      expect(within(row).getByLabelText('Owner ID')).toHaveValue(21);
+      expect(within(row).getByLabelText('Due date')).toHaveValue('2026-10-01');
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual(originalCommand);
+      expect(mocks.updateTask.mock.calls[1]?.[0].etag).toBe(task.etag);
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([task.title, ''])(
+    'recovers a committed update after response loss before accepting later title %j',
+    (laterTitle) => {
+      const committed = { ...task, title: 'Committed title', etag: 'W/"committed-title"' };
+      mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+      mocks.updateTask.mockImplementationOnce((_input, options) => {
+        mocks.tasks.mockReturnValue({ data: [committed], isLoading: false, error: null });
+        mocks.updateTaskError = new TypeError('Connection lost');
+        options.onError(mocks.updateTaskError);
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: committed.title } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+      view.rerenderPage();
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: laterTitle } });
+      mocks.updateTask.mockImplementationOnce((_input, options) => {
+        mocks.updateTaskError = null;
+        options.onSuccess(committed);
+      });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual(originalCommand);
+      expect(within(row).queryByText('No changes to save.')).not.toBeInTheDocument();
+      expect(within(row).getByLabelText('Title')).toHaveValue(laterTitle);
+      expect(within(row).getByRole('status')).toHaveTextContent(
+        'Previous save confirmed. Review your remaining edits, then save again.'
+      );
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+      if (laterTitle === '') {
+        fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+        expect(mocks.updateTask).toHaveBeenCalledTimes(2);
+        fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+      }
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[2]?.[0]).toEqual({
+        taskId: task.id,
+        etag: committed.etag,
+        input: { title: task.title },
+      });
+    }
+  );
+
+  it('retains an uncertain command after a later authorization refusal', () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new TypeError('Connection lost');
+      options.onError(mocks.updateTaskError);
+    });
+    renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), {
+      target: { value: 'Unconfirmed title' },
+    });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    const originalCommand = mocks.updateTask.mock.calls[0]?.[0];
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new ApiError(403, 'Fund write role required');
+      options.onError(mocks.updateTaskError);
+    });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    expect(mocks.updateTask.mock.calls.slice(1).map(([command]) => command)).toEqual([
+      originalCommand,
+      originalCommand,
+    ]);
+    expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+    expect(within(row).queryByText('No changes to save.')).not.toBeInTheDocument();
+  });
+
+  it('allows a settled no-op after an initial authorization refusal', () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    mocks.updateTask.mockImplementationOnce((_input, options) => {
+      mocks.updateTaskError = new ApiError(403, 'Fund write role required');
+      options.onError(mocks.updateTaskError);
+    });
+    renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'Refused title' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    fireEvent.change(within(row).getByLabelText('Title'), { target: { value: task.title } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+    expect(mocks.updateTask).toHaveBeenCalledTimes(1);
+    expect(within(row).getByText('No changes to save.')).toBeInTheDocument();
+  });
+
+  it.each([task.description, '', null])(
+    'preserves concurrent changes to untouched fields after refreshing description %j',
+    async (description) => {
+      mocks.tasks.mockReturnValue({
+        data: [{ ...task, description }],
+        isLoading: false,
+        error: null,
+        refetch: mocks.refetchTasks,
+      });
+      const view = renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.change(within(row).getByLabelText('Title'), { target: { value: 'My stale edit' } });
+      fireEvent.change(within(row).getByLabelText('Owner ID'), { target: { value: '21' } });
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      mocks.updateTaskError = new ApiError(412, 'Task changed');
+      const refreshed = {
+        ...task,
+        etag: 'W/"refreshed"',
+        title: 'Current saved task',
+        ownerId: 30,
+        description: 'Concurrent description',
+        dueDate: '2026-10-15',
+        status: 'in_progress',
+      };
+      mocks.tasks.mockReturnValue({
+        data: [refreshed],
+        isLoading: false,
+        error: null,
+        refetch: mocks.refetchTasks,
+      });
+      view.rerenderPage();
+      expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
+      expect(within(row).getByRole('alert')).toHaveTextContent(
+        'Task changed since this edit started'
+      );
+      mocks.refetchTasks.mockResolvedValueOnce({
+        error: new Error('Refresh unavailable'),
+        data: undefined,
+      });
+      fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
+      await waitFor(() => expect(within(row).getByText('Refresh unavailable')).toBeInTheDocument());
+      expect(within(row).getByRole('button', { name: 'Save task' })).toBeDisabled();
+      expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
+      expect(mocks.resetTaskUpdate).not.toHaveBeenCalled();
+      mocks.refetchTasks.mockResolvedValueOnce({ error: null, data: [refreshed] });
+      fireEvent.click(within(row).getByRole('button', { name: 'Refresh task version' }));
+      await waitFor(() =>
+        expect(within(row).getByRole('button', { name: 'Save task' })).toBeEnabled()
+      );
+      expect(within(row).getByLabelText('Title')).toHaveValue('My stale edit');
+      expect(within(row).getByLabelText('Owner ID')).toHaveValue(21);
+      expect(within(row).getByLabelText('Description')).toHaveValue('Concurrent description');
+      expect(within(row).getByLabelText('Due date')).toHaveValue('2026-10-15');
+      expect(within(row).getByLabelText('Status')).toHaveValue('in_progress');
+      expect(mocks.updateTask).toHaveBeenCalledTimes(1);
+      expect(mocks.resetTaskUpdate).toHaveBeenCalledOnce();
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask.mock.calls[1]?.[0]).toEqual({
+        taskId: 51,
+        etag: refreshed.etag,
+        input: { title: 'My stale edit', ownerId: 21 },
+      });
+    }
+  );
+
+  it.each([task.description, '', null])(
+    'retains an unchanged draft with description %j without sending an update',
+    (description) => {
+      const original = { ...task, description, title: ` ${task.title} ` };
+      mocks.tasks.mockReturnValue({ data: [original], isLoading: false, error: null });
+      renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+      fireEvent.click(within(row).getByRole('button', { name: 'Save task' }));
+      expect(mocks.updateTask).not.toHaveBeenCalled();
+      expect(within(row).getByText('No changes to save.')).toBeInTheDocument();
+      expect(within(row).getByLabelText('Title')).toHaveValue(original.title);
+    }
+  );
+
+  it('disables task fields during a pending update and retains values after authorization failure', () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    const view = renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit task' }));
+    fireEvent.change(within(row).getByLabelText('Description'), {
+      target: { value: 'Retained description' },
+    });
+    mocks.updateTaskPending = true;
+    view.rerenderPage();
+    for (const label of ['Title', 'Description', 'Owner ID', 'Due date', 'Status']) {
+      expect(within(row).getByLabelText(label)).toBeDisabled();
+    }
+    expect(within(row).getByRole('form', { name: 'Edit task 51' })).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    fireEvent.submit(within(row).getByRole('form', { name: 'Edit task 51' }));
+    expect(mocks.updateTask).not.toHaveBeenCalled();
+    mocks.updateTaskPending = false;
+    mocks.updateTaskError = new ApiError(403, 'Fund write role required');
+    view.rerenderPage();
+    expect(within(row).getByRole('alert')).toHaveTextContent('Fund write role required');
+    expect(within(row).getByLabelText('Description')).toHaveValue('Retained description');
+  });
+
+  it.each(['analysis_reference', 'internal_economics_run'])(
+    'attaches supported task evidence %s and shows the refreshed link',
+    async (kind) => {
+      mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+      mocks.createTaskEvidence.mockImplementation((_input, options) => {
+        mocks.taskEvidence.mockReturnValue({
+          data: [
+            {
+              linkId: 81,
+              fundId: 7,
+              taskId: 51,
+              target: { kind, id: 88 },
+              createdAt: task.createdAt,
+            },
+          ],
+          isLoading: false,
+          error: null,
+        });
+        options.onSuccess();
+      });
+      renderPage();
+      const row = screen.getByTestId('task-row-51');
+      fireEvent.click(within(row).getByText('Task evidence links'));
+      const form = within(row).getByRole('form', { name: 'Task 51 evidence' });
+      expect(
+        within(form)
+          .getAllByRole('option')
+          .map((option) => option.getAttribute('value'))
+      ).toEqual(['analysis_reference', 'internal_economics_run']);
+      fireEvent.change(within(form).getByLabelText('Evidence type'), { target: { value: kind } });
+      fireEvent.change(within(form).getByLabelText('Target ID'), { target: { value: '88' } });
+      fireEvent.click(within(form).getByRole('button', { name: 'Link evidence' }));
+      expect(mocks.createTaskEvidence).toHaveBeenCalledWith(
+        {
+          taskId: 51,
+          input: { target: { kind, id: 88 } },
+        },
+        expect.objectContaining({ onSuccess: expect.any(Function) })
+      );
+      await waitFor(() =>
+        expect(
+          within(row).getByText(
+            kind === 'analysis_reference' ? 'Analysis reference #88' : 'Internal economics run #88'
+          )
+        ).toBeInTheDocument()
+      );
+      expect(within(form).getByLabelText('Target ID')).toHaveValue(null);
+    }
+  );
+
+  it('keeps evidence fields on ambiguous failure and rejects invalid target IDs', async () => {
+    mocks.tasks.mockReturnValue({ data: [task], isLoading: false, error: null });
+    const view = renderPage();
+    const row = screen.getByTestId('task-row-51');
+    fireEvent.click(within(row).getByText('Task evidence links'));
+    const form = within(row).getByRole('form', { name: 'Task 51 evidence' });
+    fireEvent.change(within(form).getByLabelText('Target ID'), {
+      target: { value: '9007199254740992' },
+    });
+    fireEvent.submit(form);
+    expect(mocks.createTaskEvidence).not.toHaveBeenCalled();
+    expect(within(row).getByRole('alert')).toHaveTextContent('positive target ID');
+    fireEvent.change(within(form).getByLabelText('Target ID'), { target: { value: '88' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Link evidence' }));
+    mocks.createTaskEvidenceError = new Error('Connection lost');
+    view.rerenderPage();
+    expect(within(form).getByLabelText('Target ID')).toHaveValue(88);
+    expect(within(row).getByRole('alert')).toHaveTextContent('Connection lost');
+    fireEvent.click(within(form).getByRole('button', { name: 'Link evidence' }));
+    expect(mocks.createTaskEvidence.mock.calls[1]?.[0]).toEqual(
+      mocks.createTaskEvidence.mock.calls[0]?.[0]
     );
   });
 });

@@ -128,6 +128,10 @@ export function protectedRLSTransaction() {
         /^\/monte-carlo\/(?:simulate(?:\/async)?|batch|multi-environment)\/?$/i.test(req.path)) ||
       (req.method === 'GET' && /^\/monte-carlo\/funds\/[^/]+\/simulate\/?$/i.test(req.path));
     if (managedSimulation && req.context?.userId) return next();
+    const managedRecompute =
+      req.method === 'POST' &&
+      /^\/funds\/[1-9]\d*\/current-forecast\/recompute\/?$/i.test(req.path);
+    if (managedRecompute && req.context?.userId) return next();
     return transaction(req, res, next);
   };
 }

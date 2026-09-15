@@ -27,6 +27,129 @@ function oracle() {
   return i;
 }
 describe('corrected capital financial core', () => {
+  it.each([
+    {
+      name: 'A: $500k check, 50% conditional participation',
+      check: '500000.000000',
+      participation: '0.500000000000',
+      count: '20.000000000000',
+      initial: '10000000.000000',
+      reserve: '5000000.000000',
+      enteredDemand: '15000000.000000',
+      enteredResidual: '0.000000',
+      entryOwnership: '0.050000000000',
+      skippedOwnership: '0.040000000000',
+      participatedOwnership: '0.080000000000',
+      skipMass: '0.250000000000',
+      participationMass: '0.250000000000',
+    },
+    {
+      name: 'B: $750k check, 50% conditional participation',
+      check: '750000.000000',
+      participation: '0.500000000000',
+      count: '15.000000000000',
+      initial: '11250000.000000',
+      reserve: '3750000.000000',
+      enteredDemand: '20000000.000000',
+      enteredResidual: '-5000000.000000',
+      entryOwnership: '0.075000000000',
+      skippedOwnership: '0.060000000000',
+      participatedOwnership: '0.100000000000',
+      skipMass: '0.250000000000',
+      participationMass: '0.250000000000',
+    },
+    {
+      name: 'C: $500k check, 75% conditional participation',
+      check: '500000.000000',
+      participation: '0.750000000000',
+      count: '17.142857142857',
+      initial: '8571428.571429',
+      reserve: '6428571.428571',
+      enteredDemand: '17500000.000000',
+      enteredResidual: '-2500000.000000',
+      entryOwnership: '0.050000000000',
+      skippedOwnership: '0.040000000000',
+      participatedOwnership: '0.080000000000',
+      skipMass: '0.125000000000',
+      participationMass: '0.375000000000',
+    },
+  ])('matches the independent hypothetical $20M decision fixture: $name', (expected) => {
+    // $20M - $4M fees - $1M expenses; expected per-company costs are $750k/$1M/$875k.
+    const input = v2Input();
+    const allocation = input.allocations[0]!;
+    allocation.initialCheckUsd = expected.check;
+    allocation.plannedCompanyCount = 20;
+    allocation.deploymentPeriodYears = 2;
+    allocation.entryFinancing.valuationUsd = '10000000.000000';
+    allocation.entryFinancing.valuationBasis = 'post_money';
+    const round = v2Round();
+    round.graduationRatio = '0.500000000000';
+    round.participationPolicy = {
+      type: 'homogeneous_conditional_probability',
+      probability: expected.participation,
+    };
+    round.checkPolicy = { type: 'fixed_check', checkUsd: '1000000.000000' };
+    round.lagMonthsFromPreviousRound = 18;
+    round.financing.primaryCapital = {
+      basis: 'total_primary_including_fund_check',
+      totalPrimaryAmountUsd: '5000000.000000',
+      primary_only_excludes_secondary: true,
+    };
+    allocation.followOnRounds = [round];
+    const source = v2Bundle(input, 20000000, (raw, declarations) => {
+      raw.investmentPeriod = 2;
+      raw.economicsAssumptions!.feeModel!.tiers![0]!.rate = 0.02;
+      raw.economicsAssumptions!.expenseModel!.annualExpenses = [
+        { id: 'expense', category: 'administration', amount: 100000, startYear: 1, endYear: 10 },
+      ];
+      declarations['economicsAssumptions.expenseModel.annualExpenses[0].amount'] = 'usd';
+    });
+    const result = calculateCapitalPlanningV2({ input, sourceBundle: source });
+    expect(CapitalPlanningResultV2Schema.safeParse(result).success).toBe(true);
+    const construction = result.construction;
+    expect(construction.budgetBridge).toMatchObject({
+      committedCapitalUsd: '20000000.000000',
+      lifetimeFeesUsd: '4000000.000000',
+      lifetimeExpensesUsd: '1000000.000000',
+      availableConstructionCapitalUsd: '15000000.000000',
+    });
+    expect(construction.solution).toMatchObject({
+      mode: 'fixed_fund',
+      countBasis: 'expected',
+      feasible: true,
+      totalExpectedCompanyCount: expected.count,
+      initialPoolUsd: expected.initial,
+      totalReserveUsd: expected.reserve,
+      requiredConstructionCapitalUsd: '15000000.000000',
+      sourceCapacityGapUsd: '0.000000',
+    });
+    const solved = construction.allocations[0]!;
+    expect(solved.entered).toMatchObject({
+      companyCount: '20.000000000000',
+      totalDemandUsd: expected.enteredDemand,
+      signedBudgetResidualUsd: expected.enteredResidual,
+    });
+    const paths = solved.rounds[0]!.paths;
+    expect(paths).toHaveLength(3);
+    expect(paths.find((path) => path.outcome === 'non_graduation')).toMatchObject({
+      probability: '0.500000000000',
+      ownershipRatio: expected.entryOwnership,
+      checkUsd: '0.000000',
+      demandUsd: '0.000000',
+    });
+    expect(paths.find((path) => path.outcome === 'eligible_zero_election')).toMatchObject({
+      probability: expected.skipMass,
+      ownershipRatio: expected.skippedOwnership,
+      checkUsd: '0.000000',
+      demandUsd: '0.000000',
+    });
+    expect(paths.find((path) => path.outcome === 'participated')).toMatchObject({
+      probability: expected.participationMass,
+      ownershipRatio: expected.participatedOwnership,
+      checkUsd: '1000000.000000',
+      demandUsd: expected.reserve,
+    });
+  });
   it('calculates maximum financial history shape with evidence on every assumption leaf', () => {
     const input = v2Input();
     input.allocations = Array.from({ length: 10 }, (_, index) => ({

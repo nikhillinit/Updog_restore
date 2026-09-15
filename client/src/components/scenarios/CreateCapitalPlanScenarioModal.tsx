@@ -39,7 +39,6 @@ import {
   capitalDraftSourceDeclarations,
   capitalErrorIssues,
   capitalIssuePath,
-  capitalSourceIdentity,
   emptyCapitalAllocation,
   emptyCorrectedCapitalAllocation,
   emptyCorrectedCapitalRound,
@@ -47,11 +46,9 @@ import {
   type RawCapitalInputV1,
   emptyCapitalCompanion,
   emptyCapitalRound,
-  getCapitalDraft,
-  getCapitalSaveIntent,
-  retainCapitalSaveIntent,
   newCapitalDraft,
-  retainCapitalDraft,
+  useCapitalPlanDraft,
+  type CapitalSaveOperation,
   type CapitalPlanDraft,
   type RawCapitalVariant,
 } from './capital-plan-draft';
@@ -66,12 +63,6 @@ const STEPS = [
 const CONTROL =
   'w-full min-w-0 rounded-md border border-presson-borderSubtle bg-presson-surface px-3 py-2 text-presson-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-presson-accent';
 type Path = (string | number)[];
-type Reviewed = Extract<Awaited<ReturnType<typeof reviewCapitalPlanDraft>>, { ok: true }>;
-type SaveOperation = {
-  command: NonNullable<ReturnType<typeof getCapitalSaveIntent>>;
-  generation: number;
-  recovering: boolean;
-};
 const sourceIdentityShape = CapitalSourceProjectionV1Schema.innerType().shape;
 const SourceConflictDetailsSchema = z
   .object({
@@ -128,14 +119,13 @@ export function CreateCapitalPlanScenarioModal(props: Props) {
 
 function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Props) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(() => getCapitalDraft(fundId));
+  const draftState = useCapitalPlanDraft(fundId);
+  const { draft, reviewed, busy, saveIntent, attachSource, invalidateChangedSource } = draftState;
   const [step, setStep] = useState(0);
   const [variantIndex, setVariantIndex] = useState(0);
   const [issues, setIssues] = useState<CapitalIssueV1[]>([]);
-  const [reviewed, setReviewed] = useState<Reviewed | null>(null);
-  const [busy, setBusy] = useState<'review' | 'save' | null>(null);
   const [notice, setNotice] = useState(() =>
-    getCapitalSaveIntent(fundId)
+    saveIntent
       ? 'A prior save is unconfirmed. Retry capital save uses its original reviewed request and key. Resolve it before editing this draft.'
       : ''
   );
@@ -143,10 +133,6 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   const [sourceConflict, setSourceConflict] = useState<z.infer<
     typeof SourceConflictDetailsSchema
   > | null>(null);
-  const generation = useRef(0);
-  const intent = useRef(getCapitalSaveIntent(fundId));
-  const submitting = useRef<SaveOperation | null>(null);
-  const refreshing = useRef(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const sourceQuery = useQuery({
     queryKey: capitalScenarioSourceQueryKey(fundId),
@@ -154,31 +140,20 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     enabled: open,
     retry: false,
   });
-  const sourceChanged = Boolean(
-    draft.source &&
-    sourceQuery.data &&
-    capitalSourceIdentity(draft.source) !== capitalSourceIdentity(sourceQuery.data)
-  );
+  const sourceChanged = draftState.sourceChanged(sourceQuery.data);
   const sourceDeclarations = capitalDraftSourceDeclarations(draft);
   const sourceDeclarationPaths = new Set(sourceDeclarations.map(({ path }) => path));
   const unresolvedSourceDeclarations = sourceDeclarations.filter(
     ({ path, allowedUnits }) => !allowedUnits.some((unit) => unit === draft.declarations[path])
   );
-  const hasUnconfirmedSave = intent.current !== null;
+  const hasUnconfirmedSave = saveIntent !== null;
 
   function replace(next: CapitalPlanDraft) {
-    const pending = intent.current ?? getCapitalSaveIntent(fundId);
-    if (pending) {
-      intent.current = pending;
+    if (!draftState.replace(next)) {
       setNotice('A prior save is unconfirmed. Retry capital save before editing this draft.');
       return false;
     }
-    generation.current += 1;
-    setReviewed(null);
     setSourceConflict(null);
-    setBusy((current) => (current === 'review' ? null : current));
-    retainCapitalDraft(fundId, next);
-    setDraft(next);
     return true;
   }
   function edit(path: Path, value: unknown) {
@@ -194,40 +169,18 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     replace(next);
   }
   useEffect(() => {
-    if (sourceQuery.data && !draft.source) {
-      const next = { ...draft, source: sourceQuery.data };
-      retainCapitalDraft(fundId, next);
-      setDraft(next);
-      generation.current += 1;
-    }
-  }, [draft, fundId, sourceQuery.data]);
+    attachSource(sourceQuery.data);
+  }, [attachSource, sourceQuery.data]);
   useEffect(() => {
-    // Query notifications can render before an already-retained refresh reaches draft state.
-    const currentSource = getCapitalDraft(fundId).source;
-    if (
-      sourceChanged &&
-      !refreshing.current &&
-      currentSource &&
-      sourceQuery.data &&
-      capitalSourceIdentity(currentSource) !== capitalSourceIdentity(sourceQuery.data)
-    ) {
-      generation.current += 1;
-      setReviewed(null);
-      setBusy((current) => (current === 'review' ? null : current));
+    const invalidation = sourceChanged && invalidateChangedSource(sourceQuery.data);
+    if (invalidation) {
       setNotice(
-        intent.current
+        invalidation === 'pending-save'
           ? 'Current source changed. Retry the retained save request to recover its outcome before starting a new source review.'
           : 'Current source changed. Refresh source and review before saving.'
       );
     }
-  }, [fundId, sourceChanged, sourceQuery.data]);
-  useEffect(
-    () => () => {
-      generation.current += 1;
-      submitting.current = null;
-    },
-    []
-  );
+  }, [invalidateChangedSource, sourceChanged, sourceQuery.data]);
   useEffect(() => {
     if (!focusPath || !open) return;
     const element = document.getElementById(idFor(focusPath));
@@ -267,7 +220,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   }
   function refuse(nextIssues: CapitalIssueV1[]) {
     setIssues(nextIssues);
-    setReviewed(null);
+    draftState.clearReview();
     setNotice(
       `Review failed: ${nextIssues.length} issue${nextIssues.length === 1 ? '' : 's'}. Your entries are retained.`
     );
@@ -762,16 +715,15 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     );
   }
   async function review() {
-    if (busy === 'save' || intent.current) return;
+    if (busy === 'save' || saveIntent) return;
     const parsed = capitalDraftRequest(draft);
     if (!parsed.ok) {
       refuse(parsed.issues);
       return;
     }
-    const captured = ++generation.current;
-    setBusy('review');
+    const captured = draftState.beginReview();
+    if (captured === null) return;
     setIssues([]);
-    setReviewed(null);
     setNotice('Reviewing the current draft and source.');
     try {
       const result = await reviewCapitalPlanDraft({
@@ -779,42 +731,32 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
         source: draft.source,
         request: parsed.request,
       });
-      if (captured !== generation.current) return;
+      if (!draftState.isCurrent(captured)) return;
       if (!result.ok) {
         refuse(result.issues);
         return;
       }
-      setReviewed(result);
+      draftState.completeReview(captured, result);
       setStep(4);
       setNotice('Review complete. This is an unsaved preview. Save explicitly to retain it.');
     } catch (error) {
-      if (captured === generation.current) refuse(capitalErrorIssues(error));
+      if (draftState.isCurrent(captured)) refuse(capitalErrorIssues(error));
     } finally {
-      if (captured === generation.current) setBusy(null);
+      draftState.finishReview(captured);
     }
   }
-  function ownsSave(operation: SaveOperation): boolean {
-    return (
-      submitting.current === operation &&
-      intent.current === operation.command &&
-      getCapitalSaveIntent(fundId) === operation.command &&
-      generation.current === operation.generation
-    );
-  }
-  function clearSaveIntent(command: SaveOperation['command']) {
-    if (intent.current === command) intent.current = null;
-    if (getCapitalSaveIntent(fundId) === command) retainCapitalSaveIntent(fundId, null);
-  }
-  function saveSucceeded(operation: SaveOperation, created: FundScenarioCapitalCreateResponse) {
-    if (!ownsSave(operation)) return;
+  function saveSucceeded(
+    operation: CapitalSaveOperation,
+    created: FundScenarioCapitalCreateResponse
+  ) {
+    if (!draftState.ownsSave(operation)) return;
     setNotice('Capital scenario saved. Calculate its saved inputs in the workspace.');
-    setReviewed(null);
-    clearSaveIntent(operation.command);
+    draftState.resolveSave(operation);
     onSuccess(created);
     onOpenChange(false);
   }
-  function saveFailed(operation: SaveOperation, error: unknown) {
-    if (!ownsSave(operation)) return;
+  function saveFailed(operation: CapitalSaveOperation, error: unknown) {
+    if (!draftState.ownsSave(operation)) return;
     const serverIssues = capitalErrorIssues(error);
     setIssues(serverIssues);
     if (serverIssues[0]) focusIssue(serverIssues[0]);
@@ -824,8 +766,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
       error.status === 422 &&
       error.errorCode === 'invalid_scenario_set_v3_payload'
     ) {
-      clearSaveIntent(operation.command);
-      setReviewed(null);
+      draftState.resolveSave(operation);
       setNotice(
         'Save was rejected before creating a scenario. Correct the draft and review again before saving.'
       );
@@ -834,8 +775,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
       error.status === 409 &&
       error.errorCode === 'scenario_source_config_stale'
     ) {
-      clearSaveIntent(operation.command);
-      setReviewed(null);
+      draftState.resolveSave(operation);
       const conflict = SourceConflictDetailsSchema.safeParse(error.details);
       setSourceConflict(conflict.success ? conflict.data : null);
       setNotice(
@@ -846,21 +786,10 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
         'Save failed or its response was lost. Your draft is retained. Retry Save with the same request and key.'
       );
   }
-  function finishSave(operation: SaveOperation) {
-    if (submitting.current !== operation) return;
-    submitting.current = null;
-    setBusy(null);
-  }
   async function save() {
-    if ((!reviewed && !intent.current) || (sourceChanged && !intent.current) || submitting.current)
-      return;
-    const recovering = intent.current !== null;
-    const command = intent.current ?? { request: reviewed!.request, key: crypto.randomUUID() };
-    const operation = { command, generation: generation.current, recovering };
-    intent.current = command;
-    retainCapitalSaveIntent(fundId, command);
-    submitting.current = operation;
-    setBusy('save');
+    const operation = draftState.beginSave(sourceQuery.data);
+    if (!operation) return;
+    const { command } = operation;
     setSourceConflict(null);
     try {
       const created = await createCapitalScenario(fundId, command.request, command.key);
@@ -869,34 +798,23 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     } catch (error) {
       saveFailed(operation, error);
     } finally {
-      finishSave(operation);
+      draftState.finishSave(operation);
     }
   }
   async function refreshSource() {
-    const captured = ++generation.current;
-    refreshing.current = true;
-    setReviewed(null);
-    setBusy((current) => (current === 'review' ? null : current));
+    const captured = draftState.beginSourceRefresh();
     const result = await sourceQuery.refetch();
-    refreshing.current = false;
-    if (captured !== generation.current) return;
-    if (result.isSuccess && result.data) {
+    const refreshed = draftState.completeSourceRefresh(
+      captured,
+      result.isSuccess ? result.data : undefined
+    );
+    if (refreshed.status === 'obsolete') return;
+    if (refreshed.status === 'refreshed') {
       setSourceConflict(null);
-      const current = getCapitalDraft(fundId);
-      const changed =
-        current.source &&
-        capitalSourceIdentity(current.source) !== capitalSourceIdentity(result.data);
-      const next = {
-        ...current,
-        source: result.data,
-        declarations: changed ? {} : current.declarations,
-      };
-      retainCapitalDraft(fundId, next);
-      setDraft(next);
       setNotice(
-        intent.current
+        refreshed.hasUnconfirmedSave
           ? 'Source refreshed. The prior save is still unconfirmed; retry its original request before confirming source units or editing this draft.'
-          : changed
+          : refreshed.changed
             ? 'Source refreshed. Confirm source units again for the changed source. Your scenario entries are retained.'
             : 'Source refreshed. Your entries are retained; review again.'
       );
@@ -942,7 +860,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
               variant="outline"
               disabled={hasUnconfirmedSave && busy !== null}
               onClick={() => {
-                if (intent.current) {
+                if (saveIntent) {
                   void save();
                   return;
                 }
@@ -990,6 +908,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 </li>
               ))}
             </ul>
+            {issues.some((issue) => issue.code === 'FEE_BASIS_UNSUPPORTED') && (
+              <p>Capital Planning currently supports fee tiers based on committed capital.</p>
+            )}
           </section>
         )}
         <nav aria-label="Capital planning steps" className="flex flex-wrap gap-2">
@@ -1088,6 +1009,13 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                         {issue.code}: {issue.path} — {issue.message}
                       </p>
                     ))}
+                    {source.calculationReadiness.issues.some(
+                      (issue) => issue.code === 'FEE_BASIS_UNSUPPORTED'
+                    ) && (
+                      <p>
+                        Capital Planning currently supports fee tiers based on committed capital.
+                      </p>
+                    )}
                     <div className="grid gap-3 sm:grid-cols-2">
                       {sourceDeclarations.map(({ path, allowedUnits }) =>
                         field(`Source unit: ${path}`, ['declarations', path], {
@@ -1805,7 +1733,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
               type="button"
               variant="outline"
               disabled={
-                busy === 'review' || sourceChanged || sourceQuery.isError || intent.current !== null
+                busy === 'review' || sourceChanged || sourceQuery.isError || saveIntent !== null
               }
               onClick={() => void review()}
             >
@@ -1814,16 +1742,16 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             <Button
               type="button"
               disabled={
-                (!reviewed && !intent.current) ||
-                (sourceChanged && !intent.current) ||
-                (sourceQuery.isError && !intent.current) ||
+                (!reviewed && !saveIntent) ||
+                (sourceChanged && !saveIntent) ||
+                (sourceQuery.isError && !saveIntent) ||
                 busy !== null
               }
               onClick={() => void save()}
             >
               {busy === 'save'
                 ? 'Saving capital scenario'
-                : intent.current
+                : saveIntent
                   ? 'Retry capital save'
                   : 'Save capital scenario'}
             </Button>

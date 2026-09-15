@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator } from '@playwright/test';
+import { FinancialFactsPayloadV3Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import type { TaskResponse } from '../../shared/contracts/operating-objects/task.contract';
 import type {
   CapitalPlanningMemoV1,
   AggregatePreferenceInputV1,
@@ -12,15 +14,270 @@ import {
   expect,
   scenarioURL,
   sha256,
-  type CapitalBrowser,
+  CapitalBrowser,
   type DatabaseSnapshot,
 } from './fixtures/fund-scenario-capital-planning';
 
-test.describe.configure({ mode: 'serial' });
+// The runner keeps one worker; each fund-scoped case can fail independently.
+test.describe.configure({ mode: 'default' });
 test.setTimeout(240_000);
+
+test('TASK-LIFECYCLE: real edits replay after response loss, recover conflicts, complete and link evidence', async ({
+  capital,
+}) => {
+  const { page, config, keyboard } = capital;
+  const tasksURL = `/api/funds/${config.fundId}/tasks`;
+  await page.goto(`${config.baseURL}/fund-model-results/${config.fundId}/operations`);
+  await keyboard.fill(page.locator('#new-task-title'), 'Synthetic task lifecycle');
+  await keyboard.fill(page.locator('#new-task-owner'), String(config.userId));
+  const createdResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === tasksURL && response.request().method() === 'POST'
+  );
+  await keyboard.activate(page.getByRole('button', { name: 'Create task', exact: true }));
+  const created = await createdResponse;
+  expect(created.status()).toBe(201);
+  const task = (await created.json()) as TaskResponse;
+  const taskURL = `${tasksURL}/${task.id}`;
+  const row = page.getByTestId(`task-row-${task.id}`);
+  const patchResponse = () =>
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === taskURL && response.request().method() === 'PATCH'
+    );
+  await keyboard.activate(row.getByRole('button', { name: 'Edit task', exact: true }));
+  await expect(page.locator(`#task-${task.id}-title`)).toBeFocused();
+  await keyboard.fill(page.locator(`#task-${task.id}-title`), 'Edited after response loss');
+  await keyboard.fill(page.locator(`#task-${task.id}-description`), 'Preserve this exact command.');
+  await keyboard.fill(page.locator(`#task-${task.id}-owner`), '');
+  const dueDate = page.locator(`#task-${task.id}-due-date`);
+  await keyboard.reach(dueDate);
+  await dueDate.fill('2026-09-30');
+  await expect(dueDate).toHaveValue('2026-09-30');
+  await keyboard.select(page.locator(`#task-${task.id}-status`), 'in_progress');
+
+  let committed: { body: string; requestBody: string; etag: string; key: string } | undefined;
+  let captureNextPatch = true;
+  const interceptedURL = `**${taskURL}`;
+  await page.route(interceptedURL, async (route) => {
+    if (route.request().method() !== 'PATCH' || !captureNextPatch) return route.continue();
+    captureNextPatch = false;
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    committed = {
+      body: await response.text(),
+      requestBody: route.request().postData()!,
+      etag: route.request().headers()['if-match']!,
+      key: route.request().headers()['idempotency-key']!,
+    };
+    await route.abort('failed');
+  });
+  const lost = page.waitForEvent('requestfailed', {
+    predicate: (request) =>
+      new URL(request.url()).pathname === taskURL && request.method() === 'PATCH',
+  });
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  await lost;
+  await expect(row.getByRole('button', { name: 'Save task', exact: true })).toBeEnabled();
+  if (!committed) throw new Error('Task response was not committed before loss.');
+  const receiptBeforeRetry = await capital.pool.query(
+    'SELECT response_body FROM task_update_commands WHERE fund_id=$1 AND task_id=$2 AND idempotency_key=$3',
+    [config.fundId, task.id, committed.key]
+  );
+  expect(receiptBeforeRetry.rows).toEqual([{ response_body: JSON.parse(committed.body) }]);
+  await keyboard.fill(page.locator(`#task-${task.id}-title`), task.title);
+  const replayPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  const replay = await replayPromise;
+  expect(replay.status()).toBe(200);
+  expect(await replay.text()).toBe(committed.body);
+  expect(replay.request().postData()).toBe(committed.requestBody);
+  expect(replay.request().headers()['if-match']).toBe(committed.etag);
+  expect(replay.request().headers()['idempotency-key']).toBe(committed.key);
+  expect(
+    (
+      await capital.pool.query(
+        'SELECT response_body FROM task_update_commands WHERE fund_id=$1 AND task_id=$2 AND idempotency_key=$3',
+        [config.fundId, task.id, committed.key]
+      )
+    ).rows
+  ).toEqual(receiptBeforeRetry.rows);
+  await page.unroute(interceptedURL);
+  await expect(
+    row.getByRole('heading', { name: 'Edited after response loss', exact: true })
+  ).toBeVisible();
+  await expect(row.getByText('No owner assigned', { exact: true })).toBeVisible();
+  await expect(page.locator(`#task-${task.id}-title`)).toHaveValue(task.title);
+  await expect(
+    row.getByText('Previous save confirmed. Review your remaining edits, then save again.')
+  ).toBeVisible();
+  const reversionPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  const reversion = await reversionPromise;
+  expect(reversion.status()).toBe(200);
+  expect(JSON.parse(reversion.request().postData()!)).toEqual({ title: task.title });
+  expect(reversion.request().headers()['idempotency-key']).not.toBe(committed.key);
+  expect(reversion.request().headers()['if-match']).toBe(JSON.parse(committed.body).etag);
+  const revertedTask = (await reversion.json()) as TaskResponse;
+  expect(revertedTask.title).toBe(task.title);
+  await expect(row.getByRole('button', { name: 'Edit task', exact: true })).toBeFocused();
+
+  await keyboard.activate(row.getByRole('button', { name: 'Edit task', exact: true }));
+  await keyboard.fill(page.locator(`#task-${task.id}-title`), 'Retained conflict draft');
+  await keyboard.fill(page.locator(`#task-${task.id}-owner`), String(config.userId));
+  await capital.waitForApiBudget(1);
+  const concurrent = await page.evaluate(
+    async ({ url, etag, key }) => {
+      const csrf = document.cookie.split('; ').find((cookie) => cookie.startsWith('updog.csrf='));
+      if (!csrf) throw new Error('Session CSRF cookie missing');
+      const response = await fetch(url, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': decodeURIComponent(csrf.slice('updog.csrf='.length)),
+          'If-Match': etag,
+          'Idempotency-Key': key,
+        },
+        body: JSON.stringify({ description: 'Concurrent writer retained until explicit retry.' }),
+      });
+      return { status: response.status, body: await response.json() };
+    },
+    { url: taskURL, etag: revertedTask.etag, key: randomUUID() }
+  );
+  expect(concurrent.status).toBe(200);
+  const conflictPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  const conflict = await conflictPromise;
+  expect(conflict.status()).toBe(412);
+  await expect(page.locator(`#task-${task.id}-title`)).toHaveValue('Retained conflict draft');
+  await expect(row.getByRole('button', { name: 'Save task', exact: true })).toBeDisabled();
+  await keyboard.activate(row.getByRole('button', { name: 'Refresh task version', exact: true }));
+  await expect(row.getByRole('button', { name: 'Save task', exact: true })).toBeEnabled();
+  await expect(page.locator(`#task-${task.id}-title`)).toHaveValue('Retained conflict draft');
+  await expect(page.locator(`#task-${task.id}-description`)).toHaveValue(
+    concurrent.body.description
+  );
+  const recoveredPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Save task', exact: true }));
+  const recovered = await recoveredPromise;
+  expect(recovered.status()).toBe(200);
+  expect(JSON.parse(recovered.request().postData()!)).toEqual({
+    title: 'Retained conflict draft',
+    ownerId: config.userId,
+  });
+  expect((await recovered.json()).description).toBe(concurrent.body.description);
+  expect(recovered.request().headers()['if-match']).toBe(concurrent.body.etag);
+  expect(recovered.request().headers()['idempotency-key']).not.toBe(
+    conflict.request().headers()['idempotency-key']
+  );
+  await expect(row.getByText(`Owner: User #${config.userId}`, { exact: true })).toBeVisible();
+  const completedPromise = patchResponse();
+  await keyboard.activate(row.getByRole('button', { name: 'Complete task', exact: true }));
+  const completed = await completedPromise;
+  expect(completed.status()).toBe(200);
+  expect((await completed.json()).status).toBe('done');
+  expect((await completed.json()).description).toBe(concurrent.body.description);
+
+  // Synthetic target rows exercise linking only; they do not certify an analysis projection.
+  const targetKey = randomUUID();
+  const targetHash = sha256(targetKey);
+  const syntheticFactsPayload = FinancialFactsPayloadV3Schema.parse({
+    companyActuals: {
+      fundId: config.fundId,
+      asOfDate: '2026-06-30',
+      facts: [],
+      inputHash: targetHash,
+    },
+    sourceObservationIds: [],
+    workingValueSelectionIds: [],
+    participationTermRefs: [],
+    cashFlowSeries: {
+      series: [],
+      totals: {
+        contributions: '0.000000',
+        distributions: '0.000000',
+        recallableDistributions: '0.000000',
+      },
+      warnings: [],
+    },
+    marksSeries: { marks: [], periodNav: [], warnings: [] },
+    vehicleRoster: [],
+    positionRefs: [],
+    positionComponentRefs: [],
+    ownershipRefs: [],
+    valuationRefs: [],
+    observationRefs: [],
+    openingAccountingState: null,
+  });
+  const target = await capital.pool.query<{ id: number }>(
+    `WITH facts AS (
+      INSERT INTO financial_facts_snapshots (
+        fund_id, policy_version, payload_schema_id, as_of_date, knowledge_cutoff,
+        vehicle_scope, vehicle_ids, selection_set_hash, source_facts_input_hash,
+        snapshot_input_hash, payload, consumer_evaluations, idempotency_key, request_hash
+      ) VALUES ($1, 'financial-facts-policy/1.2.0', 'financial-facts-payload/3', '2026-06-30', NOW(),
+        'fund_all', '[]'::jsonb, $4::text, $4::text, $4::text, $5::jsonb, '[]'::jsonb,
+        $3::text, $4::text) RETURNING id
+    ) INSERT INTO internal_analysis_references (
+      fund_id, period_kind, period_start, period_end, knowledge_cutoff,
+      financial_facts_snapshot_id, created_by, idempotency_key, request_hash
+    ) SELECT $1, 'quarterly', '2026-04-01', '2026-06-30', NOW(), id, $2, $3::text, $4::text FROM facts RETURNING id`,
+    [config.fundId, config.userId, targetKey, targetHash, JSON.stringify(syntheticFactsPayload)]
+  );
+  const targetId = target.rows[0]!.id;
+  await keyboard.activate(page.getByTestId(`task-evidence-toggle-${task.id}`));
+  await keyboard.fill(page.locator(`#task-${task.id}-evidence-id`), String(targetId));
+  const linkedPromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `${taskURL}/evidence-links` &&
+      response.request().method() === 'POST'
+  );
+  await keyboard.activate(row.getByRole('button', { name: 'Link evidence', exact: true }));
+  const linked = await linkedPromise;
+  expect(linked.status()).toBe(201);
+  expect((await linked.json()).target).toEqual({ kind: 'analysis_reference', id: targetId });
+  await capital.waitForScenarioBudget(config.fundId, 'navigate');
+  const reloadBoundary = capital.requests.length;
+  await page.reload();
+  await expect(
+    row.getByRole('heading', { name: 'Retained conflict draft', exact: true })
+  ).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Complete task', exact: true })).toHaveCount(0);
+  await expect(row.getByText(concurrent.body.description, { exact: true })).toBeVisible();
+  await keyboard.activate(page.getByTestId(`task-evidence-toggle-${task.id}`));
+  await expect(row.getByText(`Analysis reference #${targetId}`, { exact: true })).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        capital.requests
+          .slice(reloadBoundary)
+          .find(
+            (request) =>
+              request.method === 'GET' &&
+              request.path === `/api/funds/${config.fundId}/financial-facts/latest`
+          )?.response?.status ?? null,
+      { timeout: 30_000 }
+    )
+    .toBe(200);
+  await capital.receipt('task-lifecycle', {
+    taskId: task.id,
+    originalCommand: committed,
+    revertedTask,
+    replayedResponse: await replay.text(),
+    conflictStatus: conflict.status(),
+    finalTask: await completed.json(),
+    evidenceTarget: {
+      kind: 'analysis_reference',
+      id: targetId,
+      origin: 'SYNTHETIC_DATABASE_FIXTURE',
+    },
+  });
+});
 
 test('CORRECTED-V2: explicit assumptions, history ownership, saved comparison and replay', async ({
   capital,
+  browser,
 }) => {
   await capital.workspace();
   const source = await capital.source();
@@ -343,6 +600,67 @@ test('CORRECTED-V2: explicit assumptions, history ownership, saved comparison an
     comparisonResponse,
     replaySha256: sha256(replay.text),
   });
+
+  const savedSource = await capital.source();
+  for (const sessionNumber of [1, 2]) {
+    const context = await browser.newContext();
+    const fresh = new CapitalBrowser(
+      await context.newPage(),
+      capital.config,
+      capital.pool,
+      capital.extendForBudgetWait
+    );
+    const startedAt = new Date().toISOString();
+    try {
+      expect(await context.cookies()).toEqual([]);
+      await fresh.login();
+      const reopened = fresh.page.locator(`article[data-scenario-id="${scenarioSetId}"]`);
+      await expect(reopened).toHaveAttribute('data-representation', 'capital-plan-v2');
+      await expect(
+        reopened.getByText(result.roundingPolicy, { exact: true }).first()
+      ).toBeVisible();
+      const freshSource = await fresh.source();
+      expect(freshSource.projection).toEqual(savedSource.projection);
+      expect(freshSource.sourceBundleHash).toBe(savedSource.sourceBundleHash);
+      const comparisonAgain = await fresh.xhr(
+        scenarioURL(fresh.config.fundId, `/${scenarioSetId}/comparison`).replace(
+          'capital-plan-v1',
+          'capital-plan-v2'
+        )
+      );
+      expect(comparisonAgain.status).toBe(200);
+      expect(FundScenarioCapitalComparisonV2Schema.parse(JSON.parse(comparisonAgain.text))).toEqual(
+        comparison
+      );
+      const replayAgain = await fresh.xhr(
+        scenarioURL(fresh.config.fundId, `/${scenarioSetId}/calculate`).replace(
+          'capital-plan-v1',
+          'capital-plan-v2'
+        ),
+        { method: 'POST', csrf: 'valid' }
+      );
+      expect(replayAgain.status).toBe(200);
+      expect(replayAgain.text).toBe(calculationBytes);
+      expect((await fresh.snapshot()).sha256).toBe(before.sha256);
+      await Promise.all(fresh.responseCaptures);
+      fresh.assertSessionTransport();
+      await fresh.receipt('corrected-v2-fresh-session', {
+        sessionNumber,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        ownerAcceptance: 'NOT_RECORDED',
+        fundId: fresh.config.fundId,
+        source: freshSource.projection,
+        sourceBundleHash: freshSource.sourceBundleHash,
+        scenarioSetId,
+        comparison,
+        replaySha256: sha256(replayAgain.text),
+        requests: fresh.requests,
+      });
+    } finally {
+      await context.close();
+    }
+  }
 });
 
 const expectedDisclosures = [
@@ -1695,6 +2013,9 @@ test('SRC-R3-007 UI-R3-006 UI-R3-007: unsupported fees and unresolved source mon
   );
   await expect(capital.dialog().getByRole('region', { name: 'Validation errors' })).toContainText(
     'FEE_BASIS_UNSUPPORTED'
+  );
+  await expect(capital.dialog().getByRole('region', { name: 'Validation errors' })).toContainText(
+    'Capital Planning currently supports fee tiers based on committed capital.'
   );
   await expect(
     capital.dialog().getByRole('button', { name: 'Save capital scenario', exact: true })

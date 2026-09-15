@@ -28,8 +28,7 @@ import { CreateCapitalPlanScenarioModal } from '@/components/scenarios/CreateCap
 import { CapitalScenarioCard } from '@/components/scenarios/CapitalScenarioCard';
 import {
   duplicateCapitalDraft,
-  retainCapitalDraft,
-  getCapitalSaveIntent,
+  replaceCapitalDraft,
 } from '@/components/scenarios/capital-plan-draft';
 import { capitalScenarioListQueryKey } from '@/lib/fund-scenario-workspace-query-keys';
 import { fetchCapitalScenarioList } from '@/lib/fund-scenario-workspace-api';
@@ -833,8 +832,7 @@ export function FundScenarioWorkspacePage({
                     fundId={fundId}
                     summary={item.summary}
                     onDuplicate={(detail) => {
-                      if (!getCapitalSaveIntent(fundId))
-                        retainCapitalDraft(fundId, duplicateCapitalDraft(detail));
+                      replaceCapitalDraft(fundId, duplicateCapitalDraft(detail));
                       setCapitalDraftRevision((value) => value + 1);
                       setIsCreateCapitalOpen(true);
                     }}

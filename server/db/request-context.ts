@@ -14,6 +14,13 @@ export interface RequestDatabaseScope {
 
 export const requestDatabaseStorage = new AsyncLocalStorage<RequestDatabaseScope>();
 
+export class DatabaseContextTimeoutError extends Error {
+  constructor() {
+    super('Database transaction execution deadline exceeded');
+    this.name = 'DatabaseContextTimeoutError';
+  }
+}
+
 export function getRequestDatabaseScope(): RequestDatabaseScope | undefined {
   const scope = requestDatabaseStorage.getStore();
   if (scope?.completed) throw new Error('Request database transaction has completed');

@@ -3,7 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useCreateTask, useTaskEvidenceLinks, useTasks } from '@/hooks/useTasks';
+import {
+  useCreateTask,
+  useCreateTaskEvidenceLink,
+  useTaskEvidenceLinks,
+  useTasks,
+  useUpdateTask,
+} from '@/hooks/useTasks';
 import type { ApiError } from '@/lib/queryClient';
 import {
   TaskCreateSchema,
@@ -214,4 +220,169 @@ describe('useTasks', () => {
     expect(TaskResponseSchema.safeParse({ ...sampleTask, createdBy: 5 }).success).toBe(false);
     expect(TaskResponseSchema.safeParse(sampleTask).success).toBe(true);
   });
+
+  it.each(['connection loss', 'lock refusal'])(
+    'mounted task update retries %s with the original body, ETag and command key',
+    async (failure) => {
+      let key = 0;
+      vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `update-${++key}`) });
+      const saved = { ...sampleTask, status: 'done', etag: 'W/"accepted-update"' };
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+      if (failure === 'lock refusal') {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Failed to update task' }, 500));
+      } else {
+        fetchMock.mockRejectedValueOnce(new TypeError('Connection lost'));
+      }
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(saved))
+        .mockResolvedValueOnce(jsonResponse(saved));
+      const client = createClient();
+      const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+      const { result } = renderHook(() => useUpdateTask('7'), { wrapper: createWrapper(client) });
+      const command = { taskId: 1, etag: sampleTask.etag, input: { status: 'done' as const } };
+
+      await act(async () => {
+        await result.current.mutateAsync(command).catch(() => undefined);
+      });
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
+      await waitFor(() => expect(result.current.data).toEqual(saved));
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
+
+      const requests = fetchMock.mock.calls.map(([, init]) => init as RequestInit);
+      expect(requests[0]).toMatchObject({
+        method: 'PATCH',
+        body: JSON.stringify(command.input),
+        headers: { 'If-Match': sampleTask.etag, 'Idempotency-Key': 'update-1' },
+      });
+      expect(requests[1]).toEqual(requests[0]);
+      expect(requests[2]?.headers).toMatchObject({ 'Idempotency-Key': 'update-2' });
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/funds/7/tasks/1');
+      expect(invalidate).toHaveBeenCalledTimes(2);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['tasks', '7'] });
+    }
+  );
+
+  it('changes task command identity for changed fields, version, task, fund, or explicit reset', async () => {
+    let key = 0;
+    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `update-${++key}`) });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => jsonResponse({ message: 'Temporary failure' }, 503));
+    const { result, rerender } = renderHook(({ fundId }) => useUpdateTask(fundId), {
+      initialProps: { fundId: '7' },
+      wrapper: createWrapper(createClient()),
+    });
+    const initial = { taskId: 1, etag: sampleTask.etag, input: { title: 'Updated' } };
+    const changed = { ...initial, input: { title: 'Changed again' } };
+    const refreshed = { ...changed, etag: 'W/"refreshed"' };
+    const otherTask = { ...refreshed, taskId: 2 };
+    for (const command of [initial, initial, changed, refreshed, otherTask]) {
+      await act(async () => {
+        await result.current.mutateAsync(command).catch(() => undefined);
+      });
+    }
+    rerender({ fundId: '8' });
+    await act(async () => {
+      await result.current.mutateAsync(otherTask).catch(() => undefined);
+    });
+    act(() => result.current.reset());
+    await act(async () => {
+      await result.current.mutateAsync(otherTask).catch(() => undefined);
+    });
+    const keys = fetchMock.mock.calls.map(
+      ([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key']
+    );
+    expect(keys).toEqual([
+      'update-1',
+      'update-1',
+      'update-2',
+      'update-3',
+      'update-4',
+      'update-5',
+      'update-6',
+    ]);
+  });
+
+  it.each([412, 403, 409])(
+    'surfaces task update %s and only refreshes the list for a stale version',
+    async (status) => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse({ message: 'Update refused' }, status)
+      );
+      const client = createClient();
+      const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+      const { result } = renderHook(() => useUpdateTask('7'), { wrapper: createWrapper(client) });
+      await act(async () => {
+        await result.current
+          .mutateAsync({ taskId: 1, etag: sampleTask.etag, input: { title: 'Edit' } })
+          .catch(() => undefined);
+      });
+      await waitFor(() =>
+        expect(result.current.error).toMatchObject({ status, message: 'Update refused' })
+      );
+      expect(invalidate).toHaveBeenCalledTimes(status === 412 ? 1 : 0);
+      if (status === 412) expect(invalidate).toHaveBeenCalledWith({ queryKey: ['tasks', '7'] });
+    }
+  );
+
+  it('refuses a task update without an opaque version before sending a request', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    const { result } = renderHook(() => useUpdateTask('7'), {
+      wrapper: createWrapper(createClient()),
+    });
+    await act(async () => {
+      await result.current
+        .mutateAsync({ taskId: 1, etag: '', input: { status: 'done' } })
+        .catch(() => undefined);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.error?.message).toContain('ETag'));
+  });
+
+  it.each(['analysis_reference', 'internal_economics_run'] as const)(
+    'attaches %s evidence with stable retry identity and scoped invalidation',
+    async (kind) => {
+      let key = 0;
+      vi.stubGlobal('crypto', { randomUUID: vi.fn(() => `link-${++key}`) });
+      const linked = { ...sampleEvidenceLink, target: { kind, id: 19 } };
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockRejectedValueOnce(new TypeError('Connection lost'))
+        .mockResolvedValueOnce(jsonResponse(linked))
+        .mockResolvedValueOnce(jsonResponse(linked));
+      const client = createClient();
+      const invalidate = vi.spyOn(client, 'invalidateQueries').mockResolvedValue(undefined);
+      const { result } = renderHook(() => useCreateTaskEvidenceLink('7'), {
+        wrapper: createWrapper(client),
+      });
+      const command = { taskId: 1, input: { target: { kind, id: 19 } } };
+      await act(async () => {
+        await result.current.mutateAsync(command).catch(() => undefined);
+      });
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
+      await act(async () => {
+        await result.current.mutateAsync(command);
+      });
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/funds/7/tasks/1/evidence-links');
+      expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+        method: 'POST',
+        body: JSON.stringify(command.input),
+        headers: { 'Idempotency-Key': 'link-1' },
+      });
+      expect(fetchMock.mock.calls[1]).toEqual(fetchMock.mock.calls[0]);
+      expect(fetchMock.mock.calls[2]?.[1]?.headers).toMatchObject({ 'Idempotency-Key': 'link-2' });
+      expect(invalidate.mock.calls).toEqual([
+        [{ queryKey: ['tasks', '7'] }],
+        [{ queryKey: ['task-evidence-links', '7', 1] }],
+        [{ queryKey: ['tasks', '7'] }],
+        [{ queryKey: ['task-evidence-links', '7', 1] }],
+      ]);
+    }
+  );
 });
