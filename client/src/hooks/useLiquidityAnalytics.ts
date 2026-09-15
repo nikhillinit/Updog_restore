@@ -77,6 +77,8 @@ export interface UseLiquidityAnalyticsOptions {
   allowDemoFallback?: boolean;
 }
 
+const UPCOMING_STATUSES = new Set<CashTransaction['status']>(['planned', 'pending', 'approved']);
+
 const defaultStressFactors = {
   distributionDelay: 6, // 6 months delay
   investmentAcceleration: 1.5, // 50% faster investment pace
@@ -345,7 +347,9 @@ export function useLiquidityAnalytics(
           }));
           return;
         }
-        const transactions = getTransactions();
+        // The engine sums whatever it is given, so executed history stays in the
+        // analysis only; the forecast projects what has not happened yet.
+        const transactions = getTransactions().filter((t) => UPCOMING_STATUSES.has(t.status));
         const recurringExpenses = getRecurringExpenses();
 
         const forecast = liquidityEngine.generateLiquidityForecast(

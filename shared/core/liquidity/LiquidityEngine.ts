@@ -255,6 +255,14 @@ export class LiquidityEngine {
     };
   }
 
+  /**
+   * Minimum cash buffer the forecast and alerts compare against. Exposed so
+   * input builders can call that cash ahead instead of tripping the alert.
+   */
+  public getMinimumCashBuffer(): number {
+    return this.calculateMinimumCashBuffer();
+  }
+
   // =============================================================================
   // PRIVATE HELPER METHODS
   // =============================================================================
