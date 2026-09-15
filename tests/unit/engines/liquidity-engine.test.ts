@@ -585,4 +585,32 @@ describe('LiquidityEngine - Edge Cases', () => {
     // Only active expenses should be included
     expect(forecast.plannedExpenses).toBeLessThan(200000 * 12);
   });
+
+  it('projects recurring expenses only for months inside the forecast window', () => {
+    const engine = new LiquidityEngine('fund-1', 50000000);
+    const position = createCashPosition();
+    const now = new Date();
+    const monthsFromNow = (offset: number) =>
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1, 12));
+    const expenses = [
+      // Starts in six months: charged for months 6..12 of the window only.
+      createRecurringExpense({ amount: 1000, startDate: monthsFromNow(6) }),
+      // Ends next month: charged once.
+      createRecurringExpense({
+        amount: 500,
+        startDate: monthsFromNow(-12),
+        endDate: monthsFromNow(1),
+      }),
+      // Already over: never charged.
+      createRecurringExpense({
+        amount: 900,
+        startDate: monthsFromNow(-12),
+        endDate: monthsFromNow(-1),
+      }),
+    ];
+
+    const forecast = engine.generateLiquidityForecast(position, [], expenses, 12);
+
+    expect(forecast.plannedExpenses).toBe(1000 * 7 + 500);
+  });
 });

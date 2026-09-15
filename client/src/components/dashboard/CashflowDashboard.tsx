@@ -48,6 +48,7 @@ import {
   useLiquidityMetrics,
 } from '@/hooks/useLiquidityAnalytics';
 import { useFundContext } from '@/contexts/FundContext';
+import { useFundCashFlowInputs } from '@/hooks/useFundCashFlowInputs';
 import { isDemoMode } from '@/core/demo/persona';
 import { useWorkPanelUrlState } from '@/components/work-panel/useWorkPanelUrlState';
 import { presson } from '@/theme/presson.tokens';
@@ -79,13 +80,19 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   const { currentFund } = useFundContext();
   const fundSize = currentFund?.size ? currentFund.size / 1000000 : 100; // Convert to millions, default to $100M
 
+  const horizonMonths = timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24;
+  // Persisted fund + investments -> engine inputs (undefined until loaded).
+  // Demo mode keeps the labeled mock data instead.
+  const fundInputs = useFundCashFlowInputs(isDemoMode() ? null : fundId, horizonMonths);
+
   // Use liquidity analytics hook
   const analytics = useLiquidityAnalytics({
     fundId,
     fundSize: fundSize * 1000000, // Convert to actual dollar amount
+    ...fundInputs,
     autoRefresh: true,
     refreshIntervalMs: 30000, // 30 seconds
-    defaultForecastMonths: timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24,
+    defaultForecastMonths: horizonMonths,
     enableRealTimeAlerts: true,
     allowDemoFallback: isDemoMode(),
   });

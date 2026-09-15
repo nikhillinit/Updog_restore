@@ -6,7 +6,8 @@
  * fencing, idempotent replay, and advisory-lock serialization.
  *
  * Supported modes:
- *   1. TEST_DATABASE_URL=postgres://... (disposable test database)
+ *   1. TEST_DATABASE_URL=postgres://... (disposable test database; local hosts only
+ *      unless ALLOW_REMOTE_TEST_DATABASE_WIPE=1)
  *   2. RUN_DOCKER_CONSTRUCTION_RECONCILIATION=1 (local Docker)
  *   3. CI testcontainers workers
  */
@@ -23,9 +24,17 @@ import {
 import { buildSnapshotInputHash } from '../../shared/lib/financial-facts/snapshot-hashes';
 import { combinedSchema } from '../../server/db-schema';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
+import { assertLocalDatabaseTarget } from '../../scripts/local-database-target';
 
 const STARTUP_TIMEOUT_MS = 120_000;
 const cloudDbUrl = process.env['TEST_DATABASE_URL'];
+// resetSchema() runs DROP SCHEMA public CASCADE against TEST_DATABASE_URL. A sibling
+// proof (phase0-migrated-postgres) wiped the production database this way on
+// 2026-04-04. Refuse non-local targets unless the caller explicitly accepts wiping
+// a disposable remote database.
+if (cloudDbUrl && process.env['ALLOW_REMOTE_TEST_DATABASE_WIPE'] !== '1') {
+  assertLocalDatabaseTarget(cloudDbUrl);
+}
 const useDocker =
   process.env['RUN_DOCKER_CONSTRUCTION_RECONCILIATION'] === '1' ||
   process.env['CI'] === 'true' ||
