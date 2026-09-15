@@ -132,21 +132,26 @@ export function buildFundCashFlowInputs(args: {
     });
   };
 
-  // Actual investments. Rows funded through a vehicle (SPV, co-invest) draw on
-  // that vehicle's commitments, not on this fund's size, so they stay out.
+  // Persisted investments. Rows funded through a vehicle (SPV, co-invest) draw on
+  // that vehicle's commitments, not on this fund's size, so they stay out. Rows
+  // dated after the as-of month are committed future deals: planned, not deployed.
   // ponytail: participation rows are SPV/co-invest today; if main-fund deals ever
   // get participations, filter by vehicle type through the vehicles API instead.
   let deployed = 0;
+  let committedAhead = 0;
   for (const investment of investments) {
     if (investment.vehicleParticipationId != null) continue;
     const amount = Number(investment.amount);
     if (!Number.isFinite(amount) || amount <= 0) continue;
-    deployed += amount;
+    const date = noonUtc(new Date(investment.investmentDate));
+    const status = statusFor(monthIndex(date));
+    if (status === 'executed') deployed += amount;
+    else committedAhead += amount;
     push({
       type: /follow/i.test(investment.round) ? 'follow_on' : 'investment',
       amount: -amount,
-      plannedDate: noonUtc(new Date(investment.investmentDate)),
-      status: 'executed',
+      plannedDate: date,
+      status,
       description: `${investment.round} investment`,
       ...(investment.companyId != null ? { portfolioCompanyId: String(investment.companyId) } : {}),
     });
@@ -187,9 +192,13 @@ export function buildFundCashFlowInputs(args: {
     }
   }
 
-  // Even deployment of what is left to invest across the remaining investment period.
+  // Even deployment of what is left to invest, after known future deals, across
+  // the remaining investment period.
   const lifetimeFees = size * feeRate * fundLifeYears;
-  const remainingInvestable = Math.max(0, size - lifetimeFees - lifetimeExpenses - deployed);
+  const remainingInvestable = Math.max(
+    0,
+    size - lifetimeFees - lifetimeExpenses - deployed - committedAhead
+  );
   const deployMonths = periodEndIdx - firstPlannedIdx;
   if (deployMonths > 0 && remainingInvestable > 0) {
     const monthly = remainingInvestable / deployMonths;

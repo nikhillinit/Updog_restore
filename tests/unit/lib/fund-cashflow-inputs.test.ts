@@ -197,6 +197,34 @@ describe('buildFundCashFlowInputs', () => {
     expect(recurringExpenses[0]?.isActive).toBe(false);
   });
 
+  it('treats future-dated persisted investments as planned, not deployed', () => {
+    const future = {
+      id: 21,
+      companyId: 31,
+      investmentDate: '2026-12-01T00:00:00.000Z',
+      amount: '400000.00',
+      round: 'Series B',
+    };
+    const { transactions, currentPosition } = buildFundCashFlowInputs({
+      fund,
+      investments: [...investments, future],
+      asOf,
+      horizonMonths: 36,
+      config: { expenses, cashBuffer: BUFFER },
+    });
+    const futureRow = transactions.find((tx) => tx.portfolioCompanyId === '31');
+    const planned = transactions.filter(
+      (tx) => tx.type === 'investment' && tx.status === 'planned'
+    );
+
+    expect(futureRow?.status).toBe('planned');
+    expect(futureRow?.executedDate).toBeUndefined();
+    expect(currentPosition.totalDeployed).toBe(1_500_000);
+    expect(currentPosition.dryPowder).toBe(REMAINING_INVESTABLE - 400_000);
+    // Known deal plus even pacing of the rest still deploys exactly what is left.
+    expect(planned.reduce((sum, tx) => sum - tx.amount, 0)).toBeCloseTo(REMAINING_INVESTABLE, 4);
+  });
+
   it('defaults the buffer to the engine minimum and runs through the engine', () => {
     const inputs = buildFundCashFlowInputs({ fund, investments, asOf, config: { expenses } });
     const engine = new LiquidityEngine('2', SIZE);

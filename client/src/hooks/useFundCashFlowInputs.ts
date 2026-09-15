@@ -12,15 +12,17 @@ import {
 
 /**
  * Cashflow engine inputs for the current persisted fund. Undefined until the
- * fund and its investments are loaded. Investment period, fund life and
- * expenses come from the fund store when the wizard populated it, else defaults.
+ * fund and its investments are loaded, or always when `fundId` is null.
+ * Investment period, fund life and expenses come from the fund store only when
+ * its draft belongs to this fund, else builder defaults.
  */
 export function useFundCashFlowInputs(
-  fundId: string,
+  fundId: string | null,
   horizonMonths: number
 ): FundCashFlowInputs | undefined {
   const { currentFund } = useFundContext();
-  const fund = currentFund && String(currentFund.id) === fundId ? currentFund : null;
+  const fund =
+    fundId != null && currentFund && String(currentFund.id) === fundId ? currentFund : null;
 
   const { data: investments } = useQuery<Investment[]>({
     queryKey: ['fund-cashflow-investments', fund?.id ?? null],
@@ -29,22 +31,25 @@ export function useFundCashFlowInputs(
     queryFn: () => apiRequest<Investment[]>('GET', `/api/investments?fundId=${fund?.id}`),
   });
 
-  const [investmentPeriod, fundLife, fundExpenses] = useFundSelector(
-    (s) => [s.investmentPeriod, s.fundLife, s.fundExpenses] as const,
+  const [draftFundId, investmentPeriod, fundLife, fundExpenses] = useFundSelector(
+    (s) => [s.draftFundId, s.investmentPeriod, s.fundLife, s.fundExpenses] as const,
     shallow
   );
 
   return useMemo(() => {
     if (!fund || !investments) return undefined;
+    const draftIsThisFund = draftFundId === fund.id;
     return buildFundCashFlowInputs({
       fund,
       investments,
       horizonMonths,
-      config: {
-        ...(investmentPeriod != null ? { investmentPeriodYears: investmentPeriod } : {}),
-        ...(fundLife != null ? { fundLifeYears: fundLife } : {}),
-        expenses: fundExpenses,
-      },
+      config: draftIsThisFund
+        ? {
+            ...(investmentPeriod != null ? { investmentPeriodYears: investmentPeriod } : {}),
+            ...(fundLife != null ? { fundLifeYears: fundLife } : {}),
+            expenses: fundExpenses,
+          }
+        : {},
     });
-  }, [fund, investments, investmentPeriod, fundLife, fundExpenses, horizonMonths]);
+  }, [fund, investments, draftFundId, investmentPeriod, fundLife, fundExpenses, horizonMonths]);
 }

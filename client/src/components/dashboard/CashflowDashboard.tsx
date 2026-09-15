@@ -82,7 +82,8 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
 
   const horizonMonths = timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24;
   // Persisted fund + investments -> engine inputs (undefined until loaded).
-  const fundInputs = useFundCashFlowInputs(fundId, horizonMonths);
+  // Demo mode keeps the labeled mock data instead.
+  const fundInputs = useFundCashFlowInputs(isDemoMode() ? null : fundId, horizonMonths);
 
   // Use liquidity analytics hook
   const analytics = useLiquidityAnalytics({
