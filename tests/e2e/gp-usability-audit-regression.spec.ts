@@ -19,7 +19,10 @@ test.afterEach(async ({ page }) => {
 test.describe('GP Usability Audit - Broken Routes Regression', () => {
   const formerlyBrokenRoutes = [
     { path: '/forecasting', mustContain: /financial modeling|forecasting|scenario modeling/i },
-    { path: '/model-results', mustContain: /model results|select a fund/i },
+    {
+      path: '/model-results',
+      mustContain: /(?:model|fund).*results|lifecycle status|select a fund/i,
+    },
   ];
 
   for (const { path, mustContain } of formerlyBrokenRoutes) {
@@ -191,17 +194,17 @@ test.describe('GP Usability Audit - Reserve Planning', () => {
 });
 
 test.describe('GP Usability Audit - Fund Context Detection', () => {
-  test('Direct Forecasting requires explicit fund context instead of implicit first fund', async ({
-    page,
-  }) => {
+  test('Direct Forecasting safely recovers the sole available fund', async ({ page }) => {
     await installQaAuditApi(page);
     await page.goto('/forecasting', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1500);
     const pageText = await readMainText(page);
     expect(pageText).toMatch(/financial modeling & forecasting/i);
-    expect(pageText).toContain('Select or create a fund to view forecasting data');
-    expect(pageText).toContain('Forecasting stays unavailable until an active fund context exists');
-    expect(pageText).not.toMatch(/current aum|fund value forecast|live portfolio allocation/i);
+    expect(pageText).toContain('Test Fund I');
+    expect(pageText).not.toContain(
+      'Forecasting stays unavailable until an active fund context exists'
+    );
+    expect(pageText).toMatch(/current aum|fund value forecast|portfolio allocation/i);
   });
 
   test('Forecasting recognizes active fund context', async ({ page }) => {

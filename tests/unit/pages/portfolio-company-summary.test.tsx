@@ -6,18 +6,21 @@ import { TestQueryClientProvider } from '../../utils/test-query-client';
 
 const mocks = vi.hoisted(() => ({
   fundId: 1 as number | null,
+  currentFund: { id: 1, name: 'Test Fund I' } as { id: number; name: string } | null,
   location: '/portfolio/company/1',
   routeId: '1',
   setLocation: vi.fn(),
   usePortfolioCompany: vi.fn(),
+  usePortfolioOverview: vi.fn(),
 }));
 
 vi.mock('@/contexts/FundContext', () => ({
-  useFundContext: () => ({ fundId: mocks.fundId }),
+  useFundContext: () => ({ fundId: mocks.fundId, currentFund: mocks.currentFund }),
 }));
 
 vi.mock('@/hooks/use-fund-data', () => ({
   usePortfolioCompany: (...args: unknown[]) => mocks.usePortfolioCompany(...args),
+  usePortfolioOverview: (...args: unknown[]) => mocks.usePortfolioOverview(...args),
 }));
 
 vi.mock('wouter', () => ({
@@ -36,6 +39,7 @@ function renderPage() {
 describe('PortfolioCompanySummaryPage', () => {
   beforeEach(() => {
     mocks.fundId = 1;
+    mocks.currentFund = { id: 1, name: 'Test Fund I' };
     mocks.location = '/portfolio/company/1';
     mocks.routeId = '1';
     vi.clearAllMocks();
@@ -58,7 +62,7 @@ describe('PortfolioCompanySummaryPage', () => {
         deployedReservesCents: 0,
         plannedReservesCents: 0,
         exitMoicBps: null,
-        ownershipCurrentPct: '8.5000',
+        ownershipCurrentPct: '0.085',
         allocationCapCents: null,
         allocationReason: null,
         allocationIteration: 0,
@@ -67,6 +71,22 @@ describe('PortfolioCompanySummaryPage', () => {
       },
       isLoading: false,
       error: null,
+    });
+    mocks.usePortfolioOverview.mockReturnValue({
+      data: {
+        companies: [
+          {
+            id: 1,
+            name: 'TechCorp',
+            sector: 'Fintech',
+            stage: 'Series B',
+            status: 'Growing',
+            invested: '5000000',
+            currentValue: '5000000',
+            moic: '1',
+          },
+        ],
+      },
     });
   });
 
@@ -133,5 +153,16 @@ describe('PortfolioCompanySummaryPage', () => {
     expect(
       screen.getByRole('button', { name: /return to the portfolio companies surface/i })
     ).toBeInTheDocument();
+  });
+
+  it('uses the portfolio overview position value and MOIC rather than gross company valuation', () => {
+    renderPage();
+
+    expect(screen.getByText('Current position value')).toBeInTheDocument();
+    expect(screen.getAllByText('$5,000,000')).toHaveLength(2);
+    expect(screen.getByText('1.00x')).toBeInTheDocument();
+    expect(screen.queryByText('$12,500,000')).not.toBeInTheDocument();
+    expect(screen.getByText('8.50%')).toBeInTheDocument();
+    expect(screen.getByText('Test Fund I')).toBeInTheDocument();
   });
 });
