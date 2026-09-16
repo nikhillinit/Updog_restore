@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PortfolioCompanySummaryPage from '@/pages/portfolio-company-summary';
-import { usePortfolioCompany } from '@/hooks/use-fund-data';
+import { usePortfolioCompany, usePortfolioOverview } from '@/hooks/use-fund-data';
 import { useFlag } from '@/shared/useFlags';
 import { TestQueryClientProvider } from '../../utils/test-query-client';
 
@@ -10,13 +10,17 @@ vi.mock('wouter', () => ({
   useLocation: () => ['/portfolio/company/42', vi.fn()],
 }));
 vi.mock('@/contexts/FundContext', () => ({ useFundContext: () => ({ fundId: 7 }) }));
-vi.mock('@/hooks/use-fund-data', () => ({ usePortfolioCompany: vi.fn() }));
+vi.mock('@/hooks/use-fund-data', () => ({
+  usePortfolioCompany: vi.fn(),
+  usePortfolioOverview: vi.fn(),
+}));
 vi.mock('@/shared/useFlags', () => ({ useFlag: vi.fn() }));
 vi.mock('@/components/investments/investment-rounds-section', () => ({
   InvestmentRoundsSection: () => <div data-testid="rounds-section" />,
 }));
 
 const mockCompany = vi.mocked(usePortfolioCompany);
+const mockOverview = vi.mocked(usePortfolioOverview);
 const mockFlag = vi.mocked(useFlag);
 
 beforeEach(() => {
@@ -34,6 +38,7 @@ beforeEach(() => {
     isLoading: false,
     error: null,
   });
+  mockOverview.mockReturnValue({ data: null } as ReturnType<typeof usePortfolioOverview>);
 });
 
 describe('PortfolioCompanySummaryPage rounds mount', () => {

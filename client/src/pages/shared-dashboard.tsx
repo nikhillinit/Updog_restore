@@ -239,18 +239,18 @@ const SharedDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-pov-gray flex items-center justify-center">
+      <main className="min-h-screen bg-pov-gray flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pov-charcoal mx-auto mb-4"></div>
           <p className="text-charcoal-600">Loading dashboard...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-pov-gray flex items-center justify-center">
+      <main className="min-h-screen bg-pov-gray flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
@@ -263,13 +263,13 @@ const SharedDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </main>
     );
   }
 
   if (requiresPasskey) {
     return (
-      <div className="min-h-screen bg-pov-gray flex items-center justify-center">
+      <main className="min-h-screen bg-pov-gray flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <Shield className="h-12 w-12 text-pov-charcoal mx-auto mb-4" />
@@ -308,7 +308,7 @@ const SharedDashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
-      </div>
+      </main>
     );
   }
 
@@ -317,7 +317,7 @@ const SharedDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-pov-gray print:bg-white">
+    <main className="min-h-screen bg-pov-gray print:bg-white">
       <div className="bg-white border-b print:border-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
@@ -406,7 +406,7 @@ const SharedDashboard: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

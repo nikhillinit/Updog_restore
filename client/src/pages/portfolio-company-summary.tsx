@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
-import { usePortfolioCompany } from '@/hooks/use-fund-data';
+import { usePortfolioCompany, usePortfolioOverview } from '@/hooks/use-fund-data';
 import { ApiError } from '@/lib/queryClient';
 import { useFlag } from '@/shared/useFlags';
 import { InvestmentRoundsSection } from '@/components/investments/investment-rounds-section';
@@ -48,6 +48,11 @@ function formatDate(value: string | Date | null | undefined): string {
   });
 }
 
+function formatOwnership(value: string | number | null | undefined): string {
+  const ownership = toNumber(value);
+  return ownership > 0 ? `${(ownership * 100).toFixed(2)}%` : 'Not captured';
+}
+
 function SummaryMessageCard({
   actionLabel = 'Back to Companies',
   message,
@@ -72,7 +77,7 @@ function SummaryMessageCard({
 export default function PortfolioCompanySummaryPage() {
   const [, params] = useRoute('/portfolio/company/:id');
   const [, setLocation] = useLocation();
-  const { fundId } = useFundContext();
+  const { fundId, currentFund } = useFundContext();
   const roundsEnabled = useFlag('enable_investment_rounds');
   const [metadataDrawerOpen, setMetadataDrawerOpen] = useState(false);
 
@@ -85,22 +90,24 @@ export default function PortfolioCompanySummaryPage() {
   }, [params?.id]);
 
   const { company, error, isLoading } = usePortfolioCompany(fundId ?? undefined, companyId);
+  const { data: portfolioOverview } = usePortfolioOverview(fundId ?? undefined);
 
   const detailMetrics = useMemo(() => {
-    if (!company) {
+    if (!companyId || !portfolioOverview) {
       return null;
     }
 
-    const invested = toNumber(company.investmentAmount);
-    const currentValue = toNumber(company.currentValuation);
-    const moic = invested > 0 ? currentValue / invested : 0;
+    const overviewCompany = portfolioOverview.companies.find((entry) => entry.id === companyId);
+    if (!overviewCompany) {
+      return null;
+    }
 
     return {
-      invested,
-      currentValue,
-      moic,
+      invested: toNumber(overviewCompany.invested),
+      currentValue: toNumber(overviewCompany.currentValue),
+      moic: toNumber(overviewCompany.moic),
     };
-  }, [company]);
+  }, [companyId, portfolioOverview]);
 
   const backToCompanies = () => {
     setLocation('/portfolio');
@@ -161,7 +168,7 @@ export default function PortfolioCompanySummaryPage() {
             message="Company details are temporarily unavailable. Please try again."
             onAction={backToCompanies}
           />
-        ) : company && detailMetrics ? (
+        ) : company ? (
           <>
             <Card>
               <CardContent className="pt-6 space-y-6">
@@ -206,7 +213,7 @@ export default function PortfolioCompanySummaryPage() {
                         Invested
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {formatCurrency(detailMetrics.invested)}
+                        {detailMetrics ? formatCurrency(detailMetrics.invested) : 'Unavailable'}
                       </div>
                     </CardContent>
                   </Card>
@@ -214,10 +221,10 @@ export default function PortfolioCompanySummaryPage() {
                     <CardContent className="pt-6 space-y-2">
                       <div className="flex items-center gap-2 text-sm text-charcoal-600">
                         <Target className="h-4 w-4" />
-                        Current value
+                        Current position value
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {formatCurrency(detailMetrics.currentValue)}
+                        {detailMetrics ? formatCurrency(detailMetrics.currentValue) : 'Unavailable'}
                       </div>
                     </CardContent>
                   </Card>
@@ -228,7 +235,7 @@ export default function PortfolioCompanySummaryPage() {
                         MOIC
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics.moic.toFixed(2)}x
+                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : 'Unavailable'}
                       </div>
                     </CardContent>
                   </Card>
@@ -265,7 +272,7 @@ export default function PortfolioCompanySummaryPage() {
                   <div className="flex justify-between gap-4">
                     <span className="text-charcoal-600">Fund</span>
                     <span className="font-medium text-pov-charcoal">
-                      Fund {company.fundId ?? fundId}
+                      {currentFund?.name ?? `Fund ${company.fundId ?? fundId}`}
                     </span>
                   </div>
                 </CardContent>
@@ -288,9 +295,7 @@ export default function PortfolioCompanySummaryPage() {
                   <div className="flex justify-between gap-4">
                     <span className="text-charcoal-600">Ownership</span>
                     <span className="font-medium text-pov-charcoal">
-                      {company.ownershipCurrentPct
-                        ? `${Number.parseFloat(company.ownershipCurrentPct).toFixed(2)}%`
-                        : 'Not captured'}
+                      {formatOwnership(company.ownershipCurrentPct)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
