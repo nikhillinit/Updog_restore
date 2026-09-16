@@ -61,10 +61,10 @@ vi.mock('../../../server/services/reserve-input-builder', () => ({
     provenancePortfolio: [],
     reserveInputTrustSummary: {
       trustedForActivation: false,
-      defaultedInputCount: 2,
-      unavailableInputCount: 0,
-      defaultedFields: ['ownership', 'stage'],
-      unavailableFields: [],
+      defaultedInputCount: 1,
+      unavailableInputCount: 1,
+      defaultedFields: ['stage'],
+      unavailableFields: ['ownership'],
     },
   })),
 }));
@@ -167,8 +167,10 @@ describe('runReserveCalculation H9 stamp', () => {
     expect(captured.values?.metadata).toMatchObject({
       reserveInputTrustSummary: {
         trustedForActivation: false,
-        defaultedInputCount: 2,
-        defaultedFields: ['ownership', 'stage'],
+        defaultedInputCount: 1,
+        unavailableInputCount: 1,
+        defaultedFields: ['stage'],
+        unavailableFields: ['ownership'],
       },
     });
   });

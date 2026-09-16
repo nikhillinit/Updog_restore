@@ -93,6 +93,7 @@ export async function buildFactsReserveCandidates(input: {
       }
       if (
         !isTrustedStatus(company.provenance.ownership.status) ||
+        company.ownership == null ||
         !Number.isFinite(company.ownership) ||
         company.ownership < 0 ||
         company.ownership > 1

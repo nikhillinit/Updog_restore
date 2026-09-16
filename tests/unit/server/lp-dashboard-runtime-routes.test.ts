@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 type QueryChain = PromiseLike<unknown[]> & {
   from: ReturnType<typeof vi.fn>;
   leftJoin: ReturnType<typeof vi.fn>;
+  innerJoin: ReturnType<typeof vi.fn>;
   where: ReturnType<typeof vi.fn>;
   orderBy: ReturnType<typeof vi.fn>;
   limit: ReturnType<typeof vi.fn>;
@@ -30,6 +31,7 @@ const dbState = vi.hoisted(() => {
     const query = {
       from: vi.fn(() => query),
       leftJoin: vi.fn(() => query),
+      innerJoin: vi.fn(() => query),
       where: vi.fn(() => query),
       orderBy: vi.fn(() => query),
       limit: vi.fn(() => query),
@@ -502,6 +504,72 @@ describe('LP dashboard runtime routes', () => {
         totalPending: 2,
         totalPendingAmount: '500000',
       });
+    }
+  }, 30_000);
+
+  it('reports pending distribution totals next to the unchanged totals', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...distributionRow(), id: 'dist-1', totalAmountCents: 100_000n, status: 'pending' },
+        { ...distributionRow(), id: 'dist-2', totalAmountCents: 250_000n, status: 'completed' },
+        { ...distributionRow(), id: 'dist-3', totalAmountCents: 50_000n, status: 'pending' },
+      ]);
+      const list = await request(surface.app).get('/api/lp/distributions');
+
+      expect(list.status, surface.label).toBe(200);
+      expect(list.body, surface.label).toMatchObject({
+        totalDistributed: '400000',
+        pendingDistributed: '150000',
+      });
+
+      resetState();
+      dbState.state.selectResults.push([
+        {
+          distributionDate: '2026-03-01',
+          totalAmountCents: 50_000n,
+          distributionType: 'capital_gains',
+          status: 'pending',
+          returnOfCapitalCents: 0n,
+        },
+        {
+          distributionDate: '2026-01-20',
+          totalAmountCents: 250_000n,
+          distributionType: 'capital_gains',
+          status: 'completed',
+          returnOfCapitalCents: 100_000n,
+        },
+        {
+          distributionDate: '2025-06-30',
+          totalAmountCents: 100_000n,
+          distributionType: 'return_of_capital',
+          status: 'pending',
+          returnOfCapitalCents: 100_000n,
+        },
+      ]);
+      const summary = await request(surface.app).get('/api/lp/distributions/summary');
+
+      expect(summary.status, surface.label).toBe(200);
+      expect(summary.body, surface.label).toMatchObject({
+        totalAllTime: '400000',
+        pendingAllTime: '150000',
+      });
+      expect(summary.body.summary, surface.label).toEqual([
+        expect.objectContaining({
+          year: 2026,
+          totalDistributed: '300000',
+          pendingDistributed: '50000',
+          distributionCount: 2,
+        }),
+        expect.objectContaining({
+          year: 2025,
+          totalDistributed: '100000',
+          pendingDistributed: '100000',
+          distributionCount: 1,
+        }),
+      ]);
     }
   }, 30_000);
 

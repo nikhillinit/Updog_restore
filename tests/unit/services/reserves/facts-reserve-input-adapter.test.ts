@@ -209,12 +209,12 @@ describe('buildFactsReserveCandidates', () => {
     expect(buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   });
 
-  it('excludes missing ownership instead of substituting the legacy 15 percent default', async () => {
-    const company = reserveCompany(11, { ownership: 0.15 });
+  it('excludes unrecorded ownership (builder emits null + unavailable, never a default)', async () => {
+    const company = reserveCompany(11, { ownership: null });
     company.provenance.ownership = {
-      status: 'defaulted',
-      source: 'system_default_ownership',
-      reason: 'Missing ownership percentage uses 0.15 legacy default',
+      status: 'unavailable',
+      source: 'investments.ownership_percentage',
+      reason: 'Ownership percentage is not recorded; no default is substituted (ADR-054)',
     };
     buildReservePortfolioInputWithProvenance.mockResolvedValue(legacyPortfolio([company]));
 
@@ -228,6 +228,12 @@ describe('buildFactsReserveCandidates', () => {
         factsInputHash: COMPANY_FACTS_HASH,
       },
     ]);
+    expect(result.trustSummary).toMatchObject({
+      defaultedInputCount: 0,
+      unavailableInputCount: 1,
+      defaultedFields: [],
+      unavailableFields: ['ownership'],
+    });
   });
 
   it('excludes a company whose stage provenance is not observed or approved', async () => {

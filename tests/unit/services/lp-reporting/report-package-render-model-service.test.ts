@@ -78,7 +78,7 @@ function metricRunRow(overrides: Partial<LpMetricRun> = {}): LpMetricRun {
     resultsJson: {},
     diagnosticsJson: {},
     methodologyVersion: 'lp-reporting-methodology-v1',
-    calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+    calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
     generatedBy: 7,
     approvedBy: 7,
     approvedAt: new Date('2026-05-10T01:00:00Z'),
@@ -278,7 +278,7 @@ describe('getMetricRunReportPackageRenderModel', () => {
         inputsHash: METRIC_RUN_INPUTS_HASH,
         inputsHashShort: METRIC_RUN_INPUTS_HASH.slice(0, 12),
         methodologyVersion: 'lp-reporting-methodology-v1',
-        calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+        calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
       }))
     );
     for (const section of response.renderModel.metricSections) {

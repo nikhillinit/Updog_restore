@@ -372,7 +372,7 @@ function metricRunRow(): Record<string, unknown> {
     resultsJson: {},
     diagnosticsJson: {},
     methodologyVersion: 'lp-reporting-methodology-v1',
-    calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+    calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
     generatedBy: 7,
     approvedBy: 7,
     approvedAt: new Date('2026-05-10T01:00:00Z'),
@@ -857,7 +857,7 @@ describe('H9 export qualification', () => {
       expect(section.inputsHashShort).toBe(METRIC_RUN_INPUTS_HASH.slice(0, 12));
       expect(section.inputsHashShort).toHaveLength(12);
       expect(section.methodologyVersion).toBe('lp-reporting-methodology-v1');
-      expect(section.calculationVersion).toBe('lp-reporting-metrics-engine-1.0.0');
+      expect(section.calculationVersion).toBe('lp-reporting-metrics-engine-1.2.0');
     }
 
     const liveExportResponse = await sendRoute(app, EXPORT_ROUTES[1]).set(

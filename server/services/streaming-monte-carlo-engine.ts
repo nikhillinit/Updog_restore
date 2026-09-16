@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { SYSTEM_ACTOR_ID } from '@shared/constants/system-actor';
+import { PRNG } from '@shared/utils/prng';
 
 // Import existing types from the original engine
 import type {
@@ -245,7 +246,7 @@ class StreamingAggregator {
   private readonly maxSampleSize = 10000; // Limit for percentile calculation
   private readonly histogramBins = 100;
 
-  constructor() {
+  constructor(private readonly rng: PRNG) {
     this.reset();
   }
 
@@ -309,7 +310,7 @@ class StreamingAggregator {
       samples.push(value);
     } else {
       // Reservoir sampling algorithm
-      const randomIndex = Math.floor(Math.random() * this.aggregatedData.totalScenarios);
+      const randomIndex = Math.floor(this.rng.next() * this.aggregatedData.totalScenarios);
       if (randomIndex < this.maxSampleSize) {
         samples[randomIndex] = value;
       }
@@ -427,8 +428,12 @@ export class StreamingMonteCarloEngine {
       // Validate and set defaults
       const streamingConfig = this.validateAndSetDefaults(config);
 
+      // One PRNG per run: this instance is shared, so a seed must stay local to
+      // its run instead of being patched onto the process-wide Math.random.
+      const rng = new PRNG(streamingConfig.randomSeed ?? Math.floor(Math.random() * 2 ** 32));
+
       // Initialize aggregator and stats
-      const aggregator = new StreamingAggregator();
+      const aggregator = new StreamingAggregator(rng);
       this.initializeStats(streamingConfig);
 
       // Get baseline data
@@ -455,17 +460,13 @@ export class StreamingMonteCarloEngine {
         }
       );
 
-      // Set random seed for reproducibility
-      if (streamingConfig.randomSeed) {
-        this.setRandomSeed(streamingConfig.randomSeed);
-      }
-
       // Stream simulation batches
       let batchIndex = 0;
       for await (const batch of this.streamSimulationBatches(
         streamingConfig,
         portfolioInputs,
-        distributions
+        distributions,
+        rng
       )) {
         // Add batch to aggregator
         aggregator.addBatch(batch);
@@ -542,7 +543,8 @@ export class StreamingMonteCarloEngine {
   private async *streamSimulationBatches(
     config: StreamingConfig,
     portfolioInputs: PortfolioInputs,
-    distributions: DistributionParameters
+    distributions: DistributionParameters,
+    rng: PRNG
   ): AsyncGenerator<BatchResult, void, unknown> {
     const totalBatches = Math.ceil(config.runs / config.batchSize!);
     const concurrencyLimit = config.maxConcurrentBatches!;
@@ -562,7 +564,8 @@ export class StreamingMonteCarloEngine {
             batchSize,
             portfolioInputs,
             distributions,
-            config.timeHorizonYears
+            config.timeHorizonYears,
+            rng
           )
         );
       }
@@ -583,7 +586,8 @@ export class StreamingMonteCarloEngine {
     batchSize: number,
     portfolioInputs: PortfolioInputs,
     distributions: DistributionParameters,
-    timeHorizonYears: number
+    timeHorizonYears: number,
+    rng: PRNG
   ): Promise<BatchResult> {
     const startTime = Date.now();
     const batchId = uuidv4();
@@ -593,7 +597,12 @@ export class StreamingMonteCarloEngine {
     scenarios.length = batchSize;
 
     for (let i = 0; i < batchSize; i++) {
-      scenarios[i] = this.generateSingleScenario(portfolioInputs, distributions, timeHorizonYears);
+      scenarios[i] = this.generateSingleScenario(
+        portfolioInputs,
+        distributions,
+        timeHorizonYears,
+        rng
+      );
     }
 
     const processingTimeMs = Date.now() - startTime;
@@ -614,26 +623,29 @@ export class StreamingMonteCarloEngine {
   private generateSingleScenario(
     portfolioInputs: PortfolioInputs,
     distributions: DistributionParameters,
-    timeHorizonYears: number
+    timeHorizonYears: number,
+    rng: PRNG
   ): SingleScenario {
     // Use pre-computed constants for better performance
     const timeDecay = Math.pow(0.98, timeHorizonYears - 5);
 
     // Generate correlated random variables
-    const irrSample = this.sampleNormal(distributions.irr.mean, distributions.irr.volatility);
+    const irrSample = this.sampleNormal(rng, distributions.irr.mean, distributions.irr.volatility);
     const multipleSample = this.sampleNormal(
+      rng,
       distributions.multiple.mean,
       distributions.multiple.volatility
     );
     const dpiSample = Math.max(
       0,
-      this.sampleNormal(distributions.dpi.mean, distributions.dpi.volatility)
+      this.sampleNormal(rng, distributions.dpi.mean, distributions.dpi.volatility)
     );
     const exitTimingSample = Math.max(
       1,
-      this.sampleNormal(distributions.exitTiming.mean, distributions.exitTiming.volatility)
+      this.sampleNormal(rng, distributions.exitTiming.mean, distributions.exitTiming.volatility)
     );
     const followOnSample = this.sampleNormal(
+      rng,
       distributions.followOnSize.mean,
       distributions.followOnSize.volatility
     );
@@ -1138,19 +1150,9 @@ export class StreamingMonteCarloEngine {
     });
   }
 
-  private setRandomSeed(seed: number): void {
-    let state = seed;
-    Math.random = () => {
-      state = (state * 1664525 + 1013904223) % 4294967296;
-      return state / 4294967296;
-    };
-  }
-
-  private sampleNormal(mean: number, stdDev: number): number {
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return mean + z0 * stdDev;
+  private sampleNormal(rng: PRNG, mean: number, stdDev: number): number {
+    // PRNG.nextNormal clamps the first draw, so a seed whose first draw is 0 stays finite.
+    return rng.nextNormal(mean, stdDev);
   }
 
   /**

@@ -538,7 +538,7 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
       resultsJson: row.resultsJson ?? makeMetricResults(),
       diagnosticsJson: row.diagnosticsJson ?? makeMetricDiagnostics(),
       methodologyVersion: 'lp-reporting-methodology-v1',
-      calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+      calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
       generatedBy: row.generatedBy ?? authState.userId,
       approvedBy: row.approvedBy ?? null,
       approvedAt: row.approvedAt ?? null,

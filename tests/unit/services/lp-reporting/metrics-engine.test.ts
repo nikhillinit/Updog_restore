@@ -13,8 +13,10 @@ import {
 } from '@shared/contracts/lp-reporting';
 
 import {
+  computeInputsHash,
   computeMetrics,
   type ComputeMetricsInput,
+  type ParsedCashFlowEvent,
 } from '../../../../server/services/lp-reporting/metrics-engine';
 
 // ---------------------------------------------------------------------------
@@ -149,8 +151,18 @@ describe('computeMetrics -- truth case fixture', () => {
     expect(a).toBe(b);
   });
 
+  it('inputsHash is namespaced by the engine version', () => {
+    // The commit service's idempotent lookup keys on inputsHash, so a version
+    // bump must produce a new hash or stale runs would be replayed.
+    const current = computeMetrics(truthCase);
+    expect(computeInputsHash(truthCase, current.diagnostics.engineVersion)).toBe(
+      current.inputsHash
+    );
+    expect(computeInputsHash(truthCase, '0.0.0')).not.toBe(current.inputsHash);
+  });
+
   it('engine version + decimal precision are pinned for downstream auditing', () => {
-    expect(out.diagnostics.engineVersion).toBe('1.0.0');
+    expect(out.diagnostics.engineVersion).toBe('1.2.0');
     expect(out.diagnostics.decimalPrecision).toBe(6);
   });
 
@@ -275,5 +287,162 @@ describe('computeMetrics -- future-mark-only fixture', () => {
     expect(out.results.currentNav).toBe('0.000000');
     expect(out.diagnostics.excludedFutureMarks).toContain(99);
     expect(out.results.markConfidenceMix).toEqual({ high: 0, medium: 0, low: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NON-LIVE EVENTS (status gate)
+// ---------------------------------------------------------------------------
+
+describe('computeMetrics -- non-live events', () => {
+  const baseline = computeMetrics(truthCase);
+
+  function withEvents(extra: ParsedCashFlowEvent[]): ComputeMetricsInput {
+    return { ...truthCase, cashFlowEvents: [...truthCase.cashFlowEvents, ...extra] };
+  }
+
+  it('excludes a draft capital call from contributions and both IRR flows, and discloses it', () => {
+    const out = computeMetrics(
+      withEvents([
+        {
+          id: 5,
+          eventType: 'lp_capital_call',
+          amount: '4000000.000000',
+          eventDate: '2024-10-01',
+          perspective: 'lp_net',
+          status: 'draft',
+        },
+      ])
+    );
+
+    expect(out.results.contributionsTotal).toBe('6000000.000000');
+    expect(out.results.dpi).toBe(baseline.results.dpi);
+    expect(out.results.netIrr).toBe(baseline.results.netIrr);
+    expect(out.results.grossIrr).toBe(baseline.results.grossIrr);
+    expect(out.diagnostics.warnings).toEqual([
+      {
+        code: 'EXCLUDED_NON_LIVE_EVENTS',
+        message:
+          '1 cash flow events excluded because their status is not approved or locked: ids 5',
+      },
+    ]);
+    expect(LpMetricRunDiagnosticsSchema.safeParse(out.diagnostics).success).toBe(true);
+  });
+
+  it('fails closed on a missing status and lists excluded ids sorted', () => {
+    const out = computeMetrics(
+      withEvents([
+        {
+          id: 9,
+          eventType: 'lp_distribution',
+          amount: '250000.000000',
+          eventDate: '2024-11-01',
+          perspective: 'lp_net',
+          status: 'draft',
+        },
+        {
+          id: 7,
+          eventType: 'lp_capital_call',
+          amount: '500000.000000',
+          eventDate: '2024-11-01',
+          perspective: 'lp_net',
+        },
+      ])
+    );
+
+    expect(out.results.contributionsTotal).toBe('6000000.000000');
+    expect(out.results.distributionsTotal).toBe('1500000.000000');
+    expect(out.diagnostics.warnings.map((w) => w.code)).toEqual(['EXCLUDED_NON_LIVE_EVENTS']);
+    expect(out.diagnostics.warnings[0]?.message).toBe(
+      '2 cash flow events excluded because their status is not approved or locked: ids 7, 9'
+    );
+  });
+
+  it('counts locked events and excludes reversal rows without a status warning', () => {
+    const out = computeMetrics(
+      withEvents([
+        {
+          id: 6,
+          eventType: 'lp_capital_call',
+          amount: '1000000.000000',
+          eventDate: '2024-10-01',
+          perspective: 'lp_net',
+          status: 'locked',
+        },
+        {
+          id: 8,
+          eventType: 'reversal',
+          amount: '1000000.000000',
+          eventDate: '2024-10-02',
+          perspective: 'lp_net',
+          status: 'approved',
+        },
+      ])
+    );
+
+    expect(out.results.contributionsTotal).toBe('7000000.000000');
+    expect(out.diagnostics.warnings).toEqual([]);
+  });
+
+  it('excludes a reversed-status event by design without a warning', () => {
+    const out = computeMetrics(
+      withEvents([
+        {
+          id: 12,
+          eventType: 'lp_capital_call',
+          amount: '1000000.000000',
+          eventDate: '2024-10-01',
+          perspective: 'lp_net',
+          status: 'reversed',
+        },
+      ])
+    );
+
+    expect(out.results.contributionsTotal).toBe('6000000.000000');
+    expect(out.diagnostics.warnings).toEqual([]);
+  });
+
+  it('excludes draft and missing-status marks from NAV and discloses them', () => {
+    const out = computeMetrics({
+      ...truthCase,
+      valuationMarks: [
+        ...truthCase.valuationMarks,
+        {
+          id: 12,
+          fairValue: '9000000.000000',
+          markDate: '2024-12-15',
+          asOfDate: '2024-12-15',
+          status: 'draft',
+          confidenceLevel: 'medium',
+          companyId: 77,
+        },
+        {
+          id: 13,
+          fairValue: '8000000.000000',
+          markDate: '2024-12-20',
+          asOfDate: '2024-12-20',
+          confidenceLevel: 'low',
+          companyId: 78,
+        },
+        {
+          id: 14,
+          fairValue: '7000000.000000',
+          markDate: '2025-01-15',
+          asOfDate: '2025-01-15',
+          status: 'draft',
+          confidenceLevel: 'high',
+          companyId: 79,
+        },
+      ],
+    });
+
+    expect(out.results.currentNav).toBe('5000000.000000');
+    expect(out.results.markConfidenceMix).toEqual({ high: 1, medium: 0, low: 0 });
+    expect(out.diagnostics.excludedFutureMarks).toEqual([11]);
+    expect(out.diagnostics.warnings).toContainEqual({
+      code: 'EXCLUDED_NON_LIVE_MARKS',
+      message:
+        '2 valuation marks excluded because their status is not approved or locked: ids 12, 13',
+    });
   });
 });

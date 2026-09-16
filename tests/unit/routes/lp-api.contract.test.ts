@@ -459,10 +459,13 @@ describe('LP API route contracts', () => {
   );
 
   it('GET /api/lp/funds/:fundId/holdings locks aggregate fields', async () => {
-    calculatorState.calculateProRataHoldings.mockResolvedValueOnce([
-      { companyId: 1, companyName: 'Alpha', lpProRataValue: 150 },
-      { companyId: 2, companyName: 'Beta', lpProRataValue: 350 },
-    ]);
+    calculatorState.calculateProRataHoldings.mockResolvedValueOnce({
+      holdings: [
+        { companyId: 1, companyName: 'Alpha', lpProRataValue: 150 },
+        { companyId: 2, companyName: 'Beta', lpProRataValue: 350 },
+      ],
+      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma', reason: 'missing_ownership' }],
+    });
 
     const response = await request(makeApp()).get('/api/lp/funds/7/holdings');
 
@@ -475,6 +478,8 @@ describe('LP API route contracts', () => {
       ],
       totalHoldings: 2,
       totalValue: 500,
+      unpricedHoldings: 1,
+      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma', reason: 'missing_ownership' }],
     });
   });
 
@@ -915,7 +920,10 @@ describe('LP API self-scoping negative controls', () => {
   });
 
   it('GET /api/lp/funds/7/holdings passes the authenticated LP id and fund id to the calculator', async () => {
-    calculatorState.calculateProRataHoldings.mockResolvedValueOnce([]);
+    calculatorState.calculateProRataHoldings.mockResolvedValueOnce({
+      holdings: [],
+      unpricedCompanies: [],
+    });
 
     const response = await request(makeApp()).get('/api/lp/funds/7/holdings');
 

@@ -28,7 +28,7 @@ import type {
 import { isoDay, selectActiveValuationMarks } from './active-valuation-mark-selector';
 import { xirrDiagnostic } from './xirr-diagnostic-service';
 
-const ENGINE_VERSION = '1.0.0';
+const ENGINE_VERSION = '1.2.0';
 const DECIMAL_PRECISION = 6;
 
 // ============================================================================
@@ -104,7 +104,15 @@ export interface ComputeMetricsOutput {
 // HELPERS
 // ============================================================================
 
-const REVERSED_EVENT_STATUS = new Set<EventStatus>(['reversed']);
+/**
+ * Statuses that count toward the metric math.  Mirrors ACCEPTED_STATUSES in
+ * financial-facts-snapshot-service: draft and reversed rows never enter the
+ * sums or the IRR flows.  Every persisted row carries a status (NOT NULL
+ * DEFAULT 'draft'); the optional field exists only for hand-built inputs, so
+ * an undefined status fails closed.
+ */
+const LIVE_EVENT_STATUSES: ReadonlySet<EventStatus> = new Set<EventStatus>(['approved', 'locked']);
+const LIVE_MARK_STATUSES: ReadonlySet<MarkStatus> = new Set<MarkStatus>(['approved', 'locked']);
 /**
  * Render a Decimal as a fixed-precision decimal string at engine precision
  * (6 dp).  Mirrors the toFixed(6) calls used in import-reconciliation-service.
@@ -113,8 +121,16 @@ function decToString(value: Decimal): string {
   return value.toFixed(DECIMAL_PRECISION);
 }
 
+function hasLiveStatus(event: ParsedCashFlowEvent): boolean {
+  return event.status !== undefined && LIVE_EVENT_STATUSES.has(event.status);
+}
+
+function hasLiveMarkStatus(mark: ParsedValuationMark): boolean {
+  return mark.status !== undefined && LIVE_MARK_STATUSES.has(mark.status);
+}
+
 function isLiveEvent(event: ParsedCashFlowEvent): boolean {
-  if (event.status && REVERSED_EVENT_STATUS.has(event.status)) {
+  if (!hasLiveStatus(event)) {
     return false;
   }
   if (event.eventType === 'reversal') {
@@ -219,7 +235,16 @@ function buildGrossIrrFlows(
   return flows;
 }
 
-function computeInputsHash(input: ComputeMetricsInput): string {
+/**
+ * The engine version is part of the preimage: the commit service's idempotent
+ * lookup keys on (fund, run type, perspective, as-of date, inputsHash), so a
+ * version bump must yield a new hash or the same source rows would replay a
+ * run computed under the previous rule set.
+ */
+export function computeInputsHash(
+  input: ComputeMetricsInput,
+  engineVersion: string = ENGINE_VERSION
+): string {
   const eventFingerprints = input.cashFlowEvents
     .map((event) => ({
       id: event.id,
@@ -243,6 +268,7 @@ function computeInputsHash(input: ComputeMetricsInput): string {
     }))
     .sort((a, b) => a.id - b.id);
   const payload = JSON.stringify({
+    engineVersion,
     fundId: input.fundId,
     eventFingerprints,
     markFingerprints,
@@ -280,6 +306,42 @@ function irrToDecimalString(diag: XirrDiagnostic, irr: number | null): string | 
 export function computeMetrics(input: ComputeMetricsInput): ComputeMetricsOutput {
   const warnings: { code: string; message: string }[] = [];
 
+  // ---- Status gate disclosure (draft / missing status) ----
+  // Reversed rows are excluded by design and were never reported; only rows
+  // that have not reached approved or locked are disclosed.
+  const excludedNonLiveEventIds = input.cashFlowEvents
+    .filter((e) => !hasLiveStatus(e) && e.status !== 'reversed')
+    .map((e) => e.id)
+    .sort((a, b) => a - b);
+  if (excludedNonLiveEventIds.length > 0) {
+    warnings.push({
+      code: 'EXCLUDED_NON_LIVE_EVENTS',
+      message:
+        `${excludedNonLiveEventIds.length} cash flow events excluded because their status ` +
+        `is not approved or locked: ids ${excludedNonLiveEventIds.join(', ')}`,
+    });
+  }
+
+  const asOfDay = isoDay(input.asOfDate);
+  const excludedNonLiveMarkIds = input.valuationMarks
+    .filter(
+      (mark) =>
+        isoDay(mark.markDate) <= asOfDay &&
+        !hasLiveMarkStatus(mark) &&
+        mark.status !== 'superseded' &&
+        mark.status !== 'reversed'
+    )
+    .map((mark) => mark.id)
+    .sort((a, b) => a - b);
+  if (excludedNonLiveMarkIds.length > 0) {
+    warnings.push({
+      code: 'EXCLUDED_NON_LIVE_MARKS',
+      message:
+        `${excludedNonLiveMarkIds.length} valuation marks excluded because their status ` +
+        `is not approved or locked: ids ${excludedNonLiveMarkIds.join(', ')}`,
+    });
+  }
+
   // ---- Contributions and distributions (Decimal) ----
   const calledCapital = sumAmountsByType(
     input.cashFlowEvents,
@@ -298,7 +360,7 @@ export function computeMetrics(input: ComputeMetricsInput): ComputeMetricsOutput
 
   // ---- NAV (active marks at asOfDate) ----
   const { active, excludedFutureMarkIds } = selectActiveValuationMarks(
-    input.valuationMarks,
+    input.valuationMarks.filter((mark) => hasLiveMarkStatus(mark)),
     input.asOfDate
   );
   const currentNav = active.reduce((acc, m) => acc.plus(new Decimal(m.fairValue)), new Decimal(0));

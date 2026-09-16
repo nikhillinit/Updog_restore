@@ -520,7 +520,8 @@ router.get(
 /**
  * GET /api/lp/funds/:fundId/holdings
  *
- * Get LP's pro-rata share of portfolio holdings
+ * Get LP's pro-rata share of portfolio holdings.
+ * Companies with no recorded fund ownership or valuation are disclosed in unpricedCompanies with a reason, never priced (ADR-054, ADR-101).
  */
 router.get(
   '/api/lp/funds/:fundId/holdings',
@@ -546,7 +547,10 @@ router.get(
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
-      const holdings = await lpCalculator.calculateProRataHoldings(lpId, fundId);
+      const { holdings, unpricedCompanies } = await lpCalculator.calculateProRataHoldings(
+        lpId,
+        fundId
+      );
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=300');
@@ -559,6 +563,8 @@ router.get(
         holdings,
         totalHoldings: holdings.length,
         totalValue: holdings.reduce((sum, h) => sum + h.lpProRataValue, 0),
+        unpricedHoldings: unpricedCompanies.length,
+        unpricedCompanies,
       });
     } catch (error) {
       if (respondNumberParseError(res, error)) {

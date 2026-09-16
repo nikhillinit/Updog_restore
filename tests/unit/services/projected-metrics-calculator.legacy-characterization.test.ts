@@ -113,7 +113,7 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
     expect(['ahead', 'on-track', 'behind']).toContain(result.deploymentPace);
   });
 
-  it('locks reserve-input defaults through deterministic equality and a non-vacuity control', async () => {
+  it('passes absent ownership through as null: same base allocation as an explicit 0.1, no confidence bonus', async () => {
     const calc = new ProjectedMetricsCalculator();
     const absent = [
       { id: 1, investmentAmount: '1000000', investmentDate },
@@ -146,9 +146,18 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
     const rDefault = await calc.calculate(fund, explicitDefault, config);
     const rNon = await calc.calculate(fund, nonDefault, config);
 
-    // Reserve and pacing results do not draw randomness, so equality here pins the current defaults.
-    expect(reserveTuple(rAbsent)).toEqual(reserveTuple(rDefault));
-    // The non-default control proves the equality above is load-bearing rather than a 0 === 0 tautology.
+    // Reserve results draw no randomness. Absent stage/sector still default to Seed/SaaS, so both
+    // sides share the base allocation 1M * 1.5 * 1.1 = 1,650,000. Ownership is the only difference:
+    // absent -> null (ADR-054: never defaulted) -> neutral in the engine, so confidence is
+    // 0.3 + 0.2 = 0.5 and allocatedReserves = 1,650,000 * 0.5 = 825,000. An explicit 0.1 sits in the
+    // no-multiplier band but earns the +0.15 ownership bonus (0.65 -> 1,072,500). The absent values
+    // are reachable only with ownership === null: 0 would take the 0.8 penalty (1,320,000) and the
+    // former '0.1' default would reproduce the explicit column exactly.
+    expect(reserveTuple(rAbsent)).toEqual([1_650_000, 825_000, 825_000, 50]);
+    expect(rDefault.totalReserveNeeds).toBe(1_650_000);
+    expect(rDefault.allocatedReserves).toBeCloseTo(1_072_500, 6);
+    expect(rAbsent.allocatedReserves).toBeLessThan(rDefault.allocatedReserves);
+    // The non-default control proves the pins above are load-bearing rather than a 0 === 0 tautology.
     expect(reserveTuple(rNon)).not.toEqual(reserveTuple(rDefault));
   });
 
