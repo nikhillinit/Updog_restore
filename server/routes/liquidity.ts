@@ -39,6 +39,18 @@ const UPCOMING_STATUSES = new Set<z.infer<typeof CashTransactionSchema>['status'
   'approved',
 ]);
 
+type StatusBearingTransaction = Pick<z.infer<typeof CashTransactionSchema>, 'status'>;
+
+/** Realized history only: the engine sums whatever it is given. */
+export function isExecutedTransaction(transaction: StatusBearingTransaction): boolean {
+  return transaction.status === 'executed';
+}
+
+/** Rows the forecast may still count: planned, pending or approved. */
+export function isUpcomingTransaction(transaction: StatusBearingTransaction): boolean {
+  return UPCOMING_STATUSES.has(transaction.status);
+}
+
 // Request validation schemas
 const stressTestFactorsSchema = z
   .object({
@@ -110,7 +122,7 @@ router.post(
     // Realized history only. The engine sums whatever it is given, so the status
     // filter lives at the caller (mirrors useLiquidityAnalytics.runCashFlowAnalysis).
     const engine = new LiquidityEngine(fundId, fundSize);
-    const analysis = engine.analyzeCashFlows(transactions.filter((t) => t.status === 'executed'));
+    const analysis = engine.analyzeCashFlows(transactions.filter(isExecutedTransaction));
 
     res.json(analysis);
   })
@@ -129,7 +141,7 @@ router.post(
     const engine = new LiquidityEngine(fundId, fundSize);
     const forecast = engine.generateLiquidityForecast(
       currentPosition,
-      (transactions ?? []).filter((t) => UPCOMING_STATUSES.has(t.status)),
+      (transactions ?? []).filter(isUpcomingTransaction),
       recurringExpenses,
       months
     );
