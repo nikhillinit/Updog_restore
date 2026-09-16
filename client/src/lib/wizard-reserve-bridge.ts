@@ -127,7 +127,11 @@ export function generateSyntheticPortfolio(
 
         // Investment details
         totalInvested: initialCheckSize,
-        currentValuation: entryStage.valuation,
+        // Engine contract: currentValuation is the fund's position value
+        // (DeterministicReserveEngine.calculateCurrentMOIC = currentValuation /
+        // totalInvested). A synthetic company enters at cost, so its position is
+        // worth the check, not the company's round valuation.
+        currentValuation: initialCheckSize,
         ownershipPercentage: Math.min(impliedOwnership, 1.0), // Clamp to 100%
         liquidationPreference: initialCheckSize,
 
@@ -137,7 +141,7 @@ export function generateSyntheticPortfolio(
         isActive: true,
 
         // Performance metrics
-        currentMOIC: entryStage.valuation / initialCheckSize,
+        currentMOIC: 1,
         estimatedExitValue: entryStage.exitValuation,
         confidenceLevel: 0.5,
 

@@ -306,6 +306,15 @@ describe('wizard-reserve-bridge', () => {
       expect(company?.liquidationPreference).toBe(2.0);
       expect(company?.isActive).toBe(true);
     });
+
+    it('enters synthetic companies at cost so position value equals the check', () => {
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 10);
+
+      // The reserve engine derives current MOIC as currentValuation / totalInvested,
+      // so currentValuation must be the fund's position value, not the round valuation.
+      expect(portfolio.every((c) => c.currentValuation === c.totalInvested)).toBe(true);
+      expect(portfolio.every((c) => c.currentMOIC === 1)).toBe(true);
+    });
   });
 
   describe('buildGraduationMatrix', () => {
