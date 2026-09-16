@@ -130,6 +130,16 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   );
 
   const liquidityMetrics = useLiquidityMetrics(analytics.cashFlowAnalysis);
+
+  // summary.netCashFlow is the net of all executed history; the card's "this month"
+  // change must come from the current month's bucket (keyed like the engine: local
+  // year-month of plannedDate).
+  const thisMonthNetFlow = useMemo(() => {
+    if (!analytics.cashFlowAnalysis) return null;
+    const now = new Date();
+    const key = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    return analytics.cashFlowAnalysis.byMonth.find((month) => month.month === key)?.netFlow ?? null;
+  }, [analytics.cashFlowAnalysis]);
   const workPanelEnabled = useFlag('enable_work_panel');
   const workPanel = useWorkPanelUrlState();
   const cashEventEnabled = useFlag('enable_cash_event_object');
@@ -293,9 +303,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
               ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000)
               : '--'
           }
-          {...(analytics.cashFlowAnalysis?.summary.netCashFlow
+          {...(thisMonthNetFlow != null
             ? {
-                change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`,
+                change: `${thisMonthNetFlow > 0 ? '+' : ''}${formatCurrencyShort(thisMonthNetFlow / 1000000)} this month`,
               }
             : {})}
           {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend
