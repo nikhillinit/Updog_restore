@@ -132,7 +132,8 @@ export function useLiquidityAnalytics(
 
     for (let i = 0; i < 52; i++) {
       const date = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000); // Weekly intervals
-      const executed = date.getTime() <= now;
+      // Rows dated exactly now are planned: i = 26 lands on now, so < keeps 26/26.
+      const executed = date.getTime() < now;
 
       // Random transaction type
       const transactionTypes: CashTransactionType[] = [
@@ -310,7 +311,9 @@ export function useLiquidityAnalytics(
     setState((prev) => ({ ...prev, isLoadingAnalysis: true, analysisError: null }));
 
     try {
-      const transactions = getTransactions();
+      // The analysis is realized history, so only executed rows count; planned
+      // rows belong to the forecast below, which keeps the upcoming statuses.
+      const transactions = getTransactions().filter((t) => t.status === 'executed');
       if (transactions.length === 0) {
         setState((prev) => ({
           ...prev,

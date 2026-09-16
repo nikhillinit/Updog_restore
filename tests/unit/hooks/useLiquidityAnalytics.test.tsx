@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useLiquidityAnalytics } from '@/hooks/useLiquidityAnalytics';
 import type { CashPosition, CashTransaction } from '@shared/types';
 
@@ -91,23 +91,25 @@ describe('useLiquidityAnalytics', () => {
   });
 
   it('keeps planned flows in the demo forecast', async () => {
-    const { result } = renderHook(() =>
-      useLiquidityAnalytics({ ...baseOptions, allowDemoFallback: true })
-    );
+    // The demo generator picks types and amounts with Math.random; pin it so every
+    // mock row is a capital call and the assertion cannot depend on the draw.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const { result } = renderHook(() =>
+        useLiquidityAnalytics({ ...baseOptions, allowDemoFallback: true })
+      );
 
-    await act(async () => {
-      await result.current.generateLiquidityForecast(12);
-    });
-    await waitFor(() => expect(result.current.liquidityForecast).not.toBeNull());
+      await act(async () => {
+        await result.current.generateLiquidityForecast(12);
+      });
+      await waitFor(() => expect(result.current.liquidityForecast).not.toBeNull());
 
-    // The forecast keeps only upcoming statuses, so the demo history must carry
-    // planned rows or every planned inflow and investment collapses to zero.
-    const forecast = result.current.liquidityForecast;
-    expect(
-      (forecast?.plannedCapitalCalls ?? 0) +
-        (forecast?.expectedDistributions ?? 0) +
-        (forecast?.plannedInvestments ?? 0)
-    ).toBeGreaterThan(0);
+      // The forecast keeps only upcoming statuses, so the demo history must carry
+      // planned rows or every planned inflow collapses to zero.
+      expect(result.current.liquidityForecast?.plannedCapitalCalls ?? 0).toBeGreaterThan(0);
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it('does not flag demo when real transactions are provided', () => {
@@ -115,6 +117,29 @@ describe('useLiquidityAnalytics', () => {
     const { result } = renderHook(() => useLiquidityAnalytics({ ...baseOptions, transactions }));
 
     expect(result.current.isDemoData).toBe(false);
+  });
+
+  it('keeps planned transactions out of the cash flow analysis', async () => {
+    const transactions: CashTransaction[] = [
+      createTransaction(),
+      {
+        ...createTransaction(),
+        id: '22222222-2222-4222-8222-222222222222',
+        amount: 2_000_000,
+        status: 'planned',
+        plannedDate: new Date('2027-01-31T00:00:00.000Z'),
+      },
+    ];
+    const { result } = renderHook(() => useLiquidityAnalytics({ ...baseOptions, transactions }));
+
+    await act(async () => {
+      await result.current.runCashFlowAnalysis();
+    });
+    await waitFor(() => expect(result.current.cashFlowAnalysis).not.toBeNull());
+
+    // The analysis is realized history; the planned row belongs to the forecast.
+    expect(result.current.cashFlowAnalysis?.summary.transactionCount).toBe(1);
+    expect(result.current.cashFlowAnalysis?.summary.totalInflows).toBe(1_000_000);
   });
 
   it('projects only upcoming transactions in the forecast', async () => {
