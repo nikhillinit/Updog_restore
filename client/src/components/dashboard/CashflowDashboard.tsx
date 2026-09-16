@@ -56,6 +56,7 @@ import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
 import { getImpactBadgeClass, getImpactTextClass } from '@/lib/display/impact-semantics';
 import { useFlag } from '@/shared/useFlags';
 import { toStressScenarioViewModel } from './stress-test-view-model';
+import { currentMonthNetFlow } from './cashflow-view-model';
 
 const STATUS_SUCCESS = brandColors.success;
 const CASHFLOW_CHART_COLORS = {
@@ -130,6 +131,15 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   );
 
   const liquidityMetrics = useLiquidityMetrics(analytics.cashFlowAnalysis);
+
+  // summary.netCashFlow is the net of all executed history; the card's "this month"
+  // change must come from the current month's bucket (keyed like the engine: local
+  // year-month of plannedDate).
+  const thisMonthNetFlow = useMemo(
+    () =>
+      analytics.cashFlowAnalysis ? currentMonthNetFlow(analytics.cashFlowAnalysis.byMonth) : null,
+    [analytics.cashFlowAnalysis]
+  );
   const workPanelEnabled = useFlag('enable_work_panel');
   const workPanel = useWorkPanelUrlState();
   const cashEventEnabled = useFlag('enable_cash_event_object');
@@ -293,9 +303,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
               ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000)
               : '--'
           }
-          {...(analytics.cashFlowAnalysis?.summary.netCashFlow
+          {...(thisMonthNetFlow != null
             ? {
-                change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`,
+                change: `${thisMonthNetFlow > 0 ? '+' : ''}${formatCurrencyShort(thisMonthNetFlow / 1000000)} this month`,
               }
             : {})}
           {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend

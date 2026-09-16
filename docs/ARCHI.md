@@ -456,12 +456,11 @@ plain `ls` will show more if untracked files are present) includes:
   `modeling-wizard/steps/WaterfallStep.tsx` + `lps/WaterfallEditor.tsx`; also
   `client/src/pages/WaterfallStep.tsx` and calc code in
   `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
-- **Hooks** (`client/src/hooks/`, 69 entries, `git ls-tree HEAD`): domain hooks
+- **Hooks** (`client/src/hooks/`, 73 entries, `git ls-tree HEAD`): domain hooks
   (`use-fund-data.ts`, `use-capital-allocation.ts`, `use-engine-data.ts`,
-  `use-graduation.ts`, `use-liquidity.ts`, `use-moic.ts`,
-  `useReserveIntelligence.ts`, `useInternalEconomics.ts`,
-  `useQuarterlyReview.ts`, `useVarianceData.ts`, `useWaterfallCalculations.ts`)
-  plus LP/wizard/sensitivity/backtesting hooks.
+  `use-graduation.ts`, `use-moic.ts`, `useReserveIntelligence.ts`,
+  `useInternalEconomics.ts`, `useQuarterlyReview.ts`, `useVarianceData.ts`,
+  `useWaterfallCalculations.ts`) plus LP/wizard/sensitivity/backtesting hooks.
 - **Design tokens**: `client/src/theme/presson.tokens.ts` (only file in
   `theme/`, 5285 bytes) — read `DESIGN.md` before touching.
 
