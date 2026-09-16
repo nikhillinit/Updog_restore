@@ -1,15 +1,5 @@
 [
   {
-    "id": "dormant:client/src/pages/admin/telemetry.tsx",
-    "path": "client/src/pages/admin/telemetry.tsx",
-    "exists": true,
-    "importer_evidence": [],
-    "disposition": "not-surface",
-    "decision_status": "approved",
-    "decision_evidence": "UNAPPROVED proposal for candidates:client/src/pages/admin/telemetry.tsx; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.",
-    "contract_fingerprint": "9b82149a87a905e6d9fecb13fc8beaa5c1f640ad9fa2906970dbe8dccbc2a1e9"
-  },
-  {
     "id": "dormant:client/src/pages/analytics.tsx",
     "path": "client/src/pages/analytics.tsx",
     "exists": true,

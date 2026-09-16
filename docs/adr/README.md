@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-04
+last_updated: 2026-09-16
 ---
 
 # Architecture Decision Records (ADRs)
@@ -30,7 +30,7 @@ this file is the deep-dive.
 | --------------------------------------------------------- | ------------------------------------------------------------ | ----------- |
 | [0001](0001-evaluator-metrics.md)                         | Evaluator Metrics for AI Agents                              | Accepted    |
 | [0002](0002-token-budgeting.md)                           | Token Budgeting Strategy                                     | Accepted    |
-| [0003](0003-streaming-architecture.md)                    | Streaming Architecture for Long-Running Operations           | Accepted    |
+| [0003](0003-streaming-architecture.md)                    | Streaming Architecture for Long-Running Operations           | Deprecated  |
 | [004](ADR-004-waterfall-names.md)                         | Waterfall Distribution Names                                 | Accepted    |
 | [005](ADR-005-xirr-excel-parity.md)                       | XIRR Excel Parity                                            | Accepted    |
 | [006](ADR-006-fee-calculation-standards.md)               | Fee Calculation Standards                                    | Accepted    |
