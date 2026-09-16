@@ -1,9 +1,16 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-09-16
 ---
 
 # Fund KPI Selector Contract System
+
+> **Status (2026-09-16): abandoned.** The selector-contract program was
+> abandoned by owner decision (ADR-102). Its hook
+> `client/src/hooks/useFundKpis.ts` and contract
+> `shared/contracts/kpi-raw-facts.contract.ts` were deleted; the server never
+> implemented `/api/funds/:fundId/kpis`. This document stays in place as a
+> historical record. Do not implement from it.
 
 Production-ready TypeScript implementation for calculating VC fund Key
 Performance Indicators (KPIs) using pure selector functions and TanStack Query

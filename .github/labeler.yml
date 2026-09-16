@@ -4,80 +4,78 @@
 # E2E testing trigger - label risky paths that need full testing
 e2e-required:
   - any:
-    - 'client/src/stores/**/*'
-    - 'client/src/core/reserves/**/*'
-    - 'client/src/pages/fund-setup/**/*'
-    - 'client/src/selectors/**/*'
-    - 'client/src/config/features.ts'
-    - 'client/src/config/rollout.ts'
-    - 'client/src/lib/telemetry.ts'
+      - 'client/src/stores/**/*'
+      - 'client/src/core/reserves/**/*'
+      - 'client/src/pages/fund-setup/**/*'
+      - 'client/src/selectors/**/*'
+      - 'client/src/lib/telemetry.ts'
 
 # Database/migration changes need careful review
 db-migration:
   - any:
-    - 'migrations/**/*'
-    - 'server/db.ts'
-    - 'drizzle.config.ts'
-    - 'shared/schema.ts'
-    - 'shared/schema/**/*'
-    - 'shared/schema-lp-reporting.ts'
-    - 'shared/schema-lp-sprint3.ts'
+      - 'migrations/**/*'
+      - 'server/db.ts'
+      - 'drizzle.config.ts'
+      - 'shared/schema.ts'
+      - 'shared/schema/**/*'
+      - 'shared/schema-lp-reporting.ts'
+      - 'shared/schema-lp-sprint3.ts'
 
 # Infrastructure changes
 infrastructure:
   - any:
-    - '.github/workflows/**/*'
-    - 'docker-compose*.yml'
-    - 'Dockerfile*'
-    - 'vercel.json'
-    - 'deploy.config.json'
+      - '.github/workflows/**/*'
+      - 'docker-compose*.yml'
+      - 'Dockerfile*'
+      - 'vercel.json'
+      - 'deploy.config.json'
 
 # Performance critical paths
 performance-critical:
   - any:
-    - 'client/src/core/**/*'
-    - 'server/**/*'
-    - 'lib/**/*'
-    - 'vite.config.ts'
-    - 'package.json'
-    - 'package-lock.json'
+      - 'client/src/core/**/*'
+      - 'server/**/*'
+      - 'lib/**/*'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
 
 # Dependencies updates
 dependencies:
   - any:
-    - 'package.json'
-    - 'package-lock.json'
-    - 'yarn.lock'
-    - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
 
 # Configuration changes
 config:
   - any:
-    - '*.config.*'
-    - '.env*'
-    - 'tsconfig*.json'
-    - 'eslint.config.*'
-    - 'tailwind.config.*'
+      - '*.config.*'
+      - '.env*'
+      - 'tsconfig*.json'
+      - 'eslint.config.*'
+      - 'tailwind.config.*'
 
 # Testing changes
 testing:
   - any:
-    - 'tests/**/*'
-    - '**/*.test.*'
-    - '**/*.spec.*'
-    - 'vitest.config.*'
-    - 'playwright.config.*'
+      - 'tests/**/*'
+      - '**/*.test.*'
+      - '**/*.spec.*'
+      - 'vitest.config.*'
+      - 'playwright.config.*'
 
 # Scripts and automation
 automation:
   - any:
-    - 'scripts/**/*'
-    - '.github/**/*'
+      - 'scripts/**/*'
+      - '.github/**/*'
 
 # Documentation
 documentation:
   - any:
-    - '**/*.md'
-    - 'docs/**/*'
-    - 'README*'
-    - 'CHANGELOG*'
+      - '**/*.md'
+      - 'docs/**/*'
+      - 'README*'
+      - 'CHANGELOG*'

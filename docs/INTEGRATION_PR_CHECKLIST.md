@@ -1,9 +1,14 @@
 ---
 status: HISTORICAL
-last_updated: 2026-04-20
+last_updated: 2026-09-16
 ---
 
 # Phase 1 Foundations Integration - PR Checklist
+
+> **Status (2026-09-16): abandoned.** The KPI header and `useFundKpis`
+> integration this checklist tracks was abandoned by owner decision (ADR-102);
+> the hook and `shared/contracts/kpi-raw-facts.contract.ts` were deleted. This
+> document stays in place as a historical record. Do not implement from it.
 
 **PR Title**:
 `feat: Phase 1 Foundations - KPI Selectors + 5-Route IA + Flag System`
