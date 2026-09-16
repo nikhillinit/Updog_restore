@@ -475,6 +475,38 @@ describe('LP dashboard runtime routes', () => {
     }
   }, 30_000);
 
+  it('counts partially paid capital calls in the pending totals', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...capitalCallRow(), id: 'call-1', status: 'pending' },
+        {
+          ...capitalCallRow(),
+          id: 'call-2',
+          status: 'partial',
+          callAmountCents: 400_000n,
+          paidAmountCents: 150_000n,
+        },
+        {
+          ...capitalCallRow(),
+          id: 'call-3',
+          status: 'paid',
+          callAmountCents: 100_000n,
+          paidAmountCents: 100_000n,
+        },
+      ]);
+      const response = await request(surface.app).get('/api/lp/capital-calls');
+
+      expect(response.status, surface.label).toBe(200);
+      expect(response.body, surface.label).toMatchObject({
+        totalPending: 2,
+        totalPendingAmount: '500000',
+      });
+    }
+  }, 30_000);
+
   it('reports pending distribution totals next to the unchanged totals', async () => {
     const surfaces = await buildSurfaces();
 

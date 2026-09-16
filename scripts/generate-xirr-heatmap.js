@@ -48,7 +48,7 @@ const heatmap = `# Phase 1.1.1 XIRR Baseline Heatmap
 
 ## Results Table
 
-| Scenario ID | Expected IRR | Actual IRR | |Δ| (bps) | Status | Category |
+| Scenario ID | Expected IRR | Actual IRR | \\|Δ\\| (bps) | Status | Category |
 |-------------|--------------|------------|------------|--------|----------|
 ${rows}
 

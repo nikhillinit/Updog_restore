@@ -159,6 +159,23 @@ describe('CI fail-closed change classification', () => {
     );
     expect(renamed.status, renamed.stderr).toBe(0);
     expect(renamed.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
+
+    // An edited rename between allowlisted paths (git prints R098) must stay light too.
+    const editedRename = classifyRawDiff(
+      rawChange('R098', ['docs/_generated/router-fast.json', 'docs/skills/SKILLS_INDEX.md'])
+    );
+    expect(editedRename.status, editedRename.stderr).toBe(0);
+    expect(editedRename.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
+  });
+
+  it('accepts a rename whose similarity score is below 100', () => {
+    // git zero-pads the score (R098); the header regex used to accept only R100
+    // and the aggregate gate failed on any rename that carried edits.
+    const renamed = classifyRawDiff(
+      rawChange('R098', ['tests/unit/schema-helpers.spec.ts', 'tests/unit/schema-helpers.test.ts'])
+    );
+    expect(renamed.status, renamed.stderr).toBe(0);
+    expect(renamed.result).toMatchObject({ valid: true, autoDocsOnly: false });
   });
 
   it.each([

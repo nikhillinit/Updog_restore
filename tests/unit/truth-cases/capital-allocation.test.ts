@@ -26,15 +26,6 @@ function logCapitalAllocationTruthCase(...args: unknown[]): void {
   }
 }
 
-/**
- * @quarantine
- * @reason CA-005 truth case locked per docs/CA-SEMANTIC-LOCK.md Section 6; dynamic_ratio policy cases skipped by engine policy
- * @category STALE
- * @owner P5.1 tech debt audit
- * @date 2026-02-18
- * @exitCriteria Unlock CA-005 when dynamic_ratio allocation policy is implemented in the reserve engine
- */
-
 // Type for truth case JSON structure
 interface CATruthCase {
   id: string;
@@ -160,9 +151,7 @@ function convertToEngineInput(tc: CATruthCase): TruthCaseInput {
       min_cash_buffer: tc.inputs.constraints.min_cash_buffer,
       max_allocation_per_cohort: tc.inputs.constraints.max_allocation_per_cohort,
       rebalance_frequency: tc.inputs.constraints.rebalance_frequency as
-        | 'quarterly'
-        | 'monthly'
-        | 'annual',
+        'quarterly' | 'monthly' | 'annual',
     },
     timeline: {
       start_date: tc.inputs.timeline.start_date,

@@ -241,7 +241,7 @@ mountCommonRoutes(app: Express, options:
 ```
 
 Groups are **contiguous boundary-pair slices** of an ordered route-id list, not
-a free list. `COMMON_ROUTE_IMPLEMENTATIONS` (44 entries) `satisfies` a type
+a free list. `COMMON_ROUTE_IMPLEMENTATIONS` (47 entries) `satisfies` a type
 derived from `shared/routes/api-route-manifest.ts` (`CommonApiRouteId`), so
 TypeScript enforces impl-map completeness against the manifest — but
 **group-boundary coverage is hand-maintained, not type-checked**. A
@@ -294,14 +294,14 @@ auth boundary.
 `shared/schema-lp-sprint3.ts`; migrations output `./migrations`;
 `DATABASE_URL`-driven (throws if unset).
 
-**`[UNVERIFIED FROM REPO]` tag resolved**: `shared/schema.ts` (2,714 lines) is a
+**`[UNVERIFIED FROM REPO]` tag resolved**: `shared/schema.ts` (2,722 lines) is a
 real file, not a stub — it defines ~2,600 lines of tables/Zod inline (imports
 `pgTable`/`uuid`/`decimal`/etc. from `drizzle-orm/pg-core`) _and_ re-exports
-**25** of the 28 `shared/schema/*.ts` entries below (`schema.ts:33-57`; the
-three not re-exported are `vehicles.ts`, `compat.ts`, and the directory's own
-`index.ts`), plus 2 more from the **separate** `shared/schemas/` (plural)
-directory — `./schemas/flags` and `./schemas/reserve-approvals`
-(`schema.ts:58-59`, the only two plural-dir references).
+**33** of the 34 `shared/schema/*.ts` entries below (`schema.ts:33-65`; the one
+not re-exported is `vehicles.ts`), plus 2 more from the **separate**
+`shared/schemas/` (plural) directory — `./schemas/flags` and
+`./schemas/reserve-approvals` (`schema.ts:66-67`, the only two plural-dir
+references).
 
 **Import resolution traced (2026-08-04, static + resolver probes)**: the bare
 `@shared/schema` specifier resolves to **`shared/schema.ts`** in _every_
@@ -309,51 +309,50 @@ toolchain — root/server/client tsconfigs (`moduleResolution: bundler`,
 file-before-directory), Vite (`vite.config.ts:411` `@shared` alias), both
 esbuild builds (`build-server.mjs`, `build-vercel-api.mjs` pinned to
 `tsconfig.server.json`), and vitest (`vitest.config.shared.mjs:26-27`). 100 bare
-`@shared/schema` imports repo-wide all hit `schema.ts`. `shared/schema/index.ts`
-(33 lines, re-exports 18 domain modules — a strict subset of `schema.ts`,
-missing `allocation-scenarios`, `reconciliation-runs`,
-`substrate-shadow-reconciliations`, `financial-facts-snapshots`,
-`fund-calculation-modes`, `fund-moic-input-update-requests`,
-`internal-economics`) is **effectively dead**: its sole importer is
-`tests/unit/schema/quarterly-review-schema.test.ts:8` via the explicit
-`@shared/schema/index` subpath, and its header comment claiming "Legacy imports
-still work: `import { funds } from '@shared/schema'`" is misleading — that
-import never reaches it. 88 `@shared/schema/<file>` subpath imports hit
-directory files directly, bypassing both barrels. `vehicles.ts` and `compat.ts`
-are exported by **neither** barrel.
+`@shared/schema` imports repo-wide all hit `schema.ts`. The directory barrel
+`shared/schema/index.ts` that this section used to analyse no longer exists (the
+inventory below has no `index.ts`), so `schema.ts` is the only barrel. 88
+`@shared/schema/<file>` subpath imports hit directory files directly, bypassing
+it. `vehicles.ts` is exported by no barrel.
 
-### `shared/schema/` inventory (28 files)
+### `shared/schema/` inventory (34 files)
 
-| File                                  | Domain                                                            |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `fund.ts`                             | core fund entity                                                  |
-| `portfolio.ts`                        | portfolio entities                                                |
-| `investment-positions.ts`             | investment positions                                              |
-| `investment-rounds.ts`                | investment rounds                                                 |
-| `investment-round-model-overrides.ts` | round model overrides                                             |
-| `investment-ledger.ts`                | financing events/tranches ledger (multi-entity ledger foundation) |
-| `vehicles.ts`                         | investment vehicles                                               |
-| `vehicle-financing-participations.ts` | vehicle financing participations                                  |
-| `shares.ts`                           | cap table / shares                                                |
-| `scenario.ts`                         | scenario core                                                     |
-| `allocation-scenarios.ts`             | allocation scenarios + IC decisions                               |
-| `company-scenario-create-requests.ts` | company scenario creation requests                                |
-| `scenario-case-seed-provenance.ts`    | scenario seed provenance                                          |
-| `current-plans.ts`                    | current plan records                                              |
-| `current-forecast-references.ts`      | current forecast reference pointers                               |
-| `substrate-shadow-reconciliations.ts` | shadow vs substrate reconciliation                                |
-| `fund-calculation-modes.ts`           | fund calculation modes                                            |
-| `fund-moic-input-update-requests.ts`  | MOIC input update requests                                        |
-| `financial-facts-snapshots.ts`        | financial facts snapshots                                         |
-| `financial-observations.ts`           | financial observations                                            |
-| `internal-analysis.ts`                | internal analysis                                                 |
-| `internal-economics.ts`               | internal LP economics                                             |
-| `reconciliation-runs.ts`              | reconciliation run records                                        |
-| `operating-objects.ts`                | operating objects/tasks foundation                                |
-| `lp-reporting-evidence.ts`            | LP reporting evidence                                             |
-| `user.ts`                             | users/auth                                                        |
-| `compat.ts`                           | legacy/back-compat shims                                          |
-| `index.ts`                            | schema barrel/re-exports                                          |
+| File                                     | Domain                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `fund.ts`                                | core fund entity                                                  |
+| `portfolio.ts`                           | portfolio entities                                                |
+| `investment-positions.ts`                | investment positions                                              |
+| `investment-rounds.ts`                   | investment rounds                                                 |
+| `investment-round-model-overrides.ts`    | round model overrides                                             |
+| `investment-ledger.ts`                   | financing events/tranches ledger (multi-entity ledger foundation) |
+| `vehicles.ts`                            | investment vehicles                                               |
+| `vehicle-financing-participations.ts`    | vehicle financing participations                                  |
+| `shares.ts`                              | cap table / shares                                                |
+| `scenario.ts`                            | scenario core                                                     |
+| `allocation-scenarios.ts`                | allocation scenarios + IC decisions                               |
+| `company-scenario-create-requests.ts`    | company scenario creation requests                                |
+| `scenario-case-seed-provenance.ts`       | scenario seed provenance                                          |
+| `current-plans.ts`                       | current plan records                                              |
+| `current-forecast-references.ts`         | current forecast reference pointers                               |
+| `substrate-shadow-reconciliations.ts`    | shadow vs substrate reconciliation                                |
+| `fund-calculation-modes.ts`              | fund calculation modes                                            |
+| `fund-moic-input-update-requests.ts`     | MOIC input update requests                                        |
+| `financial-facts-snapshots.ts`           | financial facts snapshots                                         |
+| `financial-observations.ts`              | financial observations                                            |
+| `internal-analysis.ts`                   | internal analysis                                                 |
+| `internal-economics.ts`                  | internal LP economics                                             |
+| `reconciliation-runs.ts`                 | reconciliation run records                                        |
+| `operating-objects.ts`                   | operating objects/tasks foundation                                |
+| `lp-reporting-evidence.ts`               | LP reporting evidence                                             |
+| `user.ts`                                | users/auth                                                        |
+| `actuals-draft-revisions.ts`             | actuals draft revisions                                           |
+| `actuals-restatement-commands.ts`        | actuals restatement commands + items                              |
+| `capital-call-notification-outbox.ts`    | capital call notification outbox                                  |
+| `current-forecast-recompute-commands.ts` | current forecast recompute commands                               |
+| `fund-scenario-calculation-commands.ts`  | fund scenario calculation commands                                |
+| `kpi-observations.ts`                    | internal KPI observations (one metric per company per period)     |
+| `portfolio-update-receipts.ts`           | portfolio company update receipts                                 |
+| `release-canary.ts`                      | release canary runs                                               |
 
 **Active-work-area → schema file map** (per `F_1.0.0` plan's Phase 0/1): current
 forecast → `current-forecast-references.ts` + `current-plans.ts`; shadow →
@@ -432,7 +431,7 @@ plain `ls` will show more if untracked files are present) includes:
   (+ `ConstrainedReserveEngine.ts`, `DeterministicReserveEngine.ts`),
   `core/pacing/PacingEngine.ts`, `core/cohorts/CohortEngine.ts`. A sibling
   `client/src/engines/engine-selector.ts` also exists outside `core/`.
-- **Pages** (`client/src/pages/`, 60 entries, `git ls-tree HEAD`) — fund setup
+- **Pages** (`client/src/pages/`, 58 entries, `git ls-tree HEAD`) — fund setup
   wizard steps (`FundBasicsStep`, `InvestmentStrategyStep(New)`,
   `CapitalStructureStep`, `InvestmentRoundsStep(V2)`, `CashflowManagementStep`,
   `DistributionsStep`, `ExitRecyclingStep`, `WaterfallStep`, `ReviewStep`),
@@ -442,7 +441,7 @@ plain `ls` will show more if untracked files are present) includes:
   reconciliation card — GET-latest on load, explicit POST refresh),
   `lp-reporting/`, `portal/`, `v2/` (quarantined — see memory: `v2-quarantine`),
   `login.tsx`, `not-found.tsx`.
-- **Components** (`client/src/components/`, 55 entries, `git ls-tree HEAD`,
+- **Components** (`client/src/components/`, 53 entries, `git ls-tree HEAD`,
   mostly subdirectories): `context-rail/` (**exists** — 4 files:
   `ContextRail.tsx`, `ContextRailTrigger.tsx`, `context-rail-types.ts`,
   `context-rail-view-model.ts`; `F_1.0.0` plan item `#1284`/`#1288` build on
@@ -487,17 +486,19 @@ way new routes need a manifest entry.
 
 ## 6. Test & Quality Tooling
 
-Seven vitest configs at root:
+Nine vitest configs at root:
 
-| Config                            | Purpose                                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `vitest.config.mjs`               | Main unit config — `server` + `client` projects (`npm test`)                              |
-| `vitest.config.int.ts`            | Integration (`npm run test:integration`), globalSetup `tests/integration/global-setup.ts` |
-| `vitest.config.testcontainers.ts` | Docker-backed Postgres+Redis (`npm run test:testcontainers`)                              |
-| `vitest.config.phase0-dbproof.ts` | Single-test DB-migration proof                                                            |
-| `vitest.config.quarantine.ts`     | Flaky-test suite                                                                          |
-| `vitest.config.shared.mjs`        | Non-runnable helper (alias builders), consumed by the others                              |
-| `vitest.config.base.ts`           | Generic template, not wired to any npm script                                             |
+| Config                            | Purpose                                                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `vitest.config.mjs`               | Main unit config — `server` + `client` projects (`npm test`)                                                                        |
+| `vitest.config.int.ts`            | Integration (`npm run test:integration`), globalSetup `tests/integration/global-setup.ts`                                           |
+| `vitest.config.testcontainers.ts` | Docker-backed Postgres+Redis (`npm run test:testcontainers`)                                                                        |
+| `vitest.config.phase0-dbproof.ts` | Single-test DB-migration proof                                                                                                      |
+| `vitest.config.quarantine.ts`     | Flaky-test suite                                                                                                                    |
+| `vitest.config.shared.mjs`        | Non-runnable helper (alias builders), consumed by the others                                                                        |
+| `vitest.config.base.ts`           | Generic template, not wired to any npm script                                                                                       |
+| `vitest.config.neon.ts`           | Real Neon-driver lane (`npm run test:neon`) — `tests/integration/neon-http/**`, owns its own Postgres + HTTP/WS proxy containers    |
+| `vitest.config.request-rls.ts`    | Single-test request-RLS boundary proof (`server/middleware/__tests__/request-rls-boundary.pg.test.ts`), not wired to any npm script |
 
 Key gates (from `package.json` scripts): `npm run check` (→ `baseline:check`,
 compiles client/server/shared **separately**), `npm run lint` (eslint +

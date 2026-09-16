@@ -533,11 +533,11 @@ observed) **Mitigation**:
 ### IRR Terms
 
 | Term                  | Definition                                         | Example                       |
-| --------------------- | -------------------------------------------------- | ----------------------------- | --- | ------- |
+| --------------------- | -------------------------------------------------- | ----------------------------- |
 | **XIRR**              | Extended IRR with irregular cashflow dates         | Excel's `=XIRR(...)` function |
 | **IRR**               | Internal Rate of Return (assumes annual cashflows) | Excel's `=IRR(...)` function  |
 | **NPV**               | Net Present Value at discount rate                 | `Σ(cashflow / (1+rate)^t)`    |
-| **Convergence**       | Algorithm reaches solution within tolerance        | `                             | NPV | < 1e-6` |
+| **Convergence**       | Algorithm reaches solution within tolerance        | `\|NPV\| < 1e-6`              |
 | **Annualized Return** | Return expressed as annual percentage              | 20.10% = 0.2010340779         |
 
 ### Algorithm Terms

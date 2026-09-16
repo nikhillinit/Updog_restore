@@ -118,6 +118,13 @@ async function generateReport(): Promise<void> {
     }
   }
 
+  // Sort by path so the committed report does not reorder with OS-specific glob order
+  quarantined.sort((a, b) => {
+    if (a.file < b.file) return -1;
+    if (a.file > b.file) return 1;
+    return 0;
+  });
+
   // Generate markdown report
   const report = generateMarkdownReport(quarantined, staticSkipSummary);
 

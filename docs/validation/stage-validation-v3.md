@@ -260,10 +260,13 @@ sum(rate(stage_validation_validations_total{result="would_reject"}[5m]))
 9. **Migration Rollback Procedures**: Recovery scenarios
 10. **Quick Command Reference**: curl examples, monitoring queries
 
-**Write vs Read Classification Table**: | Endpoint | Classification | Reason |
-|----------|---------------|---------| | POST /api/portfolio/strategies | WRITE
-| Persists to DB | | POST /api/monte-carlo/simulate | READ | Pure computation |
-| GET /api/funds/:fundId/companies | READ | Query only |
+**Write vs Read Classification Table**:
+
+| Endpoint                         | Classification | Reason           |
+| -------------------------------- | -------------- | ---------------- |
+| POST /api/portfolio/strategies   | WRITE          | Persists to DB   |
+| POST /api/monte-carlo/simulate   | READ           | Pure computation |
+| GET /api/funds/:fundId/companies | READ           | Query only       |
 
 #### ✅ Migration Documentation (via database-admin agent)
 
@@ -351,7 +354,7 @@ sum(rate(stage_validation_validations_total{result="would_reject"}[5m]))
 4. All code changes compile successfully
 5. Documentation complete and production-ready
 
-### 📊 Files Modified/Created
+### Files Modified/Created
 
 **New Files** (10):
 
@@ -378,7 +381,7 @@ shared/schemas/investment-stages.ts (minor TS fixes)
 observability/prometheus/alerts/stage-normalization.yml
 ```
 
-### 🔧 TypeScript Fixes Applied
+### TypeScript Fixes Applied
 
 Fixed 16 of 18 TS4111 errors (index signature access) by using bracket notation:
 

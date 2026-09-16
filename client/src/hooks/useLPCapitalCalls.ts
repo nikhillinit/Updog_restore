@@ -95,6 +95,45 @@ export function useLPCapitalCalls(options: UseLPCapitalCallsOptions = {}) {
 /**
  * Hook for fetching capital call summary metrics (for dashboard widget)
  */
+export interface CapitalCallsSummary {
+  totalPending: number;
+  totalPendingAmount: string;
+  totalDue: number;
+  totalDueAmount: string;
+  totalOverdue: number;
+  totalOverdueAmount: string;
+  nextDueDate: string | null;
+}
+
+/**
+ * Buckets calls by status and sums the outstanding balance of each bucket.
+ * A partial call still owes the remainder of its call amount, so it sits in
+ * the pending bucket rather than in no bucket at all.
+ */
+export function summarizeCapitalCalls(calls: CapitalCall[]): CapitalCallsSummary {
+  const pending = calls.filter((c) => c.status === 'pending' || c.status === 'partial');
+  const due = calls.filter((c) => c.status === 'due');
+  const overdue = calls.filter((c) => c.status === 'overdue');
+
+  const sumAmount = (bucket: CapitalCall[]) =>
+    bucket.reduce((sum, c) => sum + BigInt(c.callAmount) - BigInt(c.paidAmount), 0n);
+
+  // Find next due date from pending/due calls
+  const activeCalls = [...pending, ...due].sort(
+    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
+
+  return {
+    totalPending: pending.length,
+    totalPendingAmount: sumAmount(pending).toString(),
+    totalDue: due.length,
+    totalDueAmount: sumAmount(due).toString(),
+    totalOverdue: overdue.length,
+    totalOverdueAmount: sumAmount(overdue).toString(),
+    nextDueDate: activeCalls[0]?.dueDate || null,
+  };
+}
+
 export function useLPCapitalCallsSummary(options: { enabled?: boolean } = {}) {
   const { lpId } = useLPContext();
   const { enabled = true } = options;
@@ -126,28 +165,7 @@ export function useLPCapitalCallsSummary(options: { enabled?: boolean } = {}) {
 
       const data = (await response.json()) as CapitalCallsResponse;
 
-      // Calculate summary from calls
-      const pending = data.calls.filter((c) => c.status === 'pending');
-      const due = data.calls.filter((c) => c.status === 'due');
-      const overdue = data.calls.filter((c) => c.status === 'overdue');
-
-      const sumAmount = (calls: CapitalCall[]) =>
-        calls.reduce((sum, c) => sum + BigInt(c.callAmount) - BigInt(c.paidAmount), 0n);
-
-      // Find next due date from pending/due calls
-      const activeCalls = [...pending, ...due].sort(
-        (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      );
-
-      return {
-        totalPending: pending.length,
-        totalPendingAmount: sumAmount(pending).toString(),
-        totalDue: due.length,
-        totalDueAmount: sumAmount(due).toString(),
-        totalOverdue: overdue.length,
-        totalOverdueAmount: sumAmount(overdue).toString(),
-        nextDueDate: activeCalls[0]?.dueDate || null,
-      };
+      return summarizeCapitalCalls(data.calls);
     },
     enabled: enabled && !!lpId,
     staleTime: 60_000,

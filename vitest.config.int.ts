@@ -32,6 +32,9 @@ export default defineConfig({
       'tests/synthetics/**/*',
       '**/*.quarantine.test.ts',
       'tests/quarantine/**/*',
+      // Neon driver lane starts its own Docker containers - run via vitest.config.neon.ts instead
+      'tests/integration/neon-http/**',
+      '**/*.template.test.ts', // Template files - not executable tests
       // Testcontainers tests require Docker - run via testcontainers-ci.yml instead
       ...testcontainersOnlyPaths,
       'tests/integration/ScenarioMatrixCache.integration.test.ts',

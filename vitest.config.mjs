@@ -129,11 +129,7 @@ export default defineConfig({
           teardownTimeout: 5000,
           // Simplified: All .test.tsx files run in jsdom environment
           include: ['tests/unit/**/*.test.tsx', 'client/src/**/*.{test,spec}.{ts,tsx}'],
-          exclude: [
-            'tests/quarantine/**/*',
-            '**/*.quarantine.test.tsx',
-            'tests/unit/fund-setup.smoke.test.tsx',
-          ],
+          exclude: ['tests/quarantine/**/*', '**/*.quarantine.test.tsx'],
           setupFiles: [testPaths.testInfrastructure, testPaths.jsdomSetup],
           environmentOptions: {
             jsdom: {
@@ -150,7 +146,6 @@ export default defineConfig({
       'tests/synthetics/**/*',
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
-      'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
       'tests/e2e/**/*',
       '**/*.template.test.ts',
       '**/*.template.{test,spec}.ts?(x)', // Template files - not executable tests
