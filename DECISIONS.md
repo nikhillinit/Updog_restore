@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-10
+last_updated: 2026-09-16
 owner: Core Team
 review_cadence: P90D
 ---
@@ -12425,3 +12425,120 @@ Reserve allocations for companies without recorded ownership lose the unearned
 boost and confidence bonus. LP holdings totals cover only priced positions and
 disclose the rest. Draft cash flow events no longer move LP metric runs. No
 default ownership enters any reserve, NAV, or LP surface.
+
+## ADR-102: Dispose of the Unwired-Code Inventory (Four Deletions, One Park)
+
+**Date:** 2026-09-16
+
+**Status:** Accepted by owner 2026-09-16; source admission through
+`fix/moic-analysis-redirect-target`, `chore/delete-unreachable-client-code`,
+`chore/deprecate-adr-0003-delete-sse-stack`, and
+`chore/matrix-dispose-admin-telemetry`
+
+**Tags:** #cleanup #dead-code #routing #surface-matrix #adr-lifecycle
+
+### Context
+
+A 2026-09-16 inventory of code that looks production-intended but is reachable
+by nothing was red-teamed against `main` at `469976221`. Five of its six items
+already had a recorded reason for existing, one live defect sat next to the dead
+code, and one of the inventory's own recommendations would have removed a live
+guardrail:
+
+- `client/src/config/routes.ts` and `client/src/core/routes/ia.ts` describe an
+  information architecture (`/overview`, `/operate`, `/report`) that never had
+  routes. Their only consumers were two route-story tests.
+  `LegacyRouteRedirector` was never imported by anything before #1507 deleted
+  it, so this is baseline-era cruft, not a recent orphan.
+- The archived placeholder for `/moic-analysis` redirected to `/overview`, which
+  is not a route, so the redirect landed on NotFound.
+  `tests/unit/app/route-governance-registry.test.tsx` pinned the broken target.
+- `client/src/components/ComingSoonPage.tsx` was kept "as inventory ... for
+  future integration" by the 2026-03-27 secondary-surface decisions (PR-6) and
+  has had no importer since.
+- `client/src/hooks/useFundKpis.ts` and
+  `shared/contracts/kpi-raw-facts.contract.ts` are the unfinished
+  selector-contract program (`docs/contracts/selector-contract-readme.md`,
+  `docs/INTEGRATION_PR_CHECKLIST.md`). The contract names
+  `/api/funds/:fundId/kpis`, the hook fetches `/api/funds/:fundId/data`, and the
+  server implements neither.
+- `client/src/config/rollout.ts`, `rollout-runtime.ts`, and `features.ts` are
+  three copies of an abandoned `useFundStore` percentage-rollout system with no
+  importer and no record in `docs/`, `.planning/`, or this ledger.
+  `server/config/features.ts` shares the basename and is live; it is untouched.
+- `server/agents/stream.ts`, `server/agents/cancel.ts`,
+  `client/src/hooks/useAgentStream.ts`, and `k6/scenarios/agents-streaming.js`
+  implement ADR-0003 (`docs/adr/0003-streaming-architecture.md`, Accepted). No
+  server surface mounts the routes, no producer publishes agent-run events, and
+  nothing reads the `ai:run:*:cancel` flag the ADR says workers check.
+- `client/src/pages/admin/telemetry.tsx` is a dormant candidate in the
+  surface-contract matrix (`dormant-candidates.json`, `orphans.json`, resolution
+  `pruned`) with an unapproved disposition proposal. Wiring it would need a
+  flag, a governance-registry entry, an `AdminRoute` with `devOnly`, and a
+  matrix approval, to show the current browser's own localStorage telemetry
+  buffer.
+- `server/routes/portfolio-optimization.ts` is mounted by nothing, but the
+  2026-04-10 audit recorded in
+  `.planning/phases/06-schema-docs-and-baseline-drift-cleanup/06-01-SUMMARY.md`
+  gave the cluster a DEFER verdict: `scenarioMatrices` is consumed by
+  `CacheInvalidationService`, `CacheStatsService`, and `ScenarioMatrixCache`;
+  `job_outbox` has three live processors (`artifact-retention-service.ts`,
+  `analysis-checkpoint-service.ts`, `variance-alert-automation.ts`) that each
+  filter by `job_type`; the tables are journaled in migration 0011; and
+  `audit/surface-contract-matrix/source-inventory.json` hash-pins the route
+  file, so deleting it breaks release proof until the matrix is re-seeded and
+  approved.
+
+### Decision
+
+Owner-ratified on 2026-09-16:
+
+1. Redirect the `/moic-analysis` archived placeholder to `/dashboard`, matching
+   the sibling `/kpi-manager` placeholder. The disclosed MOIC surface
+   `/fund-model-results/:fundId/moic-analysis` needs a fund id the redirect
+   cannot supply.
+2. Delete the unreachable client code: the legacy IA map and its test, the three
+   rollout-system files, `ComingSoonPage.tsx` (this reverses the 2026-03-27
+   KEEP), the selector-contract hook and contract, and the tracked
+   `.tsc-client.err` log. The two selector-contract documents stay in place with
+   an "abandoned" banner; nothing moves into `docs/archive/`.
+3. Deprecate ADR-0003 (body Status and the `docs/adr/README.md` row; the
+   frontmatter `status: ACTIVE` is not the lifecycle field) and delete the SSE
+   stack and its k6 scenario.
+4. Delete `client/src/pages/admin/telemetry.tsx` through the matrix disposition:
+   re-seed the matrix without `--fresh`, validate, and render.
+   `client/src/lib/telemetry.ts` and its test stay.
+5. Park `portfolio-optimization`: the route stays unmounted by decision, the
+   tables stay, and the `portfolio-optimization` entry in
+   `scripts/schema-drift-active-surfaces.ts` stays because it pins the live
+   `job_outbox` table and the 0005/0011 migrations. That file is a
+   persistence-consistency inventory, not a route-mount inventory.
+
+### Alternatives Considered
+
+- **Wire `/admin/telemetry`:** rejected. Six touchpoints plus a matrix approval
+  for a dev-only page that shows one browser's own local events.
+- **Delete `portfolio-optimization` outright:** rejected for now. Journaled
+  migrations are additive-only, the tables have other consumers, and the route
+  is hash-pinned in the matrix; the prior DEFER verdict stands until a matrix
+  re-seed with owner approval is scheduled.
+- **Remove the `portfolio-optimization` drift entry:** rejected. It would drop
+  drift coverage of a live production table.
+- **Move the selector-contract documents to `docs/archive/`:** rejected. The
+  archive guard blocks tracked files there; annotate in place.
+
+### Consequences
+
+- The route-story tests that asserted the dead IA are gone;
+  `tests/unit/app/ia-route-story.test.ts` keeps only its runtime-route and
+  archived-placeholder assertions.
+- `docs/contracts/selector-contract-readme.md` and
+  `docs/INTEGRATION_PR_CHECKLIST.md` remain as historical records and must not
+  be implemented from.
+- ADR-0003 remains in the standalone `docs/adr/` collection as Deprecated;
+  `docs/observability/ai-metrics.md` notes that the `ai_stream_*` metrics were
+  never implemented.
+- Future inventories should grep `docs/`, `DECISIONS.md`, `.planning/`, and
+  `audit/surface-contract-matrix/*.json` for a recorded reason before calling
+  something unowned, and run `git log -S<name>` before calling anything a recent
+  orphan.

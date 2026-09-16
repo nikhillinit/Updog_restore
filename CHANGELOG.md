@@ -22,6 +22,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-09-16)
+
+- Send the archived `/moic-analysis` placeholder to `/dashboard`. Its previous
+  target `/overview` was never a route, so the redirect landed on NotFound.
+  Record ADR-102, the owner-ratified disposition of the unwired-code inventory
+  (four deletions, one park).
+
+### Removed (2026-09-16)
+
+- Delete unreachable client code: the legacy IA redirect map
+  (`client/src/config/routes.ts`, `client/src/core/routes/ia.ts`) and its test,
+  the abandoned `useFundStore` rollout files (`rollout.ts`,
+  `rollout-runtime.ts`, `features.ts` under `client/src/config/`),
+  `ComingSoonPage.tsx` (reversing the 2026-03-27 keep), the selector-contract
+  hook `useFundKpis` and `kpi-raw-facts.contract.ts`, and the tracked
+  `.tsc-client.err` log. The two selector-contract documents stay in place with
+  an abandoned banner (ADR-102).
+
 ### Documentation (2026-09-12)
 
 - Reconcile the existing program roadmap and navigation against #1505/#1506 and

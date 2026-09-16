@@ -73,7 +73,7 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
       exposure: 'archived-placeholder',
       surface: 'archived-placeholder',
       isProtected: false,
-      redirectTarget: '/overview',
+      redirectTarget: '/dashboard',
     });
     expect(getFinancialSurfaceForGovernanceEntry(retiredEntry)).toBe('none');
     expect(EXPLICIT_GOVERNANCE_POLICY_KEYS.has('/moic-analysis')).toBe(false);
