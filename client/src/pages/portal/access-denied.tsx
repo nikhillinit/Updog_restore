@@ -17,7 +17,7 @@ export default function PortalAccessDenied() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen bg-presson-bg flex items-center justify-center p-6">
+    <main className="min-h-screen bg-presson-bg flex items-center justify-center p-6">
       <Card className="max-w-md w-full border-presson-borderSubtle bg-presson-surface">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-presson-negative/10 flex items-center justify-center">
@@ -30,14 +30,14 @@ export default function PortalAccessDenied() {
         </CardHeader>
         <CardContent className="text-center space-y-6">
           <p className="text-presson-textMuted">
-            The LP Portal is not available for GP users. This area is reserved
-            for Limited Partners to view their fund commitments and performance.
+            The LP Portal is not available for GP users. This area is reserved for Limited Partners
+            to view their fund commitments and performance.
           </p>
 
           <div className="p-4 rounded-lg bg-presson-surfaceSubtle border border-presson-borderSubtle">
             <p className="text-sm text-presson-textMuted">
-              If you believe you should have access to this area, please contact
-              your fund administrator.
+              If you believe you should have access to this area, please contact your fund
+              administrator.
             </p>
           </div>
 
@@ -60,6 +60,6 @@ export default function PortalAccessDenied() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

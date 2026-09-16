@@ -107,11 +107,12 @@ export default function HelpPage() {
             </div>
             <div>
               <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
-                How do I create scenarios for a company?
+                How do I model scenarios?
               </h4>
               <p className="font-poppins text-xs text-presson-textMuted">
-                Open any company from Portfolio, then select the Scenarios tab. Create scenarios to
-                model different exit outcomes and valuations.
+                Open Fund Model Results for the active fund, then choose Scenarios to open the
+                Scenario Workspace. Company detail pages are summary-only and do not have a
+                Scenarios tab.
               </p>
             </div>
           </CardContent>

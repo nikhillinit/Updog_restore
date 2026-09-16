@@ -123,12 +123,17 @@ export function useLiquidityAnalytics(
   const generateMockTransactions = useCallback((): CashTransaction[] => {
     if (options.transactions) return options.transactions;
 
-    // Generate mock transactions for demonstration
+    // Generate mock transactions for demonstration: 26 weeks of executed history
+    // plus 26 weeks of planned flows, so the analysis (history) and the forecast
+    // (upcoming statuses only) both have data.
     const mockTransactions: CashTransaction[] = [];
-    const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
+    const now = Date.now();
+    const startDate = new Date(now - 26 * 7 * 24 * 60 * 60 * 1000);
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 52; i++) {
       const date = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000); // Weekly intervals
+      // Rows dated exactly now are planned: i = 26 lands on now, so < keeps 26/26.
+      const executed = date.getTime() < now;
 
       // Random transaction type
       const transactionTypes: CashTransactionType[] = [
@@ -166,8 +171,8 @@ export function useLiquidityAnalytics(
         amount,
         currency: 'USD',
         plannedDate: date,
-        executedDate: date,
-        status: 'executed',
+        ...(executed ? { executedDate: date } : {}),
+        status: executed ? 'executed' : 'planned',
         description: `Mock ${type} transaction`,
         createdAt: date,
         updatedAt: date,
@@ -306,7 +311,9 @@ export function useLiquidityAnalytics(
     setState((prev) => ({ ...prev, isLoadingAnalysis: true, analysisError: null }));
 
     try {
-      const transactions = getTransactions();
+      // The analysis is realized history, so only executed rows count; planned
+      // rows belong to the forecast below, which keeps the upcoming statuses.
+      const transactions = getTransactions().filter((t) => t.status === 'executed');
       if (transactions.length === 0) {
         setState((prev) => ({
           ...prev,
