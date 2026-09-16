@@ -12493,10 +12493,14 @@ guardrail:
 
 Owner-ratified on 2026-09-16:
 
-1. Redirect the `/moic-analysis` archived placeholder to `/dashboard`, matching
-   the sibling `/kpi-manager` placeholder. The disclosed MOIC surface
-   `/fund-model-results/:fundId/moic-analysis` needs a fund id the redirect
-   cannot supply.
+1. Redirect the `/moic-analysis` archived placeholder to `/model-results`, the
+   fund-agnostic entry to the model-results family
+   (`client/src/pages/model-results.tsx` opens the current fund's results or
+   asks for a fund). This matches the `redirect_target` the surface-matrix
+   seeder records for that route. Amended 2026-09-16: the first landing (#1529)
+   used `/dashboard` on the mistaken premise that the disclosed MOIC surface
+   needed a fund id the redirect could not supply; the owner corrected the
+   target the same day.
 2. Delete the unreachable client code: the legacy IA map and its test, the three
    rollout-system files, `ComingSoonPage.tsx` (this reverses the 2026-03-27
    KEEP), the selector-contract hook and contract, and the tracked
