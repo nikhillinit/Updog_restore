@@ -4,8 +4,7 @@ on:
   pull_request:
     paths:
       - 'tests/**'
-      - 'vitest.config.ts'
-      - 'vitest.*.ts'
+      - 'vitest.config.*'
 
 jobs:
   count-skips:

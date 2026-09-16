@@ -5,7 +5,7 @@ import {
   bounded01,
   percent100,
   positiveInt,
-  yearRange
+  yearRange,
 } from '../../shared/schema-helpers';
 
 describe('num helper', () => {
@@ -40,7 +40,7 @@ describe('num helper', () => {
       min: 0,
       max: 100,
       messageMin: 'Must be positive',
-      messageMax: 'Too high'
+      messageMax: 'Too high',
     });
 
     expect(() => schema.parse(-1)).toThrow('Must be positive');
