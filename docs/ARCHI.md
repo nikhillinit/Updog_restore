@@ -309,18 +309,11 @@ toolchain — root/server/client tsconfigs (`moduleResolution: bundler`,
 file-before-directory), Vite (`vite.config.ts:411` `@shared` alias), both
 esbuild builds (`build-server.mjs`, `build-vercel-api.mjs` pinned to
 `tsconfig.server.json`), and vitest (`vitest.config.shared.mjs:26-27`). 100 bare
-`@shared/schema` imports repo-wide all hit `schema.ts`. `shared/schema/index.ts`
-(33 lines, re-exports 18 domain modules — a strict subset of `schema.ts`,
-missing `allocation-scenarios`, `reconciliation-runs`,
-`substrate-shadow-reconciliations`, `financial-facts-snapshots`,
-`fund-calculation-modes`, `fund-moic-input-update-requests`,
-`internal-economics`) is **effectively dead**: its sole importer is
-`tests/unit/schema/quarterly-review-schema.test.ts:8` via the explicit
-`@shared/schema/index` subpath, and its header comment claiming "Legacy imports
-still work: `import { funds } from '@shared/schema'`" is misleading — that
-import never reaches it. 88 `@shared/schema/<file>` subpath imports hit
-directory files directly, bypassing both barrels. `vehicles.ts` and `compat.ts`
-are exported by **neither** barrel.
+`@shared/schema` imports repo-wide all hit `schema.ts`. The directory barrel
+`shared/schema/index.ts` that this section used to analyse no longer exists (the
+inventory below has no `index.ts`), so `schema.ts` is the only barrel. 88
+`@shared/schema/<file>` subpath imports hit directory files directly, bypassing
+it. `vehicles.ts` is exported by no barrel.
 
 ### `shared/schema/` inventory (34 files)
 

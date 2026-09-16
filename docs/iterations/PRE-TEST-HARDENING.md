@@ -10,7 +10,7 @@ noise and ambiguity.
 
 **Estimated Time**: 90-120 minutes
 
-**Status**: ✅ All 12 items accepted and integrated into strategy
+**Status**: All 12 items accepted and integrated into strategy
 
 ---
 
@@ -18,24 +18,24 @@ noise and ambiguity.
 
 This checklist ensures that:
 
-1. ✅ Invalid inputs never reach the calculation engine
-2. ✅ Tests fail for the right reasons (logic errors, not missing fields)
-3. ✅ Parity diffs are traceable to exact input sets
-4. ✅ Performance regressions are caught before merge
+1. Invalid inputs never reach the calculation engine
+2. Tests fail for the right reasons (logic errors, not missing fields)
+3. Parity diffs are traceable to exact input sets
+4. Performance regressions are caught before merge
 
 ---
 
 ## Checklist (12 Items)
 
-### ✅ 1. Health & Build Provenance
+### 1. Health & Build Provenance
 
 **Why**: Lets CI catch miswired servers and confirms exact build under test.
 
 **Implementation**:
 
-- ✅ Enhanced `/healthz` endpoint with 5 required fields
-- ✅ Created `server/version.ts` with `ENGINE_VERSION` constant
-- ✅ Created smoke test at `tests/smoke/healthz.test.ts`
+- Enhanced `/healthz` endpoint with 5 required fields
+- Created `server/version.ts` with `ENGINE_VERSION` constant
+- Created smoke test at `tests/smoke/healthz.test.ts`
 
 **Files Changed**:
 
@@ -65,7 +65,7 @@ This checklist ensures that:
 
 ---
 
-### ✅ 2. Feasibility Constraints at Both Boundaries
+### 2. Feasibility Constraints at Both Boundaries
 
 **Why**: Invalid inputs are #1 source of "mystery" parity failures.
 
@@ -102,7 +102,7 @@ This checklist ensures that:
 
 ---
 
-### ✅ 3. CSV Contracts Frozen
+### 3. CSV Contracts Frozen
 
 **Why**: Accounting and cash invariants need all fields; lineage makes diffs
 traceable.
@@ -135,7 +135,7 @@ ownership_at_exit,exit_bucket,exit_value,proceeds_to_fund
 
 ---
 
-### ✅ 4. Deterministic Inputs Hashing
+### 4. Deterministic Inputs Hashing
 
 **Why**: Lets parity diffs unambiguously tie to exact input set.
 
@@ -166,7 +166,7 @@ function hashInputs(inputs: FundModelInputs): string {
 
 ---
 
-### ✅ 5. Determinism Guard
+### 5. Determinism Guard
 
 **Why**: Catches hidden non-determinism (Date.now(), object iteration order).
 
@@ -194,7 +194,7 @@ it('produces identical outputs for identical inputs', () => {
 
 ---
 
-### ✅ 6. Fees v1 Horizon
+### 6. Fees v1 Horizon
 
 **Why**: Without a stop, fees bleed forever, undermining parity.
 
@@ -232,7 +232,7 @@ function calculateManagementFee(
 
 ---
 
-### ✅ 7. Distribution Policy Explicit
+### 7. Distribution Policy Explicit
 
 **Why**: Avoids modeling ambiguity that breaks invariants.
 
@@ -253,7 +253,7 @@ removed/archived)
 
 ---
 
-### ✅ 8. IRR Solver Hardening
+### 8. IRR Solver Hardening
 
 **Why**: Prevents non-convergence edge cases derailing CI.
 
@@ -293,7 +293,7 @@ export function calculateXIRR(cashflows: Cashflow[], guess = 0.1): number {
 
 ---
 
-### ✅ 9. Stage Allocations vs Reserve Pool
+### 9. Stage Allocations vs Reserve Pool
 
 **Why**: Prevent silent over-allocation.
 
@@ -329,7 +329,7 @@ removed/archived)
 
 ---
 
-### ✅ 10. Bench & Baselines
+### 10. Bench & Baselines
 
 **Why**: Establishes performance line in the sand before functional tests start.
 
@@ -361,7 +361,7 @@ removed/archived)
 const maxRegressionPct = 15;
 
 if (current.p95 > baseline.p95 * (1 + maxRegressionPct / 100)) {
-  console.error(`❌ Performance regression: +${regressionPct.toFixed(1)}%`);
+  console.error(`Performance regression: +${regressionPct.toFixed(1)}%`);
   process.exit(1);
 }
 ```
@@ -376,7 +376,7 @@ if (current.p95 > baseline.p95 * (1 + maxRegressionPct / 100)) {
 
 ---
 
-### ✅ 11. Minimal Golden Set
+### 11. Minimal Golden Set
 
 **Why**: Locks parity targets so future changes are intentional.
 
@@ -413,7 +413,7 @@ npm run golden:regen
 
 ---
 
-### ✅ 12. Pre-commit & CI Gates
+### 12. Pre-commit & CI Gates
 
 **Why**: Keeps local dev snappy; shifts heavy checks to CI.
 
@@ -458,22 +458,21 @@ npm run test:unit -- tests/invariants/  # Invariants only
 
 | Item                    | PR  | Estimated Time | Status           |
 | ----------------------- | --- | -------------- | ---------------- |
-| 1. Health provenance    | #1  | 15 min         | ✅ Done          |
+| 1. Health provenance    | #1  | 15 min         | Done             |
 | 2. Feasibility UI       | #4  | 30 min         | Specified        |
 | 2. Feasibility API      | #2  | 30 min         | Specified        |
-| 3. CSV frozen           | #2  | 0 min          | ✅ Done          |
+| 3. CSV frozen           | #2  | 0 min          | Done             |
 | 4. Inputs hashing       | #2  | 15 min         | Specified        |
 | 5. Determinism guard    | #3  | 10 min         | Specified        |
-| 6. Fees horizon         | #2  | 0 min          | ✅ Done          |
-| 7. Distribution policy  | #2  | 0 min          | ✅ Done          |
-| 8. IRR hardening        | #2  | 0 min          | ✅ Done          |
-| 9. Stage/reserve policy | #2  | 0 min          | ✅ Done          |
+| 6. Fees horizon         | #2  | 0 min          | Done             |
+| 7. Distribution policy  | #2  | 0 min          | Done             |
+| 8. IRR hardening        | #2  | 0 min          | Done             |
+| 9. Stage/reserve policy | #2  | 0 min          | Done             |
 | 10. Baselines           | #6  | 20 min         | Specified        |
 | 11. Golden fixtures     | #3  | 30 min         | Specified        |
 | 12. Pre-commit gates    | #1  | 10 min         | Needs refinement |
 
 **Total New Work**: ~90 minutes (as estimated) **Already Specified**: 9/12 items
-✅
 
 ---
 
@@ -498,12 +497,12 @@ npm run test:unit -- tests/invariants/  # Invariants only
 
 ### Created (PR #1):
 
-- ✅ `server/version.ts` - ENGINE_VERSION constant
-- ✅ `tests/smoke/healthz.test.ts` - Smoke test
+- `server/version.ts` - ENGINE_VERSION constant
+- `tests/smoke/healthz.test.ts` - Smoke test
 
 ### Modified (PR #1):
 
-- ✅ `server/routes/health.ts` - Enhanced `/healthz` response
+- `server/routes/health.ts` - Enhanced `/healthz` response
 
 ### To Create (Future PRs):
 
