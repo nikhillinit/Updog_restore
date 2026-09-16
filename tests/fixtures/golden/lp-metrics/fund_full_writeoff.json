@@ -67,7 +67,7 @@
     "locked_at": "2026-05-28T06:36:00.558Z",
     "inputs_hash": "37b7fb235dfa96c28343102f8693e2e57e564bc3b334729ce5f931f658d9a896",
     "diagnostics": {
-      "engineVersion": "1.0.0",
+      "engineVersion": "1.1.0",
       "decimalPrecision": 6,
       "excludedFutureMarks": [],
       "warnings": []
