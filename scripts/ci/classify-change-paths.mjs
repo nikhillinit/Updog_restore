@@ -37,8 +37,10 @@ const FINANCIAL_PATHS = {
 };
 
 function matchesPath(changedPath, candidate) {
-  return changedPath === candidate ||
-    changedPath.startsWith(candidate.endsWith('/') ? candidate : `${candidate}/`);
+  return (
+    changedPath === candidate ||
+    changedPath.startsWith(candidate.endsWith('/') ? candidate : `${candidate}/`)
+  );
 }
 
 export function isFinancialPath(changedPath) {
@@ -47,9 +49,10 @@ export function isFinancialPath(changedPath) {
   }
 
   if (
-    FINANCIAL_PATHS.exclusionBasedRoots.some(({ root, exclusions }) =>
-      matchesPath(changedPath, root) &&
-      !exclusions.some((exclusion) => matchesPath(changedPath, exclusion))
+    FINANCIAL_PATHS.exclusionBasedRoots.some(
+      ({ root, exclusions }) =>
+        matchesPath(changedPath, root) &&
+        !exclusions.some((exclusion) => matchesPath(changedPath, exclusion))
     )
   ) {
     return true;
@@ -80,19 +83,18 @@ function loadLightAllowlist(filtersPath) {
     configured.length !== EXACT_LIGHT_ALLOWLIST.length ||
     configured.some((value, index) => value !== EXACT_LIGHT_ALLOWLIST[index])
   ) {
-    throw new Error(
-      `auto_docs must equal the reviewed three-file allowlist in ${filtersPath}`
-    );
+    throw new Error(`auto_docs must equal the reviewed three-file allowlist in ${filtersPath}`);
   }
 
   return new Set(configured);
 }
 
+// git prints rename and copy scores zero-padded to three digits (R098, C100).
 const RAW_HEADER = new RegExp(
   '^:([0-7]{6}) ([0-7]{6}) ' +
     '((?:[0-9a-f]{40}|[0-9a-f]{64})) ' +
     '((?:[0-9a-f]{40}|[0-9a-f]{64})) ' +
-    '([ADMUTXB]|[RC](?:[0-9]{1,2}|100))$'
+    '([ADMUTXB]|[RC](?:0[0-9]{2}|100))$'
 );
 
 function parseRawDiff(raw) {
@@ -105,7 +107,7 @@ function parseRawDiff(raw) {
   if (tokens.length === 0) throw new Error('changed-path input is empty');
 
   const changes = [];
-  for (let index = 0; index < tokens.length; ) {
+  for (let index = 0; index < tokens.length;) {
     const header = tokens[index++];
     const matched = RAW_HEADER.exec(header);
     if (!matched) {
@@ -149,10 +151,7 @@ function classify(raw, lightAllowlist) {
         change.oldMode === '100644' &&
         change.newMode === '100644');
 
-    return (
-      eligibleChange &&
-      change.paths.every((changedPath) => lightAllowlist.has(changedPath))
-    );
+    return eligibleChange && change.paths.every((changedPath) => lightAllowlist.has(changedPath));
   });
   const financialCalcRelevant = changes.some((change) =>
     change.paths.some((changedPath) => isFinancialPath(changedPath))

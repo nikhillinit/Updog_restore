@@ -161,6 +161,16 @@ describe('CI fail-closed change classification', () => {
     expect(renamed.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
   });
 
+  it('accepts a rename whose similarity score is below 100', () => {
+    // git zero-pads the score (R098); the header regex used to accept only R100
+    // and the aggregate gate failed on any rename that carried edits.
+    const renamed = classifyRawDiff(
+      rawChange('R098', ['tests/unit/schema-helpers.spec.ts', 'tests/unit/schema-helpers.test.ts'])
+    );
+    expect(renamed.status, renamed.stderr).toBe(0);
+    expect(renamed.result).toMatchObject({ valid: true, autoDocsOnly: false });
+  });
+
   it.each([
     ['empty input', []],
     ['missing rename destination', rawChange('R100', ['docs/_generated/router-index.json'])],
