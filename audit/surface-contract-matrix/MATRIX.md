@@ -17214,7 +17214,6 @@ Every proposed row and every exclusion/disposition below requires evidenced appr
 
 ### Dormant candidate dispositions
 
-- **dormant candidate** `client/src/pages/admin/telemetry.tsx` — lifecycle: **approved** — evidence: UNAPPROVED proposal for candidates:client/src/pages/admin/telemetry.tsx; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.
 - **dormant candidate** `client/src/pages/analytics.tsx` — lifecycle: **approved** — evidence: UNAPPROVED proposal for candidates:client/src/pages/analytics.tsx; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.
 - **dormant candidate** `client/src/pages/CompanyDetail.tsx` — lifecycle: **approved** — evidence: UNAPPROVED proposal for candidates:client/src/pages/CompanyDetail.tsx; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.
 - **dormant candidate** `client/src/pages/CustomFields.tsx` — lifecycle: **approved** — evidence: UNAPPROVED proposal for candidates:client/src/pages/CustomFields.tsx; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval.

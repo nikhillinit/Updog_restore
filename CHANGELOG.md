@@ -44,6 +44,10 @@ and this project adheres to
   `client/src/hooks/useAgentStream.ts` with its test, and
   `k6/scenarios/agents-streaming.js`. No producer published agent-run events and
   nothing read the cancel flag (ADR-102).
+- Delete the never-routed `client/src/pages/admin/telemetry.tsx` through the
+  surface-contract matrix disposition (dormant candidate, resolution `pruned`)
+  and re-seed the matrix artifacts. `client/src/lib/telemetry.ts` and its test
+  stay (ADR-102).
 
 ### Documentation (2026-09-12)
 
