@@ -12348,3 +12348,77 @@ tests prove behavior only. This proposal does not amend the protected governing
 policy, authorize production actions, create Fund One identities, publish
 guessed actuals, rebase plans, recompute forecasts, enter shadow, or activate
 serving.
+
+---
+
+## ADR-101: Unrecorded Ownership Is Never Priced or Defaulted Outside NAV (extends ADR-054)
+
+**Date:** 2026-09-15
+
+**Status:** Proposed; source admission pending
+
+**Tags:** #ownership #reserves #lp-reporting #fail-closed #provenance
+
+### Context
+
+ADR-054 already states that NAV never estimates or defaults missing ownership:
+null or zero recorded ownership keeps the disclosed rung-3 company-level
+fallback. Three other readers still invented an ownership fraction when none was
+recorded. The reserve input builder substituted 0.15 with provenance
+`defaulted`, the very fallback ADR-029 names as the hardcoded-fallback
+pathology, and that value fed a rule-based allocation kernel whose ownership
+boost, penalty, and confidence bonus all key off the fraction. The projected
+metrics calculator substituted 0.1 for reserve summaries on the live dashboard.
+The LP pro-rata holdings reader mapped "no ownership recorded" to a real zero,
+so an unrecorded position was priced at zero and summed into the LP total
+without any disclosure.
+
+Separately, the LP metric-run engine treated every cash flow event as live
+unless it was reversed, so draft rows selected by a caller were counted in
+contributions, distributions, and both IRR flows, while the sibling
+financial-facts snapshot service accepts only approved and locked rows.
+
+### Decision
+
+- `ReserveCompanyInputSchema.ownership` is nullable. Null means "not recorded".
+  Both rule-based kernels treat null as neutral: no boost, no penalty, no
+  confidence bonus. The guard is an explicit null check, because a bare
+  comparison coerces null to zero and would apply the penalty branch.
+- The reserve input builder emits `ownership: null` with provenance
+  `unavailable` on both row converters. Nothing substitutes 0.15.
+- The projected metrics calculator passes null ownership through instead of
+  substituting 0.1. Dashboard reserve summaries change for any company whose
+  ownership is not recorded.
+- LP pro-rata holdings skip companies with no recorded ownership and disclose
+  them as `unpricedHoldings` / `unpricedCompanies` in the route response. A
+  recorded zero is a fact and stays priced at zero. Existing fields keep their
+  meaning; the total covers priced holdings only, and the disclosure says how
+  many were left out.
+- Deliberate asymmetry with ADR-054: NAV keeps unknown ownership unscaled
+  because its anchor ladder discloses which rung each company sits on. Reserve
+  inputs and LP holdings have no disclosed fallback rung, so they fail closed
+  and disclose instead.
+- LP metric runs count only cash flow events with status `approved` or `locked`,
+  matching the financial-facts snapshot service. Excluded events are reported in
+  run diagnostics, and the engine version is bumped so persisted runs from the
+  previous rule are not replayed under the same label.
+
+### Alternatives Considered
+
+- **Keep 0.15 but label it:** rejected because the label never reaches the
+  kernel; the boost and confidence bonus still fire on an invented number.
+- **Exclude unrecorded companies from reserve inputs entirely:** rejected
+  because the facts adapter already excludes them where the ranked reserve path
+  requires ownership, while the legacy rule-based path can allocate on invested
+  capital and stage without ownership. Null keeps the company visible with an
+  honest provenance.
+- **Price unrecorded LP holdings at zero with a warning:** rejected because a
+  zero in a summed total is indistinguishable from a recorded zero to every
+  consumer of the total.
+
+### Consequences
+
+Reserve allocations for companies without recorded ownership lose the unearned
+boost and confidence bonus. LP holdings totals cover only priced positions and
+disclose the rest. Draft cash flow events no longer move LP metric runs. No
+default ownership enters any reserve, NAV, or LP surface.
