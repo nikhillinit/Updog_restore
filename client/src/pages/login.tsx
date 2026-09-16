@@ -25,7 +25,7 @@ export default function LoginPage() {
       : null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-pov-gray px-4 font-poppins text-charcoal">
+    <main className="flex min-h-screen items-center justify-center bg-pov-gray px-4 font-poppins text-charcoal">
       <Card className="w-full max-w-md border-beige-200">
         <CardHeader>
           <CardTitle className="text-charcoal">Sign in</CardTitle>
@@ -74,6 +74,6 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

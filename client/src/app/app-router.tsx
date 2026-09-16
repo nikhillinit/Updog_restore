@@ -177,7 +177,14 @@ function PublicEntryRouter() {
         <Route path="/login" component={LoginPage} />
         <Route path={PUBLIC_ENTRY_ROUTES.sharedDashboard} component={SharedDashboard} />
         <Route path={PUBLIC_ENTRY_ROUTES.portalCatchAll} component={PortalAccessDenied} />
-        <Route component={NotFound} />
+        {/* NotFound also renders inside AppLayout's <main>; add the landmark here only. */}
+        <Route>
+          {() => (
+            <main>
+              <NotFound />
+            </main>
+          )}
+        </Route>
       </Switch>
     </Suspense>
   );
