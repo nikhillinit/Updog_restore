@@ -230,7 +230,16 @@ function buildGrossIrrFlows(
   return flows;
 }
 
-function computeInputsHash(input: ComputeMetricsInput): string {
+/**
+ * The engine version is part of the preimage: the commit service's idempotent
+ * lookup keys on (fund, run type, perspective, as-of date, inputsHash), so a
+ * version bump must yield a new hash or the same source rows would replay a
+ * run computed under the previous rule set.
+ */
+export function computeInputsHash(
+  input: ComputeMetricsInput,
+  engineVersion: string = ENGINE_VERSION
+): string {
   const eventFingerprints = input.cashFlowEvents
     .map((event) => ({
       id: event.id,
@@ -254,6 +263,7 @@ function computeInputsHash(input: ComputeMetricsInput): string {
     }))
     .sort((a, b) => a.id - b.id);
   const payload = JSON.stringify({
+    engineVersion,
     fundId: input.fundId,
     eventFingerprints,
     markFingerprints,

@@ -12401,8 +12401,10 @@ financial-facts snapshot service accepts only approved and locked rows.
 - LP metric runs count only cash flow events with status `approved` or `locked`,
   matching the financial-facts snapshot service. Excluded draft or
   unknown-status events are reported in run diagnostics; reversed rows stay
-  excluded by design without a report. The engine version is bumped so persisted
-  runs from the previous rule are not replayed under the same label.
+  excluded by design without a report. The engine version is bumped and is part
+  of the metric-run inputs hash, so the commit service's idempotent lookup
+  (fund, run type, perspective, as-of date, inputs hash) can never return a run
+  computed under the previous rule set.
 
 ### Alternatives Considered
 

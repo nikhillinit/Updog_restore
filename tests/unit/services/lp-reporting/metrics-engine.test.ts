@@ -13,6 +13,7 @@ import {
 } from '@shared/contracts/lp-reporting';
 
 import {
+  computeInputsHash,
   computeMetrics,
   type ComputeMetricsInput,
   type ParsedCashFlowEvent,
@@ -148,6 +149,16 @@ describe('computeMetrics -- truth case fixture', () => {
     const a = computeMetrics(truthCase).inputsHash;
     const b = computeMetrics(truthCase).inputsHash;
     expect(a).toBe(b);
+  });
+
+  it('inputsHash is namespaced by the engine version', () => {
+    // The commit service's idempotent lookup keys on inputsHash, so a version
+    // bump must produce a new hash or stale runs would be replayed.
+    const current = computeMetrics(truthCase);
+    expect(computeInputsHash(truthCase, current.diagnostics.engineVersion)).toBe(
+      current.inputsHash
+    );
+    expect(computeInputsHash(truthCase, '0.0.0')).not.toBe(current.inputsHash);
   });
 
   it('engine version + decimal precision are pinned for downstream auditing', () => {

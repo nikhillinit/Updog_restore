@@ -102,8 +102,8 @@
     "This scenario is intentionally LP-net; do not add realized_proceeds unless you also adjust distributions to avoid double-counting."
   ],
   "lock": {
-    "locked_at": "2026-05-28T06:36:00.564Z",
-    "inputs_hash": "a83581d5cb0a0ed49921e39e8cd39ff056868f3ea48a501bd13796afe5067e1c",
+    "locked_at": "2026-09-16T03:56:37.088Z",
+    "inputs_hash": "4cc2fa24d5ff8d6c77567dcbf4cc0aa245e6154f3f1a8272bc749ddf7b138371",
     "diagnostics": {
       "engineVersion": "1.1.0",
       "decimalPrecision": 6,
