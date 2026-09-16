@@ -5,7 +5,7 @@
  * @quarantine partial -- 1 of 37 tests skipped
  * @owner fund-modeling
  * @reason Valuation generation produces unrealistic MOIC/stage distributions
- * @exitCriteria Fix generateCompanyValuations() for realistic values
+ * @exitCriteria Fix generateMockCompanies() for realistic values
  * @skipCount 1
  * @addedDate 2026-02-17
  */
