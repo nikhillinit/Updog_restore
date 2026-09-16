@@ -593,7 +593,7 @@
     "server/routes/kpi-observations.ts": "331f41c54cff66e8ac5f0805457466be9783f8b0e1a4a994d4714449450a9ef4",
     "server/routes/liquidity.ts": "83a75a8c52ae79686f9ef8181b49623459c5954d80b746bded7c925684e33bfc",
     "server/routes/lp-api.schemas.ts": "e565fb68e8c4ce7316ddfe28b8d81a563b7a1b0d49da52d2d5d8a3e573ee0e41",
-    "server/routes/lp-api.ts": "1891096e907e141c52127c90d850b9ef1bdaf792958d26015070af27a9219152",
+    "server/routes/lp-api.ts": "d3abbc80d40774cd003f8d18185245d50e0c62e0cfb9d27671be65f4ecbc188c",
     "server/routes/lp-capital-calls.ts": "73e84b4bca60ec796dd146ce24e321094a7bc1d979e6ed01600b63cb5ec7d0de",
     "server/routes/lp-distributions.ts": "971d01da3bc543dd90c0b1b7f5484c10de2a7eb63d7406a9f3c1b738e614538b",
     "server/routes/lp-documents.ts": "ed28997918c2599c63830ad25dc3668c958207841863e4452c88ca2d3152d839",
