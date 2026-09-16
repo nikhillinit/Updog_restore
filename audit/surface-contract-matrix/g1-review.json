@@ -150,7 +150,7 @@
     "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
     "shared/routes/api-route-manifest.ts": "ad48e3d01c876ba54850d47b8c5f9645c3ac80a16a7f86d4598a1ccbf7d604f0",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
-    "shared/routes/app-route-definitions.ts": "77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775",
+    "shared/routes/app-route-definitions.ts": "fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
     "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
@@ -170,7 +170,7 @@
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "2887c64f0284f5ed627a90d7d39f83942a8f3e7f9a1a7e2ae6a12326d1ee0dc3",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "96453ff629a87ed75abe3592154336b693f5b1193a39327bf05e8d8a86960294",
-    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "edd2514885932b2e8d8f359897f125fbd431fdc429e7711e575544bdd5b47862",
+    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "817c6bc8bfa8cf1907dd5c6c5632d163ab4efec7cfad74845ddc27f26cd10036",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
     "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
   },
@@ -14833,7 +14833,7 @@
       "row_id": "client:/dashboard",
       "contract_fingerprint": "8880aea0e43a65b401beaaf924c690a921378bf6bcf02ded20c6866550831517",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14858,7 +14858,7 @@
       "row_id": "client:/financial-modeling",
       "contract_fingerprint": "21c897b92ca15672999ade489e9a18fdbf6e85dc6dd7bc457b1b62d5efbd9e6e",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14883,7 +14883,7 @@
       "row_id": "client:/forecasting",
       "contract_fingerprint": "83f34b0cb86927dd5c681f085a849d36397055ba1d4d73fa43a238af9f9488da",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14908,7 +14908,7 @@
       "row_id": "client:/fund-model-results/:fundId",
       "contract_fingerprint": "13ee401739e62e5c3b4ff4f9d65b9fa636038c6a6ac7172f785bfa7cc4dd26f0",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14933,7 +14933,7 @@
       "row_id": "client:/fund-model-results/:fundId/analysis",
       "contract_fingerprint": "fa3676c56cb42f6220643b7687ec9aba51977cbde2554e8bcb33077bb30207a0",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14958,7 +14958,7 @@
       "row_id": "client:/fund-model-results/:fundId/internal-analysis",
       "contract_fingerprint": "2a6d5963a854a4c70d71a38f1b62652d8b268465b7e5925c05db76bff12bca18",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -14983,7 +14983,7 @@
       "row_id": "client:/fund-model-results/:fundId/moic-analysis",
       "contract_fingerprint": "1276db54a123d0d111a104beaaae5fc3799d6903e4e91cfc529df882b7e5e813",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15008,7 +15008,7 @@
       "row_id": "client:/fund-model-results/:fundId/operations",
       "contract_fingerprint": "4c6960f78f4316789fa06dc8064a13a44ab173582465eeca312a1b35ded31cd5",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15033,7 +15033,7 @@
       "row_id": "client:/fund-model-results/:fundId/reports",
       "contract_fingerprint": "436ebe1e4317f04e1733711cee282ece8a704b6e9f5f23fa9ec9be75808b0ebb",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15058,7 +15058,7 @@
       "row_id": "client:/fund-model-results/:fundId/scenarios",
       "contract_fingerprint": "943ba4b0cbf3e92cc1bfdb59484cc813508ad8af60f4c7697125d07ef68acfd1",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15083,7 +15083,7 @@
       "row_id": "client:/fund-setup",
       "contract_fingerprint": "87c6b26755134d977a8134f601159aa91e8c5e68d2a3656a0c383bf1bf2df791",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15108,7 +15108,7 @@
       "row_id": "client:/help",
       "contract_fingerprint": "580a90ae6510da978b5502683156dd5736b1ed619761e8f18e50c81a8fe30570",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15133,7 +15133,7 @@
       "row_id": "client:/investments",
       "contract_fingerprint": "078c3310c0c99358867b8b2a234ee33a6defbb7020b202fa802493a717755cac",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15158,7 +15158,7 @@
       "row_id": "client:/kpi-manager",
       "contract_fingerprint": "a085a81b1540e0e46b1217fc8d53f0ba89ac4250bc5a6cc53922c4264b5014bb",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15183,7 +15183,7 @@
       "row_id": "client:/kpi-submission",
       "contract_fingerprint": "ed67e48e88c48f5697725b682cebfaa2cdc808bf82ab5a1ddfb3cb2cf7a2a130",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15258,7 +15258,7 @@
       "row_id": "client:/lp-reporting/imports",
       "contract_fingerprint": "d0153e09d46456de9ba049c4dfbd975b1aa396f81f3cb665d036403593708279",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15283,7 +15283,7 @@
       "row_id": "client:/lp-reporting/ledger",
       "contract_fingerprint": "7ffde55dc0a8d65022b3dffc70d515562e796fc832d86147769aea95f53c4886",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15308,7 +15308,7 @@
       "row_id": "client:/lp-reporting/metrics",
       "contract_fingerprint": "cc892043692c57d799859955c1c16ce82ee4e6857e5a571998b2b46d90fd0d6a",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15333,7 +15333,7 @@
       "row_id": "client:/lp-reporting/valuations",
       "contract_fingerprint": "21472acd4868603199a474ba3153a68e0f1a80d29a6eb80629bfb8d64651d9be",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15358,7 +15358,7 @@
       "row_id": "client:/lp/capital-account",
       "contract_fingerprint": "3e81d0b98636bdf15ea8719a577181e50fec3d256ae3401d17a5ce0206c39281",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15383,7 +15383,7 @@
       "row_id": "client:/lp/dashboard",
       "contract_fingerprint": "58bb650d152fd9c8745a5b3b96e024ad314f278a9456d407f3e585bf486f4636",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15408,7 +15408,7 @@
       "row_id": "client:/lp/fund-detail/:fundId",
       "contract_fingerprint": "32647dcde58f0e1028fd1c2649e3c1997ba4e482679e611facd3975d86026907",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15433,7 +15433,7 @@
       "row_id": "client:/lp/performance",
       "contract_fingerprint": "099c24675bad89acb04015bf1c8daa61ab0be42c116c57bc2ecc201e8015c071",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15458,7 +15458,7 @@
       "row_id": "client:/lp/reports",
       "contract_fingerprint": "785fb26f6b720cb668b2818424affac54278d85bd8301d0f1013edfa76dfb953",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15483,7 +15483,7 @@
       "row_id": "client:/lp/settings",
       "contract_fingerprint": "f192dc8bc4f9fc53d9d1ee10ed3e80fc7479889d3df8b144c5984acf1bc06d7f",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15508,7 +15508,7 @@
       "row_id": "client:/model-results",
       "contract_fingerprint": "3905b197f794ca9a64e3b4e9ca9407c03f93375dea6bc696ba20bcf43ba88b82",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15533,7 +15533,7 @@
       "row_id": "client:/moic-analysis",
       "contract_fingerprint": "09cc7c10f25888afcded7f32760c3459b70a7c7e443d90fc872ffc4b7936d408",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15558,7 +15558,7 @@
       "row_id": "client:/performance",
       "contract_fingerprint": "22950341f5f2dc72c2d1acd55018407637fa9733fa94dce0c981b26a9eb4f0d0",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15583,7 +15583,7 @@
       "row_id": "client:/pipeline",
       "contract_fingerprint": "57fb37b952c85d0af9d58776bced3295fb9bc50ba8b0a17da103bdaea31bb229",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15608,7 +15608,7 @@
       "row_id": "client:/planning",
       "contract_fingerprint": "e66810da572e49226c3401743a6d491e891c32e5d01dd48ffaaab44f982afbf2",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15683,7 +15683,7 @@
       "row_id": "client:/portfolio",
       "contract_fingerprint": "fff7bc2368be4119b850ed04ed303b647854852ce1a723298eeca7ef890bba15",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15708,7 +15708,7 @@
       "row_id": "client:/portfolio/company/:id",
       "contract_fingerprint": "17a5bb890d295e5831a6df9d2d9e334cb6d579f106f48ab290725f09898fa600",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15733,7 +15733,7 @@
       "row_id": "client:/reports",
       "contract_fingerprint": "d984ef806f8c5ae0d1ecda0a5b74ce2735254b0c2c58924ec675053e1121c051",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15758,7 +15758,7 @@
       "row_id": "client:/sensitivity-analysis",
       "contract_fingerprint": "4ee20e9a88324d9749f770d315c2ee2e68f1972cd4ed9347b9329e557c0a0edc",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15783,7 +15783,7 @@
       "row_id": "client:/settings",
       "contract_fingerprint": "aec31053701ee5b98f38423bd884c3f6e165b5b4495b5a9d3f94ff17b84c3283",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [
@@ -15833,7 +15833,7 @@
       "row_id": "client:/variance-tracking",
       "contract_fingerprint": "3bc1d9d76590824807826977141cbfdf2225ff5da3c93fa84cb8e039e1cebc16",
       "source_fingerprints": [
-        "shared/routes/app-route-definitions.ts=77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775"
+        "shared/routes/app-route-definitions.ts=fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38"
       ],
       "reviewed_fields": {
         "personas": [

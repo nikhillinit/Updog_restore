@@ -646,7 +646,7 @@
     "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
     "shared/routes/api-route-manifest.ts": "c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
-    "shared/routes/app-route-definitions.ts": "77f5f2002b375c5630cc988cd7dfad6d2f38e079e4d0b46a92289d377bad7775",
+    "shared/routes/app-route-definitions.ts": "fa3a67bb0c058deb058ff2ea194379e801390d69a0651271f1adaf0a5105bc38",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
     "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
@@ -666,7 +666,7 @@
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "862dc89343ae59f9c80b20e4fb51bc091cc5054d7288c8e0f52881e156202c89",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
-    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "edd2514885932b2e8d8f359897f125fbd431fdc429e7711e575544bdd5b47862",
+    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "817c6bc8bfa8cf1907dd5c6c5632d163ab4efec7cfad74845ddc27f26cd10036",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
     "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
   },

@@ -22,6 +22,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-09-16)
+
+- Send the archived `/moic-analysis` placeholder to `/dashboard`. Its previous
+  target `/overview` was never a route, so the redirect landed on NotFound.
+  Record ADR-102, the owner-ratified disposition of the unwired-code inventory
+  (four deletions, one park).
+
 ### Documentation (2026-09-12)
 
 - Reconcile the existing program roadmap and navigation against #1505/#1506 and

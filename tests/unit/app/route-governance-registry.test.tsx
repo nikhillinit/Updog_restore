@@ -113,7 +113,7 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/moic-analysis')).toMatchObject({
       exposure: 'archived-placeholder',
       surface: 'archived-placeholder',
-      redirectTarget: '/overview',
+      redirectTarget: '/dashboard',
     });
     expect(getRouteGovernanceEntry('/kpi-manager')).toMatchObject({
       exposure: 'archived-placeholder',

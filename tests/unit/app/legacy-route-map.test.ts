@@ -47,7 +47,7 @@ describe('legacy route map', () => {
       expect.arrayContaining(['/financial-modeling', '/forecasting'])
     );
     expect(archivedPlaceholderRoutes.get('/planning')).toBe('/portfolio?tab=reserve-planning');
-    expect(archivedPlaceholderRoutes.get('/moic-analysis')).toBe('/overview');
+    expect(archivedPlaceholderRoutes.get('/moic-analysis')).toBe('/dashboard');
     expect(archivedPlaceholderRoutes.get('/investments')).toBe('/portfolio');
 
     const removedLegacyRedirectSurfaces = [
