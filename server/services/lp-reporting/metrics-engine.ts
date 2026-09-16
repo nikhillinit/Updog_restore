@@ -28,7 +28,7 @@ import type {
 import { isoDay, selectActiveValuationMarks } from './active-valuation-mark-selector';
 import { xirrDiagnostic } from './xirr-diagnostic-service';
 
-const ENGINE_VERSION = '1.1.0';
+const ENGINE_VERSION = '1.2.0';
 const DECIMAL_PRECISION = 6;
 
 // ============================================================================
@@ -112,6 +112,7 @@ export interface ComputeMetricsOutput {
  * an undefined status fails closed.
  */
 const LIVE_EVENT_STATUSES: ReadonlySet<EventStatus> = new Set<EventStatus>(['approved', 'locked']);
+const LIVE_MARK_STATUSES: ReadonlySet<MarkStatus> = new Set<MarkStatus>(['approved', 'locked']);
 /**
  * Render a Decimal as a fixed-precision decimal string at engine precision
  * (6 dp).  Mirrors the toFixed(6) calls used in import-reconciliation-service.
@@ -122,6 +123,10 @@ function decToString(value: Decimal): string {
 
 function hasLiveStatus(event: ParsedCashFlowEvent): boolean {
   return event.status !== undefined && LIVE_EVENT_STATUSES.has(event.status);
+}
+
+function hasLiveMarkStatus(mark: ParsedValuationMark): boolean {
+  return mark.status !== undefined && LIVE_MARK_STATUSES.has(mark.status);
 }
 
 function isLiveEvent(event: ParsedCashFlowEvent): boolean {
@@ -317,6 +322,26 @@ export function computeMetrics(input: ComputeMetricsInput): ComputeMetricsOutput
     });
   }
 
+  const asOfDay = isoDay(input.asOfDate);
+  const excludedNonLiveMarkIds = input.valuationMarks
+    .filter(
+      (mark) =>
+        isoDay(mark.markDate) <= asOfDay &&
+        !hasLiveMarkStatus(mark) &&
+        mark.status !== 'superseded' &&
+        mark.status !== 'reversed'
+    )
+    .map((mark) => mark.id)
+    .sort((a, b) => a - b);
+  if (excludedNonLiveMarkIds.length > 0) {
+    warnings.push({
+      code: 'EXCLUDED_NON_LIVE_MARKS',
+      message:
+        `${excludedNonLiveMarkIds.length} valuation marks excluded because their status ` +
+        `is not approved or locked: ids ${excludedNonLiveMarkIds.join(', ')}`,
+    });
+  }
+
   // ---- Contributions and distributions (Decimal) ----
   const calledCapital = sumAmountsByType(
     input.cashFlowEvents,
@@ -335,7 +360,7 @@ export function computeMetrics(input: ComputeMetricsInput): ComputeMetricsOutput
 
   // ---- NAV (active marks at asOfDate) ----
   const { active, excludedFutureMarkIds } = selectActiveValuationMarks(
-    input.valuationMarks,
+    input.valuationMarks.filter((mark) => hasLiveMarkStatus(mark)),
     input.asOfDate
   );
   const currentNav = active.reduce((acc, m) => acc.plus(new Decimal(m.fairValue)), new Decimal(0));

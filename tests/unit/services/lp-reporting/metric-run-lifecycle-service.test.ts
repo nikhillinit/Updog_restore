@@ -49,7 +49,7 @@ function metricRun(overrides: Partial<LpMetricRun> = {}): LpMetricRun {
     resultsJson: {},
     diagnosticsJson: {},
     methodologyVersion: 'lp-reporting-methodology-v1',
-    calculationVersion: 'lp-reporting-metrics-engine-1.1.0',
+    calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
     generatedBy: 7,
     approvedBy: null,
     approvedAt: null,

@@ -105,7 +105,7 @@ interface MetricRunPreviewParts {
 }
 
 const METHODOLOGY_VERSION = 'lp-reporting-methodology-v1';
-const CALCULATION_VERSION = 'lp-reporting-metrics-engine-1.1.0';
+const CALCULATION_VERSION = 'lp-reporting-metrics-engine-1.2.0';
 
 function uniqueSorted(values: number[] | undefined): number[] {
   return Array.from(new Set(values ?? [])).sort((a, b) => a - b);

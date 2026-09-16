@@ -162,7 +162,7 @@ describe('computeMetrics -- truth case fixture', () => {
   });
 
   it('engine version + decimal precision are pinned for downstream auditing', () => {
-    expect(out.diagnostics.engineVersion).toBe('1.1.0');
+    expect(out.diagnostics.engineVersion).toBe('1.2.0');
     expect(out.diagnostics.decimalPrecision).toBe(6);
   });
 
@@ -400,5 +400,49 @@ describe('computeMetrics -- non-live events', () => {
 
     expect(out.results.contributionsTotal).toBe('6000000.000000');
     expect(out.diagnostics.warnings).toEqual([]);
+  });
+
+  it('excludes draft and missing-status marks from NAV and discloses them', () => {
+    const out = computeMetrics({
+      ...truthCase,
+      valuationMarks: [
+        ...truthCase.valuationMarks,
+        {
+          id: 12,
+          fairValue: '9000000.000000',
+          markDate: '2024-12-15',
+          asOfDate: '2024-12-15',
+          status: 'draft',
+          confidenceLevel: 'medium',
+          companyId: 77,
+        },
+        {
+          id: 13,
+          fairValue: '8000000.000000',
+          markDate: '2024-12-20',
+          asOfDate: '2024-12-20',
+          confidenceLevel: 'low',
+          companyId: 78,
+        },
+        {
+          id: 14,
+          fairValue: '7000000.000000',
+          markDate: '2025-01-15',
+          asOfDate: '2025-01-15',
+          status: 'draft',
+          confidenceLevel: 'high',
+          companyId: 79,
+        },
+      ],
+    });
+
+    expect(out.results.currentNav).toBe('5000000.000000');
+    expect(out.results.markConfidenceMix).toEqual({ high: 1, medium: 0, low: 0 });
+    expect(out.diagnostics.excludedFutureMarks).toEqual([11]);
+    expect(out.diagnostics.warnings).toContainEqual({
+      code: 'EXCLUDED_NON_LIVE_MARKS',
+      message:
+        '2 valuation marks excluded because their status is not approved or locked: ids 12, 13',
+    });
   });
 });
