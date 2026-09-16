@@ -464,7 +464,7 @@ describe('LP API route contracts', () => {
         { companyId: 1, companyName: 'Alpha', lpProRataValue: 150 },
         { companyId: 2, companyName: 'Beta', lpProRataValue: 350 },
       ],
-      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma' }],
+      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma', reason: 'missing_ownership' }],
     });
 
     const response = await request(makeApp()).get('/api/lp/funds/7/holdings');
@@ -479,7 +479,7 @@ describe('LP API route contracts', () => {
       totalHoldings: 2,
       totalValue: 500,
       unpricedHoldings: 1,
-      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma' }],
+      unpricedCompanies: [{ companyId: 3, companyName: 'Gamma', reason: 'missing_ownership' }],
     });
   });
 

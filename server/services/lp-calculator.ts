@@ -86,10 +86,16 @@ export interface ProRataHolding {
   lpProRataValue: number;
 }
 
+export type UnpricedHoldingReason = 'missing_ownership' | 'missing_valuation';
+
 export interface ProRataHoldingsResult {
   holdings: ProRataHolding[];
-  /** Companies with no recorded fund ownership; never priced (ADR-054). */
-  unpricedCompanies: Array<{ companyId: number; companyName: string }>;
+  /** Companies with no recorded fund ownership or valuation; never priced (ADR-054, ADR-101). */
+  unpricedCompanies: Array<{
+    companyId: number;
+    companyName: string;
+    reason: UnpricedHoldingReason;
+  }>;
 }
 
 export interface CapitalAccountTransaction {
@@ -425,11 +431,26 @@ export class LPCalculator {
       // A recorded zero is a fact and stays priced at 0.
       const fundOwnership = ownershipMap.get(company.id);
       if (fundOwnership === undefined) {
-        unpricedCompanies.push({ companyId: company.id, companyName: company.name });
+        unpricedCompanies.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: 'missing_ownership',
+        });
+        continue;
+      }
+      // The same rule for the valuation: null or non-numeric is "not recorded",
+      // never a zero. A recorded "0" stays priced at 0.
+      const currentValuation =
+        company.currentValuation == null ? Number.NaN : Number(company.currentValuation);
+      if (!Number.isFinite(currentValuation)) {
+        unpricedCompanies.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: 'missing_valuation',
+        });
         continue;
       }
       const lpSharePercentage = lpPercentageOfFund * fundOwnership;
-      const currentValuation = Number(company.currentValuation) || 0;
       const lpProRataValue = currentValuation * lpSharePercentage;
 
       holdings.push({

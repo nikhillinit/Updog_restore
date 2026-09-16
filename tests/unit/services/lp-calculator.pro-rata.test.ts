@@ -51,6 +51,7 @@ const companies = [
   { id: 1, name: 'Alpha', sector: 'SaaS', stage: 'Seed', currentValuation: '10000000' },
   { id: 2, name: 'Beta', sector: 'Fintech', stage: 'Series A', currentValuation: '4000000' },
   { id: 3, name: 'Gamma', sector: 'Health', stage: 'Seed', currentValuation: '8000000' },
+  { id: 4, name: 'Delta', sector: 'Climate', stage: 'Series B', currentValuation: null },
 ];
 
 describe('LPCalculator.calculateProRataHoldings ownership handling (ADR-054)', () => {
@@ -68,6 +69,8 @@ describe('LPCalculator.calculateProRataHoldings ownership handling (ADR-054)', (
       { companyId: 1, ownershipPercentage: '0.1500' },
       { companyId: 2, ownershipPercentage: '0.0000' },
       // Gamma (3) has no investments row: ownership is unrecorded, not zero.
+      // Delta (4) has ownership but no recorded valuation.
+      { companyId: 4, ownershipPercentage: '0.2000' },
     ]);
   });
 
@@ -78,8 +81,26 @@ describe('LPCalculator.calculateProRataHoldings ownership handling (ADR-054)', (
     );
 
     expect(holdings.map((h) => h.companyId)).not.toContain(3);
-    expect(unpricedCompanies).toEqual([{ companyId: 3, companyName: 'Gamma' }]);
+    expect(unpricedCompanies).toContainEqual({
+      companyId: 3,
+      companyName: 'Gamma',
+      reason: 'missing_ownership',
+    });
     expect(holdings.length + unpricedCompanies.length).toBe(companies.length);
+  });
+
+  it('discloses a company with no recorded valuation instead of pricing it at zero', async () => {
+    const { holdings, unpricedCompanies } = await lpCalculator.calculateProRataHoldings(
+      LP_ID,
+      FUND_ID
+    );
+
+    expect(holdings.map((h) => h.companyId)).not.toContain(4);
+    expect(unpricedCompanies).toContainEqual({
+      companyId: 4,
+      companyName: 'Delta',
+      reason: 'missing_valuation',
+    });
   });
 
   it('keeps a recorded zero ownership priced at 0', async () => {

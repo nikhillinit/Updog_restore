@@ -521,7 +521,7 @@ router.get(
  * GET /api/lp/funds/:fundId/holdings
  *
  * Get LP's pro-rata share of portfolio holdings.
- * Companies with no recorded fund ownership are disclosed in unpricedCompanies, never priced (ADR-054).
+ * Companies with no recorded fund ownership or valuation are disclosed in unpricedCompanies with a reason, never priced (ADR-054, ADR-101).
  */
 router.get(
   '/api/lp/funds/:fundId/holdings',

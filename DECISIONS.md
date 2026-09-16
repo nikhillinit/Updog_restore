@@ -12389,11 +12389,11 @@ financial-facts snapshot service accepts only approved and locked rows.
 - The projected metrics calculator passes null ownership through instead of
   substituting 0.1. Dashboard reserve summaries change for any company whose
   ownership is not recorded.
-- LP pro-rata holdings skip companies with no recorded ownership and disclose
-  them as `unpricedHoldings` / `unpricedCompanies` in the route response. A
-  recorded zero is a fact and stays priced at zero. Existing fields keep their
-  meaning; the total covers priced holdings only, and the disclosure says how
-  many were left out.
+- LP pro-rata holdings skip companies with no recorded ownership or no recorded
+  valuation and disclose them as `unpricedHoldings` / `unpricedCompanies` (with
+  a reason) in the route response. A recorded zero is a fact and stays priced at
+  zero. Existing fields keep their meaning; the total covers priced holdings
+  only, and the disclosure says how many were left out.
 - Deliberate asymmetry with ADR-054: NAV keeps unknown ownership unscaled
   because its anchor ladder discloses which rung each company sits on. Reserve
   inputs and LP holdings have no disclosed fallback rung, so they fail closed
