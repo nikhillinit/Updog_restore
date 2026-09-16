@@ -62,8 +62,12 @@ let cache: {
 
 let lastKnownGood: FlagSnapshot | null = null;
 
-// Kill switch - disables ALL non-essential flags
-const disabledAll = process.env['FLAGS_DISABLED_ALL'] === '1';
+// Kill switch - disables ALL non-essential flags. Read at call time: the
+// admin route toggles the variable at runtime, so a value captured at import
+// would leave the switch reported active while flags keep serving.
+function isKillSwitchActive(): boolean {
+  return process.env['FLAGS_DISABLED_ALL'] === '1';
+}
 
 // Default flag values (safe fallbacks)
 const defaultFlags: FlagMap = {
@@ -187,7 +191,7 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
  */
 export async function getFlags(): Promise<FlagSnapshot> {
   // Kill switch - return empty flags (all disabled)
-  if (disabledAll) {
+  if (isKillSwitchActive()) {
     console.warn('FLAGS_DISABLED_ALL is active - all flags disabled');
     return {
       version: cache.version,
