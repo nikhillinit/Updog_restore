@@ -22,17 +22,20 @@ was classified instead.
 user-entered mark) is displayed as the fund's current value or divided by
 `investmentAmount` / `investedAmount` to produce a MOIC, without scaling by
 `ownershipCurrentPct`. **Correct pattern:** position value =
-`currentValuation x ownershipCurrentPct` when ownership is recorded, else
-`currentValuation`; MOIC = position value / invested. For UI, read the
-server-authoritative `GET /api/portfolio-overview` rows. For engine contracts
-whose `currentValuation` already means position value (the reserve engine), pass
-the position, not the company valuation. **Search regex:** `currentValuation`
+`currentValuation x ownershipCurrentPct` only when ownership is non-null and
+greater than zero; a null or a recorded zero ownership keeps the unscaled
+`currentValuation` (ADR-054, the `legacy_current_valuation` rung); MOIC =
+position value / invested. For UI, read the server-authoritative
+`GET /api/portfolio-overview` rows. For engine contracts whose
+`currentValuation` already means position value (the reserve engine), pass the
+position, not the company valuation. **Search regex:** `currentValuation`
 (recon), narrowed by reading each site for a division by invested capital or a
 "current value" label.
 
 **Reference implementation (CANON):**
 `server/services/portfolio-overview-service.ts:61-66`
-(`currentValue = ownership > 0 ? valuation x ownership : valuation; moic = invested <= 0 ? 0 : currentValue / invested`).
+(`currentValue = ownership != null && ownership > 0 ? valuation x ownership : valuation; moic = invested <= 0 ? 0 : currentValue / invested`;
+a recorded zero ownership is deliberately left unscaled per ADR-054).
 `server/services/metrics-aggregator.ts:875-884` and
 `server/services/actual-metrics-calculator.ts:182-191` apply the same rule.
 
