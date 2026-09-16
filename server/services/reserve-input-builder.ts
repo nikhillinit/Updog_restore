@@ -89,19 +89,31 @@ function investmentRowToPortfolioWithProvenance(
   return {
     id: row.company_id ?? row.id,
     invested: toNumber(row.amount),
-    ownership: ownershipMissing ? 0.15 : toNumber(row.ownership_percentage),
+    ownership: ownershipMissing ? null : toNumber(row.ownership_percentage),
     stage: row.round != null && row.round.trim().length > 0 ? row.round : 'seed',
     sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
     provenance: {
       invested: fieldProvenance('observed', 'investments.amount', null),
       ownership: ownershipMissing
-        ? fieldProvenance('defaulted', 'system_default_ownership', 'Missing ownership percentage uses 0.15 legacy default')
+        ? fieldProvenance(
+            'unavailable',
+            'investments.ownership_percentage',
+            'Ownership percentage is not recorded; no default is substituted (ADR-054)'
+          )
         : fieldProvenance('observed', 'investments.ownership_percentage', null),
       stage: stageMissing
-        ? fieldProvenance('defaulted', 'system_default_stage', 'Missing round uses seed legacy default')
+        ? fieldProvenance(
+            'defaulted',
+            'system_default_stage',
+            'Missing round uses seed legacy default'
+          )
         : fieldProvenance('observed', 'investments.round', null),
       sector: sectorMissing
-        ? fieldProvenance('defaulted', 'system_default_sector', 'Missing sector uses unknown legacy default')
+        ? fieldProvenance(
+            'defaulted',
+            'system_default_sector',
+            'Missing sector uses unknown legacy default'
+          )
         : fieldProvenance('observed', 'portfolio_companies.sector', null),
     },
   };
@@ -117,19 +129,35 @@ function companyRowToPortfolioWithProvenance(
   return {
     id: row.id,
     invested: toNumber(row.investment_amount),
-    ownership: 0.15,
+    ownership: null,
     stage: row.stage != null && row.stage.trim().length > 0 ? row.stage : 'seed',
     sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
     provenance: {
       invested: investedMissing
-        ? fieldProvenance('defaulted', 'system_default_invested', 'Missing investment amount uses 0 legacy default')
+        ? fieldProvenance(
+            'defaulted',
+            'system_default_invested',
+            'Missing investment amount uses 0 legacy default'
+          )
         : fieldProvenance('observed', 'portfolio_companies.investment_amount', null),
-      ownership: fieldProvenance('defaulted', 'system_default_ownership', 'portfolioCompanies rows do not provide actuals-grade ownership; legacy fallback is 0.15'),
+      ownership: fieldProvenance(
+        'unavailable',
+        'portfolio_companies',
+        'portfolio_companies rows carry no actuals-grade ownership; no default is substituted (ADR-054)'
+      ),
       stage: stageMissing
-        ? fieldProvenance('defaulted', 'system_default_stage', 'Missing stage uses seed legacy default')
+        ? fieldProvenance(
+            'defaulted',
+            'system_default_stage',
+            'Missing stage uses seed legacy default'
+          )
         : fieldProvenance('observed', 'portfolio_companies.stage', null),
       sector: sectorMissing
-        ? fieldProvenance('defaulted', 'system_default_sector', 'Missing sector uses unknown legacy default')
+        ? fieldProvenance(
+            'defaulted',
+            'system_default_sector',
+            'Missing sector uses unknown legacy default'
+          )
         : fieldProvenance('observed', 'portfolio_companies.sector', null),
     },
   };

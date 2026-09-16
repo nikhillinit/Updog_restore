@@ -164,14 +164,18 @@ export class ProjectedMetricsCalculator {
       // Build input for reserve engine - each company is a separate ReserveCompanyInput
       const portfolio: ReserveCompanyInput[] = companies.map((c) => {
         const invested = toDecimal(c.investmentAmount?.toString() || '0');
-        const ownership = toDecimal(c.ownershipCurrentPct?.toString() || '0.1');
+        // Ownership is never defaulted (ADR-054): absent -> null, which the engine treats as neutral.
+        const ownership =
+          c.ownershipCurrentPct == null
+            ? null
+            : toDecimal(c.ownershipCurrentPct.toString()).toNumber();
 
         return {
           id: c.id,
           invested: invested.toNumber(),
           stage: c.stage || c.currentStage || 'Seed',
           sector: c.sector || 'SaaS',
-          ownership: ownership.toNumber(),
+          ownership,
         };
       });
 

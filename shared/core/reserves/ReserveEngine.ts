@@ -55,15 +55,17 @@ function calculateRuleBasedAllocation(company: ReserveCompanyInput): ReserveOutp
 
   let allocation = invested * stageMultiplier * sectorMultiplier;
 
-  if (ownership > 0.1) {
+  // null ownership (not recorded) is neutral: no boost, no penalty, no confidence bonus.
+  // The explicit null guard matters because `null < 0.05` coerces to `0 < 0.05` (true).
+  if (ownership != null && ownership > 0.1) {
     allocation *= 1.2;
-  } else if (ownership < 0.05) {
+  } else if (ownership != null && ownership < 0.05) {
     allocation *= 0.8;
   }
 
   let confidence: number = ConfidenceLevel.COLD_START;
   if (stage && sector) confidence += 0.2;
-  if (ownership > 0) confidence += 0.15;
+  if (ownership != null && ownership > 0) confidence += 0.15;
   if (invested > 1_000_000) confidence += 0.1;
   confidence = Math.min(confidence, ConfidenceLevel.MEDIUM);
 

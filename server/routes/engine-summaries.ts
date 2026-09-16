@@ -53,7 +53,7 @@ function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
   return (rawData as PortfolioFixtureData).companies.map((company, index) => ({
     id: index + 1,
     invested: typeof company.invested === 'number' ? company.invested : 500000,
-    ownership: typeof company.ownership === 'number' ? company.ownership : 0.15,
+    ownership: typeof company.ownership === 'number' ? company.ownership : null,
     stage: typeof company.stage === 'string' ? company.stage : 'Series A',
     sector: typeof company.sector === 'string' ? company.sector : 'Tech',
   }));
