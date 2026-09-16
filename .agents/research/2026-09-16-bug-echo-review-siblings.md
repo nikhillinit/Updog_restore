@@ -206,7 +206,12 @@ Ordered by the integrator's view of consequence.
 7. Liquidity route reachability (C5): `CashPositionSchema` dates join
    `plannedDate` as bare `z.date()`; coercion makes `/api/liquidity/*` live for
    the first time.
-8. Test wiring with possible red outcomes: the 37 live tests in
+8. CA-005 authority: removing the stale quarantine header from
+   `capital-allocation.test.ts` does not settle whether
+   `docs/CA-SEMANTIC-LOCK.md` Section 6 (DEFER, `dynamic_ratio` undefined) or
+   `CapitalAllocationEngine.ts:268-282` (implemented, reserve = NAV times target
+   percentage) is authoritative.
+9. Test wiring with possible red outcomes: the 37 live tests in
    `*.quarantine.test.ts` files (D1), `test:rls` (D3), `ENABLE_PHASE4_TESTS`
    (D4), root-level and unmatched test files (D5, D8), dead-test citations (D6),
    `test-pipeline.sh` (D7), quarantine header protocol gaps (D9), skills index
@@ -239,5 +244,16 @@ Ordered by the integrator's view of consequence.
 
 ## Verification
 
-Filled in by the integrator after the full suite (see the PR body for the exact
-numbers).
+- `npm run test:unit` (both projects, TZ=UTC) on the round-3 branch: 1190 files
+  passed, 16398 tests passed, 92 skipped, 0 failed. The extra file is
+  `tests/unit/schema-helpers.test.ts`, collected for the first time (18 tests).
+- `npm run baseline:check`: 0 TypeScript errors.
+- Surface-contract matrix test green after the `lp-capital-calls.ts` hash
+  refresh.
+- `actionlint` on `skip-counter.yml`: no findings on the change; its
+  pre-existing shellcheck notes are unchanged.
+- `tests/unit/truth-cases/capital-allocation.test.ts` 24/24 after the header
+  removal; `docs:routing:check` passes after the ARCHI.md and INDEX.md edits.
+- The #1526 follow-up commit (null valuation in holdings): targeted tests 53/53
+  and a server typecheck at its head; the last full suite on that branch ran at
+  the previous head.
