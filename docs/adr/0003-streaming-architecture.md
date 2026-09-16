@@ -1,17 +1,29 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-09-16
 ---
 
 # ADR-0003: Streaming Architecture for Long-Running Operations
 
 ## Status
-Accepted (2025-10-06)
+
+Deprecated (2026-09-16). Never mounted on any server surface, no producer ever
+published agent-run events, and nothing read the `ai:run:{runId}:cancel` flag;
+the SSE stack (`server/agents/stream.ts`, `server/agents/cancel.ts`,
+`client/src/hooks/useAgentStream.ts`, `k6/scenarios/agents-streaming.js`) was
+deleted the same day under ADR-102. Originally accepted 2025-10-06.
 
 ## Context
-Scenario optimization and reserve analysis can take seconds. Users need responsiveness (TTFB) and the ability to cancel runs from the wizard and dashboard.
+
+Scenario optimization and reserve analysis can take seconds. Users need
+responsiveness (TTFB) and the ability to cancel runs from the wizard and
+dashboard.
 
 ## Decision
+
+Historical record of the 2025-10-06 decision. None of it is implemented and the
+code was deleted under ADR-102; do not rebuild from this section.
+
 - Use **Server-Sent Events (SSE)** for one-way, low-overhead streaming:
   - Endpoint: `GET /api/agents/stream/:runId`
   - Events: `status`, `partial`, `delta`, `complete`, `error`
@@ -28,13 +40,17 @@ Scenario optimization and reserve analysis can take seconds. Users need responsi
   - Idempotent completion (safe to call complete twice)
 
 ## Consequences
+
 - **Pros**: Simple infra, firewall-friendly, fast to ship.
-- **Cons**: No client → server duplex; if later needed, migrate hot-paths to WebSockets.
+- **Cons**: No client → server duplex; if later needed, migrate hot-paths to
+  WebSockets.
 
 ## Alternatives Considered
+
 - WebSockets — more complex, not needed for Phase 1.
 - HTTP polling — wasteful and poor UX.
 
 ## Related
+
 - [ADR-0002](0002-token-budgeting.md) (Budgeting)
 - [ADR-0001](0001-evaluator-metrics.md) (Evaluator metrics)

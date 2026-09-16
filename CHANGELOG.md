@@ -39,6 +39,11 @@ and this project adheres to
   hook `useFundKpis` and `kpi-raw-facts.contract.ts`, and the tracked
   `.tsc-client.err` log. The two selector-contract documents stay in place with
   an abandoned banner (ADR-102).
+- Deprecate ADR-0003 and delete the never-mounted agent SSE stack:
+  `server/agents/stream.ts`, `server/agents/cancel.ts`,
+  `client/src/hooks/useAgentStream.ts` with its test, and
+  `k6/scenarios/agents-streaming.js`. No producer published agent-run events and
+  nothing read the cancel flag (ADR-102).
 
 ### Documentation (2026-09-12)
 
