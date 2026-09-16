@@ -5,7 +5,8 @@ last_updated: 2026-01-19
 
 # Pre-Test Hardening Checklist
 
-**Purpose**: Surgical hardening pass before comprehensive testing to eliminate noise and ambiguity.
+**Purpose**: Surgical hardening pass before comprehensive testing to eliminate
+noise and ambiguity.
 
 **Estimated Time**: 90-120 minutes
 
@@ -16,6 +17,7 @@ last_updated: 2026-01-19
 ## Overview
 
 This checklist ensures that:
+
 1. ✅ Invalid inputs never reach the calculation engine
 2. ✅ Tests fail for the right reasons (logic errors, not missing fields)
 3. ✅ Parity diffs are traceable to exact input sets
@@ -30,16 +32,19 @@ This checklist ensures that:
 **Why**: Lets CI catch miswired servers and confirms exact build under test.
 
 **Implementation**:
+
 - ✅ Enhanced `/healthz` endpoint with 5 required fields
 - ✅ Created `server/version.ts` with `ENGINE_VERSION` constant
 - ✅ Created smoke test at `tests/smoke/healthz.test.ts`
 
 **Files Changed**:
+
 - `server/routes/health.ts` - Enhanced response
 - `server/version.ts` - Version constants (NEW)
 - `tests/smoke/healthz.test.ts` - Smoke test (NEW)
 
 **Response Format**:
+
 ```json
 {
   "status": "ok",
@@ -53,6 +58,7 @@ This checklist ensures that:
 ```
 
 **Acceptance**:
+
 - [ ] `GET /healthz` returns 200 with all 5 fields
 - [ ] CI has smoke test that fails on schema drift
 - [ ] Smoke test completes in < 100ms
@@ -64,37 +70,45 @@ This checklist ensures that:
 **Why**: Invalid inputs are #1 source of "mystery" parity failures.
 
 **Implementation Locations**:
+
 1. **UI Boundary** (PR #4): Form validation with inline messages
 2. **API Boundary** (PR #2): Zod `.superRefine()` with field-specific errors
 
 **Blocking Constraints** (must pass):
+
 1. Stage allocations sum to 1.0 (±1e-6)
 2. Average check size ≤ stage allocation dollars
 3. Total initial investments ≤ deployable capital (committed - fees)
 4. `monthsToGraduate[stage] < monthsToExit[stage]`
 
 **Warning Constraints** (non-blocking):
+
 1. Estimated reserve need > reserve pool (show delta %)
 
 **Files**:
+
 - `shared/schemas/fund-model.ts` - Zod superRefine (PR #2)
 - `client/src/pages/FundBasicsStep.tsx` - Form validation (PR #4)
 
 **Acceptance**:
+
 - [ ] Invalid inputs never reach `runFundModel()`
 - [ ] Engine rejects with field-specific error paths
 - [ ] Form shows actionable messages
 - [ ] "Run" button disabled while invalid
 
-**Status**: Specified in [feasibility-constraints.md](../policies/feasibility-constraints.md)
+**Status**: Specified in
+[feasibility-constraints.md](../policies/feasibility-constraints.md)
 
 ---
 
 ### ✅ 3. CSV Contracts Frozen
 
-**Why**: Accounting and cash invariants need all fields; lineage makes diffs traceable.
+**Why**: Accounting and cash invariants need all fields; lineage makes diffs
+traceable.
 
 **Forecast CSV** (frozen):
+
 ```csv
 engine_version,inputs_hash,scenario_id,period_index,period_start,period_end,
 contributions,investments,management_fees,exit_proceeds,distributions,unrealized_pnl,nav,
@@ -102,6 +116,7 @@ tvpi,dpi,irr_annualized
 ```
 
 **Company Ledger CSV** (frozen):
+
 ```csv
 engine_version,inputs_hash,scenario_id,company_id,stage_at_entry,
 initial_investment,follow_on_investment,total_invested,
@@ -109,12 +124,14 @@ ownership_at_exit,exit_bucket,exit_value,proceeds_to_fund
 ```
 
 **Acceptance**:
+
 - [ ] Column order is stable
 - [ ] Headers match exactly (case-sensitive)
 - [ ] `engine_version` comes from `server/version.ts`
 - [ ] `inputs_hash` is deterministic (see #4)
 
-**Status**: Specified in [iteration-a-implementation-guide.md](iteration-a-implementation-guide.md)
+**Status**: Specified in
+[iteration-a-implementation-guide.md](iteration-a-implementation-guide.md)
 
 ---
 
@@ -123,6 +140,7 @@ ownership_at_exit,exit_bucket,exit_value,proceeds_to_fund
 **Why**: Lets parity diffs unambiguously tie to exact input set.
 
 **Implementation** (PR #2):
+
 ```typescript
 // server/routes/calculations.ts
 import crypto from 'crypto';
@@ -130,14 +148,16 @@ import crypto from 'crypto';
 function hashInputs(inputs: FundModelInputs): string {
   // Sort keys recursively for canonical representation
   const canonical = JSON.stringify(inputs, Object.keys(inputs).sort());
-  return crypto.createHash('sha256')
+  return crypto
+    .createHash('sha256')
     .update(canonical)
     .digest('hex')
-    .substring(0, 8);  // First 8 chars for brevity
+    .substring(0, 8); // First 8 chars for brevity
 }
 ```
 
 **Acceptance**:
+
 - [ ] Re-running identical inputs yields same `inputs_hash`
 - [ ] Changing any input bit flips the hash
 - [ ] Hash is lowercase hex (8 chars)
@@ -151,6 +171,7 @@ function hashInputs(inputs: FundModelInputs): string {
 **Why**: Catches hidden non-determinism (Date.now(), object iteration order).
 
 **Implementation** (PR #3):
+
 ```typescript
 // tests/invariants/determinism.test.ts
 it('produces identical outputs for identical inputs', () => {
@@ -165,6 +186,7 @@ it('produces identical outputs for identical inputs', () => {
 ```
 
 **Acceptance**:
+
 - [ ] Test passes on canonical fixture
 - [ ] Test uses unrounded internal values (not exported CSV)
 
@@ -177,6 +199,7 @@ it('produces identical outputs for identical inputs', () => {
 **Why**: Without a stop, fees bleed forever, undermining parity.
 
 **Implementation** (PR #2):
+
 ```typescript
 // client/src/lib/fund-calc.ts
 function calculateManagementFee(
@@ -200,6 +223,7 @@ function calculateManagementFee(
 ```
 
 **Acceptance**:
+
 - [ ] Fixture with 12 years shows zero fees after year 10
 - [ ] `managementFeeYears` defaults to 10
 - [ ] Test validates fee cessation
@@ -219,11 +243,13 @@ function calculateManagementFee(
 **Invariant**: `Σ company_proceeds === Σ distributions` (strict equality)
 
 **Acceptance**:
+
 - [ ] Policy A invariant test passes
 - [ ] Each period: `distributions === exitProceeds`
 - [ ] No retained cash tracking needed
 
-**Status**: Documented in the historical distribution policy reference (file removed/archived)
+**Status**: Documented in the historical distribution policy reference (file
+removed/archived)
 
 ---
 
@@ -232,12 +258,13 @@ function calculateManagementFee(
 **Why**: Prevents non-convergence edge cases derailing CI.
 
 **Implementation** (PR #2):
+
 ```typescript
 // client/src/lib/xirr.ts
 export function calculateXIRR(cashflows: Cashflow[], guess = 0.1): number {
   // 1. Assert sign change
-  const hasPositive = cashflows.some(cf => cf.amount > 0);
-  const hasNegative = cashflows.some(cf => cf.amount < 0);
+  const hasPositive = cashflows.some((cf) => cf.amount > 0);
+  const hasNegative = cashflows.some((cf) => cf.amount < 0);
 
   if (!hasPositive || !hasNegative) {
     throw new Error('XIRR requires both positive and negative cashflows');
@@ -257,6 +284,7 @@ export function calculateXIRR(cashflows: Cashflow[], guess = 0.1): number {
 ```
 
 **Acceptance**:
+
 - [ ] "Flat" scenario returns IRR ~ 0 without explosions
 - [ ] Pathological scenario triggers bisection and resolves
 - [ ] Sign-change assertion catches invalid inputs
@@ -271,9 +299,11 @@ export function calculateXIRR(cashflows: Cashflow[], guess = 0.1): number {
 
 **Selected**: **Pattern 1 - Reserves Carved from Allocations**
 
-**Rule**: Stage allocations sum to 100%; reserves carved out (no double counting)
+**Rule**: Stage allocations sum to 100%; reserves carved out (no double
+counting)
 
 **Schema Enforcement** (PR #2):
+
 ```typescript
 export const FundModelInputsSchema = z.object({...}).superRefine((inputs, ctx) => {
   const allocSum = inputs.stageAllocations.reduce((s, a) => s + a.allocationPct, 0);
@@ -289,11 +319,13 @@ export const FundModelInputsSchema = z.object({...}).superRefine((inputs, ctx) =
 ```
 
 **Acceptance**:
+
 - [ ] Schema refinement rejects inconsistent configurations
 - [ ] Unit test verifies total deployment ≤ fund size
 - [ ] No double-counting possible
 
-**Status**: Documented in the historical allocation policy reference (file removed/archived)
+**Status**: Documented in the historical allocation policy reference (file
+removed/archived)
 
 ---
 
@@ -302,12 +334,14 @@ export const FundModelInputsSchema = z.object({...}).superRefine((inputs, ctx) =
 **Why**: Establishes performance line in the sand before functional tests start.
 
 **Canonical Fixture**: `testdata/bench-standard.json`
+
 - 100 companies
 - 40 quarters (10 years, quarterly periods)
 - Upfront capital call
 - Management fees: 2% for 10 years
 
 **Baseline File**: `perf/baseline.json`
+
 ```json
 {
   "engine_run_p50_ms": 150,
@@ -321,6 +355,7 @@ export const FundModelInputsSchema = z.object({...}).superRefine((inputs, ctx) =
 ```
 
 **CI Gate**:
+
 ```typescript
 // scripts/check-perf-regression.mjs
 const maxRegressionPct = 15;
@@ -332,6 +367,7 @@ if (current.p95 > baseline.p95 * (1 + maxRegressionPct / 100)) {
 ```
 
 **Acceptance**:
+
 - [ ] `perf/baseline.json` created and committed
 - [ ] CI fails on > 15% p95 regression
 - [ ] Clear error message with actual vs baseline values
@@ -345,6 +381,7 @@ if (current.p95 > baseline.p95 * (1 + maxRegressionPct / 100)) {
 **Why**: Locks parity targets so future changes are intentional.
 
 **5 Golden Fixtures** (PR #3):
+
 1. `simple.json` - Single stage, no follow-ons
 2. `multi-stage.json` - Multi-stage progression
 3. `reserve-tight.json` - Reserve depletion scenario
@@ -352,12 +389,14 @@ if (current.p95 > baseline.p95 * (1 + maxRegressionPct / 100)) {
 5. `late-exit.json` - Extended exit timing (84+ months)
 
 **Each Fixture Includes**:
+
 - `inputs.json` - Frozen inputs (canonical)
 - `outputs.json` - Expected raw outputs (unrounded)
 - `forecast.csv` - Human-readable period results
 - `companies.csv` - Human-readable company ledger
 
 **Regeneration**:
+
 ```bash
 npm run golden:regen
 # Requires: Manual review + git diff approval
@@ -365,6 +404,7 @@ npm run golden:regen
 ```
 
 **Acceptance**:
+
 - [ ] `npm run test:parity` passes on all 5
 - [ ] Fixtures committed to `tests/fixtures/golden/`
 - [ ] `npm run golden:regen` command exists with warning
@@ -378,6 +418,7 @@ npm run golden:regen
 **Why**: Keeps local dev snappy; shifts heavy checks to CI.
 
 **Pre-commit** (fast, < 10s):
+
 ```bash
 # .husky/pre-commit
 npm run check:fast      # TypeScript (tsconfig.fast.json)
@@ -386,6 +427,7 @@ npm run test:unit -- tests/invariants/  # Invariants only
 ```
 
 **CI** (comprehensive):
+
 ```yaml
 # .github/workflows/ci.yml
 - name: Smoke tests
@@ -402,6 +444,7 @@ npm run test:unit -- tests/invariants/  # Invariants only
 ```
 
 **Acceptance**:
+
 - [ ] Pre-commit completes in < 10s
 - [ ] CI runs full test suite
 - [ ] UI-only changes skip heavy benches locally
@@ -413,31 +456,33 @@ npm run test:unit -- tests/invariants/  # Invariants only
 
 ## Implementation Timeline
 
-| Item | PR | Estimated Time | Status |
-|------|----|----- |---|--------|
-| 1. Health provenance | #1 | 15 min | ✅ Done |
-| 2. Feasibility UI | #4 | 30 min | 📝 Specified |
-| 2. Feasibility API | #2 | 30 min | 📝 Specified |
-| 3. CSV frozen | #2 | 0 min | ✅ Done |
-| 4. Inputs hashing | #2 | 15 min | 📝 Specified |
-| 5. Determinism guard | #3 | 10 min | 📝 Specified |
-| 6. Fees horizon | #2 | 0 min | ✅ Done |
-| 7. Distribution policy | #2 | 0 min | ✅ Done |
-| 8. IRR hardening | #2 | 0 min | ✅ Done |
-| 9. Stage/reserve policy | #2 | 0 min | ✅ Done |
-| 10. Baselines | #6 | 20 min | 📝 Specified |
-| 11. Golden fixtures | #3 | 30 min | 📝 Specified |
-| 12. Pre-commit gates | #1 | 10 min | 🟡 Needs refinement |
+| Item                    | PR  | Estimated Time | Status           |
+| ----------------------- | --- | -------------- | ---------------- |
+| 1. Health provenance    | #1  | 15 min         | ✅ Done          |
+| 2. Feasibility UI       | #4  | 30 min         | Specified        |
+| 2. Feasibility API      | #2  | 30 min         | Specified        |
+| 3. CSV frozen           | #2  | 0 min          | ✅ Done          |
+| 4. Inputs hashing       | #2  | 15 min         | Specified        |
+| 5. Determinism guard    | #3  | 10 min         | Specified        |
+| 6. Fees horizon         | #2  | 0 min          | ✅ Done          |
+| 7. Distribution policy  | #2  | 0 min          | ✅ Done          |
+| 8. IRR hardening        | #2  | 0 min          | ✅ Done          |
+| 9. Stage/reserve policy | #2  | 0 min          | ✅ Done          |
+| 10. Baselines           | #6  | 20 min         | Specified        |
+| 11. Golden fixtures     | #3  | 30 min         | Specified        |
+| 12. Pre-commit gates    | #1  | 10 min         | Needs refinement |
 
-**Total New Work**: ~90 minutes (as estimated)
-**Already Specified**: 9/12 items ✅
+**Total New Work**: ~90 minutes (as estimated) **Already Specified**: 9/12 items
+✅
 
 ---
 
 ## Acceptance Criteria (Copy to PR Descriptions)
 
-- [ ] `/healthz` returns: status, timestamp, engine_version, commit_sha, node_version
-- [ ] Forecast CSV includes: investments, exit_proceeds, unrealized_pnl, lineage fields
+- [ ] `/healthz` returns: status, timestamp, engine_version, commit_sha,
+      node_version
+- [ ] Forecast CSV includes: investments, exit_proceeds, unrealized_pnl, lineage
+      fields
 - [ ] `inputs_hash` is deterministic across identical inputs
 - [ ] Determinism test passes (identical outputs for identical inputs)
 - [ ] Fees stop after `managementFeeYears`
@@ -452,13 +497,16 @@ npm run test:unit -- tests/invariants/  # Invariants only
 ## Files Created/Modified
 
 ### Created (PR #1):
+
 - ✅ `server/version.ts` - ENGINE_VERSION constant
 - ✅ `tests/smoke/healthz.test.ts` - Smoke test
 
 ### Modified (PR #1):
+
 - ✅ `server/routes/health.ts` - Enhanced `/healthz` response
 
 ### To Create (Future PRs):
+
 - `tests/invariants/determinism.test.ts` (PR #3)
 - `tests/fixtures/golden/*.json` (PR #3)
 - `perf/baseline.json` (PR #6)
@@ -466,4 +514,5 @@ npm run test:unit -- tests/invariants/  # Invariants only
 
 ---
 
-**Status**: All 12 items accepted and integrated. Ready for implementation across PRs #1-6.
+**Status**: All 12 items accepted and integrated. Ready for implementation
+across PRs #1-6.

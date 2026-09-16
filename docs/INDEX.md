@@ -235,13 +235,13 @@ Active implementation plans:
 
 **Current snapshot**:
 
-- 81 scripts are currently defined in the root `package.json`
+- 109 scripts are currently defined in the root `package.json`
 - Use `package.json` as the source of truth for exact script names
 - The highest-signal families are development/build, lint/guardrails,
   test/validation, database/seeding, docs/routing, and Phoenix/domain checks
 - `guard:scripts:check` blocks legacy wave/phase/slice script aliases; the
   current baseline allows 0 legacy aliases
-- Phoenix (28 scripts): `phoenix:truth`, `phoenix:xirr-validate`
+- Phoenix (1 script): `phoenix:truth`
 
 ---
 
