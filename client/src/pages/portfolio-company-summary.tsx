@@ -48,9 +48,16 @@ function formatDate(value: string | Date | null | undefined): string {
   });
 }
 
+// Ownership is persisted as a fraction (0.085 means 8.5%). Per ADR-054 a recorded
+// zero is a distinct fact from a missing value, so only null, blank, or
+// non-numeric input falls back to "Not captured".
 function formatOwnership(value: string | number | null | undefined): string {
-  const ownership = toNumber(value);
-  return ownership > 0 ? `${(ownership * 100).toFixed(2)}%` : 'Not captured';
+  if (value == null) return 'Not captured';
+
+  const ownership = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(ownership)) return 'Not captured';
+
+  return `${(ownership * 100).toFixed(2)}%`;
 }
 
 function SummaryMessageCard({
@@ -90,10 +97,16 @@ export default function PortfolioCompanySummaryPage() {
   }, [params?.id]);
 
   const { company, error, isLoading } = usePortfolioCompany(fundId ?? undefined, companyId);
-  const { data: portfolioOverview } = usePortfolioOverview(fundId ?? undefined);
+  const {
+    data: portfolioOverview,
+    isLoading: isOverviewLoading,
+    isUnavailable: isOverviewUnavailable,
+  } = usePortfolioOverview(fundId ?? undefined);
 
+  // Position metrics come only from the provenance-bearing overview. Fail closed
+  // (render no numbers) whenever the hook reports that overview as unavailable.
   const detailMetrics = useMemo(() => {
-    if (!companyId || !portfolioOverview) {
+    if (!companyId || !portfolioOverview || isOverviewUnavailable) {
       return null;
     }
 
@@ -107,7 +120,11 @@ export default function PortfolioCompanySummaryPage() {
       currentValue: toNumber(overviewCompany.currentValue),
       moic: toNumber(overviewCompany.moic),
     };
-  }, [companyId, portfolioOverview]);
+  }, [companyId, isOverviewUnavailable, portfolioOverview]);
+
+  // Distinguish an in-flight overview read from a genuinely unavailable one so
+  // the metric cards never claim "Unavailable" while the request is pending.
+  const metricsFallback = isOverviewLoading ? 'Loading...' : 'Unavailable';
 
   const backToCompanies = () => {
     setLocation('/portfolio');
@@ -213,7 +230,7 @@ export default function PortfolioCompanySummaryPage() {
                         Invested
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? formatCurrency(detailMetrics.invested) : 'Unavailable'}
+                        {detailMetrics ? formatCurrency(detailMetrics.invested) : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -224,7 +241,9 @@ export default function PortfolioCompanySummaryPage() {
                         Current position value
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? formatCurrency(detailMetrics.currentValue) : 'Unavailable'}
+                        {detailMetrics
+                          ? formatCurrency(detailMetrics.currentValue)
+                          : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -235,7 +254,7 @@ export default function PortfolioCompanySummaryPage() {
                         MOIC
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : 'Unavailable'}
+                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
