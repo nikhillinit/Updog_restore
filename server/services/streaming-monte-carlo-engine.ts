@@ -1151,10 +1151,8 @@ export class StreamingMonteCarloEngine {
   }
 
   private sampleNormal(rng: PRNG, mean: number, stdDev: number): number {
-    const u1 = rng.next();
-    const u2 = rng.next();
-    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return mean + z0 * stdDev;
+    // PRNG.nextNormal clamps the first draw, so a seed whose first draw is 0 stays finite.
+    return rng.nextNormal(mean, stdDev);
   }
 
   /**

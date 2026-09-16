@@ -50,6 +50,12 @@ async function runSeeded(randomSeed: number) {
   return results;
 }
 
+function numbers(value: unknown): number[] {
+  if (typeof value === 'number') return [value];
+  if (value && typeof value === 'object') return Object.values(value).flatMap(numbers);
+  return [];
+}
+
 describe('StreamingMonteCarloEngine seeding', () => {
   it('keeps the seed local to the run and leaves Math.random untouched', async () => {
     const original = Math.random;
@@ -61,5 +67,13 @@ describe('StreamingMonteCarloEngine seeding', () => {
     expect(Math.random).toBe(original);
     expect(second).toEqual(first);
     expect(other.irr.statistics).not.toEqual(first.irr.statistics);
+  });
+
+  it('keeps every output finite for a seed whose first draw is exactly zero', async () => {
+    // Seed 634785765 makes the LCG's first draw 0; a bare Math.log(0) leaks Infinity and NaN.
+    const results = await runSeeded(634785765);
+    const values = numbers(results);
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.filter((value) => !Number.isFinite(value))).toEqual([]);
   });
 });
