@@ -82,7 +82,7 @@ export function companyListItemFromRow(
     deployed_reserves_cents: numberFromNullable(row.deployedReservesCents),
     planned_reserves_cents: numberFromNullable(row.plannedReservesCents),
     exit_moic_bps: row.exitMoicBps ?? null,
-    ownership_pct: Number(row.ownershipCurrentPct ?? 0),
+    ownership_pct: row.ownershipCurrentPct == null ? null : Number(row.ownershipCurrentPct),
     allocation_cap_cents: nullableNumber(row.allocationCapCents),
     allocation_reason: row.allocationReason ?? null,
     last_allocation_at: isoDateOrNull(row.lastAllocationAt),
