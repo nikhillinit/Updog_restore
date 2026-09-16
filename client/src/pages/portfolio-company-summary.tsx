@@ -48,9 +48,16 @@ function formatDate(value: string | Date | null | undefined): string {
   });
 }
 
+// Ownership is persisted as a fraction (0.085 means 8.5%). Per ADR-054 a recorded
+// zero is a distinct fact from a missing value, so only null, blank, or
+// non-numeric input falls back to "Not captured".
 function formatOwnership(value: string | number | null | undefined): string {
-  const ownership = toNumber(value);
-  return ownership > 0 ? `${(ownership * 100).toFixed(2)}%` : 'Not captured';
+  if (value == null) return 'Not captured';
+
+  const ownership = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(ownership)) return 'Not captured';
+
+  return `${(ownership * 100).toFixed(2)}%`;
 }
 
 function SummaryMessageCard({
