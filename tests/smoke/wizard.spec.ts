@@ -5,7 +5,7 @@
  * @quarantine
  * @owner @qa-team
  * @reason Requires running application at BASE_URL for synthetic monitoring
- * @exitCriteria Run manually with `npm run test:smoke` against deployed environment
+ * @exitCriteria Add this spec to a Playwright project testMatch (none includes it today) and run it under that project
  * @addedDate 2026-01-16
  */
 import { test, expect } from '@playwright/test';
