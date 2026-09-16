@@ -12399,9 +12399,10 @@ financial-facts snapshot service accepts only approved and locked rows.
   inputs and LP holdings have no disclosed fallback rung, so they fail closed
   and disclose instead.
 - LP metric runs count only cash flow events with status `approved` or `locked`,
-  matching the financial-facts snapshot service. Excluded events are reported in
-  run diagnostics, and the engine version is bumped so persisted runs from the
-  previous rule are not replayed under the same label.
+  matching the financial-facts snapshot service. Excluded draft or
+  unknown-status events are reported in run diagnostics; reversed rows stay
+  excluded by design without a report. The engine version is bumped so persisted
+  runs from the previous rule are not replayed under the same label.
 
 ### Alternatives Considered
 
