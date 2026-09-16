@@ -2,15 +2,15 @@
  * CohortEngine Test Suite
  * Comprehensive tests for vintage year cohort analysis
  *
- * @quarantine partial -- 2 of 37 tests skipped
+ * @quarantine partial -- 1 of 37 tests skipped
  * @owner fund-modeling
- * @reason (1) Valuation generation produces unrealistic MOIC/stage distributions, (2) avgMultiple test passes in isolation but fails under full suite (shared state)
- * @exitCriteria Fix generateCompanyValuations() for realistic values; fix test isolation for avgMultiple comparison
- * @skipCount 2
+ * @reason Valuation generation produces unrealistic MOIC/stage distributions
+ * @exitCriteria Fix generateCompanyValuations() for realistic values
+ * @skipCount 1
  * @addedDate 2026-02-17
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { CohortEngine, generateCohortSummary, compareCohorts } from '@/core/cohorts/CohortEngine';
 import type { CohortInput } from '@shared/types';
 
@@ -177,10 +177,19 @@ describe('CohortEngine - Company Generation', () => {
   });
 
   it('should distribute companies across stages', () => {
-    const cohort = CohortEngine(createCohortInput({ cohortSize: 20 }));
+    // generateMockCompanies draws Math.random 5 times per company (valuation, growth,
+    // prefix, suffix, stage); a period-4 cycle lands company k on stage k mod 4, so the
+    // assertion no longer depends on the draw.
+    let draw = 0;
+    const random = vi.spyOn(Math, 'random').mockImplementation(() => (draw++ % 4) / 4);
+    try {
+      const cohort = CohortEngine(createCohortInput({ cohortSize: 20 }));
 
-    const stages = new Set(cohort.companies.map((c) => c.stage));
-    expect(stages.size).toBeGreaterThan(1); // Should have multiple stages
+      const stages = new Set(cohort.companies.map((c) => c.stage));
+      expect(stages.size).toBeGreaterThan(1); // Should have multiple stages
+    } finally {
+      random.mockRestore();
+    }
   });
 
   // FIXME: Company valuation generation producing unrealistic values
@@ -241,9 +250,10 @@ describe('compareCohorts', () => {
     expect(comparison.comparison.avgIRR).toBeCloseTo(manualAvgIRR, 4);
   });
 
-  // Passes in isolation, fails under full suite (test ordering/shared state)
-  // SKIP: cohort comparison remains quarantined until the shared-state ordering issue is fixed.
-  it.skip('should calculate average Multiple across cohorts', () => {
+  // compareCohorts rounds avgMultiple to 2 dp (CohortEngine.ts); with two cohorts the raw
+  // mean can sit exactly on a half-cent, so toBeCloseTo(_, 2) failed on some draws. Apply
+  // the same rounding instead; the reduce order and divisor match production.
+  it('should calculate average Multiple across cohorts', () => {
     const cohorts = [
       createCohortInput({ vintageYear: 2020 }),
       createCohortInput({ vintageYear: 2021 }),
@@ -255,7 +265,7 @@ describe('compareCohorts', () => {
       comparison.cohorts.reduce((sum, c) => sum + c.performance.multiple, 0) /
       comparison.cohorts.length;
 
-    expect(comparison.comparison.avgMultiple).toBeCloseTo(manualAvgMultiple, 2);
+    expect(comparison.comparison.avgMultiple).toBe(Math.round(manualAvgMultiple * 100) / 100);
   });
 
   it('should calculate total companies across cohorts', () => {

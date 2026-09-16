@@ -28,7 +28,7 @@ export interface AllocationCompanyListItem {
   deployed_reserves_cents: number;
   planned_reserves_cents: number;
   exit_moic_bps: number | null;
-  ownership_pct: number;
+  ownership_pct: number | null;
   allocation_cap_cents: number | null;
   allocation_reason: string | null;
   last_allocation_at: string | null;

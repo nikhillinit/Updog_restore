@@ -258,6 +258,27 @@ describe('allocations route contracts', () => {
     expect(dbState.db.select).not.toHaveBeenCalled();
   });
 
+  it('GET /api/funds/:fundId/companies keeps unrecorded ownership null and a recorded zero as 0', async () => {
+    dbState.state.selectResults.push([
+      companyRow({ id: 31, name: 'NoOwnership', ownershipCurrentPct: null }),
+      companyRow({ id: 32, name: 'ZeroOwnership', ownershipCurrentPct: '0.0000' }),
+      companyRow({ id: 33, name: 'TenPercent', ownershipCurrentPct: '0.1000' }),
+    ]);
+
+    const response = await request(makeApp()).get('/api/funds/1/companies?limit=5');
+
+    expect(response.status).toBe(200);
+    const byId = new Map(
+      (response.body.companies as Array<{ id: number; ownership_pct: number | null }>).map(
+        (company) => [company.id, company.ownership_pct]
+      )
+    );
+    // ADR-054: null is "not recorded", zero is a recorded fact; the list must not coalesce them.
+    expect(byId.get(31)).toBeNull();
+    expect(byId.get(32)).toBe(0);
+    expect(byId.get(33)).toBeCloseTo(0.1, 6);
+  });
+
   it('GET /api/funds/:fundId/companies locks company-list envelope and snake_case cursor fields', async () => {
     dbState.state.selectResults.push([
       companyRow({ id: 30, name: 'Gamma' }),
