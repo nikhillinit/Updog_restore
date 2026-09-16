@@ -24,10 +24,11 @@ and this project adheres to
 
 ### Fixed (2026-09-16)
 
-- Send the archived `/moic-analysis` placeholder to `/dashboard`. Its previous
-  target `/overview` was never a route, so the redirect landed on NotFound.
-  Record ADR-102, the owner-ratified disposition of the unwired-code inventory
-  (four deletions, one park).
+- Send the archived `/moic-analysis` placeholder to `/model-results`, the
+  fund-agnostic entry to the model-results family. Its previous target
+  `/overview` was never a route, so the redirect landed on NotFound; an interim
+  `/dashboard` target landed first in #1529. Record ADR-102, the owner-ratified
+  disposition of the unwired-code inventory (four deletions, one park).
 
 ### Removed (2026-09-16)
 
