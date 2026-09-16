@@ -71,6 +71,14 @@ function formatCentsAsString(cents: bigint | null | undefined): string {
   return (cents ?? 0n).toString();
 }
 
+function sumPendingCents(
+  rows: ReadonlyArray<{ totalAmountCents: bigint | null; status: string | null }>
+): bigint {
+  return rows
+    .filter((row) => row.status === 'pending')
+    .reduce((sum, row) => sum + (row.totalAmountCents ?? 0n), 0n);
+}
+
 // ============================================================================
 // GET /api/lp/distributions
 // ============================================================================
@@ -162,10 +170,12 @@ router.get(
       const paginatedDistributions = hasMore ? distributions.slice(0, query.limit) : distributions;
 
       // Calculate total distributed
+      // No writer sets status yet (schema default 'pending'), so pending equals total until one exists.
       const totalDistributed = paginatedDistributions.reduce(
         (sum, d) => sum + (d.totalAmountCents ?? 0n),
         0n
       );
+      const pendingDistributed = sumPendingCents(paginatedDistributions);
 
       // Format response
       const responseDistributions = paginatedDistributions.map((d) => ({
@@ -204,6 +214,7 @@ router.get(
         nextCursor,
         hasMore,
         totalDistributed: formatCentsAsString(totalDistributed),
+        pendingDistributed: formatCentsAsString(pendingDistributed),
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -274,6 +285,7 @@ router.get(
           distributionDate: lpDistributionDetails.distributionDate,
           totalAmountCents: lpDistributionDetails.totalAmountCents,
           distributionType: lpDistributionDetails.distributionType,
+          status: lpDistributionDetails.status,
           returnOfCapitalCents: lpDistributionDetails.returnOfCapitalCents,
         })
         .from(lpDistributionDetails)
@@ -286,6 +298,7 @@ router.get(
         number,
         {
           totalDistributed: bigint;
+          pendingDistributed: bigint;
           distributionCount: number;
           byType: Record<string, bigint>;
         }
@@ -295,6 +308,7 @@ router.get(
         const year = new Date(d.distributionDate).getFullYear();
         const existing = byYear.get(year) || {
           totalDistributed: 0n,
+          pendingDistributed: 0n,
           distributionCount: 0,
           byType: {
             return_of_capital: 0n,
@@ -305,6 +319,9 @@ router.get(
         };
 
         existing.totalDistributed += d.totalAmountCents ?? 0n;
+        if (d.status === 'pending') {
+          existing.pendingDistributed += d.totalAmountCents ?? 0n;
+        }
         existing.distributionCount += 1;
         const typeKey = d.distributionType || 'mixed';
         if (typeKey in existing.byType) {
@@ -318,13 +335,16 @@ router.get(
       const summary = Array.from(byYear.entries()).map(([year, data]) => ({
         year,
         totalDistributed: formatCentsAsString(data.totalDistributed),
+        pendingDistributed: formatCentsAsString(data.pendingDistributed),
         distributionCount: data.distributionCount,
         byType: Object.fromEntries(
           Object.entries(data.byType).map(([k, v]) => [k, formatCentsAsString(v)])
         ),
       }));
 
+      // No writer sets status yet (schema default 'pending'), so pending equals total until one exists.
       const totalAllTime = distributions.reduce((sum, d) => sum + (d.totalAmountCents ?? 0n), 0n);
+      const pendingAllTime = sumPendingCents(distributions);
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'private, max-age=300');
@@ -335,6 +355,7 @@ router.get(
       return res.json({
         summary: summary.sort((a, b) => b.year - a.year),
         totalAllTime: formatCentsAsString(totalAllTime),
+        pendingAllTime: formatCentsAsString(pendingAllTime),
       });
     } catch (error) {
       if (error instanceof z.ZodError) {

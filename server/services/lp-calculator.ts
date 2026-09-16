@@ -86,6 +86,18 @@ export interface ProRataHolding {
   lpProRataValue: number;
 }
 
+export type UnpricedHoldingReason = 'missing_ownership' | 'missing_valuation';
+
+export interface ProRataHoldingsResult {
+  holdings: ProRataHolding[];
+  /** Companies with no recorded fund ownership or valuation; never priced (ADR-054, ADR-101). */
+  unpricedCompanies: Array<{
+    companyId: number;
+    companyName: string;
+    reason: UnpricedHoldingReason;
+  }>;
+}
+
 export interface CapitalAccountTransaction {
   id: number;
   activityType: string;
@@ -119,11 +131,7 @@ export class LPCalculator {
    * @throws Error if LP not found
    */
   async getProfile(lpId: number): Promise<LPProfile> {
-    const lp = await db
-      .select()
-      .from(limitedPartners)
-      .where(eq(limitedPartners.id, lpId))
-      .limit(1);
+    const lp = await db.select().from(limitedPartners).where(eq(limitedPartners.id, lpId)).limit(1);
 
     if (lp.length === 0) {
       throw new Error(`LP ${lpId} not found`);
@@ -135,9 +143,7 @@ export class LPCalculator {
     }
 
     // Decrypt taxId if present
-    const decryptedTaxId = lpProfile.taxId
-      ? await decryptField(lpProfile.taxId)
-      : null;
+    const decryptedTaxId = lpProfile.taxId ? await decryptField(lpProfile.taxId) : null;
 
     return {
       id: lpProfile.id,
@@ -170,9 +176,7 @@ export class LPCalculator {
     contactPhone?: string | null;
   }): Promise<number> {
     // Encrypt taxId if provided
-    const encryptedTaxId = lpData.taxId
-      ? await encryptField(lpData.taxId)
-      : null;
+    const encryptedTaxId = lpData.taxId ? await encryptField(lpData.taxId) : null;
 
     if (lpData.id) {
       // Update existing LP
@@ -217,11 +221,7 @@ export class LPCalculator {
    */
   async calculateSummary(lpId: number): Promise<LPSummary> {
     // Get LP profile
-    const lp = await db
-      .select()
-      .from(limitedPartners)
-      .where(eq(limitedPartners.id, lpId))
-      .limit(1);
+    const lp = await db.select().from(limitedPartners).where(eq(limitedPartners.id, lpId)).limit(1);
 
     if (lp.length === 0) {
       throw new Error(`LP ${lpId} not found`);
@@ -357,7 +357,7 @@ export class LPCalculator {
   /**
    * Calculate LP's pro-rata share of portfolio holdings for a specific fund
    */
-  async calculateProRataHoldings(lpId: number, fundId: number): Promise<ProRataHolding[]> {
+  async calculateProRataHoldings(lpId: number, fundId: number): Promise<ProRataHoldingsResult> {
     // Get LP's commitment to this fund
     const commitment = await db
       .select()
@@ -388,8 +388,7 @@ export class LPCalculator {
     }
 
     const fundSizeCents = BigInt(Number(fund.size) * 100);
-    const lpPercentageOfFund =
-      Number(commitmentData.commitmentAmountCents) / Number(fundSizeCents);
+    const lpPercentageOfFund = Number(commitmentData.commitmentAmountCents) / Number(fundSizeCents);
 
     // Get all portfolio companies for this fund
     const companies = await db
@@ -411,9 +410,7 @@ export class LPCalculator {
         ownershipPercentage: investments.ownershipPercentage,
       })
       .from(investments)
-      .where(
-        and(eq(investments.fundId, fundId), inArray(investments.companyId, companyIds))
-      );
+      .where(and(eq(investments.fundId, fundId), inArray(investments.companyId, companyIds)));
 
     // Build ownership map (sum all rounds for each company)
     const ownershipMap = new Map<number, number>();
@@ -426,11 +423,34 @@ export class LPCalculator {
 
     // Calculate pro-rata holdings
     const holdings: ProRataHolding[] = [];
+    const unpricedCompanies: ProRataHoldingsResult['unpricedCompanies'] = [];
 
     for (const company of companies) {
-      const fundOwnership = ownershipMap.get(company.id) || 0;
+      // ADR-054: ownership is never defaulted. No recorded ownership means the
+      // position cannot be priced; disclose it instead of pricing it at zero.
+      // A recorded zero is a fact and stays priced at 0.
+      const fundOwnership = ownershipMap.get(company.id);
+      if (fundOwnership === undefined) {
+        unpricedCompanies.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: 'missing_ownership',
+        });
+        continue;
+      }
+      // The same rule for the valuation: null or non-numeric is "not recorded",
+      // never a zero. A recorded "0" stays priced at 0.
+      const currentValuation =
+        company.currentValuation == null ? Number.NaN : Number(company.currentValuation);
+      if (!Number.isFinite(currentValuation)) {
+        unpricedCompanies.push({
+          companyId: company.id,
+          companyName: company.name,
+          reason: 'missing_valuation',
+        });
+        continue;
+      }
       const lpSharePercentage = lpPercentageOfFund * fundOwnership;
-      const currentValuation = Number(company.currentValuation) || 0;
       const lpProRataValue = currentValuation * lpSharePercentage;
 
       holdings.push({
@@ -447,7 +467,7 @@ export class LPCalculator {
     // Sort by pro-rata value descending
     holdings.sort((a, b) => b.lpProRataValue - a.lpProRataValue);
 
-    return holdings;
+    return { holdings, unpricedCompanies };
   }
 
   /**

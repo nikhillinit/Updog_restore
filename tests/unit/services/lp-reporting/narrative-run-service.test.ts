@@ -101,7 +101,7 @@ function metricRunRow(overrides: Partial<LpMetricRun> = {}): LpMetricRun {
     resultsJson: validResults(),
     diagnosticsJson: validDiagnostics(),
     methodologyVersion: 'lp-reporting-methodology-v1',
-    calculationVersion: 'lp-reporting-metrics-engine-1.0.0',
+    calculationVersion: 'lp-reporting-metrics-engine-1.2.0',
     generatedBy: 7,
     approvedBy: 7,
     approvedAt: new Date('2026-05-10T01:00:00Z'),

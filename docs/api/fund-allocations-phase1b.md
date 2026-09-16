@@ -46,7 +46,7 @@ interface CompanyListResponse {
     deployed_reserves_cents: number;
     planned_reserves_cents: number;
     exit_moic_bps: number | null;
-    ownership_pct: number;
+    ownership_pct: number | null; // null = no recorded ownership; a recorded 0 is a fact (ADR-054, ADR-101)
     allocation_cap_cents: number | null;
     allocation_reason: string | null;
     last_allocation_at: string | null; // ISO 8601 timestamp
@@ -270,7 +270,8 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 
 ## Migration Reference
 
-**Migration:** `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
+**Migration:** `server/migrations/20251007_fund_allocation_phase1a.up.sql`
+(retired in PR-2b-3; see git history / canonical journal under `migrations/`)
 
 - Added 9 columns to portfoliocompanies
 - Created 4 performance indexes
@@ -301,7 +302,9 @@ curl 'http://localhost:3001/api/funds/1/companies?limit=50&cursor=42'
 
 ## Related Documentation
 
-- Phase 1a migration: `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
+- Phase 1a migration:
+  `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in
+  PR-2b-3; see git history / canonical journal under `migrations/`)
 - [Allocation POST API](../../server/routes/allocations.ts#L372) - Update
   allocations
 - [Allocation GET Latest API](../../server/routes/allocations.ts#L281) - Get

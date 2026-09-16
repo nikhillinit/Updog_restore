@@ -95,7 +95,7 @@ export interface SimulationResult {
 export const ReserveCompanyInputSchema = z.object({
   id: z.number().int().positive(),
   invested: z.number().min(0),
-  ownership: z.number().min(0).max(1),
+  ownership: z.number().min(0).max(1).nullable(),
   stage: z.string().min(1),
   sector: z.string().min(1),
 });

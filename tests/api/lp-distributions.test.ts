@@ -74,10 +74,26 @@ describe('GET /api/lp/distributions', () => {
       nextCursor: null,
       hasMore: false,
       totalDistributed: '1500000',
+      // Sum over rows whose status is 'pending'; this row is 'completed'.
+      pendingDistributed: '0',
     };
 
     expect(expectedResponse.distributions[0]?.totalAmount).toBe('1500000');
     expect(expectedResponse.distributions[0]?.breakdown.returnOfCapital).toBe('800000');
+    expect(expectedResponse.pendingDistributed).toBe('0');
+  });
+
+  it('should report pending equal to total while rows sit at the schema default status', async () => {
+    // lp_distribution_details.status defaults to 'pending' and has no writer yet.
+    const expectedResponse = {
+      distributions: [{ ...mockDistribution, status: 'pending' }],
+      nextCursor: null,
+      hasMore: false,
+      totalDistributed: '1500000',
+      pendingDistributed: '1500000',
+    };
+
+    expect(expectedResponse.pendingDistributed).toBe(expectedResponse.totalDistributed);
   });
 
   it('should filter by fund ID', async () => {
@@ -106,10 +122,12 @@ describe('GET /api/lp/distributions', () => {
       nextCursor: null,
       hasMore: false,
       totalDistributed: '0',
+      pendingDistributed: '0',
     };
 
     expect(emptyResponse.distributions).toHaveLength(0);
     expect(emptyResponse.totalDistributed).toBe('0');
+    expect(emptyResponse.pendingDistributed).toBe('0');
   });
 });
 
@@ -188,6 +206,8 @@ describe('GET /api/lp/distributions/summary', () => {
         {
           year: 2024,
           totalDistributed: '1500000',
+          // Rows still at the schema default 'pending' status.
+          pendingDistributed: '1500000',
           distributionCount: 1,
           byType: {
             return_of_capital: '800000',
@@ -198,10 +218,15 @@ describe('GET /api/lp/distributions/summary', () => {
         },
       ],
       totalAllTime: '1500000',
+      pendingAllTime: '1500000',
     };
 
     expect(expectedResponse.summary[0]?.year).toBe(2024);
     expect(expectedResponse.summary[0]?.totalDistributed).toBe('1500000');
+    expect(expectedResponse.summary[0]?.pendingDistributed).toBe(
+      expectedResponse.summary[0]?.totalDistributed
+    );
+    expect(expectedResponse.pendingAllTime).toBe(expectedResponse.totalAllTime);
   });
 
   it('should filter by fund ID', async () => {
