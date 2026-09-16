@@ -161,9 +161,15 @@ router.get(
       const hasMore = calls.length > query.limit;
       const paginatedCalls = hasMore ? calls.slice(0, query.limit) : calls;
 
-      // Calculate pending summary
+      // Calculate pending summary. A partial call still carries an outstanding
+      // balance (the status worker writes it when confirmed payments fall short
+      // of the call amount), so it counts as pending too.
       const pendingCalls = paginatedCalls.filter(
-        (c) => c.status === 'pending' || c.status === 'due' || c.status === 'overdue'
+        (c) =>
+          c.status === 'pending' ||
+          c.status === 'due' ||
+          c.status === 'overdue' ||
+          c.status === 'partial'
       );
       const totalPendingAmount = pendingCalls.reduce(
         (sum, c) => sum + (c.callAmountCents ?? 0n) - (c.paidAmountCents ?? 0n),
