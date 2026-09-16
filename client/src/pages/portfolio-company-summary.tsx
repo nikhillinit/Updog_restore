@@ -90,10 +90,16 @@ export default function PortfolioCompanySummaryPage() {
   }, [params?.id]);
 
   const { company, error, isLoading } = usePortfolioCompany(fundId ?? undefined, companyId);
-  const { data: portfolioOverview } = usePortfolioOverview(fundId ?? undefined);
+  const {
+    data: portfolioOverview,
+    isLoading: isOverviewLoading,
+    isUnavailable: isOverviewUnavailable,
+  } = usePortfolioOverview(fundId ?? undefined);
 
+  // Position metrics come only from the provenance-bearing overview. Fail closed
+  // (render no numbers) whenever the hook reports that overview as unavailable.
   const detailMetrics = useMemo(() => {
-    if (!companyId || !portfolioOverview) {
+    if (!companyId || !portfolioOverview || isOverviewUnavailable) {
       return null;
     }
 
@@ -107,7 +113,11 @@ export default function PortfolioCompanySummaryPage() {
       currentValue: toNumber(overviewCompany.currentValue),
       moic: toNumber(overviewCompany.moic),
     };
-  }, [companyId, portfolioOverview]);
+  }, [companyId, isOverviewUnavailable, portfolioOverview]);
+
+  // Distinguish an in-flight overview read from a genuinely unavailable one so
+  // the metric cards never claim "Unavailable" while the request is pending.
+  const metricsFallback = isOverviewLoading ? 'Loading...' : 'Unavailable';
 
   const backToCompanies = () => {
     setLocation('/portfolio');
@@ -213,7 +223,7 @@ export default function PortfolioCompanySummaryPage() {
                         Invested
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? formatCurrency(detailMetrics.invested) : 'Unavailable'}
+                        {detailMetrics ? formatCurrency(detailMetrics.invested) : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -224,7 +234,9 @@ export default function PortfolioCompanySummaryPage() {
                         Current position value
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? formatCurrency(detailMetrics.currentValue) : 'Unavailable'}
+                        {detailMetrics
+                          ? formatCurrency(detailMetrics.currentValue)
+                          : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -235,7 +247,7 @@ export default function PortfolioCompanySummaryPage() {
                         MOIC
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : 'Unavailable'}
+                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>

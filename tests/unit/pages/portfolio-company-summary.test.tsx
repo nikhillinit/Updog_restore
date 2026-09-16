@@ -28,6 +28,17 @@ vi.mock('wouter', () => ({
   useRoute: () => [true, { id: mocks.routeId }],
 }));
 
+const OVERVIEW_COMPANY = {
+  id: 1,
+  name: 'TechCorp',
+  sector: 'Fintech',
+  stage: 'Series B',
+  status: 'Growing',
+  invested: '5000000',
+  currentValue: '5000000',
+  moic: '1',
+};
+
 function renderPage() {
   return render(
     <TestQueryClientProvider>
@@ -73,20 +84,9 @@ describe('PortfolioCompanySummaryPage', () => {
       error: null,
     });
     mocks.usePortfolioOverview.mockReturnValue({
-      data: {
-        companies: [
-          {
-            id: 1,
-            name: 'TechCorp',
-            sector: 'Fintech',
-            stage: 'Series B',
-            status: 'Growing',
-            invested: '5000000',
-            currentValue: '5000000',
-            moic: '1',
-          },
-        ],
-      },
+      data: { companies: [OVERVIEW_COMPANY] },
+      isLoading: false,
+      isUnavailable: false,
     });
   });
 
@@ -164,5 +164,33 @@ describe('PortfolioCompanySummaryPage', () => {
     expect(screen.queryByText('$12,500,000')).not.toBeInTheDocument();
     expect(screen.getByText('8.50%')).toBeInTheDocument();
     expect(screen.getByText('Test Fund I')).toBeInTheDocument();
+  });
+
+  it('shows a loading placeholder for position metrics while the overview is pending', () => {
+    mocks.usePortfolioOverview.mockReturnValue({
+      data: null,
+      isLoading: true,
+      isUnavailable: false,
+    });
+
+    renderPage();
+
+    expect(screen.getAllByText('Loading...')).toHaveLength(3);
+    expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText('$5,000,000')).not.toBeInTheDocument();
+  });
+
+  it('fails closed on position metrics when the overview is reported unavailable', () => {
+    mocks.usePortfolioOverview.mockReturnValue({
+      data: { companies: [OVERVIEW_COMPANY] },
+      isLoading: false,
+      isUnavailable: true,
+    });
+
+    renderPage();
+
+    expect(screen.getAllByText('Unavailable')).toHaveLength(3);
+    expect(screen.queryByText('$5,000,000')).not.toBeInTheDocument();
+    expect(screen.queryByText('1.00x')).not.toBeInTheDocument();
   });
 });
