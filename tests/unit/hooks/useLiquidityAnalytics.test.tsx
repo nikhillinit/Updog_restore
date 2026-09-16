@@ -90,6 +90,26 @@ describe('useLiquidityAnalytics', () => {
     await waitFor(() => expect(result.current.stressTestResult).not.toBeNull());
   });
 
+  it('keeps planned flows in the demo forecast', async () => {
+    const { result } = renderHook(() =>
+      useLiquidityAnalytics({ ...baseOptions, allowDemoFallback: true })
+    );
+
+    await act(async () => {
+      await result.current.generateLiquidityForecast(12);
+    });
+    await waitFor(() => expect(result.current.liquidityForecast).not.toBeNull());
+
+    // The forecast keeps only upcoming statuses, so the demo history must carry
+    // planned rows or every planned inflow and investment collapses to zero.
+    const forecast = result.current.liquidityForecast;
+    expect(
+      (forecast?.plannedCapitalCalls ?? 0) +
+        (forecast?.expectedDistributions ?? 0) +
+        (forecast?.plannedInvestments ?? 0)
+    ).toBeGreaterThan(0);
+  });
+
   it('does not flag demo when real transactions are provided', () => {
     const transactions: CashTransaction[] = [createTransaction()];
     const { result } = renderHook(() => useLiquidityAnalytics({ ...baseOptions, transactions }));
