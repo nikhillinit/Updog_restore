@@ -742,29 +742,54 @@ describe('LP report export authorization', () => {
     }
   });
 
-  it.each(['viewer', 'analyst'])(
-    'returns 403 for the %s role across all eight export routes',
+  it.each(['viewer', 'analyst', 'partner', 'admin'])(
+    'returns 200 for %s with fund grant across all eight export routes',
     async (role) => {
       const authorization = await authorizationHeader(role, [1]);
       for (const route of EXPORT_ROUTES) {
         const response = await sendRoute(app, route).set('Authorization', authorization);
-        expect(response.status, `${role} ${route.join(' ')}`).toBe(403);
+        expect(response.status, `${role} ${route.join(' ')}`).toBe(200);
+        expect(JSON.stringify(response.body)).not.toMatch(/marginal|non_actionable_shadow/i);
       }
     }
   );
 
-  it.each([
-    ['partner', []],
-    ['admin', []],
-    ['operator', []],
-  ] as const)(
-    'returns 200 for an authorized %s across all eight export routes',
-    async (role, grants) => {
-      const authorization = await authorizationHeader(role, [...grants]);
+  it('returns 200 for admin without fund grants across all eight export routes', async () => {
+    const authorization = await authorizationHeader('admin', []);
+    for (const route of EXPORT_ROUTES) {
+      const response = await sendRoute(app, route).set('Authorization', authorization);
+      expect(response.status, route.join(' ')).toBe(200);
+    }
+  });
+
+  it.each(['partner', 'analyst'])(
+    'allows %s team-member reads but denies writes without fund grants',
+    async (role) => {
+      const authorization = await authorizationHeader(role, []);
       for (const route of EXPORT_ROUTES) {
         const response = await sendRoute(app, route).set('Authorization', authorization);
-        expect(response.status, route.join(' ')).toBe(200);
-        expect(JSON.stringify(response.body)).not.toMatch(/marginal|non_actionable_shadow/i);
+        const method = route[0];
+        if (method === 'GET') {
+          expect(response.status, `${role} ${route.join(' ')}`).toBe(200);
+        } else {
+          expect(response.status, `${role} ${route.join(' ')}`).toBe(403);
+        }
+      }
+    }
+  );
+
+  it.each(['viewer', 'operator'])(
+    'allows %s team-member reads but denies writes without fund grants',
+    async (role) => {
+      const authorization = await authorizationHeader(role, []);
+      for (const route of EXPORT_ROUTES) {
+        const response = await sendRoute(app, route).set('Authorization', authorization);
+        const method = route[0];
+        if (method === 'GET') {
+          expect(response.status, `${role} ${route.join(' ')}`).toBe(200);
+        } else {
+          expect(response.status, `${role} ${route.join(' ')}`).toBe(403);
+        }
       }
     }
   );

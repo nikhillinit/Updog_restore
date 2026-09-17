@@ -9,7 +9,8 @@ import { requireAuth } from '../../../server/lib/auth/jwt';
 // server config reads JWT settings at first import, so per-test overrides
 // never apply (repo precedent: "align tokens with cached JWT config").
 const TEST_SECRET =
-  process.env['JWT_SECRET'] ?? 'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation';
+  process.env['JWT_SECRET'] ??
+  'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation';
 const TEST_ISSUER = process.env['JWT_ISSUER'] ?? 'updog';
 const TEST_AUDIENCE = process.env['JWT_AUDIENCE'] ?? 'updog-app';
 
@@ -132,7 +133,12 @@ describe('portfolio company metadata route', () => {
     expect(success.status).toBe(200);
     expect(success.body).toMatchObject({ id: 11, rowVersion: 2 });
     expect(updateState.update).toHaveBeenCalledWith(
-      expect.objectContaining({ fundId: 7, companyId: 11, actorId: 42, idempotencyKey: 'metadata-route-3' })
+      expect.objectContaining({
+        fundId: 7,
+        companyId: 11,
+        actorId: 42,
+        idempotencyKey: 'metadata-route-3',
+      })
     );
 
     updateState.update.mockRejectedValueOnce(new MockVersionConflictError());
@@ -151,6 +157,7 @@ describe('portfolio company metadata route', () => {
     const response = await request(app)
       .post('/api/portfolio-companies')
       .set('Authorization', `Bearer ${signToken([7])}`)
+      .set('Idempotency-Key', 'fund-scope-test-1')
       .send(validCompany);
 
     expect(response.status).toBe(400);

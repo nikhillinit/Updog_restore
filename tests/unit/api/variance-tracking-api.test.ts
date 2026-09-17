@@ -1644,7 +1644,7 @@ describe('Variance Tracking API', () => {
       unauthApp.use(varianceRouter);
     });
 
-    it('should require authentication for creating baselines', async () => {
+    it('should deny unauthenticated baseline creation (requireTeamWrite rejects before handler)', async () => {
       const baselineData = {
         name: 'Test Baseline',
         baselineType: 'quarterly',
@@ -1652,19 +1652,13 @@ describe('Variance Tracking API', () => {
         periodEnd: '2024-12-31T23:59:59Z',
       };
 
-      const response = await request(unauthApp)
-        .post('/api/funds/1/baselines')
-        .send(baselineData)
-        .expect(401);
-
-      expect(response.body.error).toBe('Authentication required');
+      // requireTeamWrite middleware runs before the handler; without req.user
+      // requestRoles returns [] so the role check fails with 403.
+      await request(unauthApp).post('/api/funds/1/baselines').send(baselineData).expect(403);
     });
 
     it('should deny alert operations without a write role', async () => {
-      await request(unauthApp)
-        .post('/api/alerts/alert-123/acknowledge')
-        .send({})
-        .expect(403);
+      await request(unauthApp).post('/api/alerts/alert-123/acknowledge').send({}).expect(403);
 
       expect(mockVarianceTrackingService.alerts.acknowledgeAlert).not.toHaveBeenCalled();
     });
@@ -1926,6 +1920,68 @@ describe('Variance Tracking API', () => {
         .expect(400);
 
       // Express would handle this at a higher level, but we test the concept
+    });
+  });
+
+  describe('A1+A2 fund scope and team-write guards', () => {
+    it('GET variance-dashboard passes for team members despite mismatched fundIds (A1 universal read)', async () => {
+      // A1: enforceProvidedFundScope on GETs without forWrite grants universal
+      // read to team members, so an analyst whose fundIds omit the target fund
+      // still reaches the handler.
+      const wrongFundApp = makeVarianceApp('analyst', [2]);
+      mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([]);
+      mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue([]);
+      mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue([]);
+
+      const response = await request(wrongFundApp)
+        .get('/api/funds/1/variance-dashboard')
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+    });
+
+    it('POST baselines returns 403 when analyst fundIds exclude the target fund (A2 forWrite scope)', async () => {
+      // A2: POST routes pass { forWrite: true } to enforceProvidedFundScope,
+      // disabling universal read. resolveFundScope denies fundIds=[2] vs fund 1.
+      const wrongFundApp = makeVarianceApp('analyst', [2]);
+
+      const response = await request(wrongFundApp)
+        .post('/api/funds/1/baselines')
+        .send({
+          name: 'Scope Test',
+          baselineType: 'quarterly',
+          periodStart: '2024-10-01T00:00:00Z',
+          periodEnd: '2024-12-31T23:59:59Z',
+        })
+        .expect(403);
+
+      expect(response.body).toMatchObject({
+        error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
+      });
+      expect(mockVarianceTrackingService.baselines.createBaseline).not.toHaveBeenCalled();
+    });
+
+    it('POST baselines allows viewer because viewer aliases to analyst (team-write eligible)', async () => {
+      // viewer maps to analyst via EFFECTIVE_ROLE_ALIASES; analyst is in
+      // TEAM_WRITE_ROLES so requireTeamWrite passes. fundIds=[1] matches fund 1
+      // so enforceProvidedFundScope also passes.
+      const viewerApp = makeVarianceApp('viewer', [1]);
+      mockVarianceTrackingService.baselines.createBaseline.mockResolvedValue({
+        id: 'viewer-baseline',
+      });
+
+      const response = await request(viewerApp)
+        .post('/api/funds/1/baselines')
+        .send({
+          name: 'Viewer Baseline',
+          baselineType: 'quarterly',
+          periodStart: '2024-10-01T00:00:00Z',
+          periodEnd: '2024-12-31T23:59:59Z',
+        })
+        .expect(201);
+
+      expect(response.body.success).toBe(true);
     });
   });
 
