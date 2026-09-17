@@ -593,23 +593,27 @@ test.describe('release mutation canaries', () => {
     const api = requireClient(client);
     const fundName = `G4 Release Canary ${Date.now()}-${randomUUID().slice(0, 8)}`;
     const fundSize = 1_000_000;
+    const vintageYear = new Date().getUTCFullYear();
     const fundSetup = new FundSetupPage(page);
 
-    await page.route('**/api/funds', async (route) => {
-      const request = route.request();
-      if (request.method() !== 'POST') {
-        await route.continue();
-        return;
-      }
+    await page.route(
+      (url) => url.pathname === '/api/funds' || url.pathname === '/api/funds/finalize',
+      async (route) => {
+        const request = route.request();
+        if (request.method() !== 'POST') {
+          await route.continue();
+          return;
+        }
 
-      await route.continue({
-        headers: {
-          ...request.headers(),
-          'release-canary-workflow-run-id': GITHUB_RUN_ID,
-          'release-canary-workflow-run-attempt': GITHUB_RUN_ATTEMPT,
-        },
-      });
-    });
+        await route.continue({
+          headers: {
+            ...request.headers(),
+            'release-canary-workflow-run-id': GITHUB_RUN_ID,
+            'release-canary-workflow-run-attempt': GITHUB_RUN_ATTEMPT,
+          },
+        });
+      }
+    );
 
     await page.goto(`${PRODUCTION_URL}/login`);
     await page.getByLabel('Username').fill(CANARY_USERNAME);
