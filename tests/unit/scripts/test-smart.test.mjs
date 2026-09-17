@@ -83,6 +83,19 @@ describe('affected-test planning', () => {
     expect(plan.reason).toContain('server/uncovered.ts');
   });
 
+  it('falls back when a changed smoke test has no supported runner', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/smoke/production.spec.ts', 'test("smoke", () => {});');
+
+    const plan = await createAffectedTestPlan({
+      root,
+      changedFiles: ['tests/smoke/production.spec.ts'],
+    });
+
+    expect(plan).toMatchObject({ version: 1, mode: 'full_fallback', tests: [] });
+    expect(plan.reason).toContain('tests/smoke/production.spec.ts');
+  });
+
   it.each([['shared/schema.ts'], ['package-lock.json'], ['.github/workflows/ci-unified.yml']])(
     'falls back to the full unit suite for broad-impact change %s',
     async (changedFile) => {
