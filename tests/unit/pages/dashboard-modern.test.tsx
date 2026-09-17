@@ -84,9 +84,9 @@ describe('ModernDashboard', () => {
     expect(screen.queryByText('Target-Aware Snapshot')).not.toBeInTheDocument();
     expect(screen.getByText(/supported overview metrics/i)).toBeInTheDocument();
     expect(screen.getByText('Total committed')).toBeInTheDocument();
-    expect(screen.getByText('$50.0M')).toBeInTheDocument();
+    expect(screen.getAllByText('$50.0M').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Active companies')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/overview remains deferred/i)).not.toBeInTheDocument();
     expect(screen.queryByText('28.5%')).not.toBeInTheDocument();
     expect(screen.queryByText(/Portfolio Value Trend/i)).not.toBeInTheDocument();

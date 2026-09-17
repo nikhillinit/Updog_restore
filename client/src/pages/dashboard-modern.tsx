@@ -52,6 +52,191 @@ function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
   );
 }
 
+function CapitalProgressBar({ metrics }: { metrics: UnifiedFundMetrics }) {
+  const { totalCommitted, totalCalled, totalDeployed } = metrics.actual;
+  const calledPct = totalCommitted > 0 ? (totalCalled / totalCommitted) * 100 : 0;
+  const deployedPct = totalCommitted > 0 ? (totalDeployed / totalCommitted) * 100 : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="relative h-4 w-full overflow-hidden rounded-full bg-pov-gray">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-beige transition-all"
+          style={{ width: `${calledPct}%` }}
+        />
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-pov-charcoal transition-all"
+          style={{ width: `${deployedPct}%` }}
+        />
+      </div>
+      <div className="flex items-center gap-6 text-xs text-presson-textMuted">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-pov-charcoal" />
+          Deployed {deployedPct.toFixed(1)}%
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-beige" />
+          Called {calledPct.toFixed(1)}%
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-pov-gray" />
+          Uncalled {(100 - calledPct).toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CapitalStructurePanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const { totalCommitted, totalCalled, totalDeployed, totalUncalled, totalDistributions } =
+    metrics.actual;
+
+  return (
+    <div className="space-y-6">
+      <CapitalProgressBar metrics={metrics} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricTile
+          label="Committed"
+          value={formatDollars(totalCommitted)}
+          detail="Total LP + GP commitments"
+        />
+        <MetricTile
+          label="Called"
+          value={formatDollars(totalCalled)}
+          detail="Capital called from LPs"
+        />
+        <MetricTile
+          label="Deployed"
+          value={formatDollars(totalDeployed)}
+          detail="Invested into companies"
+        />
+        <MetricTile
+          label="Dry powder"
+          value={formatDollars(totalUncalled)}
+          detail="Remaining uncalled capital"
+        />
+        <MetricTile
+          label="Distributions"
+          value={formatDollars(totalDistributions)}
+          detail="Cash returned to LPs"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PortfolioCompositionPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const {
+    activeCompanies,
+    exitedCompanies,
+    writtenOffCompanies,
+    totalCompanies,
+    averageCheckSize,
+  } = metrics.actual;
+
+  const segments = [
+    { label: 'Active', count: activeCompanies, color: 'bg-pov-charcoal' },
+    { label: 'Exited', count: exitedCompanies, color: 'bg-success' },
+    { label: 'Written off', count: writtenOffCompanies, color: 'bg-presson-textMuted' },
+  ].filter((s) => s.count > 0);
+
+  return (
+    <div className="space-y-6">
+      {totalCompanies > 0 && (
+        <div className="relative flex h-4 w-full overflow-hidden rounded-full">
+          {segments.map((seg) => (
+            <div
+              key={seg.label}
+              className={`${seg.color} transition-all`}
+              style={{ width: `${(seg.count / totalCompanies) * 100}%` }}
+            />
+          ))}
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {segments.map((seg) => (
+          <MetricTile
+            key={seg.label}
+            label={seg.label}
+            value={String(seg.count)}
+            detail={`${((seg.count / totalCompanies) * 100).toFixed(0)}% of portfolio`}
+          />
+        ))}
+        <MetricTile
+          label="Avg check size"
+          value={formatDollars(averageCheckSize)}
+          detail={`Across ${totalCompanies} companies`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PerformanceSnapshotPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const { totalValue, currentNAV, totalDeployed } = metrics.actual;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricTile
+        label="Total value"
+        value={formatDollars(totalValue)}
+        detail="NAV + distributions"
+      />
+      <MetricTile
+        label="TVPI"
+        value={formatMultiple(metrics.actual.tvpi)}
+        detail="Total value / paid-in"
+      />
+      <MetricTile
+        label="Net IRR"
+        value={formatRate(
+          metrics.actual.availability?.irr?.status === 'unavailable' ? null : metrics.actual.irr
+        )}
+        detail={metrics.actual.availability?.irr?.message ?? 'Investment and valuation basis'}
+      />
+      <MetricTile
+        label="Unrealized gain"
+        value={formatDollars(currentNAV - totalDeployed)}
+        detail={
+          totalDeployed > 0
+            ? `${(((currentNAV - totalDeployed) / totalDeployed) * 100).toFixed(1)}% on deployed`
+            : 'No capital deployed'
+        }
+      />
+    </div>
+  );
+}
+
 function OverviewMetricsPanel({
   metrics,
   isLoading,
@@ -225,6 +410,39 @@ export default function ModernDashboard() {
           subtitle="Backed by the unified metrics layer for the selected fund"
         >
           <OverviewMetricsPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Capital structure"
+          subtitle="Commitment, deployment, and distribution lifecycle"
+        >
+          <CapitalStructurePanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Portfolio composition"
+          subtitle="Company status breakdown and investment sizing"
+        >
+          <PortfolioCompositionPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Performance snapshot"
+          subtitle="Key return metrics from the unified layer"
+        >
+          <PerformanceSnapshotPanel
             metrics={metricsQuery.data}
             isLoading={metricsQuery.isLoading}
             error={metricsQuery.error}
