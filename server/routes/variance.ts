@@ -125,71 +125,76 @@ router['get']('/api/internal/alert-automation/health', (_req: Request, res: Resp
  * Create a new baseline for a fund
  * POST /api/funds/:id/baselines
  */
-router['post']('/api/funds/:id/baselines', idempotency, async (req: Request, res: Response) => {
-  try {
-    // Parse and validate fund ID
-    let fundId: number;
+router['post'](
+  '/api/funds/:id/baselines',
+  requireTeamWrite,
+  idempotency,
+  async (req: Request, res: Response) => {
     try {
-      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-    } catch (err) {
-      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+      // Parse and validate fund ID
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
+        }
+        throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
-      throw err;
-    }
 
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
-      return;
-    }
+      // Validate request body
+      const validation = CreateBaselineRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid baseline data',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
 
-    // Validate request body
-    const validation = CreateBaselineRequestSchema.safeParse(req.body);
-    if (!validation.success) {
-      const error: ApiError = {
-        error: 'Validation failed',
-        message: 'Invalid baseline data',
-        details: validation.error.flatten(),
+      const data = validation.data;
+      const userId = getUserId(req);
+
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to create baselines',
+        };
+        return res.status(401).json(error);
+      }
+
+      // Create baseline
+      const baseline = await varianceTrackingService.baselines.createBaseline({
+        fundId,
+        name: data.name,
+        ...(data.description && { description: data.description }),
+        baselineType: data.baselineType,
+        periodStart: new Date(data.periodStart),
+        periodEnd: new Date(data.periodEnd),
+        createdBy: userId,
+        ...(data.tags && { tags: data.tags }),
+      });
+
+      res.status(201).json({
+        success: true,
+        data: baseline,
+        message: 'Baseline created successfully',
+      });
+    } catch (error) {
+      routeLog.error('Baseline creation error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to create baseline',
+        message: getRouteErrorMessage(error),
       };
-      return res.status(400).json(error);
+      res.status(500).json(apiError);
     }
-
-    const data = validation.data;
-    const userId = getUserId(req);
-
-    if (!userId) {
-      const error: ApiError = {
-        error: 'Authentication required',
-        message: 'User must be authenticated to create baselines',
-      };
-      return res.status(401).json(error);
-    }
-
-    // Create baseline
-    const baseline = await varianceTrackingService.baselines.createBaseline({
-      fundId,
-      name: data.name,
-      ...(data.description && { description: data.description }),
-      baselineType: data.baselineType,
-      periodStart: new Date(data.periodStart),
-      periodEnd: new Date(data.periodEnd),
-      createdBy: userId,
-      ...(data.tags && { tags: data.tags }),
-    });
-
-    res.status(201).json({
-      success: true,
-      data: baseline,
-      message: 'Baseline created successfully',
-    });
-  } catch (error) {
-    routeLog.error('Baseline creation error:', error);
-    const apiError: ApiError = {
-      error: 'Failed to create baseline',
-      message: getRouteErrorMessage(error),
-    };
-    res.status(500).json(apiError);
   }
-});
+);
 
 /**
  * Get baselines for a fund
@@ -381,6 +386,7 @@ router['delete'](
  */
 router['post'](
   '/api/funds/:id/variance-reports',
+  requireTeamWrite,
   idempotency,
   async (req: Request, res: Response) => {
     try {
@@ -394,7 +400,7 @@ router['post'](
         throw err;
       }
 
-      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
 
@@ -521,6 +527,10 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
         return;
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     const reportId = firstString(req.params['reportId']);
@@ -656,6 +666,10 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
         return;
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Parse query parameters
@@ -993,6 +1007,10 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
         return;
       }
       throw err;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      return;
     }
 
     // Get summary data for dashboard
