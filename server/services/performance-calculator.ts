@@ -24,6 +24,7 @@ import type {
   MetricTrend,
 } from '@shared/types/performance-api';
 import type { ActualMetrics } from '@shared/types/metrics';
+import { computePositionValue } from './position-value';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -110,8 +111,9 @@ type PerformanceCompany = {
   sector: string;
   stage: string;
   status: string;
-  currentValuation: unknown;
-  investmentAmount: unknown;
+  currentValuation: string | null;
+  ownershipCurrentPct: string | null;
+  investmentAmount: string | null;
   investmentDate: Date | null;
   createdAt: Date | null;
 };
@@ -133,7 +135,10 @@ function buildCompanyCashflows(
   for (const company of companies) {
     const investmentDate = company.investmentDate ?? company.createdAt;
     const investmentAmount = Number(company.investmentAmount) || 0;
-    const currentValue = Number(company.currentValuation) || 0;
+    const currentValue = computePositionValue({
+      currentValuation: company.currentValuation,
+      ownershipCurrentPct: company.ownershipCurrentPct,
+    }).toNumber();
 
     if (investmentDate && investmentAmount > 0) {
       cashflows.push({
@@ -382,6 +387,7 @@ export class PerformanceCalculator {
         stage: portfolioCompanies.stage,
         status: portfolioCompanies.status,
         currentValuation: portfolioCompanies.currentValuation,
+        ownershipCurrentPct: portfolioCompanies.ownershipCurrentPct,
         investmentAmount: portfolioCompanies.investmentAmount,
         investmentDate: portfolioCompanies.investmentDate,
         createdAt: portfolioCompanies.createdAt,
@@ -422,7 +428,10 @@ export class PerformanceCalculator {
 
       existing.companies.push(company);
       existing.totalDeployed += Number(company.investmentAmount) || 0;
-      existing.currentValue += Number(company.currentValuation) || 0;
+      existing.currentValue += computePositionValue({
+        currentValuation: company.currentValuation,
+        ownershipCurrentPct: company.ownershipCurrentPct,
+      }).toNumber();
       groups.set(groupKey, existing);
     }
 
