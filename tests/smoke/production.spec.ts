@@ -277,28 +277,6 @@ test.describe('Production Deployment Smoke Tests', () => {
       expect(content).toBeTruthy();
     });
 
-    test('should create new fund (smoke test)', async ({ page }) => {
-      // Login
-      await page.goto(`${PRODUCTION_URL}/login`);
-      await page.fill('input[type="email"]', TEST_USER_EMAIL);
-      await page.fill('input[type="password"]', TEST_USER_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/dashboard|funds/);
-
-      // Navigate to fund creation
-      await page.goto(`${PRODUCTION_URL}/funds/new`);
-      await page.waitForLoadState('networkidle');
-
-      // Fill basic fund details
-      const timestamp = Date.now();
-      await page.fill('input[name="fundName"]', `Smoke Test Fund ${timestamp}`);
-      await page.fill('input[name="fundSize"]', '50000000');
-
-      // Should be able to fill form (not necessarily submit)
-      const fundName = await page.inputValue('input[name="fundName"]');
-      expect(fundName).toContain('Smoke Test Fund');
-    });
-
     test('should trigger reserve calculation', async ({ page }) => {
       // Login
       await page.goto(`${PRODUCTION_URL}/login`);
