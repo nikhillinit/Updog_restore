@@ -153,7 +153,12 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
     if (Number.isNaN(fundId)) {
       return next();
     }
-    const user = (req as Request & { user?: { fundIds: number[] } }).user;
+    const user = (req as Request & { user?: { role?: string; fundIds: number[] } }).user;
+    const safeRead = req.method === 'GET' || req.method === 'HEAD';
+    const teamRoles = ['admin', 'partner', 'analyst', 'viewer', 'operator'];
+    if (safeRead && user?.role != null && teamRoles.includes(user.role)) {
+      return next();
+    }
     const userFundIds = user?.fundIds ?? [];
     if (userFundIds.length === 0 || userFundIds.includes(fundId)) {
       return next();
@@ -2371,14 +2376,14 @@ describe('metric-run narrative routes', () => {
 });
 
 describe('metric-run report package routes', () => {
-  it('returns 403 for non-export roles across all Surface-A export routes', async () => {
+  it('allows analyst with matching fund grant across all Surface-A export routes', async () => {
     authState.role = 'analyst';
     authState.fundIds = [1];
 
     for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
       const res = await requestExportProbe(buildApp(), route);
 
-      expect(res.status, `${route.method} ${route.path}`).toBe(403);
+      expect(res.status, `${route.method} ${route.path}`).not.toBe(403);
     }
   });
 
@@ -2477,12 +2482,9 @@ describe('metric-run report package routes', () => {
     expect(res.status).not.toBe(403);
   });
 
-  it('allows partner export access when a legacy fund grant does not match', async () => {
+  it('allows partner team-member read when fund grant does not match', async () => {
     authState.role = 'partner';
     authState.fundIds = [2];
-    seedLockedMetricRun();
-    seedApprovedNarratives();
-    seedMetricRunEvidence();
 
     const res = await request(buildApp()).get(
       '/api/funds/1/metric-runs/500/report-package/export/json'

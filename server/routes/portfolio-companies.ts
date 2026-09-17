@@ -10,6 +10,7 @@ import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { idempotency, requireIdempotencyKey } from '../middleware/idempotency';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import {
   PortfolioCompanyUpdateIdempotencyReuseError,
@@ -30,6 +31,7 @@ const portfolioCompaniesLimiter = rateLimit({
 });
 
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+const idempotent = idempotency();
 
 function actorId(req: Request): number {
   return toNumber(req.user?.id ?? req.user?.sub, 'actorId', { integer: true, min: 1 });
@@ -288,6 +290,8 @@ router.post(
   '/portfolio-companies',
   portfolioCompaniesLimiter,
   requireTeamWrite,
+  requireIdempotencyKey,
+  idempotent,
   async (req: Request, res: Response) => {
     try {
       const bodyFundId = (req.body as { fundId?: unknown } | undefined)?.fundId;
