@@ -17,7 +17,7 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { firstString } from '../lib/request-values';
 import { idempotency, requireIdempotencyKey } from '../middleware/idempotency';
@@ -46,6 +46,21 @@ const routeLog = createRouteLogger('deal-pipeline');
 const router = Router();
 const idempotent = idempotency();
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+
+function requireIdempotencyKey(req: Request, res: Response, next: NextFunction): void {
+  const key =
+    req.headers['idempotency-key'] ||
+    req.headers['x-idempotency-key'] ||
+    req.headers['idempotent-key'];
+  if (!key) {
+    res.status(400).json({
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+      message: 'An Idempotency-Key header is required for this operation',
+    });
+    return;
+  }
+  next();
+}
 
 type DealWriteScope = {
   dealId: number;

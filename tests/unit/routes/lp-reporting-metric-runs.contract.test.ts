@@ -54,8 +54,8 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
         id: 'u1',
         sub: 'u1',
         email: 'u@example.com',
-        role: 'analyst',
-        roles: ['analyst'],
+        role: 'partner',
+        roles: ['partner'],
         ip: '127.0.0.1',
         userAgent: 'vitest',
         fundIds: [1],
@@ -146,6 +146,35 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
 
   it('allows same-fund metric-run requests past the guard', async () => {
     const res = await request(makeApp()).get('/api/funds/1/metric-runs/latest');
+
+    expect(res.status).not.toBe(403);
+  });
+
+  it.each<DeniedEndpoint>([
+    { method: 'POST', path: '/api/funds/2/metric-runs/123/report-package/exports/json', body: {} },
+    { method: 'POST', path: '/api/funds/2/metric-runs/123/report-package/exports/csv', body: {} },
+  ])('denies cross-fund report-package write $method $path before db work', async (endpoint) => {
+    const res = await requestEndpoint(endpoint);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        error: 'Forbidden',
+        message: 'You do not have access to fund 2',
+      })
+    );
+    expect(dbState.calls.insert).toBe(0);
+  });
+
+  it.each<DeniedEndpoint>([
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/render-model' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/export/json' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/exports/json' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/exports/json/artifact' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/exports/csv' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/report-package/exports/csv/artifact' },
+  ])('allows team-member cross-fund report-package read $method $path', async (endpoint) => {
+    const res = await requestEndpoint(endpoint);
 
     expect(res.status).not.toBe(403);
   });
