@@ -200,6 +200,19 @@ export async function createAffectedTestPlan({
     root,
     normalizedChanges
   );
+
+  const unsupportedSelectedTest = selectedTests.find(
+    (test) => testRunnerForPath(test) === undefined
+  );
+  if (unsupportedSelectedTest !== undefined) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `Affected test is not supported by the PR test runners: ${unsupportedSelectedTest}`,
+    };
+  }
+
   const uncoveredChange = normalizedChanges.find(
     (changedFile) => !isDocumentationPath(changedFile) && !mappedChanges.has(changedFile)
   );
