@@ -132,6 +132,30 @@ describe('sensitivity cursor validation (A5)', () => {
     expect(res.body).toMatchObject({ code: 'INVALID_CURSOR' });
   });
 
+  it('rejects date-only cursorCreatedAt (no time component)', async () => {
+    const res = await request(makeApp()).get(
+      '/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-15&cursorId=5'
+    );
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'INVALID_CURSOR' });
+  });
+
+  it('rejects cursorCreatedAt that auto-normalizes to a different instant', async () => {
+    const res = await request(makeApp()).get(
+      '/funds/1/sensitivity/runs?cursorCreatedAt=2026-02-30T00:00:00.000Z&cursorId=5'
+    );
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'INVALID_CURSOR' });
+  });
+
+  it('rejects space-separated timestamp', async () => {
+    const res = await request(makeApp()).get(
+      '/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-15 12:00:00&cursorId=5'
+    );
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'INVALID_CURSOR' });
+  });
+
   it('accepts valid cursor pair and passes to service', async () => {
     const res = await request(makeApp()).get(
       '/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z&cursorId=42'
