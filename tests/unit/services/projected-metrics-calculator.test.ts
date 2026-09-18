@@ -117,3 +117,79 @@ describe('ProjectedMetricsCalculator construction forecast target fallback', () 
     expect(result.projectedDistributions[1]).toBe(3_000_000);
   });
 });
+
+describe('ProjectedMetricsCalculator cohort projections unavailable (P0 Task 1)', () => {
+  const investedFund: Fund = {
+    ...zeroTargetFund,
+    id: 2,
+    name: 'Invested Fund',
+    deployedCapital: '24000000',
+    vintageYear: 2024,
+    establishmentDate: '2024-01-01',
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+  };
+  const companies = [
+    {
+      id: 1,
+      investmentAmount: '1000000',
+      stage: 'Seed',
+      currentStage: 'Seed',
+      sector: 'SaaS',
+      ownershipCurrentPct: '0.1',
+      investmentDate: new Date('2024-06-01T00:00:00.000Z'),
+    },
+  ];
+  // Targets are set on purpose: the test proves they do NOT leak into projections.
+  const config = {
+    targetTVPI: 2.5,
+    targetIRR: 0.25,
+    targetDPI: 1.0,
+    fundTermYears: 10,
+    investmentPeriodYears: 5,
+  };
+  const legacyJCurveFallback = [0, 0, 0, 0, 0, 0, 0, 0, 1000000, 2000000, 5000000, 10000000];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reports explicit unavailability on the standard path instead of config targets', async () => {
+    const calculator = new ProjectedMetricsCalculator();
+
+    const result = await calculator.calculate(investedFund, companies, config);
+
+    expect(result.expectedTVPI).toBeNull();
+    expect(result.expectedIRR).toBeNull();
+    expect(result.expectedDPI).toBeNull();
+    expect(result.projectedDistributions).toBeNull();
+    expect(result.projectedNAV).toBeNull();
+    // Deployment and reserve lanes still come from the Pacing and Reserve engines.
+    expect(result.projectedDeployment.length).toBeGreaterThan(0);
+    expect(result.projectedDeployment.every(Number.isFinite)).toBe(true);
+    expect(Number.isFinite(result.totalReserveNeeds)).toBe(true);
+    expect(generateForecastMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps real J-curve arrays on the construction path and never the legacy fallback', async () => {
+    generateForecastMock.mockReturnValueOnce({
+      projected: { tvpi: 2.5, dpi: 0.8 },
+      jCurvePath: {
+        nav: Array.from({ length: 40 }, (_value, index) => new Decimal(0.01 * (index + 1))),
+        dpi: Array.from({ length: 40 }, (_value, index) => new Decimal(0.005 * index)),
+        calls: Array.from({ length: 40 }, () => new Decimal(0.025)),
+      },
+    });
+    const calculator = new ProjectedMetricsCalculator();
+
+    const result = await calculator.calculate(investedFund, [], config, {
+      useConstructionForecast: true,
+    });
+
+    expect(result.projectedDistributions).not.toBeNull();
+    expect(result.projectedNAV).not.toBeNull();
+    expect(result.projectedNAV).toHaveLength(40);
+    expect(result.projectedDistributions).not.toEqual(legacyJCurveFallback);
+    expect(result.expectedTVPI).toBe(2.5);
+    expect(result.expectedDPI).toBe(0.8);
+  });
+});

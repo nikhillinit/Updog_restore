@@ -3,7 +3,6 @@ import type { Fund } from '@shared/schema';
 import type { ProjectedMetrics } from '@shared/types/metrics';
 import { ProjectedMetricsCalculator } from '../../../server/services/projected-metrics-calculator';
 
-const RANDOM_SEQ = [0.42, 0.17, 0.88, 0.63, 0.05];
 const FIXED_TIME = new Date('2026-07-01T00:00:00Z');
 
 const fund = {
@@ -23,11 +22,6 @@ const investmentDate = new Date('2021-06-01T00:00:00.000Z');
 
 type CompanyInputs = Parameters<ProjectedMetricsCalculator['calculate']>[1];
 
-function installSeededRandom(): void {
-  let i = 0;
-  vi.spyOn(Math, 'random').mockImplementation(() => RANDOM_SEQ[i++ % RANDOM_SEQ.length]!);
-}
-
 function restoreEnv(name: 'NODE_ENV' | 'ALG_COHORT', value: string | undefined): void {
   if (value === undefined) {
     delete process.env[name];
@@ -45,7 +39,7 @@ function reserveTuple(result: ProjectedMetrics): [number, number, number, number
   ];
 }
 
-describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed clock)', () => {
+describe('ProjectedMetricsCalculator legacy characterization (fixed clock)', () => {
   let previousNodeEnv: string | undefined;
   let previousAlgCohort: string | undefined;
 
@@ -54,7 +48,6 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
     previousAlgCohort = process.env['ALG_COHORT'];
     process.env['NODE_ENV'] = 'test';
     process.env['ALG_COHORT'] = 'false';
-    installSeededRandom();
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_TIME);
   });
@@ -66,7 +59,7 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
     restoreEnv('ALG_COHORT', previousAlgCohort);
   });
 
-  it('locks the standard-path ProjectedMetrics shape without pinning random-influenced values', async () => {
+  it('locks the standard-path ProjectedMetrics shape with cohort-sourced fields unavailable', async () => {
     const calc = new ProjectedMetricsCalculator();
     const result = await calc.calculate(
       fund,
@@ -89,11 +82,11 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
         asOfDate: expect.any(String),
         projectionDate: expect.any(String),
         projectedDeployment: expect.any(Array),
-        projectedDistributions: expect.any(Array),
-        projectedNAV: expect.any(Array),
-        expectedTVPI: expect.any(Number),
-        expectedIRR: expect.any(Number),
-        expectedDPI: expect.any(Number),
+        projectedDistributions: null,
+        projectedNAV: null,
+        expectedTVPI: null,
+        expectedIRR: null,
+        expectedDPI: null,
         totalReserveNeeds: expect.any(Number),
         allocatedReserves: expect.any(Number),
         unallocatedReserves: expect.any(Number),
@@ -103,11 +96,13 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
         recommendedQuarterlyDeployment: expect.any(Number),
       })
     );
-    expect(Number.isFinite(result.expectedTVPI)).toBe(true);
-    expect(Number.isFinite(result.expectedIRR)).toBe(true);
-    expect(Number.isFinite(result.expectedDPI)).toBe(true);
-    expect(result.projectedDistributions).toHaveLength(40);
-    expect(result.projectedNAV).toHaveLength(40);
+    // P0 Task 1: no engine provides performance projections on this path, so the
+    // calculator reports explicit unavailability rather than config targets.
+    expect(result.expectedTVPI).toBeNull();
+    expect(result.expectedIRR).toBeNull();
+    expect(result.expectedDPI).toBeNull();
+    expect(result.projectedDistributions).toBeNull();
+    expect(result.projectedNAV).toBeNull();
     expect(result.projectedDeployment.length).toBeGreaterThan(0);
     expect(result.projectedDeployment.every(Number.isFinite)).toBe(true);
     expect(['ahead', 'on-track', 'behind']).toContain(result.deploymentPace);
@@ -161,6 +156,9 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
     expect(reserveTuple(rNon)).not.toEqual(reserveTuple(rDefault));
   });
 
+  // The construction-path `config.targetIRR ?? 0.25` default is a separate pre-existing
+  // fabrication, deferred as item 11 in the semantic-convergence P0 plan. Pinned here as
+  // current behavior, explicitly not endorsed.
   it('locks the construction-path targetIRR default and deterministic containment values', async () => {
     const calc = new ProjectedMetricsCalculator();
     const result = await calc.calculate(
@@ -183,23 +181,25 @@ describe('ProjectedMetricsCalculator legacy characterization (seeded, fixed cloc
 });
 
 describe('deterministic fallback constants (white-box; characterized, NOT endorsed)', () => {
-  it('pins the current null-engine fallback arrays', () => {
+  it('pins the null-pacing deployment fallback and confirms the synthesized curves are gone', () => {
     type PmcFallbacks = {
-      buildDistributionProjection(c: null): number[];
-      buildNAVProjection(c: null): number[];
       buildDeploymentProjection(p: null, r: null): number[];
+      buildDistributionProjection?: unknown;
+      buildNAVProjection?: unknown;
+      generateDistributionSchedule?: unknown;
+      generateNAVProgression?: unknown;
     };
     const priv = new ProjectedMetricsCalculator() as unknown as PmcFallbacks;
 
-    // These are reached only when an engine returns null. They are pinned as current behavior that
-    // Task 2's containment guard protects, explicitly not endorsed as decision-grade.
-    expect(priv.buildDistributionProjection(null)).toEqual([
-      0, 0, 0, 0, 0, 0, 0, 0, 1_000_000, 2_000_000, 5_000_000, 10_000_000,
-    ]);
-    const nav = priv.buildNAVProjection(null);
-    expect(nav).toHaveLength(40);
-    expect(nav[0]).toBe(10_000_000);
-    expect(nav[39]).toBeCloseTo(49_000_000, 6);
+    // Reached only when the pacing engine returns null; pinned as current behavior,
+    // explicitly not endorsed as decision-grade.
     expect(priv.buildDeploymentProjection(null, null)).toEqual(Array(12).fill(0));
+
+    // P0 Task 1 regression guard: the hardcoded J-curve / NAV ramp fallbacks and the
+    // config-scaled synthesized schedules must not return.
+    expect(priv.buildDistributionProjection).toBeUndefined();
+    expect(priv.buildNAVProjection).toBeUndefined();
+    expect(priv.generateDistributionSchedule).toBeUndefined();
+    expect(priv.generateNAVProgression).toBeUndefined();
   });
 });

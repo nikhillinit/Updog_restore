@@ -278,9 +278,13 @@ describe('MetricsAggregator config-backed target metrics', () => {
     const result = await aggregator.getUnifiedMetrics(1, { skipProjections: true });
 
     expect(isUnifiedFundMetrics(result)).toBe(true);
-    expect(result.projected.expectedIRR).toBe(0.27);
-    expect(result.projected.expectedTVPI).toBe(2.9);
-    expect(result.projected.expectedDPI).toBe(1.6);
+    expect(result.target.targetIRR).toBe(0.27);
+    expect(result.target.targetTVPI).toBe(2.9);
+    expect(result.target.targetDPI).toBe(1.6);
+    // P0 Task 1: a skipped projection is unavailable, never a config-target substitute.
+    expect(result.projected.expectedIRR).toBeNull();
+    expect(result.projected.expectedTVPI).toBeNull();
+    expect(result.projected.expectedDPI).toBeNull();
     expect(result._status?.engines.projected).toBe('skipped');
   });
 

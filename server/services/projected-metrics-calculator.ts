@@ -3,8 +3,12 @@
  *
  * Generates projected fund performance metrics using deterministic calculation engines.
  * This service orchestrates the Reserve and Pacing engines to produce
- * forward-looking forecasts. Performance projections (TVPI, IRR, DPI,
- * distributions, NAV) use config-based deterministic defaults.
+ * forward-looking deployment and reserve forecasts. Performance projections
+ * (TVPI, IRR, DPI, distributions, NAV) are null on the standard path: no
+ * deterministic engine provides them since CohortEngine was deleted (P0 Task 1),
+ * and MetricsAggregator reports `_status.engines.projected === 'partial'`.
+ * Substituting config targets or synthesized curves here would present
+ * fabricated numbers as projections.
  *
  * Engine Sources:
  * - DeterministicReserveEngine (follow-on reserve needs)
@@ -89,14 +93,13 @@ export class ProjectedMetricsCalculator {
 
     const projectedDeployment = this.buildDeploymentProjection(pacingResults, reserveResults);
 
-    const fundTermYears = config.fundTermYears ?? 10;
-    const quarters = fundTermYears * 4;
-    const projectedDistributions = this.generateDistributionSchedule(fund, config, quarters);
-    const projectedNAV = this.generateNAVProgression(fund, config, quarters);
-
-    const expectedTVPI = config.targetTVPI ?? 2.5;
-    const expectedIRR = config.targetIRR ?? 0.25;
-    const expectedDPI = config.targetDPI ?? 1.0;
+    // No engine produces performance projections on this path. Explicit
+    // unavailability, never a config target or a synthesized curve.
+    const projectedDistributions: number[] | null = null;
+    const projectedNAV: number[] | null = null;
+    const expectedTVPI: number | null = null;
+    const expectedIRR: number | null = null;
+    const expectedDPI: number | null = null;
 
     const totalReserveNeeds = reserveResults?.totalReserves || 0;
     const allocatedReserves = reserveResults?.allocatedReserves || 0;
@@ -229,44 +232,9 @@ export class ProjectedMetricsCalculator {
   }
 
   /**
-   * Generate deterministic distribution schedule from fund config
-   */
-  private generateDistributionSchedule(fund: Fund, config: FundConfig, quarters: number): number[] {
-    const fundSize = toDecimal(fund.size.toString()).toNumber();
-    const dpi = config.targetDPI ?? 1.0;
-    const totalDistributions = fundSize * dpi;
-
-    return Array(quarters)
-      .fill(0)
-      .map((_, i) => {
-        if (i < quarters * 0.4) return 0;
-        const progress = (i - quarters * 0.4) / (quarters * 0.6);
-        return totalDistributions * progress * (1 / quarters);
-      });
-  }
-
-  /**
-   * Generate deterministic NAV progression from fund config
-   */
-  private generateNAVProgression(fund: Fund, config: FundConfig, quarters: number): number[] {
-    const fundSize = toDecimal(fund.size.toString()).toNumber();
-    const tvpi = config.targetTVPI ?? 2.5;
-    const startNAV = fundSize * 0.1;
-    const endNAV = fundSize * tvpi * 0.5;
-
-    return Array(quarters)
-      .fill(0)
-      .map((_, i) => {
-        const progress = i / (quarters - 1);
-        const jCurveMultiplier = i < quarters * 0.25 ? 0.8 + 0.2 * (i / (quarters * 0.25)) : 1;
-        return startNAV + (endNAV - startNAV) * progress * jCurveMultiplier;
-      });
-  }
-
-  /**
    * Build quarterly deployment projection
    */
-  buildDeploymentProjection(
+  private buildDeploymentProjection(
     pacingResults: { projectedDeploymentSchedule: number[] } | null,
     reserveResults: { totalReserves: number } | null
   ): number[] {
@@ -279,35 +247,6 @@ export class ProjectedMetricsCalculator {
     const perQuarter = remainingCapital / quarters;
 
     return Array<number>(quarters).fill(perQuarter);
-  }
-
-  /**
-   * Build distribution projection with null-engine fallback
-   */
-  buildDistributionProjection(cohortResults: { distributionSchedule: number[] } | null): number[] {
-    if (cohortResults?.distributionSchedule) {
-      return cohortResults.distributionSchedule;
-    }
-
-    return [0, 0, 0, 0, 0, 0, 0, 0, 1_000_000, 2_000_000, 5_000_000, 10_000_000];
-  }
-
-  /**
-   * Build NAV projection with null-engine fallback
-   */
-  buildNAVProjection(cohortResults: { navProgression: number[] } | null): number[] {
-    if (cohortResults?.navProgression) {
-      return cohortResults.navProgression;
-    }
-
-    const startNAV = 10_000_000;
-    const endNAV = 50_000_000;
-    const quarters = 40;
-    const increment = (endNAV - startNAV) / quarters;
-
-    return Array(quarters)
-      .fill(0)
-      .map((_, i) => startNAV + increment * i);
   }
 
   /**

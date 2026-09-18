@@ -1,6 +1,29 @@
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+interface FixtureCompany {
+  name?: string;
+  invested?: number;
+  ownership?: number | null;
+  stage?: string;
+  sector?: string;
+}
+
+// Expectations derive from the same fixture the route reads, so editing
+// tests/fixtures/portfolio.json cannot silently break this contract test.
+// The server test setup mocks `fs` globally, so read through the actual module.
+async function loadFixtureCompanies(): Promise<FixtureCompany[]> {
+  const fs = await vi.importActual<typeof import('fs')>('fs');
+  const fixturePath = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../fixtures/portfolio.json'
+  );
+  return (JSON.parse(fs.readFileSync(fixturePath, 'utf-8')) as { companies: FixtureCompany[] })
+    .companies;
+}
 
 function makeApp(router: express.Router) {
   const app = express();
@@ -27,6 +50,7 @@ describe('engine summaries cohort route contract', () => {
   });
 
   it('returns deterministic cohort scaffold payload', async () => {
+    const fixtureCompanies = await loadFixtureCompanies();
     const router = await loadRouter();
 
     const response = await request(makeApp(router))
@@ -39,22 +63,28 @@ describe('engine summaries cohort route contract', () => {
       vintageYear: 2024,
       cohortSize: 4,
     });
+    expect(fixtureCompanies.length).toBeGreaterThan(0);
+    const first = fixtureCompanies[0]!;
     expect(response.body.companies).toHaveLength(4);
-    expect(response.body.companies[0]).toMatchObject({
+    expect(response.body.companies[0]).toEqual({
       id: 1,
-      name: 'TechCorp 1',
-      invested: 750000,
-      ownership: 0.12,
-      stage: 'Series A',
-      sector: 'SaaS',
+      name: `${first.name} 1`,
+      invested: first.invested,
+      ownership: first.ownership,
+      stage: first.stage,
+      sector: first.sector,
       cohortVintageYear: 2024,
     });
+    // Templates cycle through the fixture list, so the (n)th company reuses fixture[n % length].
+    const fourth = fixtureCompanies[3 % fixtureCompanies.length]!;
     expect(response.body.companies[3]).toMatchObject({
       id: 4,
-      name: 'TechCorp 4',
-      sector: 'SaaS',
+      name: `${fourth.name} 4`,
+      sector: fourth.sector,
       cohortVintageYear: 2024,
     });
+    const names = response.body.companies.map((company: { name: string }) => company.name);
+    expect(new Set(names).size).toBe(4);
   });
 
   it('falls back to built-in templates when fixture list is empty', async () => {

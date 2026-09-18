@@ -121,8 +121,12 @@ export interface ActualMetricAvailability {
  * Source: Calculation engines:
  * - DeterministicReserveEngine (reserve needs, follow-on strategy)
  * - PacingEngine (deployment timing, pacing analysis)
- * - CohortEngine (cohort-based exit modeling)
+ * - ConstructionForecastCalculator (J-curve path for funds with no investments)
  * - MonteCarloSimulation (probabilistic scenarios)
+ *
+ * Cohort-sourced performance fields are null on the standard path since
+ * CohortEngine was deleted (P0 Task 1); `_status.engines.projected === 'partial'`
+ * is the unavailability signal.
  *
  * These represent what the models expect to happen based on fund strategy and assumptions.
  */
