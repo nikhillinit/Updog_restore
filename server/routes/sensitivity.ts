@@ -244,16 +244,28 @@ router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) =>
   let cursor: { createdAt: string; id: number } | undefined;
   const rawCursorCreatedAt = req.query['cursorCreatedAt'];
   const rawCursorId = req.query['cursorId'];
-  if (rawCursorCreatedAt || rawCursorId) {
-    if (!rawCursorCreatedAt || !rawCursorId) {
-      return res.status(400).json({
-        code: 'INVALID_CURSOR',
-        message: 'cursorCreatedAt and cursorId must both be provided or both omitted',
-      });
-    }
-    const createdAtStr = String(rawCursorCreatedAt);
-    const parsedDate = new Date(createdAtStr);
-    if (isNaN(parsedDate.getTime())) {
+  const hasCursorCreatedAt = rawCursorCreatedAt !== undefined;
+  const hasCursorId = rawCursorId !== undefined;
+
+  if (hasCursorCreatedAt !== hasCursorId) {
+    return res.status(400).json({
+      code: 'INVALID_CURSOR',
+      message: 'cursorCreatedAt and cursorId must both be provided or both omitted',
+    });
+  }
+
+  if (hasCursorCreatedAt && hasCursorId) {
+    const cursorCreatedAtStr = String(rawCursorCreatedAt);
+
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(cursorCreatedAtStr);
+    const parsedCursorDate = new Date(cursorCreatedAtStr);
+    if (
+      !isoMatch ||
+      Number.isNaN(parsedCursorDate.getTime()) ||
+      parsedCursorDate.getUTCFullYear() !== Number(isoMatch[1]) ||
+      parsedCursorDate.getUTCMonth() + 1 !== Number(isoMatch[2]) ||
+      parsedCursorDate.getUTCDate() !== Number(isoMatch[3])
+    ) {
       return res.status(400).json({
         code: 'INVALID_CURSOR',
         message: 'cursorCreatedAt must be a valid ISO 8601 timestamp',
@@ -270,7 +282,7 @@ router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) =>
         message: 'cursorId must be a positive integer',
       });
     }
-    cursor = { createdAt: createdAtStr, id: cursorIdNum };
+    cursor = { createdAt: cursorCreatedAtStr, id: cursorIdNum };
   }
 
   const { sensitivityRunService } = await import('../services/sensitivity-run-service');

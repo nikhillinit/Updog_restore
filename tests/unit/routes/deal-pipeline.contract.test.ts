@@ -730,4 +730,18 @@ describe('deal pipeline route contracts', () => {
     expect(response.body).toMatchObject({ error: 'not_found', message: 'Deal not found' });
     expect(mockState.db.select).toHaveBeenCalled();
   });
+
+  it('denies restricted-principal cross-fund GET /opportunities/:id before getDeal', async () => {
+    mockState.state.selectResults.push([dealRow({ id: 400, fundId: 2 })]);
+    const res = await request(makeApp([1], 'lp')).get('/api/deals/opportunities/400');
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+  });
+
+  it('denies restricted-principal cross-fund GET /:id/diligence before query', async () => {
+    mockState.state.selectResults.push([dealRow({ id: 401, fundId: 2 })]);
+    const res = await request(makeApp([1], 'lp')).get('/api/deals/401/diligence');
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+  });
 });

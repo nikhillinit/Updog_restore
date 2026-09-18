@@ -19,7 +19,11 @@ function invoke(
   middleware: (req: Request, res: Response, next: () => void) => unknown,
   req: Request
 ) {
-  const response = { sendStatus: () => undefined } as unknown as Response;
+  const jsonStub = () => undefined;
+  const response = {
+    sendStatus: () => undefined,
+    status: () => ({ json: jsonStub }),
+  } as unknown as Response;
   let nextCalls = 0;
   middleware(req, response, () => {
     nextCalls += 1;

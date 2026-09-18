@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:803823d35309963cfe026ad86cbda4a69d534298deadbaa6adb13e5e715e4895",
+  "snapshot_id": "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -543,7 +543,7 @@
     "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
     "server/app.ts": "5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
     "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
-    "server/lib/auth/jwt.ts": "b83cfc92ee95b4ac7d64ffec5324a58e67a8e376e634d5baa8c83f6c60f0f271",
+    "server/lib/auth/jwt.ts": "914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
     "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
     "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
     "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
@@ -625,7 +625,7 @@
     "server/routes/readiness.ts": "7a5868f7e91cfd1f7b7cf7c11e723c14f678c619b2f386542e197668454e93ca",
     "server/routes/reallocation.ts": "418f6b97bd7dd202a7a64718ef38a5a68ffae898f055842e3cba6f7300c6f340",
     "server/routes/scenario-analysis.ts": "a63649f5b2ae090e69d6440646a70895b2795d0cf5a89d50ca1d6f182a112209",
-    "server/routes/sensitivity.ts": "7b8c9c884f9b635e06743d71a45b41c43f47b8cf42dd70e022e3aa1f0a2736b8",
+    "server/routes/sensitivity.ts": "0acf39656dedb669afcbbce73f3eef7842efce2e685db749b7f4c9ae2206a2e4",
     "server/routes/shares.ts": "d1359e2b8b06ceec542167e1cd7b800eff087556b654efeff4a6e925f16f9dd2",
     "server/routes/simulations-guarded.example.ts": "8d9d6a70248266b63d476f8552e1f90966bd831558a328f84d13c9b28e9ff4cd",
     "server/routes/sse-events.ts": "4a10d46d27bf98d8348494b2bb3c66c0583dd74928a6dc8429f53479b81c0f84",
@@ -11530,7 +11530,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:803823d35309963cfe026ad86cbda4a69d534298deadbaa6adb13e5e715e4895"
+      "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f"
     ]
   },
   "kg_counts": {

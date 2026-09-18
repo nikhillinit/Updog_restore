@@ -391,7 +391,11 @@ export const requireWriteRole =
         return effectiveRole !== undefined && requiredRoles.includes(effectiveRole);
       })
     ) {
-      return res.sendStatus(403);
+      return res.status(403).json({
+        error: 'Forbidden',
+        code: 'WRITE_ROLE_REQUIRED',
+        message: 'A write role is required for this operation',
+      });
     }
     next();
   };
