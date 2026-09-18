@@ -131,10 +131,6 @@ const reExportPairs = [
   },
   { source: 'shared/core/pacing/PacingEngine.ts', shim: 'client/src/core/pacing/PacingEngine.ts' },
   {
-    source: 'shared/core/cohorts/CohortEngine.ts',
-    shim: 'client/src/core/cohorts/CohortEngine.ts',
-  },
-  {
     source: 'shared/core/cohorts/analysis/advanced-engine.ts',
     shim: 'client/src/core/cohorts/advanced-engine.ts',
   },

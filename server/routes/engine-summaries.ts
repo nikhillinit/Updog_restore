@@ -5,7 +5,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
-import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
 import { toNumber } from '@shared/number';
 import type {
   ApiError,
@@ -13,12 +12,9 @@ import type {
   ReserveSummary,
   PacingInput,
   PacingSummary,
-  CohortInput,
-  CohortSummary,
 } from '@shared/types';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
-import { getConfig } from '../config/index.js';
 
 const router = Router();
 const log = logger.child({ route: 'engine-summaries' });
@@ -151,91 +147,6 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
       error: 'Pacing engine processing failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       details: { query: req.query as Record<string, unknown> },
-    };
-    return res.status(500).json(apiError);
-  }
-});
-
-// NOT fund-scoped (Slice 3 T2 verdict). generateCohortSummary -> CohortEngine is
-// pure synthetic compute: it builds mock companies from { vintageYear, cohortSize }
-// with Math.random() and uses fundId only as a label in `cohort-${fundId}-${vintageYear}`.
-// No stored per-fund data is read, so there is no cross-fund disclosure and the
-// DEFAULT_FUND_ID fallback is safe. If this scaffold is ever wired to real per-fund
-// data, guard it with requireProvidedFundScopeFrom('query') and drop the default.
-router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
-  try {
-    const fundIdQuery = req.query['fundId'];
-    const vintageYearQuery = req.query['vintageYear'];
-    const cohortSizeQuery = req.query['cohortSize'];
-
-    let fundId = getConfig().DEFAULT_FUND_ID;
-    let vintageYear = new Date().getFullYear() - 1;
-    let cohortSize = 10;
-
-    if (fundIdQuery) {
-      const parsedId = toNumber(fundIdQuery as string, 'fund ID');
-      if (parsedId <= 0) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
-        };
-        return res.status(400).json(error);
-      }
-      fundId = parsedId;
-    }
-
-    if (vintageYearQuery) {
-      const parsedYear = toNumber(vintageYearQuery as string, 'vintage year');
-      if (parsedYear < 2000 || parsedYear > 2030) {
-        const error: ApiError = {
-          error: 'Invalid vintage year',
-          message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`,
-        };
-        return res.status(400).json(error);
-      }
-      vintageYear = parsedYear;
-    }
-
-    if (cohortSizeQuery) {
-      const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
-      if (parsedSize <= 0 || parsedSize > 1000) {
-        const error: ApiError = {
-          error: 'Invalid cohort size',
-          message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`,
-        };
-        return res.status(400).json(error);
-      }
-      cohortSize = parsedSize;
-    }
-
-    const cohortInput: CohortInput = {
-      fundId,
-      vintageYear,
-      cohortSize,
-    };
-
-    const summary: CohortSummary = generateCohortSummary(cohortInput);
-    return res.json(summary);
-  } catch (error) {
-    if (handleNumberParseError(error, res, 'Invalid cohort query')) {
-      return;
-    }
-
-    log.error(
-      {
-        err: error,
-        query: req.query,
-      },
-      'Cohort summary request failed'
-    );
-
-    const apiError: ApiError = {
-      error: 'Cohort analysis failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      details: {
-        query: req.query as Record<string, unknown>,
-        note: 'This is a scaffolded endpoint for future cohort analysis features',
-      },
     };
     return res.status(500).json(apiError);
   }

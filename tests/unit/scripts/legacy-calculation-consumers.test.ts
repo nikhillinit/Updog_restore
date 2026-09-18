@@ -13,24 +13,6 @@ const manifest = JSON.parse(
 describe('legacy-calculation-consumers guard', () => {
   it.each([
     {
-      name: 'direct protected engine import',
-      filePath: 'server/routes/new-thing.ts',
-      source: "import { CohortEngine } from '@shared/core/cohorts/CohortEngine';",
-      entryClass: 'protected_calculation_engines',
-    },
-    {
-      name: 'literal dynamic protected engine import',
-      filePath: 'server/services/new-thing.ts',
-      source: "const m = await import('@shared/core/cohorts/CohortEngine');",
-      entryClass: 'protected_calculation_engines',
-    },
-    {
-      name: 'protected symbol imported through the cohorts barrel',
-      filePath: 'client/src/pages/new.tsx',
-      source: "import { generateCohortSummary } from '@/core/cohorts';",
-      entryClass: 'protected_calculation_engines',
-    },
-    {
       name: 'legacy-backed facade import',
       filePath: 'server/routes/new-facade.ts',
       source: "import { metricsAggregator } from '@server/services/metrics-aggregator';",
@@ -93,26 +75,8 @@ describe('legacy-calculation-consumers guard', () => {
 
   it.each([
     {
-      filePath: 'server/services/projected-metrics-calculator.ts',
-      source: "import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';",
-    },
-    {
       filePath: 'server/services/metrics-aggregator.ts',
       source: "import { ProjectedMetricsCalculator } from './projected-metrics-calculator';",
-    },
-    {
-      filePath: 'server/routes/engine-summaries.ts',
-      source: "import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';",
-    },
-    {
-      filePath: 'client/src/core/cohorts/CohortEngine.ts',
-      source:
-        "export { CohortEngine, compareCohorts, generateCohortSummary } from '@shared/core/cohorts/CohortEngine';",
-    },
-    {
-      filePath: 'client/src/core/cohorts/index.ts',
-      source:
-        "export { CohortEngine, generateCohortSummary, compareCohorts } from './CohortEngine';",
     },
     {
       filePath: 'server/services/current-forecast-serving-seam.ts',

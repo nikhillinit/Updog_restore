@@ -147,60 +147,6 @@ export const PacingSummarySchema = z.object({
   generatedAt: z.date(),
 });
 
-// Cohort Engine Types (scaffold)
-export const CohortInputSchema = z.object({
-  fundId: z.number().int().positive(),
-  vintageYear: z.number().int().min(2000).max(2030),
-  cohortSize: z.number().int().positive(),
-});
-
-export const CohortOutputSchema = z.object({
-  cohortId: z.string(),
-  vintageYear: z.number().int(),
-  performance: z.object({
-    irr: z.number(),
-    multiple: z.number().min(0),
-    dpi: z.number().min(0),
-  }),
-  companies: z.array(
-    z.object({
-      id: z.number().int().positive(),
-      name: z.string(),
-      stage: z.string(),
-      valuation: z.number().min(0),
-    })
-  ),
-});
-
-export const CohortSummarySchema = z.object({
-  cohortId: z.string(),
-  vintageYear: z.number().int(),
-  totalCompanies: z.number().int().min(0),
-  performance: z.object({
-    irr: z.number(),
-    multiple: z.number().min(0),
-    dpi: z.number().min(0),
-  }),
-  avgValuation: z.number().min(0),
-  stageDistribution: z.record(z.string(), z.number().int().min(0)),
-  companies: z.array(
-    z.object({
-      id: z.number().int().positive(),
-      name: z.string(),
-      stage: z.string(),
-      valuation: z.number().min(0),
-    })
-  ),
-  generatedAt: z.date(),
-  metadata: z
-    .object({
-      algorithmMode: z.enum(['rule-based', 'ml-enhanced']),
-      yearsActive: z.number().int().min(0),
-      maturityLevel: z.number().min(0).max(1),
-    })
-    .optional(),
-});
-
 // =============================================================================
 // INFERRED TYPESCRIPT TYPES
 // =============================================================================
@@ -212,10 +158,6 @@ export type ReserveSummary = z.infer<typeof ReserveSummarySchema>;
 export type PacingInput = z.infer<typeof PacingInputSchema>;
 export type PacingOutput = z.infer<typeof PacingOutputSchema>;
 export type PacingSummary = z.infer<typeof PacingSummarySchema>;
-
-export type CohortInput = z.infer<typeof CohortInputSchema>;
-export type CohortOutput = z.infer<typeof CohortOutputSchema>;
-export type CohortSummary = z.infer<typeof CohortSummarySchema>;
 
 // =============================================================================
 // API RESPONSE TYPES

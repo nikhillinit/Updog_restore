@@ -1031,9 +1031,9 @@ export class MetricsAggregator {
       constructionForecast.jCurvePath.calls.length
     );
     const projectedFutureLength = Math.max(
-      projected.projectedNAV.length,
+      projected.projectedNAV?.length ?? 0,
       projected.projectedDeployment.length,
-      projected.projectedDistributions.length
+      projected.projectedDistributions?.length ?? 0
     );
     const constructionRemainingLength = Math.max(1, constructionLength - constructionStartIndex);
     const horizon = Math.max(1, Math.min(constructionRemainingLength, projectedFutureLength + 1));
@@ -1231,7 +1231,9 @@ export class MetricsAggregator {
     }
 
     const projectionIndex = projectionStartIndex + quarterIndex - 1;
-    const nav = this.valueAtOrLast(projected.projectedNAV, projectionIndex, actual.currentNAV);
+    const nav = projected.projectedNAV
+      ? this.valueAtOrLast(projected.projectedNAV, projectionIndex, actual.currentNAV)
+      : actual.currentNAV;
     const calledCapital =
       actual.totalCalled +
       this.cumulativeNumberFrom(
@@ -1241,11 +1243,13 @@ export class MetricsAggregator {
       );
     const distributions =
       actual.totalDistributions +
-      this.cumulativeNumberFrom(
-        projected.projectedDistributions,
-        projectionStartIndex,
-        projectionIndex
-      );
+      (projected.projectedDistributions
+        ? this.cumulativeNumberFrom(
+            projected.projectedDistributions,
+            projectionStartIndex,
+            projectionIndex
+          )
+        : 0);
 
     return {
       nav,
