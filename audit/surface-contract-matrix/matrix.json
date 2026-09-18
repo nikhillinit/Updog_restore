@@ -6139,7 +6139,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/engine-summaries.ts=aa72c57841db17db3eda5d36c4c2765f0b00a322d58038b1a42ab66421ad62ad",
+        "server/routes/engine-summaries.ts=deadf0085349995980b2e296c135bdb3a0ed757d971fedc1d9a6ac032b4d9d34",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -46209,7 +46209,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/engine-summaries.ts=aa72c57841db17db3eda5d36c4c2765f0b00a322d58038b1a42ab66421ad62ad",
+        "server/routes/engine-summaries.ts=deadf0085349995980b2e296c135bdb3a0ed757d971fedc1d9a6ac032b4d9d34",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -48898,7 +48898,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/engine-summaries.ts=aa72c57841db17db3eda5d36c4c2765f0b00a322d58038b1a42ab66421ad62ad",
+        "server/routes/engine-summaries.ts=deadf0085349995980b2e296c135bdb3a0ed757d971fedc1d9a6ac032b4d9d34",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
