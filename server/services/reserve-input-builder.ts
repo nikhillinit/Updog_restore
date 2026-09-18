@@ -83,14 +83,14 @@ function investmentRowToPortfolioWithProvenance(
   row: InvestmentPortfolioRow
 ): ReserveCompanyInputWithProvenance {
   const ownershipMissing = row.ownership_percentage == null;
-  const stageMissing = row.round == null || row.round.trim().length === 0;
+  const observedRound = row.round != null && row.round.trim().length > 0 ? row.round : null;
   const sectorMissing = row.sector == null || row.sector.trim().length === 0;
 
   return {
     id: row.company_id ?? row.id,
     invested: toNumber(row.amount),
     ownership: ownershipMissing ? null : toNumber(row.ownership_percentage),
-    stage: row.round != null && row.round.trim().length > 0 ? row.round : 'seed',
+    stage: observedRound ?? '',
     sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
     provenance: {
       invested: fieldProvenance('observed', 'investments.amount', null),
@@ -101,13 +101,14 @@ function investmentRowToPortfolioWithProvenance(
             'Ownership percentage is not recorded; no default is substituted (ADR-054)'
           )
         : fieldProvenance('observed', 'investments.ownership_percentage', null),
-      stage: stageMissing
-        ? fieldProvenance(
-            'defaulted',
-            'system_default_stage',
-            'Missing round uses seed legacy default'
-          )
-        : fieldProvenance('observed', 'investments.round', null),
+      stage:
+        observedRound == null
+          ? fieldProvenance(
+              'unavailable',
+              'investments.round',
+              'No round recorded; company excluded from reserve allocation (no default is substituted)'
+            )
+          : fieldProvenance('observed', 'investments.round', null),
       sector: sectorMissing
         ? fieldProvenance(
             'defaulted',
@@ -123,14 +124,14 @@ function companyRowToPortfolioWithProvenance(
   row: PortfolioCompanyRow
 ): ReserveCompanyInputWithProvenance {
   const investedMissing = row.investment_amount == null;
-  const stageMissing = row.stage == null || row.stage.trim().length === 0;
+  const observedStage = row.stage != null && row.stage.trim().length > 0 ? row.stage : null;
   const sectorMissing = row.sector == null || row.sector.trim().length === 0;
 
   return {
     id: row.id,
     invested: toNumber(row.investment_amount),
     ownership: null,
-    stage: row.stage != null && row.stage.trim().length > 0 ? row.stage : 'seed',
+    stage: observedStage ?? '',
     sector: row.sector != null && row.sector.trim().length > 0 ? row.sector : 'unknown',
     provenance: {
       invested: investedMissing
@@ -145,13 +146,14 @@ function companyRowToPortfolioWithProvenance(
         'portfolio_companies',
         'portfolio_companies rows carry no actuals-grade ownership; no default is substituted (ADR-054)'
       ),
-      stage: stageMissing
-        ? fieldProvenance(
-            'defaulted',
-            'system_default_stage',
-            'Missing stage uses seed legacy default'
-          )
-        : fieldProvenance('observed', 'portfolio_companies.stage', null),
+      stage:
+        observedStage == null
+          ? fieldProvenance(
+              'unavailable',
+              'portfolio_companies.stage',
+              'No stage recorded; company excluded from reserve allocation (no default is substituted)'
+            )
+          : fieldProvenance('observed', 'portfolio_companies.stage', null),
       sector: sectorMissing
         ? fieldProvenance(
             'defaulted',
@@ -166,16 +168,18 @@ function companyRowToPortfolioWithProvenance(
 function toLegacyReservePortfolio(
   provenancePortfolio: ReserveCompanyInputWithProvenance[]
 ): ReserveCompanyInput[] {
-  return provenancePortfolio.map(({ id, invested, ownership, stage, sector }) => ({
-    id,
-    invested,
-    ownership,
-    stage,
-    sector,
-  }));
+  return provenancePortfolio
+    .filter((company) => company.provenance.stage.status !== 'unavailable')
+    .map(({ id, invested, ownership, stage, sector }) => ({
+      id,
+      invested,
+      ownership,
+      stage,
+      sector,
+    }));
 }
 
-function buildReservePortfolioInputWithTrustFromRows(input: {
+export function buildReservePortfolioInputWithTrustFromRows(input: {
   investments: InvestmentPortfolioRow[];
   companies: PortfolioCompanyRow[];
 }): ReservePortfolioInputWithTrust {

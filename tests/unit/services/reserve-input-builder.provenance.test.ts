@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { ReserveCompanyInputSchema } from '../../../shared/types';
+import { generateReserveSummary } from '../../../shared/core/reserves/ReserveEngine';
 import {
   buildReserveInputTrustSummary,
   buildReservePortfolioInputWithProvenanceFromRows,
+  buildReservePortfolioInputWithTrustFromRows,
 } from '../../../server/services/reserve-input-builder';
 
 describe('reserve input builder provenance', () => {
@@ -51,20 +52,26 @@ describe('reserve input builder provenance', () => {
     const summary = buildReserveInputTrustSummary(portfolio);
 
     // ADR-054: ownership is never defaulted. A missing percentage is null + 'unavailable',
-    // never 0.15 + 'defaulted'. Stage keeps its labelled legacy default.
+    // never 0.15 + 'defaulted'. Missing stage is unavailable and excluded from the engine.
     expect(portfolio[0]?.ownership).toBeNull();
+    expect(portfolio[0]?.stage).toBe('');
     expect(portfolio[0]?.provenance.ownership).toEqual({
       status: 'unavailable',
       source: 'investments.ownership_percentage',
       reason: expect.stringMatching(/no default is substituted/),
     });
-    expect(portfolio[0]?.provenance.stage.status).toBe('defaulted');
+    expect(portfolio[0]?.provenance.stage).toEqual({
+      status: 'unavailable',
+      source: 'investments.round',
+      reason:
+        'No round recorded; company excluded from reserve allocation (no default is substituted)',
+    });
     expect(summary).toEqual({
       trustedForActivation: false,
-      defaultedInputCount: 1,
-      unavailableInputCount: 1,
-      defaultedFields: ['stage'],
-      unavailableFields: ['ownership'],
+      defaultedInputCount: 0,
+      unavailableInputCount: 2,
+      defaultedFields: [],
+      unavailableFields: ['ownership', 'stage'],
     });
   });
 
@@ -79,7 +86,7 @@ describe('reserve input builder provenance', () => {
       id: 101,
       invested: 500000,
       ownership: null,
-      stage: 'seed',
+      stage: '',
       sector: 'unknown',
       provenance: {
         ownership: {
@@ -87,41 +94,153 @@ describe('reserve input builder provenance', () => {
           source: 'portfolio_companies',
           reason: expect.stringMatching(/no default is substituted/),
         },
-        stage: { status: 'defaulted' },
+        stage: {
+          status: 'unavailable',
+          source: 'portfolio_companies.stage',
+          reason:
+            'No stage recorded; company excluded from reserve allocation (no default is substituted)',
+        },
         sector: { status: 'defaulted' },
       },
     });
     expect(buildReserveInputTrustSummary(portfolio)).toEqual({
       trustedForActivation: false,
-      defaultedInputCount: 2,
-      unavailableInputCount: 1,
-      defaultedFields: ['sector', 'stage'],
-      unavailableFields: ['ownership'],
+      defaultedInputCount: 1,
+      unavailableInputCount: 2,
+      defaultedFields: ['sector'],
+      unavailableFields: ['ownership', 'stage'],
     });
   });
 
-  it('REGRESSION: buildReservePortfolioInput fallback now emits schema-valid defaults, not null', () => {
-    // Pins the authoritative Drizzle-path behavior change (C1): the portfolio-companies
-    // fallback previously emitted raw null stage/sector (schema-invalid). The unified path
-    // must emit 'seed'/'unknown', which the reserve engine accepts and provenance marks defaulted,
-    // and null ownership, which the nullable schema accepts and provenance marks unavailable.
-    const legacy = buildReservePortfolioInputWithProvenanceFromRows({
+  it('REGRESSION: missing stage is retained in provenance but excluded from legacy portfolio', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
       investments: [],
       companies: [{ id: 101, investment_amount: '500000', stage: null, sector: null }],
-    }).map(({ id, invested, ownership, stage, sector }) => ({
-      id,
-      invested,
-      ownership,
-      stage,
-      sector,
-    }));
+    });
 
-    expect(legacy[0]?.stage).toBe('seed');
-    expect(legacy[0]?.sector).toBe('unknown');
-    expect(legacy[0]?.stage).not.toBeNull();
-    expect(legacy[0]?.ownership).toBeNull();
-    // Guard: the emitted shape must satisfy ReserveCompanyInputSchema (stage/sector .min(1),
-    // ownership nullable).
-    expect(() => ReserveCompanyInputSchema.parse(legacy[0])).not.toThrow();
+    expect(built.provenancePortfolio[0]?.stage).toBe('');
+    expect(built.provenancePortfolio[0]?.sector).toBe('unknown');
+    expect(built.provenancePortfolio[0]?.ownership).toBeNull();
+    expect(built.portfolio).toEqual([]);
+  });
+});
+
+describe('reserve-input-builder stage handling', () => {
+  it('marks a null round as unavailable and excludes the company from the engine portfolio', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
+      investments: [
+        {
+          id: 1,
+          company_id: 10,
+          amount: '100000',
+          ownership_percentage: '0.1',
+          round: null,
+          sector: 'SaaS',
+        },
+        {
+          id: 2,
+          company_id: 11,
+          amount: '200000',
+          ownership_percentage: '0.1',
+          round: 'Series A',
+          sector: 'SaaS',
+        },
+      ],
+      companies: [],
+    });
+
+    expect(built.provenancePortfolio).toHaveLength(2);
+    expect(built.provenancePortfolio[0]?.provenance.stage).toEqual({
+      status: 'unavailable',
+      source: 'investments.round',
+      reason:
+        'No round recorded; company excluded from reserve allocation (no default is substituted)',
+    });
+    expect(built.provenancePortfolio[0]?.stage).toBe('');
+    expect(built.portfolio.map((company) => company.id)).toEqual([11]);
+    expect(built.reserveInputTrustSummary.trustedForActivation).toBe(false);
+    expect(built.reserveInputTrustSummary.unavailableFields).toContain('stage');
+  });
+
+  it('treats a blank round the same as null', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
+      investments: [
+        {
+          id: 1,
+          company_id: 10,
+          amount: '100000',
+          ownership_percentage: '0.1',
+          round: '   ',
+          sector: 'SaaS',
+        },
+      ],
+      companies: [],
+    });
+
+    expect(built.provenancePortfolio[0]?.provenance.stage.status).toBe('unavailable');
+    expect(built.portfolio).toEqual([]);
+  });
+
+  it('passes an observed round through verbatim', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
+      investments: [
+        {
+          id: 1,
+          company_id: 10,
+          amount: '100000',
+          ownership_percentage: '0.1',
+          round: 'Series A',
+          sector: 'SaaS',
+        },
+      ],
+      companies: [],
+    });
+
+    expect(built.portfolio[0]).toMatchObject({ id: 10, stage: 'Series A' });
+    expect(built.provenancePortfolio[0]?.provenance.stage.status).toBe('observed');
+  });
+
+  it('a missing-stage company receives no reserve allocation from generateReserveSummary', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
+      investments: [
+        {
+          id: 1,
+          company_id: 10,
+          amount: '100000',
+          ownership_percentage: '0.1',
+          round: null,
+          sector: 'SaaS',
+        },
+        {
+          id: 2,
+          company_id: 11,
+          amount: '100000',
+          ownership_percentage: '0.1',
+          round: 'Series A',
+          sector: 'SaaS',
+        },
+      ],
+      companies: [],
+    });
+
+    const summary = generateReserveSummary(1, built.portfolio);
+    expect(summary.allocations).toHaveLength(1);
+    const onlyObserved = generateReserveSummary(1, [built.portfolio[0]!]);
+    expect(summary.totalAllocation).toBe(onlyObserved.totalAllocation);
+  });
+
+  it('marks a null company stage as unavailable and excludes it', () => {
+    const built = buildReservePortfolioInputWithTrustFromRows({
+      investments: [],
+      companies: [{ id: 101, investment_amount: '500000', stage: null, sector: 'SaaS' }],
+    });
+
+    expect(built.provenancePortfolio[0]?.provenance.stage).toEqual({
+      status: 'unavailable',
+      source: 'portfolio_companies.stage',
+      reason:
+        'No stage recorded; company excluded from reserve allocation (no default is substituted)',
+    });
+    expect(built.portfolio).toEqual([]);
   });
 });
