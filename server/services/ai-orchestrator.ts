@@ -33,11 +33,11 @@ const CONFIG = {
 
 // Initialize AI clients (only if API keys present)
 const anthropic = process.env['ANTHROPIC_API_KEY']
-  ? new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] })
+  ? new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'], maxRetries: 0 })
   : null;
 
 const openai = process.env['OPENAI_API_KEY']
-  ? new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] })
+  ? new OpenAI({ apiKey: process.env['OPENAI_API_KEY'], maxRetries: 0 })
   : null;
 
 const gemini = process.env['GOOGLE_API_KEY']
@@ -48,6 +48,7 @@ const deepseek = process.env['DEEPSEEK_API_KEY']
   ? new OpenAI({
       apiKey: process.env['DEEPSEEK_API_KEY'],
       baseURL: 'https://api.deepseek.com',
+      maxRetries: 0,
     })
   : null;
 
@@ -196,42 +197,66 @@ function sha256(text: string): string {
 // Provider Implementations with Retry Logic
 // ============================================================================
 
-async function withRetryAndTimeout<T>(fn: () => Promise<T>, _model: ModelName): Promise<T> {
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= CONFIG.maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CONFIG.timeout);
-
-      const result = await Promise.race([
-        fn(),
-        new Promise<never>((_, reject) => {
-          controller.signal.addEventListener('abort', () =>
-            reject(new Error(`Timeout after ${CONFIG.timeout}ms`))
-          );
-        }),
-      ]);
-
-      clearTimeout(timeoutId);
-      return result;
-    } catch (error: unknown) {
-      lastError = error as Error;
-
-      // Don't retry on auth errors
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('API key') || errorMessage.includes('401')) {
-        throw error;
-      }
-
-      // Wait before retry (exponential backoff)
-      if (attempt < CONFIG.maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-      }
-    }
+export async function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  callerSignal?: AbortSignal
+): Promise<T> {
+  if (callerSignal?.aborted) {
+    throw new Error('Caller already aborted');
   }
 
-  throw lastError || new Error('Unknown error');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CONFIG.timeout);
+
+  const onCallerAbort = () => controller.abort();
+  if (callerSignal) {
+    callerSignal.addEventListener('abort', onCallerAbort, { once: true });
+  }
+
+  const fnPromise = fn(controller.signal);
+  fnPromise.catch(() => {});
+
+  try {
+    return await Promise.race([
+      fnPromise,
+      new Promise<never>((_, reject) => {
+        controller.signal.addEventListener('abort', () =>
+          reject(new Error(`Timeout after ${CONFIG.timeout}ms`))
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', onCallerAbort);
+  }
+}
+
+export async function withGeminiRetry<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  signal: AbortSignal
+): Promise<T> {
+  try {
+    return await fn(signal);
+  } catch (err: unknown) {
+    if (signal.aborted) throw err;
+    const status = (err as { status?: number }).status;
+    if (status === 429 || status === 500 || status === 503) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 1000);
+        signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true }
+        );
+      });
+      if (signal.aborted) throw err;
+      return fn(signal);
+    }
+    throw err;
+  }
 }
 
 export interface ClaudeOptions {
@@ -301,7 +326,9 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
 
     const request = requestPayload as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
-    const response = await withRetryAndTimeout(() => anthropic.messages.create(request), 'claude');
+    const response = await withTimeout((sig) =>
+      anthropic.messages.create(request, { signal: sig })
+    );
 
     const text = response.content
       .filter((c) => c.type === 'text')
@@ -338,14 +365,15 @@ async function askGPT(prompt: string): Promise<AIResponse> {
   const startTime = Date.now();
 
   try {
-    const response = await withRetryAndTimeout(
-      () =>
-        openai.chat.completions.create({
+    const response = await withTimeout((sig) =>
+      openai.chat.completions.create(
+        {
           model: process.env['OPENAI_MODEL'] ?? 'gpt-4o-mini',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 16384,
-        }),
-      'gpt'
+        },
+        { signal: sig }
+      )
     );
 
     const text = response.choices[0]?.message?.content ?? '';
@@ -385,7 +413,9 @@ async function askGemini(prompt: string): Promise<AIResponse> {
       model: process.env['GEMINI_MODEL'] ?? 'gemini-1.5-flash',
     });
 
-    const response = await withRetryAndTimeout(() => model.generateContent(prompt), 'gemini');
+    const response = await withTimeout((sig) =>
+      withGeminiRetry((retrySig) => model.generateContent(prompt, { signal: retrySig }), sig)
+    );
 
     const text = response.response.text();
     const metadata = response.response.usageMetadata;
@@ -421,14 +451,15 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
   const startTime = Date.now();
 
   try {
-    const response = await withRetryAndTimeout(
-      () =>
-        deepseek.chat.completions.create({
+    const response = await withTimeout((sig) =>
+      deepseek.chat.completions.create(
+        {
           model: process.env['DEEPSEEK_MODEL'] ?? 'deepseek-chat',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 8192,
-        }),
-      'deepseek'
+        },
+        { signal: sig }
+      )
     );
 
     const text = response.choices[0]?.message?.content ?? '';
