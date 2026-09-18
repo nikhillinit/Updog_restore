@@ -1,0 +1,452 @@
+{
+  "name": "actuals-draft-revisions",
+  "order": 33,
+  "description": "Migration 0056: append-only actuals draft revisions, predecessor linkage, artifact ownership, and immutable trigger/function wiring. Apply only through the bounded 0056 journal runner.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0056_actuals_draft_revisions.sql"],
+  "allowedCreateTables": ["actuals_draft_revisions"],
+  "expectedTables": [
+    {
+      "name": "actuals_draft_revisions",
+      "columns": [
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revision",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "revision_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "prior_revision",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "prior_revision_hash",
+          "type": "varchar",
+          "nullable": true,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "classification",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 11,
+          "defaultExpression": null
+        },
+        {
+          "name": "as_of_date",
+          "type": "date",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "source_note",
+          "type": "text",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "correction_reason",
+          "type": "text",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_source_artifact_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_template_version",
+          "type": "text",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_file_name",
+          "type": "text",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_payload_sha256",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_byte_count",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_purge_after",
+          "type": "timestamptz",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_source_artifact_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_template_version",
+          "type": "text",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_file_name",
+          "type": "text",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_payload_sha256",
+          "type": "varchar",
+          "nullable": true,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_byte_count",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_purge_after",
+          "type": "timestamptz",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        "actuals_draft_revisions_as_of_date_check",
+        "actuals_draft_revisions_classification_check",
+        "actuals_draft_revisions_correction_reason_check",
+        "actuals_draft_revisions_created_by_users_id_fk",
+        "actuals_draft_revisions_fund_id_funds_id_fk",
+        "actuals_draft_revisions_idempotency",
+        "actuals_draft_revisions_identity",
+        "actuals_draft_revisions_ledger_byte_count_check",
+        "actuals_draft_revisions_ledger_file_name_check",
+        "actuals_draft_revisions_ledger_fk",
+        "actuals_draft_revisions_ledger_payload_sha256_check",
+        "actuals_draft_revisions_ledger_template_version_check",
+        "actuals_draft_revisions_pk",
+        "actuals_draft_revisions_prior_check",
+        "actuals_draft_revisions_prior_fk",
+        "actuals_draft_revisions_request_hash_check",
+        "actuals_draft_revisions_retention_check",
+        "actuals_draft_revisions_revision_check",
+        "actuals_draft_revisions_revision_hash_check",
+        "actuals_draft_revisions_source_note_check",
+        "actuals_draft_revisions_valuation_check",
+        "actuals_draft_revisions_valuation_fk"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "actuals_draft_revisions_as_of_date_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((as_of_date IS NULL) OR ((as_of_date >= '0001-01-01'::date) AND (as_of_date <= '9999-12-31'::date))))",
+            "orderedFragments": [
+              "CHECK (((as_of_date IS NULL) OR ((as_of_date >= '0001-01-01'::date) AND (as_of_date <= '9999-12-31'::date))))"
+            ],
+            "stringLiterals": ["0001-01-01", "9999-12-31"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_classification_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((classification)::text = ANY ((ARRAY['provisional'::character varying, 'synthetic'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK (((classification)::text = ANY ((ARRAY['provisional'::character varying, 'synthetic'::character varying])::text[])))"
+            ],
+            "stringLiterals": ["provisional", "synthetic"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_correction_reason_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((length(btrim(correction_reason)) >= 1) AND (length(btrim(correction_reason)) <= 500)))",
+            "orderedFragments": [
+              "CHECK (((length(btrim(correction_reason)) >= 1) AND (length(btrim(correction_reason)) <= 500)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_created_by_users_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY (created_by) REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id)",
+            "orderedFragments": ["FOREIGN KEY (fund_id) REFERENCES funds(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_idempotency",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE (fund_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_identity",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, revision, revision_hash)",
+            "orderedFragments": ["UNIQUE (fund_id, revision, revision_hash)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_ledger_byte_count_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((ledger_byte_count >= 0) AND (ledger_byte_count <= 122880)))",
+            "orderedFragments": [
+              "CHECK (((ledger_byte_count >= 0) AND (ledger_byte_count <= 122880)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_ledger_file_name_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((length(ledger_file_name) >= 1) AND (length(ledger_file_name) <= 255)))",
+            "orderedFragments": [
+              "CHECK (((length(ledger_file_name) >= 1) AND (length(ledger_file_name) <= 255)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_ledger_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (ledger_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (ledger_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_ledger_payload_sha256_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((ledger_payload_sha256)::text ~ '^[a-f0-9]{64}$'::text))",
+            "orderedFragments": [
+              "CHECK (((ledger_payload_sha256)::text ~ '^[a-f0-9]{64}$'::text))"
+            ],
+            "stringLiterals": ["^[a-f0-9]{64}$"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_ledger_template_version_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((ledger_template_version = 'actuals-ledger/1.0.0'::text))",
+            "orderedFragments": [
+              "CHECK ((ledger_template_version = 'actuals-ledger/1.0.0'::text))"
+            ],
+            "stringLiterals": ["actuals-ledger/1.0.0"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_pk",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (fund_id, revision)",
+            "orderedFragments": ["PRIMARY KEY (fund_id, revision)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_prior_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((revision = 1) AND (prior_revision IS NULL) AND (prior_revision_hash IS NULL)) OR ((revision > 1) AND (prior_revision IS NOT NULL) AND (prior_revision = (revision - 1)) AND (prior_revision_hash IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK ((((revision = 1) AND (prior_revision IS NULL) AND (prior_revision_hash IS NULL)) OR ((revision > 1) AND (prior_revision IS NOT NULL) AND (prior_revision = (revision - 1)) AND (prior_revision_hash IS NOT NULL))))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_prior_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id, prior_revision, prior_revision_hash) REFERENCES actuals_draft_revisions(fund_id, revision, revision_hash)",
+            "orderedFragments": [
+              "FOREIGN KEY (fund_id, prior_revision, prior_revision_hash) REFERENCES actuals_draft_revisions(fund_id, revision, revision_hash)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_request_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((request_hash)::text ~ '^[a-f0-9]{64}$'::text))",
+            "orderedFragments": [
+              "CHECK (((request_hash)::text ~ '^[a-f0-9]{64}$'::text))"
+            ],
+            "stringLiterals": ["^[a-f0-9]{64}$"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_retention_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((ledger_purge_after > created_at) AND ((valuation_purge_after IS NULL) OR (valuation_purge_after > created_at))))",
+            "orderedFragments": [
+              "CHECK (((ledger_purge_after > created_at) AND ((valuation_purge_after IS NULL) OR (valuation_purge_after > created_at))))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_revision_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((revision > 0))",
+            "orderedFragments": ["CHECK ((revision > 0))"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_revision_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((revision_hash)::text ~ '^[a-f0-9]{64}$'::text))",
+            "orderedFragments": [
+              "CHECK (((revision_hash)::text ~ '^[a-f0-9]{64}$'::text))"
+            ],
+            "stringLiterals": ["^[a-f0-9]{64}$"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_source_note_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((length(btrim(source_note)) >= 1) AND (length(btrim(source_note)) <= 500)))",
+            "orderedFragments": [
+              "CHECK (((length(btrim(source_note)) >= 1) AND (length(btrim(source_note)) <= 500)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_valuation_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((valuation_source_artifact_id IS NULL) AND (valuation_template_version IS NULL) AND (valuation_file_name IS NULL) AND (valuation_payload_sha256 IS NULL) AND (valuation_byte_count IS NULL) AND (valuation_purge_after IS NULL)) OR ((valuation_source_artifact_id IS NOT NULL) AND (valuation_template_version IS NOT NULL) AND (valuation_template_version = 'actuals-valuation/1.0.0'::text) AND (valuation_file_name IS NOT NULL) AND ((length(valuation_file_name) >= 1) AND (length(valuation_file_name) <= 255)) AND (valuation_payload_sha256 IS NOT NULL) AND ((valuation_payload_sha256)::text ~ '^[a-f0-9]{64}$'::text) AND (valuation_byte_count IS NOT NULL) AND ((valuation_byte_count >= 0) AND (valuation_byte_count <= 40960)) AND (valuation_purge_after IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK ((((valuation_source_artifact_id IS NULL) AND (valuation_template_version IS NULL) AND (valuation_file_name IS NULL) AND (valuation_payload_sha256 IS NULL) AND (valuation_byte_count IS NULL) AND (valuation_purge_after IS NULL)) OR ((valuation_source_artifact_id IS NOT NULL) AND (valuation_template_version IS NOT NULL) AND (valuation_template_version = 'actuals-valuation/1.0.0'::text) AND (valuation_file_name IS NOT NULL) AND ((length(valuation_file_name) >= 1) AND (length(valuation_file_name) <= 255)) AND (valuation_payload_sha256 IS NOT NULL) AND ((valuation_payload_sha256)::text ~ '^[a-f0-9]{64}$'::text) AND (valuation_byte_count IS NOT NULL) AND ((valuation_byte_count >= 0) AND (valuation_byte_count <= 40960)) AND (valuation_purge_after IS NOT NULL))))"
+            ],
+            "stringLiterals": ["actuals-valuation/1.0.0", "^[a-f0-9]{64}$"]
+          }
+        },
+        {
+          "name": "actuals_draft_revisions_valuation_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (valuation_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (valuation_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [],
+      "indexDefinitions": [],
+      "triggerDefinitions": [
+        {
+          "name": "actuals_draft_revisions_immutable",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER actuals_draft_revisions_immutable BEFORE DELETE OR UPDATE ON public.actuals_draft_revisions FOR EACH ROW EXECUTE FUNCTION actuals_draft_revisions_forbid_mutation()",
+            "orderedFragments": [
+              "CREATE TRIGGER actuals_draft_revisions_immutable BEFORE DELETE OR UPDATE ON public.actuals_draft_revisions FOR EACH ROW EXECUTE FUNCTION actuals_draft_revisions_forbid_mutation()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    }
+  ],
+  "functionDefinitions": [
+    {
+      "name": "actuals_draft_revisions_forbid_mutation",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.actuals_draft_revisions_forbid_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'actuals_draft_revisions are append-only' USING ERRCODE = '23514';\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.actuals_draft_revisions_forbid_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'actuals_draft_revisions are append-only' USING ERRCODE = '23514';\nEND;\n$function$\n"
+        ],
+        "stringLiterals": ["actuals_draft_revisions are append-only", "23514"]
+      }
+    }
+  ]
+}

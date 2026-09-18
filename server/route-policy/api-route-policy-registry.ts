@@ -720,6 +720,110 @@ const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] =
     }))
   );
 
+const ACTUALS_PILOT_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = (
+  [
+    {
+      method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/draft-revisions',
+      workflowRequirement: 'actuals_draft_if_match_idempotency_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: 30_000,
+      notes: 'Append-only provisional upload revision; no canonical financial writes.',
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/imports/actuals/draft-revisions',
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/imports/actuals/draft-revisions/:revision',
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/dry-run',
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'preview_only',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/publish',
+      workflowRequirement: 'actuals_pilot_preview_hashes_if_match_and_idempotency_key_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: 30_000,
+      notes: 'ADR-097: ACTUALS_PILOT_PUBLISH_ENABLED gates new writes; receipts replay.',
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/imports/actuals/restatements/targets',
+      workflowRequirement: 'actuals_restatement_full_basis_cursor_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/imports/actuals/restatements/history',
+      workflowRequirement: 'actuals_restatement_full_basis_cursor_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/restatements/dry-run',
+      workflowRequirement:
+        'actuals_restatement_full_basis_lineage_and_explicit_fund_grant_verified',
+      exportPolicy: 'preview_only',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/restatements/publish',
+      workflowRequirement:
+        'actuals_restatement_full_basis_lineage_preview_if_match_and_idempotency_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: 30_000,
+      notes:
+        'ACTUALS_PILOT_PUBLISH_ENABLED gates new corrections; receipts replay. Deployment requires separately admitted 0057 schema.',
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/financial-facts/latest-reference',
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+    {
+      method: 'GET',
+      path: '/api/funds/:fundId/actuals/metrics',
+      workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: null,
+    },
+  ] as const
+).map(({ method, path, ...decision }): RoutePolicyEntry => ({
+  id: `api:${method.toLowerCase()}:${path}`,
+  method,
+  path,
+  lifecycle: 'durable_crud',
+  governanceRef: '/lp-reporting/imports',
+  surface: 'lp-reporting-imports-api',
+  owner: ownerForFinancialSurface('lp_reporting'),
+  telemetryKey: telemetryKeyForRoute('api.route', path),
+  financialSurface: 'lp_reporting',
+  apiAuthBoundary: 'require_auth_fund_access_and_role',
+  fundScopeMode: 'route_param_fund_id',
+  ...decision,
+  provenanceRequired: true,
+  staleBlocksExport: false,
+  humanReviewRequired: false,
+}));
+
 const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS: Readonly<PortfolioIntelligenceRouteDecisionMap> =
   {
     'POST /api/portfolio/strategies': {
@@ -1371,6 +1475,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes: 'Fund-scoped read serves only the latest persisted reconciliation and never recomputes.',
   },
   ...LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES,
+  ...ACTUALS_PILOT_ROUTE_POLICY_ENTRIES,
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
     method: 'GET',

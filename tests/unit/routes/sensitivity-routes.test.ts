@@ -383,6 +383,68 @@ describe('Sensitivity routes', () => {
     expect(getHistoryByFundMock).not.toHaveBeenCalled();
   });
 
+  // ----- A5 cursor validation ---------------------------------------------
+
+  describe('A5 cursor validation', () => {
+    it('rejects cursorCreatedAt alone (no cursorId)', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects cursorId alone (no cursorCreatedAt)', async () => {
+      const res = await request(app).get('/api/funds/1/sensitivity/runs?cursorId=1').expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-ISO cursorCreatedAt', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=not-a-date&cursorId=1')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-canonical cursorId', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z&cursorId=1x')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects cursorId=0 (non-positive)', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z&cursorId=0')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects negative cursorId', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z&cursorId=-1')
+        .expect(400);
+      expect(res.body.code).toBe('INVALID_CURSOR');
+      expect(getHistoryByFundMock).not.toHaveBeenCalled();
+    });
+
+    it('accepts a valid cursor pair and passes to service', async () => {
+      const res = await request(app)
+        .get('/api/funds/1/sensitivity/runs?cursorCreatedAt=2026-01-01T00:00:00Z&cursorId=1')
+        .expect(200);
+      expect(res.body.runs).toBeDefined();
+      expect(getHistoryByFundMock).toHaveBeenCalledTimes(1);
+      const opts = getHistoryByFundMock.mock.calls[0]![1] as {
+        cursor?: { createdAt: string; id: number };
+      };
+      expect(opts.cursor).toEqual({ createdAt: '2026-01-01T00:00:00Z', id: 1 });
+    });
+  });
+
   // ----- GET /funds/:id/sensitivity/runs/:runId ----------------------------
 
   it('GET /runs/:runId returns 404 when service returns null', async () => {

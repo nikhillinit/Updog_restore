@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
 import {
   loadManifests,
+  isPinnedActualsDraftMigrationSource,
   readManifestSql,
+  splitSqlStatements,
   validateManifestSql,
 } from '../../scripts/reconcile-prod-schema.mjs';
 
@@ -112,6 +114,13 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
       ) {
         surviving.add(pgIdentifier(`${tableName}_pkey`));
       }
+      for (const column of tableBody.matchAll(
+        /^\s*(?!CONSTRAINT\b)([a-z0-9_]+)\s+[^\n]*\bCHECK\s*\(/gim
+      )) {
+        if (!/\bCONSTRAINT\b/i.test(column[0])) {
+          surviving.add(pgIdentifier(`${tableName}_${column[1]}_check`));
+        }
+      }
     }
 
     const pattern = new RegExp(SQL_NAME_EVENT.source, 'gi');
@@ -168,7 +177,57 @@ describe('prod-schema manifest sentinels', () => {
       '30-g3-release-gate-hardening.json',
       '31-operating-decisions-spine.json',
       '32-current-forecast-recompute-commands.json',
+      '33-actuals-draft-revisions.json',
+      '34-actuals-restatement-commands.json',
+      '35-capital-plan-override.json',
+      '36-task-update-commands.json',
     ]);
+  });
+
+  it('pins manifest 35 to an atomic six-mode CHECK replacement on existing variants', async () => {
+    const entry = manifests.find((candidate) => candidate.file === '35-capital-plan-override.json');
+    expect(entry).toBeDefined();
+    const manifest = entry!.manifest;
+    const modes = [
+      'fee_profile',
+      'reserve_allocation',
+      'allocation',
+      'sector_profile',
+      'methodology',
+      'capital_plan',
+    ];
+    expect(manifest).toMatchObject({
+      name: 'capital-plan-override',
+      order: 35,
+      missingTablePolicy: 'existing_table_required',
+      sqlFiles: ['migrations/0058_capital_plan_override.sql'],
+      allowedCreateTables: [],
+    });
+    expect(manifest.expectedTables).toHaveLength(1);
+    expect(manifest.expectedTables![0]).toMatchObject({
+      name: 'fund_scenario_variants',
+      sharedTable: true,
+      constraints: ['fund_scenario_variants_override_type_check'],
+    });
+    expect(manifest.applyPolicy?.allowConstraintReplacements).toEqual([
+      {
+        table: 'fund_scenario_variants',
+        name: 'fund_scenario_variants_override_type_check',
+        expectedDefinition: { requiredFragments: ['override_type'], stringLiterals: modes },
+      },
+    ]);
+    expect(manifest.dropObjects ?? []).toEqual([]);
+    const files = await readManifestSql(manifest);
+    expect(() => validateManifestSql(manifest, files)).not.toThrow();
+    const sql = fs.readFileSync(path.join(repoRoot, manifest.sqlFiles![0]!), 'utf8');
+    const statements = splitSqlStatements(sql);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^DO\s+\$\$/m);
+    expect(statements[0]).toMatch(
+      /DROP CONSTRAINT IF EXISTS "fund_scenario_variants_override_type_check";[\s\S]*ADD CONSTRAINT "fund_scenario_variants_override_type_check"/
+    );
+    expect([...sql.matchAll(/'([^']+)'/g)].map((match) => match[1])).toEqual(modes);
+    expect(sql).not.toMatch(/\b(?:UPDATE|DELETE|TRUNCATE|INSERT|NOT\s+VALID)\b/i);
   });
 
   it('pins manifest 23 to additive certification DDL on the existing run table', () => {
@@ -272,6 +331,68 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
+  it('pins task update command receipt identity and relationship sentinels to migration 0059', async () => {
+    const manifest = (await loadManifests()).find(
+      (candidate) => candidate.name === 'task-update-commands'
+    );
+    expect(manifest).toMatchObject({
+      order: 36,
+      manifestPath: 'scripts/prod-schema-manifests/36-task-update-commands.json',
+      missingTablePolicy: 'create_or_repair',
+      sqlFiles: ['migrations/0059_task_update_commands.sql'],
+      allowedCreateTables: ['task_update_commands'],
+    });
+    expect(manifest?.expectedTables).toHaveLength(1);
+    const table = manifest!.expectedTables[0];
+    expect(table.name).toBe('task_update_commands');
+    expect(table.enforceInsertContract).toBe(true);
+    expect(table.indexes).toEqual([
+      'task_update_commands_pkey',
+      'task_update_commands_scope_unique',
+    ]);
+    expect(table.columns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'id',
+          expectedDefaultExpression: "nextval('task_update_commands_id_seq'::regclass)",
+          expectedSequence: {
+            name: 'task_update_commands_id_seq',
+            dataType: 'integer',
+            startValue: '1',
+            minimumValue: '1',
+            maximumValue: '2147483647',
+            increment: '1',
+            cycleOption: 'NO',
+          },
+        }),
+        expect.objectContaining({ name: 'created_at', expectedDefaultExpression: 'now()' }),
+        expect.objectContaining({ name: 'idempotency_key', expectedCharacterMaximumLength: 128 }),
+        expect.objectContaining({ name: 'request_hash', expectedCharacterMaximumLength: 64 }),
+      ])
+    );
+    expect(table.constraintDefinitions.map(({ name }: { name: string }) => name).sort()).toEqual(
+      [...table.constraints].sort()
+    );
+    for (const name of [
+      'task_update_commands_pkey',
+      'task_update_commands_fund_id_funds_id_fk',
+      'task_update_commands_task_fund_fk',
+      'task_update_commands_created_by_users_id_fk',
+      'task_update_commands_scope_unique',
+      'task_update_commands_request_hash_check',
+      'task_update_commands_key_nonempty_check',
+      'task_update_commands_response_identity_check',
+    ]) {
+      expect(table.constraints).toContain(name);
+    }
+    expect(table.triggerDefinitions.map(({ name }: { name: string }) => name)).toEqual([
+      'task_update_commands_forbid_update_trigger',
+    ]);
+    expect(manifest!.functionDefinitions.map(({ name }: { name: string }) => name)).toEqual([
+      'internal_economics_forbid_update',
+    ]);
+  });
+
   it('pins manifest 32 to definition-aware recompute command catalog sentinels', () => {
     const recompute = manifests.find(
       (entry) => entry.file === '32-current-forecast-recompute-commands.json'
@@ -328,19 +449,55 @@ describe('prod-schema manifest sentinels', () => {
     expect(foundationSql).not.toMatch(/^\s*(?:DROP|DELETE|TRUNCATE)\b/im);
   });
 
-  it('every manifest SQL file begins with a -- @generated or -- @drift-patch marker', () => {
+  it('every manifest SQL file has marked ownership or exact immutable provenance', async () => {
     const offenders: string[] = [];
+    const loadedManifests = await loadManifests();
 
     for (const { file, manifest } of manifests) {
       for (const sqlFile of manifest.sqlFiles ?? []) {
         const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
-        if (!/^--\s*@(generated|drift-patch)\b/m.test(sql)) {
+        const source = (await readManifestSql(manifest)).find(
+          (entry: { path: string }) => entry.path === sqlFile
+        );
+        if (
+          !/^--\s*@(generated|drift-patch)\b/m.test(sql) &&
+          !isPinnedActualsDraftMigrationSource(
+            loadedManifests.find((entry: { name: string }) => entry.name === manifest.name),
+            source
+          )
+        ) {
           offenders.push(`${file} -> ${sqlFile}`);
         }
       }
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  it('accepts unmarked 0056 only with its exact manifest, bytes and journal provenance', async () => {
+    const manifest = (await loadManifests()).find((entry: { order: number }) => entry.order === 33);
+    expect(manifest).toBeDefined();
+    const [source] = await readManifestSql(manifest);
+    expect(isPinnedActualsDraftMigrationSource(manifest, source)).toBe(true);
+    expect(isPinnedActualsDraftMigrationSource({ ...manifest, name: 'other' }, source)).toBe(false);
+    expect(isPinnedActualsDraftMigrationSource({ ...manifest, order: 34 }, source)).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, path: 'migrations/other.sql' })
+    ).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, sql: `${source.sql}\n-- changed` })
+    ).toBe(false);
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, checksum: '0'.repeat(64) })
+    ).toBe(false);
+    const journal = structuredClone(source.sourceJournal);
+    journal.entries.find((entry: { idx: number }) => entry.idx === 57).when += 1;
+    expect(
+      isPinnedActualsDraftMigrationSource(manifest, { ...source, sourceJournal: journal })
+    ).toBe(false);
+    expect(() =>
+      validateManifestSql(manifest, [{ ...source, sql: `${source.sql}\n-- changed` }])
+    ).toThrow();
   });
 
   it('every manifest passes production SQL ownership validation', async () => {
@@ -511,11 +668,15 @@ describe('prod-schema manifest sentinels', () => {
     );
   });
 
-  it('no duplicate sentinel names within a manifest', () => {
+  it('no duplicate sentinel names within each catalog in a manifest', () => {
     for (const { file, manifest } of manifests) {
       const seen: string[] = [];
       for (const table of manifest.expectedTables ?? []) {
-        seen.push(...(table.constraints ?? []), ...(table.indexes ?? []));
+        // PK/UNIQUE constraints share names with their backing indexes.
+        seen.push(
+          ...(table.constraints ?? []).map((name) => `constraint:${name}`),
+          ...(table.indexes ?? []).map((name) => `index:${name}`)
+        );
       }
       const duplicates = seen.filter((name, index) => seen.indexOf(name) !== index);
       expect(duplicates, `${file} duplicate sentinels`).toEqual([]);

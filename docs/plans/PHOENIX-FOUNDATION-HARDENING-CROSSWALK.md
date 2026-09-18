@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2026-04-03
+last_updated: 2026-09-14
 categories: [phoenix, foundation-hardening, coordination]
 keywords:
   [
@@ -170,8 +170,8 @@ npx vitest run tests/unit/truth-cases/runner.test.ts -t "fees"
 - **Source of Truth**:
   [/docs/DISCOVERY-MAP.source.yaml](/docs/DISCOVERY-MAP.source.yaml)
 - **Generated Artifacts**:
-  - [/docs/\_generated/router-index.json](/docs/_generated/router-index.json)
-    (full index)
+  - `docs/_generated/router-index.json` (full index; generate with
+    `npm run docs:routing:generate`)
   - [/docs/\_generated/router-fast.json](/docs/_generated/router-fast.json)
     (fast lookup)
 - **Tool Routing**:

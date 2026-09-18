@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-10
+last_updated: 2026-09-16
 owner: Core Team
 review_cadence: P90D
 ---
@@ -12056,12 +12056,13 @@ The isolated activation train (F_1.11.0 plan, "Solution Architecture" and "Phase
 1 — Candidate certification") certifies one exact `main` SHA and binds every
 downstream action to it:
 
-1. The candidate is the P0b hardening merge SHA on top of `12af67a4e`. #1294
-   records it; static gates, the #1295 deployed-identity binding (deployment
-   IDs, database and schema identity, target-fund mode rows), the #1296
-   end-to-end proof, and all four #1298 soak windows run against exactly that
-   SHA. The binding is to immutable deployment IDs and readbacks, never to the
-   SHA alone; a same-SHA redeploy or reconfiguration breaks it.
+1. The candidate is the exact `origin/main` SHA selected after complete Phase P
+   admission under ADR-098, amending the earlier P0b-hardening selection rule.
+   #1294 records it; static gates, the #1295 deployed-identity binding
+   (deployment IDs, database and schema identity, target-fund mode rows), the
+   #1296 end-to-end proof, and all four #1298 soak windows run against exactly
+   that SHA. The binding is to immutable deployment IDs and readbacks, never to
+   the SHA alone; a same-SHA redeploy or reconfiguration breaks it.
 2. Restart rule: any change to the candidate SHA makes all downstream evidence
    (#1295 onward) ineligible for the current action and restarts the soak from
    Window 1. One candidate serves all four windows, so no completed window
@@ -12204,3 +12205,344 @@ on Vercel until a separately authorized activation. Reopening D6 and D8 widens
 the change surface the synthesis had deliberately fenced; the plan's per-reader
 codec and consumer evaluation gates are the compensating control and must ship
 before any consumer reads payload 5.
+
+## ADR-098: Guard Current Forecast Phase P Production Routes
+
+**Date:** 2026-09-06 **Status:** Source admitted (PR #1486, 2026-09-07)
+**Tags:** #current-forecast #schema #neon #release-governance
+
+### Source-admission record
+
+PR #1486 merged on September 7, 2026 at 09:22:22 UTC. Terminal PR head was
+`6e7afdba643354f18b0d347d6a46b975d09344ab`; merge commit is
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`. `CI Gate Status` passed at 09:19:33
+UTC in run
+[34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+This records source admission. Candidate certification, deployed-state evidence,
+and action-scoped production dispatch remain separate requirements. See
+[PR #1486](https://github.com/nikhillinit/Updog_restore/pull/1486).
+
+### Decision
+
+Production migration 0050-0055 remains an action-specific mode of
+`prod-schema-reconcile.yml`. Isolated Neon rehearsal uses
+`current-forecast-neon-rehearsal.yml`. Current Forecast state changes use
+`current-forecast-production-action.yml`, which wraps only existing
+authenticated routes. `enter-shadow`, `activate`, `kill`, and `resume` are
+separate dispatches; `readback` is read-only. Evidence never supplies dispatch
+authority.
+
+This amends ADR-095 decision 1: candidate is the exact `origin/main` SHA
+selected after complete Phase P admission, not the P0b hardening merge. ADR-095
+restart, hold-window, and identity-binding rules are unchanged.
+
+### Consequences
+
+All five Phase P tasks admit together or none becomes canonical. Rehearsal
+branch creation validates exact returned identity before dependent work.
+Production schema apply, deployment, shadow entry, activation, kill, and resume
+retain separate repository-owner dispatch boundaries.
+
+## ADR-099: Internal Economics V2 Realization Security Lineage
+
+**Date:** 2026-09-06 **Status:** Source admitted (PR #1486, 2026-09-07)
+#internal-economics-v2 #financial-correctness #security-lineage
+
+### Source-admission record
+
+PR #1486 merged on September 7, 2026 at 09:22:22 UTC. Terminal PR head was
+`6e7afdba643354f18b0d347d6a46b975d09344ab`; merge commit is
+`2a6372557a3dd1ba8a13e99c6867434ede3f9299`. `CI Gate Status` passed at 09:19:33
+UTC in run
+[34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+This records source admission. Candidate certification, deployed-state evidence,
+and action-scoped production dispatch remain separate requirements. See
+[PR #1486](https://github.com/nikhillinit/Updog_restore/pull/1486).
+
+### Decision
+
+A realization's security identity comes only from admitted
+`reliefRows[].investmentLotId` resolved to `InvestmentLot.securityId`. The event
+engine validates and groups all relief rows before mutating state. Each security
+group must have positive proceeds; group totals must equal the realization
+amount, and every generated cash-lot ID must be unused. Existing typed refusals
+leave the event and enclosing stream unchanged.
+
+Single-security events retain `proceeds:<eventId>`. Multi-security events create
+private `proceeds:<eventId>:<securityId>` lots carrying the resolved security
+identity. Generated-ID alias collisions fail closed. Entitlement pools use the
+collision-free `JSON.stringify([dealId, securityId])` key and exact lookup.
+Missing exact pools return `INVESTMENT_LOT_RELIEF_VIOLATION`; iteration order
+never selects a security.
+
+Receipt, serializer, event-engine, and composite implementation identities
+advance to `2.4.0`; deal-by-deal waterfall advances to `2.3.0`. Whole-fund
+waterfall `2.2.0` and normalizer/input `2.0.1` remain unchanged. Public inputs
+and receipt field shape remain unchanged; the changed-case v3 manifest binds the
+new output identities while preserving historical baseline hashes.
+
+### Validation and admission
+
+`internal-economics-v2-multi-security-routing.test.ts` names the S-0102
+expected-output case. Its regression matrix covers exact security routing,
+source/cash/tier/partner conservation, partial recycling, reversed order,
+delimiter collisions, and atomic refusal. Phoenix truth and the existing
+calculation gate remain required source evidence.
+
+Program B source was admitted before selecting Program A's next candidate and
+before affected multi-security deal-by-deal serving. It cannot be added to an
+already frozen soak window. This ADR records rationale for source admission in
+#1486; it does not certify a new candidate, deployment, serving state, release,
+or production action.
+
+## ADR-100: Explicit Published-Actual Restatement Preserves Source History
+
+**Date:** 2026-09-09
+
+**Status:** Proposed; local implementation authorized under F_1.13.0, source
+admission pending
+
+**Tags:** #financial-facts #actuals #restatement #idempotency
+
+### Decision
+
+F_1.13.0 extends ADR-097 with an explicit correction command. Ordinary uploads
+continue to reject changed content under an existing external reference. A
+restatement binds the full current facts basis, ETag, preview hash, exact target
+identities and original publication, fresh replacement references, and a reason.
+It appends one replacement per target and immutable command/item records inside
+the existing serialized publication transaction. Historical rows, source files,
+snapshots, and receipt bytes remain unchanged. Authenticated receipt replay
+precedes the independent default-disabled publication control.
+
+Policy `financial-facts-policy/1.5.0`, payload `financial-facts-payload/6`,
+admission `actuals-admission/2.0.0`, and outcome `actuals-pilot-publish/2.0.0`
+explicitly distinguish append from restatement. Policy 1.4 and earlier retain
+their original codecs and hash preimages. One verified projection of
+receipt-backed terminal replacement rows supplies cash, capital, valuation, and
+company monetary facts. Later ordinary appends retain correction ancestry.
+Initial valuation corrections preserve company, vehicle, mark type, and the
+current head's as-of date; earlier mark dates remain unsupported.
+
+The first policy-1.4 to policy-1.5 transition authenticates original row content
+against retained source bytes and the legacy receipt's aggregate canonical hash.
+Legacy receipts do not authenticate individual row hashes by themselves. Missing
+required source bytes therefore refuse that transition with
+`EFFECTIVE_BASIS_INVALID`, while committed receipt replay remains available.
+
+Company initial and follow-on amounts come from their corresponding effective
+ledger categories. Secondary and other deployment categories have no established
+non-equity mapping; affected company amounts remain unavailable, with explicit
+reasons. Aggregate economics remain attributable. Consumers validate
+availability before arithmetic, retain complete basis references, and require
+explicit plan acceptance and recompute where applicable. Internal economics and
+periodic analysis continue to reject unsupported facts policies.
+
+### Consequences
+
+The 0056 draft migration and later restatement migration require separate schema
+admission. Each production procedure must prove its exact source, target,
+authority, recovery, custody, isolation, containment, and residue prerequisites
+before mutation. Missing proof blocks application. Local disposable-database
+tests prove behavior only. This proposal does not amend the protected governing
+policy, authorize production actions, create Fund One identities, publish
+guessed actuals, rebase plans, recompute forecasts, enter shadow, or activate
+serving.
+
+---
+
+## ADR-101: Unrecorded Ownership Is Never Priced or Defaulted Outside NAV (extends ADR-054)
+
+**Date:** 2026-09-15
+
+**Status:** Proposed; source admission pending
+
+**Tags:** #ownership #reserves #lp-reporting #fail-closed #provenance
+
+### Context
+
+ADR-054 already states that NAV never estimates or defaults missing ownership:
+null or zero recorded ownership keeps the disclosed rung-3 company-level
+fallback. Three other readers still invented an ownership fraction when none was
+recorded. The reserve input builder substituted 0.15 with provenance
+`defaulted`, the very fallback ADR-029 names as the hardcoded-fallback
+pathology, and that value fed a rule-based allocation kernel whose ownership
+boost, penalty, and confidence bonus all key off the fraction. The projected
+metrics calculator substituted 0.1 for reserve summaries on the live dashboard.
+The LP pro-rata holdings reader mapped "no ownership recorded" to a real zero,
+so an unrecorded position was priced at zero and summed into the LP total
+without any disclosure.
+
+Separately, the LP metric-run engine treated every cash flow event as live
+unless it was reversed, so draft rows selected by a caller were counted in
+contributions, distributions, and both IRR flows, while the sibling
+financial-facts snapshot service accepts only approved and locked rows.
+
+### Decision
+
+- `ReserveCompanyInputSchema.ownership` is nullable. Null means "not recorded".
+  Both rule-based kernels treat null as neutral: no boost, no penalty, no
+  confidence bonus. The guard is an explicit null check, because a bare
+  comparison coerces null to zero and would apply the penalty branch.
+- The reserve input builder emits `ownership: null` with provenance
+  `unavailable` on both row converters. Nothing substitutes 0.15.
+- The projected metrics calculator passes null ownership through instead of
+  substituting 0.1. Dashboard reserve summaries change for any company whose
+  ownership is not recorded.
+- LP pro-rata holdings skip companies with no recorded ownership or no recorded
+  valuation and disclose them as `unpricedHoldings` / `unpricedCompanies` (with
+  a reason) in the route response. A recorded zero is a fact and stays priced at
+  zero. Existing fields keep their meaning; the total covers priced holdings
+  only, and the disclosure says how many were left out.
+- Deliberate asymmetry with ADR-054: NAV keeps unknown ownership unscaled
+  because its anchor ladder discloses which rung each company sits on. Reserve
+  inputs and LP holdings have no disclosed fallback rung, so they fail closed
+  and disclose instead.
+- LP metric runs count only cash flow events with status `approved` or `locked`,
+  matching the financial-facts snapshot service. Excluded draft or
+  unknown-status events are reported in run diagnostics; reversed rows stay
+  excluded by design without a report. The engine version is bumped and is part
+  of the metric-run inputs hash, so the commit service's idempotent lookup
+  (fund, run type, perspective, as-of date, inputs hash) can never return a run
+  computed under the previous rule set.
+
+### Alternatives Considered
+
+- **Keep 0.15 but label it:** rejected because the label never reaches the
+  kernel; the boost and confidence bonus still fire on an invented number.
+- **Exclude unrecorded companies from reserve inputs entirely:** rejected
+  because the facts adapter already excludes them where the ranked reserve path
+  requires ownership, while the legacy rule-based path can allocate on invested
+  capital and stage without ownership. Null keeps the company visible with an
+  honest provenance.
+- **Price unrecorded LP holdings at zero with a warning:** rejected because a
+  zero in a summed total is indistinguishable from a recorded zero to every
+  consumer of the total.
+
+### Consequences
+
+Reserve allocations for companies without recorded ownership lose the unearned
+boost and confidence bonus. LP holdings totals cover only priced positions and
+disclose the rest. Draft cash flow events no longer move LP metric runs. No
+default ownership enters any reserve, NAV, or LP surface.
+
+## ADR-102: Dispose of the Unwired-Code Inventory (Four Deletions, One Park)
+
+**Date:** 2026-09-16
+
+**Status:** Accepted by owner 2026-09-16; source admission through
+`fix/moic-analysis-redirect-target`, `chore/delete-unreachable-client-code`,
+`chore/deprecate-adr-0003-delete-sse-stack`, and
+`chore/matrix-dispose-admin-telemetry`
+
+**Tags:** #cleanup #dead-code #routing #surface-matrix #adr-lifecycle
+
+### Context
+
+A 2026-09-16 inventory of code that looks production-intended but is reachable
+by nothing was red-teamed against `main` at `469976221`. Five of its six items
+already had a recorded reason for existing, one live defect sat next to the dead
+code, and one of the inventory's own recommendations would have removed a live
+guardrail:
+
+- `client/src/config/routes.ts` and `client/src/core/routes/ia.ts` describe an
+  information architecture (`/overview`, `/operate`, `/report`) that never had
+  routes. Their only consumers were two route-story tests.
+  `LegacyRouteRedirector` was never imported by anything before #1507 deleted
+  it, so this is baseline-era cruft, not a recent orphan.
+- The archived placeholder for `/moic-analysis` redirected to `/overview`, which
+  is not a route, so the redirect landed on NotFound.
+  `tests/unit/app/route-governance-registry.test.tsx` pinned the broken target.
+- `client/src/components/ComingSoonPage.tsx` was kept "as inventory ... for
+  future integration" by the 2026-03-27 secondary-surface decisions (PR-6) and
+  has had no importer since.
+- `client/src/hooks/useFundKpis.ts` and
+  `shared/contracts/kpi-raw-facts.contract.ts` are the unfinished
+  selector-contract program (`docs/contracts/selector-contract-readme.md`,
+  `docs/INTEGRATION_PR_CHECKLIST.md`). The contract names
+  `/api/funds/:fundId/kpis`, the hook fetches `/api/funds/:fundId/data`, and the
+  server implements neither.
+- `client/src/config/rollout.ts`, `rollout-runtime.ts`, and `features.ts` are
+  three copies of an abandoned `useFundStore` percentage-rollout system with no
+  importer and no record in `docs/`, `.planning/`, or this ledger.
+  `server/config/features.ts` shares the basename and is live; it is untouched.
+- `server/agents/stream.ts`, `server/agents/cancel.ts`,
+  `client/src/hooks/useAgentStream.ts`, and `k6/scenarios/agents-streaming.js`
+  implement ADR-0003 (`docs/adr/0003-streaming-architecture.md`, Accepted). No
+  server surface mounts the routes, no producer publishes agent-run events, and
+  nothing reads the `ai:run:*:cancel` flag the ADR says workers check.
+- `client/src/pages/admin/telemetry.tsx` is a dormant candidate in the
+  surface-contract matrix (`dormant-candidates.json`, `orphans.json`, resolution
+  `pruned`) with an unapproved disposition proposal. Wiring it would need a
+  flag, a governance-registry entry, an `AdminRoute` with `devOnly`, and a
+  matrix approval, to show the current browser's own localStorage telemetry
+  buffer.
+- `server/routes/portfolio-optimization.ts` is mounted by nothing, but the
+  2026-04-10 audit recorded in
+  `.planning/phases/06-schema-docs-and-baseline-drift-cleanup/06-01-SUMMARY.md`
+  gave the cluster a DEFER verdict: `scenarioMatrices` is consumed by
+  `CacheInvalidationService`, `CacheStatsService`, and `ScenarioMatrixCache`;
+  `job_outbox` has three live processors (`artifact-retention-service.ts`,
+  `analysis-checkpoint-service.ts`, `variance-alert-automation.ts`) that each
+  filter by `job_type`; the tables are journaled in migration 0011; and
+  `audit/surface-contract-matrix/source-inventory.json` hash-pins the route
+  file, so deleting it breaks release proof until the matrix is re-seeded and
+  approved.
+
+### Decision
+
+Owner-ratified on 2026-09-16:
+
+1. Redirect the `/moic-analysis` archived placeholder to `/model-results`, the
+   fund-agnostic entry to the model-results family
+   (`client/src/pages/model-results.tsx` opens the current fund's results or
+   asks for a fund). This matches the `redirect_target` the surface-matrix
+   seeder records for that route. Amended 2026-09-16: the first landing (#1529)
+   used `/dashboard` on the mistaken premise that the disclosed MOIC surface
+   needed a fund id the redirect could not supply; the owner corrected the
+   target the same day.
+2. Delete the unreachable client code: the legacy IA map and its test, the three
+   rollout-system files, `ComingSoonPage.tsx` (this reverses the 2026-03-27
+   KEEP), the selector-contract hook and contract, and the tracked
+   `.tsc-client.err` log. The two selector-contract documents stay in place with
+   an "abandoned" banner; nothing moves into `docs/archive/`.
+3. Deprecate ADR-0003 (body Status and the `docs/adr/README.md` row; the
+   frontmatter `status: ACTIVE` is not the lifecycle field) and delete the SSE
+   stack and its k6 scenario.
+4. Delete `client/src/pages/admin/telemetry.tsx` through the matrix disposition:
+   re-seed the matrix without `--fresh`, validate, and render.
+   `client/src/lib/telemetry.ts` and its test stay.
+5. Park `portfolio-optimization`: the route stays unmounted by decision, the
+   tables stay, and the `portfolio-optimization` entry in
+   `scripts/schema-drift-active-surfaces.ts` stays because it pins the live
+   `job_outbox` table and the 0005/0011 migrations. That file is a
+   persistence-consistency inventory, not a route-mount inventory.
+
+### Alternatives Considered
+
+- **Wire `/admin/telemetry`:** rejected. Six touchpoints plus a matrix approval
+  for a dev-only page that shows one browser's own local events.
+- **Delete `portfolio-optimization` outright:** rejected for now. Journaled
+  migrations are additive-only, the tables have other consumers, and the route
+  is hash-pinned in the matrix; the prior DEFER verdict stands until a matrix
+  re-seed with owner approval is scheduled.
+- **Remove the `portfolio-optimization` drift entry:** rejected. It would drop
+  drift coverage of a live production table.
+- **Move the selector-contract documents to `docs/archive/`:** rejected. The
+  archive guard blocks tracked files there; annotate in place.
+
+### Consequences
+
+- The route-story tests that asserted the dead IA are gone;
+  `tests/unit/app/ia-route-story.test.ts` keeps only its runtime-route and
+  archived-placeholder assertions.
+- `docs/contracts/selector-contract-readme.md` and
+  `docs/INTEGRATION_PR_CHECKLIST.md` remain as historical records and must not
+  be implemented from.
+- ADR-0003 remains in the standalone `docs/adr/` collection as Deprecated;
+  `docs/observability/ai-metrics.md` notes that the `ai_stream_*` metrics were
+  never implemented.
+- Future inventories should grep `docs/`, `DECISIONS.md`, `.planning/`, and
+  `audit/surface-contract-matrix/*.json` for a recorded reason before calling
+  something unowned, and run `git log -S<name>` before calling anything a recent
+  orphan.

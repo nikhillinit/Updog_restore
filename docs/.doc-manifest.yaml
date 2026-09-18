@@ -54,9 +54,6 @@ modules:
       - client/src/core/ReserveEngine.ts
       - client/src/core/PacingEngine.ts
 
-      # Schema adapters
-      - client/src/lib/schema-adapter.ts
-
 metadata:
   generated_by: 'Phase 3 NotebookLM Documentation Pipeline'
   created: '2025-10-27'

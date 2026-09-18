@@ -33,6 +33,7 @@ const mockFundState = {
   carriedInterest: 20.0,
   vintageYear: 2026,
   establishmentDate: '2026-01-15',
+  modelInputsAsOfDate: '2026-09-12',
   isEvergreen: false,
   fundLife: 10,
   investmentPeriod: 5,
@@ -135,6 +136,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.carriedInterest = 20.0;
     mockFundState.vintageYear = 2026;
     mockFundState.establishmentDate = '2026-01-15';
+    mockFundState.modelInputsAsOfDate = '2026-09-12';
     mockFundState.fundLife = 10;
     mockFundState.investmentPeriod = 5;
     mockFundState.fundedFromFeesPct = 0;
@@ -250,20 +252,24 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockSetDraftServerReady).not.toHaveBeenCalled();
   });
 
-  it('allows navigation without bootstrap when minimum basics are still incomplete', async () => {
+  it('blocks navigation and draft writes when required basics are incomplete', async () => {
     mockFundState.fundName = '';
     mockFundState.fundSize = undefined;
+    mockFundState.modelInputsAsOfDate = undefined;
 
     render(<FundBasicsStep />);
 
     await clickNextStep();
 
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
-    }, FULL_SUITE_WAIT_OPTIONS);
-
+    expect(screen.getByText('Complete all required fund basics before continuing.')).toHaveRole(
+      'alert'
+    );
+    expect(screen.getByTestId('fund-name')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText(/Capital Committed/)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('model-inputs-as-of-date')).toHaveAttribute('aria-invalid', 'true');
     expect(mockCreateFund).not.toHaveBeenCalled();
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('stays on step 1 and shows an error when bootstrap creation fails', async () => {

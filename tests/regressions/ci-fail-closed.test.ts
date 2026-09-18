@@ -14,7 +14,7 @@ import {
 } from '../../shared/contracts/release-canary-residue-characterization-v1.contract';
 
 type WorkflowStep = {
-  ['continue-on-error']?: boolean;
+  ['continue-on-error']?: boolean | string;
   env?: Record<string, unknown>;
   if?: string;
   id?: string;
@@ -2805,6 +2805,8 @@ const GATE_FEEDING_JOBS = [
 type GateEvaluatorScenario = {
   financialCalcRelevant?: boolean;
   financialTruthResult?: string;
+  schemaChanged?: boolean;
+  fullTestResult?: string;
   // Optional: isolate the surface-projection-audit require_result pairing
   // from every other gate feeder. Defaults reproduce the pre-existing
   // interpolation fallbacks (not expected, skipped) so scenarios that omit
@@ -2827,15 +2829,34 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   if (normalized === 'needs.financial-truth.result') {
     return scenario.financialTruthResult ?? 'skipped';
   }
+  if (normalized === 'needs.changes.outputs.schema') {
+    return scenario.schemaChanged ? 'true' : 'false';
+  }
+  if (normalized === 'needs.test-full.result') {
+    return scenario.fullTestResult ?? 'skipped';
+  }
   // Default scenario models a docs-only run so the classification
   // contradiction check (auto_docs_only == heavy_ci_relevant fails the
-  // gate) holds while every `.result` fallback stays `skipped`.
-  if (normalized === 'needs.changes.outputs.auto_docs_only') return 'true';
-  if (normalized === 'needs.changes.outputs.heavy_ci_relevant') return 'false';
+  // gate) holds. Schema changes require successful unrelated heavy feeders.
+  if (normalized === 'needs.changes.outputs.auto_docs_only') {
+    return scenario.schemaChanged ? 'false' : 'true';
+  }
+  if (normalized === 'needs.changes.outputs.heavy_ci_relevant') {
+    return scenario.schemaChanged ? 'true' : 'false';
+  }
+  if (['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)) {
+    return scenario.schemaChanged ? 'success' : 'skipped';
+  }
+  if (
+    normalized ===
+    "needs.changes.outputs.heavy_ci_relevant == 'true' || github.event.inputs.run_full_suite == 'true'"
+  ) {
+    return scenario.schemaChanged ? 'true' : 'false';
+  }
   if (normalized === 'needs.guards.result') return 'success';
   if (normalized === 'needs.secret-scan.result') return 'success';
   if (normalized === 'needs.surface-projection-audit.result') {
-    return scenario.auditResult ?? 'skipped';
+    return scenario.auditResult ?? (scenario.schemaChanged ? 'success' : 'skipped');
   }
   if (
     // Reordered relative to release-static's identical-condition expression
@@ -2848,7 +2869,7 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
     normalized ===
     "github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true'"
   ) {
-    return scenario.auditExpected ? 'true' : 'false';
+    return (scenario.auditExpected ?? scenario.schemaChanged) ? 'true' : 'false';
   }
   if (normalized.endsWith('.result')) return 'skipped';
   return 'false';
@@ -4418,6 +4439,40 @@ describe('required CI fails closed', () => {
       .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
       .join('\n');
     expect(fullScript).not.toMatch(/unit\)\s*npm run test:unit/);
+  });
+
+  it('validates active schema drift before database setup without an error override', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const steps = workflow.jobs?.['test-full']?.steps ?? [];
+    const schemaStepIndex = steps.findIndex((step) => step.name === 'Validate active schema drift');
+    const databaseStepIndex = steps.findIndex((step) => step.name === 'Setup database');
+    const schemaStep = steps[schemaStepIndex];
+
+    expect(schemaStep).toBeDefined();
+    expect(schemaStep?.if).toBe(
+      "matrix.group == 'validate-core' && needs.changes.outputs.schema == 'true'"
+    );
+    expect(schemaStep?.run).toBe('npm run validate:schema-drift');
+    expect(schemaStep?.env?.TZ).toBe('UTC');
+    expect(schemaStep).not.toHaveProperty('continue-on-error');
+    expect(schemaStepIndex).toBeLessThan(databaseStepIndex);
+  });
+
+  it('aligns db-migration labeler configuration with active schema paths', async () => {
+    const contents = await readFile(path.join(process.cwd(), '.github', 'labeler.yml'), 'utf8');
+    const labels = YAML.parse(contents) as Record<string, { any: string[] }[]>;
+
+    expect(labels['db-migration']?.flatMap((rule) => rule.any)).toEqual(
+      expect.arrayContaining([
+        'migrations/**/*',
+        'server/db.ts',
+        'drizzle.config.ts',
+        'shared/schema.ts',
+        'shared/schema/**/*',
+        'shared/schema-lp-reporting.ts',
+        'shared/schema-lp-sprint3.ts',
+      ])
+    );
   });
 
   it('does not mask bundle-budget failures', async () => {
@@ -7103,6 +7158,27 @@ describe('required CI fails closed', () => {
     }
   );
 
+  it.each([
+    ['success', 'passed'],
+    ['failure', 'failed'],
+    ['cancelled', 'failed'],
+    ['skipped', 'failed'],
+    ['', 'failed'],
+    [undefined, 'failed'],
+  ] as const)(
+    'gates schema-required full matrix behavior (result=%s)',
+    async (fullTestResult, expected) => {
+      await expect(
+        evaluateCiGateStatus({
+          schemaChanged: true,
+          fullTestResult,
+          financialCalcRelevant: true,
+          financialTruthResult: 'success',
+        })
+      ).resolves.toBe(expected);
+    }
+  );
+
   it('wires financial truth into conditional CI and the required gate', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const financialTruth = workflow.jobs?.['financial-truth'];
@@ -7525,9 +7601,8 @@ describe('required CI fails closed', () => {
   });
 
   it('keeps the 35-minute Railway helper default inside the 45-minute job with gross reserve', async () => {
-    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } = await import(
-      '../../scripts/release/deploy-railway-workers.mjs'
-    );
+    const { DEFAULT_DEPLOYMENT_TIMEOUT_MS } =
+      await import('../../scripts/release/deploy-railway-workers.mjs');
     const workflow = await readWorkflow('release-production.yml');
     const railwayDeploy = workflow.jobs?.['railway-workers-deploy'];
     const helperBudgetMs = DEFAULT_DEPLOYMENT_TIMEOUT_MS;
@@ -7536,5 +7611,18 @@ describe('required CI fails closed', () => {
     expect(helperBudgetMs).toBe(35 * 60_000);
     expect(railwayDeploy?.['timeout-minutes']).toBe(45);
     expect(jobBudgetMs - helperBudgetMs).toBe(10 * 60_000);
+  });
+
+  it('keeps Current Forecast production workflows manual, attempt-one, and protected', async () => {
+    const rehearsal = await readWorkflow('current-forecast-neon-rehearsal.yml');
+    const action = await readWorkflow('current-forecast-production-action.yml');
+    for (const workflow of [rehearsal, action]) {
+      expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+      const job = Object.values(workflow.jobs ?? {})[0];
+      expect(job?.if).toContain('github.run_attempt == 1');
+      expect(job?.environment).toMatch(/^production-/);
+    }
+    expect(JSON.stringify(rehearsal)).not.toContain('upload-artifact');
+    expect(JSON.stringify(action)).toContain('PRODUCTION_DATABASE_DIRECT_HOST_SHA256');
   });
 });

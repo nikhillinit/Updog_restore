@@ -222,7 +222,7 @@ describe('FundPersistenceService creator grant transaction', () => {
         },
         insert: vi
           .fn()
-      .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id', version: 1 }]))
+          .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id', version: 1 }]))
           .mockReturnValueOnce(valuesReturning([fund]))
           .mockReturnValueOnce(valuesResolved(undefined))
           .mockReturnValueOnce(valuesReturning([draft]))
@@ -258,7 +258,7 @@ describe('FundPersistenceService creator grant transaction', () => {
       expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith(
         expect.objectContaining({ dataOrigin: 'release_canary', canaryRunId: 'canary-run-id' })
       );
-    expect(tx.execute).toHaveBeenCalledTimes(5);
+      expect(tx.execute).toHaveBeenCalledTimes(5);
     } finally {
       vi.unstubAllEnvs();
     }
@@ -712,6 +712,15 @@ describe('FundPersistenceService publishDraft behavior', () => {
 
     expect(result.correlationId).toBe('existing-correlation-id');
     expect(pacingQueue.add).toHaveBeenCalledTimes(1);
+    expect(pacingQueue.add).toHaveBeenCalledWith(
+      'calculate',
+      expect.objectContaining({ runId: partialRun.id }),
+      expect.objectContaining({
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        jobId: `run:${partialRun.id}:pacing`,
+      })
+    );
     expect(reserveQueue.add).not.toHaveBeenCalled();
     expect(cohortQueue.add).not.toHaveBeenCalled();
     expect(mockRunReserveCalculation).not.toHaveBeenCalled();

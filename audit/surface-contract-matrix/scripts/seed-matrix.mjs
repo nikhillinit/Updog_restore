@@ -18,6 +18,7 @@ import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governan
 import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 import {
   canonicalRowId,
+  authMiddlewareCallLine,
   AUTH_UNRESOLVED_ROLE,
   assertAuthRoleMappingExhaustive,
   BootProofDocumentSchema,
@@ -69,6 +70,11 @@ const REGISTRATION_GATES = [
   'ENABLE_QUEUES',
   'ENABLE_RUM_V2',
 ];
+const ACTUALS_PILOT_SELECTOR = 'ACTUALS_PILOT_FUND_ID';
+const ACTUALS_PILOT_PROFILES = [
+  `selector:${ACTUALS_PILOT_SELECTOR}:unset`,
+  `selector:${ACTUALS_PILOT_SELECTOR}:configured`,
+];
 
 const API_NODE_TYPES = new Set(['APIEndpoint', 'ClientRoute', 'WorkerJob']);
 const ROUTE_EDGE_TYPES = new Set([
@@ -84,20 +90,20 @@ const GLOBAL_AUTH_BOUNDARIES = Object.freeze({
   make_app: Object.freeze({
     boundary: 'global_authenticated',
     file: 'server/app.ts',
-    line: 175,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/app.ts'), 'utf8'), 'requireApiAuth'),
     middleware: 'requireApiAuth',
   }),
   create_server: Object.freeze({
     boundary: 'global_authenticated',
     file: 'server/server.ts',
-    line: 215,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'), 'requireSecureContext'),
     middleware: 'requireSecureContext',
   }),
   register_routes: Object.freeze({
     boundary: 'global_authenticated',
     boundary_scope: 'create_server',
     file: 'server/server.ts',
-    line: 215,
+    line: authMiddlewareCallLine(fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'), 'requireSecureContext'),
     middleware: 'requireSecureContext',
   }),
 });
@@ -898,6 +904,14 @@ const createRuntimeIndex = (documents) => {
         conditionSet.set(conditionKey(condition), condition);
       }
     }
+    const selectorConfigured = presentProfiles.has(`${ACTUALS_PILOT_PROFILES[1]}|static`)
+      || presentProfiles.has(`${ACTUALS_PILOT_PROFILES[1]}|api-only`);
+    const selectorUnset = presentProfiles.has(`${ACTUALS_PILOT_PROFILES[0]}|static`)
+      || presentProfiles.has(`${ACTUALS_PILOT_PROFILES[0]}|api-only`);
+    if (selectorConfigured !== selectorUnset) {
+      const condition = { selector: ACTUALS_PILOT_SELECTOR, configured: selectorConfigured };
+      conditionSet.set(conditionKey(condition), condition);
+    }
     if (entries.some((entry) => entry.profile === 'development')
       && !entries.some((entry) => entry.profile === 'default')) {
       const condition = { NODE_ENV: 'development' };
@@ -911,6 +925,7 @@ const createRuntimeIndex = (documents) => {
 const allProfiles = () => [
   'default',
   ...REGISTRATION_GATES.flatMap((gate) => [`gate:${gate}:enabled`, `gate:${gate}:disabled`]),
+  ...ACTUALS_PILOT_PROFILES,
   'development',
 ];
 

@@ -19,7 +19,11 @@ Prevent re-implementation by routing agents to existing assets first.
 - Humans use: `docs/INDEX.md`
 - Agents use: this file
 
-**Machine-readable index:** `docs/_generated/router-index.json`
+**Committed fast router:** `docs/_generated/router-fast.json` **Generated full
+index:** `docs/_generated/router-index.json` (`npm run docs:routing:generate`;
+CI artifact) **Generated staleness report:**
+`docs/_generated/staleness-report.md` (`npm run docs:routing:generate`; CI
+artifact)
 
 - Generated from: `docs/DISCOVERY-MAP.source.yaml`
 - Regenerate: `npm run docs:routing:generate`
@@ -252,11 +256,11 @@ When reviewing docs that claim execution results:
 
 The discovery system generates machine-readable artifacts:
 
-| Artifact         | Path                                  | Description                    |
-| ---------------- | ------------------------------------- | ------------------------------ |
-| Router Index     | `docs/_generated/router-index.json`   | Full routing data with stats   |
-| Router Fast      | `docs/_generated/router-fast.json`    | Consumer-optimized fast router |
-| Staleness Report | `docs/_generated/staleness-report.md` | Documents needing review       |
+| Artifact         | Path                                  | Description                                                   |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------- |
+| Router Index     | `docs/_generated/router-index.json`   | Generated full routing data with stats; local and CI artifact |
+| Router Fast      | `docs/_generated/router-fast.json`    | Committed consumer-optimized fast router                      |
+| Staleness Report | `docs/_generated/staleness-report.md` | Generated maintenance report; local and CI artifact           |
 
 **Commands:**
 

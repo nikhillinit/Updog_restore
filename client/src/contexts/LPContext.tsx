@@ -90,7 +90,8 @@ export function LPProvider({ children, lpId: providedLpId }: LPProviderProps) {
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch LP profile`
+          getErrorMessage(errorData, response.status) ||
+            `HTTP ${response.status}: Failed to fetch LP profile`
         );
       }
 

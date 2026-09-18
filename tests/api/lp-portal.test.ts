@@ -65,7 +65,7 @@ describe('Storage Service', () => {
     expect(existsAfterDelete).toBe(false);
   });
 
-  it('should generate signed URLs', async () => {
+  it('should not generate unverifiable memory-provider signed URLs', async () => {
     const { createStorageService, resetStorageService } =
       await import('../../server/services/storage-service');
     resetStorageService();
@@ -75,11 +75,9 @@ describe('Storage Service', () => {
     // Upload a file first
     await storage.upload('test/signed.pdf', Buffer.from('test'), 'application/pdf');
 
-    // Get signed URL
-    const signedUrl = await storage.getSignedUrl('test/signed.pdf', 3600);
-    expect(signedUrl.url).toBeDefined();
-    expect(signedUrl.expiresAt).toBeInstanceOf(Date);
-    expect(signedUrl.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    await expect(storage.getSignedUrl('test/signed.pdf', 3600)).rejects.toThrow(
+      'Signed download URLs are unavailable for memory storage'
+    );
   });
 
   it('should list files by prefix', async () => {
@@ -732,13 +730,8 @@ describe('Report Download Endpoint', () => {
     const testContent = Buffer.from('Test PDF content');
     await storage.upload('reports/test-123.pdf', testContent, 'application/pdf');
 
-    // Get signed URL
-    const signedUrl = await storage.getSignedUrl('reports/test-123.pdf', 3600);
-
-    // Memory provider returns a path; production providers return full URLs
-    expect(signedUrl.url).toBeDefined();
-    expect(signedUrl.url.length).toBeGreaterThan(0);
-    expect(signedUrl.expiresAt).toBeInstanceOf(Date);
-    expect(signedUrl.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    await expect(storage.getSignedUrl('reports/test-123.pdf', 3600)).rejects.toThrow(
+      'Signed download URLs are unavailable for memory storage'
+    );
   });
 });

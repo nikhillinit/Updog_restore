@@ -3,8 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWouterWrapper } from '../../utils/withWouter';
-import FundScenarioWorkspacePage, {
+import {
+  deriveFundScenarioPolicy,
   reserveStatusPollIntervalMs,
+} from '../../../client/src/lib/fund-scenario-policy';
+import { ScenarioSetResultSummaryV1Schema } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
+import FundScenarioWorkspacePage, {
   resolveSeedDeepLink,
 } from '../../../client/src/pages/fund-scenario-workspace';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
@@ -33,6 +37,66 @@ describe('reserveStatusPollIntervalMs', () => {
   });
 });
 
+describe('Fund scenario policy', () => {
+  it('keeps sync and reserve decisions consistent while comparison evidence arrives independently', () => {
+    const fee = feeScenarioSetDetail();
+    const reserve = reserveScenarioSetDetail();
+    const result = ScenarioSetResultSummaryV1Schema.parse(scenariosPayload().sets[0]);
+    const unmatchedResult = { ...result, scenarioSetId: '00000000-0000-0000-0000-000000000999' };
+    const reserveStatus = statusResponse('failed', null, reserve.id, 'async_reserve_allocation');
+    const policy = deriveFundScenarioPolicy({
+      scenarioSets: [fee, reserve],
+      details: [fee, reserve],
+      results: [result, unmatchedResult],
+      reserveStatuses: [reserveStatus],
+    });
+
+    expect(policy.byId.get(fee.id)).toMatchObject({
+      calculationPath: 'sync',
+      actionText: 'Calculate',
+      actionLabel: 'Calculate Fee sensitivity',
+      status: {
+        status: 'succeeded',
+        calculationMode: 'sync_fee_profile',
+        lastEventAt: result.calculatedAt,
+      },
+    });
+    expect(policy.byId.get(reserve.id)).toMatchObject({
+      calculationPath: 'reserve',
+      actionText: 'Queue',
+      actionLabel: 'Queue Reserve plan',
+      status: reserveStatus,
+    });
+    expect(policy.reserveScenarioSetIds).toEqual([reserve.id]);
+    expect(policy.comparisonScenarioSetIds).toEqual([fee.id, unmatchedResult.scenarioSetId]);
+  });
+
+  it('retains loading presentation without details and gives returned status precedence over results', () => {
+    const fee = feeScenarioSetDetail();
+    const result = ScenarioSetResultSummaryV1Schema.parse(scenariosPayload().sets[0]);
+    const evidence = { scenarioSets: [fee], details: [undefined], results: [result] };
+    const loading = deriveFundScenarioPolicy(evidence);
+    expect(loading.byId.get(fee.id)).toMatchObject({
+      detail: null,
+      overrideType: null,
+      status: null,
+      calculationPath: 'sync',
+      actionText: 'Calculate',
+      actionLabel: 'Calculate Fee sensitivity',
+    });
+    expect(loading.reserveScenarioSetIds).toEqual([]);
+    expect(loading.comparisonScenarioSetIds).toEqual([fee.id]);
+
+    const returnedStatus = statusResponse('failed', null, fee.id, 'sync_fee_profile');
+    const loaded = deriveFundScenarioPolicy({
+      ...evidence,
+      details: [fee],
+      reserveStatuses: [returnedStatus],
+    });
+    expect(loaded.byId.get(fee.id)?.status).toBe(returnedStatus);
+  });
+});
+
 describe('FundScenarioWorkspacePage', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -47,7 +111,10 @@ describe('FundScenarioWorkspacePage', () => {
     vi.useRealTimers();
   });
 
-  function renderWorkspace(path = '/fund-model-results/123/scenarios') {
+  function renderWorkspace(
+    path = '/fund-model-results/123/scenarios',
+    capitalPlanEnabled: boolean | null = false
+  ) {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -58,10 +125,15 @@ describe('FundScenarioWorkspacePage', () => {
 
     return {
       goto,
+      queryClient,
       ...render(
         <QueryClientProvider client={queryClient}>
           <Wrapper>
-            <FundScenarioWorkspacePage />
+            {capitalPlanEnabled === null ? (
+              <FundScenarioWorkspacePage />
+            ) : (
+              <FundScenarioWorkspacePage capitalPlanEnabled={capitalPlanEnabled} />
+            )}
           </Wrapper>
         </QueryClientProvider>
       ),
@@ -77,6 +149,19 @@ describe('FundScenarioWorkspacePage', () => {
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = init?.method ?? 'GET';
+
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets?representation=capital-plan-v2&includeArchived=false'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/2.0.0',
+            representation: 'capital-plan-v2',
+            scenarioSets: [],
+          })
+        );
+      }
 
       if (method === 'GET' && url === '/api/funds/123/scenario-sets') {
         return Promise.resolve(jsonResponse({ scenarioSets: scenarioSetSummaries() }));
@@ -266,6 +351,95 @@ describe('FundScenarioWorkspacePage', () => {
       return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
     });
   }
+
+  it('keeps allocation limitations visible for unchanged comparisons and the fixed hypothetical creation form', async () => {
+    mockWorkspaceFetches();
+    const fallback = fetchSpy.getMockImplementation() as typeof fetch;
+    const allocationId = '00000000-0000-0000-0000-000000000311';
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (
+        (init?.method ?? 'GET') === 'GET' &&
+        url === '/api/funds/123/scenario-sets/source-config'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-source-config/1.0.0',
+            sourceConfigId: 14,
+            sourceConfigVersion: 4,
+            publishedAt: '2026-05-29T12:00:00.000Z',
+            allocations: [{ id: 'seed', category: 'Seed', percentage: 60 }],
+            capitalPlanAllocations: null,
+          })
+        );
+      }
+      if (
+        (init?.method ?? 'GET') === 'GET' &&
+        url === `/api/funds/123/scenario-sets/${allocationId}/comparison`
+      ) {
+        const comparison = scenarioComparisonResponse(allocationId);
+        comparison.scenarioSet = {
+          scenarioSetId: allocationId,
+          name: 'Allocation mix',
+          sourceConfigId: 14,
+          sourceConfigVersion: 4,
+        };
+        comparison.variants[0] = {
+          ...comparison.variants[0]!,
+          variantId: '00000000-0000-0000-0000-000000000312',
+          name: 'Seed heavy',
+          overrideType: 'allocation',
+          metrics: comparison.baseline!.metrics,
+          metricDeltas: [
+            {
+              metric: 'finalTvpi',
+              displayName: 'TVPI',
+              baselineValue: 1.8,
+              scenarioValue: 1.8,
+              absoluteDelta: 0,
+              percentageDelta: 0,
+              driftCapable: true,
+              driftReason: 'stable',
+            },
+          ],
+        };
+        return Promise.resolve(jsonResponse(comparison));
+      }
+      return fallback(input, init);
+    });
+    renderWorkspace();
+    const comparison = await screen.findByRole('group', { name: 'Allocation mix comparison' });
+    expect(within(comparison).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+    expect(
+      within(comparison).getByText(/Unchanged results do not measure sensitivity/)
+    ).toBeInTheDocument();
+    expect(within(comparison).getByTestId('scenario-comparison-table')).toBeInTheDocument();
+    const card = screen.getByTestId(`scenario-workspace-set-${allocationId}`);
+    expect(within(card).getByText('Source config 14 · v4')).toBeInTheDocument();
+    expect(within(card).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New allocation scenarios' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New allocation scenarios' });
+    expect(
+      within(dialog).getByText(/Create hypothetical Base, Upside, and Downside/)
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/Allocation assumptions are saved/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(dialog).getByText(/Config 14.*version 4/)).toBeInTheDocument()
+    );
+    expect(dialog.querySelector('#allocation-variant-name-0')).toHaveValue('Base');
+    expect(dialog.querySelector('#allocation-variant-name-1')).toHaveValue('Upside');
+    expect(dialog.querySelector('#allocation-variant-name-2')).toHaveValue('Downside');
+    expect(dialog.querySelector('#allocation-percentage-0-0')).toBeDisabled();
+    expect(dialog.querySelector('#allocation-percentage-1-0')).toBeEnabled();
+    expect(dialog.querySelector('#allocation-percentage-2-0')).toBeEnabled();
+    expect(within(dialog).getAllByText('seed')).toHaveLength(3);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(
+      await screen.findByRole('group', { name: 'Allocation mix comparison' })
+    ).toContainElement(comparison.querySelector('[role="note"]'));
+    expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0);
+  });
 
   it('loads scenario sets without polling reserve status for sync sets', async () => {
     mockWorkspaceFetches();
@@ -482,60 +656,105 @@ describe('FundScenarioWorkspacePage', () => {
     expect(statusUrls).toEqual([]);
   });
 
-  it('uses the fee-profile calculation endpoint for fee scenario sets', async () => {
+  it.each([false, true])(
+    'uses the fee-profile calculation endpoint for fee scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate fee sensitivity/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the reserve queue endpoint for reserve scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /queue reserve plan/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculate-reserve',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the sync calculation endpoint for allocation scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate allocation mix/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    'uses the sync calculation endpoint for sector-profile scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
+
+      fireEvent.click(await screen.findByRole('button', { name: /calculate sector mix/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
+
+  it('calculates a scenario with empty variants without synthesizing status or polling', async () => {
     mockWorkspaceFetches();
+    const existingFetch = fetchSpy.getMockImplementation()!;
+    const detail = { ...feeScenarioSetDetail(), variantCount: 0, variants: [] };
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (
+        input === `/api/funds/123/scenario-sets/${detail.id}` &&
+        (init?.method ?? 'GET') === 'GET'
+      ) {
+        return Promise.resolve(jsonResponse(detail));
+      }
+      return existingFetch(input, init);
+    });
     renderWorkspace();
 
-    fireEvent.click(await screen.findByRole('button', { name: /calculate fee sensitivity/i }));
-
-    await waitFor(() => {
+    const card = await screen.findByTestId(`scenario-workspace-set-${detail.id}`);
+    const calculate = within(card).getByRole('button', { name: 'Calculate Fee sensitivity' });
+    await waitFor(() => expect(calculate).toBeEnabled());
+    expect(within(card).getByText('Loading')).toBeInTheDocument();
+    expect(within(card).queryByText('Fee profile')).not.toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      `/api/funds/123/scenario-sets/${detail.id}/calculation-status`,
+      expect.anything()
+    );
+    fireEvent.click(calculate);
+    await waitFor(() =>
       expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111/calculate',
+        `/api/funds/123/scenario-sets/${detail.id}/calculate`,
         expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the reserve queue endpoint for reserve scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /queue reserve plan/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculate-reserve',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the sync calculation endpoint for allocation scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /calculate allocation mix/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311/calculate',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
-  });
-
-  it('uses the sync calculation endpoint for sector-profile scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
-
-    fireEvent.click(await screen.findByRole('button', { name: /calculate sector mix/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411/calculate',
-        expect.objectContaining({ method: 'POST' })
-      );
-    });
+      )
+    );
   });
 
   it('shows the Methodology badge and Calculate button for methodology scenario sets', async () => {
@@ -551,19 +770,24 @@ describe('FundScenarioWorkspacePage', () => {
     ).toBeInTheDocument();
   });
 
-  it('uses the sync calculation endpoint for methodology scenario sets', async () => {
-    mockWorkspaceFetches();
-    renderWorkspace();
+  it.each([false, true])(
+    'uses the sync calculation endpoint for methodology scenario sets (capital plans %s)',
+    async (capitalPlanEnabled) => {
+      mockWorkspaceFetches();
+      renderWorkspace('/fund-model-results/123/scenarios', capitalPlanEnabled);
 
-    fireEvent.click(await screen.findByRole('button', { name: /calculate waterfall comparison/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
-        expect.objectContaining({ method: 'POST' })
+      fireEvent.click(
+        await screen.findByRole('button', { name: /calculate waterfall comparison/i })
       );
-    });
-  });
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511/calculate',
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    }
+  );
 
   it('creates an optimized reserve scenario set from the workspace', async () => {
     mockWorkspaceFetches();
@@ -683,6 +907,156 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.queryByTestId('seed-source-unavailable')).not.toBeInTheDocument();
   });
 
+  it('keeps default-enabled capital planning accessible when legacy data fails', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString(), 'http://localhost');
+      const isCapitalList =
+        url.pathname === '/api/funds/123/scenario-sets' && url.searchParams.has('representation');
+
+      if (isCapitalList) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/1.0.0',
+            representation: 'capital-plan-v1',
+            scenarioSets: [],
+          })
+        );
+      }
+
+      return Promise.resolve(new Response('server error', { status: 500 }));
+    });
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101', null);
+
+    expect(
+      await screen.findByText('Legacy scenario data unavailable. Capital plans remain usable.')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Summary' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'New capital planning scenario' })).toBeVisible();
+  });
+
+  it('retains the company-scenario idempotency key through a legacy refetch failure', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches({ seedResponse: disclosedScenarioSeedsResponse() });
+    const fallback = fetchSpy.getMockImplementation();
+    let legacyFails = false;
+    let createAttempts = 0;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (
+        method === 'GET' &&
+        (url === '/api/funds/123/scenario-sets' || url === '/api/funds/123/results') &&
+        legacyFails
+      ) {
+        return Promise.resolve(new Response('server error', { status: 500 }));
+      }
+      if (
+        method === 'GET' &&
+        url === '/api/funds/123/scenario-sets?representation=capital-plan-v1&includeArchived=false'
+      ) {
+        return Promise.resolve(
+          jsonResponse({
+            contractVersion: 'fund-scenario-capital-list/1.0.0',
+            representation: 'capital-plan-v1',
+            scenarioSets: [],
+          })
+        );
+      }
+      if (method === 'POST' && url === '/api/companies/101/scenarios') {
+        createAttempts += 1;
+        return Promise.resolve(
+          createAttempts === 1
+            ? statusJsonResponse({ error: 'temporary_failure' }, 500)
+            : statusJsonResponse(
+                {
+                  scenario: {
+                    id: '00000000-0000-4000-8000-000000000102',
+                    name: 'New Scenario',
+                    version: 1,
+                    updatedAt: '2026-07-15T10:00:00.000Z',
+                    isLocked: false,
+                    caseCount: 0,
+                  },
+                  replay: true,
+                },
+                201
+              )
+        );
+      }
+      if (!fallback) throw new Error(`Unexpected request: ${method} ${url}`);
+      return fallback(input, init);
+    });
+
+    const { queryClient } = renderWorkspace(
+      '/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101',
+      null
+    );
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked());
+    fireEvent.click(screen.getByRole('button', { name: /create new scenario/i }));
+    expect(await screen.findByText(/scenario creation failed/i)).toBeInTheDocument();
+
+    legacyFails = true;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    expect(
+      await screen.findByText('Legacy scenario data unavailable. Capital plans remain usable.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeVisible();
+
+    legacyFails = false;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Legacy scenario data unavailable. Capital plans remain usable.')
+      ).not.toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /create new scenario/i }));
+    await waitFor(() => expect(createAttempts).toBe(2));
+
+    const createCalls = fetchSpy.mock.calls.filter(([input, init]) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return url === '/api/companies/101/scenarios' && (init?.method ?? 'GET') === 'POST';
+    });
+    const firstHeaders = createCalls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = createCalls[1]?.[1]?.headers as Record<string, string>;
+    expect(firstHeaders['Idempotency-Key']).toBe(secondHeaders['Idempotency-Key']);
+
+    const dialog = screen.getByRole('dialog', { name: /start case from portfolio actuals/i });
+    expect(await within(dialog).findByRole('radio', { name: /new scenario/i })).toBeChecked();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+      ).not.toBeInTheDocument()
+    );
+
+    legacyFails = true;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    legacyFails = false;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['fund-scenario-workspace', '123'] })
+    );
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('preselects the seedCompany disclosed by the page-level seed response', async () => {
     vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
     mockWorkspaceFetches({ seedResponse: disclosedScenarioSeedsResponse() });
@@ -794,7 +1168,10 @@ describe('FundScenarioWorkspacePage', () => {
     function scenarioSetListCallCount() {
       return fetchSpy.mock.calls.filter(([input, init]) => {
         const url = typeof input === 'string' ? input : input.toString();
-        return url === '/api/funds/123/scenario-sets' && ((init as RequestInit)?.method ?? 'GET') === 'GET';
+        return (
+          url === '/api/funds/123/scenario-sets' &&
+          ((init as RequestInit)?.method ?? 'GET') === 'GET'
+        );
       }).length;
     }
 

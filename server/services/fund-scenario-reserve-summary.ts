@@ -205,7 +205,10 @@ export function buildScenarioReserveSummary(input: {
   portfolio: ReserveCompanyInput[];
   override: FundScenarioReserveAllocationOverrideV1;
 }): ScenarioReserveSummaryV1 {
-  const baseRows = buildBaseAllocationRows(input.portfolio, ReserveEngine(input.portfolio));
+  const baseRows = buildBaseAllocationRows(
+    input.portfolio,
+    ReserveEngine(input.portfolio, 'rule-based')
+  );
   const { byCompanyId: overrides, duplicateCompanyIds } = buildOverrideMap(
     input.override.payload.items
   );

@@ -1,29 +1,29 @@
 name: Documentation Routing Check
 
 on:
-  # Generated discovery outputs are committed and also uploaded as workflow
-  # artifacts. Source, generator, or committed output changes run validation.
+  # Only the fast router is committed; full reports are generated as CI artifacts.
+  # Source, generator, and committed output changes must run validation.
   push:
     branches: [main]
     paths:
+      - '*.md'
       - 'docs/**/*.md'
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
+      - '.claude/**/*.json'
       - 'docs/DISCOVERY-MAP.source.yaml'
-      - 'docs/_generated/router-index.json'
       - 'docs/_generated/router-fast.json'
-      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   pull_request:
     paths:
+      - '*.md'
       - 'docs/**/*.md'
       - 'cheatsheets/**/*.md'
       - '.claude/**/*.md'
+      - '.claude/**/*.json'
       - 'docs/DISCOVERY-MAP.source.yaml'
-      - 'docs/_generated/router-index.json'
       - 'docs/_generated/router-fast.json'
-      - 'docs/_generated/staleness-report.md'
       - 'scripts/generate-discovery-map.ts'
       - 'scripts/routeQueryFast.ts'
   workflow_dispatch:
@@ -43,7 +43,7 @@ jobs:
         with:
           restore-tool-cache: 'false'
 
-      - name: Validate committed routing artifacts
+      - name: Validate routing source and committed fast router
         id: routing-check
         run: |
           echo "::group::Discovery Map Validation"

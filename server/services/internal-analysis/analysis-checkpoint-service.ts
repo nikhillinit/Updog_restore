@@ -52,7 +52,10 @@ import {
   type QuarterlyReviewCommandResult,
 } from '../../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
-import { FINANCIAL_FACTS_POLICY_VERSION_1_4_0 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { internalLpEconomicsRuns } from '../../../shared/schema/internal-economics';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import { db } from '../../db';
@@ -1408,7 +1411,10 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
         throw error;
       }
 
-      if (snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0) {
+      if (
+        snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_4_0 ||
+        snapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0
+      ) {
         throw new AnalysisCheckpointServiceError(
           422,
           'UNSUPPORTED_FACTS_POLICY',
@@ -2001,6 +2007,17 @@ function parseQuarterlyJobPayload(payload: unknown): QuarterlyJobPayload | null 
 export class InternalAnalysisCheckpointService {
   private plannerTimer: NodeJS.Timeout | null = null;
   private processorTimer: NodeJS.Timeout | null = null;
+  private readonly pendingCycles = new Set<Promise<unknown>>();
+
+  private trackCycle(cycle: Promise<unknown>): void {
+    this.pendingCycles.add(cycle);
+    void cycle
+      .finally(() => this.pendingCycles.delete(cycle))
+      .catch((error: unknown) => {
+        log.error({ err: error }, 'Background cycle failed');
+      });
+  }
+
   private plannerInFlight = false;
   private processorInFlight = false;
   private enabled = false;
@@ -2035,16 +2052,22 @@ export class InternalAnalysisCheckpointService {
         DEFAULT_PROCESSOR_INTERVAL_MS
       );
 
-    this.plannerTimer = setInterval(() => void this.runPlannerCycle(), plannerIntervalMs);
-    this.processorTimer = setInterval(() => void this.runProcessorCycle(), processorIntervalMs);
+    this.plannerTimer = setInterval(
+      () => this.trackCycle(this.runPlannerCycle()),
+      plannerIntervalMs
+    );
+    this.processorTimer = setInterval(
+      () => this.trackCycle(this.runProcessorCycle()),
+      processorIntervalMs
+    );
 
     // Startup catch-up: enqueue any past-due quarters immediately (R33-b).
-    void this.runPlannerCycle();
-    void this.runProcessorCycle();
+    this.trackCycle(this.runPlannerCycle());
+    this.trackCycle(this.runProcessorCycle());
     log.info({ plannerIntervalMs, processorIntervalMs }, 'Quarterly analysis scheduler started');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.enabled = false;
     if (this.plannerTimer) {
       clearInterval(this.plannerTimer);
@@ -2054,6 +2077,7 @@ export class InternalAnalysisCheckpointService {
       clearInterval(this.processorTimer);
       this.processorTimer = null;
     }
+    await Promise.allSettled(this.pendingCycles);
   }
 
   planQuarterlyJobs(

@@ -5,6 +5,7 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   PersistedFinancialFactsSnapshotV1Schema,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
@@ -25,12 +26,17 @@ const SUPPORTED_POLICY_VERSIONS = new Set<string>([
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
 ]);
 
 export function parsePersistedFactsRow(
-  row: FinancialFactsSnapshot
+  row: FinancialFactsSnapshot,
+  options: { allowRestatement?: boolean } = {}
 ): PersistedFactsRowParseResult {
-  if (!SUPPORTED_POLICY_VERSIONS.has(row.policyVersion)) {
+  if (
+    !SUPPORTED_POLICY_VERSIONS.has(row.policyVersion) ||
+    (row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0 && !options.allowRestatement)
+  ) {
     return { kind: 'unsupported', policyVersion: row.policyVersion };
   }
 

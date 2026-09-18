@@ -66,6 +66,14 @@ const SERIES_B_HEALTHCARE_MID: ReserveCompanyInput = {
   sector: 'Healthcare',
 };
 
+const SEED_SAAS_OWNERSHIP_UNKNOWN: ReserveCompanyInput = {
+  id: 7,
+  invested: 1_000_000,
+  ownership: null,
+  stage: 'Seed',
+  sector: 'SaaS',
+};
+
 const RULE_BASED_PORTFOLIO = [
   SERIES_A_FINTECH_BOOST,
   SEED_SAAS_PENALTY,
@@ -250,6 +258,31 @@ describe('runReserveWithSubstrate parity with the legacy engine (effective seed 
       expect(entry.rationale).toBe(legacy[index]!.rationale);
     });
     expect(result.value.asOfUtc).toBe('2026-07-17T00:00:00.000Z');
+  });
+
+  it('(c) null-ownership parity: both kernels treat unrecorded ownership as neutral (ADR-054)', () => {
+    delete process.env['ALG_RESERVE'];
+    const portfolio = [
+      SEED_SAAS_OWNERSHIP_UNKNOWN,
+      { ...SEED_SAAS_OWNERSHIP_UNKNOWN, id: 8, ownership: 0 },
+      { ...SEED_SAAS_OWNERSHIP_UNKNOWN, id: 9, ownership: 0.15 },
+    ];
+    const legacy = ReserveEngine(portfolio);
+    const result = runReserveWithSubstrate(reserveContext(LEGACY_SEED), portfolio, ON);
+    if (result.state !== 'available') {
+      throw new Error(`expected available, got ${result.state}`);
+    }
+
+    // Base 1M * 1.5 (Seed) * 1.1 (SaaS) = 1,650,000. null takes no multiplier and no +0.15
+    // confidence; 0 takes the 0.8 penalty (null must never coerce to it); 0.15 takes the boost.
+    expect(allocationAmounts(result)).toEqual(['1650000', '1320000', '1980000']);
+    expect(result.value.allocations.map((e) => e.confidence)).toEqual(['0.5', '0.5', '0.65']);
+    result.value.allocations.forEach((entry, index) => {
+      expect(Number(entry.allocation)).toBe(legacy[index]!.allocation);
+      expect(Number(entry.confidence)).toBe(legacy[index]!.confidence);
+      expect(entry.rationale).toBe(legacy[index]!.rationale);
+    });
+    expect(result.basis.inputHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('(c) ML-path parity: gate interleave and adjustment via the explicit ml algorithm option', () => {

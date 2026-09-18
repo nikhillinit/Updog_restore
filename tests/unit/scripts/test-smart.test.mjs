@@ -31,6 +31,15 @@ afterEach(async () => {
 });
 
 describe('affected-test planning', () => {
+  it.each([
+    'client/src/core/reserves/__tests__/reserves.spec.ts',
+    'client/src/components/__tests__/Sidebar.test.tsx',
+    'server/services/__tests__/xirr-golden-set.test.ts',
+    'shared/utils/__tests__/diff.test.ts',
+  ])('routes colocated unit test %s to the unit projects', (testPath) => {
+    expect(testRunnerForPath(testPath)).toBe('test:unit');
+  });
+
   it('returns no_affected_tests for a documentation-only diff', async () => {
     const root = await makeRoot();
     await write(root, 'docs/readme.md', '# Docs');
@@ -72,6 +81,19 @@ describe('affected-test planning', () => {
 
     expect(plan).toMatchObject({ version: 1, mode: 'full_fallback', tests: [] });
     expect(plan.reason).toContain('server/uncovered.ts');
+  });
+
+  it('falls back when a changed smoke test has no supported runner', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/smoke/production.spec.ts', 'test("smoke", () => {});');
+
+    const plan = await createAffectedTestPlan({
+      root,
+      changedFiles: ['tests/smoke/production.spec.ts'],
+    });
+
+    expect(plan).toMatchObject({ version: 1, mode: 'full_fallback', tests: [] });
+    expect(plan.reason).toContain('tests/smoke/production.spec.ts');
   });
 
   it.each([['shared/schema.ts'], ['package-lock.json'], ['.github/workflows/ci-unified.yml']])(

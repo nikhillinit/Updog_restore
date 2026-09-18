@@ -5,7 +5,7 @@
  * All components live in client/src/components/monte-carlo/.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { DataQualityResult, BacktestConfig, BacktestMetric } from '@shared/types/backtesting';
 
@@ -155,6 +155,15 @@ describe('RecommendationsPanel', () => {
 // ===========================================================================
 
 describe('ConfigForm', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-12T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const defaultProps = {
     fundId: 1,
     onSubmit: vi.fn(),
@@ -162,16 +171,16 @@ describe('ConfigForm', () => {
     lastConfig: null,
   };
 
-  it('renders default start date input with value "2020-01-01"', () => {
+  it('renders default start date input with value "2021-01-01"', () => {
     render(<ConfigForm {...defaultProps} />);
     const startInput = screen.getByLabelText('Start Date') as HTMLInputElement;
-    expect(startInput.value).toBe('2020-01-01');
+    expect(startInput.value).toBe('2021-01-01');
   });
 
-  it('renders default end date input with value "2025-01-01"', () => {
+  it('renders default end date input with value "2026-01-01"', () => {
     render(<ConfigForm {...defaultProps} />);
     const endInput = screen.getByLabelText('End Date') as HTMLInputElement;
-    expect(endInput.value).toBe('2025-01-01');
+    expect(endInput.value).toBe('2026-01-01');
   });
 
   it('shows "Running..." when disabled=true', () => {
@@ -234,8 +243,8 @@ describe('ConfigForm', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const config = onSubmit.mock.calls[0]![0] as BacktestConfig;
     expect(config.fundId).toBe(1);
-    expect(config.startDate).toBe('2020-01-01');
-    expect(config.endDate).toBe('2025-01-01');
+    expect(config.startDate).toBe('2021-01-01');
+    expect(config.endDate).toBe('2026-01-01');
     expect(config.simulationRuns).toBe(10000);
     expect(config.comparisonMetrics).toEqual(expect.arrayContaining(['irr', 'tvpi', 'dpi']));
   });

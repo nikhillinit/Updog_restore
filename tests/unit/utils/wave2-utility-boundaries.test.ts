@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportToExcel } from '@/utils/export-excel';
 import pLimit from '@/utils/pLimit';
 import { performanceBaseline } from '@/utils/performance-baseline';
 import { forEach, forEachWithMetrics } from '@/utils/array-safety-enhanced';
@@ -17,61 +16,6 @@ describe('Wave 2 utility boundaries', () => {
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     vi.unstubAllGlobals();
-  });
-
-  it('exports portfolio data through a CSV download link', () => {
-    const link = {
-      download: '',
-      href: '',
-      style: { visibility: '' },
-      setAttribute(name: string, value: string) {
-        if (name === 'download') {
-          this.download = value;
-        }
-        if (name === 'href') {
-          this.href = value;
-        }
-      },
-      click: vi.fn(),
-    };
-    const appendSpy = vi.fn();
-    const removeSpy = vi.fn();
-    vi.stubGlobal('document', {
-      body: {
-        appendChild: appendSpy,
-        removeChild: removeSpy,
-      },
-      createElement: vi.fn(() => link),
-    });
-    const createObjectUrlMock = vi.fn(() => 'blob:wave2-report');
-    Object.defineProperty(URL, 'createObjectURL', {
-      configurable: true,
-      writable: true,
-      value: createObjectUrlMock,
-    });
-
-    exportToExcel(
-      {
-        portfolioCompanies: [
-          {
-            name: 'Alpha',
-            sector: 'SaaS',
-            stage: 'Series A',
-            investmentAmount: '5000000',
-            currentValuation: '12500000',
-            status: 'active',
-            foundedYear: '2020',
-          },
-        ],
-      },
-      'fund-report'
-    );
-
-    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
-    expect(link.click).toHaveBeenCalledTimes(1);
-    expect(appendSpy).toHaveBeenCalledTimes(1);
-    expect(removeSpy).toHaveBeenCalledTimes(1);
-    expect(link.download).toMatch(/^fund-report-\d{4}-\d{2}-\d{2}\.csv$/);
   });
 
   it('limits concurrent async work', async () => {

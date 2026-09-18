@@ -337,11 +337,29 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
 }
 
 /** Convenience entry point: build the DB-backed ports and run a full sweep. */
-export function runRetentionSweep(
+export async function runRetentionSweep(
   now: Date,
   database: RetentionDatabase = db
 ): Promise<RetentionSweepSummary> {
-  return sweepDueBatches(createRetentionSweepPorts(database), now);
+  const summary = await sweepDueBatches(createRetentionSweepPorts(database), now);
+  // Keep the existing sweep usable before the additive draft migration lands.
+  const draftTable = toRows(await database.execute(sql`SELECT to_regclass('public.actuals_draft_revisions') AS relation`));
+  if (draftTable[0]?.['relation']) {
+    // Caller-selected upload keys alone cannot establish draft ownership.
+    await database.execute(sql`
+      UPDATE source_artifacts AS artifact
+      SET payload = NULL, purged_at = ${now}
+      WHERE artifact.idempotency_key LIKE 'ad1:%'
+        AND artifact.purged_at IS NULL AND artifact.purge_after <= ${now}
+        AND EXISTS (
+          SELECT 1 FROM actuals_draft_revisions AS revision
+          WHERE revision.fund_id = artifact.fund_id
+            AND (revision.ledger_source_artifact_id = artifact.id
+              OR revision.valuation_source_artifact_id = artifact.id)
+        )
+    `);
+  }
+  return summary;
 }
 
 // ---------------------------------------------------------------------------
@@ -398,6 +416,17 @@ function mapJobRow(row: Record<string, unknown>): JobOutbox {
 export class ArtifactRetentionService {
   private plannerTimer: NodeJS.Timeout | null = null;
   private processorTimer: NodeJS.Timeout | null = null;
+  private readonly pendingCycles = new Set<Promise<unknown>>();
+
+  private trackCycle(cycle: Promise<unknown>): void {
+    this.pendingCycles.add(cycle);
+    void cycle
+      .finally(() => this.pendingCycles.delete(cycle))
+      .catch((error: unknown) => {
+        log.error({ err: error }, 'Background cycle failed');
+      });
+  }
+
   private plannerInFlight = false;
   private processorInFlight = false;
   private enabled = false;
@@ -432,16 +461,22 @@ export class ArtifactRetentionService {
         DEFAULT_PROCESSOR_INTERVAL_MS
       );
 
-    this.plannerTimer = setInterval(() => void this.runPlannerCycle(), plannerIntervalMs);
-    this.processorTimer = setInterval(() => void this.runProcessorCycle(), processorIntervalMs);
+    this.plannerTimer = setInterval(
+      () => this.trackCycle(this.runPlannerCycle()),
+      plannerIntervalMs
+    );
+    this.processorTimer = setInterval(
+      () => this.trackCycle(this.runProcessorCycle()),
+      processorIntervalMs
+    );
 
     // Startup catch-up: enqueue any missed daily windows immediately (R33-b).
-    void this.runPlannerCycle();
-    void this.runProcessorCycle();
+    this.trackCycle(this.runPlannerCycle());
+    this.trackCycle(this.runProcessorCycle());
     log.info({ plannerIntervalMs, processorIntervalMs }, 'Artifact retention sweep started');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.enabled = false;
     if (this.plannerTimer) {
       clearInterval(this.plannerTimer);
@@ -451,6 +486,7 @@ export class ArtifactRetentionService {
       clearInterval(this.processorTimer);
       this.processorTimer = null;
     }
+    await Promise.allSettled(this.pendingCycles);
   }
 
   /** Enqueue one job per missed UTC day within the catch-up bound (idempotent). */

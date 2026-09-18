@@ -27,7 +27,6 @@ const filesToFix = [
   // Priority 4: Library files
   'client/src/lib/waterfall/american-ledger.ts',
   'client/src/lib/fund-calc-v2.ts',
-  'client/src/lib/schema-adapter.ts',
   'client/src/lib/cashflow/generate.ts',
 
   // Priority 5: Example data

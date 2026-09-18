@@ -1,0 +1,198 @@
+{
+  "name": "task-update-commands",
+  "order": 36,
+  "description": "Migration 0059: fund-scoped task update receipts with immutable command responses. Reconciliation audits the exact catalog; trigger or function drift requires manual journaled migration review.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0059_task_update_commands.sql"],
+  "allowedCreateTables": ["task_update_commands"],
+  "expectedTables": [
+    {
+      "name": "task_update_commands",
+      "enforceInsertContract": true,
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "expectedDefaultExpression": "nextval('task_update_commands_id_seq'::regclass)",
+          "expectedSequence": {
+            "name": "task_update_commands_id_seq",
+            "dataType": "integer",
+            "startValue": "1",
+            "minimumValue": "1",
+            "maximumValue": "2147483647",
+            "increment": "1",
+            "cycleOption": "NO"
+          }
+        },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "task_id", "type": "integer", "nullable": false },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false,
+          "expectedCharacterMaximumLength": 128
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false,
+          "expectedCharacterMaximumLength": 64
+        },
+        { "name": "response_body", "type": "jsonb", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "expectedDefaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        "task_update_commands_pkey",
+        "task_update_commands_fund_id_funds_id_fk",
+        "task_update_commands_task_fund_fk",
+        "task_update_commands_created_by_users_id_fk",
+        "task_update_commands_scope_unique",
+        "task_update_commands_request_hash_check",
+        "task_update_commands_key_nonempty_check",
+        "task_update_commands_response_identity_check"
+      ],
+      "indexes": [
+        "task_update_commands_pkey",
+        "task_update_commands_scope_unique"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "task_update_commands_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_task_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (task_id, fund_id) REFERENCES tasks(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(task_id, fund_id)",
+              "REFERENCES tasks(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_created_by_users_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(created_by)",
+              "REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_scope_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, task_id, idempotency_key)",
+            "orderedFragments": [
+              "UNIQUE",
+              "(fund_id, task_id, idempotency_key)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_request_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((request_hash)::text ~ '^[0-9a-f]{64}$'::text))",
+            "orderedFragments": [
+              "CHECK",
+              "(request_hash)::text",
+              "~",
+              "'^[0-9a-f]{64}$'::text"
+            ],
+            "stringLiterals": ["^[0-9a-f]{64}$"]
+          }
+        },
+        {
+          "name": "task_update_commands_key_nonempty_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((length((idempotency_key)::text) > 0))",
+            "orderedFragments": [
+              "CHECK",
+              "length((idempotency_key)::text)",
+              "> 0"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_update_commands_response_identity_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((jsonb_typeof(response_body) = 'object'::text) AND (NOT ((response_body ->> 'id'::text) IS DISTINCT FROM (task_id)::text)) AND (NOT ((response_body ->> 'fundId'::text) IS DISTINCT FROM (fund_id)::text))))",
+            "orderedFragments": [
+              "CHECK",
+              "jsonb_typeof(response_body)",
+              "'object'::text",
+              "response_body ->> 'id'::text",
+              "IS DISTINCT FROM (task_id)::text",
+              "response_body ->> 'fundId'::text",
+              "IS DISTINCT FROM (fund_id)::text"
+            ],
+            "stringLiterals": ["object", "id", "fundId"]
+          }
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "task_update_commands_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER task_update_commands_forbid_update_trigger BEFORE UPDATE ON public.task_update_commands FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER task_update_commands_forbid_update_trigger",
+              "BEFORE UPDATE ON public.task_update_commands",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    }
+  ],
+  "functionDefinitions": [
+    {
+      "name": "internal_economics_forbid_update",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'immutable_row_update_forbidden: %', TG_TABLE_NAME;\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()",
+          "RETURNS trigger",
+          "LANGUAGE plpgsql",
+          "RAISE EXCEPTION",
+          "TG_TABLE_NAME"
+        ],
+        "stringLiterals": ["immutable_row_update_forbidden: %"]
+      }
+    }
+  ]
+}

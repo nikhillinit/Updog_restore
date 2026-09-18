@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-17
+last_updated: 2026-09-12
 ---
 
 # Schema System Integration Plan
@@ -73,19 +73,10 @@ calculation snapshots:
 - Upfront capital calls only
 - **Status**: Maintained for backward compatibility
 
-#### 4. **schema-adapter.ts** (bridge layer)
+#### 4. Legacy schema bridge (removed)
 
-Two-way conversion:
-
-- `adaptToLegacySchema()` - ExtendedFundModelInputs → FundModelInputs
-- `adaptFromLegacySchema()` - FundModelInputs → ExtendedFundModelInputs
-- `validateLegacyCompatibility()` - Warn about features lost in conversion
-
-**Use Cases**:
-
-- Migrate existing fund configurations to new schema
-- Run new configurations through legacy engine for comparison
-- Gradual migration of UI components
+The unused `schema-adapter.ts` bridge was removed after confirming it had no
+runtime importers.
 
 ## Migration Path
 
@@ -106,7 +97,6 @@ production path is `/fund-setup` plus server-backed results and forecasting.
 - [x] Publish through `POST /api/funds/finalize`
 - [x] Read results through `/api/funds/:id/results`
 - [x] Read deterministic forecasting through `/api/funds/:id/dual-forecast`
-- [ ] Keep schema-adapter usage under review
 
 **Result**: routed product surfaces use server-backed calculations instead of a
 client-side schema-native engine prototype.
@@ -136,7 +126,7 @@ client-side schema-native engine prototype.
 ### Phase 5: Deprecation & Cleanup (PR #7+)
 
 - [x] Remove dormant schema-native engine prototype from active source
-- [ ] Reassess `schema-adapter.ts` once no active callers remain
+- [x] Remove unused `schema-adapter.ts` bridge
 - [ ] Reassess legacy `fund-calc.ts` only after all active routes are confirmed
       to use server-backed calculations
 
@@ -167,7 +157,7 @@ client-side schema-native engine prototype.
 
 **Status**: Schema artifacts retained
 
-- Used by schema artifacts and adapters where still referenced
+- Used by schema artifacts where still referenced
 - No standalone active calculation engine currently consumes it
 - Breaking changes require a migration path where persisted data is involved
 - Zod schemas provide runtime validation safety
@@ -177,7 +167,6 @@ client-side schema-native engine prototype.
 ### Unit Tests
 
 - **Schema Validation**: All schemas validate correctly
-- **Adapter Tests**: Round-trip conversion preserves data
 - **Calculation Tests**: Active engines produce expected outputs
 
 ### Integration Tests
@@ -196,7 +185,6 @@ reserve snapshots, pacing snapshots, and dual forecast aggregation.
 ```
 client/src/lib/
 ├── fund-calc.ts              # Legacy engine (v1.0.0)
-├── schema-adapter.ts         # Bridge layer
 ├── decimal-utils.ts          # Shared utilities
 └── xirr.ts                   # IRR calculations
 

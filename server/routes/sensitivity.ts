@@ -113,103 +113,111 @@ router.post(
   }
 );
 
-router.post('/funds/:id/sensitivity/two-way', requireTeamWrite, async (req: Request, res: Response) => {
-  const fundId = parseRouteFundId(req, res);
-  if (fundId === null) {
-    return;
+router.post(
+  '/funds/:id/sensitivity/two-way',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    const fundId = parseRouteFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+
+    const parsed = TwoWayAnalysisRequestV1Schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        code: 'INVALID_PARAMS',
+        message: 'request body failed validation',
+        issues: parsed.error.issues,
+      });
+    }
+
+    const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+    const { twoWaySensitivityEngine, SensitivityEngineError } =
+      await import('../services/two-way-sensitivity-engine');
+
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'User must be authenticated to create a sensitivity run',
+      });
+    }
+    const startedAt = Date.now();
+
+    const run = await sensitivityRunService.createPending(fundId, 'two_way', parsed.data, userId);
+
+    try {
+      const result = await twoWaySensitivityEngine.runTwoWaySensitivity(fundId, parsed.data);
+      const durationMs = Date.now() - startedAt;
+      const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+      return res.status(200).json({ run: completedRun, result });
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+      const message = err instanceof Error ? err.message : 'Unknown engine failure';
+      await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+      const status = STATUS_BY_CODE[code] ?? 500;
+      return res.status(status).json({ code, message });
+    }
   }
+);
 
-  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
-    return;
+router.post(
+  '/funds/:id/sensitivity/stress',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    const fundId = parseRouteFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+
+    const parsed = StressAnalysisRequestV1Schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        code: 'INVALID_PARAMS',
+        message: 'request body failed validation',
+        issues: parsed.error.issues,
+      });
+    }
+
+    const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+    const { stressTestEngine, SensitivityEngineError } =
+      await import('../services/stress-test-engine');
+
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'User must be authenticated to create a sensitivity run',
+      });
+    }
+    const startedAt = Date.now();
+
+    const run = await sensitivityRunService.createPending(fundId, 'stress', parsed.data, userId);
+
+    try {
+      const result = await stressTestEngine.runStressTest(fundId, parsed.data);
+      const durationMs = Date.now() - startedAt;
+      const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+      return res.status(200).json({ run: completedRun, result });
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+      const message = err instanceof Error ? err.message : 'Unknown engine failure';
+      await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+      const status = STATUS_BY_CODE[code] ?? 500;
+      return res.status(status).json({ code, message });
+    }
   }
-
-  const parsed = TwoWayAnalysisRequestV1Schema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      code: 'INVALID_PARAMS',
-      message: 'request body failed validation',
-      issues: parsed.error.issues,
-    });
-  }
-
-  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
-  const { twoWaySensitivityEngine, SensitivityEngineError } =
-    await import('../services/two-way-sensitivity-engine');
-
-  const userId = getUserId(req);
-  if (!userId) {
-    return res.status(401).json({
-      code: 'AUTHENTICATION_REQUIRED',
-      message: 'User must be authenticated to create a sensitivity run',
-    });
-  }
-  const startedAt = Date.now();
-
-  const run = await sensitivityRunService.createPending(fundId, 'two_way', parsed.data, userId);
-
-  try {
-    const result = await twoWaySensitivityEngine.runTwoWaySensitivity(fundId, parsed.data);
-    const durationMs = Date.now() - startedAt;
-    const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
-    return res.status(200).json({ run: completedRun, result });
-  } catch (err) {
-    const durationMs = Date.now() - startedAt;
-    const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
-    const message = err instanceof Error ? err.message : 'Unknown engine failure';
-    await sensitivityRunService.markFailed(run.id, code, message, durationMs);
-    const status = STATUS_BY_CODE[code] ?? 500;
-    return res.status(status).json({ code, message });
-  }
-});
-
-router.post('/funds/:id/sensitivity/stress', requireTeamWrite, async (req: Request, res: Response) => {
-  const fundId = parseRouteFundId(req, res);
-  if (fundId === null) {
-    return;
-  }
-
-  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
-    return;
-  }
-
-  const parsed = StressAnalysisRequestV1Schema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      code: 'INVALID_PARAMS',
-      message: 'request body failed validation',
-      issues: parsed.error.issues,
-    });
-  }
-
-  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
-  const { stressTestEngine, SensitivityEngineError } =
-    await import('../services/stress-test-engine');
-
-  const userId = getUserId(req);
-  if (!userId) {
-    return res.status(401).json({
-      code: 'AUTHENTICATION_REQUIRED',
-      message: 'User must be authenticated to create a sensitivity run',
-    });
-  }
-  const startedAt = Date.now();
-
-  const run = await sensitivityRunService.createPending(fundId, 'stress', parsed.data, userId);
-
-  try {
-    const result = await stressTestEngine.runStressTest(fundId, parsed.data);
-    const durationMs = Date.now() - startedAt;
-    const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
-    return res.status(200).json({ run: completedRun, result });
-  } catch (err) {
-    const durationMs = Date.now() - startedAt;
-    const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
-    const message = err instanceof Error ? err.message : 'Unknown engine failure';
-    await sensitivityRunService.markFailed(run.id, code, message, durationMs);
-    const status = STATUS_BY_CODE[code] ?? 500;
-    return res.status(status).json({ code, message });
-  }
-});
+);
 
 router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) => {
   const fundId = parseRouteFundId(req, res);
@@ -234,11 +242,47 @@ router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) =>
   const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
 
   let cursor: { createdAt: string; id: number } | undefined;
-  if (req.query['cursorCreatedAt'] && req.query['cursorId']) {
-    const cursorId = parseInt(String(req.query['cursorId']), 10);
-    if (Number.isInteger(cursorId)) {
-      cursor = { createdAt: String(req.query['cursorCreatedAt']), id: cursorId };
+  const rawCursorCreatedAt = req.query['cursorCreatedAt'];
+  const rawCursorId = req.query['cursorId'];
+  const hasCursorCreatedAt = rawCursorCreatedAt !== undefined;
+  const hasCursorId = rawCursorId !== undefined;
+
+  if (hasCursorCreatedAt !== hasCursorId) {
+    return res.status(400).json({
+      code: 'INVALID_CURSOR',
+      message: 'cursorCreatedAt and cursorId must both be provided or both omitted',
+    });
+  }
+
+  if (hasCursorCreatedAt && hasCursorId) {
+    const cursorCreatedAtStr = String(rawCursorCreatedAt);
+
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(cursorCreatedAtStr);
+    const parsedCursorDate = new Date(cursorCreatedAtStr);
+    if (
+      !isoMatch ||
+      Number.isNaN(parsedCursorDate.getTime()) ||
+      parsedCursorDate.getUTCFullYear() !== Number(isoMatch[1]) ||
+      parsedCursorDate.getUTCMonth() + 1 !== Number(isoMatch[2]) ||
+      parsedCursorDate.getUTCDate() !== Number(isoMatch[3])
+    ) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: 'cursorCreatedAt must be a valid ISO 8601 timestamp',
+      });
     }
+    const cursorIdNum = Number(String(rawCursorId));
+    if (
+      !Number.isSafeInteger(cursorIdNum) ||
+      cursorIdNum <= 0 ||
+      String(rawCursorId) !== String(cursorIdNum)
+    ) {
+      return res.status(400).json({
+        code: 'INVALID_CURSOR',
+        message: 'cursorId must be a positive integer',
+      });
+    }
+    cursor = { createdAt: cursorCreatedAtStr, id: cursorIdNum };
   }
 
   const { sensitivityRunService } = await import('../services/sensitivity-run-service');

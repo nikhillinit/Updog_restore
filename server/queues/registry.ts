@@ -117,7 +117,8 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Cohort Calculations',
     healthMode: 'producer',
     owner: 'route',
-    productionDisposition: { mode: 'local-only' },
+    productionDisposition: { mode: 'quarantined' },
+    quarantined: true,
     fundCalculationAuthority: authorityForCalculationQueue('cohort-calc'),
   },
   {

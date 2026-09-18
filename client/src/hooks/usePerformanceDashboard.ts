@@ -9,6 +9,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
+import { apiRequest } from '@/lib/queryClient';
 import type {
   TimeseriesResponse,
   BreakdownResponse,
@@ -16,17 +17,6 @@ import type {
   Granularity,
   GroupByDimension,
 } from '@shared/types/performance-api';
-
-type ApiErrorResponse = { message?: string };
-
-async function readJson<T>(response: Response): Promise<T> {
-  return response.json() as Promise<T>;
-}
-
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
-  const errorData = (await response.json().catch(() => ({}))) as ApiErrorResponse;
-  return errorData.message || fallback;
-}
 
 // ============================================================================
 // TIMESERIES HOOK
@@ -73,17 +63,10 @@ export function usePerformanceTimeseries(options: UsePerformanceTimeseriesOption
         params.append('metrics', metrics.join(','));
       }
 
-      const response = await fetch(
+      return apiRequest<TimeseriesResponse>(
+        'GET',
         `/api/funds/${fundId}/performance/timeseries?${params.toString()}`
       );
-
-      if (!response.ok) {
-        throw new Error(
-          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch timeseries`)
-        );
-      }
-
-      return readJson<TimeseriesResponse>(response);
     },
     enabled: enabled && !!fundId && !!startDate && !!endDate,
     staleTime: 60_000, // 1 minute
@@ -136,17 +119,10 @@ export function usePerformanceBreakdown(options: UsePerformanceBreakdownOptions)
         params.append('includeExited', 'true');
       }
 
-      const response = await fetch(
+      return apiRequest<BreakdownResponse>(
+        'GET',
         `/api/funds/${fundId}/performance/breakdown?${params.toString()}`
       );
-
-      if (!response.ok) {
-        throw new Error(
-          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch breakdown`)
-        );
-      }
-
-      return readJson<BreakdownResponse>(response);
     },
     enabled: enabled && !!fundId,
     staleTime: 60_000,
@@ -199,17 +175,10 @@ export function usePerformanceComparison(options: UsePerformanceComparisonOption
         params.append('metrics', metrics.join(','));
       }
 
-      const response = await fetch(
+      return apiRequest<ComparisonResponse>(
+        'GET',
         `/api/funds/${fundId}/performance/comparison?${params.toString()}`
       );
-
-      if (!response.ok) {
-        throw new Error(
-          await readErrorMessage(response, `HTTP ${response.status}: Failed to fetch comparison`)
-        );
-      }
-
-      return readJson<ComparisonResponse>(response);
     },
     enabled: enabled && !!fundId && dates.length > 0,
     staleTime: 60_000,
@@ -248,12 +217,7 @@ interface UsePerformanceDashboardOptions {
  * ```
  */
 export function usePerformanceDashboard(options: UsePerformanceDashboardOptions) {
-  const {
-    dateRange,
-    granularity = 'monthly',
-    groupBy = 'sector',
-    enabled = true,
-  } = options;
+  const { dateRange, granularity = 'monthly', groupBy = 'sector', enabled = true } = options;
 
   const timeseriesQuery = usePerformanceTimeseries({
     startDate: dateRange.startDate,
@@ -296,10 +260,7 @@ export function useInvalidatePerformanceCache() {
     await queryClient.invalidateQueries({
       predicate: (query) => {
         const key = query.queryKey[0] as string;
-        return (
-          key.startsWith('performance-') &&
-          query.queryKey[1] === fundId
-        );
+        return key.startsWith('performance-') && query.queryKey[1] === fundId;
       },
     });
   };

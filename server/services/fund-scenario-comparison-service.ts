@@ -14,6 +14,7 @@ import {
   FundScenarioComparisonV1Schema,
   SCENARIO_COMPARISON_METRIC_KEYS,
   type FundScenarioComparisonV1,
+  type FundScenarioCapitalComparison,
   type ScenarioComparisonMetricDeltaV1,
   type ScenarioComparisonMetricKey,
   type ScenarioComparisonMetricMap,
@@ -21,7 +22,13 @@ import {
   type ScenarioComparisonUnavailableReasonV1,
   type ScenarioComparisonVariantV1,
 } from '@shared/contracts/fund-scenario-comparison-v1.contract';
-import { fetchScenarioSetDetail, verifyFundExists } from './fund-scenario-set-service.js';
+import {
+  fetchScenarioSetDetail,
+  verifyFundExists,
+  requireCapitalScenarioRepresentation,
+} from './fund-scenario-set-service.js';
+import { buildFundScenarioCapitalComparison } from './fund-scenario-capital-comparison-service.js';
+import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
 
 type ScenarioComparisonBase = Omit<FundScenarioComparisonV1, 'comparisonStatus'>;
 
@@ -372,9 +379,29 @@ async function buildFundScenarioComparison(
   });
 }
 
+export function getFundScenarioComparison(
+  fundId: number,
+  scenarioSetId: string,
+  representation?: undefined
+): Promise<FundScenarioComparisonV1>;
+// eslint-disable-next-line no-redeclare -- TypeScript overload preserves the strict legacy return type.
+export function getFundScenarioComparison(
+  fundId: number,
+  scenarioSetId: string,
+  representation: 'capital-plan-v1' | 'capital-plan-v2'
+): Promise<FundScenarioCapitalComparison>;
+// eslint-disable-next-line no-redeclare -- Implementation of the representation overloads.
 export async function getFundScenarioComparison(
   fundId: number,
-  scenarioSetId: string
-): Promise<FundScenarioComparisonV1> {
+  scenarioSetId: string,
+  representation?: ScenarioRepresentation
+): Promise<FundScenarioComparisonV1 | FundScenarioCapitalComparison> {
+  if (representation) {
+    return transaction(async (client) => {
+      const comparison = await buildFundScenarioCapitalComparison(client, fundId, scenarioSetId);
+      requireCapitalScenarioRepresentation(comparison.representation, representation);
+      return comparison;
+    });
+  }
   return transaction((client) => buildFundScenarioComparison(client, fundId, scenarioSetId));
 }

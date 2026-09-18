@@ -98,6 +98,16 @@ describe('ReserveIntelligencePanel', () => {
 
   it('renders one analytical diagnostics table with its D33 basis line inside', () => {
     const run = makeReserveIntelligenceRun();
+    run.result.basisRef = {
+      schemaId: 'financial-facts-basis-ref/1.0.0',
+      fundId: 7,
+      snapshotId: 31,
+      snapshotInputHash: RESERVE_FACTS_HASH,
+      sourceFactsInputHash: 'd'.repeat(64),
+      policyVersion: 'financial-facts-policy/1.4.0',
+      asOfDate: '2026-07-29',
+      knowledgeCutoff: '2026-07-29T23:59:59.999Z',
+    };
     mockHook({ data: { kind: 'ready', run }, error: null, isLoading: false });
 
     render(<ReserveIntelligencePanel fundId={7} />);
@@ -109,6 +119,9 @@ describe('ReserveIntelligencePanel', () => {
     expect(basisLine).toHaveTextContent('2026-07-29');
     expect(basisLine).toHaveTextContent(RESERVE_FACTS_HASH.slice(0, 12));
     expect(basisLine).toHaveTextContent('Snapshot 31');
+    expect(basisLine).toHaveTextContent(
+      'Basis: facts snapshot 31 (policy 1.4, 2026-07-29)'
+    );
     expect(basisLine).toHaveTextContent('Not actionable');
     expect(basisLine).toHaveTextContent('Mode: shadow');
     expect(basisLine).toHaveTextContent(

@@ -46,9 +46,7 @@ function createTestQueryClient() {
 
 function renderWithQuery(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 describe('EditAllocationDialog', () => {
@@ -61,11 +59,7 @@ describe('EditAllocationDialog', () => {
 
   it('renders dialog when open', () => {
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     expect(screen.getByText(/edit allocation - techcorp/i)).toBeTruthy();
@@ -73,11 +67,7 @@ describe('EditAllocationDialog', () => {
 
   it('does not render when closed', () => {
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={false}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={false} onOpenChange={mockOnOpenChange} />
     );
 
     expect(screen.queryByText(/edit allocation/i)).toBeFalsy();
@@ -85,11 +75,7 @@ describe('EditAllocationDialog', () => {
 
   it('displays company information', () => {
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     expect(screen.getByText('FinTech')).toBeTruthy();
@@ -100,11 +86,7 @@ describe('EditAllocationDialog', () => {
 
   it('pre-fills form with company data', () => {
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const plannedReservesInput = screen.getByLabelText(/planned reserves/i);
@@ -121,11 +103,7 @@ describe('EditAllocationDialog', () => {
     const user = userEvent.setup();
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const plannedReservesInput = screen.getByLabelText(/planned reserves/i);
@@ -146,11 +124,7 @@ describe('EditAllocationDialog', () => {
     const user = userEvent.setup();
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const plannedReservesInput = screen.getByLabelText(/planned reserves/i);
@@ -176,14 +150,11 @@ describe('EditAllocationDialog', () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
+      text: async () => '',
     });
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const plannedReservesInput = screen.getByLabelText(/planned reserves/i);
@@ -221,11 +192,7 @@ describe('EditAllocationDialog', () => {
     });
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const saveButton = screen.getByRole('button', { name: /save changes/i });
@@ -249,11 +216,7 @@ describe('EditAllocationDialog', () => {
     });
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const allocationCapInput = screen.getByLabelText(/allocation cap/i);
@@ -276,11 +239,7 @@ describe('EditAllocationDialog', () => {
     const user = userEvent.setup();
 
     renderWithQuery(
-      <EditAllocationDialog
-        company={mockCompany}
-        open={true}
-        onOpenChange={mockOnOpenChange}
-      />
+      <EditAllocationDialog company={mockCompany} open={true} onOpenChange={mockOnOpenChange} />
     );
 
     const reasonTextarea = screen.getByLabelText(/allocation reason/i);

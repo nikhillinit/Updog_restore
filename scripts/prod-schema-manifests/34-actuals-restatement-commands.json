@@ -1,0 +1,665 @@
+{
+  "name": "actuals-restatement-commands",
+  "order": 34,
+  "description": "Migration 0057: immutable same-fund restatement command/item lineage and unique replacement successors. Requires separate schema admission.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0057_actuals_restatement_commands.sql"],
+  "allowedCreateTables": [
+    "actuals_restatement_commands",
+    "actuals_restatement_items"
+  ],
+  "expectedTables": [
+    {
+      "name": "actuals_restatement_commands",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": "nextval('actuals_restatement_commands_id_seq'::regclass)"
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "operation_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "expected_snapshot_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "expected_snapshot_input_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "expected_preview_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "as_of_date",
+          "type": "date",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "publication_snapshot_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "ledger_source_artifact_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "valuation_source_artifact_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        "actuals_restatement_commands_artifacts_check",
+        "actuals_restatement_commands_command_fund_unique",
+        "actuals_restatement_commands_command_unique",
+        "actuals_restatement_commands_created_by_fkey",
+        "actuals_restatement_commands_expected_snapshot_fk",
+        "actuals_restatement_commands_fund_id_fkey",
+        "actuals_restatement_commands_hash_check",
+        "actuals_restatement_commands_idempotency_unique",
+        "actuals_restatement_commands_ledger_artifact_fk",
+        "actuals_restatement_commands_pkey",
+        "actuals_restatement_commands_publication_fk",
+        "actuals_restatement_commands_publication_unique",
+        "actuals_restatement_commands_reason_check",
+        "actuals_restatement_commands_successor_check",
+        "actuals_restatement_commands_valuation_artifact_fk"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "actuals_restatement_commands_artifacts_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((ledger_source_artifact_id IS NOT NULL) OR (valuation_source_artifact_id IS NOT NULL)))",
+            "orderedFragments": [
+              "CHECK (((ledger_source_artifact_id IS NOT NULL) OR (valuation_source_artifact_id IS NOT NULL)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_command_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (command_id, fund_id)",
+            "orderedFragments": ["UNIQUE (command_id, fund_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_command_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (command_id)",
+            "orderedFragments": ["UNIQUE (command_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_created_by_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": [
+              "FOREIGN KEY (created_by) REFERENCES users(id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_expected_snapshot_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (expected_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (expected_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_fund_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id)",
+            "orderedFragments": ["FOREIGN KEY (fund_id) REFERENCES funds(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((operation_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((expected_snapshot_input_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((expected_preview_hash)::text ~ '^[a-f0-9]{64}$'::text)))",
+            "orderedFragments": [
+              "CHECK ((((operation_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((expected_snapshot_input_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((expected_preview_hash)::text ~ '^[a-f0-9]{64}$'::text)))"
+            ],
+            "stringLiterals": [
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$"
+            ]
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE (fund_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_ledger_artifact_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (ledger_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (ledger_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY (id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_publication_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (publication_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (publication_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_publication_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (publication_snapshot_id)",
+            "orderedFragments": ["UNIQUE (publication_snapshot_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_reason_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((length(btrim(reason)) >= 1) AND (length(btrim(reason)) <= 500)))",
+            "orderedFragments": [
+              "CHECK (((length(btrim(reason)) >= 1) AND (length(btrim(reason)) <= 500)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_successor_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((expected_snapshot_id <> publication_snapshot_id))",
+            "orderedFragments": [
+              "CHECK ((expected_snapshot_id <> publication_snapshot_id))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_commands_valuation_artifact_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (valuation_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (valuation_source_artifact_id, fund_id) REFERENCES source_artifacts(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [],
+      "indexDefinitions": [],
+      "triggerDefinitions": [
+        {
+          "name": "actuals_restatement_commands_immutable",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER actuals_restatement_commands_immutable BEFORE DELETE OR UPDATE ON public.actuals_restatement_commands FOR EACH ROW EXECUTE FUNCTION reject_actuals_restatement_mutation()",
+            "orderedFragments": [
+              "CREATE TRIGGER actuals_restatement_commands_immutable BEFORE DELETE OR UPDATE ON public.actuals_restatement_commands FOR EACH ROW EXECUTE FUNCTION reject_actuals_restatement_mutation()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "actuals_restatement_items",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": "nextval('actuals_restatement_items_id_seq'::regclass)"
+        },
+        {
+          "name": "command_id",
+          "type": "uuid",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "target_cash_flow_event_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "replacement_cash_flow_event_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "target_valuation_mark_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "replacement_valuation_mark_id",
+          "type": "integer",
+          "nullable": true,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "target_source_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "target_content_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "replacement_source_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "replacement_content_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "replacement_external_ref",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 128,
+          "defaultExpression": null
+        },
+        {
+          "name": "original_publication_snapshot_id",
+          "type": "integer",
+          "nullable": false,
+          "characterMaximumLength": null,
+          "defaultExpression": null
+        },
+        {
+          "name": "original_publication_snapshot_input_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        },
+        {
+          "name": "original_publication_operation_hash",
+          "type": "varchar",
+          "nullable": false,
+          "characterMaximumLength": 64,
+          "defaultExpression": null
+        }
+      ],
+      "constraints": [
+        "actuals_restatement_items_cash_replacement_unique",
+        "actuals_restatement_items_cash_successor_unique",
+        "actuals_restatement_items_command_fk",
+        "actuals_restatement_items_external_ref_check",
+        "actuals_restatement_items_external_ref_unique",
+        "actuals_restatement_items_fund_id_fkey",
+        "actuals_restatement_items_hash_check",
+        "actuals_restatement_items_kind_check",
+        "actuals_restatement_items_mark_replacement_unique",
+        "actuals_restatement_items_mark_successor_unique",
+        "actuals_restatement_items_no_self_check",
+        "actuals_restatement_items_original_publication_fk",
+        "actuals_restatement_items_pkey",
+        "actuals_restatement_items_replacement_cash_fk",
+        "actuals_restatement_items_replacement_mark_fk",
+        "actuals_restatement_items_target_cash_fk",
+        "actuals_restatement_items_target_mark_fk"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "actuals_restatement_items_cash_replacement_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, replacement_cash_flow_event_id)",
+            "orderedFragments": [
+              "UNIQUE (fund_id, replacement_cash_flow_event_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_cash_successor_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, target_cash_flow_event_id)",
+            "orderedFragments": ["UNIQUE (fund_id, target_cash_flow_event_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_command_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (command_id, fund_id) REFERENCES actuals_restatement_commands(command_id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (command_id, fund_id) REFERENCES actuals_restatement_commands(command_id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_external_ref_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((replacement_external_ref)::text ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'::text))",
+            "orderedFragments": [
+              "CHECK (((replacement_external_ref)::text ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'::text))"
+            ],
+            "stringLiterals": ["^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"]
+          }
+        },
+        {
+          "name": "actuals_restatement_items_external_ref_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (command_id, replacement_external_ref)",
+            "orderedFragments": [
+              "UNIQUE (command_id, replacement_external_ref)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_fund_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id)",
+            "orderedFragments": ["FOREIGN KEY (fund_id) REFERENCES funds(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((target_source_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((target_content_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((replacement_source_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((replacement_content_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((original_publication_snapshot_input_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((original_publication_operation_hash)::text ~ '^[a-f0-9]{64}$'::text)))",
+            "orderedFragments": [
+              "CHECK ((((target_source_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((target_content_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((replacement_source_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((replacement_content_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((original_publication_snapshot_input_hash)::text ~ '^[a-f0-9]{64}$'::text) AND ((original_publication_operation_hash)::text ~ '^[a-f0-9]{64}$'::text)))"
+            ],
+            "stringLiterals": [
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$",
+              "^[a-f0-9]{64}$"
+            ]
+          }
+        },
+        {
+          "name": "actuals_restatement_items_kind_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((target_cash_flow_event_id IS NOT NULL) AND (replacement_cash_flow_event_id IS NOT NULL) AND (target_valuation_mark_id IS NULL) AND (replacement_valuation_mark_id IS NULL)) OR ((target_cash_flow_event_id IS NULL) AND (replacement_cash_flow_event_id IS NULL) AND (target_valuation_mark_id IS NOT NULL) AND (replacement_valuation_mark_id IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK ((((target_cash_flow_event_id IS NOT NULL) AND (replacement_cash_flow_event_id IS NOT NULL) AND (target_valuation_mark_id IS NULL) AND (replacement_valuation_mark_id IS NULL)) OR ((target_cash_flow_event_id IS NULL) AND (replacement_cash_flow_event_id IS NULL) AND (target_valuation_mark_id IS NOT NULL) AND (replacement_valuation_mark_id IS NOT NULL))))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_mark_replacement_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, replacement_valuation_mark_id)",
+            "orderedFragments": [
+              "UNIQUE (fund_id, replacement_valuation_mark_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_mark_successor_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, target_valuation_mark_id)",
+            "orderedFragments": ["UNIQUE (fund_id, target_valuation_mark_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_no_self_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((((target_cash_flow_event_id IS NULL) OR (target_cash_flow_event_id <> replacement_cash_flow_event_id)) AND ((target_valuation_mark_id IS NULL) OR (target_valuation_mark_id <> replacement_valuation_mark_id)) AND ((target_source_hash)::text <> (replacement_source_hash)::text)))",
+            "orderedFragments": [
+              "CHECK ((((target_cash_flow_event_id IS NULL) OR (target_cash_flow_event_id <> replacement_cash_flow_event_id)) AND ((target_valuation_mark_id IS NULL) OR (target_valuation_mark_id <> replacement_valuation_mark_id)) AND ((target_source_hash)::text <> (replacement_source_hash)::text)))"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_original_publication_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (original_publication_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (original_publication_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY (id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_replacement_cash_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (replacement_cash_flow_event_id, fund_id) REFERENCES cash_flow_events(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (replacement_cash_flow_event_id, fund_id) REFERENCES cash_flow_events(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_replacement_mark_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (replacement_valuation_mark_id, fund_id) REFERENCES valuation_marks(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (replacement_valuation_mark_id, fund_id) REFERENCES valuation_marks(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_target_cash_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (target_cash_flow_event_id, fund_id) REFERENCES cash_flow_events(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (target_cash_flow_event_id, fund_id) REFERENCES cash_flow_events(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "actuals_restatement_items_target_mark_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (target_valuation_mark_id, fund_id) REFERENCES valuation_marks(id, fund_id)",
+            "orderedFragments": [
+              "FOREIGN KEY (target_valuation_mark_id, fund_id) REFERENCES valuation_marks(id, fund_id)"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [],
+      "indexDefinitions": [],
+      "triggerDefinitions": [
+        {
+          "name": "actuals_restatement_items_immutable",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER actuals_restatement_items_immutable BEFORE DELETE OR UPDATE ON public.actuals_restatement_items FOR EACH ROW EXECUTE FUNCTION reject_actuals_restatement_mutation()",
+            "orderedFragments": [
+              "CREATE TRIGGER actuals_restatement_items_immutable BEFORE DELETE OR UPDATE ON public.actuals_restatement_items FOR EACH ROW EXECUTE FUNCTION reject_actuals_restatement_mutation()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cash_flow_events",
+      "columns": [],
+      "constraints": ["cash_flow_events_id_fund_unique"],
+      "constraintDefinitions": [
+        {
+          "name": "cash_flow_events_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE (id, fund_id)"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [],
+      "indexDefinitions": [],
+      "triggerDefinitions": [],
+      "sharedTable": true
+    },
+    {
+      "name": "valuation_marks",
+      "columns": [],
+      "constraints": ["valuation_marks_id_fund_unique"],
+      "constraintDefinitions": [
+        {
+          "name": "valuation_marks_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE (id, fund_id)"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [],
+      "indexDefinitions": [],
+      "triggerDefinitions": [],
+      "sharedTable": true
+    }
+  ],
+  "functionDefinitions": [
+    {
+      "name": "reject_actuals_restatement_mutation",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.reject_actuals_restatement_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'Actuals restatement provenance is append-only' USING ERRCODE = '23514';\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.reject_actuals_restatement_mutation()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'Actuals restatement provenance is append-only' USING ERRCODE = '23514';\nEND;\n$function$\n"
+        ],
+        "stringLiterals": [
+          "Actuals restatement provenance is append-only",
+          "23514"
+        ]
+      }
+    }
+  ]
+}

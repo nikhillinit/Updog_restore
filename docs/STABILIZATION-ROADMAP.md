@@ -20,6 +20,25 @@ Milestone 0A is now landed on `main`. The canonical validation command is
 `npm run validate:core`, and the integration harness now coordinates startup
 through a machine-readable ready-file contract instead of human log parsing.
 
+## Current Program Navigation (2026-09-12)
+
+The
+[reconciled program plan](superpowers/plans/2026-09-03-updog-reconciled-program-plan.md#september-12-2026-external-roadmap-review-disposition)
+records the summary-only roadmap disposition and proposed capital-planning
+acceptance priority against protected main
+`fc4053b8487608173b2a3cd8d5afd46a067a9d82`. #1505 admitted capital-planning
+source; #1506 recorded the September 12 owner boundary retiring pilot setup and
+real Fund I data as general-readiness prerequisites. A compatible synthetic or
+real platform path still needs demonstrated identity, execution, persistence,
+replay and recovery evidence. Optional pilot acceptance stays separate.
+
+#1486's A/B source admission remains historical evidence. Task 7 readiness and
+candidate freeze, certification, provider binding, deployment, shadow entry and
+activation remain separate gates. C specifications remain drafts and the narrow
+C1 exception remains inactive. The roadmap's proposed five-row acceptance
+checklist and unmerged F_1.15.0 planning documents establish no owner, runtime
+or production approval.
+
 ## Global Rules
 
 1. **Do not start milestone N+1 until milestone N is merged and

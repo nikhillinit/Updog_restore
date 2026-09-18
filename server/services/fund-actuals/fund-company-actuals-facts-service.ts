@@ -168,9 +168,7 @@ function sortById<T extends { id: number }>(rows: T[]): T[] {
 
 function deriveActiveRounds(allRounds: RoundRow[]): RoundRow[] {
   const supersededRoundIds = new Set(
-    allRounds
-      .map((round) => round.supersedesRoundId)
-      .filter((id): id is number => id !== null)
+    allRounds.map((round) => round.supersedesRoundId).filter((id): id is number => id !== null)
   );
   return allRounds
     .filter((round) => !supersededRoundIds.has(round.id))
@@ -322,7 +320,9 @@ function planningFmvSummary(params: {
         source: `company:${params.companyId}`,
       })
     );
-  } else if (daysBetweenIsoDays(params.asOfDate, isoDay(mark.markDate)) > PLANNING_FMV_STALE_AFTER_DAYS) {
+  } else if (
+    daysBetweenIsoDays(params.asOfDate, isoDay(mark.markDate)) > PLANNING_FMV_STALE_AFTER_DAYS
+  ) {
     status = 'stale';
     warnings.push(
       warning({
@@ -476,7 +476,9 @@ export function buildFundCompanyActualsFactsFromRows(
         selectedPlanningMarksByCompany.has(company.id)
     )
     .sort(companySort);
-  const evidenceByCompany = new Map(evidence.companies.map((company) => [company.companyId, company]));
+  const evidenceByCompany = new Map(
+    evidence.companies.map((company) => [company.companyId, company])
+  );
 
   const facts: FundCompanyActualsFact[] = companiesForFacts.map((company) => {
     const companyInvestments = sortById(investmentsByCompany.get(company.id) ?? []);

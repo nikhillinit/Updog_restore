@@ -27,7 +27,9 @@ export const MOCK_FUND = {
   deployedCapital: 16_700_000,
   status: 'active',
   createdAt: '2025-01-01T00:00:00.000Z',
+  establishmentDate: '2025-01-01T00:00:00.000Z',
   updatedAt: '2025-01-01T00:00:00.000Z',
+  isActive: true,
   termYears: 10,
 };
 
@@ -63,6 +65,42 @@ export const MOCK_COMPANIES = [
     status: 'active',
   },
 ];
+
+const PORTFOLIO_OVERVIEW_RESPONSE = {
+  fundId: MOCK_FUND.id,
+  generatedAt: '2026-09-12T00:00:00.000Z',
+  currency: 'USD',
+  provenance: {
+    sourceKind: 'imported_actual',
+    actionability: 'actionable',
+    isFinanciallyActionable: true,
+    generatedAt: '2026-09-12T00:00:00.000Z',
+    warnings: [],
+  },
+  sourceRecordCounts: { companies: MOCK_COMPANIES.length },
+  metrics: {
+    totalInvested: '16700000',
+    totalValue: '46100000',
+    averageMOIC: '2.77',
+    returnPct: '176.05',
+    totalCompanies: MOCK_COMPANIES.length,
+    activeCompanies: MOCK_COMPANIES.length,
+    exitedCompanies: 0,
+  },
+  companies: MOCK_COMPANIES.map((company) => ({
+    ...company,
+    invested: company.invested.toFixed(2),
+    currentValue: company.currentValue.toFixed(2),
+    moic: company.moic.toFixed(2),
+  })),
+  meta: {
+    mode: 'live',
+    requestedAsOf: null,
+    resolvedAsOf: null,
+    source: 'live',
+    historicalAvailable: false,
+  },
+};
 
 export function makeNeutralFundMoicRankingsResponseV2(fundId: number): FundMoicRankingsResponseV2 {
   return {
@@ -1213,8 +1251,28 @@ export async function installQaAuditApi(page: Page) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/auth/session') {
+      await fulfillJson(route, {
+        user: { id: 'qa', email: 'qa@example.com', role: 'admin', fundIds: [MOCK_FUND.id] },
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       await fulfillJson(route, [MOCK_FUND]);
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === '/api/portfolio-overview') {
+      await fulfillJson(route, PORTFOLIO_OVERVIEW_RESPONSE);
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${MOCK_FUND.id}/construction-reconciliation/latest`
+    ) {
+      await fulfillJson(route, { state: 'no_persisted_reconciliation' });
       return;
     }
 
@@ -1242,10 +1300,7 @@ export async function installQaAuditApi(page: Page) {
     }
 
     // F_1.9.0 workspace-context-rail reads on every rail-mounting surface.
-    if (
-      request.method() === 'GET' &&
-      url.pathname === '/api/funds/1/financial-facts/latest'
-    ) {
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/financial-facts/latest') {
       await fulfillJson(route, makeFinancialFactsLatestResponse(MOCK_FUND.id));
       return;
     }

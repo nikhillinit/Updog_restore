@@ -134,18 +134,9 @@ class LocalStorageService implements StorageService {
   }
 
   async getSignedUrl(key: string, expirySeconds = 3600): Promise<SignedUrlResult> {
-    // For local storage, generate a simple token-based URL
-    const expiresAt = new Date(Date.now() + expirySeconds * 1000);
-    const token = crypto
-      .createHmac('sha256', process.env['STORAGE_SECRET'] || 'dev-secret')
-      .update(`${key}:${expiresAt.getTime()}`)
-      .digest('hex')
-      .slice(0, 16);
-
-    return {
-      url: `${this.baseUrl}/${key}?token=${token}&expires=${expiresAt.getTime()}`,
-      expiresAt,
-    };
+    void key;
+    void expirySeconds;
+    throw new Error('Signed download URLs are unavailable for local storage');
   }
 
   async listFiles(prefix: string): Promise<string[]> {
@@ -198,10 +189,9 @@ class MemoryStorageService implements StorageService {
   }
 
   async getSignedUrl(key: string, expirySeconds = 3600): Promise<SignedUrlResult> {
-    return {
-      url: `/memory/${key}`,
-      expiresAt: new Date(Date.now() + expirySeconds * 1000),
-    };
+    void key;
+    void expirySeconds;
+    throw new Error('Signed download URLs are unavailable for memory storage');
   }
 
   async listFiles(prefix: string): Promise<string[]> {

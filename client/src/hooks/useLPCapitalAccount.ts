@@ -69,7 +69,8 @@ export function useLPCapitalAccount(options: UseLPCapitalAccountOptions = {}) {
     if (!response.ok) {
       const errorData = await readJsonResponse(response).catch(() => null);
       throw new Error(
-        getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch capital account`
+        getErrorMessage(errorData, response.status) ||
+          `HTTP ${response.status}: Failed to fetch capital account`
       );
     }
 

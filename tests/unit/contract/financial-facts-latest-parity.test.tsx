@@ -19,10 +19,12 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
   PersistedFinancialFactsSnapshotV1Schema,
   type PersistedFinancialFactsSnapshotV1,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
@@ -167,6 +169,30 @@ const PAYLOAD_V5 = {
   },
 };
 
+const EFFECTIVE_BASIS_V6 = {
+  ledgerRecordIds: [],
+  valuationRecordIds: [],
+  recordsHash: '2'.repeat(64),
+  predecessorSnapshotInputHash: SNAPSHOT_ENVELOPE.snapshotInputHash,
+  corrections: [],
+};
+const PAYLOAD_V6 = {
+  ...PAYLOAD_V5,
+  effectiveBasis: EFFECTIVE_BASIS_V6,
+  admissionReceiptCore: {
+    ...PAYLOAD_V5.admissionReceiptCore,
+    contractVersion: 'actuals-admission/2.0.0',
+    operationKind: 'append',
+    restatement: null,
+    effectiveBasis: EFFECTIVE_BASIS_V6,
+    facts: {
+      ...PAYLOAD_V5.admissionReceiptCore.facts,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
+    },
+  },
+};
+
 const PERSISTED_FIXTURES: Record<string, unknown> = {
   [FINANCIAL_FACTS_POLICY_VERSION_1_0_0]: {
     ...SNAPSHOT_ENVELOPE,
@@ -211,6 +237,12 @@ const PERSISTED_FIXTURES: Record<string, unknown> = {
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
     payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
     payload: PAYLOAD_V5,
+  },
+  [FINANCIAL_FACTS_POLICY_VERSION_1_5_0]: {
+    ...SNAPSHOT_ENVELOPE,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6,
+    payload: PAYLOAD_V6,
   },
 };
 

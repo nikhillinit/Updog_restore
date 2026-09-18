@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import { H9ActionabilityStatusSchema } from './h9-actionability.contract';
 import { FinancialFactsBasisRefSchema } from './financial-facts-snapshot-v1.contract';
-import { PersistedFinancialFactsSnapshotV1Schema } from './financial-facts-snapshot-v1.contract';
+import {
+  PersistedFinancialFactsSnapshotV1Schema,
+  type PersistedFinancialFactsSnapshotV1,
+} from './financial-facts-snapshot-v1.contract';
 import { DecimalStringSchema } from './lp-reporting/cash-flow-event.contract';
 import { CanonicalStageSchema } from '../schemas/stage';
 
@@ -14,6 +17,12 @@ const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const CentsSchema = z.number().int().safe();
 const NonnegativeCentsSchema = CentsSchema.nonnegative();
 const JsonNumericSchema = z.union([z.string().min(1), z.number().finite()]);
+
+const PersistedFactsSnapshotSchema: z.ZodType<
+  PersistedFinancialFactsSnapshotV1,
+  z.ZodTypeDef,
+  z.input<typeof PersistedFinancialFactsSnapshotV1Schema>
+> = PersistedFinancialFactsSnapshotV1Schema;
 
 export const DynamicReserveOverlayEntryV1Schema = z
   .object({
@@ -202,7 +211,7 @@ export const DynamicReserveIntelligenceProvenanceV1Schema = z
     requestHash: Sha256Schema,
     calcVersion: z.literal(DYNAMIC_RESERVE_INTELLIGENCE_CALC_VERSION),
     asOfDate: z.string().date(),
-    factsSnapshot: PersistedFinancialFactsSnapshotV1Schema,
+    factsSnapshot: PersistedFactsSnapshotSchema,
     marginalNonFactsSources: PinnedMarginalReserveNonFactsSourcesV1Schema,
     envelopeSources: PinnedReserveEnvelopeSourcesV1Schema,
   })

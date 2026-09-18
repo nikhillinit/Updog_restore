@@ -22,7 +22,11 @@ const portfolioCompanyArbitrary = fc.record({
   totalInvested: fc.double({ min: 100000, max: 10000000, noNaN: true }),
   currentValuation: fc.double({ min: 100000, max: 50000000, noNaN: true }),
   ownershipPercentage: fc.double({ min: 0.01, max: 0.5, noNaN: true }),
-  investmentDate: fc.date({ min: new Date('2020-01-01'), max: new Date('2024-01-01') }),
+  investmentDate: fc.date({
+    min: new Date('2020-01-01'),
+    max: new Date('2024-01-01'),
+    noInvalidDate: true,
+  }),
   isActive: fc.constant(true),
   currentMOIC: fc.double({ min: 0.1, max: 10, noNaN: true }),
 });
@@ -101,49 +105,43 @@ describe('DeterministicReserveEngine - Property-Based Tests', () => {
 
   // Property 1: Conservation of Reserves
   // The sum of all allocations must never exceed the available reserves
-  it('conserves total reserves (sum of allocations ≤ total available)', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('conserves total reserves (sum of allocations ≤ total available)', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          const totalAllocated = result.allocations.reduce(
-            (sum, allocation) => sum + allocation.recommendedAllocation,
-            0
-          );
+        const totalAllocated = result.allocations.reduce(
+          (sum, allocation) => sum + allocation.recommendedAllocation,
+          0
+        );
 
-          // Total allocated must not exceed available reserves (with tolerance for floating point)
-          expect(totalAllocated).toBeLessThanOrEqual(input.availableReserves + TOLERANCE);
+        // Total allocated must not exceed available reserves (with tolerance for floating point)
+        expect(totalAllocated).toBeLessThanOrEqual(input.availableReserves + TOLERANCE);
 
-          // Verify consistency with result metadata
-          expect(result.inputSummary.totalAllocated).toBeCloseTo(totalAllocated, 2);
-        }
-      ),
+        // Verify consistency with result metadata
+        expect(result.inputSummary.totalAllocated).toBeCloseTo(totalAllocated, 2);
+      }),
       { numRuns: 50, timeout: 60000 } // Run 50 test cases
     );
   });
 
   // Property 2: Non-negativity
   // All reserve allocations must be non-negative
-  it('never assigns negative reserves', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('never assigns negative reserves', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // Every allocation must be non-negative
-          for (const allocation of result.allocations) {
-            expect(allocation.recommendedAllocation).toBeGreaterThanOrEqual(0);
-          }
-
-          // Unallocated reserves must also be non-negative
-          expect(result.unallocatedReserves).toBeGreaterThanOrEqual(0);
+        // Every allocation must be non-negative
+        for (const allocation of result.allocations) {
+          expect(allocation.recommendedAllocation).toBeGreaterThanOrEqual(0);
         }
-      ),
+
+        // Unallocated reserves must also be non-negative
+        expect(result.unallocatedReserves).toBeGreaterThanOrEqual(0);
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });
@@ -151,32 +149,29 @@ describe('DeterministicReserveEngine - Property-Based Tests', () => {
   // Property 3: Monotonicity
   // Companies with higher expected MOIC should receive higher or equal allocation priority
   // (Note: Priority 1 is highest, so lower priority number = better)
-  it('maintains monotonicity - higher MOIC companies get higher priority', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('maintains monotonicity - higher MOIC companies get higher priority', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // Check that allocations are ordered by priority
-          const allocations = result.allocations;
+        // Check that allocations are ordered by priority
+        const allocations = result.allocations;
 
-          for (let i = 0; i < allocations.length - 1; i++) {
-            const current = allocations[i];
-            const next = allocations[i + 1];
+        for (let i = 0; i < allocations.length - 1; i++) {
+          const current = allocations[i];
+          const next = allocations[i + 1];
 
-            if (!current || !next) continue;
+          if (!current || !next) continue;
 
-            // Priority should be increasing (1, 2, 3, ...)
-            expect(current.priority).toBeLessThanOrEqual(next.priority);
+          // Priority should be increasing (1, 2, 3, ...)
+          expect(current.priority).toBeLessThanOrEqual(next.priority);
 
-            // If priorities are equal, allocations can be in any order
-            // If current has lower priority number, it should generally have higher expected value
-            // (with some tolerance for risk adjustments and diversification)
-          }
+          // If priorities are equal, allocations can be in any order
+          // If current has lower priority number, it should generally have higher expected value
+          // (with some tolerance for risk adjustments and diversification)
         }
-      ),
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });
@@ -184,153 +179,138 @@ describe('DeterministicReserveEngine - Property-Based Tests', () => {
   // Property 4: Graduation Probability Impact
   // Companies with higher graduation probability should receive more favorable treatment
   // This tests that the graduation probability is properly factored into allocation decisions
-  it('respects graduation probability in allocation calculations', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('respects graduation probability in allocation calculations', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // Every allocation should have valid graduation probability metadata
-          for (const allocation of result.allocations) {
-            const metadata = allocation.calculationMetadata;
+        // Every allocation should have valid graduation probability metadata
+        for (const allocation of result.allocations) {
+          const metadata = allocation.calculationMetadata;
 
-            // Graduation probability should be between 0 and 1
-            expect(metadata.graduationProbability).toBeGreaterThanOrEqual(0);
-            expect(metadata.graduationProbability).toBeLessThanOrEqual(1);
+          // Graduation probability should be between 0 and 1
+          expect(metadata.graduationProbability).toBeGreaterThanOrEqual(0);
+          expect(metadata.graduationProbability).toBeLessThanOrEqual(1);
 
-            // Expected MOIC should be positive
-            expect(allocation.expectedMOIC).toBeGreaterThan(0);
+          // Expected MOIC should be positive
+          expect(allocation.expectedMOIC).toBeGreaterThan(0);
 
-            // Expected value should be positive
-            expect(allocation.expectedValue).toBeGreaterThan(0);
-          }
+          // Expected value should be positive
+          expect(allocation.expectedValue).toBeGreaterThan(0);
         }
-      ),
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });
 
   // Property 5: Idempotence
   // Running the same calculation twice with identical inputs should produce identical results
-  it('is idempotent - same inputs always produce same outputs', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
+  it('is idempotent - same inputs always produce same outputs', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
 
-          // Run calculation twice
-          const result1 = await engine.calculateOptimalReserveAllocation(input);
-          const result2 = await engine.calculateOptimalReserveAllocation(input);
+        // Run calculation twice
+        const result1 = await engine.calculateOptimalReserveAllocation(input);
+        const result2 = await engine.calculateOptimalReserveAllocation(input);
 
-          // Results should be identical
-          expect(result1.allocations.length).toBe(result2.allocations.length);
-          expect(result1.inputSummary.totalAllocated).toBeCloseTo(
-            result2.inputSummary.totalAllocated,
-            2
-          );
-          expect(result1.unallocatedReserves).toBeCloseTo(result2.unallocatedReserves, 2);
+        // Results should be identical
+        expect(result1.allocations.length).toBe(result2.allocations.length);
+        expect(result1.inputSummary.totalAllocated).toBeCloseTo(
+          result2.inputSummary.totalAllocated,
+          2
+        );
+        expect(result1.unallocatedReserves).toBeCloseTo(result2.unallocatedReserves, 2);
 
-          // Check that each allocation is the same
-          for (let i = 0; i < result1.allocations.length; i++) {
-            const alloc1 = result1.allocations[i];
-            const alloc2 = result2.allocations[i];
+        // Check that each allocation is the same
+        for (let i = 0; i < result1.allocations.length; i++) {
+          const alloc1 = result1.allocations[i];
+          const alloc2 = result2.allocations[i];
 
-            if (!alloc1 || !alloc2) continue;
+          if (!alloc1 || !alloc2) continue;
 
-            expect(alloc1.companyId).toBe(alloc2.companyId);
-            expect(alloc1.recommendedAllocation).toBeCloseTo(alloc2.recommendedAllocation, 2);
-            expect(alloc1.priority).toBe(alloc2.priority);
-            expect(alloc1.expectedMOIC).toBeCloseTo(alloc2.expectedMOIC, 2);
-          }
-
-          // Deterministic hash should be identical
-          expect(result1.metadata.deterministicHash).toBe(result2.metadata.deterministicHash);
+          expect(alloc1.companyId).toBe(alloc2.companyId);
+          expect(alloc1.recommendedAllocation).toBeCloseTo(alloc2.recommendedAllocation, 2);
+          expect(alloc1.priority).toBe(alloc2.priority);
+          expect(alloc1.expectedMOIC).toBeCloseTo(alloc2.expectedMOIC, 2);
         }
-      ),
+
+        // Deterministic hash should be identical
+        expect(result1.metadata.deterministicHash).toBe(result2.metadata.deterministicHash);
+      }),
       { numRuns: 30, timeout: 60000 } // Fewer runs since we run the calculation twice
     );
   });
 
   // Additional Property: Portfolio Metrics Consistency
   // Portfolio metrics should be consistent with individual allocations
-  it('maintains consistency between allocations and portfolio metrics', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('maintains consistency between allocations and portfolio metrics', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // Calculate expected portfolio value from allocations
-          const calculatedExpectedValue = result.allocations.reduce(
-            (sum, allocation) => sum + allocation.expectedValue,
-            0
-          );
+        // Calculate expected portfolio value from allocations
+        const calculatedExpectedValue = result.allocations.reduce(
+          (sum, allocation) => sum + allocation.expectedValue,
+          0
+        );
 
-          // Should match portfolio metrics
-          expect(result.portfolioMetrics.expectedPortfolioValue).toBeCloseTo(
-            calculatedExpectedValue,
-            2
-          );
+        // Should match portfolio metrics
+        expect(result.portfolioMetrics.expectedPortfolioValue).toBeCloseTo(
+          calculatedExpectedValue,
+          2
+        );
 
-          // Allocation efficiency should be between 0 and 1
-          expect(result.inputSummary.allocationEfficiency).toBeGreaterThanOrEqual(0);
-          expect(result.inputSummary.allocationEfficiency).toBeLessThanOrEqual(1);
+        // Allocation efficiency should be between 0 and 1
+        expect(result.inputSummary.allocationEfficiency).toBeGreaterThanOrEqual(0);
+        expect(result.inputSummary.allocationEfficiency).toBeLessThanOrEqual(1);
 
-          // Diversification index should be between 0 and 1
-          expect(result.portfolioMetrics.portfolioDiversification).toBeGreaterThanOrEqual(0);
-          expect(result.portfolioMetrics.portfolioDiversification).toBeLessThanOrEqual(1);
-        }
-      ),
+        // Diversification index should be between 0 and 1
+        expect(result.portfolioMetrics.portfolioDiversification).toBeGreaterThanOrEqual(0);
+        expect(result.portfolioMetrics.portfolioDiversification).toBeLessThanOrEqual(1);
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });
 
   // Boundary Condition: Minimum Allocation Threshold
   // All allocations should respect the minimum threshold
-  it('respects minimum allocation threshold', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('respects minimum allocation threshold', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // Every allocation should be at or above the minimum threshold
-          for (const allocation of result.allocations) {
-            expect(allocation.recommendedAllocation).toBeGreaterThanOrEqual(
-              input.minAllocationThreshold
-            );
-          }
+        // Every allocation should be at or above the minimum threshold
+        for (const allocation of result.allocations) {
+          expect(allocation.recommendedAllocation).toBeGreaterThanOrEqual(
+            input.minAllocationThreshold
+          );
         }
-      ),
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });
 
   // Boundary Condition: Maximum Single Allocation
   // No single allocation should exceed the maximum
-  it('respects maximum single allocation limit', () => {
-    fc.assert(
-      fc.property(
-        reserveAllocationInputArbitrary,
-        async (input) => {
-          const engine = new DeterministicReserveEngine();
-          const result = await engine.calculateOptimalReserveAllocation(input);
+  it('respects maximum single allocation limit', async () => {
+    await fc.assert(
+      fc.asyncProperty(reserveAllocationInputArbitrary, async (input) => {
+        const engine = new DeterministicReserveEngine();
+        const result = await engine.calculateOptimalReserveAllocation(input);
 
-          // No allocation should exceed the maximum (if specified)
-          if (input.maxSingleAllocation) {
-            for (const allocation of result.allocations) {
-              expect(allocation.recommendedAllocation).toBeLessThanOrEqual(
-                input.maxSingleAllocation + TOLERANCE
-              );
-            }
+        // No allocation should exceed the maximum (if specified)
+        if (input.maxSingleAllocation) {
+          for (const allocation of result.allocations) {
+            expect(allocation.recommendedAllocation).toBeLessThanOrEqual(
+              input.maxSingleAllocation + TOLERANCE
+            );
           }
         }
-      ),
+      }),
       { numRuns: 50, timeout: 60000 }
     );
   });

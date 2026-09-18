@@ -11,19 +11,6 @@ const mockSetLocation = vi.fn((next: string) => {
 const mockMarkStepVisited = vi.fn();
 const mockFetchFundDraft = vi.fn();
 const mockSaveFundDraft = vi.fn();
-const mockModernWizardProgress = vi.fn(
-  ({
-    steps,
-    currentStepId,
-  }: {
-    steps: Array<{ id: string; title: string }>;
-    currentStepId: string;
-  }) => (
-    <div data-testid="wizard-progress-current-step">
-      {steps.find((step) => step.id === currentStepId)?.title}
-    </div>
-  )
-);
 
 vi.mock('wouter', () => ({
   useLocation: () => [mockLocation.value.split('?')[0] ?? mockLocation.value, mockSetLocation],
@@ -46,10 +33,6 @@ vi.mock('@/components/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock('@/components/wizard/ModernWizardProgress', () => ({
-  ModernWizardProgress: mockModernWizardProgress,
-}));
-
 vi.mock('@/hooks/useWizardStepGuard', () => ({
   useWizardStepGuard: () => ({
     markStepVisited: mockMarkStepVisited,
@@ -66,6 +49,59 @@ vi.mock('@/services/fund-drafts', () => ({
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
 
+const stepTitles = [
+  'FUND BASICS',
+  'INVESTMENT ROUNDS',
+  'CAPITAL ALLOCATION',
+  'INVESTMENT STRATEGY',
+  'DISTRIBUTIONS & WATERFALL',
+  'CASHFLOW & LIQUIDITY',
+  'REVIEW & CREATE',
+];
+
+function expectProgress(currentStep: number) {
+  expect(screen.getByRole('heading', { name: 'Fund Construction Wizard' })).toBeInTheDocument();
+  const buttons = screen.getAllByRole('button', { name: /^Step \d: / });
+  expect(buttons).toHaveLength(7);
+
+  buttons.forEach((button, index) => {
+    const number = index + 1;
+    expect(button).toHaveAccessibleName(`Step ${number}: ${stepTitles[index]}`);
+    expect(button.parentElement).toHaveTextContent(stepTitles[index]!);
+    expect(button).toHaveAttribute('type', 'button');
+    if (number === 7) {
+      expect(button).toBeDisabled();
+    } else {
+      expect(button).toBeEnabled();
+    }
+
+    if (number < currentStep) {
+      expect(button).toHaveClass('bg-charcoal', 'text-white');
+      expect(button.querySelector('svg.lucide-check')).toBeInTheDocument();
+      expect(button).toHaveTextContent(/^$/);
+    } else {
+      expect(button.querySelector('svg')).not.toBeInTheDocument();
+      expect(button).toHaveTextContent(String(number));
+    }
+
+    if (number === currentStep) {
+      expect(button).toHaveClass('bg-charcoal', 'text-white', 'ring-4', 'ring-beige');
+      expect(button).toHaveAttribute('aria-current', 'step');
+    } else {
+      expect(button).not.toHaveClass('ring-4');
+      expect(button).not.toHaveAttribute('aria-current');
+    }
+
+    if (number > currentStep) {
+      expect(button).toHaveClass('bg-white', 'border-2', 'border-beige', 'text-charcoal/60');
+    }
+  });
+
+  // The fill has no semantic progress role; lock its rendered width directly.
+  const fill = screen.getByTestId('fund-setup-wizard').querySelector<HTMLElement>('.duration-500');
+  expect(fill).toHaveStyle({ width: `${(currentStep / 7) * 100}%` });
+}
+
 describe('FundSetup draft sync', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -74,7 +110,6 @@ describe('FundSetup draft sync', () => {
     mockMarkStepVisited.mockReset();
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
-    mockModernWizardProgress.mockClear();
     localStorage.clear();
 
     const initialState = fundStore.getInitialState();
@@ -113,9 +148,53 @@ describe('FundSetup draft sync', () => {
     render(<FundSetup />);
 
     expect(screen.getByText('Distributions Step')).toBeInTheDocument();
-    expect(screen.getByTestId('wizard-progress-current-step')).toHaveTextContent(
-      'DISTRIBUTIONS & WATERFALL'
+    expect(screen.getByText('DISTRIBUTIONS & WATERFALL')).toBeInTheDocument();
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 99])('renders progress for routed step %i', async (step) => {
+    mockLocation.value = `/fund-setup?step=${step}`;
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expectProgress(step === 99 ? 0 : step);
+    if (step === 99) {
+      expect(screen.getByText('Step Not Found')).toBeInTheDocument();
+    }
+  });
+
+  it('updates progress on the same mount across backward, review, and invalid navigation', async () => {
+    mockLocation.value = '/fund-setup?step=5';
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    const { rerender } = render(<FundSetup />);
+    expectProgress(5);
+
+    for (const step of [2, 7, 99]) {
+      mockLocation.value = `/fund-setup?step=${step}`;
+      rerender(<FundSetup />);
+      expectProgress(step === 99 ? 0 : step);
+    }
+    expect(screen.getByText('Step Not Found')).toBeInTheDocument();
+  });
+
+  it.each([1, 2, 3, 4, 5, 6])('navigates an enabled circle to step %i', async (step) => {
+    mockLocation.value = '/fund-setup?step=5';
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: `Step ${step}: ${stepTitles[step - 1]}` })
     );
+    expect(mockSetLocation).toHaveBeenCalledExactlyOnceWith(`/fund-setup?step=${step}`);
+  });
+
+  it('does not navigate when the disabled review circle is clicked', async () => {
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    const review = screen.getByRole('button', { name: 'Step 7: REVIEW & CREATE' });
+
+    expect(review).toBeDisabled();
+    await userEvent.click(review);
+    expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
   it('hydrates a recovered authoritative draft from the server before rendering the routed step', async () => {

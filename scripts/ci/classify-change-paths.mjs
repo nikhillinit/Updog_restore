@@ -5,9 +5,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const EXACT_LIGHT_ALLOWLIST = [
-  'docs/_generated/router-index.json',
   'docs/_generated/router-fast.json',
-  'docs/_generated/staleness-report.md',
   'docs/skills/SKILLS_INDEX.md',
   'docs/skills/WIZARD_INDEX.md',
 ];
@@ -83,19 +81,23 @@ function loadLightAllowlist(filtersPath) {
     configured.some((value, index) => value !== EXACT_LIGHT_ALLOWLIST[index])
   ) {
     throw new Error(
-      `auto_docs must equal the reviewed five-file allowlist in ${filtersPath}`
+      `auto_docs must equal the reviewed three-file allowlist in ${filtersPath}`
     );
   }
 
   return new Set(configured);
 }
 
+// git prints rename and copy scores zero-padded to three digits (R098, C100).
+const SIMILARITY_SCORE = '(?:0[0-9]{2}|100)';
 const RAW_HEADER = new RegExp(
   '^:([0-7]{6}) ([0-7]{6}) ' +
     '((?:[0-9a-f]{40}|[0-9a-f]{64})) ' +
     '((?:[0-9a-f]{40}|[0-9a-f]{64})) ' +
-    '([ADMUTXB]|[RC](?:[0-9]{1,2}|100))$'
+    `([ADMUTXB]|[RC]${SIMILARITY_SCORE})$`
 );
+// The light path must accept every score the header accepts.
+const RENAME_STATUS = new RegExp(`^R${SIMILARITY_SCORE}$`);
 
 function parseRawDiff(raw) {
   if (!Buffer.isBuffer(raw) || raw.length === 0) {
@@ -147,7 +149,7 @@ function classify(raw, lightAllowlist) {
       (change.status === 'A' && change.oldMode === '000000' && change.newMode === '100644') ||
       (change.status === 'D' && change.oldMode === '100644' && change.newMode === '000000') ||
       (change.status === 'M' && change.oldMode === '100644' && change.newMode === '100644') ||
-      (/^R(?:[0-9]{1,2}|100)$/.test(change.status) &&
+      (RENAME_STATUS.test(change.status) &&
         change.oldMode === '100644' &&
         change.newMode === '100644');
 

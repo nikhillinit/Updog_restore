@@ -76,6 +76,26 @@ describe('surface contract matrix CI gate', () => {
     expect(EnvironmentSchema.parse('development-only')).toBe('development-only');
   });
 
+  it('keeps disposed admin telemetry out of active matrix discovery', () => {
+    const disposedPath = 'client/src/pages/admin/telemetry.tsx';
+    const candidates = readJson('dormant-candidates.json') as Array<{ path: string }>;
+    const orphans = readJson('orphans.json') as Array<{
+      decision_status?: string;
+      id: string;
+      resolution?: string;
+    }>;
+
+    expect(fs.existsSync(path.join(root, disposedPath))).toBe(false);
+    expect(candidates.some((candidate) => candidate.path === disposedPath)).toBe(false);
+    expect(orphans).toContainEqual(
+      expect.objectContaining({
+        id: `dormant:${disposedPath}`,
+        resolution: 'pruned',
+        decision_status: 'approved',
+      })
+    );
+  });
+
   it('validates tracked artifacts, discovery sets, hashes, requirements, and render determinism', async () => {
     const matrix = SurfaceMatrixDocumentSchema.parse(readJson('matrix.json'));
     const inventory = SourceInventorySchema.parse(readJson('source-inventory.json'));

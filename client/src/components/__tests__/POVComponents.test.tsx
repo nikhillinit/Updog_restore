@@ -195,7 +195,7 @@ describe('POV Design System Components', () => {
       render(<WizardProgress steps={mockSteps} currentStep="step2" completedSteps={['step1']} />);
 
       // Check if progress bar exists by looking for the container
-      const progressContainer = document.querySelector('.bg-slate-200');
+      const progressContainer = document.querySelector('.bg-pov-gray');
       expect(progressContainer).toBeInTheDocument();
     });
   });

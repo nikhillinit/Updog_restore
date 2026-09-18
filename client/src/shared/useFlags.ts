@@ -21,36 +21,14 @@
 import { useSyncExternalStore } from 'react';
 import { ALL_FLAGS, type FlagKey } from '@shared/feature-flags/flag-definitions';
 import { isRecord } from '@shared/utils/type-guards';
+import { isUnifiedFlagEnabled } from '@/core/flags/unifiedClientFlags';
 
 type FlagName = Extract<FlagKey, string>;
 type FlagSnapshot = Record<FlagName, boolean>;
 
-function isRuntimeFlagValue(value: string | null): value is '0' | '1' {
-  return value === '0' || value === '1';
-}
-
 function getImportMetaEnv(): unknown {
   return (import.meta as ImportMeta & { env?: unknown }).env;
 }
-
-/**
- * Get runtime override from query params or localStorage
- * Matches pattern from client/src/config/features.ts
- */
-const getRuntimeFlag = (flagKey: string): boolean | undefined => {
-  try {
-    // Check query params first: ?ff_enable_new_ia=1
-    const qp = new URLSearchParams(window.location.search).get(`ff_${flagKey}`);
-    if (isRuntimeFlagValue(qp)) return qp === '1';
-
-    // Check localStorage fallback: localStorage.setItem('ff_enable_new_ia', '1')
-    const ls = window.localStorage.getItem(`ff_${flagKey}`);
-    if (isRuntimeFlagValue(ls)) return ls === '1';
-  } catch (error) {
-    console.warn(`[useFlags] Runtime check failed for ${flagKey}:`, error);
-  }
-  return undefined;
-};
 
 /**
  * Get environment variable flag value
@@ -90,11 +68,12 @@ const subscribe = (callback: () => void) => {
   };
 };
 
-export function getFlagSnapshot(env: unknown = getImportMetaEnv()): FlagSnapshot {
+export function getFlagSnapshot(env?: unknown): FlagSnapshot {
   const snapshot = {} as FlagSnapshot;
 
   for (const key of Object.keys(ALL_FLAGS) as FlagName[]) {
-    snapshot[key] = getRuntimeFlag(key) ?? getEnvFlag(key, env) ?? ALL_FLAGS[key]?.enabled ?? false;
+    snapshot[key] =
+      (env === undefined ? undefined : getEnvFlag(key, env)) ?? isUnifiedFlagEnabled(key);
   }
 
   return snapshot;
@@ -127,7 +106,6 @@ export function debugFlags(): void {
   const rows = (Object.keys(flags) as FlagName[]).map((key) => ({
     flag: key,
     enabled: flags[key],
-    runtime: getRuntimeFlag(key) ?? 'not set',
     env: getEnvFlag(key) ?? 'not set',
     default: ALL_FLAGS[key]?.enabled ?? false,
   }));

@@ -43,7 +43,8 @@ export function useCashFlowEvents(
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);
         throw new Error(
-          getErrorMessage(errorData) || `HTTP ${response.status}: Failed to fetch cash flow events`
+          getErrorMessage(errorData, response.status) ||
+            `HTTP ${response.status}: Failed to fetch cash flow events`
         );
       }
 

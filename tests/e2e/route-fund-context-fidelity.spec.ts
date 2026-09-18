@@ -21,6 +21,9 @@ const FIDELITY_FUND = {
   vintageYear: 2026,
   deployedCapital: 16_700_000,
   status: 'active',
+  engineResults: null,
+  establishmentDate: null,
+  isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-02-01T00:00:00.000Z',
   termYears: 10,
@@ -725,11 +728,13 @@ async function installRouteFidelityApi(
 }
 
 async function readHeaderText(page: Page) {
-  const header = page.locator('div.sticky').filter({
-    has: page.getByRole('heading', { name: FIDELITY_FUND.name }),
+  const header = page.getByTestId('dynamic-fund-header').filter({
+    has: page.getByText(FIDELITY_FUND.name, { exact: true }),
   });
   await expect(header).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
-  await expect(header.getByText('Live metrics')).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+  await expect(header.getByText('Portfolio estimates', { exact: true })).toBeVisible({
+    timeout: ROUTE_READY_TIMEOUT_MS,
+  });
   return ((await header.textContent()) ?? '').replace(/\s+/g, ' ').trim();
 }
 

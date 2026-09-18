@@ -14,6 +14,9 @@ const FUND_ONE = {
   vintageYear: 2026,
   deployedCapital: 10_000_000,
   status: 'active',
+  engineResults: null,
+  establishmentDate: null,
+  isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   termYears: 10,
@@ -105,7 +108,9 @@ const ROUTE_DUAL_FORECAST = makeDualForecastResponse({
   fundName: FUND_ONE.name,
   asOfDate: ROUTE_UNIFIED_METRICS.actual.asOfDate,
   actual: ROUTE_UNIFIED_METRICS.actual,
+  currentForecastV2: 'live',
 });
+ROUTE_DUAL_FORECAST.sources.current = 'current_forecast_v2';
 
 const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
 

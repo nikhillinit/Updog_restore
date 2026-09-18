@@ -115,6 +115,7 @@ export const cashFlowEvents = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
+    idFundUnique: unique('cash_flow_events_id_fund_unique').on(table.id, table.fundId),
     eventTypeCheck: check(
       'cash_flow_event_type_check',
       sql`${table.eventType} IN ('lp_capital_call', 'lp_distribution', 'fund_expense', 'portfolio_investment', 'realized_proceeds', 'recallable_distribution', 'reversal')`
@@ -197,6 +198,7 @@ export const valuationMarks = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
+    idFundUnique: unique('valuation_marks_id_fund_unique').on(table.id, table.fundId),
     markSourceCheck: check(
       'valuation_mark_source_check',
       sql`${table.markSource} IN ('financing_round', 'signed_loi', 'revenue_milestone', 'strategic_partnership', 'audited_financials', 'board_update', 'gp_estimate', 'third_party_priced', 'secondary_transaction', 'impairment')`

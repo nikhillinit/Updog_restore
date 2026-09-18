@@ -48,6 +48,7 @@ import {
   useLiquidityMetrics,
 } from '@/hooks/useLiquidityAnalytics';
 import { useFundContext } from '@/contexts/FundContext';
+import { useFundCashFlowInputs } from '@/hooks/useFundCashFlowInputs';
 import { isDemoMode } from '@/core/demo/persona';
 import { useWorkPanelUrlState } from '@/components/work-panel/useWorkPanelUrlState';
 import { presson } from '@/theme/presson.tokens';
@@ -55,6 +56,7 @@ import { colors as brandColors, getChartColor } from '@/lib/brand-tokens';
 import { getImpactBadgeClass, getImpactTextClass } from '@/lib/display/impact-semantics';
 import { useFlag } from '@/shared/useFlags';
 import { toStressScenarioViewModel } from './stress-test-view-model';
+import { currentMonthNetFlow } from './cashflow-view-model';
 
 const STATUS_SUCCESS = brandColors.success;
 const CASHFLOW_CHART_COLORS = {
@@ -79,13 +81,19 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   const { currentFund } = useFundContext();
   const fundSize = currentFund?.size ? currentFund.size / 1000000 : 100; // Convert to millions, default to $100M
 
+  const horizonMonths = timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24;
+  // Persisted fund + investments -> engine inputs (undefined until loaded).
+  // Demo mode keeps the labeled mock data instead.
+  const fundInputs = useFundCashFlowInputs(isDemoMode() ? null : fundId, horizonMonths);
+
   // Use liquidity analytics hook
   const analytics = useLiquidityAnalytics({
     fundId,
     fundSize: fundSize * 1000000, // Convert to actual dollar amount
+    ...fundInputs,
     autoRefresh: true,
     refreshIntervalMs: 30000, // 30 seconds
-    defaultForecastMonths: timeframe === '6m' ? 6 : timeframe === '12m' ? 12 : 24,
+    defaultForecastMonths: horizonMonths,
     enableRealTimeAlerts: true,
     allowDemoFallback: isDemoMode(),
   });
@@ -123,6 +131,15 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   );
 
   const liquidityMetrics = useLiquidityMetrics(analytics.cashFlowAnalysis);
+
+  // summary.netCashFlow is the net of all executed history; the card's "this month"
+  // change must come from the current month's bucket (keyed like the engine: local
+  // year-month of plannedDate).
+  const thisMonthNetFlow = useMemo(
+    () =>
+      analytics.cashFlowAnalysis ? currentMonthNetFlow(analytics.cashFlowAnalysis.byMonth) : null,
+    [analytics.cashFlowAnalysis]
+  );
   const workPanelEnabled = useFlag('enable_work_panel');
   const workPanel = useWorkPanelUrlState();
   const cashEventEnabled = useFlag('enable_cash_event_object');
@@ -286,9 +303,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
               ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000)
               : '--'
           }
-          {...(analytics.cashFlowAnalysis?.summary.netCashFlow
+          {...(thisMonthNetFlow != null
             ? {
-                change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`,
+                change: `${thisMonthNetFlow > 0 ? '+' : ''}${formatCurrencyShort(thisMonthNetFlow / 1000000)} this month`,
               }
             : {})}
           {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend

@@ -130,14 +130,14 @@ vi.mock('../../../server/services/calc-run-tracking', () => ({
 import { runReserveCalculation } from '../../../server/services/reserve-calculation-service';
 
 const LEGACY_PORTFOLIO = [
-  { id: 11, invested: 100, ownership: 0.15, stage: 'Seed' as const, sector: 'SaaS' },
+  { id: 11, invested: 100, ownership: null, stage: 'Seed' as const, sector: 'SaaS' },
 ];
 const LEGACY_TRUST_SUMMARY = {
   trustedForActivation: false,
-  defaultedInputCount: 1,
-  unavailableInputCount: 0,
-  defaultedFields: ['ownership'] as const,
-  unavailableFields: [] as const,
+  defaultedInputCount: 0,
+  unavailableInputCount: 1,
+  defaultedFields: [] as const,
+  unavailableFields: ['ownership'] as const,
 };
 const LEGACY_RESERVES: ReserveSummary = {
   fundId: 7,
@@ -504,16 +504,14 @@ describe('runReserveCalculation ranked-reserve seam', () => {
     }
   );
 
-  it('keeps the worker and inline dispatch surfaces wired to the authoritative seam', async () => {
+  it('keeps inline dispatch wired while the legacy worker is retired', async () => {
     const [workerSource, persistenceSource] = await Promise.all([
       readFile('workers/reserve-worker.ts', 'utf8'),
       readFile('server/services/fund-persistence-service.ts', 'utf8'),
     ]);
 
-    expect(workerSource).toContain(
-      "import { runReserveCalculation } from '../server/services/reserve-calculation-service'"
-    );
-    expect(workerSource).toContain('const result = await runReserveCalculation({');
+    expect(workerSource).toContain('RESERVE_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('runReserveCalculation');
     expect(persistenceSource).toContain(
       "import { runReserveCalculation } from './reserve-calculation-service'"
     );

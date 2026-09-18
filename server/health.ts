@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import { db } from './db';
 import { healthStatus } from './metrics';
-import { getEnv } from './env';
 import { getStorageRuntimeState, storage } from './storage';
 import { getReleaseIdentity } from './version';
 // Circuit breaker metrics disabled for dev mode
@@ -68,42 +67,11 @@ async function checkDatabase(): Promise<HealthComponent> {
   }
 }
 
-async function checkRedis(): Promise<HealthComponent> {
-  const env = getEnv();
-
-  if (!env.REDIS_URL || env.REDIS_URL === 'memory://') {
-    healthStatus['set']({ component: 'redis' }, 1);
-    return {
-      name: 'redis',
-      status: 'healthy',
-      message: 'Redis in memory mode (development)',
-    };
-  }
-
-  try {
-    // If Redis is configured, we would check it here
-    // For now, we'll just mark it as healthy since it's optional
-    healthStatus['set']({ component: 'redis' }, 1);
-    return {
-      name: 'redis',
-      status: 'healthy',
-      message: 'Redis connection successful',
-    };
-  } catch (error) {
-    healthStatus['set']({ component: 'redis' }, 0);
-    return {
-      name: 'redis',
-      status: 'unhealthy',
-      message: error instanceof Error ? error.message : 'Unknown Redis error',
-    };
-  }
-}
-
 async function performHealthCheck(): Promise<HealthResponse> {
-  const [databaseHealth, redisHealth] = await Promise.all([checkDatabase(), checkRedis()]);
-
-  const components = [databaseHealth, redisHealth];
-  const isHealthy = components.every((component) => component.status === 'healthy');
+  // Redis health is reported by /readyz and /api/health/queues.
+  const databaseHealth = await checkDatabase();
+  const components = [databaseHealth];
+  const isHealthy = databaseHealth.status === 'healthy';
 
   // Set overall health status
   healthStatus['set']({ component: 'overall' }, isHealthy ? 1 : 0);

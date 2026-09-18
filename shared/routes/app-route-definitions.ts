@@ -48,7 +48,7 @@ export const ARCHIVED_PLACEHOLDER_ROUTES: ArchivedPlaceholderRouteEntry[] = [
   },
   {
     path: '/moic-analysis',
-    redirectTarget: '/overview',
+    redirectTarget: '/model-results',
     notes:
       'V1 MOIC analysis retired (#997): it served candidate-or-legacy rankings with no mode/stale/kill-switch disclosure. The disclosed surface is /fund-model-results/:fundId/moic-analysis.',
   },

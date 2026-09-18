@@ -474,5 +474,25 @@ export function idempotencyStatusHandler(req: Request, res: Response) {
   });
 }
 
+/**
+ * Guard middleware: rejects requests missing an idempotency key header.
+ * Place BEFORE the idempotency() middleware on create routes.
+ */
+export function requireIdempotencyKey(req: Request, res: Response, next: NextFunction): void {
+  const key =
+    req.headers['idempotency-key'] ||
+    req.headers['x-idempotency-key'] ||
+    req.headers['idempotent-key'];
+  if (!key || typeof key !== 'string') {
+    res.status(400).json({
+      error: 'IDEMPOTENCY_KEY_REQUIRED',
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+      message: 'An Idempotency-Key header is required for this operation',
+    });
+    return;
+  }
+  next();
+}
+
 // Export default middleware with standard configuration
 export default idempotency();

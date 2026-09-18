@@ -255,11 +255,21 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
 function BasisLine({ run }: { run: ReserveRun }) {
   const provenance = run.result.provenance;
   const snapshotHash = provenance.factsSnapshot.snapshotInputHash;
+  const basisRef = run.result.basisRef;
 
   return (
     <TableRow data-testid="basis-line" className="bg-pov-gray hover:bg-pov-gray">
       <TableCell colSpan={10} className="py-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-pov-charcoal">
+          {basisRef && (
+            <span className="tabular-nums">
+              Basis: facts snapshot {basisRef.snapshotId} (policy{' '}
+              {basisRef.policyVersion
+                .replace('financial-facts-policy/', '')
+                .replace(/\.0$/, '')}
+              , {basisRef.asOfDate})
+            </span>
+          )}
           <span className="tabular-nums">As of {provenance.asOfDate}</span>
           <span className="tabular-nums">
             Snapshot {provenance.financialFactsSnapshotId}: {snapshotHash.slice(0, 12)}

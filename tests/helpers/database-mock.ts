@@ -2523,10 +2523,7 @@ export const databaseMock = new DatabaseMock();
 
 vi.mock('../../server/db', () => ({
   db: databaseMock,
-  pool: {
-    connect: vi.fn(),
-    end: vi.fn(),
-  },
+  pool: null,
 }));
 
 /**

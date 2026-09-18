@@ -191,53 +191,34 @@ describe('Migration 0010 (snapshot attribution)', () => {
 // ============================================================================
 
 describe('Worker and service snapshot attribution', () => {
-  it('reserve worker carries runId/configId/configVersion into the extracted service', async () => {
+  it('reserve legacy worker is explicitly retired', async () => {
     const fs = await import('fs/promises');
     const workerSource = await fs.readFile('workers/reserve-worker.ts', 'utf-8');
-    const serviceSource = await fs.readFile(
-      'server/services/reserve-calculation-service.ts',
-      'utf-8'
-    );
-
-    expect(workerSource).toContain('runId');
-    expect(workerSource).toContain('configId');
-    expect(workerSource).toContain('configVersion');
-    expect(workerSource).toContain('runReserveCalculation({');
-    expect(serviceSource).toMatch(/runId != null && \{ runId \}/);
-    expect(serviceSource).toMatch(/configId != null && \{ configId \}/);
-    expect(serviceSource).toMatch(/configVersion != null && \{ configVersion \}/);
+    expect(workerSource).toContain('RESERVE_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('new Worker');
   });
 
-  it('pacing worker carries runId/configId/configVersion into the extracted service', async () => {
+  it('pacing legacy worker is explicitly retired', async () => {
     const fs = await import('fs/promises');
     const workerSource = await fs.readFile('workers/pacing-worker.ts', 'utf-8');
-    const serviceSource = await fs.readFile(
-      'server/services/pacing-calculation-service.ts',
-      'utf-8'
-    );
-
-    expect(workerSource).toContain('runId');
-    expect(workerSource).toContain('configId');
-    expect(workerSource).toContain('configVersion');
-    expect(workerSource).toContain('runPacingCalculation({');
-    expect(serviceSource).toMatch(/runId != null && \{ runId \}/);
-    expect(serviceSource).toMatch(/configId != null && \{ configId \}/);
-    expect(serviceSource).toMatch(/configVersion != null && \{ configVersion \}/);
+    expect(workerSource).toContain('PACING_WORKER_UNAVAILABLE');
+    expect(workerSource).not.toContain('new Worker');
   });
 
-  it('cohort worker accepts runId/configId/configVersion (no snapshot yet)', async () => {
+  it('cohort legacy worker rejects synthetic calculation evidence', async () => {
     const fs = await import('fs/promises');
     const source = await fs.readFile('workers/cohort-worker.ts', 'utf-8');
-    expect(source).toContain('runId');
-    expect(source).toContain('configId');
-    expect(source).toContain('configVersion');
+    expect(source).toContain('COHORT_WORKER_UNAVAILABLE');
+    expect(source).toContain('synthetic');
+    expect(source).not.toContain('Math.random');
   });
 
-  it('pacing worker job data interface includes attribution fields', async () => {
-    const fs = await import('fs/promises');
-    const source = await fs.readFile('workers/pacing-worker.ts', 'utf-8');
-    expect(source).toContain('runId?: number');
-    expect(source).toContain('configId?: number');
-    expect(source).toContain('configVersion?: number');
+  it('producer jobs carry retry policy with duplicate-safe IDs', async () => {
+    const source = await import('fs/promises').then((fs) =>
+      fs.readFile('server/services/fund-persistence-service.ts', 'utf-8')
+    );
+    expect(source).toContain('attempts: 3');
+    expect(source).toContain("backoff: { type: 'exponential' as const, delay: 2000 }");
+    expect(source).toMatch(/jobId = `run:\$\{run\.id\}:\$\{engine\}`/);
   });
 });

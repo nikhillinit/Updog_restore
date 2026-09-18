@@ -268,7 +268,9 @@ describe('deal pipeline route contracts', () => {
   });
 
   it('rejects malformed cursors without querying deals', async () => {
-    const response = await request(makeApp()).get('/api/deals/opportunities?cursor=not-json');
+    const response = await request(makeApp()).get(
+      '/api/deals/opportunities?fundId=1&cursor=not-json'
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
@@ -280,7 +282,9 @@ describe('deal pipeline route contracts', () => {
 
   it('rejects structurally valid cursors with invalid timestamps without querying deals', async () => {
     const cursor = cursorFor({ createdAt: 'not-a-date', id: 101 });
-    const response = await request(makeApp()).get(`/api/deals/opportunities?cursor=${cursor}`);
+    const response = await request(makeApp()).get(
+      `/api/deals/opportunities?fundId=1&cursor=${cursor}`
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
@@ -342,6 +346,7 @@ describe('deal pipeline route contracts', () => {
       .send({ rows: [{ companyName: '', sector: 'Nope' }] });
     const confirm = await request(app)
       .post('/api/deals/opportunities/import')
+      .set('Idempotency-Key', 'test-import-validation')
       .send({ rows: [{ companyName: '', sector: 'Nope' }] });
     const bulkStatus = await request(app)
       .post('/api/deals/opportunities/bulk/status')
@@ -372,6 +377,7 @@ describe('deal pipeline route contracts', () => {
 
     const createBodyScope = await request(app)
       .post('/api/deals/opportunities')
+      .set('Idempotency-Key', 'test-cross-fund-create')
       .send(validDealPayload({ fundId: 2 }));
     const listQueryScope = await request(app).get('/api/deals/opportunities?fundId=2');
     const updateBodyScope = await request(app)
@@ -383,6 +389,7 @@ describe('deal pipeline route contracts', () => {
       .send({ fundId: 2, rows: [validDealPayload({ companyName: 'Preview Co' })] });
     const confirmBodyScope = await request(app)
       .post('/api/deals/opportunities/import')
+      .set('Idempotency-Key', 'test-cross-fund-import')
       .send({ fundId: 2, rows: [validDealPayload({ companyName: 'Import Co' })] });
 
     // Writes (non-safe methods) stay fund-scoped: cross-fund mutations denied before DB access.
@@ -450,7 +457,9 @@ describe('deal pipeline route contracts', () => {
       request(makeApp())
         .post('/api/deals/opportunities/bulk/status')
         .send({ dealIds: [310], status: 'qualified' }),
-      request(makeApp()).post('/api/deals/opportunities/bulk/archive').send({ dealIds: [310] }),
+      request(makeApp())
+        .post('/api/deals/opportunities/bulk/archive')
+        .send({ dealIds: [310] }),
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404, 404, 404]);
@@ -535,7 +544,9 @@ describe('deal pipeline route contracts', () => {
           mockState.state.updateReturningResults.push([dealRow({ id: 307, status: 'passed' })]);
         },
         invoke: (app: ReturnType<typeof express>) =>
-          request(app).post('/api/deals/opportunities/bulk/archive').send({ dealIds: [307] }),
+          request(app)
+            .post('/api/deals/opportunities/bulk/archive')
+            .send({ dealIds: [307] }),
       },
     ];
 
@@ -547,36 +558,38 @@ describe('deal pipeline route contracts', () => {
         writeCase.setup();
 
         const response = await writeCase.invoke(makeApp([1], role));
-        expect(response.status, `${role} should access deal write route`).toBeGreaterThanOrEqual(200);
+        expect(response.status, `${role} should access deal write route`).toBeGreaterThanOrEqual(
+          200
+        );
         expect(response.status, `${role} should access deal write route`).toBeLessThan(300);
       }
     }
   });
 
-  it.each([
-    '/api/deals/opportunities/bulk/status',
-    '/api/deals/opportunities/bulk/archive',
-  ])('rejects mixed-fund bulk deal IDs atomically on %s', async (path) => {
-    mockState.state.selectResults.push([
-      dealRow({ id: 308, fundId: 1 }),
-      dealRow({ id: 309, fundId: 2 }),
-    ]);
+  it.each(['/api/deals/opportunities/bulk/status', '/api/deals/opportunities/bulk/archive'])(
+    'rejects mixed-fund bulk deal IDs atomically on %s',
+    async (path) => {
+      mockState.state.selectResults.push([
+        dealRow({ id: 308, fundId: 1 }),
+        dealRow({ id: 309, fundId: 2 }),
+      ]);
 
-    const response = request(makeApp([1]))
-      .post(path)
-      .send(
-        path.endsWith('/status')
-          ? { dealIds: [308, 309], status: 'qualified' }
-          : { dealIds: [308, 309] }
-      );
+      const response = request(makeApp([1]))
+        .post(path)
+        .send(
+          path.endsWith('/status')
+            ? { dealIds: [308, 309], status: 'qualified' }
+            : { dealIds: [308, 309] }
+        );
 
-    const result = await response;
+      const result = await response;
 
-    expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ error: 'mixed_fund_deals' });
-    expect(mockState.db.update).not.toHaveBeenCalled();
-    expect(mockState.db.insert).not.toHaveBeenCalled();
-  });
+      expect(result.status).toBe(400);
+      expect(result.body).toMatchObject({ error: 'mixed_fund_deals' });
+      expect(mockState.db.update).not.toHaveBeenCalled();
+      expect(mockState.db.insert).not.toHaveBeenCalled();
+    }
+  );
 
   it('replays create without duplicate deal or activity inserts', async () => {
     await expectIdempotentReplay({
@@ -666,5 +679,69 @@ describe('deal pipeline route contracts', () => {
       expectedInsertCount: 1,
       expectedUpdateCount: 1,
     });
+  });
+
+  it('rejects keyless POST /opportunities with IDEMPOTENCY_KEY_REQUIRED', async () => {
+    const response = await request(makeApp())
+      .post('/api/deals/opportunities')
+      .send(validDealPayload());
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: 'IDEMPOTENCY_KEY_REQUIRED',
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+    });
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects keyless POST /opportunities/import with IDEMPOTENCY_KEY_REQUIRED', async () => {
+    const response = await request(makeApp())
+      .post('/api/deals/opportunities/import')
+      .send({ rows: [validDealPayload()] });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: 'IDEMPOTENCY_KEY_REQUIRED',
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+    });
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 FUND_ID_REQUIRED for GET /pipeline without fundId', async () => {
+    const response = await request(makeApp()).get('/api/deals/pipeline');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: 'FUND_ID_REQUIRED' });
+    expect(mockState.db.select).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for GET /opportunities/:id when deal ownership is missing', async () => {
+    const response = await request(makeApp()).get('/api/deals/opportunities/999');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ error: 'not_found', message: 'Deal not found' });
+    expect(mockState.db.select).toHaveBeenCalled();
+  });
+
+  it('returns 404 for GET /:id/diligence when deal ownership is missing', async () => {
+    const response = await request(makeApp()).get('/api/deals/999/diligence');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ error: 'not_found', message: 'Deal not found' });
+    expect(mockState.db.select).toHaveBeenCalled();
+  });
+
+  it('denies restricted-principal cross-fund GET /opportunities/:id before getDeal', async () => {
+    mockState.state.selectResults.push([dealRow({ id: 400, fundId: 2 })]);
+    const res = await request(makeApp([1], 'lp')).get('/api/deals/opportunities/400');
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+  });
+
+  it('denies restricted-principal cross-fund GET /:id/diligence before query', async () => {
+    mockState.state.selectResults.push([dealRow({ id: 401, fundId: 2 })]);
+    const res = await request(makeApp([1], 'lp')).get('/api/deals/401/diligence');
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
   });
 });

@@ -45,10 +45,11 @@ type FormConfigState = {
 
 function getConfigDefaults(lastConfig: BacktestConfig | null) {
   if (!lastConfig) {
+    const year = new Date().getUTCFullYear();
     return {
       simulationRuns: 10000,
-      startDate: '2020-01-01',
-      endDate: '2025-01-01',
+      startDate: `${year - 5}-01-01`,
+      endDate: `${year}-01-01`,
       metrics: ['irr', 'tvpi', 'dpi'] as BacktestMetric[],
       useRandomSeed: false,
       randomSeed: 42,

@@ -271,6 +271,7 @@ router.post(
         fundId,
         idempotencyKey: parsedKey.value,
         actorId: actorId(req),
+        ...(req.context && { context: req.context }),
       });
       // Egress contract parse: server/schema drift is a defect, not a
       // response, so it fails loudly instead of shipping.
@@ -279,6 +280,7 @@ router.post(
         const commandId = await findManualCurrentForecastRecomputeCommandId({
           fundId,
           idempotencyKey: parsedKey.value,
+          ...(req.context && { context: req.context }),
         }).catch(() => null);
         routeLog.error('Recompute outcome contract violation:', {
           fundId,

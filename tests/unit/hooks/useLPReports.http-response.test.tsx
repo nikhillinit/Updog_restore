@@ -8,6 +8,7 @@ import {
   useLPReports,
   useLPReportStatus,
 } from '@/hooks/useLPReports';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 
 const { mockUseLPContext } = vi.hoisted(() => ({
   mockUseLPContext: vi.fn(),
@@ -55,7 +56,7 @@ describe('useLPReports HTTP response handling', () => {
     vi.clearAllMocks();
   });
 
-  it('surfaces API message payloads when report listing fails', async () => {
+  it('suppresses server message payloads when report listing fails', async () => {
     mockFetchResponse(JSON.stringify({ message: 'Reports unavailable' }), 503);
 
     const { result } = renderHook(() => useLPReports(), {
@@ -64,11 +65,14 @@ describe('useLPReports HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Reports unavailable');
+    expect(result.current.error?.message).toBe(SERVER_ERROR_MESSAGE);
   });
 
-  it('falls back to the HTTP status message when report error JSON is unreadable', async () => {
-    mockFetchResponse('not-json', 500);
+  it.each([
+    { status: 400, message: 'HTTP 400: Failed to fetch reports' },
+    { status: 500, message: SERVER_ERROR_MESSAGE },
+  ])('handles unreadable HTTP $status report error JSON', async ({ status, message }) => {
+    mockFetchResponse('not-json', status);
 
     const { result } = renderHook(() => useLPReports(), {
       wrapper: createWrapper(),
@@ -76,7 +80,7 @@ describe('useLPReports HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('HTTP 500: Failed to fetch reports');
+    expect(result.current.error?.message).toBe(message);
   });
 
   it('surfaces API message payloads when report generation fails', async () => {
@@ -98,8 +102,11 @@ describe('useLPReports HTTP response handling', () => {
     expect(result.current.error?.message).toBe('Report generation unavailable');
   });
 
-  it('falls back to the HTTP status message when report status error JSON is unreadable', async () => {
-    mockFetchResponse('not-json', 500);
+  it.each([
+    { status: 400, message: 'HTTP 400: Failed to fetch report status' },
+    { status: 500, message: SERVER_ERROR_MESSAGE },
+  ])('handles unreadable HTTP $status report status error JSON', async ({ status, message }) => {
+    mockFetchResponse('not-json', status);
 
     const { result } = renderHook(() => useLPReportStatus({ reportId: 'report-1' }), {
       wrapper: createWrapper(),
@@ -107,7 +114,7 @@ describe('useLPReports HTTP response handling', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('HTTP 500: Failed to fetch report status');
+    expect(result.current.error?.message).toBe(message);
   });
 
   it('surfaces API message payloads when report download fails', async () => {

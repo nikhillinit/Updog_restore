@@ -30,7 +30,7 @@ export function ProfileHeader({
   profileName,
   isDefault,
   stageCount,
-  lastEdited = 'just now',
+  lastEdited,
   onRename,
   onDuplicate,
   onDelete,
@@ -41,7 +41,7 @@ export function ProfileHeader({
     <div className={cn('flex items-center justify-between mb-8', className)}>
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-pov-charcoal font-poppins">{profileName}</h1>
+          <h2 className="text-2xl font-bold text-pov-charcoal font-poppins">{profileName}</h2>
           {isDefault && (
             <Badge variant="secondary" className="text-xs">
               Default Profile
@@ -49,8 +49,8 @@ export function ProfileHeader({
           )}
         </div>
         <p className="text-sm text-charcoal-500 font-poppins">
-          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined - Last edited{' '}
-          {lastEdited}
+          {stageCount} investment stage{stageCount !== 1 ? 's' : ''} defined
+          {lastEdited ? ` - Last edited ${lastEdited}` : ''}
         </p>
       </div>
 

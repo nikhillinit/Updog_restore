@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
+import path from 'node:path';
 import { Client } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -15,12 +16,14 @@ import {
   runReconciliation,
 } from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
+import { createPinned32ManifestFixture } from '../helpers/pinned32-manifest-fixture';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const TEST_TIMEOUT_MS = 90_000;
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 
 let postgres: StartedPostgreSqlContainer | undefined;
+let pinnedFixtureRoot: string;
 let connectionString = '';
 let testConnectionString = '';
 let testDatabaseName = '';
@@ -49,15 +52,18 @@ async function createTestDatabase(): Promise<void> {
   await applyPostEraNonTargetShapes();
 }
 
-// The capability pins the LIVE canonical manifest vector, so every non-target
+// The capability pins the revision-8 fixture vector, so every non-target
 // manifest must audit SKIP. Manifests 31-32 (journals 0054-0055) are pinned by
 // tag, not tail position — their parents all predate 0050 — so replay their
 // raw shapes to give the clone the post-era shape without touching the
 // absent 0053 target the capability must converge.
 async function applyPostEraNonTargetShapes(): Promise<void> {
   const migrations = await Promise.all([
-    readFile('migrations/0054_operating_decisions_spine.sql', 'utf8'),
-    readFile('migrations/0055_current_forecast_recompute_commands.sql', 'utf8'),
+    readFile(path.join(pinnedFixtureRoot, 'migrations/0054_operating_decisions_spine.sql'), 'utf8'),
+    readFile(
+      path.join(pinnedFixtureRoot, 'migrations/0055_current_forecast_recompute_commands.sql'),
+      'utf8'
+    ),
   ]);
   const client = new Client({ connectionString: testConnectionString });
   await client.connect();
@@ -178,6 +184,7 @@ async function expectAdvisoryLockReleased(client: Client): Promise<void> {
 
 describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
   beforeAll(async () => {
+    pinnedFixtureRoot = createPinned32ManifestFixture();
     postgres = await new PostgreSqlContainer('pgvector/pgvector:pg16')
       .withStartupTimeout(STARTUP_TIMEOUT_MS)
       .start();
@@ -189,7 +196,11 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
   afterEach(dropTestDatabase, TEST_TIMEOUT_MS);
 
   afterAll(async () => {
-    await postgres?.stop();
+    try {
+      await postgres?.stop();
+    } finally {
+      if (pinnedFixtureRoot) await rm(pinnedFixtureRoot, { recursive: true, force: true });
+    }
   });
 
   it(
@@ -204,8 +215,10 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         await client.query(
           "INSERT INTO unrelated_0053_drift_preserved (id, sentinel) VALUES (1, 'preserve-me')"
         );
-        const manifests = await loadManifests();
-        const target = await prepare0053G3ReleaseGateHardeningCapability();
+        const manifests = await loadManifests(undefined, pinnedFixtureRoot);
+        const target = await prepare0053G3ReleaseGateHardeningCapability({
+          rootDir: pinnedFixtureRoot,
+        });
         const output: string[] = [];
         const queryTrace: string[] = [];
         let markerQueryIndex: number | undefined;
@@ -216,6 +229,7 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
           },
         };
         const result = await runReconciliation({
+          rootDir: pinnedFixtureRoot,
           client: tracedClient,
           manifests,
           apply: true,
@@ -268,8 +282,10 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
       const driftClient = new Client({ connectionString: testConnectionString });
       await Promise.all([reconciliationClient.connect(), driftClient.connect()]);
       try {
-        const manifests = await loadManifests();
-        const target = await prepare0053G3ReleaseGateHardeningCapability();
+        const manifests = await loadManifests(undefined, pinnedFixtureRoot);
+        const target = await prepare0053G3ReleaseGateHardeningCapability({
+          rootDir: pinnedFixtureRoot,
+        });
         const targetManifest = manifests.find((manifest) => manifest.name === target.manifestName);
         expect(targetManifest).toBeDefined();
         const output: string[] = [];
@@ -303,6 +319,7 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
 
         await expect(
           runReconciliation({
+            rootDir: pinnedFixtureRoot,
             client: injectedClient,
             manifests,
             apply: true,
@@ -346,12 +363,15 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
       const observerClient = new Client({ connectionString: testConnectionString });
       await Promise.all([reconciliationClient.connect(), observerClient.connect()]);
       try {
-        const manifests = await loadManifests();
-        const target = await prepare0053G3ReleaseGateHardeningCapability();
+        const manifests = await loadManifests(undefined, pinnedFixtureRoot);
+        const target = await prepare0053G3ReleaseGateHardeningCapability({
+          rootDir: pinnedFixtureRoot,
+        });
         const targetManifest = manifests.find((manifest) => manifest.name === target.manifestName);
         expect(targetManifest).toBeDefined();
         const firstOutput: string[] = [];
         const firstResult = await runReconciliation({
+          rootDir: pinnedFixtureRoot,
           client: reconciliationClient,
           manifests,
           apply: true,
@@ -380,6 +400,7 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
 
         await expect(
           runReconciliation({
+            rootDir: pinnedFixtureRoot,
             client: reconciliationClient,
             manifests,
             apply: true,

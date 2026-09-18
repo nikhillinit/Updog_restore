@@ -179,6 +179,21 @@ describe('production governance documentation routing', () => {
     expect(canonicalGuide).toContain('2026-08-14');
     expect(canonicalGuide).toContain('read-only revalidation at the exact candidate');
     expect(canonicalGuide).toContain('may drift and remains non-authorizing');
+    expect(canonicalGuide).toContain('apply-current-forecast-0050-0055');
+    expect(canonicalGuide).toContain('current-forecast-production-action.yml');
+    expect(canonicalGuide).toContain('enter-shadow');
+    expect(canonicalGuide).toContain('activate');
+    expect(canonicalGuide).toContain('kill');
+    expect(canonicalGuide).toContain('resume');
+    expect(canonicalGuide).toContain('readback');
+    const policy = await readRepositoryFile(policyPath);
+    expect(policy).toContain('current-forecast-neon-rehearsal.yml');
+    expect(policy).toMatch(
+      /PRODUCTION_SCRIPTS\.md`\]\([^)]*\)\. It\s+must fail closed before the first mutation/
+    );
+    expect(await readRepositoryFile('DECISIONS.md')).toContain(
+      '## ADR-098: Guard Current Forecast Phase P Production Routes'
+    );
     expect(await repositoryFileExists('.github/workflows/release-production.yml')).toBe(true);
     expect(await repositoryFileExists('scripts/deploy-production.ps1')).toBe(true);
     expect(await repositoryFileExists('scripts/rollback-verify.sh')).toBe(true);

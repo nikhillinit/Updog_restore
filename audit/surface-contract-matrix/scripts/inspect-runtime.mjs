@@ -43,6 +43,7 @@ const REGISTRATION_GATES = [
   'ENABLE_QUEUES',
   'ENABLE_RUM_V2',
 ];
+const ACTUALS_PILOT_SELECTOR = 'ACTUALS_PILOT_FUND_ID';
 const SCHEDULER_KILL_SWITCHES = [
   'ENABLE_QUARTERLY_ANALYSIS',
   'ENABLE_ARTIFACT_RETENTION',
@@ -124,6 +125,12 @@ function validateGateNames(names) {
 
 function applyProfile(args) {
   const profile = args.profile;
+  const selectorMatch = /^selector:ACTUALS_PILOT_FUND_ID:(unset|configured)$/.exec(profile);
+  if (selectorMatch) {
+    if (selectorMatch[1] === 'configured') args.env.set(ACTUALS_PILOT_SELECTOR, '1');
+    else args.env.delete(ACTUALS_PILOT_SELECTOR);
+    return;
+  }
   if (!['default', 'development'].includes(profile)) {
     const match = /^gate:([^:]+):(enabled|disabled)$/.exec(profile);
     if (!match || !REGISTRATION_GATES.includes(match[1])) {
@@ -138,6 +145,7 @@ function setHermeticEnvironment(args) {
   for (const name of Object.keys(process.env)) {
     if (sensitiveName.test(name)) delete process.env[name];
   }
+  delete process.env[ACTUALS_PILOT_SELECTOR];
 
   const nodeEnv = args.profile === 'development' ? 'development' : 'test';
   const jwtSecret = 'surface-contract-inspector-jwt-secret-32-plus';

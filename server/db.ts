@@ -7,6 +7,14 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { Pool as NodePostgresPool, PoolClient as NodePostgresPoolClient } from 'pg';
 import { createRequire } from 'node:module';
+import {
+  applyRLSContext,
+  DatabaseContextTimeoutError,
+  getRequestDatabaseScope,
+  requestDatabaseStorage,
+  type RequestDatabaseScope,
+} from './db/request-context';
+import type { UserContext } from './lib/secure-context';
 import { logger } from './lib/logger';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 import { combinedSchema, type CombinedSchema } from './db-schema';
@@ -22,6 +30,7 @@ const storageBootMode = resolveStorageBootMode(process.env);
 // Dynamic imports based on environment
 let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
+let createClientDatabase: (client: NodePostgresPoolClient) => NodePgDatabase<CombinedSchema>;
 let isClosingNodePostgresPool = false;
 
 function isExpectedNodePostgresCloseError(error: unknown): boolean {
@@ -57,6 +66,9 @@ async function loadDatabaseMock(): Promise<NodePgDatabase<CombinedSchema>> {
 if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory') {
   db = await loadDatabaseMock();
   pool = null;
+  createClientDatabase = () => {
+    throw new Error('No database driver in memory mode');
+  };
 } else if (isVercel) {
   // Use Neon WebSocket pool for Vercel transaction support.
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
@@ -73,7 +85,7 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   // non-localhost WebSocket connection fail with "fetch failed".
   neonConfig.webSocketConstructor = ws.default;
 
-  const neonPool = new Pool({ connectionString });
+  const neonPool = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
   // Idle WebSocket failures emit 'error' on the pool; unhandled, they crash
   // the process. Surface them without dying - the pool replaces connections.
   neonPool.on('error', (error: Error) => {
@@ -81,6 +93,10 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   });
   pool = neonPool;
   db = drizzle(neonPool, { schema: combinedSchema });
+  createClientDatabase = (client) =>
+    drizzle(client as unknown as import('@neondatabase/serverless').PoolClient, {
+      schema: combinedSchema,
+    });
 } else {
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
   if (!connectionString) {
@@ -103,6 +119,7 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     pgPool.on('error', handleNodePostgresPoolError);
     pool = pgPool;
     db = drizzle(pgPool, { schema: combinedSchema });
+    createClientDatabase = (client) => drizzle(client, { schema: combinedSchema });
   } else {
     const { Pool, neonConfig } = await import('@neondatabase/serverless');
     const { drizzle } = await import('drizzle-orm/neon-serverless');
@@ -111,12 +128,103 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     // See the Vercel branch above: the constructor lives on ws.default.
     neonConfig.webSocketConstructor = ws.default;
 
-    const neonPool = new Pool({ connectionString });
+    const neonPool = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
     neonPool.on('error', (error: Error) => {
       logger.error({ err: error }, 'Neon pool error');
     });
     pool = neonPool;
     db = drizzle(neonPool, { schema: combinedSchema });
+    createClientDatabase = (client) =>
+      drizzle(client as unknown as import('@neondatabase/serverless').PoolClient, {
+        schema: combinedSchema,
+      });
+  }
+}
+
+const baseDatabase = db;
+db = new Proxy(baseDatabase, {
+  get(target, property) {
+    const database = getRequestDatabaseScope()?.db ?? target;
+    const value: unknown = Reflect.get(database, property, database);
+    return typeof value === 'function' ? (value.bind(database) as unknown) : value;
+  },
+});
+
+export { createClientDatabase };
+
+/** Own a durable transaction on the selected primary driver, including in background jobs. */
+export async function runWithDatabaseContext<T>(
+  context: UserContext,
+  callback: (
+    database: NodePgDatabase<CombinedSchema>,
+    client: NodePostgresPoolClient
+  ) => Promise<T>,
+  options: { timeoutMs?: number } = {}
+): Promise<T> {
+  getRequestDatabaseScope(); // A completed request cannot acquire a fresh connection.
+  if (!context.userId || typeof context.orgId !== 'string')
+    throw new Error('Verified database context required');
+  if (
+    options.timeoutMs !== undefined &&
+    (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
+  )
+    throw new Error('A positive database execution timeout is required');
+  context = { ...context };
+  if (!pool) throw new Error('A PostgreSQL connection is required');
+  const client = await (pool as NodePostgresPool).connect();
+  let scope: RequestDatabaseScope | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timeoutError: DatabaseContextTimeoutError | undefined;
+  let released = false;
+  try {
+    getRequestDatabaseScope();
+    const assertActive = () => {
+      if (timeoutError) throw timeoutError;
+      getRequestDatabaseScope();
+    };
+    // Acquisition has its own pool bound. This deadline covers BEGIN, RLS
+    // setup, the callback, and COMMIT/rollback on the acquired connection.
+    const deadline =
+      options.timeoutMs === undefined
+        ? undefined
+        : new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              timeoutError = new DatabaseContextTimeoutError();
+              if (scope) scope.completed = true;
+              released = true;
+              client.release(true);
+              reject(timeoutError);
+            }, options.timeoutMs);
+          });
+    const operation = createClientDatabase(client).transaction(async (tx) => {
+      assertActive();
+      await applyRLSContext(client, context);
+      assertActive();
+      scope = {
+        context: { ...context },
+        db: tx,
+        client,
+        completed: false,
+        runOwnedTransaction: (operation) =>
+          runWithDatabaseContext(context, (_db, owned) => operation(owned)),
+      };
+      if (options.timeoutMs !== undefined) {
+        await client.query("SET LOCAL idle_in_transaction_session_timeout = '0'");
+        assertActive();
+      }
+      const result = await requestDatabaseStorage.run(scope, () => callback(tx, client));
+      assertActive();
+      return result;
+    });
+    // Promise.race keeps the driver's late rejection observed after a timeout.
+    return await (deadline ? Promise.race([operation, deadline]) : operation);
+  } catch (error) {
+    // A destroyed client's rollback also rejects; retain the actual deadline.
+    throw timeoutError ?? error;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    if (scope) scope.completed = true;
+    if (!released) client.release();
   }
 }
 

@@ -15,6 +15,7 @@ import { creatorUserIdFromRequest, renewCreationCredential } from '../lib/auth/c
 import { handleNumberParseError } from '../lib/number-parse-error';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
+import { parseScenarioRepresentation } from '../lib/scenario-representation.js';
 
 const routeLog = createRouteLogger('fund-config');
 
@@ -479,6 +480,14 @@ export function registerFundConfigRoutes(app: Express) {
         return;
       }
 
+      const representation = parseScenarioRepresentation(req, res);
+      if (representation === null) return;
+      if (representation) {
+        return res.status(406).json({
+          error: 'scenario_representation_not_applicable',
+          message: 'The fund results aggregate supports legacy scenarios only',
+        });
+      }
       const { fundResultsReadService } = await import('../services/fund-results-read-service');
       const results = await fundResultsReadService.getResults(fundId);
       if (!results) {

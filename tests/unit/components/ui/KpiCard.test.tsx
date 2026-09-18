@@ -29,7 +29,7 @@ describe('KpiCard Component', () => {
 
       const deltaElement = screen.getByText('+2.1%');
       expect(deltaElement).toBeInTheDocument();
-      expect(deltaElement).toHaveClass('text-success');
+      expect(deltaElement).toHaveClass('text-presson-positive');
     });
 
     it('renders negative intent with correct styling', () => {
@@ -37,7 +37,7 @@ describe('KpiCard Component', () => {
 
       const deltaElement = screen.getByText('-5.2%');
       expect(deltaElement).toBeInTheDocument();
-      expect(deltaElement).toHaveClass('text-error');
+      expect(deltaElement).toHaveClass('text-error-dark');
     });
 
     it('renders neutral intent with correct styling', () => {
@@ -45,14 +45,14 @@ describe('KpiCard Component', () => {
 
       const deltaElement = screen.getByText('0%');
       expect(deltaElement).toBeInTheDocument();
-      expect(deltaElement).toHaveClass('text-charcoal/60');
+      expect(deltaElement).toHaveClass('text-presson-textMuted');
     });
 
     it('defaults to neutral intent when not specified', () => {
       render(<KpiCard label="Companies" value="30" delta="+3" />);
 
       const deltaElement = screen.getByText('+3');
-      expect(deltaElement).toHaveClass('text-charcoal/60');
+      expect(deltaElement).toHaveClass('text-presson-textMuted');
     });
   });
 
@@ -150,7 +150,7 @@ describe('KpiCard Component', () => {
       expect(screen.getByText('$85.2M')).toBeInTheDocument();
 
       const deltaElement = screen.getByText('-5.2%');
-      expect(deltaElement).toHaveClass('text-error');
+      expect(deltaElement).toHaveClass('text-error-dark');
     });
   });
 

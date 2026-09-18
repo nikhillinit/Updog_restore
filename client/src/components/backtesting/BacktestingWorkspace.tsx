@@ -357,10 +357,21 @@ function HistoryPanel({
   fundId: number;
   onSelect: (result: BacktestResultViewModel) => void;
 }) {
-  const { data, isLoading } = useBacktestHistory(fundId);
+  const { data, isLoading, isError, refetch } = useBacktestHistory(fundId);
 
   if (isLoading) {
     return <p className="text-xs text-charcoal-500">Loading history...</p>;
+  }
+
+  if (isError) {
+    return (
+      <div role="alert" className="space-y-2 text-sm text-charcoal-700">
+        <p>Backtest history is unavailable. Previous runs could not be loaded.</p>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
+          Retry history
+        </Button>
+      </div>
+    );
   }
 
   if (!data?.history?.length) {

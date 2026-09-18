@@ -26,7 +26,7 @@ ENV PYTHONUNBUFFERED=1
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8088/health || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8088/ready', timeout=2)"
 
 # Expose port
 EXPOSE 8088

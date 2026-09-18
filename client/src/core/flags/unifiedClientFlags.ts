@@ -20,7 +20,7 @@ import {
   resolveFlagWithDependencies,
 } from '@shared/generated/flag-defaults';
 
-type RuntimeEnvironment = 'development' | 'staging' | 'production';
+export type RuntimeEnvironment = 'development' | 'staging' | 'production';
 
 const LEGACY_ALIAS_TO_CANONICAL: Record<string, ClientFlagKey> = {
   new_ia: 'enable_new_ia',
@@ -74,23 +74,38 @@ const CANONICAL_TO_LEGACY_ALIASES: Record<ClientFlagKey, string[]> = {
 
 const overrideCache = new Map<ClientFlagKey, boolean>();
 
-function getRuntimeEnvironment(): RuntimeEnvironment {
-  const explicit = String(import.meta.env['VITE_ENV'] ?? '').toLowerCase();
+export function resolveClientRuntimeEnvironment(input: {
+  explicit?: unknown;
+  mode?: unknown;
+  hostname?: string | undefined;
+}): RuntimeEnvironment {
+  const explicit = String(input.explicit ?? '').toLowerCase();
   if (explicit === 'production' || explicit === 'staging' || explicit === 'development') {
     return explicit;
   }
 
-  const mode = String(import.meta.env['MODE'] ?? '').toLowerCase();
-  if (mode === 'production') return 'production';
-  if (mode === 'staging') return 'staging';
+  const host = input.hostname;
+  if (host) {
+    if (host === 'updog.pressonventures.com') return 'production';
+    if (host === 'staging.updog.pressonventures.com' || host.endsWith('.vercel.app')) {
+      return 'staging';
+    }
+  }
 
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'updog.pressonventures.com' || host.includes('vercel.app')) return 'production';
-    if (host.includes('staging') || host.includes('preview')) return 'staging';
+  const mode = String(input.mode ?? '').toLowerCase();
+  if (mode === 'production' || mode === 'staging' || mode === 'development') {
+    return mode;
   }
 
   return 'development';
+}
+
+export function getClientRuntimeEnvironment(): RuntimeEnvironment {
+  return resolveClientRuntimeEnvironment({
+    explicit: import.meta.env['VITE_ENV'],
+    mode: import.meta.env['MODE'],
+    hostname: typeof window === 'undefined' ? undefined : window.location.hostname,
+  });
 }
 
 function isAdminFlag(key: ClientFlagKey): boolean {
@@ -121,20 +136,42 @@ function resolveClientFlagKey(flag: string): ClientFlagKey | undefined {
 }
 
 function baseFlagState(flag: ClientFlagKey): boolean {
-  const env = getRuntimeEnvironment();
+  const envOverride = getEnvOverride(flag);
+  if (envOverride !== undefined) return envOverride;
+
+  const env = getClientRuntimeEnvironment();
   return FLAG_DEFINITIONS[flag].environments[env] ?? FLAG_DEFINITIONS[flag].default;
+}
+
+export function getUnifiedFlagBaseState(flag: ClientFlagKey): boolean {
+  const engineOverride = applyEngineOverride(flag);
+  if (engineOverride !== undefined) return engineOverride;
+  return readOverride(flag, flag) ?? baseFlagState(flag);
+}
+
+function getEnvOverride(flag: ClientFlagKey): boolean | undefined {
+  const aliases = FLAG_DEFINITIONS[flag].aliases ?? [];
+  for (const envKey of [...aliases.map((alias) => `VITE_${alias}`), `VITE_${flag.toUpperCase()}`]) {
+    const raw = import.meta.env[envKey] as string | undefined;
+    const parsed = parseBooleanOverride(raw ?? null);
+    if (parsed !== undefined) return parsed;
+  }
+  return undefined;
 }
 
 function resolvedFlagState(flag: ClientFlagKey): boolean {
   const states: Partial<Record<FlagKey, boolean>> = {};
+  const allowOverrides = getClientRuntimeEnvironment() === 'development';
   for (const key of CLIENT_FLAG_KEYS) {
-    states[key] = overrideCache.has(key) ? overrideCache.get(key)! : baseFlagState(key);
+    states[key] =
+      allowOverrides && overrideCache.has(key) ? overrideCache.get(key)! : baseFlagState(key);
   }
   return resolveFlagWithDependencies(flag, states);
 }
 
 function readOverride(flag: ClientFlagKey, originalFlag: string): boolean | undefined {
   if (isAdminFlag(flag)) return undefined;
+  if (getClientRuntimeEnvironment() !== 'development') return undefined;
 
   const params = getSearchParams();
   const keys = new Set<string>([
@@ -223,10 +260,23 @@ export function setUnifiedFlag(flag: string, value: boolean): void {
     console.warn(`Flag ${resolved} does not allow client overrides`);
     return;
   }
+  if (getClientRuntimeEnvironment() !== 'development') {
+    console.warn('Client feature flag overrides are disabled outside development');
+    return;
+  }
 
   overrideCache.set(resolved, value);
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(`ff_${resolved}`, String(value));
+  }
+}
+
+export function clearUnifiedFlagOverrides(): void {
+  if (getClientRuntimeEnvironment() !== 'development') return;
+  overrideCache.clear();
+  if (typeof localStorage === 'undefined') return;
+  for (const key of CLIENT_FLAG_KEYS) {
+    localStorage.removeItem(`ff_${key}`);
   }
 }
 

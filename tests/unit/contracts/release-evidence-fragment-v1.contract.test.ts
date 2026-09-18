@@ -198,16 +198,15 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
     ).toBe(false);
     const payload = baselinePayload() as Record<string, unknown>;
     (payload['rollback'] as Record<string, unknown>)['note'] = 'x';
-    expect(
-      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', payload)).success
-    ).toBe(false);
+    expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', payload)).success).toBe(
+      false
+    );
   });
 
   it('rejects policy-config caps that are not component-wise exactly 3x reserved', () => {
     const payload = policyConfigPayload();
     payload.configuredCaps['scenario'] = RELEASE_CANARY_RESERVED_RESIDUE.scenario * 3 + 3;
-    payload.configuredCaps['total'] =
-      RELEASE_CANARY_RESERVED_RESIDUE.total * 3 + 3;
+    payload.configuredCaps['total'] = RELEASE_CANARY_RESERVED_RESIDUE.total * 3 + 3;
     expect(
       ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', payload)).success
     ).toBe(false);
@@ -250,14 +249,14 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
   it('rejects baseline rollback targets that mismatch the baseline artifact', () => {
     const target = baselinePayload();
     target.rollback.targetMainSha = 'f'.repeat(40);
-    expect(
-      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', target)).success
-    ).toBe(false);
+    expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', target)).success).toBe(
+      false
+    );
     const context = baselinePayload();
     context.rollback.recoveryContextSha256 = '0'.repeat(64);
-    expect(
-      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', context)).success
-    ).toBe(false);
+    expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', context)).success).toBe(
+      false
+    );
   });
 
   it('rejects a schema apply whose source SHA is not the precursor SHA', () => {
@@ -265,6 +264,26 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
     payload.apply.sourceSha = SOURCE_SHA;
     expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('schema', payload)).success).toBe(
       false
+    );
+  });
+
+  it('accepts Current Forecast 0050-0055 schema apply evidence', () => {
+    const payload = schemaPayload();
+    Object.assign(payload, {
+      migration: '0050-0055',
+      migrationRange: [
+        '0050_g3_portfolio_and_calculation_schema',
+        '0051_g3_canary_schema',
+        '0052_g3_capital_call_notification_outbox',
+        '0053_g3_release_gate_hardening',
+        '0054_operating_decisions_spine',
+        '0055_current_forecast_recompute_commands',
+      ],
+    });
+    payload.apply.mode = 'apply-current-forecast-0050-0055';
+    payload.apply.artifactName = `prod-schema-reconcile-111-1-apply-current-forecast-0050-0055-${PRECURSOR_SHA}`;
+    expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('schema', payload)).success).toBe(
+      true
     );
   });
 
@@ -311,8 +330,8 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
   it('rejects secret-shaped or oversized payload strings via field bounds', () => {
     const payload = baselinePayload();
     payload.baselineArtifact.artifactName = 'x'.repeat(2049);
-    expect(
-      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', payload)).success
-    ).toBe(false);
+    expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('baseline', payload)).success).toBe(
+      false
+    );
   });
 });

@@ -74,6 +74,14 @@ const SERIES_C_INFRA_EDGE: ReserveCompanyInput = {
   sector: 'Infrastructure',
 };
 
+const SEED_SAAS_OWNERSHIP_UNKNOWN: ReserveCompanyInput = {
+  id: 7,
+  invested: 1_000_000,
+  ownership: null,
+  stage: 'Seed',
+  sector: 'SaaS',
+};
+
 const RULE_BASED_PORTFOLIO = [
   SERIES_A_FINTECH_BOOST,
   SEED_SAAS_PENALTY,
@@ -136,6 +144,24 @@ describe('legacy ReserveEngine characterization (rule-based path)', () => {
     expect(result.map((o) => o.allocation)).toEqual([1_440_000, 1_296_000]);
     expect(result[0]!.confidence).toBe(ConfidenceLevel.MEDIUM);
     expect(result[1]!.confidence).toBe(0.65);
+  });
+
+  it('treats null ownership as neutral: no boost, no penalty, no confidence bonus (ADR-054)', () => {
+    // One company, three ownership states. Base = 1M * 1.5 (Seed) * 1.1 (SaaS) = 1,650,000.
+    // null must NOT coerce to 0 (JavaScript: `null < 0.05` is true) and take the penalty.
+    const result = ReserveEngine([
+      SEED_SAAS_OWNERSHIP_UNKNOWN,
+      { ...SEED_SAAS_OWNERSHIP_UNKNOWN, id: 8, ownership: 0 },
+      { ...SEED_SAAS_OWNERSHIP_UNKNOWN, id: 9, ownership: 0.15 },
+    ]);
+    expect(result.map((o) => o.allocation)).toEqual([1_650_000, 1_320_000, 1_980_000]);
+    // Ladder: 0.3 + 0.2 (stage & sector); invested exactly 1M earns no bonus; only 0.15 > 0 earns +0.15.
+    expect(result.map((o) => o.confidence)).toEqual([
+      ConfidenceLevel.LOW,
+      ConfidenceLevel.LOW,
+      0.65,
+    ]);
+    expect(result[0]!.rationale).toBe('Seed stage, SaaS sector (cold-start mode)');
   });
 
   it('is deterministic across repeated calls (module PRNG resets to 42 per call)', () => {

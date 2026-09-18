@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 type QueryChain = PromiseLike<unknown[]> & {
   from: ReturnType<typeof vi.fn>;
   leftJoin: ReturnType<typeof vi.fn>;
+  innerJoin: ReturnType<typeof vi.fn>;
   where: ReturnType<typeof vi.fn>;
   orderBy: ReturnType<typeof vi.fn>;
   limit: ReturnType<typeof vi.fn>;
@@ -30,6 +31,7 @@ const dbState = vi.hoisted(() => {
     const query = {
       from: vi.fn(() => query),
       leftJoin: vi.fn(() => query),
+      innerJoin: vi.fn(() => query),
       where: vi.fn(() => query),
       orderBy: vi.fn(() => query),
       limit: vi.fn(() => query),
@@ -156,7 +158,7 @@ vi.mock('../../../server/config/features.js', () => ({
   getQueueConnectionOptions: vi.fn(() => null),
 }));
 
-vi.mock('../../../server/db', () => ({ db: dbState.db }));
+vi.mock('../../../server/db', () => ({ db: dbState.db, pool: null }));
 
 vi.mock('../../../server/services/lp-calculator', () => ({
   lpCalculator: calculatorState,
@@ -189,6 +191,7 @@ vi.mock('../../../server/services/lp-audit-logger', () => {
       logCapitalCallsListView: noop,
       logDistributionsListView: noop,
       logDocumentsListView: noop,
+      logDocumentDownload: noop,
       logNotificationsView: noop,
     },
   };
@@ -196,12 +199,11 @@ vi.mock('../../../server/services/lp-audit-logger', () => {
 
 vi.mock('../../../server/lib/crypto/cursor-signing', () => ({
   createCursor: vi.fn(
-    ({ offset, limit }: { offset: number; limit: number }) => `cursor:${offset}:${limit}`
+    (payload: unknown) => `cursor:${encodeURIComponent(JSON.stringify(payload))}`
   ),
   verifyCursor: vi.fn((cursor: string) => {
-    const match = /^cursor:(\d+):(\d+)$/.exec(cursor);
-    if (!match) throw new Error('bad cursor');
-    return { offset: Number(match[1]), limit: Number(match[2]) };
+    if (!cursor.startsWith('cursor:')) throw new Error('bad cursor');
+    return JSON.parse(decodeURIComponent(cursor.slice('cursor:'.length)));
   }),
 }));
 
@@ -339,6 +341,7 @@ function distributionRow() {
 function documentRow() {
   return {
     id: 'doc-1',
+    lpId: 9001,
     fundId: 7,
     documentType: 'quarterly_report',
     title: 'Q4 Report',
@@ -349,6 +352,8 @@ function documentRow() {
     documentDate: '2025-12-31',
     publishedAt: new Date('2026-01-01T00:00:00.000Z'),
     accessLevel: 'standard',
+    storageKey: 'documents/doc-1.pdf',
+    status: 'available',
     fundName: 'Fund VII',
   };
 }
@@ -467,6 +472,159 @@ describe('LP dashboard runtime routes', () => {
         'error',
         'not_found'
       );
+    }
+  }, 30_000);
+
+  it('counts partially paid capital calls in the pending totals', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...capitalCallRow(), id: 'call-1', status: 'pending' },
+        {
+          ...capitalCallRow(),
+          id: 'call-2',
+          status: 'partial',
+          callAmountCents: 400_000n,
+          paidAmountCents: 150_000n,
+        },
+        {
+          ...capitalCallRow(),
+          id: 'call-3',
+          status: 'paid',
+          callAmountCents: 100_000n,
+          paidAmountCents: 100_000n,
+        },
+      ]);
+      const response = await request(surface.app).get('/api/lp/capital-calls');
+
+      expect(response.status, surface.label).toBe(200);
+      expect(response.body, surface.label).toMatchObject({
+        totalPending: 2,
+        totalPendingAmount: '500000',
+      });
+    }
+  }, 30_000);
+
+  it('reports pending distribution totals next to the unchanged totals', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...distributionRow(), id: 'dist-1', totalAmountCents: 100_000n, status: 'pending' },
+        { ...distributionRow(), id: 'dist-2', totalAmountCents: 250_000n, status: 'completed' },
+        { ...distributionRow(), id: 'dist-3', totalAmountCents: 50_000n, status: 'pending' },
+      ]);
+      const list = await request(surface.app).get('/api/lp/distributions');
+
+      expect(list.status, surface.label).toBe(200);
+      expect(list.body, surface.label).toMatchObject({
+        totalDistributed: '400000',
+        pendingDistributed: '150000',
+      });
+
+      resetState();
+      dbState.state.selectResults.push([
+        {
+          distributionDate: '2026-03-01',
+          totalAmountCents: 50_000n,
+          distributionType: 'capital_gains',
+          status: 'pending',
+          returnOfCapitalCents: 0n,
+        },
+        {
+          distributionDate: '2026-01-20',
+          totalAmountCents: 250_000n,
+          distributionType: 'capital_gains',
+          status: 'completed',
+          returnOfCapitalCents: 100_000n,
+        },
+        {
+          distributionDate: '2025-06-30',
+          totalAmountCents: 100_000n,
+          distributionType: 'return_of_capital',
+          status: 'pending',
+          returnOfCapitalCents: 100_000n,
+        },
+      ]);
+      const summary = await request(surface.app).get('/api/lp/distributions/summary');
+
+      expect(summary.status, surface.label).toBe(200);
+      expect(summary.body, surface.label).toMatchObject({
+        totalAllTime: '400000',
+        pendingAllTime: '150000',
+      });
+      expect(summary.body.summary, surface.label).toEqual([
+        expect.objectContaining({
+          year: 2026,
+          totalDistributed: '300000',
+          pendingDistributed: '50000',
+          distributionCount: 2,
+        }),
+        expect.objectContaining({
+          year: 2025,
+          totalDistributed: '100000',
+          pendingDistributed: '100000',
+          distributionCount: 1,
+        }),
+      ]);
+    }
+  }, 30_000);
+
+  it('denies LP document download URLs after ownership checks', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([{ ...documentRow(), accessLevel: 'sensitive' }]);
+      const unavailable = await request(surface.app)
+        .get('/api/lp/documents/doc-1/download')
+        .set('x-reauth-token', 'arbitrary-proof');
+
+      expect(unavailable.status, surface.label).toBe(503);
+      expect(unavailable.body, surface.label).toMatchObject({
+        error: 'DOCUMENT_DOWNLOAD_UNAVAILABLE',
+      });
+      expect(unavailable.body, surface.label).not.toHaveProperty('downloadUrl');
+
+      resetState();
+      dbState.state.selectResults.push([{ ...documentRow(), lpId: 42 }]);
+      const forbidden = await request(surface.app).get('/api/lp/documents/doc-1/download');
+
+      expect(forbidden.status, surface.label).toBe(403);
+      expect(forbidden.body, surface.label).not.toHaveProperty('downloadUrl');
+    }
+  }, 30_000);
+
+  it('binds document keyset cursors to stable ordering and filters', async () => {
+    const surfaces = await buildSurfaces();
+
+    for (const surface of surfaces) {
+      resetState();
+      dbState.state.selectResults.push([
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440003' },
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440002' },
+        { ...documentRow(), id: '770e8400-e29b-41d4-a716-446655440001' },
+      ]);
+      const firstPage = await request(surface.app).get('/api/lp/documents?limit=2&fundId=7');
+
+      expect(firstPage.status, surface.label).toBe(200);
+      const cursor = String(firstPage.body.nextCursor);
+      const payload = JSON.parse(decodeURIComponent(cursor.slice('cursor:'.length)));
+      expect(payload, surface.label).toMatchObject({
+        id: '770e8400-e29b-41d4-a716-446655440002',
+        limit: 2,
+        filters: { type: null, fundId: 7, year: null },
+      });
+      expect(payload, surface.label).not.toHaveProperty('offset');
+
+      const changedFilter = await request(surface.app).get(
+        `/api/lp/documents?limit=2&fundId=8&cursor=${encodeURIComponent(cursor)}`
+      );
+      expect(changedFilter.status, surface.label).toBe(400);
+      expect(changedFilter.body, surface.label).toMatchObject({ error: 'INVALID_CURSOR' });
     }
   }, 30_000);
 });

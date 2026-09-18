@@ -12,6 +12,7 @@ import {
   useUpdateCashFlowEvent,
 } from '@/hooks/useCashFlowEvents';
 import type { CashFlowEventResponse } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 
 const sampleEvent: CashFlowEventResponse = {
   id: 10,
@@ -85,13 +86,16 @@ describe('useCashFlowEvents (query)', () => {
     expect(result.current.data).toEqual([sampleEvent]);
   });
 
-  it('surfaces API error messages', async () => {
-    mockFetchJson({ message: 'Cash events unavailable' }, false);
+  it.each([
+    { status: 403, message: 'Cash events unavailable' },
+    { status: 500, message: SERVER_ERROR_MESSAGE },
+  ])('handles HTTP $status error messages', async ({ status, message }) => {
+    mockFetchJson({ message: 'Cash events unavailable' }, false, status);
     const { result } = renderHook(() => useCashFlowEvents('1'), {
       wrapper: createWrapper(new QueryClient({ defaultOptions: { queries: { retry: false } } })),
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toBe('Cash events unavailable');
+    expect(result.current.error?.message).toBe(message);
   });
 });
 

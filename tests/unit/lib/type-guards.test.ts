@@ -290,13 +290,13 @@ describe('Type Guards', () => {
 
   describe('API response helpers', () => {
     it('extracts an error message from a record payload', () => {
-      expect(getErrorMessage({ message: 'Request failed' })).toBe('Request failed');
+      expect(getErrorMessage({ message: 'Request failed' }, 400)).toBe('Request failed');
     });
 
     it('returns undefined when payload does not contain a string message', () => {
-      expect(getErrorMessage({ message: 42 })).toBeUndefined();
-      expect(getErrorMessage('not-an-object')).toBeUndefined();
-      expect(getErrorMessage(null)).toBeUndefined();
+      expect(getErrorMessage({ message: 42 }, 400)).toBeUndefined();
+      expect(getErrorMessage('not-an-object', 400)).toBeUndefined();
+      expect(getErrorMessage(null, 400)).toBeUndefined();
     });
 
     it('parses JSON from a non-empty response body', async () => {

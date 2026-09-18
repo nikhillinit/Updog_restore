@@ -142,3 +142,69 @@ export function buildMinimalV2Input(
   };
   return { ...base, ...overrides };
 }
+
+export const MULTI_SECURITY_REALIZATION_PRE_FIX_HASHES = {
+  normalizedInputHash: '006353987e891a32cf413df12cbd032306a0488edaa761340e29645e7d0f3009',
+  dealByDealResultHash: 'c5f3281fef0e249b9bae28b350889383bfd07c29d66a8270d86b5591fff35ad9',
+  wholeFundResultHash: '89e19bde445c409f86961046687dd6a8f4ba45f9588d7bb3c95718de5553f692',
+} as const;
+
+export function buildMultiSecurityRealizationV2Input(): InternalEconomicsInputV2Wire {
+  const input = buildMinimalV2Input({
+    waterfallPolicy: [
+      { kind: 'return_of_capital', priority: 1 },
+      { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+    ],
+    events: [
+      {
+        eventId: 'contribution-1',
+        instant: '2025-02-01T00:00:00Z',
+        amountUsd: '200.000000',
+        kind: 'settled_contribution',
+        partnerId: 'lp-1',
+        purpose: 'deployment',
+        settlementSourceRef: 'settlement:contribution-1',
+      },
+      {
+        eventId: 'deployment-a',
+        instant: '2025-02-02T00:00:00Z',
+        amountUsd: '120.000000',
+        kind: 'deployment',
+        dealId: 'deal-1',
+        securityId: 'security-a',
+        cashSourceAllocations: [{ lotId: 'csl:contribution-1', amount: '120.000000' }],
+      },
+      {
+        eventId: 'deployment-b',
+        instant: '2025-02-03T00:00:00Z',
+        amountUsd: '80.000000',
+        kind: 'deployment',
+        dealId: 'deal-1',
+        securityId: 'security-b',
+        cashSourceAllocations: [{ lotId: 'csl:contribution-1', amount: '80.000000' }],
+      },
+      {
+        eventId: 'realization-1',
+        instant: '2025-04-01T00:00:00Z',
+        amountUsd: '200.000000',
+        kind: 'realization',
+        dealId: 'deal-1',
+        recyclingTag: 'none',
+        reliefRows: [
+          {
+            investmentLotId: 'inv:deal-1:security-a:deployment-a',
+            relievedCostBasis: '60.000000',
+            allocatedProceeds: '120.000000',
+          },
+          {
+            investmentLotId: 'inv:deal-1:security-b:deployment-b',
+            relievedCostBasis: '40.000000',
+            allocatedProceeds: '80.000000',
+          },
+        ],
+      },
+    ],
+  });
+  input.lpClasses[0]!.feeProfile.managementFeeSchedule = [];
+  return structuredClone(input);
+}

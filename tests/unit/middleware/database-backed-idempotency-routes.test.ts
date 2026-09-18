@@ -7,6 +7,9 @@ import { clearIdempotencyCache, idempotency } from '../../../server/middleware/i
 
 describe('database-backed idempotency route classification', () => {
   it.each([
+    ['PATCH', '/api/funds/1/tasks/2'],
+    ['PATCH', '/api/FUNDS/1/TASKS/2/?mode=edit#receipt'],
+    ['PATCH', '/api/funds/invalid/tasks/00'],
     ['POST', '/api/funds/1/internal-economics/runs'],
     ['POST', '/api/funds/0/internal-economics/runs'],
     ['POST', '/api/funds/01/internal-economics/runs'],
@@ -35,6 +38,10 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve?mode=queue'],
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve#fragment'],
     ['POST', '/api/FUNDS/1/SCENARIO-SETS/ABC/CALCULATE-RESERVE/'],
+    ['POST', '/api/funds/1/imports/actuals/draft-revisions'],
+    ['POST', '/api/FUNDS/1/IMPORTS/ACTUALS/DRAFT-REVISIONS/?mode=save#receipt'],
+    ['POST', '/api/funds/1/imports/actuals/restatements/dry-run'],
+    ['POST', '/api/FUNDS/1/IMPORTS/ACTUALS/RESTATEMENTS/PUBLISH/?mode=publish#receipt'],
     ['POST', '/api/funds/1/imports/actuals/dry-run'],
     ['POST', '/api/funds/1/imports/actuals/dry-run/'],
     ['POST', '/api/FUNDS/1/IMPORTS/ACTUALS/PUBLISH/?mode=queue#receipt'],
@@ -43,6 +50,15 @@ describe('database-backed idempotency route classification', () => {
   });
 
   it.each([
+    ['POST', '/api/funds/1/tasks/2'],
+    ['GET', '/api/funds/1/tasks/2'],
+    ['PUT', '/api/funds/1/tasks/2'],
+    ['patch', '/api/funds/1/tasks/2'],
+    ['PATCH', '/api/funds/1/tasks'],
+    ['PATCH', '/api/funds/1/tasks/2/evidence-links'],
+    ['PATCH', '/api/funds/1/tasks/2/extra'],
+    ['PATCH', '/api/funds/1/tasks/2//'],
+    ['PATCH', '/prefix/api/funds/1/tasks/2'],
     ['GET', '/api/funds/1/internal-economics/runs'],
     ['PUT', '/api/funds/1/internal-economics/runs'],
     ['post', '/api/funds/1/internal-economics/runs'],
@@ -82,6 +98,12 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/scenario-sets/abc/calculate-reserve/extra'],
     ['POST', '/api/funds/1/scenario-sets/calculate-reserve'],
     ['POST', '/prefix/api/funds/1/scenario-sets/abc/calculate-reserve'],
+    ['GET', '/api/funds/1/imports/actuals/restatements/publish'],
+    ['POST', '/api/funds/1/imports/actuals/restatements/publish/extra'],
+    ['POST', '/api/funds/1/imports/actuals/restatements/dry-run//'],
+    ['POST', '/api/funds/1/imports/actuals/restatements/publishx'],
+    ['POST', '/api/funds/1/imports/actuals/draft-revisions/1'],
+    ['POST', '/api/funds/1/imports/actuals/draft-revisions-near'],
     ['POST', '/api/funds/1/imports/actuals/publishx'],
     ['POST', '/api/funds/1/imports/actuals/dry-run/extra'],
     ['POST', '/api/funds/1/imports/ledger/publish'],
@@ -248,5 +270,46 @@ describe('generic idempotency cache bypass', () => {
     expect(first.headers['idempotency-replay']).toBeUndefined();
     expect(second.headers['idempotency-replay']).toBeUndefined();
     expect(calls).toBe(2);
+  });
+  it.each([
+    '/api/funds/1/imports/actuals/draft-revisions',
+    '/api/funds/1/imports/actuals/restatements/dry-run',
+    '/api/funds/1/imports/actuals/restatements/publish',
+  ])('rechecks current auth and the durable handler on replay for %s', async (path) => {
+    const app = express();
+    let authorized = true;
+    let authChecks = 0;
+    let databaseCommands = 0;
+    app.use(express.json());
+    app.use(idempotency());
+    app.post(path, (_req, res) => {
+      authChecks += 1;
+      if (!authorized) return res.status(403).json({ code: 'CURRENT_GRANT_REQUIRED' });
+      databaseCommands += 1;
+      return res.status(databaseCommands === 1 ? 201 : 200).json({
+        durableReplay: databaseCommands > 1,
+      });
+    });
+    const first = await request(app)
+      .post(path)
+      .set('Idempotency-Key', 'owned-durable-command')
+      .send({ input: 1 });
+    authorized = false;
+    const denied = await request(app)
+      .post(path)
+      .set('Idempotency-Key', 'owned-durable-command')
+      .send({ input: 1 });
+    authorized = true;
+    const replay = await request(app)
+      .post(path)
+      .set('Idempotency-Key', 'owned-durable-command')
+      .send({ input: 1 });
+    expect(first.status).toBe(201);
+    expect(denied.status).toBe(403);
+    expect(replay.status).toBe(200);
+    expect(replay.body.durableReplay).toBe(true);
+    expect(replay.headers['idempotency-replay']).toBeUndefined();
+    expect(authChecks).toBe(3);
+    expect(databaseCommands).toBe(2);
   });
 });

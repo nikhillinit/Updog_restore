@@ -22,7 +22,7 @@ import {
 } from './preferred-return-accrual-v2';
 
 export const INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION =
-  'internal-economics-event-engine/2.3.0' as const;
+  'internal-economics-event-engine/2.4.0' as const;
 
 type CashSourceLotBase = {
   readonly lotId: string;
@@ -42,6 +42,7 @@ type RealizationProceedsCashSourceLot = CashSourceLotBase & {
   readonly sourceKind: 'realization_proceeds';
   readonly sourceEventId: string;
   readonly dealId: string;
+  readonly securityId: string;
 };
 
 type OpeningCashSourceLot = CashSourceLotBase & {
@@ -862,20 +863,54 @@ export function processRealization(
   const reliefError = validateReliefRows(event.reliefRows, state.investmentLots, event.eventId);
   if (reliefError) return reliefError;
 
+  const proceedsBySecurity = new Map<string, Decimal>();
   for (const row of event.reliefRows) {
-    const lotDealId = state.investmentLots.get(row.investmentLotId)!.dealId;
-    if (lotDealId !== event.dealId) {
+    const investmentLot = state.investmentLots.get(row.investmentLotId)!;
+    if (investmentLot.dealId !== event.dealId) {
       return refuse(
         'INVESTMENT_LOT_RELIEF_VIOLATION',
         'provenance',
-        `Event ${event.eventId}: relief row lot '${row.investmentLotId}' belongs to deal '${lotDealId}', not event deal '${event.dealId}'.`,
+        `Event ${event.eventId}: relief row lot '${row.investmentLotId}' belongs to deal '${investmentLot.dealId}', not event deal '${event.dealId}'.`,
         { eventId: event.eventId }
       );
     }
+    proceedsBySecurity.set(
+      investmentLot.securityId,
+      (proceedsBySecurity.get(investmentLot.securityId) ?? new Decimal(0)).plus(
+        row.allocatedProceeds
+      )
+    );
   }
 
-  const allocatedProceedsTotal = event.reliefRows.reduce(
-    (total, row) => total.plus(new Decimal(row.allocatedProceeds)),
+  const drafts = [...proceedsBySecurity.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([securityId, proceeds]) => ({
+      securityId,
+      proceeds,
+      lotId:
+        proceedsBySecurity.size === 1
+          ? `proceeds:${event.eventId}`
+          : `proceeds:${event.eventId}:${securityId}`,
+    }));
+
+  const nonPositiveDraft = drafts.find((draft) => draft.proceeds.lte(0));
+  if (nonPositiveDraft) {
+    return refuse(
+      'INVESTMENT_LOT_RELIEF_VIOLATION',
+      'provenance',
+      `Event ${event.eventId}: security '${nonPositiveDraft.securityId}' must have positive allocated proceeds.`,
+      { eventId: event.eventId, securityId: nonPositiveDraft.securityId }
+    );
+  }
+
+  for (const draft of drafts) {
+    if (state.cashSourceLots.has(draft.lotId)) {
+      return cashSourceLotCollisionRefusal(event.eventId, draft.lotId);
+    }
+  }
+
+  const allocatedProceedsTotal = drafts.reduce(
+    (total, draft) => total.plus(draft.proceeds),
     new Decimal(0)
   );
   if (!allocatedProceedsTotal.eq(amount)) {
@@ -892,21 +927,19 @@ export function processRealization(
     );
   }
 
-  const lotId = `proceeds:${event.eventId}`;
-  if (state.cashSourceLots.has(lotId)) {
-    return cashSourceLotCollisionRefusal(event.eventId, lotId);
-  }
-
   applyReliefRows(event.reliefRows, state.investmentLots);
-  state.cashSourceLots.set(lotId, {
-    origin: 'event',
-    sourceKind: 'realization_proceeds',
-    lotId,
-    sourceEventId: event.eventId,
-    dealId: event.dealId,
-    originalAmount: amount,
-    remainingBalance: amount,
-  });
+  for (const draft of drafts) {
+    state.cashSourceLots.set(draft.lotId, {
+      origin: 'event',
+      sourceKind: 'realization_proceeds',
+      lotId: draft.lotId,
+      sourceEventId: event.eventId,
+      dealId: event.dealId,
+      securityId: draft.securityId,
+      originalAmount: draft.proceeds,
+      remainingBalance: draft.proceeds,
+    });
+  }
 
   state.eventEffectRecords.push({
     eventId: event.eventId,

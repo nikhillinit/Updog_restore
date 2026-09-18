@@ -49,7 +49,6 @@ import { vehicles } from '@shared/schema/vehicles';
 type PreviewDatabase = typeof db;
 
 const PILOT_IMPORT_ORIGIN = 'actuals_pilot_v1';
-const IDENTITY_QUERY_LIMIT = ACTUALS_MAX_ROWS + 1;
 const NUMERIC_20_6_MAX_CENTS = 9_999_999_999_999_999n;
 
 const LEDGER_COLUMNS = [
@@ -167,6 +166,11 @@ export class ActualsPilotPreviewError extends Error {
 
 export interface ActualsPilotPreviewServiceOptions {
   database?: PreviewDatabase;
+  /** Internal receipt verification only: resolve original source labels by admitted identities. */
+  historicalIdentities?: ReadonlyMap<
+    string,
+    { readonly companyId: number | null; readonly vehicleId: number | null }
+  >;
 }
 
 export type ActualsPilotPreviewInput =
@@ -199,7 +203,7 @@ interface IdentityMaps {
   defaultVehicleId: number | null;
 }
 
-interface WorkingRow {
+export interface ActualsPilotPreparedRow {
   rowNumber: number;
   sourceExternalRef: string | null;
   status: PreviewStatus;
@@ -217,6 +221,14 @@ interface WorkingRow {
   canonicalEconomicFields: Record<string, unknown> | null;
   duplicateInFile: boolean;
   duplicateCompanyMark: boolean;
+}
+
+type WorkingRow = ActualsPilotPreparedRow;
+
+export interface ActualsPilotPreparedPreview {
+  readonly preview: ActualsPreviewResponseV1;
+  readonly rows: readonly ActualsPilotPreparedRow[];
+  readonly payload: Uint8Array;
 }
 
 interface TotalsCents {
@@ -483,6 +495,7 @@ function parseStrictCsv(buffer: Buffer, kind: TemplateKind): ParsedCsv {
 }
 
 async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Promise<IdentityMaps> {
+  // ponytail: use full fund-scoped/date-scoped scans; add keyset paging only for measured pilot-scale need.
   const companyRows = (await database
     .select({
       id: portfolioCompanies.id,
@@ -490,8 +503,7 @@ async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Prom
       name: portfolioCompanies.name,
     })
     .from(portfolioCompanies)
-    .where(eq(portfolioCompanies.fundId, fundId))
-    .limit(IDENTITY_QUERY_LIMIT)) as CompanyLookupRow[];
+    .where(eq(portfolioCompanies.fundId, fundId))) as CompanyLookupRow[];
 
   const vehicleRows = (await database
     .select({
@@ -503,8 +515,7 @@ async function loadIdentityMaps(database: PreviewDatabase, fundId: number): Prom
       currency: vehicles.currency,
     })
     .from(vehicles)
-    .where(eq(vehicles.fundId, fundId))
-    .limit(IDENTITY_QUERY_LIMIT)) as VehicleLookupRow[];
+    .where(eq(vehicles.fundId, fundId))) as VehicleLookupRow[];
 
   const companies = new Map<string, number[]>();
   for (const row of companyRows) {
@@ -604,8 +615,38 @@ async function loadExistingValuationTuples(
   return (await database
     .select()
     .from(valuationMarks)
-    .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate)))
-    .limit(IDENTITY_QUERY_LIMIT)) as ExistingRow[];
+    .where(
+      and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markDate, asOfDate))
+    )) as ExistingRow[];
+}
+
+async function loadSupersededRecordIds(
+  database: PreviewDatabase,
+  fundId: number,
+  kind: TemplateKind,
+  existingRows: readonly ExistingRow[]
+): Promise<ReadonlySet<number>> {
+  const ids = existingRows
+    .map((row) => row['id'])
+    .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id));
+  if (ids.length === 0) return new Set();
+  const successors =
+    kind === 'ledger'
+      ? await database
+          .select({ predecessorId: cashFlowEvents.supersedesEventId })
+          .from(cashFlowEvents)
+          .where(
+            and(eq(cashFlowEvents.fundId, fundId), inArray(cashFlowEvents.supersedesEventId, ids))
+          )
+      : await database
+          .select({ predecessorId: valuationMarks.priorMarkId })
+          .from(valuationMarks)
+          .where(and(eq(valuationMarks.fundId, fundId), inArray(valuationMarks.priorMarkId, ids)));
+  return new Set(
+    successors
+      .map((row) => row.predecessorId)
+      .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id))
+  );
 }
 
 async function loadPilotRoster(database: PreviewDatabase, fundId: number): Promise<boolean> {
@@ -1171,7 +1212,8 @@ function applyExistingClassification(
   existingRows: readonly ExistingRow[],
   valuationRows: readonly ExistingRow[],
   kind: TemplateKind,
-  asOfDate: string
+  asOfDate: string,
+  supersededRecordIds: ReadonlySet<number>
 ): void {
   const byHash = new Map<string, ExistingRow>();
   for (const existing of existingRows) {
@@ -1183,7 +1225,10 @@ function applyExistingClassification(
     if (hasError(row.issues) || !row.rowContentHash || !row.rowSourceHash) continue;
     const existing = byHash.get(row.rowSourceHash);
     if (existing) {
-      if (existingImportOrigin(existing) !== PILOT_IMPORT_ORIGIN) {
+      if (
+        existingImportOrigin(existing) !== PILOT_IMPORT_ORIGIN ||
+        (typeof existing['id'] === 'number' && supersededRecordIds.has(existing['id']))
+      ) {
         addIssue(row, 'EXISTING_IMPORT_PROVENANCE_CONFLICT', 'external_ref');
       } else if (existingContentHashForRow(existing, row, kind) === row.rowContentHash) {
         row.status = 'already_imported';
@@ -1506,10 +1551,10 @@ function validateRequest(input: ActualsPilotPreviewInput): {
   return { fundId, request: parsed.data };
 }
 
-export async function previewActualsPilot(
+export async function prepareActualsPilotPreview(
   input: ActualsPilotPreviewInput,
   options: ActualsPilotPreviewServiceOptions = {}
-): Promise<ActualsPreviewResponseV1> {
+): Promise<ActualsPilotPreparedPreview> {
   const { fundId, request } = validateRequest(input);
   const kind = templateKind(request.templateVersion);
   const payload = decodePayload(request.payload);
@@ -1565,39 +1610,81 @@ export async function previewActualsPilot(
       issues: [...globalIssues].sort(compareIssues),
       canPublish: false,
     };
-    return ActualsPreviewResponseV1Schema.parse(response);
+    return {
+      preview: ActualsPreviewResponseV1Schema.parse(response),
+      rows,
+      payload,
+    };
   }
 
   const maps = await loadIdentityMaps(database, fundId);
-  const rows = parsed.rows.map((cells, index) =>
-    kind === 'ledger'
-      ? parseLedgerRow(cells, index + 1, request.asOfDate, fundId, maps)
-      : parseValuationRow(cells, index + 1, request.asOfDate, fundId, maps)
-  );
+  const rows = parsed.rows.map((cells, index) => {
+    const externalRef = cells[kind === 'ledger' ? 11 : 9];
+    const identity =
+      externalRef === undefined
+        ? undefined
+        : options.historicalIdentities?.get(computeActualsPilotRowSourceHash(fundId, externalRef));
+    const companyLabel = cells[kind === 'ledger' ? 4 : 0] ?? '';
+    const vehicleLabel = cells[kind === 'ledger' ? 5 : 1] ?? '';
+    const rowMaps =
+      identity === undefined
+        ? maps
+        : {
+            companies: new Map([
+              [
+                canonicalLabel(companyLabel),
+                identity.companyId === null ? [] : [identity.companyId],
+              ],
+            ]),
+            vehicles: new Map([
+              [
+                canonicalLabel(vehicleLabel),
+                identity.vehicleId === null ? [] : [identity.vehicleId],
+              ],
+            ]),
+            defaultVehicleId: identity.vehicleId,
+          };
+    return kind === 'ledger'
+      ? parseLedgerRow(cells, index + 1, request.asOfDate, fundId, rowMaps)
+      : parseValuationRow(cells, index + 1, request.asOfDate, fundId, rowMaps);
+  });
   assignContentHashes(rows, fundId, request.templateVersion);
   markDuplicateRows(rows, kind);
 
-  const [nonPilotCash, nonPilotValuation] = await Promise.all([
-    hasNonPilotCashFlowRows(database, fundId),
-    hasNonPilotValuationRows(database, fundId),
-  ]);
+  const nonPilotCash = await hasNonPilotCashFlowRows(database, fundId);
+  const nonPilotValuation = await hasNonPilotValuationRows(database, fundId);
   if (nonPilotCash || nonPilotValuation)
     globalIssues.push(makeIssue('FUND_LEDGER_NOT_PILOT_OWNED', 0, null));
 
   const existingHashes = rows
     .map((row) => row.rowSourceHash)
     .filter((hash): hash is string => hash !== null);
-  const [existingRows, existingValuationRows, rosterExists] = await Promise.all([
-    loadExistingRowsBySourceHash(database, fundId, kind, Array.from(new Set(existingHashes))),
+  const existingRows = await loadExistingRowsBySourceHash(
+    database,
+    fundId,
+    kind,
+    Array.from(new Set(existingHashes))
+  );
+  const existingValuationRows =
     kind === 'valuation'
-      ? loadExistingValuationTuples(database, fundId, request.asOfDate)
-      : Promise.resolve([]),
-    kind === 'valuation' ? loadPilotRoster(database, fundId) : Promise.resolve(true),
-  ]);
+      ? await loadExistingValuationTuples(database, fundId, request.asOfDate)
+      : [];
+  const rosterExists = kind === 'valuation' ? await loadPilotRoster(database, fundId) : true;
   if (kind === 'valuation' && !rosterExists)
     globalIssues.push(makeIssue('VALUATION_ROSTER_EMPTY', 0, null));
 
-  applyExistingClassification(rows, existingRows, existingValuationRows, kind, request.asOfDate);
+  // Historical receipt verification proves original source identity, including replaced rows.
+  const supersededRecordIds = options.historicalIdentities
+    ? new Set<number>()
+    : await loadSupersededRecordIds(database, fundId, kind, existingRows);
+  applyExistingClassification(
+    rows,
+    existingRows,
+    existingValuationRows,
+    kind,
+    request.asOfDate,
+    supersededRecordIds
+  );
   const { fileTotals, netNewTotals } = classifyAndAggregate(rows, kind);
   const fileTotalsResponse = totalsResponse(fileTotals);
   const netNewTotalsResponse = totalsResponse(netNewTotals);
@@ -1645,5 +1732,16 @@ export async function previewActualsPilot(
     issues,
     canPublish: rows.some((row) => row.status === 'valid') && !hasErrorIssue && !hasIdentityError,
   };
-  return ActualsPreviewResponseV1Schema.parse(response);
+  return {
+    preview: ActualsPreviewResponseV1Schema.parse(response),
+    rows,
+    payload,
+  };
+}
+
+export async function previewActualsPilot(
+  input: ActualsPilotPreviewInput,
+  options: ActualsPilotPreviewServiceOptions = {}
+): Promise<ActualsPreviewResponseV1> {
+  return (await prepareActualsPilotPreview(input, options)).preview;
 }

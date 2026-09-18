@@ -4,7 +4,9 @@ import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_5,
   FINANCIAL_FACTS_POLICY_VERSION_1_4_0,
   FinancialFactsPayloadV5Schema,
+  FinancialFactsPayloadV6Schema,
   type FinancialFactsPayloadV5,
+  type FinancialFactsPayloadV6,
 } from '../../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { ConsumerEvaluationV3Schema } from '../../../../shared/contracts/financial-facts-consumer-policies';
 import { evaluatePayload5Consumers } from '../../../../shared/lib/financial-facts/payload5-consumer-evaluator';
@@ -147,9 +149,10 @@ function payloadV5(options: PayloadFixtureOptions = {}): FinancialFactsPayloadV5
         fairValue: '10.000000',
         currency: 'USD',
       })),
-      periodNav: options.periodNav === false
-        ? []
-        : [{ periodEnd: AS_OF_DATE, nav: '20.000000', warnings: [] }],
+      periodNav:
+        options.periodNav === false
+          ? []
+          : [{ periodEnd: AS_OF_DATE, nav: '20.000000', warnings: [] }],
       warnings: [],
     },
     vehicleRoster: [
@@ -211,7 +214,7 @@ function payloadV5(options: PayloadFixtureOptions = {}): FinancialFactsPayloadV5
   });
 }
 
-function evaluate(payload: FinancialFactsPayloadV5) {
+function evaluate(payload: FinancialFactsPayloadV5 | FinancialFactsPayloadV6) {
   return ConsumerEvaluationV3Schema.array().parse(evaluatePayload5Consumers(payload));
 }
 
@@ -225,6 +228,74 @@ function evaluationFor(
 }
 
 describe('evaluatePayload5Consumers', () => {
+  it('accepts explicit V6 facts while blocking unavailable company money without zero substitution', () => {
+    const original = payloadV5();
+    const effectiveBasis = {
+      ledgerRecordIds: [],
+      valuationRecordIds: [],
+      recordsHash: 'a'.repeat(64),
+      predecessorSnapshotInputHash: 'b'.repeat(64),
+      corrections: [],
+    };
+    const input = {
+      ...original,
+      effectiveBasis,
+      companyActuals: {
+        ...original.companyActuals,
+        facts: original.companyActuals.facts.map((fact) => ({
+          ...fact,
+          monetaryFacts: { availability: 'available', reasonCodes: [], sourceCashFlowEventIds: [] },
+        })),
+      },
+      admissionReceiptCore: {
+        ...original.admissionReceiptCore,
+        contractVersion: 'actuals-admission/2.0.0',
+        operationKind: 'append',
+        effectiveBasis,
+        restatement: null,
+        facts: {
+          ...original.admissionReceiptCore.facts,
+          policyVersion: 'financial-facts-policy/1.5.0',
+          payloadSchemaId: 'financial-facts-payload/6',
+        },
+      },
+    };
+    const available = FinancialFactsPayloadV6Schema.parse(input);
+    expect(evaluationFor(evaluate(available), 'forecast').status).toBe('accepted');
+    expect(evaluationFor(evaluate(available), 'reserve').status).toBe('accepted');
+
+    const unavailable = FinancialFactsPayloadV6Schema.parse({
+      ...input,
+      companyActuals: {
+        ...input.companyActuals,
+        facts: input.companyActuals.facts.map((fact) => ({
+          ...fact,
+          initialInvestmentAmount: null,
+          followOnInvestmentAmount: null,
+          amountOnlyNonEquityAmount: null,
+          monetaryFacts: {
+            availability: 'unavailable',
+            reasonCodes: ['DEPLOYMENT_CATEGORY_UNMAPPED'],
+            sourceCashFlowEventIds: [9],
+          },
+        })),
+      },
+    });
+    for (const consumer of ['forecast', 'reserve'] as const) {
+      expect(evaluationFor(evaluate(unavailable), consumer)).toMatchObject({
+        status: 'blocked',
+        reasons: ['company_monetary_facts_unavailable'],
+        details: [{ code: 'company_monetary_facts_unavailable', companyIds: [101, 102] }],
+      });
+    }
+    for (const consumer of ['economics', 'periodic_analysis'] as const) {
+      expect(evaluationFor(evaluate(available), consumer).reasons).toEqual([
+        'unsupported_payload_policy',
+      ]);
+    }
+    expect(unavailable.companyActuals.facts[0]?.initialInvestmentAmount).toBeNull();
+  });
+
   it('accepts forecast and reserve under complete coverage', () => {
     const evaluations = evaluate(payloadV5());
 

@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { db } from '../db.js';
+import { runWithDatabaseContext } from '../db.js';
 import { sql } from 'drizzle-orm';
 import { firstString } from './request-values';
 import { principalFromUser } from './auth/principal';
@@ -42,14 +42,15 @@ export async function extractUserContext(req: Request): Promise<UserContext | nu
     if (!verifiedCredential) return null;
     const verifiedClaims = verifiedCredential.claims;
     const claims = verifiedClaims as JWTClaims;
-    req.principal = principalFromUser(userFromClaims(req, verifiedClaims));
+    req.user = userFromClaims(req, verifiedClaims);
+    req.principal = principalFromUser(req.user);
 
     // Build context from verified JWT claims only
     const context: UserContext = {
       userId: claims.sub,
-      email: claims.email,
-      role: claims.role,
-      orgId: claims.org_id || '', // Will be resolved from database if not in JWT
+      email: req.user.email,
+      role: typeof req.user.role === 'string' ? req.user.role : '',
+      orgId: req.user?.orgId ?? claims.org_id ?? '', // Will be resolved from database if not in JWT
       ...(claims.partner_id && { partnerId: claims.partner_id }),
     };
 
@@ -115,22 +116,16 @@ export async function requireSecureContext(
  * Must be called within a transaction
  */
 export async function setDatabaseContext(tx: unknown, context: UserContext): Promise<void> {
-  const txExecute = (tx as unknown as { execute: (query: unknown) => Promise<unknown> }).execute;
-
-  // Set session variables for RLS policies
-  await txExecute(sql`SET LOCAL app.current_user = ${context.userId}`);
-  await txExecute(sql`SET LOCAL app.current_org = ${context.orgId}`);
-
-  if (context.fundId) {
-    await txExecute(sql`SET LOCAL app.current_fund = ${context.fundId}`);
-  }
-
-  if (context.partnerId) {
-    await txExecute(sql`SET LOCAL app.current_partner = ${context.partnerId}`);
-  }
-
-  // Set role for additional security checks
-  await txExecute(sql`SET LOCAL app.current_role = ${context.role}`);
+  if (!context.userId || typeof context.orgId !== 'string')
+    throw new Error('Verified database context required');
+  const database = tx as { execute: (query: unknown) => Promise<unknown> };
+  await database.execute(sql`SELECT
+    set_config('app.current_user', ${context.userId}, true),
+    set_config('app.current_email', ${context.email}, true),
+    set_config('app.current_org', ${context.orgId}, true),
+    set_config('app.current_fund', ${context.fundId ?? ''}, true),
+    set_config('app.current_partner', ${context.partnerId ?? ''}, true),
+    set_config('app.current_role', ${context.role}, true)`);
 }
 
 /**
@@ -141,13 +136,7 @@ export async function executeWithContext<T>(
   context: UserContext,
   queryFn: (_tx: unknown) => Promise<T>
 ): Promise<T> {
-  return await db.transaction(async (tx) => {
-    // Set RLS context
-    await setDatabaseContext(tx, context);
-
-    // Execute the actual query
-    return await queryFn(tx);
-  });
+  return runWithDatabaseContext(context, (tx) => queryFn(tx));
 }
 
 /**

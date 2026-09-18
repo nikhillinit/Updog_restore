@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
-import { usePortfolioCompany } from '@/hooks/use-fund-data';
+import { usePortfolioCompany, usePortfolioOverview } from '@/hooks/use-fund-data';
 import { ApiError } from '@/lib/queryClient';
 import { useFlag } from '@/shared/useFlags';
 import { InvestmentRoundsSection } from '@/components/investments/investment-rounds-section';
@@ -48,6 +48,18 @@ function formatDate(value: string | Date | null | undefined): string {
   });
 }
 
+// Ownership is persisted as a fraction (0.085 means 8.5%). Per ADR-054 a recorded
+// zero is a distinct fact from a missing value, so only null, blank, or
+// non-numeric input falls back to "Not captured".
+function formatOwnership(value: string | number | null | undefined): string {
+  if (value == null) return 'Not captured';
+
+  const ownership = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(ownership)) return 'Not captured';
+
+  return `${(ownership * 100).toFixed(2)}%`;
+}
+
 function SummaryMessageCard({
   actionLabel = 'Back to Companies',
   message,
@@ -72,7 +84,7 @@ function SummaryMessageCard({
 export default function PortfolioCompanySummaryPage() {
   const [, params] = useRoute('/portfolio/company/:id');
   const [, setLocation] = useLocation();
-  const { fundId } = useFundContext();
+  const { fundId, currentFund } = useFundContext();
   const roundsEnabled = useFlag('enable_investment_rounds');
   const [metadataDrawerOpen, setMetadataDrawerOpen] = useState(false);
 
@@ -85,22 +97,34 @@ export default function PortfolioCompanySummaryPage() {
   }, [params?.id]);
 
   const { company, error, isLoading } = usePortfolioCompany(fundId ?? undefined, companyId);
+  const {
+    data: portfolioOverview,
+    isLoading: isOverviewLoading,
+    isUnavailable: isOverviewUnavailable,
+  } = usePortfolioOverview(fundId ?? undefined);
 
+  // Position metrics come only from the provenance-bearing overview. Fail closed
+  // (render no numbers) whenever the hook reports that overview as unavailable.
   const detailMetrics = useMemo(() => {
-    if (!company) {
+    if (!companyId || !portfolioOverview || isOverviewUnavailable) {
       return null;
     }
 
-    const invested = toNumber(company.investmentAmount);
-    const currentValue = toNumber(company.currentValuation);
-    const moic = invested > 0 ? currentValue / invested : 0;
+    const overviewCompany = portfolioOverview.companies.find((entry) => entry.id === companyId);
+    if (!overviewCompany) {
+      return null;
+    }
 
     return {
-      invested,
-      currentValue,
-      moic,
+      invested: toNumber(overviewCompany.invested),
+      currentValue: toNumber(overviewCompany.currentValue),
+      moic: toNumber(overviewCompany.moic),
     };
-  }, [company]);
+  }, [companyId, isOverviewUnavailable, portfolioOverview]);
+
+  // Distinguish an in-flight overview read from a genuinely unavailable one so
+  // the metric cards never claim "Unavailable" while the request is pending.
+  const metricsFallback = isOverviewLoading ? 'Loading...' : 'Unavailable';
 
   const backToCompanies = () => {
     setLocation('/portfolio');
@@ -161,7 +185,7 @@ export default function PortfolioCompanySummaryPage() {
             message="Company details are temporarily unavailable. Please try again."
             onAction={backToCompanies}
           />
-        ) : company && detailMetrics ? (
+        ) : company ? (
           <>
             <Card>
               <CardContent className="pt-6 space-y-6">
@@ -206,7 +230,7 @@ export default function PortfolioCompanySummaryPage() {
                         Invested
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {formatCurrency(detailMetrics.invested)}
+                        {detailMetrics ? formatCurrency(detailMetrics.invested) : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -214,10 +238,12 @@ export default function PortfolioCompanySummaryPage() {
                     <CardContent className="pt-6 space-y-2">
                       <div className="flex items-center gap-2 text-sm text-charcoal-600">
                         <Target className="h-4 w-4" />
-                        Current value
+                        Current position value
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {formatCurrency(detailMetrics.currentValue)}
+                        {detailMetrics
+                          ? formatCurrency(detailMetrics.currentValue)
+                          : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -228,7 +254,7 @@ export default function PortfolioCompanySummaryPage() {
                         MOIC
                       </div>
                       <div className="text-xl font-semibold text-pov-charcoal">
-                        {detailMetrics.moic.toFixed(2)}x
+                        {detailMetrics ? `${detailMetrics.moic.toFixed(2)}x` : metricsFallback}
                       </div>
                     </CardContent>
                   </Card>
@@ -265,7 +291,7 @@ export default function PortfolioCompanySummaryPage() {
                   <div className="flex justify-between gap-4">
                     <span className="text-charcoal-600">Fund</span>
                     <span className="font-medium text-pov-charcoal">
-                      Fund {company.fundId ?? fundId}
+                      {currentFund?.name ?? `Fund ${company.fundId ?? fundId}`}
                     </span>
                   </div>
                 </CardContent>
@@ -288,9 +314,7 @@ export default function PortfolioCompanySummaryPage() {
                   <div className="flex justify-between gap-4">
                     <span className="text-charcoal-600">Ownership</span>
                     <span className="font-medium text-pov-charcoal">
-                      {company.ownershipCurrentPct
-                        ? `${Number.parseFloat(company.ownershipCurrentPct).toFixed(2)}%`
-                        : 'Not captured'}
+                      {formatOwnership(company.ownershipCurrentPct)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">

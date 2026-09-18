@@ -3,17 +3,30 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   TaskCreate,
   TaskListResponse,
+  TaskPatch,
   TaskResponse,
 } from '@shared/contracts/operating-objects/task.contract';
 import type {
   TaskEvidenceLinkListResponse,
+  TaskEvidenceLinkCreateRequest,
   TaskEvidenceLinkV1,
 } from '@shared/contracts/operating-objects/task-evidence-link.contract';
-import { apiRequest } from '@/lib/queryClient';
+import { ApiError, apiRequest } from '@/lib/queryClient';
 import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 
 interface EvidenceLinksOptions {
   enabled: boolean;
+}
+
+interface UpdateTaskVariables {
+  taskId: number;
+  etag: string;
+  input: TaskPatch;
+}
+
+interface CreateTaskEvidenceLinkVariables {
+  taskId: number;
+  input: TaskEvidenceLinkCreateRequest;
 }
 
 export function useTasks(fundId: string | undefined): UseQueryResult<TaskResponse[], Error> {
@@ -79,5 +92,64 @@ export function useTaskEvidenceLinks(
     staleTime: 60_000,
     gcTime: 600_000,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useUpdateTask(
+  fundId: string | undefined
+): UseMutationResult<TaskResponse, Error, UpdateTaskVariables> {
+  const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
+  const mutation = useMutation<TaskResponse, Error, UpdateTaskVariables>({
+    mutationFn: async ({ taskId, etag, input }) => {
+      if (!fundId || !etag) throw new Error('Fund ID and task ETag are required');
+      return apiRequest<TaskResponse>('PATCH', `/api/funds/${fundId}/tasks/${taskId}`, input, {
+        headers: {
+          'If-Match': etag,
+          'Idempotency-Key': idempotencyKey.keyFor({ fundId, taskId, etag, input }),
+        },
+      });
+    },
+    onSuccess: () => {
+      idempotencyKey.reset();
+      return queryClient.invalidateQueries({ queryKey: ['tasks', fundId] });
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 412) {
+        await queryClient.invalidateQueries({ queryKey: ['tasks', fundId] });
+      }
+    },
+  });
+  return {
+    ...mutation,
+    reset: () => {
+      idempotencyKey.reset();
+      mutation.reset();
+    },
+  };
+}
+
+export function useCreateTaskEvidenceLink(
+  fundId: string | undefined
+): UseMutationResult<TaskEvidenceLinkV1, Error, CreateTaskEvidenceLinkVariables> {
+  const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
+  return useMutation<TaskEvidenceLinkV1, Error, CreateTaskEvidenceLinkVariables>({
+    mutationFn: async ({ taskId, input }) => {
+      if (!fundId) throw new Error('No fund ID available');
+      return apiRequest<TaskEvidenceLinkV1>(
+        'POST',
+        `/api/funds/${fundId}/tasks/${taskId}/evidence-links`,
+        input,
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor({ fundId, taskId, input }) } }
+      );
+    },
+    onSuccess: async (_link, { taskId }) => {
+      idempotencyKey.reset();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tasks', fundId] }),
+        queryClient.invalidateQueries({ queryKey: ['task-evidence-links', fundId, taskId] }),
+      ]);
+    },
   });
 }

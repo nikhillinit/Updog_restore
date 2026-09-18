@@ -20,7 +20,10 @@ import {
   structuredWarningsFromFacts,
   type ConstructionReconciliationActualFact,
 } from '../../../server/services/construction-reconciliation-service';
-import { currentPlanVersions, type CurrentPlanVersionRow } from '../../../shared/schema/current-plans';
+import {
+  currentPlanVersions,
+  type CurrentPlanVersionRow,
+} from '../../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { funds, fundSnapshots, type FundSnapshot } from '../../../shared/schema/fund';
 import { financialFactsRowV5 } from '../fixtures/financial-facts-payload5';
@@ -322,6 +325,26 @@ function renderOrderClause(clause: unknown): string {
 }
 
 describe('construction reconciliation calculation', () => {
+  it('refuses unavailable company money before reduction or direct arithmetic', () => {
+    const fact = makeFact({
+      initialInvestmentAmount: null,
+      followOnInvestmentAmount: null,
+      amountOnlyNonEquityAmount: null,
+      monetaryFacts: {
+        availability: 'unavailable',
+        reasonCodes: ['DEPLOYMENT_CATEGORY_UNMAPPED'],
+        sourceCashFlowEventIds: [1],
+      },
+    });
+    expect(reduceState([fact])).toEqual({
+      state: 'unavailable',
+      reasonCodes: ['UPSTREAM_UNAVAILABLE'],
+    });
+    expect(() => buildValue({ plan: makePlan(), facts: [fact], asOfDate: AS_OF_DATE })).toThrow(
+      `Company ${fact.companyId} monetary facts are unavailable.`
+    );
+  });
+
   it('discloses 20.000000 over deployable capacity for 100 vs 120', () => {
     const value = buildValue({ plan: makePlan(), facts: [makeFact()], asOfDate: AS_OF_DATE });
 

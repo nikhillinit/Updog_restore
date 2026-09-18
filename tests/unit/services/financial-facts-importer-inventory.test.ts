@@ -11,9 +11,7 @@ const PAYLOAD_EVALUATION_READERS = new Set([
   'server/services/reserves/dynamic-reserve-intelligence-service.ts',
 ]);
 
-const DIRECT_FACTS_WRITERS = new Set([
-  'server/services/financial-facts-snapshot-service.ts',
-]);
+const DIRECT_FACTS_WRITERS = new Set(['server/services/financial-facts-snapshot-service.ts']);
 
 const EXEMPT_ID_ONLY_LOOKUPS = {
   'server/lib/fund-scoped-ownership.ts': 'Checks whether a snapshot ID belongs to the fund.',
@@ -32,6 +30,7 @@ const EXEMPT_ID_ONLY_LOOKUPS = {
 // than a direct table import. Phase 5 adds the latest-reference and metrics handlers.
 const CODEC_REQUIRED_READERS = new Set([
   ...PAYLOAD_EVALUATION_READERS,
+  'server/routes/lp-reporting/imports.ts',
   'server/services/current-plan-version-service.ts',
   'server/routes/financial-facts.ts',
 ]);
@@ -55,11 +54,34 @@ function referencesFinancialFactsSnapshots(source: string): boolean {
   return /\bfinancialFactsSnapshots\b/.test(stripComments(source));
 }
 
-const actualImporters = walk(SERVER_ROOT)
-  .filter((absolutePath) =>
-    referencesFinancialFactsSnapshots(fs.readFileSync(absolutePath, 'utf8'))
-  )
-  .map((absolutePath) => path.relative(process.cwd(), absolutePath).replaceAll(path.sep, '/'))
+function writesAcceptedPilotRowOrMark(source: string): boolean {
+  const uncommented = stripComments(source);
+  return (
+    uncommented.includes('actuals_pilot_v1') &&
+    /(?:\bINSERT\s+INTO\s+(?:cash_flow_events|valuation_marks)\b|\.insert\(\s*(?:cashFlowEvents|valuationMarks)\s*\))/i.test(
+      uncommented
+    )
+  );
+}
+
+type ServerSource = { relativePath: string; source: string };
+
+function acceptedPilotRowMarkWriters(sources: readonly ServerSource[]): string[] {
+  return sources
+    .filter(({ source }) => writesAcceptedPilotRowOrMark(source))
+    .map(({ relativePath }) => relativePath)
+    .sort();
+}
+
+const PILOT_PUBLISHER = 'server/services/lp-reporting/actuals-pilot-publish-service.ts';
+const serverSources = walk(SERVER_ROOT).map((absolutePath) => ({
+  relativePath: path.relative(process.cwd(), absolutePath).replaceAll(path.sep, '/'),
+  source: fs.readFileSync(absolutePath, 'utf8'),
+}));
+
+const actualImporters = serverSources
+  .filter(({ source }) => referencesFinancialFactsSnapshots(source))
+  .map(({ relativePath }) => relativePath)
   .sort();
 
 const expectedImporters = [
@@ -78,5 +100,18 @@ describe('financialFactsSnapshots importer inventory', () => {
       const source = stripComments(fs.readFileSync(path.resolve(process.cwd(), reader), 'utf8'));
       expect(source, reader).toContain(CODEC_MODULE);
     }
+  });
+
+  it('allows only the publisher to insert accepted pilot rows and marks', () => {
+    const unauthorizedWriter = {
+      relativePath: 'server/services/unauthorized-pilot-writer.ts',
+      source: `INSERT INTO cash_flow_events (status, imported_from)
+        VALUES ('approved', 'actuals_pilot_v1')`,
+    };
+
+    expect(acceptedPilotRowMarkWriters(serverSources)).toEqual([PILOT_PUBLISHER]);
+    expect(acceptedPilotRowMarkWriters([unauthorizedWriter])).toEqual([
+      unauthorizedWriter.relativePath,
+    ]);
   });
 });

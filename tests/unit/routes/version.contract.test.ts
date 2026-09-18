@@ -21,6 +21,7 @@ const RELEASE_ENV_KEYS = [
   'VERCEL_GIT_COMMIT_SHA',
   'RAILWAY_GIT_COMMIT_SHA',
   'COMMIT_REF',
+  'RATE_LIMIT_REDIS_URL',
 ] as const;
 
 function countRouteRegistrations(
@@ -102,6 +103,13 @@ describe('/api/version contract', () => {
     expect(response.body).not.toHaveProperty('provider');
     expect(response.body).not.toHaveProperty('providerId');
     expect(response.body).not.toHaveProperty('controlPlane');
+  });
+
+  it('keeps ordinary routes fail-closed without shared production rate-limit storage', async () => {
+    const { makeApp } = await import('../../../server/app');
+    const response = await request(makeApp()).get('/api/not-a-real-route');
+
+    expect(response.status).toBe(503);
   });
 
   it('registers /api/version exactly once on the actual app surface', async () => {

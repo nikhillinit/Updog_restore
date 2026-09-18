@@ -186,6 +186,9 @@ export function databaseUrlSignature(connectionString) {
   }
 }
 
+/**
+ * @param {{ databaseUrl?: string, env?: NodeJS.ProcessEnv }} [options]
+ */
 export function shouldRefuseProdDbPush({ databaseUrl, env = process.env } = {}) {
   const signature = databaseUrlSignature(databaseUrl);
   if (!signature) {
@@ -276,7 +279,9 @@ export function findMissingSentinels({ sentinels, constraintRows, indexRows }) {
   const presentIndexes = rowNames(indexRows, 'indexname');
 
   return {
-    constraints: sentinels.constraints.filter((name) => !presentConstraints.has(pgIdentifier(name))),
+    constraints: sentinels.constraints.filter(
+      (name) => !presentConstraints.has(pgIdentifier(name))
+    ),
     indexes: sentinels.indexes.filter((name) => !presentIndexes.has(pgIdentifier(name))),
   };
 }
@@ -317,10 +322,7 @@ export async function verifyPostPushSentinels({
   sentinels = buildSentinelChecks(),
 }) {
   if (!connectionString) {
-    throw new DbPushPostcheckError(
-      MISSING_DATABASE_URL_MESSAGE,
-      { kind: 'missing-database-url' }
-    );
+    throw new DbPushPostcheckError(MISSING_DATABASE_URL_MESSAGE, { kind: 'missing-database-url' });
   }
 
   const client = clientFactory({ connectionString });

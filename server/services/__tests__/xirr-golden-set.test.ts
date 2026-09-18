@@ -18,7 +18,7 @@
  * │   2    │ Multi-round + partial distribution     │   0.3088902613   │ ✓ PASS  │
  * │   3    │ Negative IRR (loss scenario)           │  -0.3689233640   │ ✓ PASS  │
  * │   4    │ Near-zero IRR (tiny gain)              │   0.0009975961   │ ✓ PASS  │
- * │   5    │ Monthly flows + irregular spacing      │   0.0877660553   │ ✓ PASS  │
+ * │   5    │ Monthly flows + irregular spacing      │   0.08777082871958376   │ ✓ PASS  │
  * │   6    │ Quarterly flows + large exit spike     │   0.8063164822   │ ✓ PASS  │
  * │   7    │ Early distribution then follow-on      │   0.2180906137   │ ✓ PASS  │
  * │   8    │ Very high return (10x unicorn)         │   1.1540575356   │ ✓ PASS  │
@@ -179,7 +179,7 @@ describe('XIRR Golden Set - Excel Validation', () => {
    * Excel Formula:
    * =XIRR({-10000000, 100000, 100000, ..., 10000000},
    *       {DATE(2020,1,1), DATE(2020,1,15), ..., DATE(2021,6,15)})
-   * Result: 0.0877660553 or 8.78%
+   * Result: 0.08777082871958376 or 8.78%
    *
    * Tests handling of frequent, irregular cashflows
    */
@@ -203,7 +203,8 @@ describe('XIRR Golden Set - Excel Validation', () => {
 
     expect(result.converged).toBe(true);
     expect(result.irr).not.toBeNull();
-    expect(Math.abs(result.irr! - 0.0877660553)).toBeLessThan(EXCEL_TOLERANCE);
+    // Independent 70-digit Decimal bisection with the ADR-010 Actual/365.25 basis.
+    expect(Math.abs(result.irr! - 0.08777082871958376)).toBeLessThan(EXCEL_TOLERANCE);
     expect(elapsed).toBeLessThan(PERF_BUDGET_MS);
   });
 
@@ -573,9 +574,9 @@ describe('XIRR Golden Set - Edge Cases', () => {
     ];
 
     const result = xirrNewtonBisection(flows);
-    // Should still converge (has both signs)
-    expect(result.converged).toBe(true);
-    expect(result.irr).not.toBeNull();
+    // Same-day flows net to +15M; every dated net flow is positive, so no root exists.
+    expect(result.converged).toBe(false);
+    expect(result.irr).toBeNull();
   });
 });
 

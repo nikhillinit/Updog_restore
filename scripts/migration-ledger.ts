@@ -104,6 +104,11 @@ export const LEGACY_JOURNALED_UNMARKED_ALLOWLIST: { tag: string; sha256: string 
     tag: '0019_investments_id_fund_unique',
     sha256: 'c69d2a2498f48314d858922bbfd53c5896cfc9e64d55c662f3034c6cf3543879',
   },
+  // F_1.13.0 preserves the exact 0056 bytes committed in 47221a76b.
+  {
+    tag: '0056_actuals_draft_revisions',
+    sha256: '94fd8537ee7afbee9f0d5b19bfa9cfd78263096c89ee4ef0ae015ad268ed04cf',
+  },
 ];
 
 // 11 dead loose files left this allowlist 2026-07-03 (#978): superseded or

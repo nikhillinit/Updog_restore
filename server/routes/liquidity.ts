@@ -31,6 +31,26 @@ import {
 
 const router = Router();
 
+// The forecast projects what has not happened yet; executed, cancelled and
+// failed rows stay out (mirrors useLiquidityAnalytics.generateLiquidityForecast).
+const UPCOMING_STATUSES = new Set<z.infer<typeof CashTransactionSchema>['status']>([
+  'planned',
+  'pending',
+  'approved',
+]);
+
+type StatusBearingTransaction = Pick<z.infer<typeof CashTransactionSchema>, 'status'>;
+
+/** Realized history only: the engine sums whatever it is given. */
+export function isExecutedTransaction(transaction: StatusBearingTransaction): boolean {
+  return transaction.status === 'executed';
+}
+
+/** Rows the forecast may still count: planned, pending or approved. */
+export function isUpcomingTransaction(transaction: StatusBearingTransaction): boolean {
+  return UPCOMING_STATUSES.has(transaction.status);
+}
+
 // Request validation schemas
 const stressTestFactorsSchema = z
   .object({
@@ -99,8 +119,10 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { fundId, fundSize, transactions } = analyzeCashFlowsSchema.parse(req.body);
 
+    // Realized history only. The engine sums whatever it is given, so the status
+    // filter lives at the caller (mirrors useLiquidityAnalytics.runCashFlowAnalysis).
     const engine = new LiquidityEngine(fundId, fundSize);
-    const analysis = engine.analyzeCashFlows(transactions);
+    const analysis = engine.analyzeCashFlows(transactions.filter(isExecutedTransaction));
 
     res.json(analysis);
   })
@@ -119,7 +141,7 @@ router.post(
     const engine = new LiquidityEngine(fundId, fundSize);
     const forecast = engine.generateLiquidityForecast(
       currentPosition,
-      transactions || [],
+      (transactions ?? []).filter(isUpcomingTransaction),
       recurringExpenses,
       months
     );

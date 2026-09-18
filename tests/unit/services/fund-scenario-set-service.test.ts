@@ -416,9 +416,12 @@ describe('fund scenario set persistence shell', () => {
   });
 
   it('lists active scenario sets without archived rows by default', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
-      rows: [scenarioSetRow()],
-    });
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({
+        rows: [scenarioSetRow()],
+      })
+      .mockResolvedValueOnce({ rows: [variantRow()] });
 
     const result = await listFundScenarioSets(1);
 
@@ -436,6 +439,7 @@ describe('fund scenario set persistence shell', () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })
       .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] })
       .mockResolvedValueOnce({
         rows: [
           scenarioSetRow({
@@ -456,7 +460,7 @@ describe('fund scenario set persistence shell', () => {
     expect(result.archivedAt).toBe('2026-05-26T13:00:00.000Z');
     expect(queryMock.mock.calls[1]?.[0]).toContain('FOR UPDATE OF s');
     expect(queryMock.mock.calls[1]?.[0]).not.toContain('GROUP BY');
-    expect(queryMock.mock.calls[2]?.[0]).toContain('UPDATE fund_scenario_sets');
-    expect(queryMock.mock.calls[3]?.[0]).toContain('INSERT INTO fund_scenario_set_events');
+    expect(queryMock.mock.calls[3]?.[0]).toContain('UPDATE fund_scenario_sets');
+    expect(queryMock.mock.calls[4]?.[0]).toContain('INSERT INTO fund_scenario_set_events');
   });
 });

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ import {
 } from '../../../audit/surface-contract-matrix/matrix-schema.mjs';
 
 const mocks = vi.hoisted(() => ({
-  validateMatrix: vi.fn(async () => ({})),
+  validateMatrix: vi.fn(async (_options?: Record<string, unknown>) => ({})),
   validateOffRowFingerprints: vi.fn(() => []),
   validateRowIntegrity: vi.fn(() => []),
   validateClosedPhaseInvariants: vi.fn(() => []),
@@ -62,10 +63,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (temporaryReviewDirectory) fs.rmSync(temporaryReviewDirectory, { recursive: true, force: true });
+  if (temporaryReviewDirectory)
+    fs.rmSync(temporaryReviewDirectory, { recursive: true, force: true });
   temporaryReviewDirectory = '';
   temporaryReviewPath = '';
-  if (temporaryWorkspaceDirectory) fs.rmSync(temporaryWorkspaceDirectory, { recursive: true, force: true });
+  if (temporaryWorkspaceDirectory)
+    fs.rmSync(temporaryWorkspaceDirectory, { recursive: true, force: true });
   temporaryWorkspaceDirectory = '';
 });
 
@@ -110,10 +113,7 @@ function rowSourceFingerprints(
     .filter((value): value is string => Boolean(value));
 }
 
-function writeReview(
-  overrides: Record<string, unknown> = {},
-  reviewPath = temporaryReviewPath,
-) {
+function writeReview(overrides: Record<string, unknown> = {}, reviewPath = temporaryReviewPath) {
   const { matrix, inventory } = currentState();
   const row =
     matrix.rows.find((entry) => rowSourceFingerprints(entry, inventory).length > 0) ??
@@ -175,17 +175,204 @@ function createIsolatedWorkspace() {
   return { matrixDir: temporaryWorkspaceDirectory, files };
 }
 
-describe.sequential('surface contract matrix approval closure safety', () => {
-  it('resolves relative review paths from repository root before workspace containment checks', () => {
-    const parsed = approveModule.parseArgs([
+async function closedRepairFixture() {
+  const workspace = createIsolatedWorkspace();
+  const { review, row } = writeReview({}, workspace.files.review);
+  review.rows[row.id].reviewed_fields = { decision_status: 'approved' };
+  fs.writeFileSync(workspace.files.review, `${JSON.stringify(review, null, 2)}\n`);
+  const matrix = SurfaceMatrixDocumentSchema.parse(
+    JSON.parse(fs.readFileSync(workspace.files.matrix, 'utf8'))
+  );
+  matrix.phase = 'closed';
+  const inventory = JSON.parse(fs.readFileSync(workspace.files.inventory, 'utf8'));
+  matrix.rows = [
+    matrix.rows.find((entry) => entry.id === row.id)!,
+    matrix.rows.find((entry) => entry.id !== row.id && entry.classification === 'classified')!,
+  ];
+  matrix.coverage_review = {};
+  for (const fixtureRow of matrix.rows) {
+    fixtureRow.decision_status = 'approved';
+    fixtureRow.approved_source_hashes = rowSourceFingerprints(fixtureRow, inventory);
+    for (const exposure of fixtureRow.exposures) {
+      matrix.coverage_review[`${fixtureRow.id}|${exposure.deployment}|${exposure.runtime}`] = {
+        test_coverage: 'none-reviewed',
+        contract_fingerprint: contractFingerprint(fixtureRow),
+        evidence: 'Synthetic closed-repair fixture',
+      };
+    }
+  }
+  const requirements = { families: [] };
+  fs.writeFileSync(workspace.files.requirements, JSON.stringify(requirements));
+  matrix.g1_closure = {
+    approver_id: 'fixture-approver',
+    evidence_ref: 'fixture-evidence',
+    source_fingerprints: inventory.source_hashes,
+    requirements_sha256: createHash('sha256').update(JSON.stringify(requirements)).digest('hex'),
+    families: {},
+  };
+  for (const file of ['listeners', 'candidates', 'exclusions', 'orphans'] as const) {
+    fs.writeFileSync(workspace.files[file], '[]');
+  }
+  const pendingRow = matrix.rows.find((entry) => entry.id === row.id)!;
+  pendingRow.decision_status = 'proposed';
+  fs.writeFileSync(workspace.files.matrix, `${JSON.stringify(matrix, null, 2)}\n`);
+  const actual = await vi.importActual<
+    typeof import('../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs')
+  >('../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs');
+  const readState = () =>
+    Object.fromEntries(
+      [
+        ['matrix', workspace.files.matrix],
+        ['inventory', workspace.files.inventory],
+        ['requirements', workspace.files.requirements],
+        ['listeners', workspace.files.listeners],
+        ['candidates', workspace.files.candidates],
+        ['exclusions', workspace.files.exclusions],
+        ['orphans', workspace.files.orphans],
+      ].map(([key, file]) => [key, JSON.parse(fs.readFileSync(file!, 'utf8'))])
+    );
+  mocks.validateMatrix.mockImplementation(async (options) => {
+    const state = (options?.candidateState ?? readState()) as ReturnType<typeof readState>;
+    const closure = actual.closureReport({ ...state, document: state.matrix });
+    const errors = actual.validateClosedPhaseInvariants({
+      document: state.matrix,
+      requirements: state.requirements,
+      families: closure.families,
+    });
+    if (!closure.passed || errors.length > 0) {
+      throw new Error(
+        `Closed candidate invalid: ${JSON.stringify({ issues: closure.issues, errors })}`
+      );
+    }
+    return {};
+  });
+  mocks.closureReport.mockImplementation(actual.closureReport);
+  mocks.validateClosedPhaseInvariants.mockImplementation(actual.validateClosedPhaseInvariants);
+  return {
+    workspace,
+    row,
+    matrix,
+    readState,
+    actual,
+    args: [
       '--review-file',
-      'audit/surface-contract-matrix/g1-review.json',
+      workspace.files.review,
       '--approver',
       'fixture-approver',
       '--evidence',
       'fixture-evidence',
-    ], { matrixDir });
-    expect(parsed.reviewFile).toBe(path.join(repoRoot, 'audit/surface-contract-matrix/g1-review.json'));
+    ],
+  };
+}
+
+describe.sequential('surface contract matrix approval closure safety', () => {
+  it('repairs a proposed row in a closed matrix by validating the complete candidate before atomic write', async () => {
+    const { workspace, row, matrix, readState, actual, args } = await closedRepairFixture();
+    expect(actual.closureReport({ ...readState(), document: matrix }).issues.proposed).toContain(
+      row.id
+    );
+    const historicalClosure = matrix.g1_closure;
+    const unrelatedRows = matrix.rows.filter((entry) => entry.id !== row.id);
+
+    await expect(
+      approveModule.approveMatrix(args, { ...workspace, repoRoot })
+    ).resolves.toMatchObject({
+      phase: 'closed',
+      reviewed_rows: 1,
+      close_g1: false,
+    });
+
+    const repaired = readState().matrix;
+    expect(repaired.rows.find((entry) => entry.id === row.id).decision_status).toBe('approved');
+    expect(repaired.g1_closure).toEqual(historicalClosure);
+    expect(repaired.rows.filter((entry) => entry.id !== row.id)).toEqual(unrelatedRows);
+    expect(mocks.validateMatrix).toHaveBeenCalledWith(
+      expect.objectContaining({
+        writeMetadata: false,
+        candidateState: expect.objectContaining({ matrix: repaired }),
+      })
+    );
+  });
+
+  it('refuses an incomplete closed repair without --close-g1 and preserves every file', async () => {
+    const { workspace, row, matrix, args } = await closedRepairFixture();
+    const other = matrix.rows.find((entry) => entry.id !== row.id)!;
+    other.decision_status = 'proposed';
+    fs.writeFileSync(workspace.files.matrix, `${JSON.stringify(matrix, null, 2)}\n`);
+    // Exercise the candidate closure guard independently of the full validator.
+    mocks.validateMatrix.mockResolvedValue({});
+    const paths = [...Object.values(workspace.files).filter((file) => fs.existsSync(file))];
+    const before = paths.map((file) => fs.readFileSync(file));
+
+    await expect(approveModule.approveMatrix(args, { ...workspace, repoRoot })).rejects.toThrow(
+      'G1 closure blockers'
+    );
+    expectByteSnapshotsUnchanged(paths, before);
+  });
+
+  it('refuses source or inventory drift even when scoped closed-row review is complete', async () => {
+    const { workspace, args } = await closedRepairFixture();
+    mocks.validateMatrix.mockRejectedValue(new Error('source hash mismatch: server/app.ts'));
+    const paths = Object.values(workspace.files).filter((file) => fs.existsSync(file));
+    const before = paths.map((file) => fs.readFileSync(file));
+
+    await expect(approveModule.approveMatrix(args, { ...workspace, repoRoot })).rejects.toThrow(
+      'source/inventory validation: source hash mismatch'
+    );
+    expectByteSnapshotsUnchanged(paths, before);
+  });
+
+  it('keeps supplied candidate validation read-only even when metadata writing defaults on', async () => {
+    const { actual, readState, workspace } = await closedRepairFixture();
+    const before = fs.readFileSync(workspace.files.matrix);
+    await expect(actual.validateMatrix({ candidateState: readState() })).rejects.toThrow(
+      'Candidate matrix validation is read-only'
+    );
+    expect(fs.readFileSync(workspace.files.matrix)).toEqual(before);
+  });
+
+  it('requires complete candidate inventory instead of falling back to tracked artifacts', async () => {
+    const { actual, readState } = await closedRepairFixture();
+    const state = readState();
+    delete state.inventory;
+    await expect(
+      actual.validateMatrix({ writeMetadata: false, candidateState: state })
+    ).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'invalid_type', expected: 'object' }),
+      ]),
+    });
+  });
+
+  it('schema-validates supplied off-row state before candidate source verification', async () => {
+    const { actual, readState } = await closedRepairFixture();
+    await expect(
+      actual.validateMatrix({
+        writeMetadata: false,
+        candidateState: { ...readState(), listeners: null },
+      })
+    ).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: 'invalid_type', expected: 'array' }),
+      ]),
+    });
+  });
+
+  it('resolves relative review paths from repository root before workspace containment checks', () => {
+    const parsed = approveModule.parseArgs(
+      [
+        '--review-file',
+        'audit/surface-contract-matrix/g1-review.json',
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+      ],
+      { matrixDir }
+    );
+    expect(parsed.reviewFile).toBe(
+      path.join(repoRoot, 'audit/surface-contract-matrix/g1-review.json')
+    );
   });
 
   it('applies review-manifest row fields and recomputes dependent state in dry-run', async () => {
@@ -279,17 +466,22 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     ).toBe(candidateRow.contract_fingerprint);
     expect(rebound).not.toBe(review);
     expect(review.rows[row.id].contract_fingerprint).not.toBe(candidateRow.contract_fingerprint);
-    expect(() => approveModule.verifyManifestKeys(rebound, candidateState, {
-      approver: 'fixture-approver',
-      evidence: 'fixture-evidence',
-    })).not.toThrow();
+    expect(() =>
+      approveModule.verifyManifestKeys(rebound, candidateState, {
+        approver: 'fixture-approver',
+        evidence: 'fixture-evidence',
+      })
+    ).not.toThrow();
 
     const tampered = structuredClone(rebound);
-    (tampered.rows as Record<string, Record<string, unknown>>)[row.id].contract_fingerprint = '0'.repeat(64);
-    expect(() => approveModule.verifyManifestKeys(tampered, candidateState, {
-      approver: 'fixture-approver',
-      evidence: 'fixture-evidence',
-    })).toThrow(`Review manifest contract fingerprint is stale for ${row.id}`);
+    (tampered.rows as Record<string, Record<string, unknown>>)[row.id].contract_fingerprint =
+      '0'.repeat(64);
+    expect(() =>
+      approveModule.verifyManifestKeys(tampered, candidateState, {
+        approver: 'fixture-approver',
+        evidence: 'fixture-evidence',
+      })
+    ).toThrow(`Review manifest contract fingerprint is stale for ${row.id}`);
   });
 
   it('rebinds exposure and every off-row fingerprint in same manifest transaction', () => {
@@ -330,19 +522,35 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     };
     review.off_row_dispositions = {
       listeners: {
-        [String(listener.listener_id)]: { listener_id: listener.listener_id, fingerprint: 'old-listener-fingerprint' },
+        [String(listener.listener_id)]: {
+          listener_id: listener.listener_id,
+          fingerprint: 'old-listener-fingerprint',
+        },
       },
       candidates: {
-        [String(candidate.path)]: { path: candidate.path, contract_fingerprint: 'old-candidate-fingerprint' },
+        [String(candidate.path)]: {
+          path: candidate.path,
+          contract_fingerprint: 'old-candidate-fingerprint',
+        },
       },
       exclusions: {
-        [String(exclusion.id)]: { id: exclusion.id, contract_fingerprint: 'old-exclusion-fingerprint' },
+        [String(exclusion.id)]: {
+          id: exclusion.id,
+          contract_fingerprint: 'old-exclusion-fingerprint',
+        },
       },
       orphans: {
-        [String(orphan.id)]: { id: orphan.id, resolution_fingerprint: 'old-orphan-fingerprint', contract_fingerprint: 'old-orphan-fingerprint' },
+        [String(orphan.id)]: {
+          id: orphan.id,
+          resolution_fingerprint: 'old-orphan-fingerprint',
+          contract_fingerprint: 'old-orphan-fingerprint',
+        },
       },
       requirements: {
-        [String(requirement.id)]: { id: requirement.id, contract_fingerprint: 'old-requirement-fingerprint' },
+        [String(requirement.id)]: {
+          id: requirement.id,
+          contract_fingerprint: 'old-requirement-fingerprint',
+        },
       },
     };
 
@@ -353,19 +561,29 @@ describe.sequential('surface contract matrix approval closure safety', () => {
       ].contract_fingerprint
     ).toBe(contractFingerprint(row));
     expect(
-      (rebound.off_row_dispositions.listeners as Record<string, Record<string, unknown>>)[String(listener.listener_id)].fingerprint
+      (rebound.off_row_dispositions.listeners as Record<string, Record<string, unknown>>)[
+        String(listener.listener_id)
+      ].fingerprint
     ).toBe(listenerDispositionFingerprint(listener, undefined));
     expect(
-      (rebound.off_row_dispositions.candidates as Record<string, Record<string, unknown>>)[String(candidate.path)].contract_fingerprint
+      (rebound.off_row_dispositions.candidates as Record<string, Record<string, unknown>>)[
+        String(candidate.path)
+      ].contract_fingerprint
     ).toBe(dormantCandidateFingerprint(candidate));
     expect(
-      (rebound.off_row_dispositions.exclusions as Record<string, Record<string, unknown>>)[String(exclusion.id)].contract_fingerprint
+      (rebound.off_row_dispositions.exclusions as Record<string, Record<string, unknown>>)[
+        String(exclusion.id)
+      ].contract_fingerprint
     ).toBe(runtimeExclusionFingerprint(exclusion));
     expect(
-      (rebound.off_row_dispositions.orphans as Record<string, Record<string, unknown>>)[String(orphan.id)].resolution_fingerprint
+      (rebound.off_row_dispositions.orphans as Record<string, Record<string, unknown>>)[
+        String(orphan.id)
+      ].resolution_fingerprint
     ).toBe(orphanResolutionFingerprint(orphan));
     expect(
-      (rebound.off_row_dispositions.requirements as Record<string, Record<string, unknown>>)[String(requirement.id)].contract_fingerprint
+      (rebound.off_row_dispositions.requirements as Record<string, Record<string, unknown>>)[
+        String(requirement.id)
+      ].contract_fingerprint
     ).toBe(absenceEvidenceFingerprint(requirement));
   });
 
@@ -380,14 +598,18 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     fs.symlinkSync(outsideRoot, escapeParent, 'dir');
     fs.symlinkSync(outsideRoot, symlinkBase, 'dir');
     try {
-      expect(() => approveModule.atomicWriteSet({
-        baseDir: safeRoot,
-        writes: [[path.join(escapeParent, 'review.json'), 'escape']],
-      })).toThrow(/symlink|outside/i);
-      expect(() => approveModule.atomicWriteSet({
-        baseDir: symlinkBase,
-        writes: [[path.join(symlinkBase, 'review.json'), 'escape']],
-      })).toThrow(/symlink|outside/i);
+      expect(() =>
+        approveModule.atomicWriteSet({
+          baseDir: safeRoot,
+          writes: [[path.join(escapeParent, 'review.json'), 'escape']],
+        })
+      ).toThrow(/symlink|outside/i);
+      expect(() =>
+        approveModule.atomicWriteSet({
+          baseDir: symlinkBase,
+          writes: [[path.join(symlinkBase, 'review.json'), 'escape']],
+        })
+      ).toThrow(/symlink|outside/i);
       expect(fs.existsSync(path.join(outsideRoot, 'review.json'))).toBe(false);
       expect(fs.readFileSync(sentinelPath)).toEqual(sentinelBefore);
     } finally {
@@ -400,22 +622,29 @@ describe.sequential('surface contract matrix approval closure safety', () => {
   it('rejects duplicate atomic transaction targets', () => {
     const transactionRoot = fs.mkdtempSync(path.join(matrixDir, '.g1-duplicate-targets-'));
     try {
-      expect(() => approveModule.atomicWriteSet({
-        baseDir: transactionRoot,
-        writes: [
-          [path.join(transactionRoot, 'same.json'), 'first'],
-          [path.join(transactionRoot, 'same.json'), 'second'],
-        ],
-      })).toThrow(/duplicate|collision/i);
+      expect(() =>
+        approveModule.atomicWriteSet({
+          baseDir: transactionRoot,
+          writes: [
+            [path.join(transactionRoot, 'same.json'), 'first'],
+            [path.join(transactionRoot, 'same.json'), 'second'],
+          ],
+        })
+      ).toThrow(/duplicate|collision/i);
     } finally {
       fs.rmSync(transactionRoot, { recursive: true, force: true });
     }
   });
 
   it('rejects reserved review aliases before dry-run approval', async () => {
-    const runApproval = (approveModule as unknown as {
-      approveMatrixInWorkspace?: (argv: string[], options: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    }).approveMatrixInWorkspace;
+    const runApproval = (
+      approveModule as unknown as {
+        approveMatrixInWorkspace?: (
+          argv: string[],
+          options: Record<string, unknown>
+        ) => Promise<Record<string, unknown>>;
+      }
+    ).approveMatrixInWorkspace;
     expect(typeof runApproval).toBe('function');
     if (!runApproval) return;
     const workspace = createIsolatedWorkspace();
@@ -431,22 +660,32 @@ describe.sequential('surface contract matrix approval closure safety', () => {
       workspace.files.authOverrides,
     ];
     for (const reviewFile of reservedPaths) {
-      await expect(runApproval([
-        '--review-file',
-        reviewFile,
-        '--approver',
-        'fixture-approver',
-        '--evidence',
-        'fixture-evidence',
-        '--dry-run',
-      ], { ...workspace, repoRoot })).rejects.toThrow(/reserved|transaction target/i);
+      await expect(
+        runApproval(
+          [
+            '--review-file',
+            reviewFile,
+            '--approver',
+            'fixture-approver',
+            '--evidence',
+            'fixture-evidence',
+            '--dry-run',
+          ],
+          { ...workspace, repoRoot }
+        )
+      ).rejects.toThrow(/reserved|transaction target/i);
     }
   });
 
   it('runs non-dry approval then close with one confirmed evidence item and atomic review writes', async () => {
-    const runApproval = (approveModule as unknown as {
-      approveMatrixInWorkspace?: (argv: string[], options: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    }).approveMatrixInWorkspace;
+    const runApproval = (
+      approveModule as unknown as {
+        approveMatrixInWorkspace?: (
+          argv: string[],
+          options: Record<string, unknown>
+        ) => Promise<Record<string, unknown>>;
+      }
+    ).approveMatrixInWorkspace;
     expect(typeof runApproval).toBe('function');
     if (!runApproval) return;
 
@@ -498,43 +737,55 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     expect(options.files.matrix).not.toBe(matrixPath);
     expect(options.files.review).not.toBe(path.join(matrixDir, 'g1-review.json'));
 
-    const first = await runApproval([
-      '--review-file',
-      reviewPath,
-      '--approver',
-      'fixture-approver',
-      '--evidence',
-      'fixture-evidence',
-    ], options);
+    const first = await runApproval(
+      [
+        '--review-file',
+        reviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+      ],
+      options
+    );
     expect(first).toMatchObject({ dry_run: false, close_g1: false, phase: 'authoring' });
     const firstMatrix = JSON.parse(fs.readFileSync(workspace.files.matrix, 'utf8')) as {
       rows: Array<Record<string, unknown>>;
     };
     const firstRow = firstMatrix.rows.find((entry) => entry.id === row.id);
     if (!firstRow) throw new Error(`Missing first-pass row ${row.id}`);
-    const firstManual = (firstRow.test_evidence as { manual: Array<Record<string, unknown>> }).manual;
+    const firstManual = (firstRow.test_evidence as { manual: Array<Record<string, unknown>> })
+      .manual;
     expect(firstManual.map((entry) => entry.assertion_evidence)).toEqual([
       'confirmed-evidence',
       'existing-evidence',
     ]);
-    expect(firstManual.filter((entry) => entry.assertion_evidence === 'confirmed-evidence')).toHaveLength(1);
+    expect(
+      firstManual.filter((entry) => entry.assertion_evidence === 'confirmed-evidence')
+    ).toHaveLength(1);
     const reboundReview = JSON.parse(fs.readFileSync(reviewPath, 'utf8')) as {
-      rows: Record<string, { exposure_attestations?: Record<string, { contract_fingerprint?: string }> }>;
+      rows: Record<
+        string,
+        { exposure_attestations?: Record<string, { contract_fingerprint?: string }> }
+      >;
     };
-    expect(reboundReview.rows[row.id].exposure_attestations?.[exposureKey]?.contract_fingerprint).toBe(
-      firstRow.contract_fingerprint
-    );
+    expect(
+      reboundReview.rows[row.id].exposure_attestations?.[exposureKey]?.contract_fingerprint
+    ).toBe(firstRow.contract_fingerprint);
     const reviewAfterApprove = fs.readFileSync(reviewPath);
 
-    const second = await runApproval([
-      '--review-file',
-      reviewPath,
-      '--approver',
-      'fixture-approver',
-      '--evidence',
-      'fixture-evidence',
-      '--close-g1',
-    ], options);
+    const second = await runApproval(
+      [
+        '--review-file',
+        reviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--close-g1',
+      ],
+      options
+    );
     expect(second).toMatchObject({ dry_run: false, close_g1: true, phase: 'closed' });
     expect(fs.readFileSync(reviewPath)).toEqual(reviewAfterApprove);
     const closedMatrix = JSON.parse(fs.readFileSync(workspace.files.matrix, 'utf8')) as {
@@ -542,8 +793,11 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     };
     const closedRow = closedMatrix.rows.find((entry) => entry.id === row.id);
     if (!closedRow) throw new Error(`Missing closed row ${row.id}`);
-    const closedManual = (closedRow.test_evidence as { manual: Array<Record<string, unknown>> }).manual;
-    expect(closedManual.filter((entry) => entry.assertion_evidence === 'confirmed-evidence')).toHaveLength(1);
+    const closedManual = (closedRow.test_evidence as { manual: Array<Record<string, unknown>> })
+      .manual;
+    expect(
+      closedManual.filter((entry) => entry.assertion_evidence === 'confirmed-evidence')
+    ).toHaveLength(1);
     expect(closedManual.map((entry) => entry.assertion_evidence)).toEqual([
       'confirmed-evidence',
       'existing-evidence',
@@ -551,9 +805,14 @@ describe.sequential('surface contract matrix approval closure safety', () => {
   }, 60_000);
 
   it('rolls back rebound review and generated artifacts when injected install rename fails', async () => {
-    const runApproval = (approveModule as unknown as {
-      approveMatrixInWorkspace?: (argv: string[], options: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    }).approveMatrixInWorkspace;
+    const runApproval = (
+      approveModule as unknown as {
+        approveMatrixInWorkspace?: (
+          argv: string[],
+          options: Record<string, unknown>
+        ) => Promise<Record<string, unknown>>;
+      }
+    ).approveMatrixInWorkspace;
     expect(typeof runApproval).toBe('function');
     if (!runApproval) return;
 
@@ -563,7 +822,9 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     expect(reviewPath).not.toBe(path.join(matrixDir, 'g1-review.json'));
     writeReview({}, reviewPath);
     const trackedPaths = [...Object.values(workspace.files)];
-    const before = trackedPaths.map((file) => fs.existsSync(file) ? fs.readFileSync(file) : undefined);
+    const before = trackedPaths.map((file) =>
+      fs.existsSync(file) ? fs.readFileSync(file) : undefined
+    );
     const fsApi = Object.create(fs) as typeof fs;
     let stagedInstallCount = 0;
     fsApi.renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
@@ -576,23 +837,30 @@ describe.sequential('surface contract matrix approval closure safety', () => {
       return fs.renameSync(from, to);
     }) as typeof fs.renameSync;
 
-    await expect(runApproval([
-      '--review-file',
-      reviewPath,
-      '--approver',
-      'fixture-approver',
-      '--evidence',
-      'fixture-evidence',
-    ], { ...workspace, repoRoot: workspace.matrixDir, fsApi })).rejects.toThrow('Atomic matrix transaction rolled back');
+    await expect(
+      runApproval(
+        [
+          '--review-file',
+          reviewPath,
+          '--approver',
+          'fixture-approver',
+          '--evidence',
+          'fixture-evidence',
+        ],
+        { ...workspace, repoRoot: workspace.matrixDir, fsApi }
+      )
+    ).rejects.toThrow('Atomic matrix transaction rolled back');
     expect(stagedInstallCount).toBeGreaterThan(1);
     trackedPaths.forEach((file, index) => {
       const snapshot = before[index];
       if (snapshot === undefined) expect(fs.existsSync(file)).toBe(false);
       else expect(fs.readFileSync(file).equals(snapshot)).toBe(true);
     });
-    expect(fs.readdirSync(workspace.matrixDir).filter((entry) => (
-      entry.startsWith('.g1-stage-') || entry.startsWith('.g1-backup-')
-    ))).toEqual([]);
+    expect(
+      fs
+        .readdirSync(workspace.matrixDir)
+        .filter((entry) => entry.startsWith('.g1-stage-') || entry.startsWith('.g1-backup-'))
+    ).toEqual([]);
   }, 60_000);
 
   it('does not rebind prior coverage attestations when current manifest omits them', () => {

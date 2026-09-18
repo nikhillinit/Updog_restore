@@ -247,7 +247,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
             <div className="flex items-center gap-3">
               {/* Timeframe selector */}
               <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger aria-label="Timeframe" className="w-[120px]">
                   <Calendar className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -263,7 +263,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
               {/* Granularity selector */}
               <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger aria-label="Granularity" className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,7 +275,13 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
               </Select>
 
               {/* Refresh button */}
-              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isLoading}>
+              <Button
+                aria-label="Refresh performance"
+                variant="outline"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
@@ -449,7 +455,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                   </CardDescription>
                 </div>
                 <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupByDimension)}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger aria-label="Group performance by" className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -621,7 +627,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
       {/* Metadata */}
       {timeseriesData?.meta && (
-        <div className="text-xs text-pov-charcoal/50 font-poppins flex justify-between">
+        <div className="text-xs text-presson-textMuted font-poppins flex justify-between">
           <span>
             Data range: {timeseriesData.meta.startDate} to {timeseriesData.meta.endDate}
           </span>

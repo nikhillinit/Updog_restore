@@ -5,10 +5,12 @@ import {
   type PortfolioOverviewResponseV1,
 } from '@shared/contracts/portfolio-overview-v1.contract';
 import { apiRequest } from '@/lib/queryClient';
+import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
 
 export function useFundData() {
-  const { data: funds, isLoading } = useQuery<unknown[]>({
-    queryKey: ['/api/funds'],
+  const { data: funds, isLoading } = useQuery<Fund[]>({
+    queryKey: FUNDS_QUERY_KEY,
+    queryFn: fetchFundSummaries,
   });
 
   const hasFundData = funds && Array.isArray(funds) && funds.length > 0;
@@ -26,9 +28,7 @@ export function useFundData() {
 export type PortfolioCompaniesMode = 'live' | 'historical';
 export type PortfolioCompaniesSource = 'live' | 'snapshot';
 export type PortfolioCompaniesEmptyReason =
-  | 'no_snapshot'
-  | 'unsupported_snapshot'
-  | 'no_companies_at_date';
+  'no_snapshot' | 'unsupported_snapshot' | 'no_companies_at_date';
 
 export interface PortfolioCompaniesMeta {
   mode: PortfolioCompaniesMode;

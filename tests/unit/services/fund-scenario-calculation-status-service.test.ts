@@ -2,14 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FundScenarioSetDetailV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 
-const { fetchScenarioSetDetailMock, queryMock, transactionMock, verifyFundExistsMock } = vi.hoisted(
-  () => ({
-    fetchScenarioSetDetailMock: vi.fn(),
-    queryMock: vi.fn(),
-    transactionMock: vi.fn(),
-    verifyFundExistsMock: vi.fn(),
-  })
-);
+const {
+  fetchScenarioSetDetailMock,
+  fetchRawScenarioSetMock,
+  queryMock,
+  transactionMock,
+  verifyFundExistsMock,
+} = vi.hoisted(() => ({
+  fetchScenarioSetDetailMock: vi.fn(),
+  fetchRawScenarioSetMock: vi.fn(),
+  queryMock: vi.fn(),
+  transactionMock: vi.fn(),
+  verifyFundExistsMock: vi.fn(),
+}));
 
 vi.mock('../../../server/db/pg-circuit.js', () => ({
   transaction: transactionMock,
@@ -23,6 +28,7 @@ vi.mock('../../../server/services/fund-scenario-set-service.js', async () => {
   return {
     ...actual,
     fetchScenarioSetDetail: fetchScenarioSetDetailMock,
+    fetchRawScenarioSet: fetchRawScenarioSetMock,
     verifyFundExists: verifyFundExistsMock,
   };
 });
@@ -40,6 +46,12 @@ type TransactionCallback = (client: StubClient) => unknown;
 describe('fund scenario calculation status service', () => {
   beforeEach(() => {
     fetchScenarioSetDetailMock.mockReset();
+    fetchRawScenarioSetMock.mockReset();
+    fetchRawScenarioSetMock.mockResolvedValue({
+      row: { id: scenarioSetId, fund_id: 123 },
+      variants: [{ override_type: 'fee_profile' }],
+      family: 'legacy',
+    });
     queryMock.mockReset();
     transactionMock.mockReset();
     verifyFundExistsMock.mockReset();
@@ -57,8 +69,8 @@ describe('fund scenario calculation status service', () => {
       code: 'scenario_calculation_mode_mismatch',
     });
 
-    expect(transactionMock).toHaveBeenCalledTimes(1);
-    expect(verifyFundExistsMock).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(verifyFundExistsMock).toHaveBeenCalledTimes(2);
     expect(fetchScenarioSetDetailMock).toHaveBeenCalledTimes(1);
     expect(queryMock).not.toHaveBeenCalled();
   });
@@ -148,9 +160,9 @@ describe('fund scenario calculation status service', () => {
       calculationStartedAt: '2026-07-01T00:00:00.500Z',
     });
     const sqlCalls = queryMock.mock.calls.map((call) => String(call[0]));
-    expect(sqlCalls.some((sql) => sql.includes("COALESCE(hash_kind, 'scenario-input-hash-v1')"))).toBe(
-      true
-    );
+    expect(
+      sqlCalls.some((sql) => sql.includes("COALESCE(hash_kind, 'scenario-input-hash-v1')"))
+    ).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes("change_summary_json ->> 'hash_kind'"))).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes('AND id = $2'))).toBe(true);
   });
@@ -216,13 +228,13 @@ describe('fund scenario calculation status service', () => {
       const sql = String(sqlValue);
       if (sql.includes('FROM fundconfigs') && sql.includes('id = $2')) {
         return {
-              rows: [
-                {
-                  id: 12,
-                  version: 4,
-                  config: { fundName: 'Status fund', modelInputsAsOfDate: '2026-06-30' },
-                },
-              ],
+          rows: [
+            {
+              id: 12,
+              version: 4,
+              config: { fundName: 'Status fund', modelInputsAsOfDate: '2026-06-30' },
+            },
+          ],
         };
       }
       if (sql.includes('FROM fundconfigs') && sql.includes('is_published = TRUE')) {

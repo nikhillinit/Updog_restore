@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Server as HTTPServer } from 'http';
+import { createServer } from 'node:http';
 
 const {
   DevDashboardCtor,
@@ -61,7 +61,7 @@ describe('websocket/index', () => {
     const { setupWebSocketServers, cleanupWebSocketServers } =
       await import('../../../server/websocket/index');
 
-    const result = setupWebSocketServers({} as HTTPServer);
+    const result = setupWebSocketServers(createServer());
 
     expect(PortfolioMetricsCtor).toHaveBeenCalledTimes(1);
     expect(DevDashboardCtor).not.toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe('websocket/index', () => {
     const { setupWebSocketServers, cleanupWebSocketServers } =
       await import('../../../server/websocket/index');
 
-    const result = setupWebSocketServers({} as HTTPServer);
+    const result = setupWebSocketServers(createServer());
 
     expect(DevDashboardCtor).toHaveBeenCalledTimes(1);
     expect(result).toEqual({

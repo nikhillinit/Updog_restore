@@ -41,12 +41,7 @@ import { z } from 'zod';
 import { parseFundIdParam } from '@shared/number';
 import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
 
-import {
-  requireAnyRole,
-  requireAuth,
-  requireFundAccess,
-  requireWriteRole,
-} from '../../lib/auth/jwt';
+import { requireAuth, requireFundAccess, requireWriteRole } from '../../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../../lib/auth/provided-fund-scope';
 import { firstString } from '../../lib/request-values';
 import {
@@ -508,7 +503,7 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -527,7 +522,7 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -546,7 +541,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -574,7 +569,7 @@ router.post(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -593,7 +588,7 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -612,7 +607,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -640,7 +635,7 @@ router.post(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {
@@ -659,7 +654,7 @@ router.get(
 router.get(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
   requireAuth(),
-  requireAnyRole(PARTNER_WRITE_ROLES),
+  requireFundAccess,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     try {

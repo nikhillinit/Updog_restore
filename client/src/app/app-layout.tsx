@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/sidebar';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/queryClient';
@@ -33,7 +34,7 @@ function DisabledMobileNavigationItem({
     <button
       type="button"
       disabled
-      className="flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-charcoal/40"
+      className="flex min-h-11 min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-charcoal/40"
       aria-disabled="true"
       aria-describedby={disabledReasonId}
     >
@@ -67,7 +68,7 @@ function EnabledMobileNavigationItem({
       onClick={onNavigate}
       aria-label={item.label}
       aria-current={isActive ? 'page' : undefined}
-      className={`flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 ${
+      className={`flex min-h-11 min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2 ${
         isActive
           ? 'bg-pov-charcoal text-pov-white'
           : 'text-charcoal/70 hover:bg-pov-gray hover:text-charcoal'
@@ -152,7 +153,7 @@ function MobileNavigationToggle({ isOpen, onToggle }: { isOpen: boolean; onToggl
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls="mobile-app-navigation"
-        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-beige-200 px-3 py-2 text-sm font-medium text-charcoal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-beige-200 px-3 py-2 text-sm font-medium text-charcoal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
       >
         <Icon className="h-4 w-4" />
         Navigation
@@ -207,23 +208,26 @@ export function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
-      {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
-      <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
-        {logoutError && (
-          <p id="logout-error" role="alert" className="mr-4 text-sm text-error-dark">
-            {logoutError}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          disabled={isLoggingOut || !session.user}
-          aria-describedby={logoutError ? 'logout-error' : undefined}
-          className="text-sm text-charcoal/70 transition-colors hover:text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beige focus-visible:ring-offset-2"
-        >
-          {isLoggingOut ? 'Logging out...' : 'Log out'}
-        </button>
-      </div>
+      <header>
+        {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
+        <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
+          {logoutError && (
+            <p id="logout-error" role="alert" className="mr-4 text-sm text-error-dark">
+              {logoutError}
+            </p>
+          )}
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={isLoggingOut || !session.user}
+            aria-describedby={logoutError ? 'logout-error' : undefined}
+            className="min-h-11 min-w-11 text-charcoal-600"
+          >
+            {isLoggingOut ? 'Logging out...' : 'Log out'}
+          </Button>
+        </div>
+      </header>
       <MobileNavigationToggle
         isOpen={isMobileNavigationOpen}
         onToggle={() => setIsMobileNavigationOpen((isOpen) => !isOpen)}

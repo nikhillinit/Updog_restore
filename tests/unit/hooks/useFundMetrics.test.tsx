@@ -8,6 +8,7 @@ import {
   useProjectedMetrics,
   useTargetMetrics,
 } from '@/hooks/useFundMetrics';
+import { SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 
 const { mockUseFundContext } = vi.hoisted(() => ({
   mockUseFundContext: vi.fn(),
@@ -109,7 +110,7 @@ describe('useFundMetrics', () => {
     );
   });
 
-  it('surfaces API error messages', async () => {
+  it('suppresses server error messages', async () => {
     mockFetchJson({ message: 'Metrics unavailable' }, false);
 
     const { result } = renderHook(() => useFundMetrics({ retry: false }), {
@@ -118,7 +119,7 @@ describe('useFundMetrics', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(result.current.error?.message).toBe('Metrics unavailable');
+    expect(result.current.error?.message).toBe(SERVER_ERROR_MESSAGE);
   });
 
   it('selector helpers preserve the underlying fund metrics contract', async () => {

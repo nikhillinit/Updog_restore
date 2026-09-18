@@ -19,11 +19,10 @@ import { requestId } from './middleware/requestId.js';
 import { requestLoggingMiddleware } from './middleware/request-logging.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
 import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
-import { firstString } from './lib/request-values';
 import { correlation } from './middleware/correlation.js';
 import { engineGuardExpress } from './middleware/engineGuardExpress.js';
 import { requireSecureContext } from './lib/secure-context.js';
-import { withRLSTransaction } from './middleware/with-rls-transaction.js';
+import { protectedRLSTransaction } from './middleware/with-rls-transaction.js';
 import { handlePreconditionError } from './lib/http-preconditions.js';
 import { isDatabaseBackedIdempotencyRoute } from './lib/database-backed-idempotency-routes.js';
 import { withIdempotency } from './lib/idempotency.js';
@@ -227,58 +226,14 @@ export async function createServer(
       return next();
     }
 
-    // For development, you might want to bypass auth - remove this in production!
-    if (config.NODE_ENV === 'development' && !config.REQUIRE_AUTH) {
-      // Mock context for development
-      const fundId = firstString(req.params['fundId']) ?? firstString(req.query['fundId']);
-      req.context = {
-        // Seed users use serial id 1 for admin. Keep development writes tied
-        // to that real actor so creator grants and ownership checks work.
-        userId: String(config.DEFAULT_USER_ID),
-        email: 'dev@example.com',
-        role: 'admin',
-        orgId: 'dev-org',
-        ...(fundId ? { fundId } : {}),
-      };
-      return next();
-    }
-
-    // Apply secure context for production
-    requireSecureContext(req, res, next);
+    return requireSecureContext(req, res, next);
   });
 
   // Match makeApp: authenticate first so the middleware can distinguish
   // ambient cookie auth from non-ambient Bearer, then enforce before routes.
   app.use('/api', requireCsrf);
 
-  // Apply RLS transaction middleware to protected data routes
-  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
-    // Skip for public endpoints (mount-relative paths)
-    // /flags and /flags/status are public; /flags/admin/* requires auth+RLS
-    if (isPublicApiPath(req.method, req.path)) {
-      return next();
-    }
-
-    // Logout has already passed authentication and CSRF. It revokes the
-    // credential itself and does not read or write fund-scoped data.
-    if (req.method === 'POST' && req.path === '/auth/logout') {
-      return next();
-    }
-
-    // Skip for GET requests that don't need transactions (optional)
-    // For maximum security, you might want transactions on all routes
-    const requiresTransaction =
-      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ||
-      req.path.includes('/funds') ||
-      req.path.includes('/reserves') ||
-      req.path.includes('/portfolio');
-
-    if (requiresTransaction && req.context) {
-      return withRLSTransaction()(req, res, next);
-    }
-
-    next();
-  });
+  app.use('/api', protectedRLSTransaction());
 
   // Apply idempotency middleware to mutation endpoints
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {

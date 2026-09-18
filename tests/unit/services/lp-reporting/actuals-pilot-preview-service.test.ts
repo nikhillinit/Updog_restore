@@ -433,7 +433,7 @@ describe('actuals pilot preview service', () => {
     );
   });
 
-  it('resolves Unicode and whitespace variants through two bounded fund-scoped queries', async () => {
+  it('resolves Unicode and whitespace variants through two fund-scoped queries', async () => {
     const database = new FakePreviewDb();
     const result = await preview(
       ACTUALS_LEDGER_TEMPLATE_VERSION,
@@ -656,6 +656,74 @@ describe('actuals pilot preview service', () => {
       ])
     );
     expect(result.response.canPublish).toBe(false);
+  });
+
+  it('resolves identities and existing valuation marks after 1,001 unrelated rows', async () => {
+    const database = new FakePreviewDb({
+      companies: [
+        ...Array.from({ length: 1_001 }, (_, index) => ({
+          id: index + 1,
+          fundId: 1,
+          name: `Unrelated Company ${index + 1}`,
+        })),
+        { id: 2_002, fundId: 1, name: 'Target Company' },
+      ],
+      vehicles: [
+        ...Array.from({ length: 1_001 }, (_, index) => ({
+          id: index + 10_000,
+          fundId: 1,
+          vehicleSlug: `unrelated-vehicle-${index + 1}`,
+          vehicleType: 'spv',
+          status: 'active',
+          currency: 'USD',
+        })),
+        {
+          id: 11_002,
+          fundId: 1,
+          vehicleSlug: 'target-vehicle',
+          vehicleType: 'main_fund',
+          status: 'active',
+          currency: 'USD',
+        },
+      ],
+      existingValuationDateRows: [
+        ...Array.from({ length: 1_001 }, (_, index) => ({
+          companyId: index + 20_000,
+          vehicleId: index + 30_000,
+          markDate: '2026-03-31',
+          sourceHash: computeActualsPilotRowSourceHash(1, `unrelated-mark-${index + 1}`),
+          status: 'approved',
+        })),
+        {
+          companyId: 2_002,
+          vehicleId: 11_002,
+          markDate: '2026-03-31',
+          sourceHash: computeActualsPilotRowSourceHash(1, 'existing-target-mark'),
+          status: 'approved',
+        },
+      ],
+    });
+
+    const result = await preview(
+      ACTUALS_VALUATION_TEMPLATE_VERSION,
+      csv(
+        ACTUALS_VALUATION_TEMPLATE_HEADER,
+        [
+          valuationRow({
+            company_name: 'Target Company',
+            vehicle_slug: 'target-vehicle',
+            external_ref: 'target-mark',
+          }),
+        ]
+      ),
+      database
+    );
+
+    expect(result.response.rows[0]?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'VALUATION_MARK_ALREADY_EXISTS', column: 'mark_date' }),
+      ])
+    );
   });
 
   it('keeps canonical row hashes stable across shuffled file order', async () => {

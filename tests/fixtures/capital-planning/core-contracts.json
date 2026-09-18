@@ -1,0 +1,53 @@
+{
+  "input": {
+    "contractVersion": "capital-planning/1.0.0",
+    "allocations": [
+      {
+        "allocationId": "allocation-seed",
+        "name": "Seed",
+        "entryRound": "Seed",
+        "pipelineProfileId": "pipeline-seed",
+        "entryStageId": "stage-seed",
+        "budgetShareRatio": "1.000000000000",
+        "initialCheckUsd": "500000.000000",
+        "deploymentPeriodYears": 4,
+        "followOnRounds": []
+      }
+    ]
+  },
+  "countView": {
+    "countBasis": "expected",
+    "label": "Expected companies",
+    "companyCount": "1.500000000000",
+    "initialDemandUsd": "750000.000000",
+    "followOnDemandUsd": "0.000000",
+    "totalDemandUsd": "750000.000000",
+    "signedResidualUsd": "250000.000000",
+    "signedReserveResidualUsd": {
+      "state": "unavailable",
+      "value": null,
+      "reason": "NOT_ENTERED"
+    },
+    "reserveRatio": { "state": "available", "value": "0.000000000000" },
+    "reserveRatioDenominator": "allocated_investment_capital"
+  },
+  "zeroDeemedBudgetBridge": {
+    "committedCapitalUsd": "100000000.000000",
+    "gpCommitmentUsd": "10000000.000000",
+    "fundedFromFeesRatio": "0.000000000000",
+    "gpDeemedContributionUsd": "0.000000",
+    "lifetimeFeesUsd": "17500000.000000",
+    "lifetimeExpensesUsd": "2400000.000000",
+    "availableConstructionCapitalUsd": "80100000.000000",
+    "signedRoundingResidualUsd": "0.000000",
+    "planningBudgetUsd": { "state": "available", "value": "80100000.000000" },
+    "planningBudgetOrigin": "derived_available_capital",
+    "overrideDifferenceUsd": {
+      "state": "unavailable",
+      "value": null,
+      "reason": "NOT_APPLICABLE"
+    },
+    "feePopulation": "full_fund_committed_capital",
+    "fundingAssumption": "callable_as_needed"
+  }
+}

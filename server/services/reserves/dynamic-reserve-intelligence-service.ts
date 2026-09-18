@@ -23,11 +23,12 @@ import {
   type PinnedMarginalReserveNonFactsSourcesV1,
   type PinnedReserveEnvelopeSourcesV1,
 } from '../../../shared/contracts/dynamic-reserve-intelligence-v1.contract';
-import type { FundCompanyActualsFactsResponse } from '../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
 import {
+  FINANCIAL_FACTS_POLICY_VERSION_1_5_0,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import Decimal from '../../../shared/lib/decimal-config';
+import { hasAvailableCompanyMonetaryFacts } from '../../../shared/lib/financial-facts/payload5-consumer-evaluator';
 import { financialFactsSnapshots, type FinancialFactsSnapshot } from '../../../shared/schema';
 import { fundSnapshots } from '../../../shared/schema/fund';
 import { dollarsToCents } from '../../../shared/units';
@@ -48,7 +49,10 @@ import {
   type ReserveEnvelopeSources,
 } from './reserve-envelope-service';
 import { composeRankedReserveAllocation } from './ranked-reserve-orchestrator';
-import { buildRankedReserveInputFromSnapshot } from './ranked-reserve-input-from-snapshot';
+import {
+  buildRankedReserveInputFromSnapshot,
+  hydrateFactsSnapshot,
+} from './ranked-reserve-input-from-snapshot';
 import { parsePersistedFactsRow } from '../financial-facts/parse-persisted-facts-row';
 import { basisRefFromPersistedSnapshot } from '../financial-facts/financial-facts-basis-ref';
 
@@ -120,7 +124,7 @@ function dependencies(
 }
 
 function snapshotFromRow(row: FinancialFactsSnapshot): PersistedFinancialFactsSnapshotV1 {
-  const parsed = parsePersistedFactsRow(row);
+  const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
   if (parsed.kind === 'unsupported') {
     throw new DynamicReserveIntelligenceServiceError(
       422,
@@ -130,25 +134,6 @@ function snapshotFromRow(row: FinancialFactsSnapshot): PersistedFinancialFactsSn
   }
   const { id: _id, ...snapshot } = parsed.snapshot;
   return snapshot;
-}
-
-function hydrateSnapshotFacts(
-  snapshot: PersistedFinancialFactsSnapshotV1
-): FundCompanyActualsFactsResponse {
-  return {
-    ...snapshot.payload.companyActuals,
-    generatedAt: snapshot.createdAt,
-    facts: snapshot.payload.companyActuals.facts.map((fact) => ({
-      ...fact,
-      provenance: {
-        ...fact.provenance,
-        core: {
-          ...fact.provenance.core,
-          generatedAt: snapshot.createdAt,
-        },
-      },
-    })),
-  };
 }
 
 async function loadFactsSnapshot(input: {
@@ -476,7 +461,13 @@ export async function createDynamicReserveIntelligenceRun(input: {
   const reserveEvaluation = factsSnapshot.consumerEvaluations.find(
     (evaluation) => evaluation.consumer === 'reserve'
   );
-  if (reserveEvaluation?.status === 'blocked') {
+  if (
+    reserveEvaluation?.status === 'blocked' ||
+    (factsSnapshot.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_5_0 &&
+      factsSnapshot.payload.companyActuals.facts.some(
+        (fact) => !hasAvailableCompanyMonetaryFacts(fact)
+      ))
+  ) {
     throw new DynamicReserveIntelligenceServiceError(
       422,
       'FACTS_RESERVE_EVALUATION_BLOCKED',
@@ -485,7 +476,7 @@ export async function createDynamicReserveIntelligenceRun(input: {
   }
 
   const commandTime = deps.clock();
-  const snapshotFacts = hydrateSnapshotFacts(factsSnapshot);
+  const snapshotFacts = hydrateFactsSnapshot(factsSnapshot);
   const sources = await deps.getFundMoicRankingSources(
     input.fundId,
     deps.database,

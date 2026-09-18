@@ -8,6 +8,7 @@ import {
 } from '../../../shared/contracts/dynamic-reserve-intelligence-v1.contract';
 import { calculateMarginalReserveMoic } from '../../../shared/core/moic/MarginalReserveMoic';
 import Decimal from '../../../shared/lib/decimal-config';
+import { hasAvailableCompanyMonetaryFacts } from '../../../shared/lib/financial-facts/payload5-consumer-evaluator';
 import { normalizeStageForCompatibility } from '../../../shared/schemas/stage';
 import {
   buildMarginalReserveMoicInputsFromSources,
@@ -23,23 +24,42 @@ import {
   type RankedReserveCandidate,
 } from './ranked-reserve-orchestrator';
 
-function hydrateFactsSnapshot(
+export class SnapshotCompanyMonetaryFactsUnavailableError extends Error {
+  readonly code = 'COMPANY_MONETARY_FACTS_UNAVAILABLE' as const;
+
+  constructor(readonly companyId: number) {
+    super(`Company ${companyId} monetary facts are unavailable.`);
+    this.name = 'SnapshotCompanyMonetaryFactsUnavailableError';
+  }
+}
+
+export function hydrateFactsSnapshot(
   factsSnapshot: PersistedFinancialFactsSnapshotV1
 ): FundCompanyActualsFactsResponse {
   const snapshotFacts = factsSnapshot.payload.companyActuals;
   return {
     ...snapshotFacts,
     generatedAt: factsSnapshot.createdAt,
-    facts: snapshotFacts.facts.map((fact) => ({
-      ...fact,
-      provenance: {
-        ...fact.provenance,
-        core: {
-          ...fact.provenance.core,
-          generatedAt: factsSnapshot.createdAt,
+    facts: snapshotFacts.facts.map((fact) => {
+      if (!hasAvailableCompanyMonetaryFacts(fact)) {
+        throw new SnapshotCompanyMonetaryFactsUnavailableError(fact.companyId);
+      }
+      const hydrated = {
+        ...fact,
+        provenance: {
+          ...fact.provenance,
+          core: {
+            ...fact.provenance.core,
+            generatedAt: factsSnapshot.createdAt,
+          },
         },
-      },
-    })),
+      };
+      if ('monetaryFacts' in hydrated) {
+        const { monetaryFacts: _monetaryFacts, ...availableFact } = hydrated;
+        return availableFact;
+      }
+      return hydrated;
+    }),
   };
 }
 

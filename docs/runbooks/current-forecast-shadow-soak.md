@@ -1,5 +1,10 @@
 # Current-Forecast V2 Shadow Soak Runbook
 
+Use `.github/workflows/current-forecast-production-action.yml` for separately
+authorized `enter-shadow`, `activate`, `kill`, and `resume` actions. Its
+`readback` action observes current identity, mode version, and activation
+pointer without mutation. Do not substitute ad hoc HTTP requests.
+
 Status: pre-activation operating procedure
 
 Scope: current-forecast V2 shadow observations only. This runbook records
@@ -42,6 +47,12 @@ backfill it with a fabricated clock or a latest-row query.
 
 ## ADR-057 green criteria
 
+When Window 4 becomes green, record the exact UTC eligibility time and a
+decision deadline 14 days later. If no terminal GO or NO-GO is recorded by that
+deadline, unchanged identity requires one new seven-day extension window. Any
+candidate, deployment, database, configuration, source, or corpus identity drift
+restarts Window 1.
+
 The governing decision is ADR-057 in `DECISIONS.md:8722`. A window is green only
 when all three criteria hold:
 
@@ -49,6 +60,25 @@ when all three criteria hold:
   corpus base.
 - At least 90 percent of evaluated bases produce an `available` value.
 - There are zero UNEXPLAINED divergences.
+
+Program A Task 12 in
+`docs/superpowers/plans/2026-09-03-current-forecast-activation-train.md` adds
+four window predicates on top of ADR-057. A window is not green unless these
+also hold:
+
+- The evaluation is non-empty; a probe-only or empty window does not count.
+- At least one organic facts-commit-triggered shadow run occurred inside the
+  window. Manual trial or recompute runs never satisfy this predicate.
+- No prohibited manual recompute row exists for any soak-target fund (see the
+  per-window manual-row audit below).
+- Candidate, deployments, database, migration tail, accepted source, corpus, and
+  relevant environment are unchanged at both window boundaries.
+
+Across the full four-window soak, at least two distinct accepted facts bases
+must be evaluated. `evaluateCurrentForecastShadowGreen` enforces the three
+ADR-057 criteria and rejects empty evaluations. Organic-run, manual-row, and
+unchanged-identity checks require separate per-window evidence; record the
+two-distinct-bases check across the complete soak.
 
 Legacy numeric parity is explicitly not a criterion. The legacy lane is
 nondeterministic by design and its divergence from V2 is expected and auditable.

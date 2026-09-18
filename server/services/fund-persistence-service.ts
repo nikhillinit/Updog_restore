@@ -298,11 +298,11 @@ export class FundPersistenceService {
         fundInput.creatorUserId === undefined
           ? false
           : (
-                await tx.query.users.findFirst({
-                  where: eq(users.id, fundInput.creatorUserId),
-                  columns: { isReleaseCanaryPrincipal: true },
-                })
-              )?.isReleaseCanaryPrincipal === true;
+              await tx.query.users.findFirst({
+                where: eq(users.id, fundInput.creatorUserId),
+                columns: { isReleaseCanaryPrincipal: true },
+              })
+            )?.isReleaseCanaryPrincipal === true;
 
       const identityHeaders = fundInput.canaryExecutionIdentity;
       const identityHeaderProvided =
@@ -312,18 +312,16 @@ export class FundPersistenceService {
         throw new ReleaseCanaryExecutionIdentityForbiddenError();
       }
 
-        let canaryRun: { id: string; version: number } | null = null;
+      let canaryRun: { id: string; version: number } | null = null;
       if (canaryPrincipal && fundInput.creatorUserId !== undefined) {
         const workflowExecution = resolveCanaryWorkflowExecutionIdentity(
           identityHeaders,
           process.env['NODE_ENV'] === 'production'
         );
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`
-        );
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`);
         const canaryPolicy = readCanaryRuntimePolicy();
         await preflightCanaryCreation(tx, canaryPolicy);
-          const [createdCanaryRun] = await tx
+        const [createdCanaryRun] = await tx
           .insert(releaseCanaryRuns)
           .values(
             releaseCanaryRunIdentity(
@@ -332,9 +330,9 @@ export class FundPersistenceService {
               workflowExecution
             )
           )
-            .returning({ id: releaseCanaryRuns.id, version: releaseCanaryRuns.version });
-          if (!createdCanaryRun) throw new Error('Failed to insert release canary run');
-          canaryRun = createdCanaryRun;
+          .returning({ id: releaseCanaryRuns.id, version: releaseCanaryRuns.version });
+        if (!createdCanaryRun) throw new Error('Failed to insert release canary run');
+        canaryRun = createdCanaryRun;
       }
 
       const [fund] = await tx
@@ -385,8 +383,8 @@ export class FundPersistenceService {
         },
       });
 
-        if (canaryRun !== null) {
-          await reconcileReleaseCanaryRun(canaryRun.id, canaryRun.version, tx);
+      if (canaryRun !== null) {
+        await reconcileReleaseCanaryRun(canaryRun.id, canaryRun.version, tx);
       }
 
       return { fund, draft };
@@ -488,9 +486,9 @@ export class FundPersistenceService {
       const dispatchedRun = await this.dispatchCalcJobs(created.run, queues);
       return { published: created.published, run: dispatchedRun, correlationId };
     } catch (error) {
-      if (
-        !(error instanceof NoPublishableDraftError || error instanceof PublishDraftRaceLostError)
-      ) {
+      if (!(
+        error instanceof NoPublishableDraftError || error instanceof PublishDraftRaceLostError
+      )) {
         throw error;
       }
 
@@ -757,6 +755,8 @@ export class FundPersistenceService {
     };
 
     const jobOptions = {
+      attempts: 3,
+      backoff: { type: 'exponential' as const, delay: 2000 },
       removeOnComplete: true,
       removeOnFail: false,
     };

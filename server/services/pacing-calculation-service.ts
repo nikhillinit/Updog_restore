@@ -2,6 +2,7 @@ import { db } from '../db';
 import { funds, fundSnapshots, pacingHistory } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
+import { PACING_ENGINE_VERSION } from '@shared/core/pacing/pacing-substrate-adapter';
 import type { PacingInput } from '@shared/types';
 import { markCalcRunCompletedIfReady } from './calc-run-tracking';
 import { resolveMoicActionability, toH9SnapshotColumns } from './fund-calculation-mode-service';
@@ -83,7 +84,7 @@ export async function runPacingCalculation({
       fundId,
       type: 'PACING',
       payload: pacingSummary as unknown as Record<string, unknown>,
-      calcVersion: process.env['ALG_PACING_VERSION'] ?? '1.0.0',
+      calcVersion: PACING_ENGINE_VERSION,
       correlationId,
       snapshotTime: new Date(),
       ...(runId != null && { runId }),

@@ -42,9 +42,7 @@
 #
 # Generators to keep in sync with auto_docs (drift causes spurious slow-path
 # runs, which are safe; missing outputs also fail to fast-path, also safe):
-#   scripts/generate-discovery-map.ts -> docs/_generated/router-index.json
-#                                        docs/_generated/router-fast.json
-#                                        docs/_generated/staleness-report.md
+#   scripts/generate-discovery-map.ts -> docs/_generated/router-fast.json
 #   scripts/manage_skills.py          -> docs/skills/SKILLS_INDEX.md
 #                                        docs/skills/WIZARD_INDEX.md
 #
@@ -58,17 +56,13 @@
 #     while CodeQL is configured for javascript-typescript only.
 
 auto_docs:
-  - 'docs/_generated/router-index.json'
   - 'docs/_generated/router-fast.json'
-  - 'docs/_generated/staleness-report.md'
   - 'docs/skills/SKILLS_INDEX.md'
   - 'docs/skills/WIZARD_INDEX.md'
 
 not_auto_docs:
   - '**'
-  - '!docs/_generated/router-index.json'
   - '!docs/_generated/router-fast.json'
-  - '!docs/_generated/staleness-report.md'
   - '!docs/skills/SKILLS_INDEX.md'
   - '!docs/skills/WIZARD_INDEX.md'
 
@@ -311,6 +305,8 @@ schema_tests:
   - 'server/workers/**'
   - 'tests/helpers/apply-investment-round-constraints.ts'
   - 'tests/integration/migrations/**'
+  - 'tests/integration/current-forecast-journaled-migration-recovery.test.ts'
+  - 'tests/integration/current-forecast-reference.pg.test.ts'
   - 'server/migrations/**'
   - 'scripts/guardrails/server-migrations-new-file.mjs'
   - 'tests/helpers/testcontainers.ts'
@@ -331,6 +327,8 @@ schema_tests:
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
   - 'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts'
   - 'tests/integration/current-forecast-manual-recompute.pg.test.ts'
+  - 'tests/integration/current-forecast-manual-recompute-http.pg.test.ts'
+  - 'tests/integration/database-context-neon-adapter.pg.test.ts'
   - 'tests/integration/fund-scenario-hard-timeout.test.ts'
   - 'tests/integration/fund-scenario-reserve-worker.test.ts'
   - 'server/services/fund-scenario-calc-queue-service.ts'
@@ -348,6 +346,13 @@ schema_tests:
   # F_1.7.0 C1A construction reconciliation
   - 'tests/integration/construction-reconciliation.pg.test.ts'
   - 'tests/integration/fund-company-actuals-facts-transaction.pg.test.ts'
+  - 'tests/integration/financial-facts-payload5-consumers.pg.test.ts'
+  - 'tests/integration/lp-reporting-actuals-pilot-publish.pg.test.ts'
+  - 'tests/integration/actuals-draft-journaled-migration.pg.test.ts'
+  - 'tests/integration/actuals-restatement-journaled-migration.pg.test.ts'
+  - 'scripts/run-actuals-draft-journaled-migration.mjs'
+  - 'scripts/run-actuals-restatement-journaled-migration.mjs'
+  - 'tests/integration/actuals-draft-revisions.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # F_1.12.0 financial-facts terminal-head proof
   - 'tests/integration/financial-facts-terminal-head.pg.test.ts'
@@ -408,6 +413,10 @@ schema_tests:
   - 'tests/unit/prod-schema-manifest-sentinels.test.ts'
   - 'tests/unit/prod-schema-apply-policy.test.ts'
   - 'tests/integration/prod-schema-reconcile-partial-drift.test.ts'
+  - 'tests/integration/prod-schema-capital-plan-override.test.ts'
+  - 'tests/integration/fund-scenario-capital-persistence.test.ts'
+  - 'tests/integration/fund-scenario-capital-recovery.test.ts'
+  - 'tests/integration/fund-scenario-capital-limits.test.ts'
   - 'tests/integration/prod-schema-reconcile-0053-capability.test.ts'
   - 'tests/integration/prod-schema-reconcile-g3-catchup-capability.test.ts'
   - 'tests/integration/scenarios/scenario-case-seed-persistence.test.ts'

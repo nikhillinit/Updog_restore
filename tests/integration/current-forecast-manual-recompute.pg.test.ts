@@ -15,6 +15,7 @@ import {
 } from '../../server/services/current-forecast-reference-service';
 import { persistCurrentForecastShadowReconciliation } from '../../server/services/current-forecast-shadow-service';
 import { updateCurrentForecastCalculationMode } from '../../server/services/fund-calculation-mode-service';
+import { manageIsolatedDatabasePool } from '../helpers/isolated-postgres-database';
 import {
   cleanupTestContainers,
   getPostgresConnectionString,
@@ -66,11 +67,12 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
   }, 180_000);
 
   afterAll(async () => {
-    await pool?.end();
-    if (adminPool && databaseName.startsWith('cf_manual_recompute_')) {
-      await adminPool.query(
-        `DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`
-      );
+    if (pool && adminPool && databaseName.startsWith('cf_manual_recompute_')) {
+      await manageIsolatedDatabasePool(pool).dropDatabase(adminPool, databaseName);
+    } else {
+      await pool?.end();
+    }
+    if (adminPool) {
       await adminPool.end();
     }
     if (startedTestContainers) await cleanupTestContainers();
@@ -452,22 +454,11 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
     const result = forecastResult(fundId, '2'.repeat(64), '3'.repeat(64));
     const inserted = deferred<void>();
     const release = deferred<void>();
-    mockReceipt(result);
-    forecastService.runCurrentForecastV2.mockImplementationOnce(
-      async ({ database: transaction }: { database: CurrentForecastDatabase }) => {
-        await transaction.insert(schema.fundSnapshots).values({
-          fundId,
-          type: 'CURRENT_FORECAST_V2',
-          payload: result,
-          calcVersion: 'cf-v2/1.0.0',
-          correlationId: `00000000-0000-4000-8000-${String(fundId).padStart(12, '0')}`,
-          snapshotTime: new Date('2026-08-31T23:59:00.000Z'),
-        });
-        inserted.resolve(undefined);
-        await release.promise;
-        return result;
-      }
-    );
+    mockReceipt(result, () => inserted.resolve(undefined));
+    forecastService.runCurrentForecastV2.mockImplementationOnce(async () => {
+      await release.promise;
+      return result;
+    });
 
     const execution = runManualCurrentForecastRecompute({
       fundId,
@@ -516,6 +507,7 @@ describe.skipIf(skipIfNoDocker)('manual current-forecast recompute PostgreSQL pr
       `,
       [fundId]
     );
+    expect(residue.rows[0]?.snapshots).toBe('0');
     expect(residue.rows[0]).toEqual({
       snapshots: '0',
       reconciliations: '0',
@@ -1503,11 +1495,26 @@ function rollbackOnlyReferenceDatabase(): CurrentForecastReferenceDatabase {
   });
 }
 
-function mockReceipt(result: CurrentForecastV2): void {
-  forecastService.getOrCreateCurrentForecastV2WithReceipt.mockResolvedValue({
-    fundSnapshotId: 901,
-    result,
-  });
+function mockReceipt(result: CurrentForecastV2, onInsert?: () => void): void {
+  forecastService.getOrCreateCurrentForecastV2WithReceipt.mockImplementation(
+    async ({ database }: { database: CurrentForecastDatabase }) => {
+      const [snapshot] = await database
+        .insert(schema.fundSnapshots)
+        .values({
+          fundId: result.fundId,
+          type: 'CURRENT_FORECAST_V2',
+          payload: result,
+          calcVersion: 'cf-v2/1.0.0',
+          correlationId: `00000000-0000-4000-8000-${String(result.fundId).padStart(12, '0')}`,
+          snapshotTime: new Date('2026-08-31T23:59:00.000Z'),
+        })
+        .returning({ id: schema.fundSnapshots.id });
+      if (!snapshot)
+        throw new Error('Mocked current-forecast receipt insert did not return an id.');
+      onInsert?.();
+      return { fundSnapshotId: snapshot.id, result };
+    }
+  );
 }
 
 function forecastResult(fundId: number, inputHash: string, resultHash: string): CurrentForecastV2 {

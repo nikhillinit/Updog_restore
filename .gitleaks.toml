@@ -56,6 +56,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow deterministic database-health identity test fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?m)^const healthKey = 'health-route-test-key-32-characters';$'''
+]
+paths = [
+  '''^tests/unit/routes/database-health-identity\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Surface-contract-matrix generated artifacts store sha256 content digests of tracked source files; path-like keys (auth.ts, lp-api.ts) plus 64-hex values trip generic-api-key but are hashes, not credentials"
 targetRules = ["generic-api-key"]
 condition = "AND"
@@ -70,6 +82,18 @@ paths = [
   '''^audit/surface-contract-matrix/(?:matrix|source-inventory)\.json$''',
   '''^audit/surface-contract-matrix/g1-review\.json$''',
   '''^audit/surface-contract-matrix/MATRIX\.md$'''
+]
+
+[[allowlists]]
+description = "F1 runtime review records SHA-256 digests of these eight tracked source files"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*"(?:scripts/build-vercel-api\.mjs|server/lib/public-api-boundary\.ts|server/routes/(?:auth|lp-api(?:\.schemas)?|performance-api(?:\.schemas)?)\.ts|shared/routes/api-route-manifest\.ts)(?:":\s*"|=)[0-9a-f]{64}",?\s*$'''
+]
+paths = [
+  '''^audit/surface-contract-matrix/f1-runtime-review-20260908\.json$'''
 ]
 
 [[allowlists]]
@@ -116,4 +140,29 @@ regexes = [
 ]
 paths = [
   '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Allow historical F_1.12.0 actuals runtime deterministic idempotency UUID fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["ff234218538ade7486685348e37820e7b1161d36"]
+regexTarget = "line"
+regexes = [
+  '''^\s*const KEY = 'c2c1984c-7382-4ff5-9f18-1fa89fbba54c';$'''
+]
+paths = [
+  '''^tests/unit/server/actuals-pilot-runtime-routes\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Allow connected actuals demo synthetic JWT fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?m)^[ \t]*JWT_SECRET:[ \t]*'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation',[ \t]*$'''
+]
+paths = [
+  '''^scripts/run-connected-actuals-demo\.mjs$'''
 ]

@@ -848,10 +848,13 @@ const validateCandidate = async (
   let baseline;
   if (!resetSafe) {
     try {
-      // This is read-only and covers source hashes, inventory mappings, registry
-      // coverage, KG reconciliation, scheduler/listener discovery, and the
-      // current off-row integrity baseline before candidate validation.
-      baseline = await validateMatrix({ writeMetadata: false });
+      // Validate the complete proposed write against live source/discovery.
+      // A closed on-disk matrix may contain rows demoted by incremental seed;
+      // its pending review state must not block a valid closed candidate.
+      baseline = await validateMatrix({
+        writeMetadata: false,
+        candidateState: { ...state, matrix: candidate },
+      });
     } catch (error) {
       errors.push(`source/inventory validation: ${error.message}`);
     }
@@ -900,7 +903,7 @@ const validateCandidate = async (
     discoveredRoles,
     inventory: state.inventory,
   });
-  if (closeG1 && !resetSafe) {
+  if ((closeG1 || candidate.phase === 'closed') && !resetSafe) {
     if (!closure.passed) errors.push(`G1 closure blockers: ${JSON.stringify(closure.issues)}`);
     const closedErrors = validateClosedPhaseInvariants({ document: candidate, requirements: state.requirements, families });
     errors.push(...closedErrors);

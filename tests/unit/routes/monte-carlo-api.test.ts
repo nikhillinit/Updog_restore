@@ -4,6 +4,7 @@ import request from 'supertest';
 
 const {
   enqueueSimulationMock,
+  getJobStatusMock,
   isQueueInitializedMock,
   runSimulationMock,
   runBatchSimulationsMock,
@@ -11,8 +12,10 @@ const {
   getStageValidationModeMock,
   parseStageDistributionMock,
   enforceProvidedFundScopeMock,
+  subscribeToJobMock,
 } = vi.hoisted(() => ({
   enqueueSimulationMock: vi.fn(),
+  getJobStatusMock: vi.fn(),
   isQueueInitializedMock: vi.fn(() => false),
   runSimulationMock: vi.fn(),
   runBatchSimulationsMock: vi.fn(),
@@ -20,6 +23,7 @@ const {
   getStageValidationModeMock: vi.fn(),
   parseStageDistributionMock: vi.fn(),
   enforceProvidedFundScopeMock: vi.fn(),
+  subscribeToJobMock: vi.fn(() => () => undefined),
 }));
 
 vi.mock('../../../server/services/monte-carlo-service-unified', () => ({
@@ -39,9 +43,9 @@ vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
 
 vi.mock('../../../server/queues/simulation-queue', () => ({
   enqueueSimulation: enqueueSimulationMock,
-  getJobStatus: vi.fn(),
+  getJobStatus: getJobStatusMock,
   isQueueInitialized: isQueueInitializedMock,
-  subscribeToJob: vi.fn(() => () => undefined),
+  subscribeToJob: subscribeToJobMock,
 }));
 
 vi.mock('../../../server/metrics', () => ({
@@ -135,6 +139,25 @@ function isolateRateLimitClient(app: express.Express): void {
   });
 }
 
+const jobContext = {
+  userId: 'subject-42',
+  orgId: '',
+  fundId: '7',
+  email: 'partner@example.com',
+  role: 'partner',
+};
+
+function createJobAccessApp(context = jobContext): express.Express {
+  const jobApp = express();
+  isolateRateLimitClient(jobApp);
+  jobApp.use((req, _res, next) => {
+    req.context = context;
+    next();
+  });
+  jobApp.use(monteCarloRouter);
+  return jobApp;
+}
+
 describe('Monte Carlo routes', () => {
   let app: express.Express;
 
@@ -165,6 +188,7 @@ describe('Monte Carlo routes', () => {
     });
     runSimulationMock.mockResolvedValue(createSimulationResult());
     enqueueSimulationMock.mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 5000 });
+    getJobStatusMock.mockResolvedValue({ status: 'unknown' });
     isQueueInitializedMock.mockReturnValue(false);
     enforceProvidedFundScopeMock.mockResolvedValue(true);
     runBatchSimulationsMock.mockResolvedValue([createSimulationResult()]);
@@ -207,6 +231,12 @@ describe('Monte Carlo routes', () => {
     authenticatedApp.use(express.json());
     authenticatedApp.use((req, _res, next) => {
       req.user = { id: '42' } as never;
+      req.context = {
+        userId: 'subject-42',
+        orgId: '',
+        email: 'partner@example.com',
+        role: 'partner',
+      };
       next();
     });
     authenticatedApp.use(monteCarloRouter);
@@ -222,6 +252,9 @@ describe('Monte Carlo routes', () => {
       expect.objectContaining({
         fundId: 1,
         createdBy: 42,
+      }),
+      expect.objectContaining({
+        userId: 'subject-42',
       })
     );
   });
@@ -244,6 +277,12 @@ describe('Monte Carlo routes', () => {
     authenticatedApp.use(express.json());
     authenticatedApp.use((req, _res, next) => {
       req.user = { id: '42' } as never;
+      req.context = {
+        userId: 'subject-42',
+        orgId: '',
+        email: 'partner@example.com',
+        role: 'partner',
+      };
       next();
     });
     authenticatedApp.use(monteCarloRouter);
@@ -259,8 +298,75 @@ describe('Monte Carlo routes', () => {
       expect.objectContaining({
         fundId: 1,
         userId: 42,
+        context: {
+          userId: 'subject-42',
+          orgId: '',
+          fundId: '1',
+          email: 'partner@example.com',
+          role: 'partner',
+        },
       })
     );
+    expect(enqueueSimulationMock.mock.calls[0]?.[0]).not.toHaveProperty('token');
+    expect(enqueueSimulationMock.mock.calls[0]?.[0]).not.toHaveProperty('authorization');
+  });
+
+  it('rejects async queueing without validated tenant context', async () => {
+    isQueueInitializedMock.mockReturnValue(true);
+
+    const response = await request(app).post('/simulate/async').send({ fundId: 1 }).expect(403);
+
+    expect(response.body.error).toBe('MISSING_TENANT_CONTEXT');
+    expect(enqueueSimulationMock).not.toHaveBeenCalled();
+  });
+
+  it('allows the owning user and fund to poll and stream a job', async () => {
+    isQueueInitializedMock.mockReturnValue(true);
+    getJobStatusMock.mockResolvedValue({ status: 'waiting', progress: 0 });
+    subscribeToJobMock.mockImplementation((_jobId, callbacks) => {
+      callbacks.onComplete?.({ jobId: 'job-1', result: { success: true } });
+      return () => undefined;
+    });
+    const jobApp = createJobAccessApp();
+
+    await request(jobApp).get('/jobs/job-1').expect(200);
+    const streamResponse = await request(jobApp).get('/jobs/job-1/stream').expect(200);
+
+    expect(getJobStatusMock).toHaveBeenCalledWith('job-1', jobContext);
+    expect(subscribeToJobMock).toHaveBeenCalledWith('job-1', expect.any(Object));
+    expect(streamResponse.headers['content-type']).toContain('text/event-stream');
+  });
+
+  it.each([
+    ['cross-user', { ...jobContext, userId: 'subject-99' }],
+    ['cross-fund', { ...jobContext, fundId: '8' }],
+  ])('returns scoped not-found for %s poll and SSE access', async (_name, callerContext) => {
+    isQueueInitializedMock.mockReturnValue(true);
+    getJobStatusMock.mockImplementation(async (_jobId, context) =>
+      context.userId === jobContext.userId && context.fundId === jobContext.fundId
+        ? { status: 'waiting', progress: 0 }
+        : { status: 'unknown' }
+    );
+    const jobApp = createJobAccessApp(callerContext);
+
+    const pollResponse = await request(jobApp).get('/jobs/job-1').expect(404);
+    const streamResponse = await request(jobApp).get('/jobs/job-1/stream').expect(404);
+
+    expect(pollResponse.body.error).toBe('JOB_NOT_FOUND');
+    expect(streamResponse.body.error).toBe('JOB_NOT_FOUND');
+    expect(streamResponse.headers['content-type']).not.toContain('text/event-stream');
+    expect(subscribeToJobMock).not.toHaveBeenCalled();
+  });
+
+  it('returns scoped not-found when a legacy contextless job is requested', async () => {
+    isQueueInitializedMock.mockReturnValue(true);
+    getJobStatusMock.mockResolvedValue({ status: 'unknown' });
+    const jobApp = createJobAccessApp();
+
+    await request(jobApp).get('/jobs/legacy-job').expect(404);
+    await request(jobApp).get('/jobs/legacy-job/stream').expect(404);
+
+    expect(subscribeToJobMock).not.toHaveBeenCalled();
   });
 
   it('rejects invalid stage distributions in enforce mode', async () => {

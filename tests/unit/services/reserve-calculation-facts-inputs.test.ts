@@ -94,12 +94,16 @@ import { runReserveCalculation } from '../../../server/services/reserve-calculat
 const LEGACY_COMPANY: ReserveCompanyInputWithProvenance = {
   id: 11,
   invested: 100,
-  ownership: 0.15,
+  ownership: null,
   stage: 'Seed',
   sector: 'SaaS',
   provenance: {
     invested: { status: 'observed', source: 'investments.amount', reason: null },
-    ownership: { status: 'defaulted', source: 'system_default_ownership', reason: 'legacy' },
+    ownership: {
+      status: 'unavailable',
+      source: 'investments.ownership_percentage',
+      reason: 'not recorded',
+    },
     stage: { status: 'observed', source: 'investments.round', reason: null },
     sector: { status: 'observed', source: 'portfolio_companies.sector', reason: null },
   },
@@ -117,10 +121,10 @@ const LEGACY_PORTFOLIO = [
 
 const LEGACY_TRUST_SUMMARY = {
   trustedForActivation: false,
-  defaultedInputCount: 1,
-  unavailableInputCount: 0,
-  defaultedFields: ['ownership'] as const,
-  unavailableFields: [] as const,
+  defaultedInputCount: 0,
+  unavailableInputCount: 1,
+  defaultedFields: [] as const,
+  unavailableFields: ['ownership'] as const,
 };
 
 const LEGACY_RESERVES: ReserveSummary = {

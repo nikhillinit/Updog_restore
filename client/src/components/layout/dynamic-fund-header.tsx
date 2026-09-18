@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import HeaderKpis from './HeaderKpis';
 import { Badge } from '@/components/ui/badge';
 import { HeaderMetricCard } from '@/components/layout/HeaderMetricCard';
@@ -52,9 +53,9 @@ export default function DynamicFundHeader() {
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold text-pov-charcoal sm:text-2xl">
+              <p className="truncate text-xl font-bold text-pov-charcoal sm:text-2xl">
                 {currentFund.name}
-              </h1>
+              </p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-charcoal-600">
                 <span className="tabular-nums">Fund Size: {viewModel.fundSizeText}</span>
                 <Separator orientation="vertical" className="h-4" />
@@ -82,6 +83,7 @@ export default function DynamicFundHeader() {
           ))}
         </div>
 
+        <p className="mt-3 text-xs text-charcoal-600">{PORTFOLIO_METRICS_BASIS}</p>
         <div className="mt-3 flex items-center justify-between text-xs text-charcoal-500">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>{viewModel.lastUpdatedText}</span>

@@ -13,6 +13,7 @@
  *
  * Supports two modes:
  *   1. Cloud DB: TEST_DATABASE_URL=postgres://... npm run test:integration:phase0-dbproof
+ *      (local hosts only; set ALLOW_REMOTE_TEST_DATABASE_WIPE=1 to target a disposable remote database)
  *   2. Docker:   RUN_DOCKER_PHASE0_TEST=1 npm run test:integration:phase0-dbproof
  *
  * This DB/module proof intentionally avoids the spawned dev-server
@@ -24,10 +25,18 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { combinedSchema } from '../../server/db-schema';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
+import { assertLocalDatabaseTarget } from '../../scripts/local-database-target';
 
 const STARTUP_TIMEOUT_MS = 60_000;
 const cloudDbUrl = process.env.TEST_DATABASE_URL;
 const useCloudDb = Boolean(cloudDbUrl);
+// resetSchema() runs DROP SCHEMA public CASCADE against TEST_DATABASE_URL. On
+// 2026-04-04 this proof was pointed at the production Neon database and its
+// fixture fund became the only production fund. Refuse non-local targets unless
+// the caller explicitly accepts wiping a disposable remote database.
+if (useCloudDb && process.env.ALLOW_REMOTE_TEST_DATABASE_WIPE !== '1') {
+  assertLocalDatabaseTarget(cloudDbUrl);
+}
 const useDocker = process.env.RUN_DOCKER_PHASE0_TEST === '1';
 const skipTest = !useCloudDb && !useDocker;
 

@@ -1,6 +1,8 @@
 import type { QueryFunction } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/react-query';
 import { AUTH_SESSION_QUERY_KEY } from './auth-session';
+import { isRecord } from '@shared/utils/type-guards';
+import { getErrorMessage, readHttpErrorMessage, SERVER_ERROR_MESSAGE } from './http-response';
 
 /**
  * Structured API error that preserves server response details.
@@ -11,13 +13,15 @@ export class ApiError extends Error {
   readonly errorCode: string | undefined;
   readonly issues: Array<{ path: (string | number)[]; message: string }> | undefined;
   readonly retryAfterMs: number | undefined;
+  readonly details: unknown;
 
   constructor(
     status: number,
     message: string,
     errorCode?: string,
     issues?: Array<{ path: (string | number)[]; message: string }>,
-    retryAfterMs?: number
+    retryAfterMs?: number,
+    details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -25,6 +29,7 @@ export class ApiError extends Error {
     this.errorCode = errorCode;
     this.issues = issues;
     this.retryAfterMs = retryAfterMs;
+    this.details = details;
   }
 
   /** Map Zod issues to { fieldName: errorMessage } for form integration */
@@ -71,8 +76,10 @@ export function markSessionReauthRequired(): void {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    throw new ApiError(
+      res.status,
+      await readHttpErrorMessage(res, 'Unable to complete the request')
+    );
   }
 }
 
@@ -117,11 +124,30 @@ export async function apiRequest<TResponse = unknown>(
       details?: unknown;
     };
     const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
-    const errorData = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
+    const payload: unknown = await response.json().catch(() => null);
+    const errorData = (isRecord(payload) ? payload : {}) as ErrorBody;
     const errorMessage =
-      errorData.message || errorData.error || `API request failed: ${response.statusText}`;
-    const errorCode = errorData.code ?? errorData.error;
-    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues, retryAfterMs);
+      response.status >= 500
+        ? SERVER_ERROR_MESSAGE
+        : getErrorMessage(errorData, response.status) ||
+          (typeof errorData.error === 'string'
+            ? errorData.error
+            : `Request failed (${response.status})`);
+    const errorCode =
+      typeof errorData.code === 'string'
+        ? errorData.code
+        : typeof errorData.error === 'string' &&
+            (response.status < 500 || errorData.error === 'logout_incomplete')
+          ? errorData.error
+          : undefined;
+    throw new ApiError(
+      response.status,
+      errorMessage,
+      errorCode,
+      response.status >= 500 ? undefined : errorData.issues,
+      retryAfterMs,
+      response.status >= 500 ? undefined : errorData.details
+    );
   }
 
   if (response.status === 204) return undefined as TResponse;

@@ -2,30 +2,10 @@ import { useMemo } from 'react';
 import { ALL_FLAG_KEYS, type FlagKey } from '@shared/generated/flag-types';
 import { FLAG_DEFINITIONS, resolveFlagWithDependencies } from '@shared/generated/flag-defaults';
 import type { RouteControlFlag } from '@shared/routes/app-route-definitions';
+import { getClientRuntimeEnvironment } from '@/core/flags/unifiedClientFlags';
 
 export type { RouteControlFlag } from '@shared/routes/app-route-definitions';
 export type AdminRouteFlag = 'ui_catalog';
-
-type RuntimeEnvironment = 'development' | 'staging' | 'production';
-
-function getRuntimeEnvironment(): RuntimeEnvironment {
-  const explicit = String(import.meta.env['VITE_ENV'] ?? '').toLowerCase();
-  if (explicit === 'production' || explicit === 'staging' || explicit === 'development') {
-    return explicit;
-  }
-
-  const mode = String(import.meta.env['MODE'] ?? '').toLowerCase();
-  if (mode === 'production') return 'production';
-  if (mode === 'staging') return 'staging';
-
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'updog.pressonventures.com' || host.includes('vercel.app')) return 'production';
-    if (host.includes('staging') || host.includes('preview')) return 'staging';
-  }
-
-  return 'development';
-}
 
 function parseBoolean(value: string | null | undefined): boolean | undefined {
   if (value == null) return undefined;
@@ -54,7 +34,7 @@ function getEnvOverride(flag: FlagKey): boolean | undefined {
 }
 
 function baseFlagState(flag: FlagKey): boolean {
-  const env = getRuntimeEnvironment();
+  const env = getClientRuntimeEnvironment();
   const override = env === 'development' ? getEnvOverride(flag) : undefined;
   if (override !== undefined) {
     return override;

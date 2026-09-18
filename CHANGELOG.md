@@ -22,6 +22,126 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-09-16)
+
+- Send the archived `/moic-analysis` placeholder to `/model-results`, the
+  fund-agnostic entry to the model-results family. Its previous target
+  `/overview` was never a route, so the redirect landed on NotFound; an interim
+  `/dashboard` target landed first in #1529. Record ADR-102, the owner-ratified
+  disposition of the unwired-code inventory (four deletions, one park).
+
+### Removed (2026-09-16)
+
+- Delete unreachable client code: the legacy IA redirect map
+  (`client/src/config/routes.ts`, `client/src/core/routes/ia.ts`) and its test,
+  the abandoned `useFundStore` rollout files (`rollout.ts`,
+  `rollout-runtime.ts`, `features.ts` under `client/src/config/`),
+  `ComingSoonPage.tsx` (reversing the 2026-03-27 keep), the selector-contract
+  hook `useFundKpis` and `kpi-raw-facts.contract.ts`, and the tracked
+  `.tsc-client.err` log. The two selector-contract documents stay in place with
+  an abandoned banner (ADR-102).
+- Deprecate ADR-0003 and delete the never-mounted agent SSE stack:
+  `server/agents/stream.ts`, `server/agents/cancel.ts`,
+  `client/src/hooks/useAgentStream.ts` with its test, and
+  `k6/scenarios/agents-streaming.js`. No producer published agent-run events and
+  nothing read the cancel flag (ADR-102).
+- Delete the never-routed `client/src/pages/admin/telemetry.tsx` through the
+  surface-contract matrix disposition (dormant candidate, resolution `pruned`)
+  and re-seed the matrix artifacts. `client/src/lib/telemetry.ts` and its test
+  stay (ADR-102).
+
+### Documentation (2026-09-12)
+
+- Reconcile the existing program roadmap and navigation against #1505/#1506 and
+  main `fc4053b8487608173b2a3cd8d5afd46a067a9d82`: record the supplied summary's
+  eight-topic disposition, F_1.13.0-F_1.15.0 source/evidence distinctions,
+  proposed two-session decision acceptance and C1-command dependency for C3c.
+  Preserve PROPOSED status, the September 12 owner boundary and all existing
+  action gates.
+
+### Added (2026-09-09)
+
+- Add a connected synthetic actuals workflow covering saved drafts, restore,
+  validation refusals, publication, correction, corrected append, disabled
+  replay, and current-head consumer readback against disposable PostgreSQL.
+  Artifacts stay outside the repository; synthetic proof does not establish Fund
+  I completeness or production admission.
+- Explain disabled publication and unavailable consumer values while retaining
+  draft files, source notes, and historical receipt identity in the actuals UI.
+- Characterize saved hypothetical scenarios with an authoritative baseline,
+  persisted fee comparisons, stable replay identities, and source preservation.
+  Disclose allocation assumptions the current engine does not consume; reserve
+  optimization remains unavailable.
+- Prepare recovery gap specifications and unapproved Program C contracts. The
+  proposed narrow C1 sequencing exception remains inactive; live recovery,
+  retention, owner approval, and production gates remain unresolved.
+- Prepare bounded migration 0056 validation and exact apply/replay receipts for
+  persisted actuals drafts. Production apply remains blocked by unresolved
+  authoritative recovery and custody prerequisites.
+- Prepare a separate bounded 0057 restatement migration, receipt and rehearsal
+  path with exact source/catalog checks and its own disposable apply capability.
+  The 0056 runner remains bounded to 0056; production admission stays blocked.
+- Integrate authenticated protected-source/CI, owner-dispatch, and Neon/database
+  observations into both actuals preflights. Reports separate missing
+  engineering, missing live evidence, and undefined owner criteria; they do not
+  grant production admission.
+- Revalidate exact actuals mode/source/run/target bindings immediately before
+  either migration apply. Failed revalidation stops before runner dispatch;
+  unresolved recovery and custody prerequisites still block admission.
+- Add candidate published-actual restatement contracts, immutable command/item
+  lineage, and policy 1.5/payload 6 consumer handling. Historical payload 5
+  stays readable; unmapped company monetary facts remain explicitly unavailable.
+
+### Fixed (2026-09-09)
+
+- Serialize both supported actuals receipt versions after an append to a
+  corrected head, including exact replay while publication is disabled.
+- Serve the production SPA from an explicit static root when its absolute
+  worktree path contains a dot directory.
+
+### Fixed (2026-09-08)
+
+- Add an independent, default-disabled canonical actuals publication control.
+  Draft/preview/readback access and authenticated committed-command replay
+  remain available; new writes and proven-absence retries require explicit
+  enablement for the configured pilot. Both server assemblies reject invalid
+  configuration.
+
+### Documentation (2026-09-07)
+
+- Close the local roadmap documentation and scanner-configuration review: Task 6
+  admission evidence, Task 7 navigation, C1 After-assumption source
+  requirements, C3a/C3b corrections, and synthetic-fixture scanner boundaries.
+  Package version remains `1.6.0`; specification approvals and runtime gates
+  remain open. [Changelog](docs/2-changelog/w8_program-roadmap-closeout.md) and
+  [consolidated review](docs/3-code-review/CR_w8_program-roadmap-closeout.md).
+
+- PR #1486 was admitted to protected `main` on September 7, 2026 at 09:22:22
+  UTC. Terminal PR head was `6e7afdba643354f18b0d347d6a46b975d09344ab`, merge
+  commit is `2a6372557a3dd1ba8a13e99c6867434ede3f9299`, and `CI Gate Status`
+  passed in run
+  [34104059645](https://github.com/nikhillinit/Updog_restore/actions/runs/34104059645).
+  This records Phase P and Program B source admission. Candidate certification,
+  deployed-state evidence, and action-scoped production dispatch remain separate
+  requirements.
+
+### Fixed (2026-09-06)
+
+- Internal Economics V2 now groups realization proceeds by the security proven
+  by investment-lot relief and routes each group to its exact entitlement pool.
+  Ambiguous generated IDs, nonpositive groups, and missing pools fail closed
+  before mutation. Receipt/implementation version changes are recorded in the v3
+  changed-case manifest and ADR-099; source admission was completed with PR
+  #1486 on September 7, 2026, while activation-candidate certification,
+  deployment, and runtime state remain separate.
+
+### Documentation (2026-09-06)
+
+- Reconciled Programs A-C with admitted PR #1484 and documented the default-off
+  F_1.12.0 actuals pilot, payload-5 consumer limits, and separate trial and
+  activation gates. Decision-workspace specifications and companion plans remain
+  drafts pending exact-source review and owner approval.
+
 ### Added (2026-08-31)
 
 - **Operations workspace remainder (F_1.10.0, issues #1290/#1293).** Added the

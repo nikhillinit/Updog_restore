@@ -70,6 +70,54 @@ export const FundCompanyActualsFactsResponseSchema = z
   })
   .strict();
 
+export const FundCompanyActualsMonetaryFactsV1Schema = z.discriminatedUnion('availability', [
+  z
+    .object({
+      availability: z.literal('available'),
+      reasonCodes: z.array(z.literal('DEPLOYMENT_CATEGORY_UNMAPPED')).length(0),
+      sourceCashFlowEventIds: z.array(PositiveIdSchema),
+    })
+    .strict(),
+  z
+    .object({
+      availability: z.literal('unavailable'),
+      reasonCodes: z.array(z.literal('DEPLOYMENT_CATEGORY_UNMAPPED')).min(1),
+      sourceCashFlowEventIds: z.array(PositiveIdSchema).min(1),
+    })
+    .strict(),
+]);
+
+/** Payload 6 keeps independent round metadata and admits money only from effective actuals. */
+export const FundCompanyActualsFactV2Schema = FundCompanyActualsFactSchema.extend({
+  initialInvestmentAmount: DecimalStringSchema.nullable(),
+  followOnInvestmentAmount: DecimalStringSchema.nullable(),
+  amountOnlyNonEquityAmount: DecimalStringSchema.nullable(),
+  monetaryFacts: FundCompanyActualsMonetaryFactsV1Schema,
+})
+  .strict()
+  .superRefine((value, ctx) => {
+    const amounts = [
+      value.initialInvestmentAmount,
+      value.followOnInvestmentAmount,
+      value.amountOnlyNonEquityAmount,
+    ];
+    const available = value.monetaryFacts.availability === 'available';
+    if (amounts.some((amount) => (available ? amount === null : amount !== null))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['monetaryFacts'],
+        message:
+          'Company monetary amounts must be present exactly when monetary facts are available.',
+      });
+    }
+  });
+
+export const FundCompanyActualsFactsResponseV2Schema = FundCompanyActualsFactsResponseSchema.extend(
+  {
+    facts: z.array(FundCompanyActualsFactV2Schema),
+  }
+).strict();
+
 export type FundCompanyActualsPlanningFmvStatus = z.infer<
   typeof FundCompanyActualsPlanningFmvStatusSchema
 >;
@@ -78,3 +126,10 @@ export type FundCompanyActualsCurrencyStatus = z.infer<
 >;
 export type FundCompanyActualsFact = z.infer<typeof FundCompanyActualsFactSchema>;
 export type FundCompanyActualsFactsResponse = z.infer<typeof FundCompanyActualsFactsResponseSchema>;
+export type FundCompanyActualsMonetaryFactsV1 = z.infer<
+  typeof FundCompanyActualsMonetaryFactsV1Schema
+>;
+export type FundCompanyActualsFactV2 = z.infer<typeof FundCompanyActualsFactV2Schema>;
+export type FundCompanyActualsFactsResponseV2 = z.infer<
+  typeof FundCompanyActualsFactsResponseV2Schema
+>;

@@ -26,6 +26,7 @@ import type {
   FinancialFactsPayloadV3,
   FinancialFactsPayloadV4,
   FinancialFactsPayloadV5,
+  FinancialFactsPayloadV6,
 } from '../contracts/financial-facts-snapshot-v1.contract';
 import { funds } from './fund';
 
@@ -53,6 +54,7 @@ export const financialFactsSnapshots = pgTable(
         | FinancialFactsPayloadV3
         | FinancialFactsPayloadV4
         | FinancialFactsPayloadV5
+        | FinancialFactsPayloadV6
       >(),
     consumerEvaluations: jsonb('consumer_evaluations')
       .notNull()

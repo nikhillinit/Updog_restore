@@ -8,6 +8,7 @@ const DECISION_EVIDENCE_LINK_CREATION_PATH =
 const TASK_EVIDENCE_LINK_CREATION_PATH =
   /^\/api\/funds\/[^/?#]+\/tasks\/[^/?#]+\/evidence-links\/?$/i;
 const TASK_CREATION_PATH = /^\/api\/funds\/[^/?#]+\/tasks\/?$/i;
+const TASK_UPDATE_PATH = /^\/api\/funds\/[^/?#]+\/tasks\/[^/?#]+\/?$/i;
 // KPI collection stores its own idempotency key and request hash on the row, so
 // both write paths bypass the generic in-memory idempotency middleware.
 const KPI_OBSERVATION_CREATION_PATH = /^\/api\/funds\/[^/?#]+\/kpi-observations\/?$/i;
@@ -16,14 +17,19 @@ const KPI_OBSERVATION_IMPORT_PATH = /^\/api\/funds\/[^/?#]+\/kpi-observations\/i
 // canonical queued response in fund_scenario_calculation_commands.
 const SCENARIO_CALCULATE_RESERVE_PATH =
   /^\/api\/funds\/[^/?#]+\/scenario-sets\/[^/?#]+\/calculate-reserve\/?$/i;
-const ACTUALS_PREVIEW_PATH =
-  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/dry-run\/?$/i;
-const ACTUALS_PUBLISH_PATH =
-  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/publish\/?$/i;
+const ACTUALS_PREVIEW_PATH = /^\/api\/funds\/[^/?#]+\/imports\/actuals\/dry-run\/?$/i;
+const ACTUALS_PUBLISH_PATH = /^\/api\/funds\/[^/?#]+\/imports\/actuals\/publish\/?$/i;
+
+const ACTUALS_DRAFT_SAVE_PATH = /^\/api\/funds\/[^/?#]+\/imports\/actuals\/draft-revisions\/?$/i;
+const ACTUALS_RESTATEMENT_PREVIEW_PATH =
+  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/restatements\/dry-run\/?$/i;
+const ACTUALS_RESTATEMENT_PUBLISH_PATH =
+  /^\/api\/funds\/[^/?#]+\/imports\/actuals\/restatements\/publish\/?$/i;
 
 export function isDatabaseBackedIdempotencyRoute(method: string, path: string): boolean {
   const pathnameEnd = path.search(/[?#]/);
   const pathname = pathnameEnd === -1 ? path : path.slice(0, pathnameEnd);
+  if (method === 'PATCH') return TASK_UPDATE_PATH.test(pathname);
   return (
     method === 'POST' &&
     (INTERNAL_ECONOMICS_RUN_CREATION_PATH.test(pathname) ||
@@ -37,6 +43,9 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
       KPI_OBSERVATION_IMPORT_PATH.test(pathname) ||
       SCENARIO_CALCULATE_RESERVE_PATH.test(pathname) ||
       ACTUALS_PREVIEW_PATH.test(pathname) ||
-      ACTUALS_PUBLISH_PATH.test(pathname))
+      ACTUALS_PUBLISH_PATH.test(pathname) ||
+      ACTUALS_DRAFT_SAVE_PATH.test(pathname) ||
+      ACTUALS_RESTATEMENT_PREVIEW_PATH.test(pathname) ||
+      ACTUALS_RESTATEMENT_PUBLISH_PATH.test(pathname))
   );
 }

@@ -302,7 +302,7 @@ function solveBisection(
     const mid = (lo + hi) / 2;
     const fMid = npvAt(mid, flows, t0);
 
-    if (Math.abs(fMid) < tolerance || Math.abs(hi - lo) < tolerance) {
+    if (Math.abs(fMid) < tolerance || mid === lo || mid === hi) {
       const irr = clampRate(mid);
       if (validateRoot(irr, flows, t0, tolerance)) {
         return {

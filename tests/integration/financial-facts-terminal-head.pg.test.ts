@@ -142,6 +142,27 @@ describe.skipIf(skipTest)('financial facts terminal head', () => {
     });
   });
 
+  it('selects the newest terminal across distinct historical as-of families', async () => {
+    const fundId = await seedFund();
+    const historicalRootId = await insertSnapshot(fundId, 'historical-root');
+    const historicalHeadId = await insertSnapshot(fundId, 'historical-head', historicalRootId);
+    await adminPool!.query(
+      `
+        UPDATE financial_facts_snapshots
+        SET as_of_date = '2026-03-31', knowledge_cutoff = '2026-04-01T00:00:00.000Z'
+        WHERE id IN ($1, $2)
+      `,
+      [historicalRootId, historicalHeadId]
+    );
+    const currentRootId = await insertSnapshot(fundId, 'current-root');
+    const currentHeadId = await insertSnapshot(fundId, 'current-head', currentRootId);
+
+    await expect(resolve(fundId)).resolves.toEqual({
+      kind: 'head',
+      row: expect.objectContaining({ id: currentHeadId, supersedesSnapshotId: currentRootId }),
+    });
+  });
+
   it('returns deterministic ids when two terminal heads exist', async () => {
     const fundId = await seedFund();
     const firstId = await insertSnapshot(fundId, 'first');
@@ -156,6 +177,8 @@ describe.skipIf(skipTest)('financial facts terminal head', () => {
 
   it('returns lineage-invalid for a cycle', async () => {
     const fundId = await seedFund();
+    const rootId = await insertSnapshot(fundId, 'root');
+    await insertSnapshot(fundId, 'head', rootId);
     const firstId = await insertSnapshot(fundId, 'first');
     const secondId = await insertSnapshot(fundId, 'second');
 

@@ -10,8 +10,10 @@ const setReadyMock = vi.fn();
 const logger = {
   info: vi.fn(),
   debug: vi.fn(),
+  warn: vi.fn(),
   error: vi.fn(),
   fatal: vi.fn(),
+  child: vi.fn(() => logger),
 };
 
 vi.mock('../../../server/config/index.js', () => ({

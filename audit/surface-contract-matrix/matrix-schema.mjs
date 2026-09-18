@@ -43,13 +43,13 @@ export const PersonaSchema = enumSchema(PERSONA_VALUES);
 const authMappingEntry = (persona, decided, evidence) => Object.freeze({ persona, decided, evidence });
 const G1_PERSONA_EVIDENCE = 'G1 review 2026-08-06; shared/auth/effective-roles.ts';
 export const AUTH_ROLE_PERSONA_MAPPING = Object.freeze({
-  admin: authMappingEntry('admin', true, 'shared/schema/user.ts USER_ROLES'),
-  partner: authMappingEntry('gp', true, 'shared/schema/user.ts USER_ROLES'),
-  analyst: authMappingEntry('analyst', true, 'shared/schema/user.ts USER_ROLES'),
+  admin: authMappingEntry('admin', true, 'shared/auth/effective-roles.ts USER_ROLES'),
+  partner: authMappingEntry('gp', true, 'shared/auth/effective-roles.ts USER_ROLES'),
+  analyst: authMappingEntry('analyst', true, 'shared/auth/effective-roles.ts USER_ROLES'),
   lp: authMappingEntry('lp', true, 'server/middleware/requireLPAccess.ts role guard'),
   operator: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
   viewer: authMappingEntry('analyst', true, G1_PERSONA_EVIDENCE),
-  service: authMappingEntry('service', true, 'shared/schema/user.ts USER_ROLES'),
+  service: authMappingEntry('service', true, 'shared/auth/effective-roles.ts USER_ROLES'),
   flag_read: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
   flag_admin: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
   reserve_admin: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
@@ -1194,6 +1194,24 @@ const parsedAuthSource = (source) => {
   return parsed;
 };
 
+export const authMiddlewareCallLine = (source, middleware) => {
+  const parsed = parsedAuthSource(source);
+  const lines = [];
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === middleware
+    ) {
+      lines.push(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line + 1);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  if (lines.length !== 1) throw new Error(`Expected one ${middleware} call; found ${lines.length}`);
+  return lines[0];
+};
+
 const unwrapExpression = (node) => {
   let current = node;
   while (
@@ -1545,7 +1563,7 @@ export function discoverAuthRoleEvidence(options = {}) {
   const evidence = [];
   const roles = new Set();
   const rootDir = resolve(optionRootDir(options));
-  const canonicalUserPath = 'shared/schema/user.ts';
+  const canonicalUserPath = 'shared/auth/effective-roles.ts';
   let userSource;
   const supplied = normalizeAuthSources(optionAuthSources(options));
   if (supplied) userSource = new Map(supplied).get(canonicalUserPath);
@@ -2278,6 +2296,7 @@ export function mergeMatrix(previousDocument, seededDocument) {
   }
   const output = {
     ...cloneJson(seeded),
+    ...(previous.g1_closure ? { g1_closure: cloneJson(previous.g1_closure) } : {}),
     phase: previous.phase === 'closed' ? 'closed' : seeded.phase,
     rows: rows.sort((left, right) => left.id.localeCompare(right.id)),
     coverage_review: coverageReview,

@@ -17,6 +17,7 @@ const repoRoot = process.cwd();
 const seedPath = path.join(repoRoot, 'audit/surface-contract-matrix/scripts/seed-matrix.mjs');
 
 type SeedInternals = {
+  globalAuthEvidenceForExposure: (input: Record<string, unknown>) => unknown[];
   createRuntimeIndex: (documents: unknown[]) => {
     observations: Map<string, unknown[]>;
     conditions: Map<string, unknown[]>;
@@ -114,7 +115,7 @@ async function loadSeedInternals(
     .replaceAll(/^export const /gm, 'const ')
     .replaceAll(/^export function /gm, 'function ')
     .concat(
-      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, mergeSeededMatrix, definingSourceHashesForRow, clearUnapprovedSourceHashes, authSuggestionFor };'
+      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, mergeSeededMatrix, definingSourceHashesForRow, clearUnapprovedSourceHashes, authSuggestionFor, globalAuthEvidenceForExposure };'
     );
 
   const context = vm.createContext({
@@ -226,6 +227,10 @@ const routeObservation = ({
 });
 
 const makeRuntimeDocuments = () => {
+  const protectedServerSite = `server/server.ts:${matrixSchema.authMiddlewareCallLine(
+    fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'),
+    'requireSecureContext'
+  ) + 1}`;
   const diagnosticId = 'api:GET:/api/diagnostics';
   const publicId = 'api:GET:/api/public/shares/:shareId';
   const healthId = 'api:GET:/api/health/detailed';
@@ -282,7 +287,7 @@ const makeRuntimeDocuments = () => {
       id: diagnosticId,
       method: 'GET',
       routePath: '/api/diagnostics',
-      site: 'server/server.ts:215',
+      site: protectedServerSite,
       role: 'handler',
       order: 2,
     }),
@@ -291,7 +296,7 @@ const makeRuntimeDocuments = () => {
       id: publicId,
       method: 'GET',
       routePath: '/api/public/shares/:shareId',
-      site: 'server/server.ts:215',
+      site: protectedServerSite,
       role: 'handler',
       order: 3,
     }),
@@ -309,7 +314,7 @@ const makeRuntimeDocuments = () => {
       id: healthId,
       method: 'GET',
       routePath: '/api/health/detailed',
-      site: 'server/server.ts:215',
+      site: protectedServerSite,
       role: 'handler',
       order: 5,
     }),
@@ -356,6 +361,68 @@ const makeRuntimeDocuments = () => {
 };
 
 describe('surface contract matrix seed semantic regressions', () => {
+  it('derives auth boundaries from calls despite line shifts and comment decoys', () => {
+    const source =
+      '/* requireApiAuth(req, res, next); */\nconst label = "requireApiAuth()";\nreturn requireApiAuth(req, res, next);';
+    expect(matrixSchema.authMiddlewareCallLine(source, 'requireApiAuth')).toBe(3);
+    expect(matrixSchema.authMiddlewareCallLine(`\n\n${source}`, 'requireApiAuth')).toBe(5);
+    expect(() => matrixSchema.authMiddlewareCallLine('', 'requireApiAuth')).toThrow('found 0');
+    expect(() =>
+      matrixSchema.authMiddlewareCallLine(
+        `${source}\nrequireApiAuth(req, res, next);`,
+        'requireApiAuth'
+      )
+    ).toThrow('found 2');
+  });
+
+  it('keeps public docs and RUM mounts before the current global auth boundary', async () => {
+    const seed = await loadSeedInternals();
+    const sourceLine = (file: string, text: string) => {
+      const lines = fs.readFileSync(path.join(repoRoot, file), 'utf8').split('\n');
+      const index = lines.findIndex((line) => line.includes(text));
+      expect(index).toBeGreaterThanOrEqual(0);
+      return index + 1;
+    };
+    const docsSite = `server/app.ts:${sourceLine('server/app.ts', "app['get']('/api-docs.json'")}`;
+    expect(
+      seed.globalAuthEvidenceForExposure({
+        method: 'GET',
+        routePath: '/api-docs.json',
+        exposure: { runtime: 'make_app', definitions: [{ role: 'handler', site: docsSite }] },
+      })
+    ).toEqual([]);
+    const mountLine = sourceLine('server/server.ts', "app.use('/api', metricsRumRouter)");
+    for (const [method, routePath] of [
+      ['GET', '/api/metrics/rum'],
+      ['GET', '/api/metrics/rum/health'],
+      ['POST', '/api/metrics/rum'],
+    ]) {
+      expect(
+        seed.globalAuthEvidenceForExposure({
+          method,
+          routePath,
+          exposure: {
+            runtime: 'create_server',
+            outer_mount_site: `server/server.ts:${mountLine}`,
+            definitions: [],
+          },
+        })
+      ).toEqual([]);
+    }
+    const authLine = sourceLine('server/server.ts', 'requireSecureContext(req, res, next)');
+    expect(
+      seed.globalAuthEvidenceForExposure({
+        method: 'GET',
+        routePath: '/api/funds',
+        exposure: {
+          runtime: 'create_server',
+          outer_mount_site: `server/server.ts:${authLine + 1}`,
+          definitions: [],
+        },
+      })
+    ).toHaveLength(1);
+  });
+
   it('rejects a boot proof whose source SHA is stale relative to the KG snapshot and Git HEAD', async () => {
     const seed = await loadSeedInternals();
 
@@ -1102,6 +1169,46 @@ describe('surface contract matrix seed semantic regressions', () => {
         boot_evidence: expect.objectContaining({ observed_at: 'proof:local' }),
       })
     );
+  });
+
+  it('models the actuals fund selector as configured instead of a false boolean gate', async () => {
+    const seed = await loadSeedInternals();
+    const routes = [
+      ['POST', '/api/funds/:fundId/imports/actuals/dry-run'],
+      ['POST', '/api/funds/:fundId/imports/actuals/publish'],
+      ['GET', '/api/funds/:fundId/financial-facts/latest-reference'],
+      ['GET', '/api/funds/:fundId/actuals/metrics'],
+    ].map(([method, routePath], index) =>
+      routeObservation({
+        surface: 'make_app',
+        id: `api:${method}:${routePath}`,
+        method,
+        routePath,
+        site: `server/routes/lp-reporting/imports.ts:${875 + index}`,
+        role: 'handler',
+        order: index + 1,
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:configured',
+      })
+    );
+    const runtimeIndex = seed.createRuntimeIndex([
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:unset',
+        fs_variant: 'static',
+        routes: [],
+      },
+      {
+        profile: 'selector:ACTUALS_PILOT_FUND_ID:configured',
+        fs_variant: 'static',
+        routes,
+      },
+    ]);
+
+    for (const route of routes) {
+      const conditions = runtimeIndex.conditions.get(`make_app|${route.id}`);
+      expect(conditions).toEqual([
+        { selector: 'ACTUALS_PILOT_FUND_ID', configured: true },
+      ]);
+    }
   });
 
   it.each([

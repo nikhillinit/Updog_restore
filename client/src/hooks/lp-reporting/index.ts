@@ -70,6 +70,18 @@ export { useLedgerImportDryRun } from './useLedgerImportDryRun';
 export { useValuationMarkImportDryRun } from './useValuationMarkImportDryRun';
 export { useLedgerImportCommit } from './useLedgerImportCommit';
 export { useValuationMarkImportCommit } from './useValuationMarkImportCommit';
+export { useActualsPreview } from './useActualsPreview';
+export {
+  useActualsPublish,
+  type ActualsPublishHookError,
+  type ActualsPublishMutationRequest,
+} from './useActualsPublish';
+export { useActualsMetrics } from './useActualsMetrics';
+export {
+  financialFactsIfMatch,
+  useFinancialFactsLatestReference,
+  type FinancialFactsLatestReferenceResult,
+} from './useFinancialFactsLatestReference';
 export {
   reconciliationErrorEnvelope,
   useBulkResolveReconciliationCases,

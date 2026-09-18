@@ -200,6 +200,19 @@ export async function createAffectedTestPlan({
     root,
     normalizedChanges
   );
+
+  const unsupportedSelectedTest = selectedTests.find(
+    (test) => testRunnerForPath(test) === undefined
+  );
+  if (unsupportedSelectedTest !== undefined) {
+    return {
+      ...metadata,
+      mode: 'full_fallback',
+      tests: [],
+      reason: `Affected test is not supported by the PR test runners: ${unsupportedSelectedTest}`,
+    };
+  }
+
   const uncoveredChange = normalizedChanges.find(
     (changedFile) => !isDocumentationPath(changedFile) && !mappedChanges.has(changedFile)
   );
@@ -308,7 +321,8 @@ function isUnitTestPath(testPath) {
   return (
     testPath.startsWith('tests/unit/') ||
     testPath.startsWith('tests/perf/') ||
-    testPath.startsWith('tests/regressions/')
+    testPath.startsWith('tests/regressions/') ||
+    /^(client\/src|server|shared)\/.*\.(test|spec)\.[jt]sx?$/.test(testPath)
   );
 }
 

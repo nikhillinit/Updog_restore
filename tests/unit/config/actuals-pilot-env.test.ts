@@ -1,15 +1,51 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readActualsPilotFundId } from '../../../server/config/actuals-pilot-env';
+import {
+  readActualsPilotFundId,
+  readActualsPilotPublishFundId,
+} from '../../../server/config/actuals-pilot-env';
 
 const originalPilotFundId = process.env['ACTUALS_PILOT_FUND_ID'];
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   if (originalPilotFundId === undefined) {
     delete process.env['ACTUALS_PILOT_FUND_ID'];
   } else {
     process.env['ACTUALS_PILOT_FUND_ID'] = originalPilotFundId;
   }
+});
+
+describe('readActualsPilotPublishFundId', () => {
+  it.each([undefined, '', 'false'])(
+    'keeps publication disabled for %s while retaining the pilot',
+    (value) => {
+      vi.stubEnv('ACTUALS_PILOT_FUND_ID', '7');
+      vi.stubEnv('ACTUALS_PILOT_PUBLISH_ENABLED', value);
+      expect(readActualsPilotPublishFundId()).toBeNull();
+      expect(readActualsPilotFundId()).toBe(7);
+    }
+  );
+
+  it('enables only the explicitly configured fund and reads changes each time', () => {
+    vi.stubEnv('ACTUALS_PILOT_FUND_ID', '7');
+    vi.stubEnv('ACTUALS_PILOT_PUBLISH_ENABLED', 'true');
+    expect(readActualsPilotPublishFundId()).toBe(7);
+    vi.stubEnv('ACTUALS_PILOT_PUBLISH_ENABLED', 'false');
+    expect(readActualsPilotPublishFundId()).toBeNull();
+  });
+
+  it.each(['TRUE', '1', 'yes', ' true ', 'FALSE'])('rejects noncanonical setting %s', (value) => {
+    vi.stubEnv('ACTUALS_PILOT_FUND_ID', '7');
+    vi.stubEnv('ACTUALS_PILOT_PUBLISH_ENABLED', value);
+    expect(readActualsPilotPublishFundId).toThrow('ACTUALS_PILOT_PUBLISH_ENABLED');
+  });
+
+  it.each([undefined, ''])('rejects enablement without a selected fund (%s)', (value) => {
+    vi.stubEnv('ACTUALS_PILOT_FUND_ID', value);
+    vi.stubEnv('ACTUALS_PILOT_PUBLISH_ENABLED', 'true');
+    expect(readActualsPilotPublishFundId).toThrow('ACTUALS_PILOT_FUND_ID');
+  });
 });
 
 describe('readActualsPilotFundId', () => {

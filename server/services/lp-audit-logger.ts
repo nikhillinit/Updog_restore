@@ -17,6 +17,7 @@
 import { db } from '../db';
 import { lpAuditLog } from '@shared/schema-lp-reporting';
 import type { Request } from 'express';
+import { recordError } from '../observability/lp-metrics';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -97,7 +98,9 @@ export class LPAuditLogger {
    * @param req - Express request object (for IP, user-agent)
    * @returns Promise<void>
    */
-  async log(entry: AuditLogEntry, req?: Request): Promise<void> {
+  // Ordinary reads and notification read receipts favor availability and record audit loss.
+  // Material mutations and sensitive disclosure require their audit in the request transaction.
+  async log(entry: AuditLogEntry, req?: Request, required = false): Promise<void> {
     try {
       // Extract IP address from request
       let ipAddress = entry.ipAddress;
@@ -147,8 +150,8 @@ export class LPAuditLogger {
         metadata: entry.metadata || null,
       });
     } catch (error) {
-      // CRITICAL: Audit logging failure should not block user requests
-      // Log to console for monitoring/alerting but continue
+      recordError('lp_audit_logger', 'AUDIT_PERSISTENCE_FAILURE', 500);
+      // Availability-first reads continue; required operations rethrow after recording failure.
       console.error('LP audit logging failed:', {
         error,
         lpId: entry.lpId,
@@ -156,8 +159,7 @@ export class LPAuditLogger {
         resourceType: entry.resourceType,
       });
 
-      // In production, send to error monitoring (Sentry, Datadog, etc.)
-      // DO NOT throw error - user experience takes precedence
+      if (required) throw error;
     }
   }
 
@@ -309,6 +311,8 @@ export class LPAuditLogger {
   /**
    * Log report generation request
    */
+  // Queue acceptance is already durable. Audit loss is measured, but cannot turn a queued
+  // report into a failed request that encourages resubmission.
   async logReportGeneration(
     lpId: number,
     reportId: string,
@@ -472,7 +476,8 @@ export class LPAuditLogger {
         resourceId: callId,
         metadata: { sensitiveDataAccessed: true },
       },
-      req
+      req,
+      true
     );
   }
 
@@ -495,7 +500,8 @@ export class LPAuditLogger {
         resourceId: submissionId,
         metadata: { callId },
       },
-      req
+      req,
+      true
     );
   }
 
@@ -604,7 +610,8 @@ export class LPAuditLogger {
         resourceType: 'document',
         resourceId: documentId,
       },
-      req
+      req,
+      true
     );
   }
 
@@ -668,7 +675,8 @@ export class LPAuditLogger {
         resourceType: 'notification_preferences',
         resourceId: lpId.toString(),
       },
-      req
+      req,
+      true
     );
   }
 }

@@ -50,6 +50,7 @@ export default function FundBasicsStep() {
   const { currentFund, setCurrentFund } = useFundContext();
   const [bootstrapStage, setBootstrapStage] = React.useState<BootstrapStage>('idle');
   const [bootstrapError, setBootstrapError] = React.useState<string | null>(null);
+  const [showRequiredErrors, setShowRequiredErrors] = React.useState(false);
 
   // Initialize with sensible defaults (10 year term, 5 year investment period)
   React.useEffect(() => {
@@ -107,7 +108,10 @@ export default function FundBasicsStep() {
     updateFundBasics(update);
   };
 
-  const canBootstrapDraft = Boolean(fundName?.trim()) && (fundSize ?? 0) > 0;
+  const fundNameMissing = !fundName?.trim();
+  const fundSizeMissing = (fundSize ?? 0) <= 0;
+  const modelInputsAsOfDateMissing = !modelInputsAsOfDate;
+  const requiredBasicsMissing = fundNameMissing || fundSizeMissing || modelInputsAsOfDateMissing;
   const isBootstrapping = bootstrapStage !== 'idle';
 
   const handleNext = async () => {
@@ -115,10 +119,16 @@ export default function FundBasicsStep() {
       return;
     }
 
+    setShowRequiredErrors(true);
+    if (requiredBasicsMissing) {
+      return;
+    }
+
+    setShowRequiredErrors(false);
     setBootstrapError(null);
     let activeDraftFundId = draftFundId;
 
-    if (activeDraftFundId == null && canBootstrapDraft) {
+    if (activeDraftFundId == null) {
       setBootstrapStage('creating');
 
       try {
@@ -166,7 +176,7 @@ export default function FundBasicsStep() {
       }
     }
 
-    if (activeDraftFundId != null && canBootstrapDraft && !draftServerReady) {
+    if (activeDraftFundId != null && !draftServerReady) {
       setBootstrapStage('saving');
 
       try {
@@ -213,12 +223,16 @@ export default function FundBasicsStep() {
               data-testid="fund-name"
               required
               aria-required="true"
+              aria-invalid={showRequiredErrors && fundNameMissing}
+              aria-describedby={
+                showRequiredErrors && fundNameMissing ? 'fund-basics-required-error' : undefined
+              }
               className="h-12 max-w-2xl text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
             />
           </div>
 
           <NumericInput
-            label="Capital Committed ($M) *"
+            label="Capital Committed ($M)"
             value={fundSize}
             onChange={(value: number | undefined) => handleInputChange('fundSize', value)}
             mode="number"
@@ -226,6 +240,9 @@ export default function FundBasicsStep() {
             step={0.1}
             help="Total capital committed by LPs"
             required
+            {...(showRequiredErrors && fundSizeMissing
+              ? { error: 'Capital committed must be greater than zero' }
+              : {})}
           />
 
           <div className="space-y-3">
@@ -245,6 +262,12 @@ export default function FundBasicsStep() {
               data-testid="model-inputs-as-of-date"
               required
               aria-required="true"
+              aria-invalid={showRequiredErrors && modelInputsAsOfDateMissing}
+              aria-describedby={
+                showRequiredErrors && modelInputsAsOfDateMissing
+                  ? 'fund-basics-required-error'
+                  : undefined
+              }
               className="h-12 max-w-sm font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
             />
             <p className="text-sm text-presson-textMuted">
@@ -361,6 +384,15 @@ export default function FundBasicsStep() {
 
         {/* Navigation */}
         <div className="space-y-3 pt-8 border-t border-beige-200 mt-8">
+          {showRequiredErrors && requiredBasicsMissing && (
+            <p
+              id="fund-basics-required-error"
+              role="alert"
+              className="text-sm font-poppins text-error-dark"
+            >
+              Complete all required fund basics before continuing.
+            </p>
+          )}
           {bootstrapError && (
             <p role="alert" className="text-sm font-poppins text-error-dark">
               {bootstrapError}

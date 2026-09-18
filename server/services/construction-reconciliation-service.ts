@@ -61,6 +61,7 @@ import {
 import { funds, fundSnapshots } from '../../shared/schema/fund.js';
 import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row.js';
 import { basisRefFromPersistedSnapshot } from './financial-facts/financial-facts-basis-ref.js';
+import { hasAvailableCompanyMonetaryFacts } from '../../shared/lib/financial-facts/payload5-consumer-evaluator.js';
 
 const routeLog = createRouteLogger('construction-reconciliation');
 
@@ -427,7 +428,7 @@ async function loadCurrentFactsSnapshot(
     );
   }
 
-  const parsed = parsePersistedFactsRow(row);
+  const parsed = parsePersistedFactsRow(row, { allowRestatement: true });
   if (parsed.kind === 'unsupported') {
     throw new ConstructionReconciliationServiceError(
       422,
@@ -480,6 +481,10 @@ export function reduceState(facts: readonly ConstructionReconciliationActualFact
     return { state: 'unavailable', reasonCodes: ['INPUT_INVALID'] };
   }
 
+  if (facts.some((fact) => !hasAvailableCompanyMonetaryFacts(fact))) {
+    return { state: 'unavailable', reasonCodes: ['UPSTREAM_UNAVAILABLE'] };
+  }
+
   if (facts.some((fact) => fact.provenance.trustState === 'PARTIAL')) {
     return { state: 'indicative', reasonCodes: ['STALE_SOURCE'] };
   }
@@ -492,6 +497,16 @@ export function buildValue(params: {
   facts: readonly ConstructionReconciliationActualFact[];
   asOfDate: string;
 }): z.infer<typeof ConstructionReconciliationValueSchema> {
+  const availableFacts = params.facts.map((fact) => {
+    if (!hasAvailableCompanyMonetaryFacts(fact)) {
+      throw new ConstructionReconciliationServiceError(
+        422,
+        'COMPANY_MONETARY_FACTS_UNAVAILABLE',
+        `Company ${fact.companyId} monetary facts are unavailable.`
+      );
+    }
+    return fact;
+  });
   const deployableCapital = new Decimal(params.plan.deployableCapitalUsd);
   const plannedInitial = params.plan.allocations.reduce(
     (sum, allocation) => sum.plus(allocation.initialCapitalUsd),
@@ -503,15 +518,15 @@ export function buildValue(params: {
   );
   const plannedTotal = plannedInitial.plus(plannedFollowOn);
   const plannedCapitalOverDeployable = Decimal.max(plannedTotal.minus(deployableCapital), 0);
-  const actualInitial = params.facts.reduce(
+  const actualInitial = availableFacts.reduce(
     (sum, fact) => sum.plus(fact.initialInvestmentAmount),
     new Decimal(0)
   );
-  const actualFollowOn = params.facts.reduce(
+  const actualFollowOn = availableFacts.reduce(
     (sum, fact) => sum.plus(fact.followOnInvestmentAmount),
     new Decimal(0)
   );
-  const excludedNonEquity = params.facts.reduce(
+  const excludedNonEquity = availableFacts.reduce(
     (sum, fact) => sum.plus(fact.amountOnlyNonEquityAmount),
     new Decimal(0)
   );
@@ -705,11 +720,11 @@ export async function runConstructionReconciliation(
     const requestedFactsSnapshotId = request.financialFactsSnapshotId ?? null;
     const factsSnapshotId =
       requestedFactsSnapshotId ?? (await resolveCurrentFactsSnapshotId(transaction, input.fundId));
-    const { row: factsRow, payload, snapshot: factsSnapshot } = await loadCurrentFactsSnapshot(
-      transaction,
-      input.fundId,
-      factsSnapshotId
-    );
+    const {
+      row: factsRow,
+      payload,
+      snapshot: factsSnapshot,
+    } = await loadCurrentFactsSnapshot(transaction, input.fundId, factsSnapshotId);
     const facts = payload.companyActuals.facts;
     const basisRef = basisRefFromPersistedSnapshot(factsSnapshot, factsSnapshot.id);
     const basis = buildBasis({

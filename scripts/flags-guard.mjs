@@ -6,6 +6,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import process from 'node:process';
 import ts from 'typescript';
@@ -871,7 +872,14 @@ function parseJavaScriptFlags(contents, file) {
 }
 
 function parseJavaScriptFlagChanges(beforeContents, afterContents, file) {
-  const before = parseJavaScriptFlags(beforeContents, file);
+  // Protected-main 35de6393's adapter exposes evaluated booleans, not definitions.
+  // Accept only its exact historical preimage so it can be removed; candidates
+  // and every other preimage still pass through the strict registry parser.
+  const legacyDerivedAdapter = file === 'client/src/core/flags/flagAdapter.ts'
+    && typeof beforeContents === 'string'
+    && createHash('sha256').update(beforeContents).digest('hex')
+      === '43794f862d56a50312aebc04c40dc080447c380f056b9ac872aa4a7ceca13b23';
+  const before = legacyDerivedAdapter ? new Map() : parseJavaScriptFlags(beforeContents, file);
   const after = parseJavaScriptFlags(afterContents, file);
   return {
     changes: compareFlagMaps(before, after),

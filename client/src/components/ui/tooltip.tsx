@@ -5,7 +5,25 @@ import { cn } from '@/lib/utils';
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
+function Tooltip({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  // Controlled Radix state dispatches its open event before content mounts in Preact.
+  return (
+    <TooltipPrimitive.Root
+      {...props}
+      open={controlledOpen ?? open}
+      onOpenChange={(nextOpen) => {
+        if (controlledOpen === undefined) setOpen(nextOpen);
+        onOpenChange?.(nextOpen);
+      }}
+    />
+  );
+}
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 

@@ -1,3 +1,4 @@
+import { CalcBasisSchema } from './core/calc-substrate/calc-basis';
 // shared/types.ts - Comprehensive type definitions for Updog_restore
 
 import { z } from 'zod';
@@ -94,7 +95,7 @@ export interface SimulationResult {
 export const ReserveCompanyInputSchema = z.object({
   id: z.number().int().positive(),
   invested: z.number().min(0),
-  ownership: z.number().min(0).max(1),
+  ownership: z.number().min(0).max(1).nullable(),
   stage: z.string().min(1),
   sector: z.string().min(1),
 });
@@ -106,6 +107,11 @@ export const ReserveOutputSchema = z.object({
 });
 
 export const ReserveSummarySchema = z.object({
+  basis: CalcBasisSchema.optional(),
+  resultHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   fundId: z.number().int().positive(),
   totalAllocation: z.number().min(0),
   avgConfidence: z.number().min(0).max(1),
@@ -128,6 +134,11 @@ export const PacingOutputSchema = z.object({
 });
 
 export const PacingSummarySchema = z.object({
+  basis: CalcBasisSchema.optional(),
+  resultHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   fundSize: z.number().min(0),
   totalQuarters: z.number().int().positive(),
   avgQuarterlyDeployment: z.number().min(0),

@@ -1,205 +1,144 @@
 /**
- * JWT Authentication Tests
- * Tests for both HS256 and RS256 JWT verification
+ * JWT authentication tests for current configuration and verification contracts.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { verifyAccessToken, signToken, InvalidTokenError } from '../jwt';
-import * as authConfig from '../../../config/auth';
+import jwt, { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AppConfig } from '../../../config';
+
+const getConfigMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../config', () => ({
+  getConfig: getConfigMock,
+}));
+
+import { getConfiguredJwtAlgorithm, signToken, verifyAccessToken } from '../jwt';
+
+const secret = 'test-secret-key-minimum-32-characters-long-for-security';
+
+function jwtConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return {
+    JWT_ALG: 'HS256',
+    JWT_SECRET: secret,
+    JWT_ISSUER: 'test-issuer',
+    JWT_AUDIENCE: 'test-audience',
+    ...overrides,
+  } as AppConfig;
+}
+
+function signFixture(payload: object): string {
+  return jwt.sign(payload, secret, {
+    algorithm: 'HS256',
+    issuer: 'test-issuer',
+    audience: 'test-audience',
+  });
+}
 
 describe('JWT Authentication', () => {
-  describe('HS256 (HMAC) Algorithm', () => {
-    beforeEach(() => {
-      // Mock auth config for HS256
-      vi.spyOn(authConfig, 'getAuthConfig').mockReturnValue({
-        algorithm: 'HS256',
-        secret: 'test-secret-key-minimum-32-characters-long-for-security',
-        issuer: 'test-issuer',
-        audience: 'test-audience',
-      });
-    });
+  beforeEach(() => {
+    getConfigMock.mockReset();
+    getConfigMock.mockReturnValue(jwtConfig());
+  });
 
-    it('should sign and verify HS256 token successfully', async () => {
-      const payload = {
+  describe('HS256', () => {
+    it('signs and verifies a token', () => {
+      const token = signToken({
         sub: 'user-123',
         email: 'test@example.com',
         role: 'admin',
-      };
+      });
 
-      const token = signToken(payload);
-      expect(token).toBeTruthy();
-      expect(typeof token).toBe('string');
+      const verified = verifyAccessToken(token);
 
-      const verified = await verifyAccessToken(token);
-      expect(verified.sub).toBe('user-123');
-      expect(verified.email).toBe('test@example.com');
-      expect(verified.role).toBe('admin');
+      expect(verified).toMatchObject({
+        sub: 'user-123',
+        email: 'test@example.com',
+        role: 'admin',
+        iss: 'test-issuer',
+        aud: 'test-audience',
+      });
+      expect(verified.jti).toEqual(expect.any(String));
     });
 
-    it('should reject token with invalid signature', async () => {
+    it('rejects a token with a tampered signature', () => {
       const token = signToken({ sub: 'user-123' });
-      const tamperedToken = `${token.slice(0, -5)  }XXXXX`;
+      const tamperedToken = `${token.slice(0, -5)}XXXXX`;
 
-      await expect(verifyAccessToken(tamperedToken)).rejects.toThrow(InvalidTokenError);
+      expect(() => verifyAccessToken(tamperedToken)).toThrow(JsonWebTokenError);
     });
 
-    it('should reject token with wrong issuer', async () => {
-      // Create token with different issuer
-      const jwt = await import('jsonwebtoken');
-      const token = jwt.sign(
-        { sub: 'user-123' },
-        'test-secret-key-minimum-32-characters-long-for-security',
-        {
-          algorithm: 'HS256',
-          issuer: 'wrong-issuer',
-          audience: 'test-audience',
-        }
-      );
+    it('rejects a token with the wrong issuer', () => {
+      const token = jwt.sign({ sub: 'user-123' }, secret, {
+        algorithm: 'HS256',
+        issuer: 'wrong-issuer',
+        audience: 'test-audience',
+      });
 
-      await expect(verifyAccessToken(token)).rejects.toThrow(InvalidTokenError);
+      expect(() => verifyAccessToken(token)).toThrow('jwt issuer invalid');
     });
 
-    it('should reject token with wrong audience', async () => {
-      const jwt = await import('jsonwebtoken');
-      const token = jwt.sign(
-        { sub: 'user-123' },
-        'test-secret-key-minimum-32-characters-long-for-security',
-        {
-          algorithm: 'HS256',
-          issuer: 'test-issuer',
-          audience: 'wrong-audience',
-        }
-      );
+    it('rejects a token with the wrong audience', () => {
+      const token = jwt.sign({ sub: 'user-123' }, secret, {
+        algorithm: 'HS256',
+        issuer: 'test-issuer',
+        audience: 'wrong-audience',
+      });
 
-      await expect(verifyAccessToken(token)).rejects.toThrow(InvalidTokenError);
+      expect(() => verifyAccessToken(token)).toThrow('jwt audience invalid');
     });
 
-    it('should reject expired token', async () => {
-      const jwt = await import('jsonwebtoken');
-      const token = jwt.sign(
-        { sub: 'user-123' },
-        'test-secret-key-minimum-32-characters-long-for-security',
-        {
-          algorithm: 'HS256',
-          issuer: 'test-issuer',
-          audience: 'test-audience',
-          expiresIn: '-1h', // Already expired
-        }
-      );
+    it('rejects an expired token', () => {
+      const token = jwt.sign({ sub: 'user-123' }, secret, {
+        algorithm: 'HS256',
+        issuer: 'test-issuer',
+        audience: 'test-audience',
+        expiresIn: -1,
+      });
 
-      await expect(verifyAccessToken(token)).rejects.toThrow(InvalidTokenError);
-
-      try {
-        await verifyAccessToken(token);
-      } catch (error) {
-        expect(error).toBeInstanceOf(InvalidTokenError);
-        expect((error as InvalidTokenError).reason).toBe('expired');
-      }
+      expect(() => verifyAccessToken(token)).toThrow(TokenExpiredError);
     });
 
-    it('should reject token without sub claim', async () => {
-      const jwt = await import('jsonwebtoken');
-      const token = jwt.sign(
-        { email: 'test@example.com' }, // Missing 'sub'
-        'test-secret-key-minimum-32-characters-long-for-security',
-        {
-          algorithm: 'HS256',
-          issuer: 'test-issuer',
-          audience: 'test-audience',
-        }
-      );
-
-      await expect(verifyAccessToken(token)).rejects.toThrow(InvalidTokenError);
-
-      try {
-        await verifyAccessToken(token);
-      } catch (error) {
-        expect(error).toBeInstanceOf(InvalidTokenError);
-        expect((error as InvalidTokenError).reason).toBe('invalid');
-        expect((error as InvalidTokenError).message).toContain('sub');
-      }
+    it('rejects empty and malformed tokens', () => {
+      expect(() => verifyAccessToken('')).toThrow(JsonWebTokenError);
+      expect(() => verifyAccessToken('not-a-jwt')).toThrow(JsonWebTokenError);
     });
 
-    it('should reject empty or missing token', async () => {
-      await expect(verifyAccessToken('')).rejects.toThrow(InvalidTokenError);
-      await expect(verifyAccessToken('   ')).rejects.toThrow(InvalidTokenError);
-
-      try {
-        await verifyAccessToken('');
-      } catch (error) {
-        expect(error).toBeInstanceOf(InvalidTokenError);
-        expect((error as InvalidTokenError).reason).toBe('missing');
-      }
+    it.each([
+      ['missing', {}],
+      ['empty', { sub: '' }],
+      ['non-string', { sub: 123 }],
+    ])('rejects a token with a %s subject', (_description, payload) => {
+      expect(() => verifyAccessToken(signFixture(payload))).toThrow(JsonWebTokenError);
     });
 
-    it('should prevent algorithm spoofing', async () => {
-      // Try to create a token with RS256 when HS256 is expected
-      const jwt = await import('jsonwebtoken');
-
-      // This should fail because algorithm whitelist only allows HS256
-      const maliciousToken = jwt.sign(
-        { sub: 'user-123', alg: 'none' },
-        'test-secret-key-minimum-32-characters-long-for-security',
-        {
-          algorithm: 'HS256',
-          issuer: 'test-issuer',
-          audience: 'test-audience',
-        }
-      );
-
-      // The token should still verify correctly because jose enforces algorithm whitelist
-      const verified = await verifyAccessToken(maliciousToken);
-      expect(verified.sub).toBe('user-123');
-    });
-  });
-
-  describe('RS256 (RSA) Algorithm', () => {
-    it('should require JWKS URL for RS256', () => {
-      vi.spyOn(authConfig, 'getAuthConfig').mockReturnValue({
-        algorithm: 'RS256',
-        jwksUri: undefined,
+    it('enforces the configured algorithm allowlist', () => {
+      const unsignedToken = jwt.sign({ sub: 'user-123' }, '', {
+        algorithm: 'none',
         issuer: 'test-issuer',
         audience: 'test-audience',
       });
 
-      // Should throw error when trying to initialize without JWKS URL
-      expect(() => {
-        // This will trigger the getAuthConfig validation
-        authConfig.getAuthConfig();
-      }).toThrow();
-    });
-
-    it('should not support token signing with RS256', () => {
-      vi.spyOn(authConfig, 'getAuthConfig').mockReturnValue({
-        algorithm: 'RS256',
-        jwksUri: 'https://example.com/.well-known/jwks.json',
-        issuer: 'test-issuer',
-        audience: 'test-audience',
-      });
-
-      expect(() => signToken({ sub: 'user-123' })).toThrow(
-        'Token signing only supported with HS256 algorithm'
-      );
+      expect(() => verifyAccessToken(unsignedToken)).toThrow('jwt signature is required');
     });
   });
 
-  describe('Configuration Validation', () => {
-    it('should validate HS256 requires secret', () => {
-      expect(() => {
-        vi.spyOn(authConfig, 'getAuthConfig').mockImplementation(() => {
-          throw new Error('JWT_SECRET is required when JWT_ALG=HS256');
-        });
-        authConfig.getAuthConfig();
-      }).toThrow('JWT_SECRET is required');
+  describe('RS256', () => {
+    it('reports the configured algorithm', () => {
+      getConfigMock.mockReturnValue(
+        jwtConfig({ JWT_ALG: 'RS256', JWT_JWKS_URL: 'https://example.com/jwks' })
+      );
+
+      expect(getConfiguredJwtAlgorithm()).toBe('RS256');
     });
 
-    it('should validate RS256 requires JWKS URL', () => {
-      expect(() => {
-        vi.spyOn(authConfig, 'getAuthConfig').mockImplementation(() => {
-          throw new Error('JWT_JWKS_URL is required when JWT_ALG=RS256');
-        });
-        authConfig.getAuthConfig();
-      }).toThrow('JWT_JWKS_URL is required');
+    it('directs synchronous callers to the async verifier', () => {
+      getConfigMock.mockReturnValue(
+        jwtConfig({ JWT_ALG: 'RS256', JWT_JWKS_URL: 'https://example.com/jwks' })
+      );
+
+      expect(() => verifyAccessToken('header.payload.signature')).toThrow(
+        'Use verifyAccessTokenAsync for RS256'
+      );
     });
   });
 });

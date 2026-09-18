@@ -85,8 +85,10 @@ export function ModernWizardProgress({
                     type="button"
                     onClick={() => handleStepClick(step.id)}
                     disabled={!isClickable}
+                    aria-label={`Step ${step.number}: ${step.title}`}
+                    aria-current={isCurrent ? 'step' : undefined}
                     className={cn(
-                      'w-10 h-10 rounded-full flex items-center justify-center font-inter font-semibold text-sm transition-all duration-300 relative z-10',
+                      'w-11 h-11 rounded-full flex items-center justify-center font-inter font-semibold text-sm transition-all duration-300 relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal focus-visible:ring-offset-2',
                       isCompleted
                         ? 'bg-charcoal text-white'
                         : isCurrent

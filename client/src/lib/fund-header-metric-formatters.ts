@@ -95,8 +95,9 @@ export function formatDeploymentRate(deploymentRate: number | null) {
 }
 
 export function formatLastUpdated(lastUpdated: string | undefined) {
-  if (lastUpdated) return new Date(lastUpdated).toLocaleTimeString();
-  return new Date().toLocaleTimeString();
+  if (!lastUpdated) return 'Unavailable';
+  const date = new Date(lastUpdated);
+  return Number.isNaN(date.getTime()) ? 'Unavailable' : date.toLocaleString();
 }
 
 export function formatCompactKpiDisplayValue(

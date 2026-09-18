@@ -104,6 +104,8 @@ export default defineConfig({
             'tests/unit/scripts/**/*.test.mjs',
             'tests/perf/**/*.test.ts',
             'tests/regressions/**/*.test.ts',
+            'server/**/*.{test,spec}.{ts,tsx}',
+            'shared/**/*.{test,spec}.{ts,tsx}',
           ],
           exclude: ['**/*.quarantine.test.ts', 'tests/quarantine/**/*'],
           setupFiles: [
@@ -126,12 +128,8 @@ export default defineConfig({
           hookTimeout: 20000,
           teardownTimeout: 5000,
           // Simplified: All .test.tsx files run in jsdom environment
-          include: ['tests/unit/**/*.test.tsx'],
-          exclude: [
-            'tests/quarantine/**/*',
-            '**/*.quarantine.test.tsx',
-            'tests/unit/fund-setup.smoke.test.tsx',
-          ],
+          include: ['tests/unit/**/*.test.tsx', 'client/src/**/*.{test,spec}.{ts,tsx}'],
+          exclude: ['tests/quarantine/**/*', '**/*.quarantine.test.tsx'],
           setupFiles: [testPaths.testInfrastructure, testPaths.jsdomSetup],
           environmentOptions: {
             jsdom: {
@@ -148,7 +146,6 @@ export default defineConfig({
       'tests/synthetics/**/*',
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
-      'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
       'tests/e2e/**/*',
       '**/*.template.test.ts',
       '**/*.template.{test,spec}.ts?(x)', // Template files - not executable tests

@@ -72,6 +72,77 @@ inventory, routing mechanisms), see [docs/ARCHI.md](docs/ARCHI.md).
 
 ## Tech Stack
 
+### Fixed-template actuals pilot
+
+`ACTUALS_PILOT_FUND_ID` is unset by default. An empty value disables the pilot;
+a configured value must be one positive PostgreSQL fund ID without leading
+zeros. `ACTUALS_PILOT_PUBLISH_ENABLED=true` independently permits new
+publication for that fund. It defaults disabled: drafts, immutable revision
+history, restore, preview, readbacks, and authenticated replay of committed
+commands remain available. New writes return `ACTUALS_PUBLICATION_DISABLED`
+until explicitly enabled. Production enablement follows
+[the canonical procedure](docs/workflows/PRODUCTION_SCRIPTS.md).
+
+Persisted drafts require migration 0056. The F_1.13.0 candidate adds explicit
+published-actual corrections with migration 0057. Corrections bind exact
+targets, fresh references, a reason, and a reviewed preview; they preserve
+original rows and receipts. New correction-aware publications use financial
+facts policy `1.5.0`, payload `6`; historical policy `1.4.0`, payload `5`
+remains readable. Ordinary uploads still refuse changed content under an
+existing reference.
+
+The first correction of a policy-1.4 publication requires its retained source
+bytes to authenticate the original admitted rows. Purged required source files
+block that transition with `EFFECTIVE_BASIS_INVALID`; replay of an already
+committed publication remains available.
+
+Forecast, reserve intelligence, and construction reconciliation retain the full
+`FinancialFactsBasisRef` and refuse unavailable company monetary inputs before
+arithmetic. Economics and periodic analysis reject both policies. Valuation
+marks do not establish fund NAV, RVPI, or TVPI. Publication requires
+authenticated organization/fund context and transaction-scoped RLS. It does not
+accept a new plan, recompute forecasts, enter shadow, or activate serving. See
+[F_1.13.0](docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md).
+
+Save incomplete files as a draft while dates, vehicle identity, or source
+evidence remain unresolved. Restore retrieves a saved revision; only an explicit
+Save creates its successor. Preview identifies invalid rows and missing inputs.
+The readback labels current-head consumer acceptance separately from historical
+publication receipt metrics and preserves unavailable values with their reasons.
+
+Run the connected synthetic acceptance workflow in an isolated worktree with
+Node 22.23.2, local Docker, and the installed Playwright Chromium browser:
+
+```bash
+TZ=UTC npm run demo:actuals:connected
+```
+
+The command builds the Preact app and exercises authenticated browser/HTTP paths
+against disposable PostgreSQL: draft/restore, publication, correction, replay,
+corrected append, and supported consumer readback. It prints an external
+artifact directory and rejects ambient database/provider configuration. The
+extended test uses separate rate-limit windows for its synthetic actor; the
+application limit stays unchanged. Synthetic results do not establish Fund I
+completeness or production readiness.
+
+### Saved hypothetical scenarios
+
+Saved scenario sets retain the source fund/configuration and version, with
+separate variant and calculation identities. Comparisons require an
+authoritative economics baseline; a missing baseline remains unavailable until
+fund recalculation creates it. Scenario calculations do not replace Base or
+mutate the source configuration.
+
+The current engine consumes fee changes. It does not consume allocation-row
+check size, allocation share, follow-on amount or participation, horizon, or
+pacing changes; the workspace discloses that limit before calculation and beside
+results. Reserve optimization remains unavailable. Synthetic PostgreSQL
+acceptance proves a persisted $20 million fee baseline versus a $21 million
+variant (+$1 million, +5%), without establishing Fund I assumptions or
+production readiness.
+
+### Runtime and libraries
+
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Shadcn/ui, TanStack
   Query, Recharts/Nivo, React Hook Form
 - **Backend**: Node.js, Express.js, TypeScript, PostgreSQL, Drizzle ORM,
@@ -118,13 +189,13 @@ npm run dev
 
 ### Node.js Compatibility
 
-- **Supported contract**: Node.js `>=20.19.0` and npm `>=10.8.0` per
-  `package.json engines`
-- **Preferred local baseline**: `.nvmrc` pins local development to `v20.19.5`
-- **Pinned automation/toolchain line**: `package.json volta` pins Node `20.19.0`
-  and npm `10.9.2`
-- **Tolerated but non-baseline**: newer Node lines such as Node 22 may satisfy
-  `engines`; re-verify with the doctor path before relying on them
+- **Supported contract**: Node.js `22.x` and npm `>=10.8.0` per
+  `package.json engines`.
+- **Local and automation baseline**: `.nvmrc` and `package.json volta` pin Node
+  `22.23.2`; Volta pins npm `10.9.2`.
+- **Frontend runtime**: development uses React 18; the production `build:web`
+  command runs Vite in Preact mode. Validate runtime-specific changes against
+  both paths.
 
 ## Validation
 

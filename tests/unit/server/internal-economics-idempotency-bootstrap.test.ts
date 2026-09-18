@@ -13,7 +13,7 @@ vi.mock('../../../server/lib/idempotency.js', async (importOriginal) => {
 });
 
 vi.mock('../../../server/middleware/with-rls-transaction.js', () => ({
-  withRLSTransaction: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  protectedRLSTransaction: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 function configureMemoryEnvironment(): void {

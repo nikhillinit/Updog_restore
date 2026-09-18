@@ -9,21 +9,9 @@ import {
   isFundResultsRoute,
 } from '@/lib/fund-routes';
 import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
+import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
 
-export interface Fund {
-  id: number;
-  name: string;
-  size: number;
-  managementFee: number;
-  carryPercentage: number;
-  vintageYear: number;
-  establishmentDate?: string; // ISO date string for fund establishment
-  deployedCapital: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  termYears?: number;
-}
+export type { Fund } from '@/lib/funds-query';
 
 interface FundContextType {
   currentFund: Fund | null;
@@ -72,7 +60,8 @@ export function FundProvider({ children }: FundProviderProps) {
     isLoading,
     error,
   } = useQuery<Fund[]>({
-    queryKey: ['/api/funds'],
+    queryKey: FUNDS_QUERY_KEY,
+    queryFn: fetchFundSummaries,
     enabled: true,
     retry: false, // Don't retry failed requests in demo mode
   });
@@ -177,7 +166,7 @@ export function FundProvider({ children }: FundProviderProps) {
         applyFundSelection(defaultSelection.fund, defaultSelection.source);
       }
     } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
-      logger.info('No fund context available; requiring setup', { context: 'FundContext' });
+      logger.info('No fund selection available', { context: 'FundContext' });
       setCurrentFund(null);
       setFundId(null);
       setFundSelectionSource(null);
@@ -206,9 +195,10 @@ export function FundProvider({ children }: FundProviderProps) {
   };
 
   const hasResolvedFunds = Array.isArray(funds) && funds.length > 0;
-  const fundLoadError = !isLoading && error != null;
-  const fundLoadErrorMessage =
-    error instanceof Error ? error.message : fundLoadError ? 'Unable to load funds' : null;
+  const fundLoadError = !isLoading && error != null && !hasResolvedFunds;
+  const fundLoadErrorMessage = fundLoadError
+    ? 'Fund information is unavailable. Please try again.'
+    : null;
   const awaitingResolvedFundSelection =
     hasResolvedFunds && !currentFund && routeFundId == null && !suppressImplicitFundSelection;
   const awaitingSingletonRecovery =
@@ -231,6 +221,7 @@ export function FundProvider({ children }: FundProviderProps) {
   const isInitializing = isLoading || awaitingResolvedFundSelection || awaitingSingletonRecovery;
   const needsSetup =
     !isInitializing &&
+    !fundLoadError &&
     !currentFund &&
     routeFundId == null &&
     !isDemoMode &&

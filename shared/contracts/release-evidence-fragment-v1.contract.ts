@@ -199,10 +199,21 @@ export const BaselineFragmentPayloadSchema = z
 
 export const SchemaFragmentPayloadSchema = z
   .object({
-    migration: z.literal('0053'),
+    migration: z.enum(['0053', '0050-0055']),
+    migrationRange: z
+      .tuple([
+        z.literal('0050_g3_portfolio_and_calculation_schema'),
+        z.literal('0051_g3_canary_schema'),
+        z.literal('0052_g3_capital_call_notification_outbox'),
+        z.literal('0053_g3_release_gate_hardening'),
+        z.literal('0054_operating_decisions_spine'),
+        z.literal('0055_current_forecast_recompute_commands'),
+      ])
+      .optional(),
     precursorSha: SourceShaSchema,
     apply: z
       .object({
+        mode: z.enum(['apply', 'apply-current-forecast-0050-0055']).optional(),
         runId: PositiveDecimalIdSchema,
         runAttempt: z.literal(1),
         workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
@@ -234,12 +245,35 @@ export const SchemaFragmentPayloadSchema = z
         message: 'apply.sourceSha must equal precursorSha',
       });
     }
-    const expectedApplyName = `prod-schema-reconcile-${payload.apply.runId}-1-apply-${payload.precursorSha}`;
+    const currentForecast = payload.migration === '0050-0055';
+    if (currentForecast !== (payload.migrationRange !== undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['migrationRange'],
+        message: 'migrationRange must be present exactly for migration 0050-0055',
+      });
+    }
+    if (currentForecast !== (payload.apply.mode === 'apply-current-forecast-0050-0055')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['apply', 'mode'],
+        message: 'apply.mode must bind the Current Forecast migration range',
+      });
+    }
+    if (!currentForecast && payload.apply.mode !== undefined && payload.apply.mode !== 'apply') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['apply', 'mode'],
+        message: 'legacy 0053 schema evidence may only use apply mode',
+      });
+    }
+    const applyMode = payload.apply.mode ?? 'apply';
+    const expectedApplyName = `prod-schema-reconcile-${payload.apply.runId}-1-${applyMode}-${payload.precursorSha}`;
     if (payload.apply.artifactName !== expectedApplyName) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['apply', 'artifactName'],
-        message: 'apply.artifactName must be prod-schema-reconcile-<runId>-1-apply-<precursorSha>',
+        message: 'apply.artifactName must bind run, attempt, mode, and precursor SHA',
       });
     }
   });

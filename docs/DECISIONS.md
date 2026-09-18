@@ -202,12 +202,15 @@ non-parity scenarios
 Online **Formula Used:** `=XIRR(amounts, dates)` **Pass Criteria:**
 `|Excel_IRR - Solver_IRR| < 1e-7`
 
-**Results:** | Case | Type | Solver IRR | Excel IRR | Match |
-|------|------|------------|-----------|-------| | GC-2 | 2-flow | 0.4417677551
-| 0.4417677551 | [PASS] EXACT | | GC-9 | 2-flow | 1.1529264684 | 1.1529264684 |
-[PASS] EXACT | | GC-3 | 3-flow | 0.1418598534 | 0.1418598534 | [PASS] EXACT | |
-Test 21 | 8-flow | 0.1641226342 | 0.1641226342 | [PASS] EXACT | | GC-6 | 2-flow
-| -0.1292850900 | -0.1292850900 | [PASS] EXACT |
+**Results:**
+
+| Case    | Type   | Solver IRR    | Excel IRR     | Match        |
+| ------- | ------ | ------------- | ------------- | ------------ |
+| GC-2    | 2-flow | 0.4417677551  | 0.4417677551  | [PASS] EXACT |
+| GC-9    | 2-flow | 1.1529264684  | 1.1529264684  | [PASS] EXACT |
+| GC-3    | 3-flow | 0.1418598534  | 0.1418598534  | [PASS] EXACT |
+| Test 21 | 8-flow | 0.1641226342  | 0.1641226342  | [PASS] EXACT |
+| GC-6    | 2-flow | -0.1292850900 | -0.1292850900 | [PASS] EXACT |
 
 **Conclusion:** All non-edge cases match Excel exactly.
 

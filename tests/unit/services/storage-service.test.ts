@@ -7,7 +7,7 @@ describe('StorageService provider selection', () => {
     vi.restoreAllMocks();
   });
 
-  it('falls back to local storage when s3 is selected without a bucket', async () => {
+  it('falls back to local storage without exposing an unverifiable signed URL', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const storage = createStorageService({
       provider: 's3',
@@ -15,9 +15,9 @@ describe('StorageService provider selection', () => {
       baseUrl: '/api/files',
     });
 
-    const signedUrl = await storage.getSignedUrl('reports/test.pdf', 3600);
-
-    expect(signedUrl.url).toContain('/api/files/reports/test.pdf');
+    await expect(storage.getSignedUrl('reports/test.pdf', 3600)).rejects.toThrow(
+      'Signed download URLs are unavailable for local storage'
+    );
     expect(warnSpy).toHaveBeenCalledWith(
       '[StorageService] S3 bucket not configured, falling back to local storage'
     );

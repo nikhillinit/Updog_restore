@@ -21,13 +21,12 @@ import { requireLPAccess } from '../middleware/requireLPAccess';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { db } from '../db';
-import { eq, and, desc, sql, gte, lte, isNull, or } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte, lt, isNull, or } from 'drizzle-orm';
 import { lpDocuments } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
 import { lpAuditLogger } from '../services/lp-audit-logger';
 import { recordLPRequest, recordError, startTimer } from '../observability/lp-metrics';
-import { v4 as uuidv4 } from 'uuid';
 import { firstString } from '../lib/request-values';
 import {
   createLPApiErrorResponse as createErrorResponse,
@@ -80,6 +79,17 @@ const DocumentListQuerySchema = z.object({
   year: z.coerce.number().min(2000).max(new Date().getFullYear()).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
   cursor: z.string().optional(),
+});
+
+const DocumentCursorSchema = z.object({
+  publishedAt: z.string().datetime(),
+  id: z.string().uuid(),
+  limit: z.number().int().min(1).max(100),
+  filters: z.object({
+    type: DocumentListQuerySchema.shape.type.nullable(),
+    fundId: z.number().positive().nullable(),
+    year: z.number().int().min(2000).max(new Date().getFullYear()).nullable(),
+  }),
 });
 
 const SearchQuerySchema = z.object({
@@ -137,13 +147,24 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
     }
 
     const query = queryResult.data;
-    let startOffset = 0;
+    const filters = {
+      type: query.type ?? null,
+      fundId: query.fundId ?? null,
+      year: query.year ?? null,
+    };
+    let cursor: z.infer<typeof DocumentCursorSchema> | null = null;
 
     // Verify cursor if provided
     if (query.cursor) {
       try {
-        const cursorPayload = verifyCursor<{ offset: number; limit: number }>(query.cursor);
-        startOffset = cursorPayload.offset;
+        const cursorPayload = DocumentCursorSchema.parse(verifyCursor<unknown>(query.cursor));
+        if (
+          cursorPayload.limit !== query.limit ||
+          JSON.stringify(cursorPayload.filters) !== JSON.stringify(filters)
+        ) {
+          return respondInvalidCursor({ res, endTimer, endpoint, lpId });
+        }
+        cursor = cursorPayload;
       } catch {
         return respondInvalidCursor({ res, endTimer, endpoint, lpId });
       }
@@ -167,6 +188,16 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
       conditions.push(lte(lpDocuments.documentDate, yearEnd));
     }
 
+    if (cursor) {
+      const cursorPublishedAt = new Date(cursor.publishedAt);
+      conditions.push(
+        or(
+          lt(lpDocuments.publishedAt, cursorPublishedAt),
+          and(eq(lpDocuments.publishedAt, cursorPublishedAt), lt(lpDocuments.id, cursor.id))
+        )!
+      );
+    }
+
     // Fetch documents with pagination
     const documents = await db
       .select({
@@ -186,9 +217,8 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
       .from(lpDocuments)
       .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
       .where(and(...conditions, or(isNull(funds.id), productionFundPredicate(funds.dataOrigin))))
-      .orderBy(desc(lpDocuments.publishedAt))
-      .limit(query.limit + 1)
-      .offset(startOffset);
+      .orderBy(desc(lpDocuments.publishedAt), desc(lpDocuments.id))
+      .limit(query.limit + 1);
 
     // Check if there are more results
     const hasMore = documents.length > query.limit;
@@ -212,9 +242,16 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
     }));
 
     // Create next cursor if more results
-    const nextCursor = hasMore
-      ? createCursor({ offset: startOffset + query.limit, limit: query.limit })
-      : null;
+    const lastDocument = paginatedDocuments.at(-1);
+    const nextCursor =
+      hasMore && lastDocument
+        ? createCursor({
+            publishedAt: lastDocument.publishedAt.toISOString(),
+            id: lastDocument.id,
+            limit: query.limit,
+            filters,
+          })
+        : null;
 
     // Audit log
     await lpAuditLogger.logDocumentsListView(lpId, undefined, req);
@@ -503,17 +540,8 @@ router.get(
       // Fetch document
       const documents = await db
         .select({
-          id: lpDocuments.id,
           lpId: lpDocuments.lpId,
-          documentType: lpDocuments.documentType,
-          title: lpDocuments.title,
-          fileName: lpDocuments.fileName,
-          fileSize: lpDocuments.fileSize,
-          mimeType: lpDocuments.mimeType,
-          storageKey: lpDocuments.storageKey,
-          accessLevel: lpDocuments.accessLevel,
           status: lpDocuments.status,
-          fundId: lpDocuments.fundId,
         })
         .from(lpDocuments)
         .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
@@ -563,48 +591,14 @@ router.get(
           );
       }
 
-      // Check if sensitive document requires re-authentication
-      if (document.accessLevel === 'sensitive') {
-        // Check for re-authentication token in header
-        const reauthToken = req.headers['x-reauth-token'];
-        if (!reauthToken) {
-          const duration = endTimer();
-          recordLPRequest(endpoint, 'GET', 401, duration, lpId);
-          return res.status(401).json({
-            error: 'REAUTHENTICATION_REQUIRED',
-            message: 'This document requires re-authentication to download',
-            authChallenge: {
-              type: 'password',
-              reason: 'sensitive_document_access',
-            },
-            timestamp: new Date().toISOString(),
-          });
-        }
-        // In production, validate the re-auth token here
-      }
-
-      // Generate presigned download URL
-      // In production, this would use S3.getSignedUrl or similar
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-      const downloadUrl = `https://lp-documents.example.com/download/${document.storageKey}?token=${uuidv4()}&expires=${expiresAt.getTime()}`;
-
-      // Audit log
-      await lpAuditLogger.logDocumentDownload(lpId, documentId, undefined, req);
-
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'no-store');
-
       const duration = endTimer();
-      recordLPRequest(endpoint, 'GET', 200, duration, lpId);
-
-      return res.json({
-        downloadUrl,
-        expiresAt: expiresAt.toISOString(),
-        fileName: document.fileName,
-        mimeType: document.mimeType,
-        fileSize: document.fileSize,
-        fileSizeFormatted: formatFileSize(document.fileSize),
-      });
+      recordLPRequest(endpoint, 'GET', 503, duration, lpId);
+      recordError(endpoint, 'DOCUMENT_DOWNLOAD_UNAVAILABLE', 503);
+      return res
+        .status(503)
+        .json(
+          createErrorResponse('DOCUMENT_DOWNLOAD_UNAVAILABLE', 'Document downloads are unavailable')
+        );
     } catch (error) {
       const duration = endTimer();
       recordLPRequest(endpoint, 'GET', 500, duration);

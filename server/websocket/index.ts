@@ -3,42 +3,48 @@ import DevDashboardWebSocket from './dev-dashboard.js';
 import PortfolioMetricsWebSocket, { setPortfolioMetricsWS } from './portfolio-metrics.js';
 import { logger } from '../logger';
 
-let devDashboardWS: DevDashboardWebSocket | null = null;
-let portfolioMetricsWS: PortfolioMetricsWebSocket | null = null;
+let webSocketServers: {
+  devDashboard: DevDashboardWebSocket | null;
+  portfolioMetrics: PortfolioMetricsWebSocket | null;
+} = { devDashboard: null, portfolioMetrics: null };
 
 export function setupWebSocketServers(server: HTTPServer) {
   logger.info('[websocket] Setting up WebSocket servers');
 
+  const servers: typeof webSocketServers = { devDashboard: null, portfolioMetrics: null };
+  webSocketServers = servers;
+  server.once('close', () => cleanupWebSocketServers(servers));
+
   // Setup portfolio metrics WebSocket (always enabled for real-time features)
-  portfolioMetricsWS = new PortfolioMetricsWebSocket(server);
-  setPortfolioMetricsWS(portfolioMetricsWS);
+  servers.portfolioMetrics = new PortfolioMetricsWebSocket(server);
+  setPortfolioMetricsWS(servers.portfolioMetrics);
   logger.info('[websocket] Portfolio metrics WebSocket enabled');
 
   // Setup dev dashboard WebSocket only in development
   if (process.env['NODE_ENV'] === 'development') {
-    devDashboardWS = new DevDashboardWebSocket(server);
+    servers.devDashboard = new DevDashboardWebSocket(server);
     logger.info('[websocket] Dev dashboard WebSocket enabled');
   }
 
-  return {
-    devDashboard: devDashboardWS,
-    portfolioMetrics: portfolioMetricsWS,
-  };
+  return servers;
 }
 
-export function cleanupWebSocketServers() {
+export function cleanupWebSocketServers(servers = webSocketServers) {
   logger.info('[websocket] Cleaning up WebSocket servers');
 
-  if (portfolioMetricsWS) {
-    portfolioMetricsWS.cleanup();
-    portfolioMetricsWS = null;
-    logger.info('[websocket] Portfolio metrics WebSocket cleaned up');
-  }
-
-  if (devDashboardWS) {
-    devDashboardWS.cleanup();
-    devDashboardWS = null;
-    logger.info('[websocket] Dev dashboard WebSocket cleaned up');
+  const { portfolioMetrics, devDashboard } = servers;
+  servers.portfolioMetrics = null;
+  servers.devDashboard = null;
+  try {
+    if (portfolioMetrics) {
+      portfolioMetrics.cleanup();
+      logger.info('[websocket] Portfolio metrics WebSocket cleaned up');
+    }
+  } finally {
+    if (devDashboard) {
+      devDashboard.cleanup();
+      logger.info('[websocket] Dev dashboard WebSocket cleaned up');
+    }
   }
 }
 

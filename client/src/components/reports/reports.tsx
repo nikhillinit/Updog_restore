@@ -251,7 +251,7 @@ export default function Reports() {
         <CardContent className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-presson-info/30 bg-presson-info/10 text-presson-info">
+              <Badge variant="outline" className="border-presson-borderSubtle bg-presson-surfaceSubtle text-presson-text">
                 Live Reporting
               </Badge>
               <Badge
@@ -443,7 +443,7 @@ export default function Reports() {
                                 </span>{' '}
                                 {formatMetricValue(variance.metric, variance.value)}
                                 {formatMetricPercent(variance.pct) && (
-                                  <span className="ml-1 text-charcoal-500">
+                                  <span className="ml-1 text-presson-textMuted">
                                     ({formatMetricPercent(variance.pct)})
                                   </span>
                                 )}
@@ -507,7 +507,7 @@ export default function Reports() {
                         <Badge variant={statusVariant}>{statusLabel}</Badge>
                       </div>
                       <p className="text-sm text-charcoal-600">{surface.description}</p>
-                      <p className="text-xs text-charcoal-500">{surface.helperText}</p>
+                      <p className="text-xs text-presson-textMuted">{surface.helperText}</p>
 
                       {surface.id === 'variance-analysis' && (
                         <div className="flex flex-wrap gap-2 pt-1">
@@ -630,7 +630,7 @@ export default function Reports() {
                             {formatMetricLabel(variance.metric)}
                           </div>
                           {formatMetricPercent(variance.pct) && (
-                            <div className="text-sm text-charcoal-500">
+                            <div className="text-sm text-presson-textMuted">
                               {formatMetricPercent(variance.pct)}
                             </div>
                           )}
@@ -653,25 +653,25 @@ export default function Reports() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border border-beige-200 p-3">
-                    <div className="text-sm text-charcoal-500">Company Rows</div>
+                    <div className="text-sm text-presson-textMuted">Company Rows</div>
                     <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                       {reportDetail.portfolioVariances?.companyVariances.length ?? 0}
                     </div>
                   </div>
                   <div className="rounded-lg border border-beige-200 p-3">
-                    <div className="text-sm text-charcoal-500">Sector Buckets</div>
+                    <div className="text-sm text-presson-textMuted">Sector Buckets</div>
                     <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                       {Object.keys(reportDetail.sectorVariances ?? {}).length}
                     </div>
                   </div>
                   <div className="rounded-lg border border-beige-200 p-3">
-                    <div className="text-sm text-charcoal-500">Stage Buckets</div>
+                    <div className="text-sm text-presson-textMuted">Stage Buckets</div>
                     <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                       {Object.keys(reportDetail.stageVariances ?? {}).length}
                     </div>
                   </div>
                   <div className="rounded-lg border border-beige-200 p-3">
-                    <div className="text-sm text-charcoal-500">Reserve / Pacing Signals</div>
+                    <div className="text-sm text-presson-textMuted">Reserve / Pacing Signals</div>
                     <div className="mt-1 text-lg font-semibold text-pov-charcoal">
                       {(reportDetail.reserveVariances?.hasData ? 1 : 0) +
                         (reportDetail.pacingVariances?.hasData ? 1 : 0)}

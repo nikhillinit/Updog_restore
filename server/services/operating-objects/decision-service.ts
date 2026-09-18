@@ -145,25 +145,40 @@ function decisionSupersedePreimage(
   };
 }
 
-function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
-  if (typeof error !== 'object' || error === null) return false;
-  const candidate = error as {
-    code?: unknown;
-    constraint?: unknown;
-    message?: unknown;
-    cause?: unknown;
-  };
-  if (
-    candidate.code === '23505' &&
-    (candidate.constraint === constraintName ||
-      (typeof candidate.message === 'string' && candidate.message.includes(constraintName)))
-  ) {
-    return true;
+function isConstraintViolation(error: unknown, code: string, constraintName: string): boolean {
+  const seen = new Set<object>();
+  while (typeof error === 'object' && error !== null && !seen.has(error)) {
+    seen.add(error);
+    const candidate = error as {
+      code?: unknown;
+      constraint?: unknown;
+      message?: unknown;
+      cause?: unknown;
+    };
+    if (
+      candidate.code === code &&
+      (candidate.constraint === constraintName ||
+        (code === '23505' &&
+          typeof candidate.message === 'string' &&
+          candidate.message.includes(constraintName)))
+    ) {
+      return true;
+    }
+    // Drizzle wraps driver errors; inspect the full chain without looping on malformed causes.
+    error = candidate.cause;
   }
-  // Drizzle wraps driver errors in DrizzleQueryError with the pg error as cause.
-  return (
-    candidate.cause !== undefined && isUniqueConstraintViolation(candidate.cause, constraintName)
-  );
+  return false;
+}
+
+function rethrowDecisionWriteError(error: unknown): never {
+  if (isConstraintViolation(error, '23503', 'operating_decisions_follow_up_owner_id_fk')) {
+    throw new DecisionServiceError(
+      400,
+      'INVALID_FOLLOW_UP_OWNER',
+      'Follow-up owner does not exist.'
+    );
+  }
+  throw error;
 }
 
 async function loadDecisionByIdempotencyKey(
@@ -232,7 +247,8 @@ async function createDecisionCommand(
         .onConflictDoNothing({
           target: [operatingDecisions.fundId, operatingDecisions.idempotencyKey],
         })
-        .returning(columnsWithXmin);
+        .returning(columnsWithXmin)
+        .catch(rethrowDecisionWriteError);
       return record ? splitXmin(record) : null;
     },
   });
@@ -366,7 +382,8 @@ export async function transitionDecision(
         sql`xmin = ${input.expectedXmin}::xid`
       )
     )
-    .returning({ id: operatingDecisions.id });
+    .returning({ id: operatingDecisions.id })
+    .catch(rethrowDecisionWriteError);
   if (updated.length === 0) {
     const recheck = await requireDecision(database, input.fundId, input.decisionId);
     throw staleDecisionError(recheck, input.expectedXmin);
@@ -502,7 +519,7 @@ export async function supersedeDecision(
         input.supersedesDecisionId
       );
     } catch (error) {
-      if (isUniqueConstraintViolation(error, 'operating_decisions_supersedes_decision_unique')) {
+      if (isConstraintViolation(error, '23505', 'operating_decisions_supersedes_decision_unique')) {
         throw new DecisionServiceError(
           409,
           'DECISION_ALREADY_SUPERSEDED',

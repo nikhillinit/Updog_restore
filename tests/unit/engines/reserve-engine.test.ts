@@ -277,6 +277,17 @@ describe('ReserveEngine - Ownership Adjustments', () => {
     expect(result[0].allocation).toBeGreaterThan(1800000);
     expect(result[0].allocation).toBeLessThan(2500000);
   });
+
+  it('treats null (unrecorded) ownership as neutral: no boost, no penalty', () => {
+    // Series A (2.0) * SaaS (1.1) on 1M = 2,200,000 base. null must not coerce to 0 and take the penalty.
+    const unknown = ReserveEngine([createCompany({ ownership: null, invested: 1000000 })]);
+    const zero = ReserveEngine([createCompany({ ownership: 0, invested: 1000000 })]);
+    const boosted = ReserveEngine([createCompany({ ownership: 0.15, invested: 1000000 })]);
+
+    expect(unknown[0].allocation).toBe(2200000);
+    expect(zero[0].allocation).toBe(1760000);
+    expect(boosted[0].allocation).toBe(2640000);
+  });
 });
 
 // =============================================================================
@@ -309,6 +320,15 @@ describe('ReserveEngine - Confidence Scoring', () => {
 
     // Both have ownership > 0, so confidence increase is same; use >=
     expect(highResult[0].confidence).toBeGreaterThanOrEqual(lowResult[0].confidence);
+  });
+
+  it('does not award the ownership confidence bonus when ownership is null', () => {
+    const unknown = ReserveEngine([createCompany({ ownership: null })]);
+    const positive = ReserveEngine([createCompany({ ownership: 0.15 })]);
+
+    // 0.3 + 0.2 (stage & sector); invested exactly 1M is not > 1M; no ownership bonus for null.
+    expect(unknown[0].confidence).toBe(ConfidenceLevel.LOW);
+    expect(positive[0].confidence).toBe(0.65);
   });
 
   it('should increase confidence for larger investments', () => {

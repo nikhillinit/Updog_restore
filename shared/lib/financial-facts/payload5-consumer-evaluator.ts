@@ -1,10 +1,32 @@
 import type {
   ConsumerEvaluationReasonV3,
+  ConsumerEvaluationDetailV3,
   ConsumerEvaluationV3,
 } from '../../contracts/financial-facts-consumer-policies';
-import type { FinancialFactsPayloadV5 } from '../../contracts/financial-facts-snapshot-v1.contract';
+import type {
+  FinancialFactsPayloadV5,
+  FinancialFactsPayloadV6,
+} from '../../contracts/financial-facts-snapshot-v1.contract';
 
-function unresolvedRosterCompanyIds(payload: FinancialFactsPayloadV5): number[] {
+type ActualsConsumerPayload = FinancialFactsPayloadV5 | FinancialFactsPayloadV6;
+type ActualsConsumerCompanyFact = ActualsConsumerPayload['companyActuals']['facts'][number];
+
+export function hasAvailableCompanyMonetaryFacts(
+  fact: ActualsConsumerCompanyFact
+): fact is ActualsConsumerCompanyFact & {
+  initialInvestmentAmount: string;
+  followOnInvestmentAmount: string;
+  amountOnlyNonEquityAmount: string;
+} {
+  return (
+    (!('monetaryFacts' in fact) || fact.monetaryFacts.availability === 'available') &&
+    typeof fact.initialInvestmentAmount === 'string' &&
+    typeof fact.followOnInvestmentAmount === 'string' &&
+    typeof fact.amountOnlyNonEquityAmount === 'string'
+  );
+}
+
+function unresolvedRosterCompanyIds(payload: ActualsConsumerPayload): number[] {
   const rosterCompanyIds = new Set(
     payload.valuationActuals.roster.map(({ companyId }) => companyId)
   );
@@ -19,9 +41,7 @@ function unresolvedRosterCompanyIds(payload: FinancialFactsPayloadV5): number[] 
     .sort((left, right) => left - right);
 }
 
-export function evaluatePayload5Consumers(
-  payload: FinancialFactsPayloadV5
-): ConsumerEvaluationV3[] {
+export function evaluatePayload5Consumers(payload: ActualsConsumerPayload): ConsumerEvaluationV3[] {
   const forecastReasons: ConsumerEvaluationReasonV3[] = [];
   if (payload.capitalActuals.ledgerCoverage !== 'complete') {
     forecastReasons.push('ledger_coverage_partial');
@@ -43,20 +63,40 @@ export function evaluatePayload5Consumers(
     reserveReasons.push('investment_lineage_unresolved');
   }
 
+  const unavailableCompanyIds = payload.companyActuals.facts
+    .filter((fact) => !hasAvailableCompanyMonetaryFacts(fact))
+    .map((fact) => fact.companyId)
+    .sort((left, right) => left - right);
+  const monetaryDetails: ConsumerEvaluationDetailV3[] =
+    unavailableCompanyIds.length === 0
+      ? []
+      : [
+          {
+            code: 'company_monetary_facts_unavailable',
+            companyIds: unavailableCompanyIds,
+          },
+        ];
+  if (unavailableCompanyIds.length > 0) {
+    forecastReasons.push('company_monetary_facts_unavailable');
+    reserveReasons.push('company_monetary_facts_unavailable');
+  }
+
+  const reserveDetails: ConsumerEvaluationDetailV3[] = [
+    ...(unresolvedCompanyIds.length > 0
+      ? [
+          {
+            code: 'investment_lineage_unresolved' as const,
+            companyIds: unresolvedCompanyIds,
+          },
+        ]
+      : []),
+    ...monetaryDetails,
+  ];
   const reserveEvaluation: ConsumerEvaluationV3 = {
     consumer: 'reserve',
     status: reserveReasons.length > 0 ? 'blocked' : 'accepted',
     reasons: reserveReasons,
-    ...(unresolvedCompanyIds.length > 0
-      ? {
-          details: [
-            {
-              code: 'investment_lineage_unresolved' as const,
-              companyIds: unresolvedCompanyIds,
-            },
-          ],
-        }
-      : {}),
+    ...(reserveDetails.length > 0 ? { details: reserveDetails } : {}),
   };
 
   return [
@@ -64,6 +104,7 @@ export function evaluatePayload5Consumers(
       consumer: 'forecast',
       status: forecastReasons.length > 0 ? 'blocked' : 'accepted',
       reasons: forecastReasons,
+      ...(monetaryDetails.length > 0 ? { details: monetaryDetails } : {}),
     },
     reserveEvaluation,
     {

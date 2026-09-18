@@ -26,9 +26,34 @@ import {
 } from '../../../../shared/lib/internal-economics/v2/derive-composite-v2';
 import { buildMinimalV2Input } from '../../../helpers/v2-input-builder';
 import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 } from './support/canonical-receipt-changed-case-manifest-v1';
+import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V2 } from './support/canonical-receipt-changed-case-manifest-v2';
+import { CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V3 } from './support/canonical-receipt-changed-case-manifest-v3';
 import { oracleHash } from './support/canonical-receipt-oracle-v1';
 
 const INSTANT = '2025-02-01T00:00:00Z';
+
+describe('receipt 2.4.0 changed-case manifest chain', () => {
+  it('chains frozen 2.3.0 evidence and records unique exact cases', () => {
+    const prior = new Map(
+      CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V2.map((entry) => [entry.caseId, entry])
+    );
+    expect(CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V3.map((entry) => entry.caseId)).toEqual([
+      'V2-S-0101',
+      'V2-S-0100',
+      'V2-S-0102-deal-by-deal',
+      'V2-S-0102-whole-fund',
+    ]);
+    for (const entry of CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V3) {
+      expect(entry.normalizedInputHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(entry.beforeResultHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(entry.afterResultHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(entry.beforeResultHash).not.toBe(entry.afterResultHash);
+      if (entry.caseId === 'V2-S-0100' || entry.caseId === 'V2-S-0101') {
+        expect(entry.beforeResultHash).toBe(prior.get(entry.caseId)!.afterResultHash);
+      }
+    }
+  });
+});
 
 type EventBuilder = (amountUsd: string) => V2Event;
 

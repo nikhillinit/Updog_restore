@@ -15,7 +15,7 @@ describe('QUEUE_CATALOG production dispositions', () => {
         deployment: 'railway-worker-fund-scenario-calc',
       },
       'pacing-calc': { mode: 'inline-fallback' },
-      'cohort-calc': { mode: 'local-only' },
+      'cohort-calc': { mode: 'quarantined' },
       'capital-call-status': {
         mode: 'railway-worker',
         deployment: 'railway-worker-capital-call-status',

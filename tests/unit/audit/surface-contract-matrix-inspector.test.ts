@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -12,11 +13,18 @@ const tsxCliPath = path.resolve(repoRoot, 'node_modules/tsx/dist/cli.mjs');
 const tsconfigPath = path.resolve(repoRoot, 'tsconfig.server.json');
 
 function runInspector(
-  fsVariant: 'static' | 'api-only'
+  fsVariant: 'static' | 'api-only',
+  profile = 'default',
+  inheritedActualsPilotFundId?: string
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const childEnv = { ...process.env, CI: '1', FORCE_COLOR: '0', TZ: 'UTC' };
     delete childEnv['VITEST'];
+    if (inheritedActualsPilotFundId === undefined) {
+      delete childEnv['ACTUALS_PILOT_FUND_ID'];
+    } else {
+      childEnv['ACTUALS_PILOT_FUND_ID'] = inheritedActualsPilotFundId;
+    }
     const child = spawn(
       process.execPath,
       [
@@ -25,7 +33,7 @@ function runInspector(
         tsconfigPath,
         inspectorPath,
         '--profile',
-        'default',
+        profile,
         '--fs-variant',
         fsVariant,
       ],
@@ -76,7 +84,7 @@ describe('surface contract matrix runtime inspector', () => {
       // The shadowed server/app.ts duplicate was deleted in F_1.2.5 Phase 3;
       // the health-router handler is the only /api/version registration.
       expect(versionRoutes.map((route) => `${route.role}:${route.site}`)).toEqual([
-        'handler:server/routes/health.ts:573',
+        'handler:server/routes/health.ts:588',
       ]);
 
       for (const routePath of ['/metrics/rum', '/api/metrics/rum']) {
@@ -105,7 +113,15 @@ describe('surface contract matrix runtime inspector', () => {
       );
       expect(preBoundaryMetrics.length).toBeGreaterThan(0);
       expect(
-        preBoundaryMetrics.every((route) => route.outer_mount_site === 'server/server.ts:202')
+        preBoundaryMetrics.every((route) => {
+          const source = fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8');
+          const mountLine =
+            source
+              .split('\n')
+              .findIndex((line) => line.includes("app.use('/api', metricsRouter)")) + 1;
+          expect(mountLine).toBeGreaterThan(0);
+          return route.outer_mount_site === `server/server.ts:${mountLine}`;
+        })
       ).toBe(true);
       expect(preBoundaryMetrics.every((route) => Number.isInteger(route.outer_mount_order))).toBe(
         true
@@ -115,6 +131,43 @@ describe('surface contract matrix runtime inspector', () => {
         (route) => route.method === 'GET' && route.path === '/'
       );
       expect(Boolean(rootRoute)).toBe(fsVariant === 'api-only');
+    },
+    60_000
+  );
+
+  it.each(['static', 'api-only'] as const)(
+    'scrubs ambient actuals selector and discovers configured routes in both app assemblies for %s',
+    async (fsVariant) => {
+      const [unsetRun, configuredRun] = await Promise.all([
+        runInspector(fsVariant, 'selector:ACTUALS_PILOT_FUND_ID:unset', '2147483647'),
+        runInspector(fsVariant, 'selector:ACTUALS_PILOT_FUND_ID:configured'),
+      ]);
+      const unsetDocument = JSON.parse(unsetRun.stdout);
+      const configuredDocument = JSON.parse(configuredRun.stdout);
+      const actualsRoutes = new Set([
+        'POST /api/funds/:fundId/imports/actuals/dry-run',
+        'POST /api/funds/:fundId/imports/actuals/publish',
+        'GET /api/funds/:fundId/financial-facts/latest-reference',
+        'GET /api/funds/:fundId/actuals/metrics',
+      ]);
+
+      for (const surfaceName of ['make_app', 'create_server']) {
+        const unsetRoutes = unsetDocument.surfaces.find(
+          (surface) => surface.name === surfaceName
+        ).routes;
+        const configuredRoutes = configuredDocument.surfaces.find(
+          (surface) => surface.name === surfaceName
+        ).routes;
+        const terminalRouteKeys = configuredRoutes
+          .filter((route) => route.role === 'handler' && route.kind === 'terminal')
+          .map((route) => `${route.method} ${route.path}`)
+          .filter((routeKey) => actualsRoutes.has(routeKey));
+
+        expect(terminalRouteKeys.sort()).toEqual([...actualsRoutes].sort());
+        expect(
+          unsetRoutes.some((route) => actualsRoutes.has(`${route.method} ${route.path}`))
+        ).toBe(false);
+      }
     },
     60_000
   );

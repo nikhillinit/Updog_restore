@@ -1,10 +1,15 @@
+import { createErrorBody, sendApiError } from './lib/apiError.js';
 import type { Express, Request, Response, NextFunction, Router } from 'express';
 import type { RequestListener } from 'http';
 import { createServer, type Server } from 'http';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
+import { readActualsPilotPublishFundId } from './config/actuals-pilot-env.js';
 import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
-import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
+import {
+  registerCompletionHandlers,
+  resetCompletionHandlerRegistration,
+} from './services/calc-run-completion-handlers.js';
 import { varianceAlertAutomationService } from './services/variance-alert-automation.js';
 import { artifactRetentionService } from './services/financial-observations/artifact-retention-service.js';
 import { internalAnalysisCheckpointService } from './services/internal-analysis/analysis-checkpoint-service.js';
@@ -35,7 +40,21 @@ async function mountDefaultRoutes(app: Express, mounts: readonly DefaultRouteMou
   }
 }
 
+export async function stopRouteServices(): Promise<void> {
+  const stopped = await Promise.allSettled([
+    varianceAlertAutomationService.stop(),
+    artifactRetentionService.stop(),
+    internalAnalysisCheckpointService.stop(),
+  ]);
+  resetCompletionHandlerRegistration();
+  const errors = stopped
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason as unknown);
+  if (errors.length > 0) throw new AggregateError(errors, 'Route service shutdown failed');
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  readActualsPilotPublishFundId();
   // Wire calc-run completion automation and periodic alert scheduling.
   registerCompletionHandlers();
   varianceAlertAutomationService.start();
@@ -138,9 +157,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  app.use('/api', (_req: Request, res: Response) => {
-    res.status(404).json({
-      error: 'not_found',
+  app.use('/api', (req: Request, res: Response) => {
+    sendApiError(res, 404, {
+      ...createErrorBody('not_found', req.requestId),
       message: 'API route not found',
     });
   });

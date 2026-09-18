@@ -6,6 +6,7 @@ import type {
   DualForecastNavAnchor,
   DualForecastNavAnchoring,
   DualForecastPoint,
+  DualForecastResponse,
   DualForecastTrustCounts,
 } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
@@ -13,6 +14,22 @@ type NameType = string | number;
 type ValueType = string | number | Array<string | number>;
 
 export type ForecastMetricKey = 'nav' | 'calledCapital';
+
+export function getForecastUnavailableReason(forecast: DualForecastResponse): string | null {
+  if (forecast.config.source !== 'published') {
+    return 'Published target metrics are unavailable. Review fund configuration before comparing forecasts.';
+  }
+  if (forecast.sources.current !== 'current_forecast_v2' || !forecast.currentForecastV2) {
+    return 'A supported current forecast is required. Legacy projections do not provide a verified fund-specific basis.';
+  }
+  if (['unavailable', 'failed'].includes(forecast.currentForecastV2.engineStatus)) {
+    return 'The current forecast could not be calculated from the available inputs. Review its reported input gaps before comparing forecasts.';
+  }
+  if (forecast.currentProjection.status === 'fallback_default') {
+    return 'The current projection failed. Default projections cannot be used for fund comparison.';
+  }
+  return null;
+}
 
 export interface ForecastChartPoint {
   label: string;

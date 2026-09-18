@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import { useFundContext } from '@/contexts/FundContext';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
@@ -35,7 +36,7 @@ function MetricTile({ label, value, detail }: { label: string; value: string; de
     <div className="rounded-md border border-pov-beige bg-white p-4">
       <p className="text-sm text-charcoal-600">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-pov-charcoal">{value}</p>
-      <p className="mt-1 text-xs text-charcoal-500">{detail}</p>
+      <p className="mt-1 text-xs text-presson-textMuted">{detail}</p>
     </div>
   );
 }
@@ -47,6 +48,191 @@ function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
       <p className="mt-1">
         {error?.message || 'The unified metrics layer did not return a supported snapshot.'}
       </p>
+    </div>
+  );
+}
+
+function CapitalProgressBar({ metrics }: { metrics: UnifiedFundMetrics }) {
+  const { totalCommitted, totalCalled, totalDeployed } = metrics.actual;
+  const calledPct = totalCommitted > 0 ? (totalCalled / totalCommitted) * 100 : 0;
+  const deployedPct = totalCommitted > 0 ? (totalDeployed / totalCommitted) * 100 : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="relative h-4 w-full overflow-hidden rounded-full bg-pov-gray">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-beige transition-all"
+          style={{ width: `${calledPct}%` }}
+        />
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-pov-charcoal transition-all"
+          style={{ width: `${deployedPct}%` }}
+        />
+      </div>
+      <div className="flex items-center gap-6 text-xs text-presson-textMuted">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-pov-charcoal" />
+          Deployed {deployedPct.toFixed(1)}%
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-beige" />
+          Called {calledPct.toFixed(1)}%
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-pov-gray" />
+          Uncalled {(100 - calledPct).toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CapitalStructurePanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const { totalCommitted, totalCalled, totalDeployed, totalUncalled, totalDistributions } =
+    metrics.actual;
+
+  return (
+    <div className="space-y-6">
+      <CapitalProgressBar metrics={metrics} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricTile
+          label="Committed"
+          value={formatDollars(totalCommitted)}
+          detail="Total LP + GP commitments"
+        />
+        <MetricTile
+          label="Called"
+          value={formatDollars(totalCalled)}
+          detail="Capital called from LPs"
+        />
+        <MetricTile
+          label="Deployed"
+          value={formatDollars(totalDeployed)}
+          detail="Invested into companies"
+        />
+        <MetricTile
+          label="Dry powder"
+          value={formatDollars(totalUncalled)}
+          detail="Remaining uncalled capital"
+        />
+        <MetricTile
+          label="Distributions"
+          value={formatDollars(totalDistributions)}
+          detail="Cash returned to LPs"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PortfolioCompositionPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const {
+    activeCompanies,
+    exitedCompanies,
+    writtenOffCompanies,
+    totalCompanies,
+    averageCheckSize,
+  } = metrics.actual;
+
+  const segments = [
+    { label: 'Active', count: activeCompanies, color: 'bg-pov-charcoal' },
+    { label: 'Exited', count: exitedCompanies, color: 'bg-success' },
+    { label: 'Written off', count: writtenOffCompanies, color: 'bg-presson-textMuted' },
+  ].filter((s) => s.count > 0);
+
+  return (
+    <div className="space-y-6">
+      {totalCompanies > 0 && (
+        <div className="relative flex h-4 w-full overflow-hidden rounded-full">
+          {segments.map((seg) => (
+            <div
+              key={seg.label}
+              className={`${seg.color} transition-all`}
+              style={{ width: `${(seg.count / totalCompanies) * 100}%` }}
+            />
+          ))}
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {segments.map((seg) => (
+          <MetricTile
+            key={seg.label}
+            label={seg.label}
+            value={String(seg.count)}
+            detail={`${((seg.count / totalCompanies) * 100).toFixed(0)}% of portfolio`}
+          />
+        ))}
+        <MetricTile
+          label="Avg check size"
+          value={formatDollars(averageCheckSize)}
+          detail={`Across ${totalCompanies} companies`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PerformanceSnapshotPanel({
+  metrics,
+  isLoading,
+  error,
+}: {
+  metrics: UnifiedFundMetrics | undefined;
+  isLoading: boolean;
+  error: Error | null | undefined;
+}) {
+  if (isLoading || error || !metrics) return null;
+
+  const { totalValue, currentNAV, totalDeployed } = metrics.actual;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricTile
+        label="Total value"
+        value={formatDollars(totalValue)}
+        detail="NAV + distributions"
+      />
+      <MetricTile
+        label="TVPI"
+        value={formatMultiple(metrics.actual.tvpi)}
+        detail="Total value / paid-in"
+      />
+      <MetricTile
+        label="Net IRR"
+        value={formatRate(
+          metrics.actual.availability?.irr?.status === 'unavailable' ? null : metrics.actual.irr
+        )}
+        detail={metrics.actual.availability?.irr?.message ?? 'Investment and valuation basis'}
+      />
+      <MetricTile
+        label="Unrealized gain"
+        value={formatDollars(currentNAV - totalDeployed)}
+        detail={
+          totalDeployed > 0
+            ? `${(((currentNAV - totalDeployed) / totalDeployed) * 100).toFixed(1)}% on deployed`
+            : 'No capital deployed'
+        }
+      />
     </div>
   );
 }
@@ -115,26 +301,31 @@ function PerformanceMetricsPanel({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
-          label="IRR"
-          value={formatRate(metrics.actual.irr)}
-          detail={`Target ${formatRate(metrics.variance.performanceVariance.targetIRR)}`}
+          label="IRR estimate"
+          value={formatRate(
+            metrics.actual.availability?.irr?.status === 'unavailable' ? null : metrics.actual.irr
+          )}
+          detail={
+            metrics.actual.availability?.irr?.message ?? 'Dated investment and valuation basis'
+          }
         />
         <MetricTile
-          label="TVPI"
+          label="TVPI estimate"
           value={formatMultiple(metrics.actual.tvpi)}
-          detail="Total value to paid-in"
+          detail="Total value to recorded investment capital"
         />
         <MetricTile
-          label="DPI"
+          label="DPI estimate"
           value={formatMultiple(metrics.actual.dpi)}
-          detail="Distributions to paid-in"
+          detail="Recorded distributions to investment capital"
         />
         <MetricTile
-          label="RVPI"
+          label="RVPI estimate"
           value={formatMultiple(metrics.actual.rvpi)}
-          detail="Residual value to paid-in"
+          detail="Residual value to recorded investment capital"
         />
       </div>
+      <p className="text-sm text-charcoal-600">{PORTFOLIO_METRICS_BASIS}</p>
       <div className="rounded-md border border-pov-beige bg-pov-gray p-4 text-sm text-charcoal-700">
         <p className="font-medium text-pov-charcoal">Benchmark and attribution unavailable</p>
         <p className="mt-1">
@@ -169,7 +360,7 @@ export default function ModernDashboard() {
 
     const body = (await response.json()) as unknown;
     if (!response.ok) {
-      throw new Error(getErrorMessage(body) ?? 'Failed to create share link');
+      throw new Error(getErrorMessage(body, response.status) ?? 'Failed to create share link');
     }
 
     const typed = body as {
@@ -211,7 +402,7 @@ export default function ModernDashboard() {
   }
 
   const dashboardTabs = (
-    <Tabs value={activeView} className="space-y-8">
+    <>
       {/* Overview Tab */}
       <TabsContent value="overview" className="space-y-8">
         <PremiumCard
@@ -219,6 +410,39 @@ export default function ModernDashboard() {
           subtitle="Backed by the unified metrics layer for the selected fund"
         >
           <OverviewMetricsPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Capital structure"
+          subtitle="Commitment, deployment, and distribution lifecycle"
+        >
+          <CapitalStructurePanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Portfolio composition"
+          subtitle="Company status breakdown and investment sizing"
+        >
+          <PortfolioCompositionPanel
+            metrics={metricsQuery.data}
+            isLoading={metricsQuery.isLoading}
+            error={metricsQuery.error}
+          />
+        </PremiumCard>
+
+        <PremiumCard
+          title="Performance snapshot"
+          subtitle="Key return metrics from the unified layer"
+        >
+          <PerformanceSnapshotPanel
             metrics={metricsQuery.data}
             isLoading={metricsQuery.isLoading}
             error={metricsQuery.error}
@@ -244,7 +468,7 @@ export default function ModernDashboard() {
       <TabsContent value="cashflow" className="space-y-8">
         <CashflowDashboard fundId={String(currentFund?.id || 'default')} className="max-w-none" />
       </TabsContent>
-    </Tabs>
+    </>
   );
 
   return (
@@ -256,33 +480,35 @@ export default function ModernDashboard() {
       />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <Tabs
+        value={activeView}
+        onValueChange={setActiveView}
+        className="max-w-7xl mx-auto px-6 py-8"
+      >
         {/* Top Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center space-x-4">
-            <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-              <TabsList className="bg-pov-white border border-pov-gray">
-                <TabsTrigger
-                  value="overview"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="performance"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  Performance
-                </TabsTrigger>
-                <TabsTrigger
-                  value="cashflow"
-                  className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Cashflow
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <TabsList className="bg-pov-white border border-pov-gray">
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="performance"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                Performance
+              </TabsTrigger>
+              <TabsTrigger
+                value="cashflow"
+                className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Cashflow
+              </TabsTrigger>
+            </TabsList>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -314,7 +540,7 @@ export default function ModernDashboard() {
         ) : (
           dashboardTabs
         )}
-      </div>
+      </Tabs>
     </div>
   );
 }

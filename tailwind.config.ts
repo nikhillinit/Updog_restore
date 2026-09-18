@@ -267,7 +267,7 @@ export default {
         'confidence-medium': '0 0 0 2px rgba(59, 130, 246, 0.2)',
         'confidence-low': '0 0 0 2px rgba(245, 158, 11, 0.2)',
         'confidence-critical': '0 0 0 2px rgba(239, 68, 68, 0.2)',
-        'focus-ring': '0 0 0 2px rgba(59, 130, 246, 0.5)',
+        'focus-ring': presson.focus.ring,
         'ai-insight': '0 4px 16px rgba(59, 130, 246, 0.1)',
         'success-glow': '0 0 20px rgba(16, 185, 129, 0.2)',
       },

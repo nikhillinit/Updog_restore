@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useLiquidityAnalytics } from '@/hooks/useLiquidityAnalytics';
-import type { CashTransaction } from '@shared/types';
+import type { CashPosition, CashTransaction } from '@shared/types';
 
 const baseOptions = {
   fundId: '1',
@@ -27,6 +27,26 @@ function createTransaction(): CashTransaction {
     updatedAt: transactionDate,
     createdBy: 'system',
     quarterEnd: false,
+  };
+}
+
+function createPosition(): CashPosition {
+  return {
+    fundId: '1',
+    asOfDate: transactionDate,
+    bankAccounts: [],
+    totalCash: 500_000,
+    totalCommitted: 90_000_000,
+    totalDeployed: 9_500_000,
+    availableLiquidity: 500_000,
+    pendingInflows: 0,
+    pendingOutflows: 0,
+    netPending: 0,
+    dryPowder: 80_000_000,
+    reserveRequirement: 0,
+    availableInvestment: 80_000_000,
+    createdAt: transactionDate,
+    updatedAt: transactionDate,
   };
 }
 
@@ -70,10 +90,78 @@ describe('useLiquidityAnalytics', () => {
     await waitFor(() => expect(result.current.stressTestResult).not.toBeNull());
   });
 
+  it('keeps planned flows in the demo forecast', async () => {
+    // The demo generator picks types and amounts with Math.random; pin it so every
+    // mock row is a capital call and the assertion cannot depend on the draw.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const { result } = renderHook(() =>
+        useLiquidityAnalytics({ ...baseOptions, allowDemoFallback: true })
+      );
+
+      await act(async () => {
+        await result.current.generateLiquidityForecast(12);
+      });
+      await waitFor(() => expect(result.current.liquidityForecast).not.toBeNull());
+
+      // The forecast keeps only upcoming statuses, so the demo history must carry
+      // planned rows or every planned inflow collapses to zero.
+      expect(result.current.liquidityForecast?.plannedCapitalCalls ?? 0).toBeGreaterThan(0);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it('does not flag demo when real transactions are provided', () => {
     const transactions: CashTransaction[] = [createTransaction()];
     const { result } = renderHook(() => useLiquidityAnalytics({ ...baseOptions, transactions }));
 
     expect(result.current.isDemoData).toBe(false);
+  });
+
+  it('keeps planned transactions out of the cash flow analysis', async () => {
+    const transactions: CashTransaction[] = [
+      createTransaction(),
+      {
+        ...createTransaction(),
+        id: '22222222-2222-4222-8222-222222222222',
+        amount: 2_000_000,
+        status: 'planned',
+        plannedDate: new Date('2027-01-31T00:00:00.000Z'),
+      },
+    ];
+    const { result } = renderHook(() => useLiquidityAnalytics({ ...baseOptions, transactions }));
+
+    await act(async () => {
+      await result.current.runCashFlowAnalysis();
+    });
+    await waitFor(() => expect(result.current.cashFlowAnalysis).not.toBeNull());
+
+    // The analysis is realized history; the planned row belongs to the forecast.
+    expect(result.current.cashFlowAnalysis?.summary.transactionCount).toBe(1);
+    expect(result.current.cashFlowAnalysis?.summary.totalInflows).toBe(1_000_000);
+  });
+
+  it('projects only upcoming transactions in the forecast', async () => {
+    const transactions: CashTransaction[] = [
+      createTransaction(),
+      {
+        ...createTransaction(),
+        id: '22222222-2222-4222-8222-222222222222',
+        amount: 2_000_000,
+        status: 'planned',
+        plannedDate: new Date('2027-01-31T00:00:00.000Z'),
+      },
+    ];
+    const { result } = renderHook(() =>
+      useLiquidityAnalytics({ ...baseOptions, transactions, currentPosition: createPosition() })
+    );
+
+    await act(async () => {
+      await result.current.generateLiquidityForecast();
+    });
+    await waitFor(() =>
+      expect(result.current.liquidityForecast?.plannedCapitalCalls).toBeCloseTo(2_000_000, 0)
+    );
   });
 });

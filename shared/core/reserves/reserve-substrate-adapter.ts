@@ -203,15 +203,19 @@ function ruleBasedAllocation(company: ReserveCompanyInput): AllocationEntry {
     RESERVE_ASSUMPTIONS.sectorMultiplierDefault;
 
   let allocation = company.invested * stageMultiplier * sectorMultiplier;
-  if (company.ownership > ownership.boostThreshold) {
+  // null ownership (not recorded) is neutral: no boost, no penalty, no confidence bonus.
+  // The explicit null guard matters because `null < 0.05` coerces to `0 < 0.05` (true).
+  if (company.ownership != null && company.ownership > ownership.boostThreshold) {
     allocation *= ownership.boostFactor;
-  } else if (company.ownership < ownership.penaltyThreshold) {
+  } else if (company.ownership != null && company.ownership < ownership.penaltyThreshold) {
     allocation *= ownership.penaltyFactor;
   }
 
   let confidence: number = confidenceLadder.base;
   if (company.stage && company.sector) confidence += confidenceLadder.stageAndSectorBonus;
-  if (company.ownership > 0) confidence += confidenceLadder.ownershipPositiveBonus;
+  if (company.ownership != null && company.ownership > 0) {
+    confidence += confidenceLadder.ownershipPositiveBonus;
+  }
   if (company.invested > confidenceLadder.investedBonusThresholdDollars) {
     confidence += confidenceLadder.investedBonus;
   }

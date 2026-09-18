@@ -5,7 +5,7 @@ import type {
   V2TierKind,
 } from './internal-economics-input-v2.contract';
 
-export const INTERNAL_ECONOMICS_RECEIPT_V2_VERSION = 'internal-economics-receipt/2.3.0' as const;
+export const INTERNAL_ECONOMICS_RECEIPT_V2_VERSION = 'internal-economics-receipt/2.4.0' as const;
 
 // ---------------------------------------------------------------------------
 // Per-partner cash-flow vector
@@ -247,12 +247,12 @@ export interface ExpenseTotalsByCategoryV2 {
 
 export interface ComponentVersionsV2 {
   readonly normalizer: 'internal-economics-normalizer/2.0.1';
-  readonly composite: 'internal-economics-composite/2.3.0';
-  readonly eventEngine: 'internal-economics-event-engine/2.3.0';
+  readonly composite: 'internal-economics-composite/2.4.0';
+  readonly eventEngine: 'internal-economics-event-engine/2.4.0';
   readonly selectedWaterfall:
-    | 'internal-economics-waterfall-deal-by-deal/2.2.0'
+    | 'internal-economics-waterfall-deal-by-deal/2.3.0'
     | 'internal-economics-waterfall-whole-fund/2.2.0';
-  readonly receiptSerializer: 'internal-economics-receipt-serializer/2.3.0';
+  readonly receiptSerializer: 'internal-economics-receipt-serializer/2.4.0';
 }
 
 export interface CashLotLineageV2 {

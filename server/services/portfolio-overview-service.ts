@@ -1,4 +1,5 @@
 import { Decimal, sum, toDecimal } from '@shared/lib/decimal-utils';
+import { computePositionValue } from './position-value';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import { isExitedStatus } from '@shared/lib/company-status';
 import {
@@ -58,13 +59,10 @@ export async function getPortfolioOverview(
 
   const computed = companies.map((company) => {
     const invested = toDecimal(company.investmentAmount ?? '0');
-    const companyValuation =
-      company.currentValuation == null ? new Decimal(0) : toDecimal(company.currentValuation);
-    const ownership =
-      company.ownershipCurrentPct == null ? null : toDecimal(company.ownershipCurrentPct);
-    const currentValue =
-      ownership != null && ownership.gt(0) ? companyValuation.times(ownership) : companyValuation;
-    // Preserve the original client guard: MOIC is 0 unless a positive amount was invested.
+    const currentValue = computePositionValue({
+      currentValuation: company.currentValuation,
+      ownershipCurrentPct: company.ownershipCurrentPct,
+    });
     const moic = invested.lte(0) ? new Decimal(0) : currentValue.dividedBy(invested);
     return { company, invested, currentValue, moic };
   });

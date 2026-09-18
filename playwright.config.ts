@@ -82,6 +82,7 @@ export default defineConfig({
         '**/navigation-and-routing.spec.ts',
         '**/fund-setup-workflow.spec.ts',
         '**/fund-setup.spec.ts',
+        '**/e2e/fund-scenario-capital-planning.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['smoke'],
@@ -136,6 +137,8 @@ export default defineConfig({
       name: 'gp-usability',
       testMatch: [
         '**/gp-usability-audit-regression.spec.ts',
+        '**/ui-ux-qa-regressions.spec.ts',
+        '**/ui-ux-visual-followup.spec.ts',
         '**/visual-audit-screenshots.spec.ts',
       ],
       use: { ...devices['Desktop Chrome'] },

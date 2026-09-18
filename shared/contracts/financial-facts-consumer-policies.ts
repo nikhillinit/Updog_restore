@@ -34,6 +34,7 @@ export const ConsumerEvaluationReasonV3Schema = z.enum([
   'ledger_coverage_partial',
   'investment_lineage_unresolved',
   'period_nav_unavailable',
+  'company_monetary_facts_unavailable',
 ]);
 
 export const ConsumerEvaluationDetailV2Schema = z

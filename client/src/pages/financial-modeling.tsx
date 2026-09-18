@@ -11,7 +11,7 @@ export default function FinancialModeling() {
   const { fundId, currentFund } = useFundContext();
 
   return (
-    <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
       {/* Workspace row (D-F.2). Comparison surface: Construction and Current
           render side by side by nature, and the indicator reflects that (D-E). */}
       <FundWorkspaceProvider fundId={fundId}>
@@ -24,7 +24,7 @@ export default function FinancialModeling() {
         <WorkspaceContextRail>
           <div className="mb-8 mt-6">
             <h1 className="text-3xl font-bold">Financial Modeling & Forecasting</h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-presson-textMuted mt-2">
               Fund-scoped forecasts from current fund inputs. Forward-looking values are labeled as
               projections.
             </p>
@@ -33,7 +33,9 @@ export default function FinancialModeling() {
           <Tabs defaultValue="forecast" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="forecast">Fund Projection</TabsTrigger>
-              <TabsTrigger value="modeling">Scenario Modeling</TabsTrigger>
+              <TabsTrigger value="modeling" className="text-presson-textMuted">
+                Scenario Modeling
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="forecast">
@@ -68,6 +70,6 @@ export default function FinancialModeling() {
           </Tabs>
         </WorkspaceContextRail>
       </FundWorkspaceProvider>
-    </main>
+    </div>
   );
 }

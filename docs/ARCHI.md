@@ -42,8 +42,8 @@ is Press On Ventures' internal VC fund-modeling and reporting platform (see root
   cut over (the actual Tailwind config is still standard v3, no
   `@import "tailwindcss"`). Design tokens: `client/src/theme/presson.tokens.ts`
   (single file, see `DESIGN.md` at repo root — read before any visual change).
-- **Backend**: Express `5.2.1`, Node `>=20.19.0 <23` / npm `>=10.8.0`
-  (Volta-pinned 20.19.0 / 10.9.2).
+- **Backend**: Express `5.2.1`, Node `22.x` / npm `>=10.8.0` (runtime pinned by
+  `.nvmrc` and `package.json` Volta settings).
 - **Data**: PostgreSQL via Drizzle ORM `^0.45.1` + drizzle-kit `0.31.10` +
   drizzle-zod `^0.8.3`. Validation: Zod `^3.25.76`. Financial precision:
   `decimal.js ^10.6.0`, `mathjs 15.2.0` — never raw float for money math (see
@@ -241,7 +241,7 @@ mountCommonRoutes(app: Express, options:
 ```
 
 Groups are **contiguous boundary-pair slices** of an ordered route-id list, not
-a free list. `COMMON_ROUTE_IMPLEMENTATIONS` (44 entries) `satisfies` a type
+a free list. `COMMON_ROUTE_IMPLEMENTATIONS` (47 entries) `satisfies` a type
 derived from `shared/routes/api-route-manifest.ts` (`CommonApiRouteId`), so
 TypeScript enforces impl-map completeness against the manifest — but
 **group-boundary coverage is hand-maintained, not type-checked**. A
@@ -294,14 +294,14 @@ auth boundary.
 `shared/schema-lp-sprint3.ts`; migrations output `./migrations`;
 `DATABASE_URL`-driven (throws if unset).
 
-**`[UNVERIFIED FROM REPO]` tag resolved**: `shared/schema.ts` (2,714 lines) is a
+**`[UNVERIFIED FROM REPO]` tag resolved**: `shared/schema.ts` (2,722 lines) is a
 real file, not a stub — it defines ~2,600 lines of tables/Zod inline (imports
 `pgTable`/`uuid`/`decimal`/etc. from `drizzle-orm/pg-core`) _and_ re-exports
-**25** of the 28 `shared/schema/*.ts` entries below (`schema.ts:33-57`; the
-three not re-exported are `vehicles.ts`, `compat.ts`, and the directory's own
-`index.ts`), plus 2 more from the **separate** `shared/schemas/` (plural)
-directory — `./schemas/flags` and `./schemas/reserve-approvals`
-(`schema.ts:58-59`, the only two plural-dir references).
+**33** of the 34 `shared/schema/*.ts` entries below (`schema.ts:33-65`; the one
+not re-exported is `vehicles.ts`), plus 2 more from the **separate**
+`shared/schemas/` (plural) directory — `./schemas/flags` and
+`./schemas/reserve-approvals` (`schema.ts:66-67`, the only two plural-dir
+references).
 
 **Import resolution traced (2026-08-04, static + resolver probes)**: the bare
 `@shared/schema` specifier resolves to **`shared/schema.ts`** in _every_
@@ -309,51 +309,50 @@ toolchain — root/server/client tsconfigs (`moduleResolution: bundler`,
 file-before-directory), Vite (`vite.config.ts:411` `@shared` alias), both
 esbuild builds (`build-server.mjs`, `build-vercel-api.mjs` pinned to
 `tsconfig.server.json`), and vitest (`vitest.config.shared.mjs:26-27`). 100 bare
-`@shared/schema` imports repo-wide all hit `schema.ts`. `shared/schema/index.ts`
-(33 lines, re-exports 18 domain modules — a strict subset of `schema.ts`,
-missing `allocation-scenarios`, `reconciliation-runs`,
-`substrate-shadow-reconciliations`, `financial-facts-snapshots`,
-`fund-calculation-modes`, `fund-moic-input-update-requests`,
-`internal-economics`) is **effectively dead**: its sole importer is
-`tests/unit/schema/quarterly-review-schema.test.ts:8` via the explicit
-`@shared/schema/index` subpath, and its header comment claiming "Legacy imports
-still work: `import { funds } from '@shared/schema'`" is misleading — that
-import never reaches it. 88 `@shared/schema/<file>` subpath imports hit
-directory files directly, bypassing both barrels. `vehicles.ts` and `compat.ts`
-are exported by **neither** barrel.
+`@shared/schema` imports repo-wide all hit `schema.ts`. The directory barrel
+`shared/schema/index.ts` that this section used to analyse no longer exists (the
+inventory below has no `index.ts`), so `schema.ts` is the only barrel. 88
+`@shared/schema/<file>` subpath imports hit directory files directly, bypassing
+it. `vehicles.ts` is exported by no barrel.
 
-### `shared/schema/` inventory (28 files)
+### `shared/schema/` inventory (34 files)
 
-| File                                  | Domain                                                            |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `fund.ts`                             | core fund entity                                                  |
-| `portfolio.ts`                        | portfolio entities                                                |
-| `investment-positions.ts`             | investment positions                                              |
-| `investment-rounds.ts`                | investment rounds                                                 |
-| `investment-round-model-overrides.ts` | round model overrides                                             |
-| `investment-ledger.ts`                | financing events/tranches ledger (multi-entity ledger foundation) |
-| `vehicles.ts`                         | investment vehicles                                               |
-| `vehicle-financing-participations.ts` | vehicle financing participations                                  |
-| `shares.ts`                           | cap table / shares                                                |
-| `scenario.ts`                         | scenario core                                                     |
-| `allocation-scenarios.ts`             | allocation scenarios + IC decisions                               |
-| `company-scenario-create-requests.ts` | company scenario creation requests                                |
-| `scenario-case-seed-provenance.ts`    | scenario seed provenance                                          |
-| `current-plans.ts`                    | current plan records                                              |
-| `current-forecast-references.ts`      | current forecast reference pointers                               |
-| `substrate-shadow-reconciliations.ts` | shadow vs substrate reconciliation                                |
-| `fund-calculation-modes.ts`           | fund calculation modes                                            |
-| `fund-moic-input-update-requests.ts`  | MOIC input update requests                                        |
-| `financial-facts-snapshots.ts`        | financial facts snapshots                                         |
-| `financial-observations.ts`           | financial observations                                            |
-| `internal-analysis.ts`                | internal analysis                                                 |
-| `internal-economics.ts`               | internal LP economics                                             |
-| `reconciliation-runs.ts`              | reconciliation run records                                        |
-| `operating-objects.ts`                | operating objects/tasks foundation                                |
-| `lp-reporting-evidence.ts`            | LP reporting evidence                                             |
-| `user.ts`                             | users/auth                                                        |
-| `compat.ts`                           | legacy/back-compat shims                                          |
-| `index.ts`                            | schema barrel/re-exports                                          |
+| File                                     | Domain                                                            |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `fund.ts`                                | core fund entity                                                  |
+| `portfolio.ts`                           | portfolio entities                                                |
+| `investment-positions.ts`                | investment positions                                              |
+| `investment-rounds.ts`                   | investment rounds                                                 |
+| `investment-round-model-overrides.ts`    | round model overrides                                             |
+| `investment-ledger.ts`                   | financing events/tranches ledger (multi-entity ledger foundation) |
+| `vehicles.ts`                            | investment vehicles                                               |
+| `vehicle-financing-participations.ts`    | vehicle financing participations                                  |
+| `shares.ts`                              | cap table / shares                                                |
+| `scenario.ts`                            | scenario core                                                     |
+| `allocation-scenarios.ts`                | allocation scenarios + IC decisions                               |
+| `company-scenario-create-requests.ts`    | company scenario creation requests                                |
+| `scenario-case-seed-provenance.ts`       | scenario seed provenance                                          |
+| `current-plans.ts`                       | current plan records                                              |
+| `current-forecast-references.ts`         | current forecast reference pointers                               |
+| `substrate-shadow-reconciliations.ts`    | shadow vs substrate reconciliation                                |
+| `fund-calculation-modes.ts`              | fund calculation modes                                            |
+| `fund-moic-input-update-requests.ts`     | MOIC input update requests                                        |
+| `financial-facts-snapshots.ts`           | financial facts snapshots                                         |
+| `financial-observations.ts`              | financial observations                                            |
+| `internal-analysis.ts`                   | internal analysis                                                 |
+| `internal-economics.ts`                  | internal LP economics                                             |
+| `reconciliation-runs.ts`                 | reconciliation run records                                        |
+| `operating-objects.ts`                   | operating objects/tasks foundation                                |
+| `lp-reporting-evidence.ts`               | LP reporting evidence                                             |
+| `user.ts`                                | users/auth                                                        |
+| `actuals-draft-revisions.ts`             | actuals draft revisions                                           |
+| `actuals-restatement-commands.ts`        | actuals restatement commands + items                              |
+| `capital-call-notification-outbox.ts`    | capital call notification outbox                                  |
+| `current-forecast-recompute-commands.ts` | current forecast recompute commands                               |
+| `fund-scenario-calculation-commands.ts`  | fund scenario calculation commands                                |
+| `kpi-observations.ts`                    | internal KPI observations (one metric per company per period)     |
+| `portfolio-update-receipts.ts`           | portfolio company update receipts                                 |
+| `release-canary.ts`                      | release canary runs                                               |
 
 **Active-work-area → schema file map** (per `F_1.0.0` plan's Phase 0/1): current
 forecast → `current-forecast-references.ts` + `current-plans.ts`; shadow →
@@ -399,23 +398,28 @@ the modules + `Decimal`) has **zero importers** — dead.
 | `index.ts`                    | Barrel — dead                                                     | 0                            |
 | `examples/standard-fund.ts`   | $100M example-fund fixture (not a schema)                         | 0                            |
 
-### Migration tail — **verified 2026-09-01 in the F_1.10.0 candidate based on `main @ a972a5f7`**
+### Migration tail — F_1.13.0 local candidate, September 9, 2026
 
-Read directly from `migrations/meta/_journal.json` (the authoritative source —
-never infer the tail from a doc's claim or "last file alphabetically"):
+`migrations/meta/_journal.json` remains authoritative. The candidate adds
+journal idx 57, `0056_actuals_draft_revisions`, and idx 58,
+`0057_actuals_restatement_commands`, after the admitted 0055 predecessor. These
+source entries do not prove application to any provider database. Manifest 33
+pins unchanged 0056 SQL; its bounded runner validates complete ordered history,
+exact predecessor catalog, immutable draft wiring, and apply/no-op outcomes.
+Unknown later history remains refused by the older 0050–0055 runner. Manifest 34
+pins the separate 0057 restatement schema.
+`scripts/run-actuals-restatement-journaled-migration.mjs` accepts only the exact
+0056 predecessor or exact completed 0057 history, verifies parent constraints
+and immutable metadata, and emits its own apply/replay result. Its disposable
+apply capability is separate from 0056; neither capability authorizes a
+production target. The shared actuals preflight collects authenticated
+protected-source/CI, exact owner-dispatch, and Neon/database identity evidence.
+Its report separates failed checks, missing live evidence, undefined owner
+criteria, and missing engineering. Recovery, custody, migration isolation, and
+final runtime admission remain incomplete, so production application is blocked.
 
-- **True tail: journal idx 56, tag `0055_current_forecast_recompute_commands`**
-  (57 journal entries). The immediately preceding entries are
-  `0054_operating_decisions_spine` and the G3 `0050`-`0053` sequence.
-- 61 `.sql` files exist vs. 57 journal entries; the 4 extras remain **tracked
-  outside the journal**: `0002_add_organizations.sql`,
-  `0002_multi_tenant_rls_setup.sql` (+ `_ROLLBACK`),
-  `0008_demo_profile_import_rows_rollback.sql` — committed duplicate/rollback
-  files outside the journal; they don't affect the tail.
-
-The next free index is `0056` **as of this refresh only** — always re-read the
-journal at dispatch time before minting a migration; never assume the index from
-a doc's claimed tail (this section has caught drift twice).
+Re-read journal entries and all worktrees before allocating another migration.
+Tracked duplicate/rollback SQL outside the journal does not define its tail.
 
 ## 5. Client Architecture
 
@@ -427,7 +431,7 @@ plain `ls` will show more if untracked files are present) includes:
   (+ `ConstrainedReserveEngine.ts`, `DeterministicReserveEngine.ts`),
   `core/pacing/PacingEngine.ts`, `core/cohorts/CohortEngine.ts`. A sibling
   `client/src/engines/engine-selector.ts` also exists outside `core/`.
-- **Pages** (`client/src/pages/`, 60 entries, `git ls-tree HEAD`) — fund setup
+- **Pages** (`client/src/pages/`, 58 entries, `git ls-tree HEAD`) — fund setup
   wizard steps (`FundBasicsStep`, `InvestmentStrategyStep(New)`,
   `CapitalStructureStep`, `InvestmentRoundsStep(V2)`, `CashflowManagementStep`,
   `DistributionsStep`, `ExitRecyclingStep`, `WaterfallStep`, `ReviewStep`),
@@ -437,7 +441,7 @@ plain `ls` will show more if untracked files are present) includes:
   reconciliation card — GET-latest on load, explicit POST refresh),
   `lp-reporting/`, `portal/`, `v2/` (quarantined — see memory: `v2-quarantine`),
   `login.tsx`, `not-found.tsx`.
-- **Components** (`client/src/components/`, 55 entries, `git ls-tree HEAD`,
+- **Components** (`client/src/components/`, 53 entries, `git ls-tree HEAD`,
   mostly subdirectories): `context-rail/` (**exists** — 4 files:
   `ContextRail.tsx`, `ContextRailTrigger.tsx`, `context-rail-types.ts`,
   `context-rail-view-model.ts`; `F_1.0.0` plan item `#1284`/`#1288` build on
@@ -452,12 +456,11 @@ plain `ls` will show more if untracked files are present) includes:
   `modeling-wizard/steps/WaterfallStep.tsx` + `lps/WaterfallEditor.tsx`; also
   `client/src/pages/WaterfallStep.tsx` and calc code in
   `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
-- **Hooks** (`client/src/hooks/`, 69 entries, `git ls-tree HEAD`): domain hooks
+- **Hooks** (`client/src/hooks/`, 71 entries, `git ls-tree HEAD`): domain hooks
   (`use-fund-data.ts`, `use-capital-allocation.ts`, `use-engine-data.ts`,
-  `use-graduation.ts`, `use-liquidity.ts`, `use-moic.ts`,
-  `useReserveIntelligence.ts`, `useInternalEconomics.ts`,
-  `useQuarterlyReview.ts`, `useVarianceData.ts`, `useWaterfallCalculations.ts`)
-  plus LP/wizard/sensitivity/backtesting hooks.
+  `use-graduation.ts`, `use-moic.ts`, `useReserveIntelligence.ts`,
+  `useInternalEconomics.ts`, `useQuarterlyReview.ts`, `useVarianceData.ts`,
+  `useWaterfallCalculations.ts`) plus LP/wizard/sensitivity/backtesting hooks.
 - **Design tokens**: `client/src/theme/presson.tokens.ts` (only file in
   `theme/`, 5285 bytes) — read `DESIGN.md` before touching.
 
@@ -483,17 +486,19 @@ way new routes need a manifest entry.
 
 ## 6. Test & Quality Tooling
 
-Seven vitest configs at root:
+Nine vitest configs at root:
 
-| Config                            | Purpose                                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `vitest.config.mjs`               | Main unit config — `server` + `client` projects (`npm test`)                              |
-| `vitest.config.int.ts`            | Integration (`npm run test:integration`), globalSetup `tests/integration/global-setup.ts` |
-| `vitest.config.testcontainers.ts` | Docker-backed Postgres+Redis (`npm run test:testcontainers`)                              |
-| `vitest.config.phase0-dbproof.ts` | Single-test DB-migration proof                                                            |
-| `vitest.config.quarantine.ts`     | Flaky-test suite                                                                          |
-| `vitest.config.shared.mjs`        | Non-runnable helper (alias builders), consumed by the others                              |
-| `vitest.config.base.ts`           | Generic template, not wired to any npm script                                             |
+| Config                            | Purpose                                                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `vitest.config.mjs`               | Main unit config — `server` + `client` projects (`npm test`)                                                                        |
+| `vitest.config.int.ts`            | Integration (`npm run test:integration`), globalSetup `tests/integration/global-setup.ts`                                           |
+| `vitest.config.testcontainers.ts` | Docker-backed Postgres+Redis (`npm run test:testcontainers`)                                                                        |
+| `vitest.config.phase0-dbproof.ts` | Single-test DB-migration proof                                                                                                      |
+| `vitest.config.quarantine.ts`     | Flaky-test suite                                                                                                                    |
+| `vitest.config.shared.mjs`        | Non-runnable helper (alias builders), consumed by the others                                                                        |
+| `vitest.config.base.ts`           | Generic template, not wired to any npm script                                                                                       |
+| `vitest.config.neon.ts`           | Real Neon-driver lane (`npm run test:neon`) — `tests/integration/neon-http/**`, owns its own Postgres + HTTP/WS proxy containers    |
+| `vitest.config.request-rls.ts`    | Single-test request-RLS boundary proof (`server/middleware/__tests__/request-rls-boundary.pg.test.ts`), not wired to any npm script |
 
 Key gates (from `package.json` scripts): `npm run check` (→ `baseline:check`,
 compiles client/server/shared **separately**), `npm run lint` (eslint +
@@ -548,6 +553,10 @@ re-deriving repo structure from scratch in future sessions**.
   context window — query or grep them, never bulk-Read.
 
 ## 8. In-Flight Architecture Initiatives
+
+The historical `origin/main @ a3d0a6b6` key below predates F_1.11.0 candidate
+identity. Current candidate SHA and tree are selected only after complete Phase
+P source admission under the activation-train plan.
 
 Grounded from `docs/1-plans/F_1.0.0_current-forecast-activation.plan.md` (keyed
 to `origin/main @ a3d0a6b6`, Codex-Sol-reviewed) — any new plan touching these
@@ -663,6 +672,14 @@ review, `#1287` target naming, `#1299` activation flip.
    `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`,
    `docs/1-plans/F_2.0.5_v2-f3b-atomicity-lineage-eventful-receipt.plan.md`.
 
+   **Local Program B correction (source admitted 2026-09-07 via PR #1486):**
+   realization relief resolves private cash-lot `securityId` before mutation.
+   Deal-by-deal pools use exact JSON tuple keys, preserving delimiter-bearing
+   identities and refusing missing pools. Receipt, serializer, event-engine, and
+   composite move to 2.4.0; deal-by-deal moves to 2.3.0. Whole-fund and
+   normalizer/input versions remain unchanged. ADR-099 and the v3 changed-case
+   manifest describe the compatibility boundary.
+
 7. **Daily Decision Workspace** (F_1.7.0) — S1 lands the source-pinned
    Base/Upside/Downside allocation-scenario flow: a narrowed
    `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
@@ -680,7 +697,45 @@ review, `#1287` target naming, `#1299` activation flip.
    loads via GET only and refreshes via explicit POST with an awaited labeled
    readback. Plan: `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
+8. **Canonical publication control (F_1.13.0 local candidate):**
+   `ACTUALS_PILOT_PUBLISH_ENABLED` independently defaults to disabled. Both
+   server assemblies validate configuration. The publisher checks the selected
+   fund under its existing transaction lock after authenticated receipt replay,
+   before any new canonical write. Draft/preview/readback routes stay
+   registered; proven-absence retry rechecks the guard. This source change is
+   not deployment or enablement proof.
+
+**Fixed-template actuals publication and correction** (F_1.13.0 local
+candidate). One configured pilot fund uses the existing LP imports router for
+draft history, restore, preview, publication, and explicit restatement.
+Organization/fund context and transaction-scoped RLS are revalidated inside the
+shared SERIALIZABLE publication transaction. Authenticated receipt replay, the
+independent publication control, fresh basis/ETag checks, replacement writes,
+snapshot creation, and ambiguous-COMMIT reconciliation use one transaction
+engine.
+
+Policy `1.5.0` / payload `6` records immutable command/item correction lineage
+and a validated effective-row basis. That projection feeds capital, cash flows,
+valuation selection, and company money; old policy `1.4.0` / payload `5` bytes
+and hash semantics remain unchanged. Current-mark corrections preserve company,
+vehicle, date, and mark type. Later ordinary appends retain correction ancestry.
+The persisted-row codec dispatches explicitly by policy. Forecast, reserve,
+current-plan, and construction readers carry all eight `FinancialFactsBasisRef`
+fields and reject unavailable company monetary facts before arithmetic.
+Economics and periodic analysis reject both policies. Valuation marks do not
+establish fund NAV, RVPI, or TVPI. Publication does not accept plans, recompute
+forecasts, trigger organic shadow soak, or activate serving. See ADR-100 and
+`docs/1-plans/F_1.13.0_f1-publication-release-and-restatement.plan.md`.
+
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
+
+**Conditional registration inside an existing manifest router**: the actuals
+pilot adds fund-gated endpoints to `server/routes/lp-reporting/imports.ts`.
+Register them on both existing assemblies, preserve the manifest router ID, and
+extend route policy, database-backed idempotency, CSRF, and mount-parity
+coverage for the conditional endpoints. Do not invent another router solely for
+a conditional path. Validate configuration at startup; an invalid pilot fund ID
+fails closed.
 
 **New API endpoint**: add to `shared/routes/api-route-manifest.ts` → impl entry
 in `server/routes/mount-common-routes.ts` → group-slice on **both** `make_app`

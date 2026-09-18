@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { SchemaReconcileReceiptV1Schema } from '@shared/contracts/schema-reconcile-receipt-v1.contract';
+import {
+  CURRENT_FORECAST_MIGRATION_RANGE,
+  SchemaReconcileCurrentForecastReceiptV1Schema,
+  SchemaReconcileReceiptV1Schema,
+} from '@shared/contracts/schema-reconcile-receipt-v1.contract';
 
 const validReceipt = {
   repository: 'press-on/updog',
@@ -42,6 +46,37 @@ describe('schema-reconcile-receipt-v1 contract', { retry: 0 }, () => {
         ...validReceipt,
         postDecision: 'APPLY-MISSING-DDL',
       }).success
+    ).toBe(false);
+  });
+});
+
+describe('Current Forecast schema reconcile receipt', { retry: 0 }, () => {
+  it('accepts only attempt-one complete bounded-range evidence', () => {
+    const receipt = {
+      repository: 'press-on/updog',
+      workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+      runId: '123',
+      runAttempt: 1,
+      mode: 'apply-current-forecast-0050-0055',
+      sourceSha: 'a'.repeat(40),
+      migrationRange: CURRENT_FORECAST_MIGRATION_RANGE,
+      preState: {
+        state: 'ready',
+        appliedTargetCount: 4,
+        lastAppliedTag: CURRENT_FORECAST_MIGRATION_RANGE[3],
+      },
+      postState: 'complete',
+      applied: true,
+      buildTimeMs: 10,
+      result: 'applied_and_clean',
+    } as const;
+    expect(SchemaReconcileCurrentForecastReceiptV1Schema.parse(receipt)).toEqual(receipt);
+    expect(
+      SchemaReconcileCurrentForecastReceiptV1Schema.safeParse({ ...receipt, runAttempt: 2 }).success
+    ).toBe(false);
+    expect(
+      SchemaReconcileCurrentForecastReceiptV1Schema.safeParse({ ...receipt, applied: false })
+        .success
     ).toBe(false);
   });
 });

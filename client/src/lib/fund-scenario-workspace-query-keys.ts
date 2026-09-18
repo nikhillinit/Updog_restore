@@ -33,3 +33,19 @@ export function fundResultsQueryKey(fundId: string) {
 export function scenarioComparisonQueryKey(fundId: string, scenarioSetId: string) {
   return [...workspaceQueryKey(fundId), 'scenario-sets', scenarioSetId, 'comparison'] as const;
 }
+
+export function capitalScenarioSourceQueryKey(fundId: string) {
+  return [...workspaceQueryKey(fundId), 'capital-plan-v1', 'source'] as const;
+}
+export function capitalScenarioListQueryKey(fundId: string, includeArchived = false) {
+  return [...workspaceQueryKey(fundId), 'capital-plan-v1', 'list', { includeArchived }] as const;
+}
+export function capitalScenarioDetailQueryKey(fundId: string, scenarioSetId: string) {
+  return [...workspaceQueryKey(fundId), 'capital-plan-v1', 'detail', scenarioSetId] as const;
+}
+export function capitalScenarioResultsQueryKey(fundId: string, scenarioSetId: string) {
+  return [...workspaceQueryKey(fundId), 'capital-plan-v1', 'results', scenarioSetId] as const;
+}
+export function capitalScenarioComparisonQueryKey(fundId: string, scenarioSetId: string) {
+  return [...workspaceQueryKey(fundId), 'capital-plan-v1', 'comparison', scenarioSetId] as const;
+}
