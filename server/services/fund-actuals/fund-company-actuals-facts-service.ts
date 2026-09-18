@@ -622,88 +622,91 @@ export async function buildFundCompanyActualsFacts(
     );
   }
 
-  const companies = await database
-    .select({
-      id: portfolioCompanies.id,
-      fundId: portfolioCompanies.fundId,
-      name: portfolioCompanies.name,
-    })
-    .from(portfolioCompanies)
-    .where(eq(portfolioCompanies.fundId, input.fundId))
-    .orderBy(asc(portfolioCompanies.id));
-  const parentInvestments = await database
-    .select({
-      id: investments.id,
-      fundId: investments.fundId,
-      companyId: investments.companyId,
-    })
-    .from(investments)
-    .where(eq(investments.fundId, input.fundId))
-    .orderBy(asc(investments.id));
-  const allRounds = await database
-    .select({
-      id: investmentRounds.id,
-      fundId: investmentRounds.fundId,
-      investmentId: investmentRounds.investmentId,
-      roundDate: investmentRounds.roundDate,
-      createdAt: investmentRounds.createdAt,
-      securityType: investmentRounds.securityType,
-      currency: investmentRounds.currency,
-      investmentAmount: investmentRounds.investmentAmount,
-      preMoneyValuation: investmentRounds.preMoneyValuation,
-      roundSize: investmentRounds.roundSize,
-      supersedesRoundId: investmentRounds.supersedesRoundId,
-    })
-    .from(investmentRounds)
-    .where(eq(investmentRounds.fundId, input.fundId))
-    .orderBy(
-      asc(investmentRounds.investmentId),
-      asc(investmentRounds.roundDate),
-      asc(investmentRounds.createdAt),
-      asc(investmentRounds.id)
-    );
-  const activeOverrides = await database
-    .select({
-      id: investmentRoundModelOverrides.id,
-      fundId: investmentRoundModelOverrides.fundId,
-      roundId: investmentRoundModelOverrides.roundId,
-      overrideRole: investmentRoundModelOverrides.overrideRole,
-      supersedesOverrideId: investmentRoundModelOverrides.supersedesOverrideId,
-      createdAt: investmentRoundModelOverrides.createdAt,
-    })
-    .from(investmentRoundModelOverrides)
-    .where(eq(investmentRoundModelOverrides.fundId, input.fundId))
-    .orderBy(
-      asc(investmentRoundModelOverrides.roundId),
-      asc(investmentRoundModelOverrides.createdAt),
-      asc(investmentRoundModelOverrides.id)
-    );
-  const planningMarks = await database
-    .select({
-      id: valuationMarks.id,
-      fundId: valuationMarks.fundId,
-      companyId: valuationMarks.companyId,
-      markDate: valuationMarks.markDate,
-      fairValue: valuationMarks.fairValue,
-      currency: valuationMarks.currency,
-      status: valuationMarks.status,
-    })
-    .from(valuationMarks)
-    .where(
-      and(
-        eq(valuationMarks.fundId, input.fundId),
-        inArray(valuationMarks.importedFrom, [...planningMarkSources]),
-        eq(valuationMarks.markPurpose, 'planning_company_fmv'),
-        inArray(valuationMarks.status, ['approved', 'locked']),
-        ...(input.knowledgeCutoff === undefined
-          ? []
-          : [
-              lte(valuationMarks.createdAt, input.knowledgeCutoff),
-              sql`COALESCE(${valuationMarks.approvedAt}, ${valuationMarks.lockedAt}, ${valuationMarks.createdAt}) <= ${input.knowledgeCutoff}`,
-            ])
-      )
-    )
-    .orderBy(asc(valuationMarks.companyId), asc(valuationMarks.markDate), asc(valuationMarks.id));
+  const [companies, parentInvestments, allRounds, activeOverrides, planningMarks] =
+    await Promise.all([
+      database
+        .select({
+          id: portfolioCompanies.id,
+          fundId: portfolioCompanies.fundId,
+          name: portfolioCompanies.name,
+        })
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.fundId, input.fundId))
+        .orderBy(asc(portfolioCompanies.id)),
+      database
+        .select({
+          id: investments.id,
+          fundId: investments.fundId,
+          companyId: investments.companyId,
+        })
+        .from(investments)
+        .where(eq(investments.fundId, input.fundId))
+        .orderBy(asc(investments.id)),
+      database
+        .select({
+          id: investmentRounds.id,
+          fundId: investmentRounds.fundId,
+          investmentId: investmentRounds.investmentId,
+          roundDate: investmentRounds.roundDate,
+          createdAt: investmentRounds.createdAt,
+          securityType: investmentRounds.securityType,
+          currency: investmentRounds.currency,
+          investmentAmount: investmentRounds.investmentAmount,
+          preMoneyValuation: investmentRounds.preMoneyValuation,
+          roundSize: investmentRounds.roundSize,
+          supersedesRoundId: investmentRounds.supersedesRoundId,
+        })
+        .from(investmentRounds)
+        .where(eq(investmentRounds.fundId, input.fundId))
+        .orderBy(
+          asc(investmentRounds.investmentId),
+          asc(investmentRounds.roundDate),
+          asc(investmentRounds.createdAt),
+          asc(investmentRounds.id)
+        ),
+      database
+        .select({
+          id: investmentRoundModelOverrides.id,
+          fundId: investmentRoundModelOverrides.fundId,
+          roundId: investmentRoundModelOverrides.roundId,
+          overrideRole: investmentRoundModelOverrides.overrideRole,
+          supersedesOverrideId: investmentRoundModelOverrides.supersedesOverrideId,
+          createdAt: investmentRoundModelOverrides.createdAt,
+        })
+        .from(investmentRoundModelOverrides)
+        .where(eq(investmentRoundModelOverrides.fundId, input.fundId))
+        .orderBy(
+          asc(investmentRoundModelOverrides.roundId),
+          asc(investmentRoundModelOverrides.createdAt),
+          asc(investmentRoundModelOverrides.id)
+        ),
+      database
+        .select({
+          id: valuationMarks.id,
+          fundId: valuationMarks.fundId,
+          companyId: valuationMarks.companyId,
+          markDate: valuationMarks.markDate,
+          fairValue: valuationMarks.fairValue,
+          currency: valuationMarks.currency,
+          status: valuationMarks.status,
+        })
+        .from(valuationMarks)
+        .where(
+          and(
+            eq(valuationMarks.fundId, input.fundId),
+            inArray(valuationMarks.importedFrom, [...planningMarkSources]),
+            eq(valuationMarks.markPurpose, 'planning_company_fmv'),
+            inArray(valuationMarks.status, ['approved', 'locked']),
+            ...(input.knowledgeCutoff === undefined
+              ? []
+              : [
+                  lte(valuationMarks.createdAt, input.knowledgeCutoff),
+                  sql`COALESCE(${valuationMarks.approvedAt}, ${valuationMarks.lockedAt}, ${valuationMarks.createdAt}) <= ${input.knowledgeCutoff}`,
+                ])
+          )
+        )
+        .orderBy(asc(valuationMarks.companyId), asc(valuationMarks.markDate), asc(valuationMarks.id)),
+    ]);
 
   return buildFundCompanyActualsFactsFromRows({
     fundId: input.fundId,

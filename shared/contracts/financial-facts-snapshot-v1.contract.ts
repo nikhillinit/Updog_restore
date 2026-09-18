@@ -716,7 +716,6 @@ export const FinancialFactsBasisRefV1Schema = FinancialFactsBasisRefSchema.exten
 export const FinancialFactsBasisRefV2Schema = FinancialFactsBasisRefSchema.extend({
   policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_5_0),
 }).strict();
-
 export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
 export type FinancialFactsPayloadV2 = z.infer<typeof FinancialFactsPayloadV2Schema>;
@@ -826,7 +825,6 @@ export const FinancialFactsSnapshotInputHashPreimageV6Schema =
 export type FinancialFactsSnapshotInputHashPreimageV6 = z.infer<
   typeof FinancialFactsSnapshotInputHashPreimageV6Schema
 >;
-
 export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discriminatedUnion(
   'policyVersion',
   [
@@ -981,7 +979,6 @@ export const FinancialFactsSnapshotV6Schema = FinancialFactsSnapshotV5Schema.ext
   payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_6),
   payload: FinancialFactsPayloadV6Schema,
 }).strict();
-
 export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
