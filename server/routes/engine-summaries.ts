@@ -26,7 +26,7 @@ const __dirname = dirname(__filename);
 interface PortfolioFixtureCompany {
   name?: string;
   invested?: number;
-  ownership?: number;
+  ownership?: number | null;
   stage?: string;
   sector?: string;
 }
