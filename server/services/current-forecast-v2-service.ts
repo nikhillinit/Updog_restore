@@ -326,7 +326,7 @@ export async function runCurrentForecastV2WithReceipt(
   return { result, fundSnapshotId: inserted.id };
 }
 
-function currentForecastReceiptPredicate(input: {
+export function currentForecastReceiptPredicate(input: {
   fundId: number;
   financialFactsSnapshotId: number;
   currentPlanVersionId: number;
@@ -335,6 +335,7 @@ function currentForecastReceiptPredicate(input: {
   return and(
     eq(fundSnapshots.fundId, input.fundId),
     eq(fundSnapshots.type, 'CURRENT_FORECAST_V2'),
+    eq(fundSnapshots.calcVersion, CURRENT_FORECAST_V2_CALC_VERSION),
     sql`${fundSnapshots.payload}->>'financialFactsSnapshotId' = ${String(input.financialFactsSnapshotId)}`,
     sql`${fundSnapshots.payload}->>'currentPlanVersionId' = ${String(input.currentPlanVersionId)}`,
     eq(fundSnapshots.snapshotTime, new Date(input.clock))

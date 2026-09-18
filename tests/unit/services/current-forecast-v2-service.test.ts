@@ -4,6 +4,7 @@ import type { db } from '../../../server/db';
 import {
   CURRENT_FORECAST_V2_CALC_VERSION,
   CurrentForecastV2ServiceError,
+  currentForecastReceiptPredicate,
   getOrCreateCurrentForecastV2WithReceipt,
   runCurrentForecastV2,
   runCurrentForecastV2WithReceipt,
@@ -618,11 +619,31 @@ function factsRowV5(): FactsRow {
     ],
     capitalActuals: {
       ledgerCoverage: 'complete',
-      committedCapital: { value: '100.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      committedCapital: {
+        value: '100.000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture'],
+      },
       calledCapitalIssued: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
-      paidInCapital: { value: '50.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
-      deployedCapital: { value: '40.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
-      initialDeployedCapital: { value: '40.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      paidInCapital: {
+        value: '50.000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture'],
+      },
+      deployedCapital: {
+        value: '40.000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture'],
+      },
+      initialDeployedCapital: {
+        value: '40.000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture'],
+      },
       followOnDeployedCapital: unavailableMoney(),
       secondaryDeployedCapital: unavailableMoney(),
       otherDeployedCapital: unavailableMoney(),
@@ -634,7 +655,12 @@ function factsRowV5(): FactsRow {
       netCalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
       uncalledCapital: unavailableMoney('CALL_NOTICE_NOT_IMPORTED'),
       availableRecallCapacity: unavailableMoney('RECALL_LIFECYCLE_UNAVAILABLE'),
-      portfolioFmv: { value: '55.000000', availability: 'available', reasonCodes: [], sourceRefs: ['fixture'] },
+      portfolioFmv: {
+        value: '55.000000',
+        availability: 'available',
+        reasonCodes: [],
+        sourceRefs: ['fixture'],
+      },
       fundCash: unavailableMoney(),
       otherAssets: unavailableMoney(),
       liabilities: unavailableMoney(),
@@ -692,3 +718,19 @@ function factsRowV5(): FactsRow {
     consumerEvaluations: [{ consumer: 'forecast', status: 'accepted', reasons: [] }],
   };
 }
+
+describe('currentForecastReceiptPredicate', () => {
+  it('includes calcVersion in the predicate SQL and binds the version as a parameter', () => {
+    const { PgDialect } = require('drizzle-orm/pg-core');
+    const predicate = currentForecastReceiptPredicate({
+      fundId: 1,
+      financialFactsSnapshotId: 42,
+      currentPlanVersionId: 7,
+      clock: '2026-01-01T00:00:00.000Z',
+    });
+    const dialect = new PgDialect();
+    const { sql: sqlString, params } = dialect.sqlToQuery(predicate!);
+    expect(sqlString).toContain('"fund_snapshots"."calc_version"');
+    expect(params).toContain(CURRENT_FORECAST_V2_CALC_VERSION);
+  });
+});
