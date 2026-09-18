@@ -53,6 +53,10 @@ interface CohortSummaryPayload {
   companies: CohortSummaryCompany[];
 }
 
+const DEFAULT_COHORT_COMPANY_TEMPLATES: readonly PortfolioFixtureCompany[] = [
+  { name: 'Company', invested: 500000, ownership: null, stage: 'Series A', sector: 'Tech' },
+];
+
 function loadPortfolioFixtureCompanies(): PortfolioFixtureCompany[] {
   const portfolioPath = join(__dirname, '../../tests/fixtures/portfolio.json');
   const rawData: unknown = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
@@ -85,8 +89,10 @@ function buildCohortSummary(
   cohortSize: number
 ): CohortSummaryPayload {
   const fixtureCompanies = loadPortfolioFixtureCompanies();
+  const templates =
+    fixtureCompanies.length > 0 ? fixtureCompanies : DEFAULT_COHORT_COMPANY_TEMPLATES;
   const companies = Array.from({ length: cohortSize }, (_value, index) => {
-    const template = fixtureCompanies[index % fixtureCompanies.length] ?? {};
+    const template = templates[index % templates.length] ?? {};
     return {
       id: index + 1,
       name:
