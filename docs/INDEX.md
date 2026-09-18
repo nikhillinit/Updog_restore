@@ -297,7 +297,6 @@ parity work
 | [notebooklm-sources/exit-recycling.md](notebooklm-sources/exit-recycling.md)         | Exit recycling rules                    | Recycled capital handling        |
 | [notebooklm-sources/reserves/](notebooklm-sources/reserves/)                         | ReserveEngine docs (4 files, ~23 pages) | Reserve allocation strategies    |
 | [notebooklm-sources/pacing/](notebooklm-sources/pacing/)                             | PacingEngine docs (4 files, ~26 pages)  | Investment pacing patterns       |
-| [notebooklm-sources/cohorts/](notebooklm-sources/cohorts/)                           | CohortEngine docs (3 files, ~69 pages)  | Cohort-based analytics           |
 | [notebooklm-sources/monte-carlo/](notebooklm-sources/monte-carlo/)                   | Monte Carlo docs (4 files, ~120 pages)  | Simulation engine                |
 
 **Quality Metrics**:

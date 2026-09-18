@@ -246,8 +246,6 @@ npm run docs:routing:check
   files, ~23 pages)
 - [/docs/notebooklm-sources/pacing/](/docs/notebooklm-sources/pacing/) (4 files,
   ~26 pages)
-- [/docs/notebooklm-sources/cohorts/](/docs/notebooklm-sources/cohorts/) (3
-  files, ~69 pages)
 - [/docs/notebooklm-sources/monte-carlo/](/docs/notebooklm-sources/monte-carlo/)
   (4 files, ~120 pages)
 
