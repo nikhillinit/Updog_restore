@@ -15,6 +15,7 @@ import type {
 } from '@shared/types';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
+import { getConfig } from '../config/index.js';
 
 const router = Router();
 const log = logger.child({ route: 'engine-summaries' });
@@ -23,6 +24,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 interface PortfolioFixtureCompany {
+  name?: string;
   invested?: number;
   ownership?: number;
   stage?: string;
@@ -33,7 +35,25 @@ interface PortfolioFixtureData {
   companies: PortfolioFixtureCompany[];
 }
 
-function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
+interface CohortSummaryCompany {
+  id: number;
+  name: string;
+  invested: number;
+  ownership: number | null;
+  stage: string;
+  sector: string;
+  cohortVintageYear: number;
+}
+
+interface CohortSummaryPayload {
+  cohortId: string;
+  fundId: number;
+  vintageYear: number;
+  cohortSize: number;
+  companies: CohortSummaryCompany[];
+}
+
+function loadPortfolioFixtureCompanies(): PortfolioFixtureCompany[] {
   const portfolioPath = join(__dirname, '../../tests/fixtures/portfolio.json');
   const rawData: unknown = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
 
@@ -46,13 +66,48 @@ function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
     throw new Error('Invalid portfolio fixture format');
   }
 
-  return (rawData as PortfolioFixtureData).companies.map((company, index) => ({
+  return (rawData as PortfolioFixtureData).companies;
+}
+
+function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
+  return loadPortfolioFixtureCompanies().map((company, index) => ({
     id: index + 1,
     invested: typeof company.invested === 'number' ? company.invested : 500000,
     ownership: typeof company.ownership === 'number' ? company.ownership : null,
     stage: typeof company.stage === 'string' ? company.stage : 'Series A',
     sector: typeof company.sector === 'string' ? company.sector : 'Tech',
   }));
+}
+
+function buildCohortSummary(
+  fundId: number,
+  vintageYear: number,
+  cohortSize: number
+): CohortSummaryPayload {
+  const fixtureCompanies = loadPortfolioFixtureCompanies();
+  const companies = Array.from({ length: cohortSize }, (_value, index) => {
+    const template = fixtureCompanies[index % fixtureCompanies.length] ?? {};
+    return {
+      id: index + 1,
+      name:
+        typeof template.name === 'string' && template.name.length > 0
+          ? `${template.name} ${index + 1}`
+          : `Company ${index + 1}`,
+      invested: typeof template.invested === 'number' ? template.invested : 500000,
+      ownership: typeof template.ownership === 'number' ? template.ownership : null,
+      stage: typeof template.stage === 'string' ? template.stage : 'Series A',
+      sector: typeof template.sector === 'string' ? template.sector : 'Tech',
+      cohortVintageYear: vintageYear,
+    };
+  });
+
+  return {
+    cohortId: `cohort-${fundId}-${vintageYear}`,
+    fundId,
+    vintageYear,
+    cohortSize,
+    companies,
+  };
 }
 
 // NOT fund-scoped (Slice 1 verdict). loadReserveFixturePortfolio() reads a static
@@ -147,6 +202,84 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
       error: 'Pacing engine processing failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       details: { query: req.query as Record<string, unknown> },
+    };
+    return res.status(500).json(apiError);
+  }
+});
+
+// NOT fund-scoped. This compatibility route reads only static fixture data and
+// request-local query params, then returns deterministic scaffold output. No
+// stored per-fund data is read, so there is no cross-fund disclosure and the
+// DEFAULT_FUND_ID fallback is safe. If this route is ever wired to real per-fund
+// data, guard it with requireProvidedFundScopeFrom('query') and drop the default.
+router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
+  try {
+    const fundIdQuery = req.query['fundId'];
+    const vintageYearQuery = req.query['vintageYear'];
+    const cohortSizeQuery = req.query['cohortSize'];
+
+    let fundId = getConfig().DEFAULT_FUND_ID;
+    let vintageYear = new Date().getFullYear() - 1;
+    let cohortSize = 10;
+
+    if (fundIdQuery) {
+      const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+      if (parsedId <= 0) {
+        const error: ApiError = {
+          error: 'Invalid fund ID',
+          message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
+        };
+        return res.status(400).json(error);
+      }
+      fundId = parsedId;
+    }
+
+    if (vintageYearQuery) {
+      const parsedYear = toNumber(vintageYearQuery as string, 'vintage year');
+      if (parsedYear < 2000 || parsedYear > 2030) {
+        const error: ApiError = {
+          error: 'Invalid vintage year',
+          message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`,
+        };
+        return res.status(400).json(error);
+      }
+      vintageYear = parsedYear;
+    }
+
+    if (cohortSizeQuery) {
+      const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
+      if (parsedSize <= 0 || parsedSize > 1000) {
+        const error: ApiError = {
+          error: 'Invalid cohort size',
+          message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`,
+        };
+        return res.status(400).json(error);
+      }
+      cohortSize = parsedSize;
+    }
+
+    const summary = buildCohortSummary(fundId, vintageYear, cohortSize);
+    return res.json(summary);
+  } catch (error) {
+    if (handleNumberParseError(error, res, 'Invalid cohort query')) {
+      return;
+    }
+
+    log.error(
+      {
+        err: error,
+        query: req.query,
+      },
+      'Cohort summary request failed'
+    );
+
+    const apiError: ApiError = {
+      error: 'Cohort analysis failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      details: {
+        query: req.query as Record<string, unknown>,
+        note: 'This is a scaffolded endpoint for future cohort analysis features',
+      },
     };
     return res.status(500).json(apiError);
   }
