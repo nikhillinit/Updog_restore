@@ -99,4 +99,23 @@ describe('engine summaries cohort route contract', () => {
       },
     ]);
   });
+
+  it('defaults fundId when omitted', async () => {
+    const router = await loadRouter();
+
+    const response = await request(makeApp(router))
+      .get('/cohorts/analysis?vintageYear=2025&cohortSize=1')
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      cohortId: 'cohort-1-2025',
+      fundId: 1,
+      vintageYear: 2025,
+      cohortSize: 1,
+    });
+    expect(response.body.companies).toHaveLength(1);
+    expect(response.body.companies[0]).toMatchObject({
+      cohortVintageYear: 2025,
+    });
+  });
 });
