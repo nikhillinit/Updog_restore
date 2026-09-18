@@ -27,6 +27,9 @@ export const ReserveCompanyInputProvenanceSchema = z
   .strict();
 
 export const ReserveCompanyInputWithProvenanceSchema = ReserveCompanyInputSchema.extend({
+  // Empty only when provenance.stage.status === 'unavailable'; rows are excluded
+  // from the engine-facing portfolio by toLegacyReservePortfolio.
+  stage: z.string(),
   provenance: ReserveCompanyInputProvenanceSchema,
 }).strict();
 

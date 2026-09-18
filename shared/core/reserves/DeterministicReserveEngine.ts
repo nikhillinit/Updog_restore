@@ -523,7 +523,13 @@ export class DeterministicReserveEngine {
   ): Promise<Decimal> {
     const stageStrategy = this.findStageStrategy(company.currentStage, stageStrategies);
     if (!stageStrategy) {
-      return new Decimal(company.currentMOIC || 1);
+      if (company.currentMOIC != null) {
+        return new Decimal(company.currentMOIC);
+      }
+      if (company.totalInvested <= 0) {
+        return new Decimal(0);
+      }
+      return this.calculateCurrentMOIC(company);
     }
 
     // Find graduation path
@@ -782,7 +788,7 @@ export class DeterministicReserveEngine {
     }
 
     // Adjust for performance
-    if (company.currentMOIC && company.currentMOIC < 1) {
+    if (company.currentMOIC != null && company.currentMOIC < 1) {
       multiplier = multiplier.mul(0.8);
     }
 

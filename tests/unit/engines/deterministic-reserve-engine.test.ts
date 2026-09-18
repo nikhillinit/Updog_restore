@@ -14,6 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { DeterministicReserveEngine } from '@/core/reserves/DeterministicReserveEngine';
+import { ReserveCalculationError } from '@shared/schemas/reserves-schemas';
 import type {
   ReserveAllocationInput,
   PortfolioCompany,
@@ -118,6 +119,9 @@ const createAllocationInput = (
   enableRiskAdjustment: true,
   ...overrides,
 });
+
+const NO_STRATEGY_STAGE = 'series_b';
+const LOW_THRESHOLD = 1_000;
 
 // =============================================================================
 // INITIALIZATION TESTS
@@ -248,6 +252,70 @@ describe('DeterministicReserveEngine - MOIC Calculations', () => {
 
     expect(result.allocations.length).toBeGreaterThan(0);
     expect(result.allocations.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('MOIC handling in DeterministicReserveEngine', () => {
+  it('preserves an explicit 0x MOIC write-off instead of coercing it to 1x', async () => {
+    const engine = new DeterministicReserveEngine();
+    const writeOff = createCompany({
+      id: '11111111-1111-4111-8111-111111111111',
+      currentStage: NO_STRATEGY_STAGE,
+      totalInvested: 1_000_000,
+      currentValuation: 1,
+      currentMOIC: 0,
+    });
+
+    const result = await engine.calculateOptimalReserveAllocation(
+      createAllocationInput({
+        portfolio: [writeOff],
+        stageStrategies: [],
+        minAllocationThreshold: LOW_THRESHOLD,
+      })
+    );
+
+    const allocation = result.allocations.find((entry) => entry.companyId === writeOff.id);
+    expect(allocation?.expectedMOIC ?? 0).toBe(0);
+  });
+
+  it('derives MOIC from fundamentals when currentMOIC is undefined', async () => {
+    const engine = new DeterministicReserveEngine();
+    const company = createCompany({
+      id: '22222222-2222-4222-8222-222222222222',
+      currentStage: NO_STRATEGY_STAGE,
+      totalInvested: 2_500_000,
+      currentValuation: 5_000_000,
+      currentMOIC: undefined,
+    });
+
+    const result = await engine.calculateOptimalReserveAllocation(
+      createAllocationInput({
+        portfolio: [company],
+        stageStrategies: [],
+        minAllocationThreshold: LOW_THRESHOLD,
+      })
+    );
+
+    const allocation = result.allocations.find((entry) => entry.companyId === company.id);
+    expect(allocation).toBeDefined();
+    expect(allocation!.expectedMOIC).toBeCloseTo(2.0, 6);
+  });
+
+  it('rejects zero totalInvested instead of producing an Infinity 1x placeholder', async () => {
+    const engine = new DeterministicReserveEngine();
+    const company = createCompany({
+      id: '33333333-3333-4333-8333-333333333333',
+      currentStage: NO_STRATEGY_STAGE,
+      totalInvested: 0,
+      currentValuation: 1_000_000,
+      currentMOIC: undefined,
+    });
+
+    await expect(
+      engine.calculateOptimalReserveAllocation(
+        createAllocationInput({ portfolio: [company], stageStrategies: [] })
+      )
+    ).rejects.toBeInstanceOf(ReserveCalculationError);
   });
 });
 
