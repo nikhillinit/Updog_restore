@@ -25,17 +25,19 @@ export const PortfolioOverviewCompanySchema = z
     stage: z.string(),
     status: z.string(),
     invested: DecimalStringSchema,
-    currentValue: DecimalStringSchema,
-    moic: DecimalStringSchema,
+    currentValue: DecimalStringSchema.nullable(),
+    moic: DecimalStringSchema.nullable(),
   })
   .strict();
 
 export const PortfolioOverviewMetricsSchema = z
   .object({
     totalInvested: DecimalStringSchema,
-    totalValue: DecimalStringSchema,
-    averageMOIC: DecimalStringSchema,
-    returnPct: DecimalStringSchema,
+    totalValue: DecimalStringSchema.nullable(),
+    averageMOIC: DecimalStringSchema.nullable(),
+    returnPct: DecimalStringSchema.nullable(),
+    valuedCount: z.number().int().nonnegative(),
+    totalCount: z.number().int().nonnegative(),
     totalCompanies: z.number().int().nonnegative(),
     activeCompanies: z.number().int().nonnegative(),
     exitedCompanies: z.number().int().nonnegative(),

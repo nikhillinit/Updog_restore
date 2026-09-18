@@ -189,6 +189,8 @@ const FIDELITY_PORTFOLIO_OVERVIEW = PortfolioOverviewResponseV1Schema.parse({
     totalCompanies: FIDELITY_COMPANIES.length,
     activeCompanies: FIDELITY_COMPANIES.length,
     exitedCompanies: 0,
+    valuedCount: FIDELITY_COMPANIES.length,
+    totalCount: FIDELITY_COMPANIES.length,
   },
   companies: FIDELITY_COMPANIES.map((company) => ({
     id: company.id,

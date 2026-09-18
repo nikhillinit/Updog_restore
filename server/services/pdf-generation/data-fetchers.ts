@@ -36,11 +36,13 @@ function mapCompanyToPortfolioEntry(
 async function resolveMetricTriplet(
   perf: Awaited<ReturnType<typeof getFundPerformance>>,
   fundId: number
-): Promise<Pick<ReportMetrics, 'irr' | 'tvpi' | 'dpi'>> {
+): Promise<Pick<ReportMetrics, 'irr' | 'tvpi' | 'dpi'> | null> {
   if (perf) {
     return { irr: perf.irr, tvpi: perf.tvpi, dpi: perf.dpi };
   }
   const fallback = await calculateFundMetrics(fundId);
+  if (fallback.tvpi == null) return null;
+
   return { irr: fallback.irr, tvpi: fallback.tvpi, dpi: fallback.dpi };
 }
 
@@ -154,6 +156,7 @@ export async function prefetchReportMetrics(
     .map(mapCompanyToPortfolioEntry);
 
   const triplet = await resolveMetricTriplet(perf, fundId);
+  if (!triplet) return null;
 
   return { ...triplet, portfolioCompanies };
 }

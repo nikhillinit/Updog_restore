@@ -70,14 +70,14 @@ export interface BreakdownGroup {
   companyCount: number;
   /** Total capital deployed to this group */
   totalDeployed: number;
-  /** Current value of holdings in this group */
-  currentValue: number;
-  /** Multiple on Invested Capital */
-  moic: number;
+  /** Current value of holdings in this group (null when any company lacks a valuation) */
+  currentValue: number | null;
+  /** Multiple on Invested Capital (null when currentValue is null) */
+  moic: number | null;
   /** Internal Rate of Return (null when truthful IRR is unavailable) */
   irr: number | null;
-  /** Unrealized gain (currentValue - totalDeployed) */
-  unrealizedGain: number;
+  /** Unrealized gain (null when currentValue is null) */
+  unrealizedGain: number | null;
   /** Percentage of total portfolio deployment */
   percentOfPortfolio: number;
 }
@@ -85,8 +85,8 @@ export interface BreakdownGroup {
 export interface BreakdownTotals {
   companyCount: number;
   totalDeployed: number;
-  currentValue: number;
-  averageMOIC: number;
+  currentValue: number | null;
+  averageMOIC: number | null;
   portfolioIRR: number | null;
 }
 

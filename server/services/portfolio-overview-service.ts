@@ -63,7 +63,12 @@ export async function getPortfolioOverview(
       currentValuation: company.currentValuation,
       ownershipCurrentPct: company.ownershipCurrentPct,
     });
-    const moic = invested.lte(0) ? new Decimal(0) : currentValue.dividedBy(invested);
+    const moic =
+      currentValue == null
+        ? null
+        : invested.lte(0)
+          ? new Decimal(0)
+          : currentValue.dividedBy(invested);
     return { company, invested, currentValue, moic };
   });
 
@@ -75,19 +80,30 @@ export async function getPortfolioOverview(
       stage: company.currentStage ?? company.stage,
       status: company.status,
       invested: invested.toFixed(),
-      currentValue: currentValue.toFixed(),
-      moic: moic.toFixed(),
+      currentValue: currentValue != null ? currentValue.toFixed() : null,
+      moic: moic != null ? moic.toFixed() : null,
     })
   );
 
   const companyCount = computed.length;
   const totalInvested = sum(computed.map((entry) => entry.invested));
-  const totalValue = sum(computed.map((entry) => entry.currentValue));
-  const sumMoic = sum(computed.map((entry) => entry.moic));
-  const averageMOIC = companyCount > 0 ? sumMoic.dividedBy(companyCount) : new Decimal(0);
-  const returnPct = totalInvested.lte(0)
-    ? new Decimal(0)
-    : totalValue.minus(totalInvested).dividedBy(totalInvested).times(100);
+  const valuedCount = computed.filter((entry) => entry.currentValue != null).length;
+  const anyNullValue = valuedCount < companyCount;
+  const totalValue = anyNullValue
+    ? null
+    : sum(computed.map((entry) => entry.currentValue as Decimal));
+  const averageMOIC =
+    anyNullValue || companyCount === 0
+      ? anyNullValue
+        ? null
+        : new Decimal(0)
+      : sum(computed.map((entry) => entry.moic as Decimal)).dividedBy(companyCount);
+  const returnPct =
+    totalValue == null
+      ? null
+      : totalInvested.lte(0)
+        ? new Decimal(0)
+        : totalValue.minus(totalInvested).dividedBy(totalInvested).times(100);
   const exitedCompanies = companies.filter((company) => isExitedStatus(company.status)).length;
   const activeCompanies = companyCount - exitedCompanies;
 
@@ -135,12 +151,14 @@ export async function getPortfolioOverview(
     sourceRecordCounts: { companies: companyCount },
     metrics: {
       totalInvested: totalInvested.toFixed(),
-      totalValue: totalValue.toFixed(),
-      averageMOIC: averageMOIC.toFixed(),
-      returnPct: returnPct.toFixed(),
+      totalValue: totalValue != null ? totalValue.toFixed() : null,
+      averageMOIC: averageMOIC != null ? averageMOIC.toFixed() : null,
+      returnPct: returnPct != null ? returnPct.toFixed() : null,
       totalCompanies: companyCount,
       activeCompanies,
       exitedCompanies,
+      valuedCount,
+      totalCount: companyCount,
     },
     companies: rows,
     meta,

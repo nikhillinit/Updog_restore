@@ -168,8 +168,13 @@ describe('getPortfolioOverview', () => {
     const result = await getPortfolioOverview(10, { now: NOW });
 
     expect(result.companies[0]?.moic).toBe('0');
-    expect(result.companies[1]?.moic).toBe('0');
-    expect(result.companies[1]?.currentValue).toBe('0');
+    expect(result.companies[1]?.moic).toBeNull();
+    expect(result.companies[1]?.currentValue).toBeNull();
+    expect(result.metrics.totalValue).toBeNull();
+    expect(result.metrics.averageMOIC).toBeNull();
+    expect(result.metrics.returnPct).toBeNull();
+    expect(result.metrics.valuedCount).toBe(1);
+    expect(result.metrics.totalCount).toBe(2);
   });
 
   it('handles an empty fund without dividing by zero', async () => {

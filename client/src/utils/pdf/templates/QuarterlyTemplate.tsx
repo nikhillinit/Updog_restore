@@ -175,7 +175,7 @@ export const QuarterlyTemplate: React.FC<QuarterlyTemplateProps> = ({
 
   // Calculate totals
   const totalInvested = portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
-  const totalValue = portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
+  const totalValue = portfolioCompanies.reduce((sum, co) => sum + (co.value ?? 0), 0);
 
   return (
     <PdfDocument

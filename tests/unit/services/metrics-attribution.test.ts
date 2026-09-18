@@ -346,6 +346,29 @@ describe('ensureAttributedFundMetricsForCalcRun', () => {
     expect(insertedValues.totalValue).toBe('500000.00');
   });
 
+  it('returns null and skips persistence when total value is unavailable', async () => {
+    mockDb.query.calcRuns.findFirst.mockResolvedValue({
+      id: 80,
+      fundId: 4,
+      configId: 2,
+      configVersion: 1,
+      completedAt: new Date(),
+    });
+    mockDb.query.fundMetrics.findFirst.mockResolvedValue(null);
+    mockCalculateFundMetrics.mockResolvedValue({
+      totalValue: null,
+      irr: null,
+      moic: null,
+      dpi: 0,
+      tvpi: null,
+    });
+
+    const result = await ensureAttributedFundMetricsForCalcRun(80);
+
+    expect(result).toBeNull();
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
   it('returns the concurrently inserted row on fund_metrics_run_unique violation', async () => {
     const completedAt = new Date('2025-06-15T10:00:00Z');
     const concurrentRow = {

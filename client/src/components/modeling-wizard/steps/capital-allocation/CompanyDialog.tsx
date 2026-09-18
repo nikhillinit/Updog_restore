@@ -124,7 +124,7 @@ export function CompanyDialog({
   };
 
   const totalInvestment = (watch('initialInvestment') || 0) + (watch('followOnInvestment') || 0);
-  const currentValue = watch('currentValue') || 0;
+  const currentValue = watch('currentValue') ?? 0;
   const moic = totalInvestment > 0 ? currentValue / totalInvestment : 0;
 
   return (

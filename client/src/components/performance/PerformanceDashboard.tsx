@@ -586,14 +586,14 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                               {formatCurrency(row.totalDeployed)}
                             </td>
                             <td className="p-3 text-right font-mono text-pov-charcoal">
-                              {formatCurrency(row.currentValue)}
+                              {row.currentValue != null ? formatCurrency(row.currentValue) : 'N/A'}
                             </td>
                             <td className="p-3 text-right">
                               <Badge
                                 variant={
-                                  row.moic >= 2
+                                  row.moic != null && row.moic >= 2
                                     ? 'default'
-                                    : row.moic >= 1
+                                    : row.moic != null && row.moic >= 1
                                       ? 'secondary'
                                       : 'outline'
                                 }
