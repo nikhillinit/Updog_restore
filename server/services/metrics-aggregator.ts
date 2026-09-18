@@ -362,7 +362,7 @@ export class MetricsAggregator {
       }
 
       if (options.skipProjections) {
-        projected = this.getDefaultProjectedMetrics(config);
+        projected = this.getDefaultProjectedMetrics();
         projectedStatus = 'skipped';
         warnings.push('Projections skipped for performance');
       } else {
@@ -379,8 +379,19 @@ export class MetricsAggregator {
           warnings.push(
             `Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
           );
-          projected = this.getDefaultProjectedMetrics(config); // Use fallback
+          projected = this.getDefaultProjectedMetrics(); // Use fallback
         }
+      }
+
+      // Cohort-sourced projections are unavailable (no engine produced them):
+      // label the projected lane partial instead of presenting nulls as success.
+      if (
+        projectedStatus === 'success' &&
+        projected.expectedTVPI == null &&
+        projected.projectedDistributions == null
+      ) {
+        projectedStatus = 'partial';
+        warnings.push('Cohort projections unavailable');
       }
 
       // Extract target metrics from config
@@ -414,7 +425,9 @@ export class MetricsAggregator {
         targetStatus === 'success' &&
         varianceStatus === 'success'
           ? 'complete'
-          : projectedStatus === 'failed' || projectedStatus === 'skipped'
+          : projectedStatus === 'failed' ||
+              projectedStatus === 'skipped' ||
+              projectedStatus === 'partial'
             ? 'partial'
             : 'fallback';
 
@@ -545,7 +558,7 @@ export class MetricsAggregator {
     } catch (error) {
       const fallbackReason = error instanceof Error ? error.message : 'Unknown error';
       warnings.push(`Projected metrics calculation failed: ${fallbackReason}`);
-      projected = this.getDefaultProjectedMetrics(config);
+      projected = this.getLegacyDualForecastFallbackProjection(config);
       currentProjection = { status: 'fallback_default', fallbackReason };
     }
 
@@ -1031,9 +1044,9 @@ export class MetricsAggregator {
       constructionForecast.jCurvePath.calls.length
     );
     const projectedFutureLength = Math.max(
-      projected.projectedNAV.length,
+      projected.projectedNAV?.length ?? 0,
       projected.projectedDeployment.length,
-      projected.projectedDistributions.length
+      projected.projectedDistributions?.length ?? 0
     );
     const constructionRemainingLength = Math.max(1, constructionLength - constructionStartIndex);
     const horizon = Math.max(1, Math.min(constructionRemainingLength, projectedFutureLength + 1));
@@ -1231,7 +1244,9 @@ export class MetricsAggregator {
     }
 
     const projectionIndex = projectionStartIndex + quarterIndex - 1;
-    const nav = this.valueAtOrLast(projected.projectedNAV, projectionIndex, actual.currentNAV);
+    const nav = projected.projectedNAV
+      ? this.valueAtOrLast(projected.projectedNAV, projectionIndex, actual.currentNAV)
+      : actual.currentNAV;
     const calledCapital =
       actual.totalCalled +
       this.cumulativeNumberFrom(
@@ -1241,11 +1256,13 @@ export class MetricsAggregator {
       );
     const distributions =
       actual.totalDistributions +
-      this.cumulativeNumberFrom(
-        projected.projectedDistributions,
-        projectionStartIndex,
-        projectionIndex
-      );
+      (projected.projectedDistributions
+        ? this.cumulativeNumberFrom(
+            projected.projectedDistributions,
+            projectionStartIndex,
+            projectionIndex
+          )
+        : 0);
 
     return {
       nav,
@@ -1456,20 +1473,53 @@ export class MetricsAggregator {
   }
 
   /**
-   * Get default projected metrics (fallback when engines fail)
+   * Fallback projection for the legacy dual-forecast composer when the engine
+   * throws. Kept byte-identical to the pre-P0 default on purpose: the readiness
+   * model fails closed on `currentProjection.status === 'fallback_default'`
+   * and the off-mode characterization snapshot pins this composer. The zero
+   * arrays and config-target ratios it carries are a disclosed non-actionable
+   * default, recorded in the semantic-convergence P0 deferred table.
    */
-  private getDefaultProjectedMetrics(
+  private getLegacyDualForecastFallbackProjection(
     config?: Pick<MetricsFundConfig, 'targetIRR' | 'targetTVPI' | 'targetDPI'>
-  ) {
+  ): ProjectedMetrics {
     return {
       asOfDate: new Date().toISOString(),
       projectionDate: new Date().toISOString(),
-      projectedDeployment: Array(12).fill(0),
-      projectedDistributions: Array(12).fill(0),
-      projectedNAV: Array(12).fill(0),
+      projectedDeployment: Array<number>(12).fill(0),
+      projectedDistributions: Array<number>(12).fill(0),
+      projectedNAV: Array<number>(12).fill(0),
       expectedTVPI: config?.targetTVPI ?? 2.5,
       expectedIRR: config?.targetIRR ?? 0.25,
       expectedDPI: config?.targetDPI ?? 1.0,
+      totalReserveNeeds: 0,
+      allocatedReserves: 0,
+      unallocatedReserves: 0,
+      reserveAllocationRate: 0,
+      deploymentPace: 'on-track' as const,
+      quartersRemaining: 0,
+      recommendedQuarterlyDeployment: 0,
+    };
+  }
+
+  /**
+   * Default projected metrics for the unified-metrics skipped/failed paths.
+   * Cohort-sourced fields are null: those lanes are labeled 'skipped'/'failed'
+   * in `_status.engines.projected`, so no config target may stand in for a
+   * projection that did not run.
+   */
+  private getDefaultProjectedMetrics(): ProjectedMetrics {
+    return {
+      asOfDate: new Date().toISOString(),
+      projectionDate: new Date().toISOString(),
+      projectedDeployment: Array<number>(12).fill(0),
+      // Cohort-sourced fields are unavailable on the skipped/failed paths;
+      // never substitute config targets for a projection that did not run.
+      projectedDistributions: null,
+      projectedNAV: null,
+      expectedTVPI: null,
+      expectedIRR: null,
+      expectedDPI: null,
       totalReserveNeeds: 0,
       allocatedReserves: 0,
       unallocatedReserves: 0,

@@ -987,7 +987,6 @@ describe('Reserve + Pacing Integration', () => {
 **Related Engines:**
 
 - [PacingEngine](../pacing/) - Deployment timing
-- [CohortEngine](../cohorts/) - Vintage analysis
 - [MonteCarloEngine](../monte-carlo/) - Portfolio simulation
 - [CapitalAllocationEngine](../capital-allocation.md) - Initial investment
   allocation

@@ -5,7 +5,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { generatePacingSummary } from '@shared/core/pacing/PacingEngine';
-import { generateCohortSummary } from '@shared/core/cohorts/CohortEngine';
 import { toNumber } from '@shared/number';
 import type {
   ApiError,
@@ -13,8 +12,6 @@ import type {
   ReserveSummary,
   PacingInput,
   PacingSummary,
-  CohortInput,
-  CohortSummary,
 } from '@shared/types';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
@@ -27,8 +24,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 interface PortfolioFixtureCompany {
+  name?: string;
   invested?: number;
-  ownership?: number;
+  ownership?: number | null;
   stage?: string;
   sector?: string;
 }
@@ -37,7 +35,29 @@ interface PortfolioFixtureData {
   companies: PortfolioFixtureCompany[];
 }
 
-function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
+interface CohortSummaryCompany {
+  id: number;
+  name: string;
+  invested: number;
+  ownership: number | null;
+  stage: string;
+  sector: string;
+  cohortVintageYear: number;
+}
+
+interface CohortSummaryPayload {
+  cohortId: string;
+  fundId: number;
+  vintageYear: number;
+  cohortSize: number;
+  companies: CohortSummaryCompany[];
+}
+
+const DEFAULT_COHORT_COMPANY_TEMPLATES: readonly PortfolioFixtureCompany[] = [
+  { name: 'Company', invested: 500000, ownership: null, stage: 'Series A', sector: 'Tech' },
+];
+
+function loadPortfolioFixtureCompanies(): PortfolioFixtureCompany[] {
   const portfolioPath = join(__dirname, '../../tests/fixtures/portfolio.json');
   const rawData: unknown = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
 
@@ -50,13 +70,50 @@ function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
     throw new Error('Invalid portfolio fixture format');
   }
 
-  return (rawData as PortfolioFixtureData).companies.map((company, index) => ({
+  return (rawData as PortfolioFixtureData).companies;
+}
+
+function loadReserveFixturePortfolio(): ReserveCompanyInput[] {
+  return loadPortfolioFixtureCompanies().map((company, index) => ({
     id: index + 1,
     invested: typeof company.invested === 'number' ? company.invested : 500000,
     ownership: typeof company.ownership === 'number' ? company.ownership : null,
     stage: typeof company.stage === 'string' ? company.stage : 'Series A',
     sector: typeof company.sector === 'string' ? company.sector : 'Tech',
   }));
+}
+
+function buildCohortSummary(
+  fundId: number,
+  vintageYear: number,
+  cohortSize: number
+): CohortSummaryPayload {
+  const fixtureCompanies = loadPortfolioFixtureCompanies();
+  const templates =
+    fixtureCompanies.length > 0 ? fixtureCompanies : DEFAULT_COHORT_COMPANY_TEMPLATES;
+  const companies = Array.from({ length: cohortSize }, (_value, index) => {
+    const template = templates[index % templates.length] ?? {};
+    return {
+      id: index + 1,
+      name:
+        typeof template.name === 'string' && template.name.length > 0
+          ? `${template.name} ${index + 1}`
+          : `Company ${index + 1}`,
+      invested: typeof template.invested === 'number' ? template.invested : 500000,
+      ownership: typeof template.ownership === 'number' ? template.ownership : null,
+      stage: typeof template.stage === 'string' ? template.stage : 'Series A',
+      sector: typeof template.sector === 'string' ? template.sector : 'Tech',
+      cohortVintageYear: vintageYear,
+    };
+  });
+
+  return {
+    cohortId: `cohort-${fundId}-${vintageYear}`,
+    fundId,
+    vintageYear,
+    cohortSize,
+    companies,
+  };
 }
 
 // NOT fund-scoped (Slice 1 verdict). loadReserveFixturePortfolio() reads a static
@@ -156,11 +213,10 @@ router['get']('/pacing/summary', async (req: Request, res: Response) => {
   }
 });
 
-// NOT fund-scoped (Slice 3 T2 verdict). generateCohortSummary -> CohortEngine is
-// pure synthetic compute: it builds mock companies from { vintageYear, cohortSize }
-// with Math.random() and uses fundId only as a label in `cohort-${fundId}-${vintageYear}`.
-// No stored per-fund data is read, so there is no cross-fund disclosure and the
-// DEFAULT_FUND_ID fallback is safe. If this scaffold is ever wired to real per-fund
+// NOT fund-scoped. This compatibility route reads only static fixture data and
+// request-local query params, then returns deterministic scaffold output. No
+// stored per-fund data is read, so there is no cross-fund disclosure and the
+// DEFAULT_FUND_ID fallback is safe. If this route is ever wired to real per-fund
 // data, guard it with requireProvidedFundScopeFrom('query') and drop the default.
 router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
   try {
@@ -208,13 +264,7 @@ router['get']('/cohorts/analysis', async (req: Request, res: Response) => {
       cohortSize = parsedSize;
     }
 
-    const cohortInput: CohortInput = {
-      fundId,
-      vintageYear,
-      cohortSize,
-    };
-
-    const summary: CohortSummary = generateCohortSummary(cohortInput);
+    const summary = buildCohortSummary(fundId, vintageYear, cohortSize);
     return res.json(summary);
   } catch (error) {
     if (handleNumberParseError(error, res, 'Invalid cohort query')) {

@@ -113,6 +113,24 @@ lines deleted, 0 added). Cost of being wrong: ~30min to re-add the stub if item
 8 (Construction Forecast) revives cohort projections. Cost of the stub:
 indefinite maintenance of dead code returning a permanent 422.
 
+**Decision record (2026-09-18, PR #1544 review):** delete path taken for the
+engine, types, client re-exports, and engine tests. The
+`GET /api/cohorts/analysis` route was NOT removed: it is an approved
+surface-matrix row (`audit/surface-contract-matrix/matrix.json`, `local-only` /
+`docker-only-excluded`, never on Vercel) and dropping it would require the
+`--fresh` regeneration chain with a full G1 review. It stays as a deterministic
+scaffold that reads only `tests/fixtures/portfolio.json` and request-local query
+params (no `Math.random`, no stored per-fund data), covered by
+`tests/unit/routes/engine-summaries.contract.test.ts`. Removing the row is
+follow-up work for the next matrix regeneration, not this task. The standard
+`ProjectedMetricsCalculator` path returns explicit `null` for cohort-sourced
+fields (no config-target substitution, no synthesized curves), and
+`MetricsAggregator` labels that lane `_status.engines.projected === 'partial'`
+with quality `'partial'`. The legacy dual-forecast composer's `fallback_default`
+projection (engine threw) keeps its zero-array default so the readiness model's
+fail-closed shape and the off-mode byte-identity pin are unchanged; that default
+is recorded in the deferred table.
+
 **Fallback: stub.** Only if owner confirms item 8 has a committed timeline. In
 that case, proceed with Steps 1-14 as written below. If no timeline or unknown,
 delete.
@@ -2256,6 +2274,7 @@ These items need separate brainstorm+plan each. Included for traceability:
 | 10  | Unrecognized-but-present reserve rounds (e.g. `'Bridge'`) hit ReserveEngine `\|\| 2.0`               | Changing alters `RESERVE_ASSUMPTIONS` hash + parity suite. Owner-scoped out of P0 (round 2). Decide: exclude with `'unavailable'` provenance vs explicit per-round multiplier. |
 | 11  | Construction J-curve `expectedIRR: config.targetIRR ?? 0.25` (`projected-metrics-calculator.ts:470`) | Same fabrication class as P0-A but on the construction path; J-curve engine does not compute IRR. Make nullable with provenance or compute.                                    |
 | 12  | Reserve Decision Center                                                                              | Highest-value net-new product capability. ~2wk.                                                                                                                                |
+| 13  | Legacy dual-forecast `fallback_default` projection (`getLegacyDualForecastFallbackProjection`)       | Zero arrays plus config-target ratios when the engine throws; disclosed via `currentProjection.status`. Byte-identical in P0 Task 1; make nullable when the contract allows.   |
 
 ## Dual `FUND_SCENARIO_CALC_VERSION` Note
 

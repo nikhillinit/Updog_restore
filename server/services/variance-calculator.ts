@@ -130,7 +130,7 @@ export class VarianceCalculator {
     const projectedTVPI = projected.expectedTVPI;
     const targetTVPI = target.targetTVPI;
 
-    const varianceVsProjected = actualTVPI - projectedTVPI;
+    const varianceVsProjected = projectedTVPI != null ? actualTVPI - projectedTVPI : null;
     const varianceVsTarget = actualTVPI - targetTVPI;
 
     return {

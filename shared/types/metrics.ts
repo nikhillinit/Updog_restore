@@ -121,8 +121,12 @@ export interface ActualMetricAvailability {
  * Source: Calculation engines:
  * - DeterministicReserveEngine (reserve needs, follow-on strategy)
  * - PacingEngine (deployment timing, pacing analysis)
- * - CohortEngine (cohort-based exit modeling)
+ * - ConstructionForecastCalculator (J-curve path for funds with no investments)
  * - MonteCarloSimulation (probabilistic scenarios)
+ *
+ * Cohort-sourced performance fields are null on the standard path since
+ * CohortEngine was deleted (P0 Task 1); `_status.engines.projected === 'partial'`
+ * is the unavailability signal.
  *
  * These represent what the models expect to happen based on fund strategy and assumptions.
  */
@@ -138,22 +142,22 @@ export interface ProjectedMetrics {
   /** Projected capital deployment by quarter (in dollars) - Source: PacingEngine + ReserveEngine */
   projectedDeployment: number[];
 
-  /** Projected distributions by quarter (in dollars) - Source: CohortEngine (exit model) */
-  projectedDistributions: number[];
+  /** Projected distributions by quarter (null when no engine provides them) */
+  projectedDistributions: number[] | null;
 
-  /** Projected NAV by quarter - Source: CohortEngine (valuation progression) */
-  projectedNAV: number[];
+  /** Projected NAV by quarter (null when no engine provides them) */
+  projectedNAV: number[] | null;
 
   // === Expected Performance at Fund End ===
 
-  /** Expected Total Value to Paid-In at fund maturity - Source: CohortEngine */
-  expectedTVPI: number;
+  /** Expected TVPI at fund maturity (null when unavailable) */
+  expectedTVPI: number | null;
 
-  /** Expected Internal Rate of Return at fund maturity - Source: CohortEngine + XIRR calculation */
-  expectedIRR: number;
+  /** Expected IRR at fund maturity (null when unavailable) */
+  expectedIRR: number | null;
 
-  /** Expected Distributions to Paid-In at fund maturity - Source: CohortEngine */
-  expectedDPI: number;
+  /** Expected DPI at fund maturity (null when unavailable) */
+  expectedDPI: number | null;
 
   // === Reserve Planning ===
 
@@ -266,12 +270,12 @@ export interface VarianceMetrics {
   tvpiVariance: {
     /** Actual TVPI */
     actual: number;
-    /** Expected TVPI from projections */
-    projected: number;
+    /** Expected TVPI from projections (null when unavailable) */
+    projected: number | null;
     /** Target TVPI */
     target: number;
-    /** Variance vs projection */
-    varianceVsProjected: number;
+    /** Variance vs projection (null when projected unavailable) */
+    varianceVsProjected: number | null;
     /** Variance vs target */
     varianceVsTarget: number;
   };
