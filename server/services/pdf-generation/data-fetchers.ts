@@ -29,8 +29,9 @@ function mapCompanyToPortfolioEntry(
   c: Awaited<ReturnType<typeof storage.getPortfolioCompanies>>[number]
 ): ReportMetrics['portfolioCompanies'][number] {
   const invested = toDecimal(c.investmentAmount).toNumber();
-  const value = toDecimal(c.currentValuation ?? 0).toNumber();
-  return { name: c.name, invested, value, moic: invested > 0 ? value / invested : 0 };
+  const value = c.currentValuation != null ? toDecimal(c.currentValuation).toNumber() : null;
+  const moic = value != null && invested > 0 ? value / invested : null;
+  return { name: c.name, invested, value, moic };
 }
 
 async function resolveMetricTriplet(

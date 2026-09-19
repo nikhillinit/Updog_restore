@@ -64,7 +64,7 @@ export interface CalculatedFundMetrics {
  * @example
  * ```typescript
  * const metrics = await calculateFundMetrics(1);
- * metrics.moic.toFixed(2); // Fund MOIC
+ * metrics.moic != null ? metrics.moic.toFixed(2) : null; // Fund MOIC
  * metrics.irr != null ? (metrics.irr * 100).toFixed(1) : null; // IRR percentage
  * metrics.dpi.toFixed(2); // DPI multiple
  * ```

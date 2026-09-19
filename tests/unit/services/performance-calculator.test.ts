@@ -46,12 +46,7 @@ describe('PerformanceCalculator', () => {
       }),
     });
 
-    const points = await calculator.calculateTimeseries(
-      1,
-      '2024-01-01',
-      '2024-03-31',
-      'monthly'
-    );
+    const points = await calculator.calculateTimeseries(1, '2024-01-01', '2024-03-31', 'monthly');
 
     expect(points.map((point) => point._source)).toEqual([
       'unavailable',
@@ -111,5 +106,52 @@ describe('PerformanceCalculator', () => {
     expect(result.breakdown[0]?.irr).not.toBeNull();
     expect(result.breakdown[0]?.irr).toBeCloseTo(expectedIrr!, 8);
     expect(result.totals.portfolioIRR).toBeCloseTo(expectedIrr!, 8);
+  });
+
+  it('returns null group values and portfolio IRR when a company has null valuation', async () => {
+    getFundMock.mockResolvedValue({ id: 1, createdAt: new Date('2020-01-01T00:00:00Z') });
+
+    selectMock
+      .mockReturnValueOnce({
+        from: () =>
+          ({
+            where: () =>
+              Promise.resolve([
+                {
+                  id: 1,
+                  name: 'Alpha',
+                  sector: 'SaaS',
+                  stage: 'Series A',
+                  status: 'active',
+                  currentValuation: '150',
+                  investmentAmount: '100',
+                  investmentDate: new Date('2020-01-01T00:00:00Z'),
+                  createdAt: new Date('2020-01-01T00:00:00Z'),
+                },
+                {
+                  id: 2,
+                  name: 'Beta',
+                  sector: 'SaaS',
+                  stage: 'Seed',
+                  status: 'active',
+                  currentValuation: null,
+                  investmentAmount: '50',
+                  investmentDate: new Date('2021-01-01T00:00:00Z'),
+                  createdAt: new Date('2021-01-01T00:00:00Z'),
+                },
+              ]),
+          }) as const,
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: () => Promise.resolve([]) }) as const,
+      });
+
+    const result = await calculator.calculateBreakdown(1, '2024-01-01', 'sector', false);
+
+    expect(result.totals.portfolioIRR).toBeNull();
+    const saasGroup = result.breakdown.find((g) => g.group === 'SaaS');
+    expect(saasGroup).toBeDefined();
+    expect(saasGroup!.currentValue).toBeNull();
+    expect(saasGroup!.moic).toBeNull();
   });
 });

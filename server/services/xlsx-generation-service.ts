@@ -178,8 +178,12 @@ export async function generateQuarterlyXLSX(data: QuarterlyReportData): Promise<
 
   // Add totals row
   const totalInvested = data.portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
-  const totalValue = data.portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
-  portfolioRows.push(['Total', totalInvested, totalValue, totalValue / totalInvested]);
+  const anyMissing = data.portfolioCompanies.some((co) => co.value == null);
+  const totalValue = anyMissing
+    ? null
+    : data.portfolioCompanies.reduce((sum, co) => sum + (co.value as number), 0);
+  const totalMoic = totalValue != null && totalInvested > 0 ? totalValue / totalInvested : null;
+  portfolioRows.push(['Total', totalInvested, totalValue ?? 'N/A', totalMoic ?? 'N/A']);
 
   const portfolioSheet = workbook.addWorksheet('Portfolio');
   portfolioSheet.addRows([portfolioHeaders, ...portfolioRows]);

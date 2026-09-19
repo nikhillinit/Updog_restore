@@ -189,9 +189,9 @@ export const TearSheetTemplate: React.FC<TearSheetTemplateProps> = ({
           <View style={styles.metricColumn}>
             <PdfMetricCard
               label="MOIC"
-              value={formatMultiple(metrics.moic)}
+              value={metrics.moic != null ? formatMultiple(metrics.moic) : 'N/A'}
               subtitle="Multiple on invested capital"
-              highlighted={metrics.moic >= 2}
+              highlighted={metrics.moic != null && metrics.moic >= 2}
             />
           </View>
           <View style={styles.metricColumn}>
@@ -218,7 +218,9 @@ export const TearSheetTemplate: React.FC<TearSheetTemplateProps> = ({
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Return Multiple</Text>
-            <Text style={styles.summaryValue}>{formatMultiple(metrics.moic)}</Text>
+            <Text style={styles.summaryValue}>
+              {metrics.moic != null ? formatMultiple(metrics.moic) : 'N/A'}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Annualized Return</Text>

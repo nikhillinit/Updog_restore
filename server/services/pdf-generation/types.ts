@@ -77,8 +77,8 @@ export interface QuarterlyReportData {
   portfolioCompanies: Array<{
     name: string;
     invested: number;
-    value: number;
-    moic: number;
+    value: number | null;
+    moic: number | null;
   }>;
   cashFlows?: Array<{
     date: string;
@@ -95,7 +95,12 @@ export interface ReportMetrics {
   irr: number | null;
   tvpi: number;
   dpi: number;
-  portfolioCompanies: Array<{ name: string; invested: number; value: number; moic: number }>;
+  portfolioCompanies: Array<{
+    name: string;
+    invested: number;
+    value: number | null;
+    moic: number | null;
+  }>;
 }
 
 export interface CapitalAccountReportData {

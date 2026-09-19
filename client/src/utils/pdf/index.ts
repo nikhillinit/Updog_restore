@@ -47,8 +47,8 @@ export interface TearSheetData {
   investmentDate: string;
   metrics: {
     totalInvested: number;
-    currentValue: number;
-    moic: number;
+    currentValue: number | null;
+    moic: number | null;
     irr: number;
   };
   timeline?: Array<{
@@ -72,8 +72,8 @@ export interface QuarterlyReportData {
   portfolioCompanies: Array<{
     name: string;
     invested: number;
-    value: number;
-    moic: number;
+    value: number | null;
+    moic: number | null;
   }>;
   cashFlows?: Array<{
     date: string;

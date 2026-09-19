@@ -104,4 +104,27 @@ describe('calculateFundMetrics', () => {
 
     expect(metrics.irr).toBeNull();
   });
+
+  it('returns null totalValue, moic, and tvpi when any company has null valuation', async () => {
+    storageMocks.getFund.mockResolvedValue({
+      id: 1,
+      size: '1000',
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    });
+    storageMocks.getPortfolioCompanies.mockResolvedValue([
+      { status: 'active', currentValuation: '200' },
+      { status: 'active', currentValuation: null },
+    ]);
+    storageMocks.getInvestments.mockResolvedValue([
+      { investmentDate: new Date('2024-01-01T00:00:00.000Z'), amount: 100 },
+      { investmentDate: new Date('2024-03-01T00:00:00.000Z'), amount: 50 },
+    ]);
+    dbSelectMock.mockReturnValueOnce(makeSelectChain([]));
+
+    const metrics = await calculateFundMetrics(1);
+
+    expect(metrics.moic).toBeNull();
+    expect(metrics.tvpi).toBeNull();
+    expect(metrics.irr).toBeNull();
+  });
 });
