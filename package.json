@@ -115,6 +115,7 @@
     "docs:routing:query": "npx tsx scripts/routeQueryFast.ts",
     "skills:index": "npx tsx scripts/generate-skill-index.ts",
     "skills:check": "npx tsx scripts/generate-skill-index.ts --check",
+    "matrix:check": "node scripts/check-matrix-freshness.mjs",
     "capabilities:sync": "node scripts/sync-capabilities.mjs",
     "capabilities:sync:apply": "node scripts/sync-capabilities.mjs --apply",
     "test:internal-economics-v2": "cross-env TZ=UTC vitest run tests/unit/internal-economics/v2 tests/unit/internal-economics/v2-truth-corpus-adapter.test.ts tests/unit/truth-cases/internal-economics-v2-engine.test.ts --config vitest.config.mjs --configLoader native --project=server"

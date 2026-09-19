@@ -114,6 +114,12 @@ if (requiresVendoredSkillLockCheck(changedFiles)) {
   run('node', ['scripts/verify-vendored-skills.mjs']);
 }
 
+const changedMatrixFiles = changedFiles.filter((file) => file.startsWith('audit/surface-contract-matrix/'));
+if (changedMatrixFiles.length > 0) {
+  console.log('Matrix files changed; verifying MATRIX.md freshness...');
+  run('node', ['scripts/check-matrix-freshness.mjs']);
+}
+
 const classification = output('node', ['scripts/pre-push-classification.mjs'], {
   input: changed,
 });
