@@ -1347,6 +1347,187 @@ describe('FundScenarioWorkspacePage', () => {
       expect(within(notice).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
     });
   });
+
+  describe('creation-success highlight ring', () => {
+    const CREATED_SET_ID = '00000000-0000-0000-0000-000000000991';
+
+    function createdSetDetail(): FundScenarioSetDetailV1 {
+      return {
+        ...scenarioSetSummary(CREATED_SET_ID, 'Test highlight set', 17, 1),
+        variants: [
+          {
+            id: '00000000-0000-0000-0000-000000000992',
+            scenarioSetId: CREATED_SET_ID,
+            name: 'Fee override',
+            description: null,
+            sortOrder: 0,
+            override: { overrideType: 'methodology', payload: { managementFeeRate: 2 } },
+            createdAt: '2026-05-29T12:00:00.000Z',
+            updatedAt: '2026-05-29T12:00:00.000Z',
+          },
+        ],
+      };
+    }
+
+    function mockFetchesWithCreation() {
+      let setCreated = false;
+      fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const method = init?.method ?? 'GET';
+
+        if (
+          method === 'POST' &&
+          url === '/api/funds/123/scenario-sets' &&
+          !url.includes('/calculate') &&
+          !url.includes('/reserve')
+        ) {
+          setCreated = true;
+          return Promise.resolve(jsonResponse(createdSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets' &&
+          !url.includes('representation=')
+        ) {
+          const summaries = scenarioSetSummaries();
+          if (setCreated) {
+            summaries.push(scenarioSetSummary(CREATED_SET_ID, 'Test highlight set', 17, 1));
+          }
+          return Promise.resolve(jsonResponse({ scenarioSets: summaries }));
+        }
+
+        if (
+          method === 'GET' &&
+          url ===
+            '/api/funds/123/scenario-sets?representation=capital-plan-v2&includeArchived=false'
+        ) {
+          return Promise.resolve(
+            jsonResponse({
+              contractVersion: 'fund-scenario-capital-list/2.0.0',
+              representation: 'capital-plan-v2',
+              scenarioSets: [],
+            })
+          );
+        }
+
+        if (method === 'GET' && url === `/api/funds/123/scenario-sets/${CREATED_SET_ID}`) {
+          return Promise.resolve(jsonResponse(createdSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000111'
+        ) {
+          return Promise.resolve(jsonResponse(feeScenarioSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211'
+        ) {
+          return Promise.resolve(jsonResponse(reserveScenarioSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000311'
+        ) {
+          return Promise.resolve(jsonResponse(allocationScenarioSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000411'
+        ) {
+          return Promise.resolve(jsonResponse(sectorProfileScenarioSetDetail()));
+        }
+
+        if (
+          method === 'GET' &&
+          url === '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000511'
+        ) {
+          return Promise.resolve(jsonResponse(methodologyScenarioSetDetail()));
+        }
+
+        if (method === 'GET' && url.endsWith('/comparison')) {
+          const setId = url.split('/scenario-sets/')[1]?.split('/')[0] ?? '';
+          return Promise.resolve(jsonResponse(scenarioComparisonResponse(setId)));
+        }
+
+        if (
+          method === 'GET' &&
+          url.endsWith('/scenario-sets/00000000-0000-0000-0000-000000000211/calculation-status')
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              statusResponse(
+                'succeeded',
+                42,
+                '00000000-0000-0000-0000-000000000211',
+                'async_reserve_allocation'
+              )
+            )
+          );
+        }
+
+        if (method === 'GET' && url === '/api/funds/123/results') {
+          return Promise.resolve(jsonResponse(fundResultsResponse()));
+        }
+
+        if (method === 'GET' && url === '/api/funds/123/scenario-analysis/seeds') {
+          return Promise.resolve(
+            jsonResponse({
+              fundId: 123,
+              asOfDate: '2026-07-13',
+              factsStatus: 'failed',
+              factsInputHash: null,
+              seeds: [],
+            })
+          );
+        }
+
+        return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
+      });
+    }
+
+    it.each([false, true])(
+      'highlights the created card after modal submission (capitalPlanEnabled=%s)',
+      async (capitalPlan) => {
+        mockFetchesWithCreation();
+        renderWorkspace('/fund-model-results/123/scenarios', capitalPlan);
+
+        const createBtn = await screen.findByRole('button', {
+          name: /new methodology scenario/i,
+        });
+        fireEvent.click(createBtn);
+
+        const dialog = await screen.findByRole('dialog');
+        fireEvent.change(within(dialog).getByLabelText('Scenario set name'), {
+          target: { value: 'Test highlight set' },
+        });
+        fireEvent.change(within(dialog).getByLabelText('Variant name'), {
+          target: { value: 'Fee override' },
+        });
+        fireEvent.change(within(dialog).getByLabelText('Management fee rate'), {
+          target: { value: '2' },
+        });
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Create scenario' }));
+
+        const highlighted = await screen.findByTestId(`scenario-workspace-set-${CREATED_SET_ID}`);
+        await waitFor(() => {
+          expect(highlighted.className).toContain('ring-2');
+          expect(highlighted.className).toContain('ring-charcoal');
+        });
+
+        const other = screen.getByTestId(
+          'scenario-workspace-set-00000000-0000-0000-0000-000000000111'
+        );
+        expect(other.className).not.toContain('ring-2');
+      }
+    );
+  });
 });
 
 describe('resolveSeedDeepLink', () => {
