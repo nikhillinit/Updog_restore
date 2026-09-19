@@ -129,16 +129,22 @@ function buildCompanyCashflows(
   distributionsByCompany: Map<number, DistributionRecord[]>,
   asOfDate: string
 ): XirrCashFlow[] {
+  const anyNullValuation = companies.some((company) => company.currentValuation == null);
+  if (anyNullValuation) {
+    return [];
+  }
+
   const terminalDate = new Date(asOfDate);
   const cashflows: XirrCashFlow[] = [];
 
   for (const company of companies) {
     const investmentDate = company.investmentDate ?? company.createdAt;
     const investmentAmount = Number(company.investmentAmount) || 0;
-    const currentValue = computePositionValue({
+    const positionValue = computePositionValue({
       currentValuation: company.currentValuation,
       ownershipCurrentPct: company.ownershipCurrentPct,
-    }).toNumber();
+    });
+    const currentValue = positionValue != null ? positionValue.toNumber() : 0;
 
     if (investmentDate && investmentAmount > 0) {
       cashflows.push({
@@ -408,7 +414,7 @@ export class PerformanceCalculator {
       {
         companies: typeof filteredCompanies;
         totalDeployed: number;
-        currentValue: number;
+        currentValue: number | null;
       }
     >();
 
@@ -423,26 +429,33 @@ export class PerformanceCalculator {
       const existing = groups.get(groupKey) || {
         companies: [],
         totalDeployed: 0,
-        currentValue: 0,
+        currentValue: 0 as number | null,
       };
 
       existing.companies.push(company);
       existing.totalDeployed += Number(company.investmentAmount) || 0;
-      existing.currentValue += computePositionValue({
+      const groupPositionValue = computePositionValue({
         currentValuation: company.currentValuation,
         ownershipCurrentPct: company.ownershipCurrentPct,
-      }).toNumber();
+      });
+      existing.currentValue =
+        groupPositionValue == null || existing.currentValue == null
+          ? null
+          : existing.currentValue + groupPositionValue.toNumber();
       groups.set(groupKey, existing);
     }
 
     // Calculate totals first
     let totalDeployedSum = 0;
-    let totalCurrentValue = 0;
+    let totalCurrentValue: number | null = 0;
     let totalCompanyCount = 0;
 
     for (const [, group] of groups) {
       totalDeployedSum += group.totalDeployed;
-      totalCurrentValue += group.currentValue;
+      totalCurrentValue =
+        group.currentValue == null || totalCurrentValue == null
+          ? null
+          : totalCurrentValue + group.currentValue;
       totalCompanyCount += group.companies.length;
     }
 
@@ -469,7 +482,12 @@ export class PerformanceCalculator {
     const breakdown: BreakdownGroup[] = [];
 
     for (const [groupName, group] of groups) {
-      const moic = group.totalDeployed > 0 ? group.currentValue / group.totalDeployed : 0;
+      const moic =
+        group.currentValue == null
+          ? null
+          : group.totalDeployed > 0
+            ? group.currentValue / group.totalDeployed
+            : 0;
 
       // Sum distributions for this group
       const irr = calculateCanonicalIrr(
@@ -483,14 +501,20 @@ export class PerformanceCalculator {
         currentValue: group.currentValue,
         moic,
         irr,
-        unrealizedGain: group.currentValue - group.totalDeployed,
+        unrealizedGain:
+          group.currentValue == null ? null : group.currentValue - group.totalDeployed,
         percentOfPortfolio:
           totalDeployedSum > 0 ? (group.totalDeployed / totalDeployedSum) * 100 : 0,
       });
     }
 
-    // Sort by MOIC descending
-    breakdown.sort((a, b) => b.moic - a.moic);
+    // Sort by MOIC descending; null MOIC sorts last (unknown, not zero).
+    breakdown.sort((a, b) => {
+      if (a.moic == null && b.moic == null) return 0;
+      if (a.moic == null) return 1;
+      if (b.moic == null) return -1;
+      return b.moic - a.moic;
+    });
 
     // Calculate portfolio-level IRR
     const portfolioIRR = calculateCanonicalIrr(
@@ -501,7 +525,12 @@ export class PerformanceCalculator {
       companyCount: totalCompanyCount,
       totalDeployed: totalDeployedSum,
       currentValue: totalCurrentValue,
-      averageMOIC: totalDeployedSum > 0 ? totalCurrentValue / totalDeployedSum : 0,
+      averageMOIC:
+        totalCurrentValue == null
+          ? null
+          : totalDeployedSum > 0
+            ? totalCurrentValue / totalDeployedSum
+            : 0,
       portfolioIRR,
     };
 

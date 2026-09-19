@@ -71,6 +71,7 @@ describe('VarianceAlertAutomationService', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mockEnsureAttributedFundMetricsForCalcRun.mockResolvedValue({});
 
     mockDb.insert.mockImplementation(() => ({
       values: vi.fn(() => ({
@@ -191,6 +192,22 @@ describe('VarianceAlertAutomationService', () => {
     );
   });
 
+  it('skips calc-run completion when fund metrics are unavailable', async () => {
+    mockEnsureAttributedFundMetricsForCalcRun.mockResolvedValue(null);
+
+    const { varianceAlertAutomationService } =
+      await import('../../../server/services/variance-alert-automation');
+
+    await expect(
+      varianceAlertAutomationService.runCalcRunCompletion(42, 7)
+    ).resolves.toBeUndefined();
+
+    expect(mockCreateBaselineFromCalcRun).not.toHaveBeenCalled();
+    expect(mockUpsertTriggeredAlertIncident).not.toHaveBeenCalled();
+    expect(mockDb.query.alertRules.findMany).not.toHaveBeenCalled();
+    expect(varianceAlertAutomationService.getHealth().counters.skipped).toBe(1);
+  });
+
   it('keeps the inner calc-run pipeline sequential across attribution, baseline creation, and per-rule evaluation', async () => {
     let releaseAttributedMetrics: (() => void) | null = null;
     const attributedMetricsPending = new Promise<void>((resolve) => {
@@ -215,6 +232,7 @@ describe('VarianceAlertAutomationService', () => {
 
     mockEnsureAttributedFundMetricsForCalcRun.mockImplementation(async () => {
       await attributedMetricsPending;
+      return {};
     });
     mockCreateBaselineFromCalcRun.mockImplementation(async () => {
       await baselineCreationPending;

@@ -31,6 +31,8 @@ const validResponse: PortfolioOverviewResponseV1 = {
     totalCompanies: 1,
     activeCompanies: 1,
     exitedCompanies: 0,
+    valuedCount: 1,
+    totalCount: 1,
   },
   companies: [
     {

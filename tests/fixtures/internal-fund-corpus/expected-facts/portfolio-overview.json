@@ -27,7 +27,9 @@
     "returnPct": "200",
     "totalCompanies": 3,
     "activeCompanies": 3,
-    "exitedCompanies": 0
+    "exitedCompanies": 0,
+    "valuedCount": 3,
+    "totalCount": 3
   },
   "companies": [
     {

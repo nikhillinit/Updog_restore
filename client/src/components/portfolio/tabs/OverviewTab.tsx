@@ -52,8 +52,8 @@ type PortfolioRow = {
   sector: string;
   stage: string;
   invested: number;
-  currentValue: number;
-  moic: number;
+  currentValue: number | null;
+  moic: number | null;
   status: string;
 };
 
@@ -68,6 +68,11 @@ function toNumber(value: string | number | null | undefined): number {
   }
 
   return 0;
+}
+
+function toNullableNumber(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  return toNumber(value);
 }
 
 function formatCurrency(amount: number): string {
@@ -108,8 +113,8 @@ function buildPortfolioRow(company: OverviewCompany): PortfolioRow {
     sector: company.sector,
     stage: company.stage,
     invested: toNumber(company.invested),
-    currentValue: toNumber(company.currentValue),
-    moic: toNumber(company.moic),
+    currentValue: toNullableNumber(company.currentValue),
+    moic: toNullableNumber(company.moic),
     status: company.status,
   };
 }
@@ -174,11 +179,15 @@ function PortfolioCard({
         </div>
         <div>
           <p className="text-xs text-presson-textMuted">Current Value</p>
-          <p className="font-mono font-bold tabular-nums">{formatCurrency(company.currentValue)}</p>
+          <p className="font-mono font-bold tabular-nums">
+            {company.currentValue != null ? formatCurrency(company.currentValue) : 'N/A'}
+          </p>
         </div>
         <div>
           <p className="text-xs text-presson-textMuted">MOIC</p>
-          <p className="font-mono font-bold tabular-nums">{company.moic.toFixed(2)}x</p>
+          <p className="font-mono font-bold tabular-nums">
+            {company.moic != null ? `${company.moic.toFixed(2)}x` : 'N/A'}
+          </p>
         </div>
         <div>
           <p className="text-xs text-presson-textMuted">Sector</p>
@@ -237,9 +246,8 @@ export function OverviewTab() {
     });
   }, [companyRows, filterSector, filterStatus, searchTerm]);
 
-  // Portfolio KPIs are server-computed (with provenance). The client only parses
-  // the decimal strings for display; it derives no financial values. `null` when
-  // the trusted overview is unavailable so the UI can fail closed.
+  // Portfolio KPIs are server-computed (with provenance). Null aggregate values
+  // remain unknown; partial value is display-only context for the annotated UI.
   const portfolioMetrics = useMemo(() => {
     if (!data) {
       return null;
@@ -251,11 +259,24 @@ export function OverviewTab() {
       activeCompanies: metrics.activeCompanies,
       exitedCompanies: metrics.exitedCompanies,
       totalInvested: toNumber(metrics.totalInvested),
-      totalValue: toNumber(metrics.totalValue),
-      averageMOIC: toNumber(metrics.averageMOIC),
-      returnPct: toNumber(metrics.returnPct),
+      totalValue: toNullableNumber(metrics.totalValue),
+      averageMOIC: toNullableNumber(metrics.averageMOIC),
+      returnPct: toNullableNumber(metrics.returnPct),
+      valuedCount: metrics.valuedCount,
+      totalCount: metrics.totalCount,
     };
   }, [data]);
+
+  const partialTotalValue = useMemo(
+    () => companyRows.reduce((sum, company) => sum + (company.currentValue ?? 0), 0),
+    [companyRows]
+  );
+  const currentValueLabel =
+    portfolioMetrics?.totalValue != null
+      ? formatCurrency(portfolioMetrics.totalValue)
+      : portfolioMetrics?.valuedCount
+        ? `${formatCurrency(partialTotalValue)} (${portfolioMetrics.valuedCount}/${portfolioMetrics.totalCount} valued)`
+        : 'N/A';
 
   const sectors = useMemo(
     () => ['all', ...new Set(companyRows.map((company) => company.sector).filter(Boolean))],
@@ -288,8 +309,8 @@ export function OverviewTab() {
             Stage: company.stage,
             Status: company.status,
             Invested: company.invested,
-            'Current value': company.currentValue,
-            MOIC: company.moic,
+            'Current value': company.currentValue ?? '',
+            MOIC: company.moic ?? '',
             Currency: data.currency,
             'As of': data.meta.resolvedAsOf ?? 'Current records; source dates unavailable',
             'Overview generated at': data.generatedAt,
@@ -336,21 +357,43 @@ export function OverviewTab() {
         {
           id: 'value',
           title: isHistoricalMode ? 'Historical Value' : 'Current Value',
-          value: formatCurrency(portfolioMetrics.totalValue),
+          value: currentValueLabel,
           subtitle: isHistoricalMode ? `As of ${historicalLabel}` : 'Portfolio value',
-          change: `${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`,
-          trend: portfolioMetrics.returnPct > 0 ? 'up' : 'down',
-          severity: portfolioMetrics.returnPct > 0 ? 'success' : 'warning',
+          change:
+            portfolioMetrics.returnPct == null
+              ? 'N/A'
+              : `${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`,
+          trend:
+            portfolioMetrics.returnPct == null
+              ? 'stable'
+              : portfolioMetrics.returnPct > 0
+                ? 'up'
+                : 'down',
+          severity:
+            portfolioMetrics.returnPct == null
+              ? 'neutral'
+              : portfolioMetrics.returnPct > 0
+                ? 'success'
+                : 'warning',
           icon: Target,
         },
         {
           id: 'moic',
           title: 'Average MOIC',
-          value: `${portfolioMetrics.averageMOIC.toFixed(2)}x`,
+          value:
+            portfolioMetrics.averageMOIC == null
+              ? 'N/A'
+              : `${portfolioMetrics.averageMOIC.toFixed(2)}x`,
           subtitle: 'Multiple on invested capital',
           change: '',
-          trend: portfolioMetrics.averageMOIC > 2 ? 'up' : 'stable',
-          severity: portfolioMetrics.averageMOIC > 2 ? 'success' : 'neutral',
+          trend:
+            portfolioMetrics.averageMOIC != null && portfolioMetrics.averageMOIC > 2
+              ? 'up'
+              : 'stable',
+          severity:
+            portfolioMetrics.averageMOIC != null && portfolioMetrics.averageMOIC > 2
+              ? 'success'
+              : 'neutral',
           icon: BarChart3,
         },
       ]
@@ -622,15 +665,33 @@ export function OverviewTab() {
             />
             <KpiCard
               label={isHistoricalMode ? 'Historical Value' : 'Current Value'}
-              value={formatCurrency(portfolioMetrics.totalValue)}
-              delta={`${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`}
-              intent={portfolioMetrics.returnPct >= 0 ? 'positive' : 'negative'}
+              value={currentValueLabel}
+              delta={
+                portfolioMetrics.returnPct == null
+                  ? 'N/A'
+                  : `${portfolioMetrics.returnPct >= 0 ? '+' : ''}${portfolioMetrics.returnPct.toFixed(1)}%`
+              }
+              intent={
+                portfolioMetrics.returnPct == null
+                  ? 'neutral'
+                  : portfolioMetrics.returnPct >= 0
+                    ? 'positive'
+                    : 'negative'
+              }
             />
             <KpiCard
               label="Average MOIC"
-              value={`${portfolioMetrics.averageMOIC.toFixed(2)}x`}
+              value={
+                portfolioMetrics.averageMOIC == null
+                  ? 'N/A'
+                  : `${portfolioMetrics.averageMOIC.toFixed(2)}x`
+              }
               delta="Multiple on invested capital"
-              intent={portfolioMetrics.averageMOIC > 2 ? 'positive' : 'neutral'}
+              intent={
+                portfolioMetrics.averageMOIC != null && portfolioMetrics.averageMOIC > 2
+                  ? 'positive'
+                  : 'neutral'
+              }
             />
           </div>
 
@@ -679,10 +740,12 @@ export function OverviewTab() {
                           {formatCurrency(company.invested)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(company.currentValue)}
+                          {company.currentValue != null
+                            ? formatCurrency(company.currentValue)
+                            : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {company.moic.toFixed(2)}x
+                          {company.moic != null ? `${company.moic.toFixed(2)}x` : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button

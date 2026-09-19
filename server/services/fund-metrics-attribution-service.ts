@@ -28,7 +28,9 @@ function isUniqueConstraintViolation(error: unknown, constraintName: string): bo
   );
 }
 
-export async function ensureAttributedFundMetricsForCalcRun(runId: number) {
+export async function ensureAttributedFundMetricsForCalcRun(
+  runId: number
+): Promise<typeof fundMetrics.$inferSelect | null> {
   const run = await db.query.calcRuns.findFirst({
     where: eq(calcRuns.id, runId),
   });
@@ -47,6 +49,11 @@ export async function ensureAttributedFundMetricsForCalcRun(runId: number) {
   }
 
   const calculatedMetrics = await calculateFundMetrics(run.fundId);
+  if (calculatedMetrics.totalValue == null) {
+    // fund_metrics.totalvalue is NOT NULL; a fabricated zero would be a lie.
+    return null;
+  }
+
   const metricDate = run.completedAt ?? new Date();
 
   try {

@@ -17,8 +17,8 @@ export interface CalculatedFundMetrics {
   /** Total capital invested across all portfolio companies */
   totalInvested: number;
 
-  /** Current total value of all portfolio holdings */
-  totalValue: number;
+  /** Current total value of all portfolio holdings (null when any company lacks a valuation) */
+  totalValue: number | null;
 
   /** Undeployed capital remaining */
   remainingCapital: number;
@@ -29,14 +29,14 @@ export interface CalculatedFundMetrics {
   /** Internal Rate of Return */
   irr: number | null;
 
-  /** Multiple on Invested Capital (MOIC) */
-  moic: number;
+  /** Multiple on Invested Capital (MOIC; null when totalValue is null) */
+  moic: number | null;
 
   /** Distributions to Paid-In capital (DPI) */
   dpi: number;
 
-  /** Total Value to Paid-In capital (TVPI) */
-  tvpi: number;
+  /** Total Value to Paid-In capital (TVPI; null when totalValue is null) */
+  tvpi: number | null;
 
   /** Number of active portfolio companies */
   activeInvestments: number;
@@ -64,7 +64,7 @@ export interface CalculatedFundMetrics {
  * @example
  * ```typescript
  * const metrics = await calculateFundMetrics(1);
- * metrics.moic.toFixed(2); // Fund MOIC
+ * metrics.moic != null ? metrics.moic.toFixed(2) : null; // Fund MOIC
  * metrics.irr != null ? (metrics.irr * 100).toFixed(1) : null; // IRR percentage
  * metrics.dpi.toFixed(2); // DPI multiple
  * ```
@@ -114,10 +114,12 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
 
   // Calculate total current value
   // Sum current valuations of all portfolio companies
-  const totalValue = portfolioCompanies.reduce((sum, company) => {
-    const valuation = toDecimal(company.currentValuation || 0).toNumber();
-    return sum + valuation;
-  }, 0);
+  const anyNullValuation = portfolioCompanies.some((company) => company.currentValuation == null);
+  const totalValue = anyNullValuation
+    ? null
+    : portfolioCompanies.reduce((sum, company) => {
+        return sum + toDecimal(company.currentValuation as string | number).toNumber();
+      }, 0);
 
   // Calculate total distributions
   const totalDistributions = distributions.reduce((sum, dist) => {
@@ -144,7 +146,7 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
 
   // Calculate Multiple on Invested Capital (MOIC)
   // MOIC = Total Value / Total Invested
-  const moic = totalInvested > 0 ? totalValue / totalInvested : 0;
+  const moic = totalValue == null ? null : totalInvested > 0 ? totalValue / totalInvested : 0;
 
   // Calculate DPI (Distributions to Paid-In)
   // DPI = Total Distributions / Total Invested (Paid-In Capital)
@@ -152,7 +154,12 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
 
   // Calculate TVPI (Total Value to Paid-In)
   // TVPI = (Total Distributions + Residual Value) / Paid-In Capital
-  const tvpi = totalInvested > 0 ? (totalDistributions + totalValue) / totalInvested : 0;
+  const tvpi =
+    totalValue == null
+      ? null
+      : totalInvested > 0
+        ? (totalDistributions + totalValue) / totalInvested
+        : 0;
 
   // Calculate deployment rate
   // Percentage of committed capital that has been deployed
@@ -172,14 +179,14 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
     })),
   ];
 
-  if (totalValue > 0) {
+  if (totalValue != null && totalValue > 0) {
     cashflows.push({
       date: new Date(),
       amount: totalValue,
     });
   }
 
-  const irr = calculateCanonicalIrr(cashflows);
+  const irr = totalValue == null ? null : calculateCanonicalIrr(cashflows);
 
   return {
     totalCommitted,

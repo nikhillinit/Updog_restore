@@ -29,18 +29,21 @@ function mapCompanyToPortfolioEntry(
   c: Awaited<ReturnType<typeof storage.getPortfolioCompanies>>[number]
 ): ReportMetrics['portfolioCompanies'][number] {
   const invested = toDecimal(c.investmentAmount).toNumber();
-  const value = toDecimal(c.currentValuation ?? 0).toNumber();
-  return { name: c.name, invested, value, moic: invested > 0 ? value / invested : 0 };
+  const value = c.currentValuation != null ? toDecimal(c.currentValuation).toNumber() : null;
+  const moic = value != null && invested > 0 ? value / invested : null;
+  return { name: c.name, invested, value, moic };
 }
 
 async function resolveMetricTriplet(
   perf: Awaited<ReturnType<typeof getFundPerformance>>,
   fundId: number
-): Promise<Pick<ReportMetrics, 'irr' | 'tvpi' | 'dpi'>> {
+): Promise<Pick<ReportMetrics, 'irr' | 'tvpi' | 'dpi'> | null> {
   if (perf) {
     return { irr: perf.irr, tvpi: perf.tvpi, dpi: perf.dpi };
   }
   const fallback = await calculateFundMetrics(fundId);
+  if (fallback.tvpi == null) return null;
+
   return { irr: fallback.irr, tvpi: fallback.tvpi, dpi: fallback.dpi };
 }
 
@@ -154,6 +157,7 @@ export async function prefetchReportMetrics(
     .map(mapCompanyToPortfolioEntry);
 
   const triplet = await resolveMetricTriplet(perf, fundId);
+  if (!triplet) return null;
 
   return { ...triplet, portfolioCompanies };
 }

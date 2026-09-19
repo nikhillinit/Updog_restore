@@ -173,17 +173,25 @@ export const TearSheetTemplate: React.FC<TearSheetTemplateProps> = ({
           <View style={styles.metricColumn}>
             <PdfMetricCard
               label="Current Value"
-              value={formatCurrency(metrics.currentValue, { compact: true })}
+              value={
+                metrics.currentValue != null
+                  ? formatCurrency(metrics.currentValue, { compact: true })
+                  : 'N/A'
+              }
               subtitle="Fair market value"
-              trend={metrics.currentValue > metrics.totalInvested ? 'up' : 'down'}
+              trend={
+                metrics.currentValue != null && metrics.currentValue > metrics.totalInvested
+                  ? 'up'
+                  : 'neutral'
+              }
             />
           </View>
           <View style={styles.metricColumn}>
             <PdfMetricCard
               label="MOIC"
-              value={formatMultiple(metrics.moic)}
+              value={metrics.moic != null ? formatMultiple(metrics.moic) : 'N/A'}
               subtitle="Multiple on invested capital"
-              highlighted={metrics.moic >= 2}
+              highlighted={metrics.moic != null && metrics.moic >= 2}
             />
           </View>
           <View style={styles.metricColumn}>
@@ -203,12 +211,16 @@ export const TearSheetTemplate: React.FC<TearSheetTemplateProps> = ({
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Unrealized Gain</Text>
             <Text style={styles.summaryValue}>
-              {formatCurrency(metrics.currentValue - metrics.totalInvested, { compact: true })}
+              {metrics.currentValue != null
+                ? formatCurrency(metrics.currentValue - metrics.totalInvested, { compact: true })
+                : 'N/A'}
             </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Return Multiple</Text>
-            <Text style={styles.summaryValue}>{formatMultiple(metrics.moic)}</Text>
+            <Text style={styles.summaryValue}>
+              {metrics.moic != null ? formatMultiple(metrics.moic) : 'N/A'}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Annualized Return</Text>

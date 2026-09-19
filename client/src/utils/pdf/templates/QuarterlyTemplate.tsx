@@ -162,20 +162,24 @@ export const QuarterlyTemplate: React.FC<QuarterlyTemplateProps> = ({
       header: 'Current Value',
       width: '25%',
       align: 'right',
-      render: (value) => formatCurrency(value as number, { compact: true }),
+      render: (value) =>
+        value != null ? formatCurrency(value as number, { compact: true }) : 'N/A',
     },
     {
       key: 'moic',
       header: 'MOIC',
       width: '20%',
       align: 'right',
-      render: (value) => formatMultiple(value as number),
+      render: (value) => (value != null ? formatMultiple(value as number) : 'N/A'),
     },
   ];
 
   // Calculate totals
   const totalInvested = portfolioCompanies.reduce((sum, co) => sum + co.invested, 0);
-  const totalValue = portfolioCompanies.reduce((sum, co) => sum + co.value, 0);
+  const anyMissingValue = portfolioCompanies.some((co) => co.value == null);
+  const totalValue = anyMissingValue
+    ? null
+    : portfolioCompanies.reduce((sum, co) => sum + (co.value as number), 0);
 
   return (
     <PdfDocument
@@ -249,8 +253,11 @@ export const QuarterlyTemplate: React.FC<QuarterlyTemplateProps> = ({
             As of {quarter} {year}, {fundName} has deployed{' '}
             {formatCurrency(totalInvested, { compact: true })} across {portfolioCompanies.length}{' '}
             portfolio companies with a current fair market value of{' '}
-            {formatCurrency(totalValue, { compact: true })}. The fund has generated a gross TVPI of{' '}
-            {formatMultiple(summary.tvpi)} and net IRR of {formatPercent(summary.irr)}.
+            {totalValue != null
+              ? formatCurrency(totalValue, { compact: true })
+              : 'N/A (partial valuations)'}
+            . The fund has generated a gross TVPI of {formatMultiple(summary.tvpi)} and net IRR of{' '}
+            {formatPercent(summary.irr)}.
           </Text>
         </View>
       </View>

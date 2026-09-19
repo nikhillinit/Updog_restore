@@ -321,9 +321,18 @@ export class VarianceAlertAutomationService {
       // The calc-run completion contract is intentionally sequential:
       // run-attributed metrics -> automated baseline -> realtime alert evaluation.
       // Replays may rerun the same sequence, so each stage must be idempotent.
-      await withTimeout('ensureAttributedFundMetricsForCalcRun', () =>
+      const attribution = await withTimeout('ensureAttributedFundMetricsForCalcRun', () =>
         ensureAttributedFundMetricsForCalcRun(runId)
       );
+      if (attribution == null) {
+        log.info(
+          { event: 'alert.calc_run.skipped', runId, fundId },
+          'Skipped calc-run alert automation: fund metrics unavailable (totalValue null)'
+        );
+        this.healthState.counters.skipped += 1;
+        return;
+      }
+
       const baseline = await withTimeout('createBaselineFromCalcRun', () =>
         this.baselines.createBaselineFromCalcRun(runId)
       );

@@ -30,9 +30,10 @@ import type { QuarterlyReportData } from './types.js';
 // ---------------------------------------------------------------------------
 
 function computePortfolioTotals(companies: QuarterlyReportData['portfolioCompanies']) {
+  const anyMissing = companies.some((co) => co.value == null);
   return {
     totalInvested: companies.reduce((sum, co) => sum + co.invested, 0),
-    totalValue: companies.reduce((sum, co) => sum + co.value, 0),
+    totalValue: anyMissing ? null : companies.reduce((sum, co) => sum + (co.value as number), 0),
   };
 }
 
@@ -71,7 +72,7 @@ function ExecutiveSummary({
   totals,
 }: {
   data: QuarterlyReportData;
-  totals: { totalInvested: number; totalValue: number };
+  totals: { totalInvested: number; totalValue: number | null };
 }) {
   return (
     <View style={baseStyles.section}>
@@ -80,7 +81,7 @@ function ExecutiveSummary({
           Executive Summary
         </Text>
         <Text style={{ ...baseStyles.disclaimerText, fontSize: 9 }}>
-          {`As of ${data.quarter} ${data.year}, ${data.fundName} has deployed ${formatCurrency(totals.totalInvested, true)} across ${data.portfolioCompanies.length} portfolio companies with a current fair market value of ${formatCurrency(totals.totalValue, true)}. The fund has generated a gross TVPI of ${formatMultiple(data.summary.tvpi)} and net IRR of ${formatPercent(data.summary.irr)}.`}
+          {`As of ${data.quarter} ${data.year}, ${data.fundName} has deployed ${formatCurrency(totals.totalInvested, true)} across ${data.portfolioCompanies.length} portfolio companies with a current fair market value of ${totals.totalValue != null ? formatCurrency(totals.totalValue, true) : 'N/A (partial valuations)'}. The fund has generated a gross TVPI of ${formatMultiple(data.summary.tvpi)} and net IRR of ${formatPercent(data.summary.irr)}.`}
         </Text>
       </View>
     </View>
@@ -116,8 +117,8 @@ function PortfolioTable({ companies }: { companies: QuarterlyReportData['portfol
     cells: [
       { text: co.name },
       { text: formatCurrency(co.invested, true) },
-      { text: formatCurrency(co.value, true) },
-      { text: formatMultiple(co.moic) },
+      { text: co.value != null ? formatCurrency(co.value, true) : 'N/A' },
+      { text: co.moic != null ? formatMultiple(co.moic) : 'N/A' },
     ],
   }));
 
