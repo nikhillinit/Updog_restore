@@ -126,10 +126,15 @@ function configureEnvironment(): void {
   }
 }
 
-function authorization(role: string, fundIds = [FUND_ID], lpId?: number): string {
+function authorization(
+  role: string,
+  fundIds = [FUND_ID],
+  lpId?: number,
+  sub = `${role}-user`
+): string {
   if (!signToken) throw new Error('Test runtime not booted');
   const token = signToken({
-    sub: `${role}-user`,
+    sub,
     email: `${role}@example.test`,
     role,
     fundIds,
@@ -330,21 +335,24 @@ describe('investment write authorization through real assemblers', () => {
     for (const { name, app } of surfaces) {
       effects.createRound.mockClear();
       const key = `${name}-authorized-output`;
+      const sub = `${name}-authorization-changed-user`;
       const authorized = await request(app)
         .post(`/api/investments/${INVESTMENT_ID}/rounds`)
-        .set('Authorization', authorization('admin'))
+        .set('Authorization', authorization('admin', [FUND_ID], undefined, sub))
         .set('Idempotency-Key', key)
         .send(roundBody);
       expect(authorized.status, name).toBe(201);
 
       const denied = await request(app)
         .post(`/api/investments/${INVESTMENT_ID}/rounds`)
-        .set('Authorization', authorization('analyst', [FUND_ID], 77))
+        .set('Authorization', authorization('analyst', [FUND_ID], 77, sub))
         .set('Idempotency-Key', key)
         .send(roundBody);
       expect(denied.status, name).toBe(403);
       expect(denied.body.code).toBe('TEAM_WRITE_REQUIRED');
       expect(denied.body).not.toEqual(authorized.body);
+      expect(denied.headers['idempotency-replay']).toBeUndefined();
+      expect(denied.headers['x-idempotent-replay']).toBeUndefined();
       expect(effects.createRound).toHaveBeenCalledTimes(1);
     }
   });
