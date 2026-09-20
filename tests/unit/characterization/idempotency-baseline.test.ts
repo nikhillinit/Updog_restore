@@ -25,6 +25,7 @@ import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { deferred } from '../../helpers/deferred';
 import { isDatabaseBackedIdempotencyRoute } from '../../../server/lib/database-backed-idempotency-routes';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { TASK_CONTRACT_VERSION } from '../../../shared/contracts/operating-objects/task.contract';
@@ -650,19 +651,67 @@ describe('mechanism C: POST /api/funds/calculate', () => {
     createServer: { fundSize: 200_000_000 },
   };
 
-  it('first call 201 created, derived-key duplicate 200 joined', async () => {
+  it('derived-key duplicate joins pending calculation with 202, then replays completed result', async () => {
     const { surfaces, token } = await boot();
 
     for (const { name, app } of surfaces) {
       effects.calculate.mockClear();
       const payload = calcPayloads[name]!;
 
-      const r1 = await request(app)
+      const result = { results: { fundSize: payload.fundSize } };
+      const calculation = deferred<typeof result>();
+      effects.calculate.mockReturnValueOnce(calculation.promise);
+
+      // Supertest starts the request when its thenable is consumed.
+      const firstRequest = request(app)
         .post('/api/funds/calculate')
         .auth(token, { type: 'bearer' })
-        .send(payload);
+        .send(payload)
+        .then((response) => response);
+
+      try {
+        await vi.waitFor(() => expect(effects.calculate).toHaveBeenCalledTimes(1));
+        const pending = await request(app)
+          .post('/api/funds/calculate')
+          .auth(token, { type: 'bearer' })
+          .send(payload)
+          .timeout(5000);
+
+        expect(pending.status, `${name} pending duplicate`).toBe(202);
+        expect(pending.headers['idempotency-status']).toBe('joined');
+        expect(pending.headers['retry-after']).toBe('2');
+        expect(pending.body).toEqual({
+          status: 'in-progress',
+          key: expect.stringMatching(/^calc:/),
+        });
+        expect(pending.headers['location']).toBe(
+          `/api/operations/${encodeURIComponent(pending.body.key as string)}`
+        );
+        const poll = await request(app)
+          .get(pending.headers['location'] as string)
+          .auth(token, { type: 'bearer' })
+          .timeout(5000);
+        if (name === 'createServer') {
+          expect(poll.status, `${name} pending operation`).toBe(202);
+          expect(poll.headers['retry-after']).toBe('2');
+          expect(poll.body).toMatchObject({ status: 'in-progress' });
+        } else {
+          expect(poll.status, `${name} operations mount gap`).toBe(404);
+        }
+        expect(
+          effects.calculate,
+          `${name} pending duplicate did not calculate`
+        ).toHaveBeenCalledTimes(1);
+      } finally {
+        // Release and drain the original request even when a pending assertion fails.
+        calculation.resolve(result);
+        await firstRequest;
+      }
+
+      const r1 = await firstRequest;
       expect(r1.status, `${name} first call: ${JSON.stringify(r1.body)}`).toBe(201);
       expect(r1.headers['idempotency-status'], `${name} first status header`).toBe('created');
+      expect(r1.body).toEqual(result);
 
       // Same payload = same derived key = join
       const r2 = await request(app)
@@ -671,6 +720,7 @@ describe('mechanism C: POST /api/funds/calculate', () => {
         .send(payload);
       expect(r2.status, `${name} joined call`).toBe(200);
       expect(r2.headers['idempotency-status'], `${name} joined status header`).toBe('joined');
+      expect(r2.body, `${name} completed replay`).toEqual(result);
 
       // Mechanism C: getOrStart runs the compute ONCE, second call joins.
       expect(
@@ -703,6 +753,51 @@ describe('mechanism C: POST /api/funds/calculate', () => {
       // Client-provided key on join: 202 with Location for polling
       expect(r2.status, `${name} client-key join`).toBe(202);
       expect(r2.headers['location'], `${name} location header`).toContain('/api/operations/');
+    }
+  });
+
+  it('explicit key with changed fundSize joins the original calculation (baseline gap)', async () => {
+    const { surfaces, token } = await boot();
+
+    for (const { name, app } of surfaces) {
+      effects.calculate.mockClear();
+      const key = `calc-changed-input-${name}`;
+      const payload = calcPayloads[name]!;
+      const result = { results: { fundSize: payload.fundSize } };
+      effects.calculate.mockResolvedValueOnce(result);
+
+      const original = await request(app)
+        .post('/api/funds/calculate')
+        .auth(token, { type: 'bearer' })
+        .set('Idempotency-Key', key)
+        .send(payload);
+      expect(original.status, `${name} original calculation`).toBe(201);
+      expect(original.body).toEqual(result);
+
+      const changed = await request(app)
+        .post('/api/funds/calculate')
+        .auth(token, { type: 'bearer' })
+        .set('Idempotency-Key', key)
+        .send({ fundSize: payload.fundSize + 1_000_000 });
+
+      // BASELINE: mechanism C compares only the key, not the request payload.
+      // P1b must replace this join with a changed-input conflict.
+      expect(changed.status, `${name} changed input joins instead of conflicting`).toBe(202);
+      expect(changed.headers['idempotency-status']).toBe('joined');
+      expect(changed.headers['location']).toBe(`/api/operations/${key}`);
+      expect(changed.body).toEqual({ status: 'in-progress', key });
+      expect(effects.calculate, `${name} changed input did not calculate`).toHaveBeenCalledTimes(1);
+
+      const poll = await request(app)
+        .get(changed.headers['location'] as string)
+        .auth(token, { type: 'bearer' });
+      if (name === 'createServer') {
+        expect(poll.status).toBe(200);
+        expect(poll.body).toMatchObject({ status: 'succeeded', result });
+      } else {
+        // makeApp does not mount the operations polling route (separate baseline gap).
+        expect(poll.status).toBe(404);
+      }
     }
   });
 
