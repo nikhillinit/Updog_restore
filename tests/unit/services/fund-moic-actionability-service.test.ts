@@ -241,19 +241,22 @@ describe('fund MOIC actionability resolver', () => {
     expect(result.sourceFingerprintMatches).toBe(false);
   });
 
-  it('keeps matching hashes non-actionable when round evidence failed', async () => {
-    buildRoundsToModelEvidence.mockResolvedValue({
-      coverage,
-      provenance: { trustState: 'FAILED' },
-    });
-    const database = makeDatabase([reconciliationRow()]);
-    const resolver = createMoicActionabilityResolver({ database, now });
+  it.each(['FAILED', 'PARTIAL', 'UNAVAILABLE'])(
+    'keeps matching hashes non-actionable when round evidence is %s',
+    async (trustState) => {
+      buildRoundsToModelEvidence.mockResolvedValue({
+        coverage,
+        provenance: { trustState },
+      });
+      const database = makeDatabase([reconciliationRow()]);
+      const resolver = createMoicActionabilityResolver({ database, now });
 
-    const result = await resolveForFund(resolver, 7);
+      const result = await resolveForFund(resolver, 7);
 
-    expect(result.sourceFingerprintMatches).toBe(false);
-    expect(actionabilityStatus(result)).toBe('non_actionable');
-  });
+      expect(result.sourceFingerprintMatches).toBe(false);
+      expect(actionabilityStatus(result)).toBe('non_actionable');
+    }
+  );
 
   it('does not throw when no accepted reconciliation row exists', async () => {
     const database = makeDatabase([]);

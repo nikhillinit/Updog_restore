@@ -401,7 +401,7 @@ export function createMoicActionabilityResolver(params: {
     const accepted = await loadAcceptedMoicReconciliation({ database, fundId: input.fundId });
     const sourceFingerprintMatches =
       sources.factsSource.status === 'available' &&
-      evidence.provenance.trustState !== 'FAILED' &&
+      evidence.provenance.trustState === 'LIVE' &&
       Boolean(
         accepted &&
         acceptedCandidateInputHash(accepted) === sourceFingerprint.moicSourceInputHash &&

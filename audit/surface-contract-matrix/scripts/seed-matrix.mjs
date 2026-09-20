@@ -476,6 +476,13 @@ const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
   const evidence = [];
   const registrationLines = definitions.map(definitionLine).filter(Boolean);
   const ranges = routeRegistrationRanges(source, { registrationLines });
+  const teamWriteRoleAliases = new Set();
+  for (const match of source.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"][^'"]*provided-fund-scope['"]/g)) {
+    for (const clause of match[1].split(',')) {
+      const [exported, local = exported] = clause.trim().split(/\s+as\s+/);
+      if (exported === 'enforceTeamWriteRole') teamWriteRoleAliases.add(local);
+    }
+  }
   for (const [charStart, charEnd] of ranges) {
     const registrationText = source.slice(charStart, charEnd);
     const searchInRegistration = (pattern) => {
@@ -502,6 +509,22 @@ const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
         line: teamFundScopeLine,
         evidence: `${filePath}:${teamFundScopeLine} checks team/fund management scope`,
       });
+    }
+    for (const alias of teamWriteRoleAliases) {
+      let registrationLine;
+      try {
+        registrationLine = authMiddlewareCallLine(registrationText, alias);
+      } catch {
+        continue;
+      }
+      const teamWriteRoleLine = source.slice(0, charStart).split('\n').length + registrationLine - 1;
+      evidence.push(...TEAM_WRITE_ROLES.map((role) => ({
+        kind: 'guard',
+        role,
+        file: filePath,
+        line: teamWriteRoleLine,
+        evidence: `${filePath}:${teamWriteRoleLine} enforceTeamWriteRole permits ${role}`,
+      })));
     }
   }
   return evidence;

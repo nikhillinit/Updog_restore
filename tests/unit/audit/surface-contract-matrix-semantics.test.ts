@@ -227,10 +227,12 @@ const routeObservation = ({
 });
 
 const makeRuntimeDocuments = () => {
-  const protectedServerSite = `server/server.ts:${matrixSchema.authMiddlewareCallLine(
-    fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'),
-    'requireSecureContext'
-  ) + 1}`;
+  const protectedServerSite = `server/server.ts:${
+    matrixSchema.authMiddlewareCallLine(
+      fs.readFileSync(path.join(repoRoot, 'server/server.ts'), 'utf8'),
+      'requireSecureContext'
+    ) + 1
+  }`;
   const diagnosticId = 'api:GET:/api/diagnostics';
   const publicId = 'api:GET:/api/public/shares/:shareId';
   const healthId = 'api:GET:/api/health/detailed';
@@ -1005,6 +1007,66 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(unresolvedGuard.personas).toEqual(['unknown']);
   });
 
+  it('attributes enforceTeamWriteRole only to guarded investment mutations', async () => {
+    const seed = (await loadSeedInternals()) as unknown as {
+      authSuggestionFor: (input: Record<string, unknown>) => {
+        auth_roles: string[];
+        auth_evidence: Array<{ kind?: string; role?: string; file?: string; line?: number }>;
+      };
+    };
+    const source = fs.readFileSync(path.join(repoRoot, 'server/routes/investments.ts'), 'utf8');
+    const routeLine = (registration: string) =>
+      source.slice(0, source.indexOf(registration)).split('\n').length;
+    const globalAuthentication = {
+      kind: 'policy-boundary',
+      boundary: 'global_authenticated',
+      file: 'server/server.ts',
+      line: 215,
+      evidence: 'server/server.ts:215 requireSecureContext precedes protected create_server routes',
+    };
+    const suggest = (routePath: string, registration: string) =>
+      seed.authSuggestionFor({
+        manifest: { authBoundary: 'require_auth' },
+        definitions: [
+          {
+            method: 'POST',
+            path: routePath,
+            role: 'handler',
+            site: `server/routes/investments.ts:${routeLine(registration)}`,
+          },
+        ],
+        additionalAuthEvidence: [globalAuthentication],
+        method: 'POST',
+        path: routePath,
+      });
+
+    for (const [routePath, registration] of [
+      ['/api/investments', "router.post('/investments'"],
+      ['/api/investments/:id/rounds', "router.post('/investments/:id/rounds'"],
+    ]) {
+      const suggestion = suggest(routePath, registration);
+      expect(suggestion.auth_roles, routePath).toEqual(['admin', 'analyst', 'partner']);
+      expect(suggestion.auth_roles, routePath).not.toContain('lp');
+      expect(suggestion.auth_evidence, routePath).toEqual(
+        expect.arrayContaining(
+          TEAM_WRITE_ROLES.map((role) =>
+            expect.objectContaining({
+              kind: 'guard',
+              role,
+              file: 'server/routes/investments.ts',
+            })
+          )
+        )
+      );
+    }
+
+    const adjacent = suggest('/api/investments/:id/cases', "router.post('/investments/:id/cases'");
+    expect(adjacent.auth_roles).toEqual([]);
+    expect(adjacent.auth_evidence).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: 'guard', role: 'admin' })])
+    );
+  });
+
   it('matchingDelimiter skips apostrophes inside line and block comments', () => {
     const schema = matrixSchema as Record<string, (...args: unknown[]) => unknown>;
     const matchingDelimiter = schema.matchingDelimiter as (
@@ -1205,9 +1267,7 @@ describe('surface contract matrix seed semantic regressions', () => {
 
     for (const route of routes) {
       const conditions = runtimeIndex.conditions.get(`make_app|${route.id}`);
-      expect(conditions).toEqual([
-        { selector: 'ACTUALS_PILOT_FUND_ID', configured: true },
-      ]);
+      expect(conditions).toEqual([{ selector: 'ACTUALS_PILOT_FUND_ID', configured: true }]);
     }
   });
 
