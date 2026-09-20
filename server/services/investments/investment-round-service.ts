@@ -170,8 +170,19 @@ export async function createRound(
 ): Promise<CreateRoundResult> {
   const database = options.database ?? db;
   const requestHash = requestHashFor(input);
+  const replayExisting = async (): Promise<CreateRoundResult | undefined> => {
+    const existing = await loadRoundByIdempotencyKey(input.fundId, input.idempotencyKey, options);
+    if (!existing) return undefined;
+    if (existing.row.requestHash === requestHash) {
+      return { kind: 'replayed', ...existing };
+    }
+    return { kind: 'key_reused' };
+  };
 
   if (input.supersedesRoundId !== undefined) {
+    const replay = await replayExisting();
+    if (replay) return replay;
+
     const preflight = await supersedeRoundPreflight(
       {
         investmentId: input.investmentId,
@@ -180,6 +191,10 @@ export async function createRound(
       },
       options
     );
+    if (preflight.kind === 'already_superseded') {
+      const concurrentReplay = await replayExisting();
+      if (concurrentReplay) return concurrentReplay;
+    }
     if (preflight.kind !== 'ok') {
       return preflight;
     }
@@ -219,14 +234,11 @@ export async function createRound(
     throw error;
   }
 
-  const existing = await loadRoundByIdempotencyKey(input.fundId, input.idempotencyKey, options);
-  if (!existing) {
+  const replay = await replayExisting();
+  if (!replay) {
     throw new Error('Idempotency conflict did not return an existing investment round');
   }
-  if (existing.row.requestHash === requestHash) {
-    return { kind: 'replayed', ...existing };
-  }
-  return { kind: 'key_reused' };
+  return replay;
 }
 
 export async function listRoundsForInvestment(
