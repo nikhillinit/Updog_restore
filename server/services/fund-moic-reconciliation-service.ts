@@ -154,6 +154,9 @@ export async function recordMoicReconciliation(params: {
   const candidate = sources.candidate;
   const materiality = assessMoicMateriality(legacy.rankings, candidate.rankings);
   const evidence = await buildRoundsToModelEvidence({ fundId: params.fundId, database });
+  if (evidence.provenance.trustState === 'FAILED') {
+    throw new MoicReconciliationFactsUnavailableError();
+  }
   const legacyOutputHash = canonicalSha256(legacy.rankings);
   const candidateOutputHash = canonicalSha256(candidate.rankings);
   const roundEvidenceSummary = summarizeRoundEvidence(evidence.coverage);

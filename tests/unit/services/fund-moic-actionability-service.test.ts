@@ -176,7 +176,10 @@ describe('fund MOIC actionability resolver', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getFundMoicRankingSources.mockResolvedValue(sourceBundle);
-    buildRoundsToModelEvidence.mockResolvedValue({ coverage });
+    buildRoundsToModelEvidence.mockResolvedValue({
+      coverage,
+      provenance: { trustState: 'LIVE' },
+    });
   });
 
   it('requires a database for the critical gate', () => {
@@ -236,6 +239,20 @@ describe('fund MOIC actionability resolver', () => {
     const result = await resolveForFund(resolver, 7);
 
     expect(result.sourceFingerprintMatches).toBe(false);
+  });
+
+  it('keeps matching hashes non-actionable when round evidence failed', async () => {
+    buildRoundsToModelEvidence.mockResolvedValue({
+      coverage,
+      provenance: { trustState: 'FAILED' },
+    });
+    const database = makeDatabase([reconciliationRow()]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(false);
+    expect(actionabilityStatus(result)).toBe('non_actionable');
   });
 
   it('does not throw when no accepted reconciliation row exists', async () => {

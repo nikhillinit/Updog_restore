@@ -23,6 +23,7 @@ vi.mock('../../../server/services/fund-moic-ranking-service', async (importOrigi
 
 import {
   MoicReconciliationConflictError,
+  MoicReconciliationFactsUnavailableError,
   recordMoicReconciliation,
 } from '../../../server/services/fund-moic-reconciliation-service';
 import { reconciliationRuns } from '../../../shared/schema';
@@ -144,7 +145,32 @@ describe('fund MOIC reconciliation service', () => {
         activeOverrideCount: 0,
         warningsByCode: {},
       },
+      provenance: { trustState: 'LIVE' },
     });
+  });
+
+  it('rejects failed round evidence without inserting a reconciliation row', async () => {
+    getFundMoicRankingSources.mockResolvedValue(sourceBundle());
+    buildRoundsToModelEvidence.mockResolvedValue({
+      coverage: {
+        activeRoundCount: 0,
+        activeOverrideCount: 0,
+        warningsByCode: { ROUND_ADAPTER_FAILED: 1 },
+      },
+      provenance: { trustState: 'FAILED' },
+    });
+    const database = makeDatabase({ selectResults: [[]] });
+
+    await expect(
+      recordMoicReconciliation({
+        fundId: 7,
+        idempotencyKey: 'failed-evidence',
+        requestedBy: 42,
+        database: database as never,
+      })
+    ).rejects.toBeInstanceOf(MoicReconciliationFactsUnavailableError);
+
+    expect(database.insert).not.toHaveBeenCalled();
   });
 
   it('persists real legacy-vs-candidate hashes and materiality counts', async () => {

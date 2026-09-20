@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  buildRoundsToModelEvidence,
   buildRoundsToModelEvidenceFromRows,
   type RoundsEvidenceRows,
 } from '../../../server/services/rounds-to-model-evidence-service';
@@ -271,5 +272,35 @@ describe('buildRoundsToModelEvidenceFromRows', () => {
     expect(evidence).not.toHaveProperty('shadowDiff');
     expect(evidence).not.toHaveProperty('candidateResponse');
     expect(evidence).not.toHaveProperty('exportEligibility');
+  });
+});
+
+describe('buildRoundsToModelEvidence', () => {
+  it('serializes a database query rejection as failed evidence', async () => {
+    const database = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn().mockRejectedValue(new Error('database unavailable')),
+          })),
+        })),
+      })),
+    };
+
+    const evidence = await buildRoundsToModelEvidence({
+      fundId: 10,
+      now,
+      database: database as never,
+    });
+
+    expect(evidence.provenance.trustState).toBe('FAILED');
+    expect(evidence.provenance.core.quarantineReason).toBe('round_adapter_failed');
+    expect(evidence.coverage.warningsByCode.ROUND_ADAPTER_FAILED).toBe(1);
+    expect(evidence.provenance.structuredWarnings).toContainEqual(
+      expect.objectContaining({
+        code: 'ROUND_ADAPTER_FAILED',
+        message: 'database unavailable',
+      })
+    );
   });
 });
