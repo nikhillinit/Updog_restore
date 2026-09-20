@@ -110,6 +110,34 @@ describe('verify-node-parity', () => {
     expect(result.stderr).toContain('scripts/test-plan.sh Node assertion');
   });
 
+  it('ignores a commented shadow assertion', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(
+      rootDir,
+      'scripts/test-plan.sh',
+      '# if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n' +
+        'if [[ "$NODE_VERSION" == "v20.19.5" ]]; then\n  exit 0\nfi\n'
+    );
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('scripts/test-plan.sh Node assertion');
+  });
+
+  it('rejects duplicate executable test-plan assertions', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(
+      rootDir,
+      'scripts/test-plan.sh',
+      'if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n  exit 0\nfi\n' +
+        'if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n  exit 0\nfi\n'
+    );
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('expected exactly one executable Node assertion, found 2');
+  });
+
   it('returns nonzero and identifies runtime drift', () => {
     const rootDir = createParityFixture();
     replaceFixtureFile(rootDir, '.nvmrc', '20.19.5\n');

@@ -137,8 +137,25 @@ function checkTestPlan(rootDir, mismatches) {
   const text = readText(rootDir, TEST_PLAN_SCRIPT, mismatches);
   if (text === null) return;
 
-  const version = text.match(/NODE_VERSION"\s*==\s*"v(\d+\.\d+\.\d+)"/)?.[1];
-  addMismatch(mismatches, `${TEST_PLAN_SCRIPT} Node assertion`, NODE_VERSION, version);
+  const assertions = [
+    ...text.matchAll(
+      /^\s*if\s+\[\[\s*"\$NODE_VERSION"\s*==\s*"v(\d+\.\d+\.\d+)"\s*\]\]\s*;\s*then(?:\s+#.*)?\s*$/gm
+    ),
+  ];
+
+  if (assertions.length !== 1) {
+    mismatches.push(
+      `${TEST_PLAN_SCRIPT}: expected exactly one executable Node assertion, found ${assertions.length}`
+    );
+    return;
+  }
+
+  addMismatch(
+    mismatches,
+    `${TEST_PLAN_SCRIPT} Node assertion`,
+    NODE_VERSION,
+    assertions[0][1]
+  );
 }
 
 export function findNodeParityMismatches(rootDir = DEFAULT_ROOT) {
