@@ -93,6 +93,7 @@ describe('portfolio company and activity route extraction', () => {
 
     const created = await request(app)
       .post('/api/portfolio-companies')
+      .set('Idempotency-Key', `portfolio-create-${fundId}`)
       .send({
         fundId,
         name: 'Route Extraction Co',
@@ -125,6 +126,7 @@ describe('portfolio company and activity route extraction', () => {
 
     const invalidSector = await request(app)
       .post('/api/portfolio-companies')
+      .set('Idempotency-Key', `portfolio-invalid-sector-${fundId}`)
       .send({
         fundId,
         name: 'Invalid Sector Co',
@@ -139,6 +141,7 @@ describe('portfolio company and activity route extraction', () => {
 
     const invalidStage = await request(app)
       .post('/api/portfolio-companies')
+      .set('Idempotency-Key', `portfolio-invalid-stage-${fundId}`)
       .send({
         fundId,
         name: 'Invalid Stage Co',
@@ -150,6 +153,23 @@ describe('portfolio company and activity route extraction', () => {
     expect(invalidStage.body).toMatchObject({
       error: 'Invalid company data',
     });
+
+    const missingKey = await request(app)
+      .post('/api/portfolio-companies')
+      .send({
+        fundId,
+        name: 'Missing Key Co',
+        sector: 'AI / ML',
+        stage: 'Seed',
+        investmentAmount: '1500000',
+      })
+      .expect(400);
+    expect(missingKey.body).toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
+
+    const afterMissingKey = await request(app)
+      .get(`/api/portfolio-companies?fundId=${fundId}`)
+      .expect(200);
+    expect(afterMissingKey.body.companies).toEqual(filteredRead.body.companies);
   });
 
   it('preserves activity validation and descending read order', async () => {
