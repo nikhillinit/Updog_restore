@@ -38,6 +38,7 @@ function createParityFixture() {
       };
       write('package.json', JSON.stringify({ engines: { node: ${JSON.stringify(NODE_ENGINE)} }, volta: { node: version } }));
       write('.nvmrc', version + '\\n');
+      write('.node-version', version + '\\n');
       write('.github/workflows/ci.yml', "      - uses: actions/setup-node@v7\\n        with:\\n          node-version: '" + version + "'\\n          run: node -v | grep '^v" + version + "$'\\n");
       write('.github/actions/setup-node-env/action.yml', "inputs:\\n  node-version:\\n    default: '" + version + "'\\n");
       for (const fileName of ['Dockerfile', 'Dockerfile.railway', 'Dockerfile.worker']) write(fileName, 'FROM ' + image + '\\n');
@@ -79,6 +80,16 @@ describe('verify-node-parity', () => {
     const result = runParity(rootDir);
     expect(result.status, result.stderr || result.stdout).toBe(0);
     expect(result.stdout).toContain('pass');
+  });
+
+  it('detects .node-version drift on its own', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(rootDir, '.node-version', '20\n');
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('.node-version');
+    expect(result.stderr).not.toContain('.nvmrc');
   });
 
   it('returns nonzero and identifies runtime drift', () => {
