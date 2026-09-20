@@ -387,9 +387,10 @@ describe('mechanism NONE/A: POST /api/investments (schema/transport gap)', () =>
 // 1b. POST /api/funds/:id/recalculate -- generic dispatcher (mechanism A gap)
 // ---------------------------------------------------------------------------
 describe('mechanism A: POST /api/funds/:id/recalculate (generic dispatcher)', () => {
-  // fund-config.ts:343 POST /api/funds/:id/recalculate: NO idempotency middleware,
+  // fund-config.ts:343 POST /api/funds/:id/recalculate: makeApp lacks the generic
+  // idempotency dispatcher entirely; createServer wires it with per-request storage
+  // (mechanism A) so the key is lost between requests. Neither surface deduplicates.
   // NO database-backed bypass. Dynamic-imports fundPersistenceService.recalculatePublished.
-  // Repeated identical requests execute the handler twice (zero dedup).
 
   it('handler executes on every request (no middleware dedup)', async () => {
     const { surfaces, token } = await boot();
@@ -504,13 +505,15 @@ describe('mechanism B: POST /api/funds', () => {
     const { surfaces, token } = await boot();
 
     for (const { name, app } of surfaces) {
+      effects.createFund.mockClear();
       const key = `fund-fingerprint-${name}`;
 
-      await request(app)
+      const r1 = await request(app)
         .post('/api/funds')
         .auth(token, { type: 'bearer' })
         .set('Idempotency-Key', key)
         .send({ name: 'Fund One', size: 1000000, vintageYear: 2024 });
+      expect(r1.status, `${name} first call succeeds`).toBe(201);
 
       await new Promise((r) => setTimeout(r, 100));
 
@@ -521,6 +524,11 @@ describe('mechanism B: POST /api/funds', () => {
         .send({ name: 'Fund Two', size: 2000000, vintageYear: 2025 });
 
       expect(r2.status, `${name} fingerprint mismatch`).toBe(422);
+      expect(r2.body.error, `${name} conflict error code`).toBe('idempotency_key_reused');
+      expect(
+        effects.createFund.mock.calls.length,
+        `${name}: mutation ran once despite two requests`
+      ).toBe(1);
     }
   });
 });
