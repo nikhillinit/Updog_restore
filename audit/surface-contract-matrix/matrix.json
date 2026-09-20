@@ -36579,14 +36579,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
       "contract_fingerprint": "0f8dc543581a72c4101929b0f17cb213b2b9eb1184ef67f85914d1f72b4afd10",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -36861,14 +36861,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
       "contract_fingerprint": "feefc3f150bf06c3063b1fd78ced416c95231835af17439246ae226b4f77450f",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -36912,7 +36912,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/investments.ts:360 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:379 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds",
@@ -36923,7 +36923,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:360",
+              "site": "server/routes/investments.ts:379",
               "role": "handler",
               "effective_mount_order": 214
             }
@@ -36952,7 +36952,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/investments.ts:360 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:379 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds",
@@ -36963,7 +36963,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:360",
+              "site": "server/routes/investments.ts:379",
               "role": "handler",
               "effective_mount_order": 214
             }
@@ -36995,7 +36995,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/investments.ts:360"
+        "server/routes/investments.ts:379"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/investments/:id/rounds",
@@ -37094,14 +37094,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
       "contract_fingerprint": "e13e09111b2fea1cf91a358aa27dc771f37c4aa4a9c43f35296959ad2e85ee1e",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -37139,7 +37139,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/investments.ts:386 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:405 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds/:roundId",
@@ -37150,7 +37150,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:386",
+              "site": "server/routes/investments.ts:405",
               "role": "handler",
               "effective_mount_order": 215
             }
@@ -37179,7 +37179,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/investments.ts:386 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:405 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds/:roundId",
@@ -37190,7 +37190,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:386",
+              "site": "server/routes/investments.ts:405",
               "role": "handler",
               "effective_mount_order": 215
             }
@@ -37222,7 +37222,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/investments.ts:386"
+        "server/routes/investments.ts:405"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/investments/:id/rounds/:roundId",
@@ -37321,14 +37321,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
       "contract_fingerprint": "402c2703f6ece34aa3cce0271761a50ee81bc8c68b9e81243d8e4cec86a42c19",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -93274,11 +93274,35 @@
           ],
           "auth_evidence": [
             {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/investments.ts",
-              "line": 151,
-              "evidence": "server/routes/investments.ts:151 enforces provided fund scope"
+              "line": 146,
+              "evidence": "server/routes/investments.ts:146 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -93321,11 +93345,35 @@
           ],
           "auth_evidence": [
             {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/investments.ts",
+              "line": 149,
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/investments.ts",
-              "line": 151,
-              "evidence": "server/routes/investments.ts:151 enforces provided fund scope"
+              "line": 146,
+              "evidence": "server/routes/investments.ts:146 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -93386,8 +93434,32 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/investments.ts",
-          "line": 151,
-          "evidence": "server/routes/investments.ts:151 enforces provided fund scope"
+          "line": 146,
+          "evidence": "server/routes/investments.ts:146 enforces provided fund scope"
+        },
+        {
+          "kind": "guard",
+          "role": "admin",
+          "file": "server/routes/investments.ts",
+          "line": 149,
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+        },
+        {
+          "kind": "guard",
+          "role": "analyst",
+          "file": "server/routes/investments.ts",
+          "line": 149,
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+        },
+        {
+          "kind": "guard",
+          "role": "partner",
+          "file": "server/routes/investments.ts",
+          "line": 149,
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "policy-boundary",
@@ -93397,30 +93469,6 @@
           "evidence": "server/server.ts:229 requireSecureContext precedes protected create_server routes",
           "boundary_scope": "create_server",
           "middleware": "requireSecureContext"
-        },
-        {
-          "kind": "identity",
-          "role": "admin",
-          "boundary": "fund_scope",
-          "file": "shared/auth/effective-roles.ts",
-          "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/investments.ts:151, server/routes/investments.ts:151 proves route fund_scope scope"
-        },
-        {
-          "kind": "identity",
-          "role": "analyst",
-          "boundary": "fund_scope",
-          "file": "shared/auth/effective-roles.ts",
-          "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/investments.ts:151, server/routes/investments.ts:151 proves route fund_scope scope"
-        },
-        {
-          "kind": "identity",
-          "role": "partner",
-          "boundary": "fund_scope",
-          "file": "shared/auth/effective-roles.ts",
-          "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/investments.ts:151, server/routes/investments.ts:151 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -93481,20 +93529,40 @@
             "test_file_sha256": "2e121c089c4487a6c21c9bc6934382d45a7851c4d32431987174d8456693145f"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/investments",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
+          },
+          {
+            "row": "api:POST:/api/investments",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
-      "contract_fingerprint": "ddf0c28a6b1f05b635b6bb0848077241d55dad6603e9ff92e8f97021c79efe06",
+      "decision_evidence": "owner-attestation:pr1557:2026-09-20:manifest-sha256=8d14643b6347657b93a7decaf2d6ddbaafaecae5b0ede11174675b80b01122a2",
+      "contract_fingerprint": "8ec920a9b087b867203885a0f17e3aef997d6fd575513a7bf7b9880b7fbe0f4d",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -93538,7 +93606,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/investments.ts:425 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:444 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/cases",
@@ -93549,7 +93617,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:425",
+              "site": "server/routes/investments.ts:444",
               "role": "handler",
               "effective_mount_order": 216
             }
@@ -93578,7 +93646,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/investments.ts:425 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:444 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/cases",
@@ -93589,7 +93657,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:425",
+              "site": "server/routes/investments.ts:444",
               "role": "handler",
               "effective_mount_order": 216
             }
@@ -93621,7 +93689,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/investments.ts:425"
+        "server/routes/investments.ts:444"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/investments/:id/cases",
@@ -93720,14 +93788,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
       "contract_fingerprint": "f49cb815e895b545dd03e77455f71b313ddb407003b8516af09179a87c58e883",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -93765,7 +93833,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/investments.ts:287 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:303 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds",
@@ -93776,12 +93844,36 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:287",
+              "site": "server/routes/investments.ts:303",
               "role": "handler",
               "effective_mount_order": 213
             }
           ],
           "auth_evidence": [
+            {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
             {
               "kind": "policy-boundary",
               "boundary": "global_authenticated",
@@ -93805,7 +93897,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/investments.ts:287 runtime registration",
+          "mount_evidence": "server/routes/investments.ts:303 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/investments/:id/rounds",
@@ -93816,12 +93908,36 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/investments.ts:287",
+              "site": "server/routes/investments.ts:303",
               "role": "handler",
               "effective_mount_order": 213
             }
           ],
           "auth_evidence": [
+            {
+              "kind": "guard",
+              "role": "admin",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "analyst",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
+            {
+              "kind": "guard",
+              "role": "partner",
+              "file": "server/routes/investments.ts",
+              "line": 309,
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+            },
             {
               "kind": "policy-boundary",
               "boundary": "global_authenticated",
@@ -93848,7 +93964,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/investments.ts:287"
+        "server/routes/investments.ts:303"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/investments/:id/rounds",
@@ -93862,7 +93978,11 @@
         "producers": [],
         "consumers": []
       },
-      "auth_roles": [],
+      "auth_roles": [
+        "admin",
+        "analyst",
+        "partner"
+      ],
       "auth_evidence": [
         {
           "kind": "policy-boundary",
@@ -93872,6 +93992,30 @@
           "evidence": "server/app.ts:236 requireApiAuth precedes protected make_app routes",
           "boundary_scope": "make_app",
           "middleware": "requireApiAuth"
+        },
+        {
+          "kind": "guard",
+          "role": "admin",
+          "file": "server/routes/investments.ts",
+          "line": 309,
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+        },
+        {
+          "kind": "guard",
+          "role": "analyst",
+          "file": "server/routes/investments.ts",
+          "line": 309,
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
+        },
+        {
+          "kind": "guard",
+          "role": "partner",
+          "file": "server/routes/investments.ts",
+          "line": 309,
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "policy-boundary",
@@ -93941,29 +94085,55 @@
             "test_file_sha256": "2e121c089c4487a6c21c9bc6934382d45a7851c4d32431987174d8456693145f"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/investments/:id/rounds",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
+          },
+          {
+            "row": "api:POST:/api/investments/:id/rounds",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
-      "contract_fingerprint": "8324c692c659d1962609815a5e820b3b65d3ca01dcfcedb142e3874501e5cba3",
+      "decision_evidence": "owner-attestation:pr1557:2026-09-20:manifest-sha256=8d14643b6347657b93a7decaf2d6ddbaafaecae5b0ede11174675b80b01122a2",
+      "contract_fingerprint": "6dca5b38c2bb50166dda8b1c6d98d72ff089fa8d5a2ede1c53a844ac34418226",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=adcbb5b5374cb14813a55a2a238d1132caaac593e96946864e799134504dd508",
+        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
-          "unknown"
+          "admin",
+          "analyst",
+          "gp"
         ],
-        "auth_roles": [],
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ],
         "unresolved_auth": false,
         "undecided_auth_roles": [],
         "persistence": "writes",
@@ -113685,16 +113855,6 @@
       "contract_fingerprint": "b506688452466c0e4886e6fe4f2bb30621ce97b5b31af501415bb2181cfddeea",
       "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/graduation/project|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
     },
-    "api:POST:/api/investments|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ddf0c28a6b1f05b635b6bb0848077241d55dad6603e9ff92e8f97021c79efe06",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/investments|local-process|create_server. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/investments|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ddf0c28a6b1f05b635b6bb0848077241d55dad6603e9ff92e8f97021c79efe06",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/investments|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
     "api:POST:/api/investments/:id/cases|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f49cb815e895b545dd03e77455f71b313ddb407003b8516af09179a87c58e883",
@@ -113704,16 +113864,6 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f49cb815e895b545dd03e77455f71b313ddb407003b8516af09179a87c58e883",
       "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/investments/:id/cases|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/investments/:id/rounds|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "8324c692c659d1962609815a5e820b3b65d3ca01dcfcedb142e3874501e5cba3",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/investments/:id/rounds|local-process|create_server. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/investments/:id/rounds|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "8324c692c659d1962609815a5e820b3b65d3ca01dcfcedb142e3874501e5cba3",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/investments/:id/rounds|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
     },
     "api:POST:/api/liquidity/analyze|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -114249,7 +114399,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f",
+      "snapshot_id": "snapshot:de2a94177416a1b25ab103d06b430c582e9c9fddafd3ee06d9c0f2fb46685037",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,
@@ -114272,7 +114422,7 @@
     ],
     "discovery": {
       "listener_candidates": 13,
-      "dormant_candidates": 30,
+      "dormant_candidates": 29,
       "bullmq_constructors": 16
     },
     "requirement_match_counts": {

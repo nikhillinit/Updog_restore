@@ -7,9 +7,13 @@ const { buildRoundsToModelEvidence, getFundMoicRankingSources } = vi.hoisted(() 
   getFundMoicRankingSources: vi.fn(),
 }));
 
-vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
-  buildRoundsToModelEvidence,
-}));
+vi.mock('../../../server/services/rounds-to-model-evidence-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../server/services/rounds-to-model-evidence-service')
+    >();
+  return { ...actual, buildRoundsToModelEvidence };
+});
 
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
   const actual =
@@ -23,8 +27,10 @@ vi.mock('../../../server/services/fund-moic-ranking-service', async (importOrigi
 
 import {
   MoicReconciliationConflictError,
+  MoicReconciliationFactsUnavailableError,
   recordMoicReconciliation,
 } from '../../../server/services/fund-moic-reconciliation-service';
+import { buildRoundsToModelEvidenceFromRows } from '../../../server/services/rounds-to-model-evidence-service';
 import { reconciliationRuns } from '../../../shared/schema';
 import type { FundMoicRankingSources } from '../../../server/services/fund-moic-ranking-service';
 
@@ -144,7 +150,75 @@ describe('fund MOIC reconciliation service', () => {
         activeOverrideCount: 0,
         warningsByCode: {},
       },
+      provenance: { trustState: 'LIVE' },
     });
+  });
+
+  it.each(['FAILED', 'PARTIAL'])(
+    'rejects %s round evidence without inserting a reconciliation row',
+    async (trustState) => {
+      getFundMoicRankingSources.mockResolvedValue(sourceBundle());
+      buildRoundsToModelEvidence.mockResolvedValue({
+        coverage: {
+          activeRoundCount: 0,
+          activeOverrideCount: 0,
+          warningsByCode: { ROUND_ADAPTER_FAILED: 1 },
+        },
+        provenance: { trustState },
+      });
+      const database = makeDatabase({ selectResults: [[]] });
+
+      await expect(
+        recordMoicReconciliation({
+          fundId: 7,
+          idempotencyKey: `${trustState.toLowerCase()}-evidence`,
+          requestedBy: 42,
+          database: database as never,
+        })
+      ).rejects.toBeInstanceOf(MoicReconciliationFactsUnavailableError);
+
+      expect(database.insert).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects currency-mismatched round evidence without inserting a reconciliation row', async () => {
+    getFundMoicRankingSources.mockResolvedValue(sourceBundle());
+    buildRoundsToModelEvidence.mockResolvedValue(
+      buildRoundsToModelEvidenceFromRows({
+        fundId: 7,
+        now: new Date('2026-06-24T00:00:00.000Z'),
+        rows: {
+          fund: { id: 7, baseCurrency: 'USD' },
+          companies: [{ id: 11, name: 'Acme' }],
+          investments: [{ id: 21, fundId: 7, companyId: 11 }],
+          activeRounds: [
+            {
+              id: 31,
+              fundId: 7,
+              investmentId: 21,
+              roundDate: '2026-01-01',
+              createdAt: new Date('2026-01-01T00:00:00.000Z'),
+              securityType: 'equity',
+              currency: 'EUR',
+              investmentAmount: '100.000000',
+            },
+          ],
+          activeOverrides: [],
+        },
+      })
+    );
+    const database = makeDatabase({ selectResults: [[]] });
+
+    await expect(
+      recordMoicReconciliation({
+        fundId: 7,
+        idempotencyKey: 'currency-mismatch-evidence',
+        requestedBy: 42,
+        database: database as never,
+      })
+    ).rejects.toBeInstanceOf(MoicReconciliationFactsUnavailableError);
+
+    expect(database.insert).not.toHaveBeenCalled();
   });
 
   it('persists real legacy-vs-candidate hashes and materiality counts', async () => {

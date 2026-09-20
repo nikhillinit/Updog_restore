@@ -6,7 +6,11 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DOCKER_BASE_IMAGE, NODE_ENGINE, NODE_VERSION } from '../../../scripts/verify-node-parity.mjs';
+import {
+  DOCKER_BASE_IMAGE,
+  NODE_ENGINE,
+  NODE_VERSION,
+} from '../../../scripts/verify-node-parity.mjs';
 
 const temporaryRoots = [];
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -39,6 +43,7 @@ function createParityFixture() {
       write('package.json', JSON.stringify({ engines: { node: ${JSON.stringify(NODE_ENGINE)} }, volta: { node: version } }));
       write('.nvmrc', version + '\\n');
       write('.node-version', version + '\\n');
+      write('scripts/test-plan.sh', 'if [[ "$NODE_VERSION" == "v' + version + '" ]]; then\\n  exit 0\\nfi\\n');
       write('.github/workflows/ci.yml', "      - uses: actions/setup-node@v7\\n        with:\\n          node-version: '" + version + "'\\n          run: node -v | grep '^v" + version + "$'\\n");
       write('.github/actions/setup-node-env/action.yml', "inputs:\\n  node-version:\\n    default: '" + version + "'\\n");
       for (const fileName of ['Dockerfile', 'Dockerfile.railway', 'Dockerfile.worker']) write(fileName, 'FROM ' + image + '\\n');
@@ -90,6 +95,47 @@ describe('verify-node-parity', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('.node-version');
     expect(result.stderr).not.toContain('.nvmrc');
+  });
+
+  it('detects test-plan runtime drift', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(
+      rootDir,
+      'scripts/test-plan.sh',
+      'if [[ "$NODE_VERSION" == "v20.19.5" ]]; then\n  exit 0\nfi\n'
+    );
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('scripts/test-plan.sh Node assertion');
+  });
+
+  it('ignores a commented shadow assertion', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(
+      rootDir,
+      'scripts/test-plan.sh',
+      '# if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n' +
+        'if [[ "$NODE_VERSION" == "v20.19.5" ]]; then\n  exit 0\nfi\n'
+    );
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('scripts/test-plan.sh Node assertion');
+  });
+
+  it('rejects duplicate executable test-plan assertions', () => {
+    const rootDir = createParityFixture();
+    replaceFixtureFile(
+      rootDir,
+      'scripts/test-plan.sh',
+      'if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n  exit 0\nfi\n' +
+        'if [[ "$NODE_VERSION" == "v22.23.2" ]]; then\n  exit 0\nfi\n'
+    );
+
+    const result = runParity(rootDir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('expected exactly one executable Node assertion, found 2');
   });
 
   it('returns nonzero and identifies runtime drift', () => {

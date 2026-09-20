@@ -168,7 +168,7 @@ describe('investment-round-service', () => {
 
   it('creates a superseding round when the target exists and is current', async () => {
     const input = baseInput({ idempotencyKey: 'idem-2', supersedesRoundId: 20 });
-    captured.limitQueue = [[roundRecord({ id: 20 })], []];
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
     captured.insertRows = [
       roundRecord({
         id: 21,
@@ -186,8 +186,72 @@ describe('investment-round-service', () => {
     expect(captured.insertedValues).toMatchObject({ supersedesRoundId: 20 });
   });
 
+  it('replays a superseding round before checking whether its target was superseded', async () => {
+    const input = baseInput({ idempotencyKey: 'idem-2', supersedesRoundId: 20 });
+    captured.limitQueue = [
+      [
+        roundRecord({
+          id: 21,
+          idempotencyKey: 'idem-2',
+          requestHash: expectedRequestHash(input),
+          supersedesRoundId: 20,
+          rowXmin: '9',
+        }),
+      ],
+    ];
+
+    const out = await createRound(input, serviceOptions());
+
+    expect(out.kind).toBe('replayed');
+    if (out.kind !== 'replayed') throw new Error('Expected replayed result');
+    expect(out.row.id).toBe(21);
+    expect(out.xmin).toBe('9');
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
+    expect(dbMock.db.select).toHaveBeenCalledTimes(1);
+  });
+
+  it('replays when a concurrent same-key request wins between lookup and supersession preflight', async () => {
+    const input = baseInput({ idempotencyKey: 'idem-2', supersedesRoundId: 20 });
+    captured.limitQueue = [
+      [],
+      [roundRecord({ id: 20 })],
+      [roundRecord({ id: 21, supersedesRoundId: 20 })],
+      [
+        roundRecord({
+          id: 21,
+          idempotencyKey: 'idem-2',
+          requestHash: expectedRequestHash(input),
+          supersedesRoundId: 20,
+          rowXmin: '9',
+        }),
+      ],
+    ];
+
+    const out = await createRound(input, serviceOptions());
+
+    expect(out.kind).toBe('replayed');
+    if (out.kind !== 'replayed') throw new Error('Expected replayed result');
+    expect(out.row.id).toBe(21);
+    expect(out.xmin).toBe('9');
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
+    expect(dbMock.db.select).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects changed superseding-round input before checking the supersession target', async () => {
+    captured.limitQueue = [
+      [roundRecord({ idempotencyKey: 'idem-2', requestHash: '0'.repeat(64) })],
+    ];
+
+    await expect(
+      createRound(baseInput({ idempotencyKey: 'idem-2', supersedesRoundId: 20 }), serviceOptions())
+    ).resolves.toEqual({ kind: 'key_reused' });
+    expect(dbMock.db.insert).not.toHaveBeenCalled();
+    expect(dbMock.db.select).toHaveBeenCalledTimes(1);
+  });
+
   it('returns already_superseded when a row already references the target', async () => {
     captured.limitQueue = [
+      [],
       [roundRecord({ id: 20 })],
       [roundRecord({ id: 21, supersedesRoundId: 20 })],
     ];
@@ -201,7 +265,7 @@ describe('investment-round-service', () => {
   });
 
   it('returns already_superseded for the concurrent supersedes unique violation', async () => {
-    captured.limitQueue = [[roundRecord({ id: 20 })], []];
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
     captured.insertError = Object.assign(
       new Error('duplicate key value violates unique constraint "investment_rounds_supersedes_uq"'),
       { code: '23505', constraint: 'investment_rounds_supersedes_uq' }
@@ -215,7 +279,7 @@ describe('investment-round-service', () => {
   });
 
   it('returns supersede_target_missing when the target row is absent', async () => {
-    captured.limitQueue = [[]];
+    captured.limitQueue = [[], []];
 
     await expect(
       createRound(baseInput({ supersedesRoundId: 999 }), serviceOptions())
@@ -226,7 +290,7 @@ describe('investment-round-service', () => {
   });
 
   it('returns supersede_target_other_investment when the target belongs elsewhere', async () => {
-    captured.limitQueue = [[roundRecord({ id: 20, investmentId: 999 })]];
+    captured.limitQueue = [[], [roundRecord({ id: 20, investmentId: 999 })]];
 
     await expect(
       createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())

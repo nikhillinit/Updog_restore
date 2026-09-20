@@ -12,6 +12,7 @@ const { invalidateH9Artifacts } = vi.hoisted(() => ({
 }));
 const fundScope = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
+  enforceTeamWriteRole: vi.fn(() => true),
 }));
 const storageMock = vi.hoisted(() => ({ createInvestment: vi.fn() }));
 const legacyGuard = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ vi.mock('../../../server/services/h9-artifact-invalidation-service', () => ({
 
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScope.enforceProvidedFundScope,
+  enforceTeamWriteRole: fundScope.enforceTeamWriteRole,
 }));
 
 vi.mock('../../../server/storage', () => ({

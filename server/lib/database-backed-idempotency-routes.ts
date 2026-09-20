@@ -1,6 +1,8 @@
 const INTERNAL_ECONOMICS_RUN_CREATION_PATH =
   /^\/api\/funds\/[^/?#]+\/internal-economics\/runs\/?$/i;
 const CURRENT_FORECAST_RECOMPUTE_PATH = /^\/api\/funds\/[^/?#]+\/current-forecast\/recompute\/?$/i;
+// Round creation persists its key and request hash on investment_rounds.
+const INVESTMENT_ROUND_CREATION_PATH = /^\/api\/investments\/[^/?#]+\/rounds\/?$/i;
 const DECISION_CREATION_PATH = /^\/api\/funds\/[^/?#]+\/decisions\/?$/i;
 const DECISION_SUPERSESSION_PATH = /^\/api\/funds\/[^/?#]+\/decisions\/[^/?#]+\/supersede\/?$/i;
 const DECISION_EVIDENCE_LINK_CREATION_PATH =
@@ -34,6 +36,7 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
     method === 'POST' &&
     (INTERNAL_ECONOMICS_RUN_CREATION_PATH.test(pathname) ||
       CURRENT_FORECAST_RECOMPUTE_PATH.test(pathname) ||
+      INVESTMENT_ROUND_CREATION_PATH.test(pathname) ||
       DECISION_CREATION_PATH.test(pathname) ||
       DECISION_SUPERSESSION_PATH.test(pathname) ||
       DECISION_EVIDENCE_LINK_CREATION_PATH.test(pathname) ||

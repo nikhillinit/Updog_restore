@@ -19,10 +19,13 @@ const BUILD_SCRIPTS = [
   'scripts/build-vercel-api.mjs',
   'scripts/build-workers.mjs',
 ];
+const TEST_PLAN_SCRIPT = 'scripts/test-plan.sh';
 
 function addMismatch(mismatches, surface, expected, actual) {
   if (expected === actual) return;
-  mismatches.push(`${surface}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  mismatches.push(
+    `${surface}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+  );
 }
 
 function readText(rootDir, relativePath, mismatches) {
@@ -52,21 +55,14 @@ function checkPackageJson(rootDir, mismatches) {
 }
 
 function checkWorkflowFile(relativePath, text, mismatches) {
-  const nodeVersionPins = [
-    ...text.matchAll(/^\s*node-version:\s*["']?([^\s"']+)["']?\s*$/gm),
-  ];
+  const nodeVersionPins = [...text.matchAll(/^\s*node-version:\s*["']?([^\s"']+)["']?\s*$/gm)];
 
   if (/uses:\s*actions\/setup-node@/m.test(text) && nodeVersionPins.length === 0) {
     mismatches.push(`${relativePath}: setup-node is missing a node-version pin`);
   }
 
   for (const [index, match] of nodeVersionPins.entries()) {
-    addMismatch(
-      mismatches,
-      `${relativePath} node-version[${index + 1}]`,
-      NODE_VERSION,
-      match[1]
-    );
+    addMismatch(mismatches, `${relativePath} node-version[${index + 1}]`, NODE_VERSION, match[1]);
   }
 
   for (const [index, match] of [...text.matchAll(/node -v[^\n]*v(\d+\.\d+\.\d+)/g)].entries()) {
@@ -115,12 +111,7 @@ function checkDockerFiles(rootDir, mismatches) {
     }
 
     for (const [index, match] of fromLines.entries()) {
-      addMismatch(
-        mismatches,
-        `${relativePath} FROM[${index + 1}]`,
-        DOCKER_BASE_IMAGE,
-        match[1]
-      );
+      addMismatch(mismatches, `${relativePath} FROM[${index + 1}]`, DOCKER_BASE_IMAGE, match[1]);
     }
   }
 }
@@ -142,6 +133,31 @@ function checkBuildScripts(rootDir, mismatches) {
   }
 }
 
+function checkTestPlan(rootDir, mismatches) {
+  const text = readText(rootDir, TEST_PLAN_SCRIPT, mismatches);
+  if (text === null) return;
+
+  const assertions = [
+    ...text.matchAll(
+      /^\s*if\s+\[\[\s*"\$NODE_VERSION"\s*==\s*"v(\d+\.\d+\.\d+)"\s*\]\]\s*;\s*then(?:\s+#.*)?\s*$/gm
+    ),
+  ];
+
+  if (assertions.length !== 1) {
+    mismatches.push(
+      `${TEST_PLAN_SCRIPT}: expected exactly one executable Node assertion, found ${assertions.length}`
+    );
+    return;
+  }
+
+  addMismatch(
+    mismatches,
+    `${TEST_PLAN_SCRIPT} Node assertion`,
+    NODE_VERSION,
+    assertions[0][1]
+  );
+}
+
 export function findNodeParityMismatches(rootDir = DEFAULT_ROOT) {
   const mismatches = [];
   checkPackageJson(rootDir, mismatches);
@@ -157,6 +173,7 @@ export function findNodeParityMismatches(rootDir = DEFAULT_ROOT) {
   checkWorkflows(rootDir, mismatches);
   checkDockerFiles(rootDir, mismatches);
   checkBuildScripts(rootDir, mismatches);
+  checkTestPlan(rootDir, mismatches);
 
   return mismatches;
 }

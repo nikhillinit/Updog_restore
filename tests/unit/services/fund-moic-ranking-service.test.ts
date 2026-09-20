@@ -141,6 +141,7 @@ describe('fund MOIC ranking service', () => {
         activeOverrideCount: 0,
         warningsByCode: {},
       },
+      provenance: { trustState: 'LIVE' },
     });
   });
 

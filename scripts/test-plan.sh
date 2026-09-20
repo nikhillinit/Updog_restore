@@ -116,10 +116,10 @@ print_header "PRE-FLIGHT CHECKS"
 
 echo "Checking Node.js version..."
 NODE_VERSION=$(node --version)
-if [[ "$NODE_VERSION" =~ ^v20\.19 ]]; then
+if [[ "$NODE_VERSION" == "v22.23.2" ]]; then
   test_result "Node.js version $NODE_VERSION" "pass"
 else
-  test_result "Node.js version $NODE_VERSION (expected v20.19.x)" "fail"
+  test_result "Node.js version $NODE_VERSION (expected v22.23.2)" "fail"
   exit 1
 fi
 

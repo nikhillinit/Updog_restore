@@ -195,6 +195,7 @@ beforeEach(() => {
   });
   evidence.buildRoundsToModelEvidence.mockResolvedValue({
     coverage: { activeRoundCount: 0, activeOverrideCount: 0, warningsByCode: {} },
+    provenance: { trustState: 'LIVE' },
   });
 });
 
