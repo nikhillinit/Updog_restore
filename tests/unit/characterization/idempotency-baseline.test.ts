@@ -19,7 +19,7 @@
  * Only downstream services (DB writes, external calls) are mocked.
  * Baselines document existing behavior; they MUST change when P1b lands.
  */
-import type { Server } from 'node:http';
+import { createServer, type Server } from 'node:http';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -54,7 +54,7 @@ const taskStore = vi.hoisted(() => {
     },
     tryInsert(values: Record<string, unknown>): Record<string, unknown>[] {
       _insertAttempts++;
-      const key = values.idempotencyKey as string;
+      const key = values['idempotencyKey'] as string;
       if (key && rows.has(key)) return [];
       const row = {
         id: rows.size + 10,
@@ -71,7 +71,7 @@ const taskStore = vi.hoisted(() => {
 
 const dbState = vi.hoisted(() => {
   const db: Record<string, unknown> = {};
-  db.select = vi.fn((...args: unknown[]) => {
+  db['select'] = vi.fn((...args: unknown[]) => {
     const fields = args.length > 0 ? (args[0] as Record<string, unknown>) : undefined;
     if (fields && ('isActive' in fields || 'userId' in fields || 'jti' in fields)) {
       const rows =
@@ -81,9 +81,9 @@ const dbState = vi.hoisted(() => {
             ? [{ userId: 1 }]
             : [];
       const query: Record<string, unknown> = {};
-      query.from = () => query;
-      query.where = () => query;
-      query.limit = async () => rows;
+      query['from'] = () => query;
+      query['where'] = () => query;
+      query['limit'] = async () => rows;
       return query;
     }
     return {
@@ -96,14 +96,14 @@ const dbState = vi.hoisted(() => {
               return stored.length > 0 ? [stored[0]] : [];
             }),
           };
-          q.for = vi.fn(() => q);
+          q['for'] = vi.fn(() => q);
           return q;
         }),
       })),
     };
   });
-  db.transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db));
-  db.insert = vi.fn(() => ({
+  db['transaction'] = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db));
+  db['insert'] = vi.fn(() => ({
     values: vi.fn((v: unknown) => ({
       onConflictDoNothing: vi.fn(() => ({
         returning: vi.fn(async () => taskStore.tryInsert(v as Record<string, unknown>)),
@@ -152,6 +152,7 @@ vi.mock(
 // ---------------------------------------------------------------------------
 vi.mock('../../../server/services/investment-ledger/legacy-compat-guard-service', () => ({
   createLegacyInvestmentWithLedgerGuard: effects.createInvestment,
+  assertLegacyInvestmentMutable: vi.fn(),
   UseLedgerRouteError: class extends Error {},
 }));
 vi.mock('../../../server/services/h9-artifact-invalidation-service', () => ({
@@ -196,6 +197,7 @@ const ORIGIN = 'http://localhost:5173';
 let server: Server | undefined;
 let teardown: (() => Promise<void>) | undefined;
 let setReady: ((ready: boolean) => void) | undefined;
+let setIntervalSpy: ReturnType<typeof vi.spyOn> | undefined;
 
 function configureEnvironment(): void {
   Object.assign(process.env, {
@@ -246,8 +248,8 @@ async function boot() {
   ]);
   const config = loadEnv();
   const providers = await providersModule.buildProviders(config);
-  server = await serverModule.createServer(config, providers);
   teardown = providers.teardown;
+  server = await serverModule.createServer(config, providers);
   setReady = health.setReady;
   setReady(true);
 
@@ -264,7 +266,6 @@ async function boot() {
     email: 'idempotency-baseline@example.test',
   });
 
-  dbState.select.mockClear();
   return { surfaces, token };
 }
 
@@ -323,24 +324,103 @@ beforeEach(() => {
   vi.clearAllMocks();
   taskStore.reset();
   setupEffectDefaults();
+
+  // Spy calls through to real setInterval; mock.results tracks returned timer
+  // handles for cleanup. Installed AFTER clearAllMocks, BEFORE boot() imports.
+  setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
 });
 
-afterEach(async () => {
+async function cleanupTest(): Promise<void> {
   const currentServer = server;
   const currentTeardown = teardown;
   const currentSetReady = setReady;
   server = undefined;
   teardown = undefined;
   setReady = undefined;
-  currentSetReady?.(false);
-  if (currentServer?.listening) {
-    await new Promise<void>((resolve, reject) => {
-      currentServer.close((error) => (error ? reject(error) : resolve()));
-    });
+  try {
+    try {
+      try {
+        currentSetReady?.(false);
+      } finally {
+        if (currentServer?.listening) {
+          await new Promise<void>((resolve, reject) => {
+            currentServer.close((error) => (error ? reject(error) : resolve()));
+          });
+        }
+      }
+    } finally {
+      await currentTeardown?.();
+    }
+  } finally {
+    try {
+      // Include intervals created during provider teardown as well as boot/requests.
+      for (const result of setIntervalSpy?.mock.results ?? []) {
+        if (result.type === 'return') clearInterval(result.value);
+      }
+    } finally {
+      setIntervalSpy?.mockRestore();
+      setIntervalSpy = undefined;
+      for (const key of Object.keys(process.env)) delete process.env[key];
+      Object.assign(process.env, originalEnvironment);
+    }
   }
-  await currentTeardown?.();
-  for (const key of Object.keys(process.env)) delete process.env[key];
-  Object.assign(process.env, originalEnvironment);
+}
+
+afterEach(cleanupTest);
+
+describe('test harness cleanup', () => {
+  it('provides the legacy guard export required by mounted routes', async () => {
+    const guards =
+      await import('../../../server/services/investment-ledger/legacy-compat-guard-service');
+    expect(guards.assertLegacyInvestmentMutable).toBeTypeOf('function');
+  });
+
+  it.each(['provider', 'readiness'] as const)(
+    'cleans real intervals and restores state when %s teardown fails',
+    async (failureStage) => {
+      const before = vi.fn();
+      const during = vi.fn();
+      const failure = new Error(`${failureStage} teardown failed`);
+      const beforeTimer = setInterval(before, 1, 'call-through');
+      let duringTimer: ReturnType<typeof setInterval> | undefined;
+      const cleanupServer = createServer();
+      server = cleanupServer;
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          cleanupServer.once('error', reject);
+          cleanupServer.listen(0, '127.0.0.1', resolve);
+        });
+        await vi.waitFor(() => expect(before).toHaveBeenCalledWith('call-through'));
+        process.env['PR1A_CLEANUP_TEST'] = 'temporary';
+        setReady = () => {
+          if (failureStage === 'readiness') throw failure;
+        };
+        teardown = async () => {
+          duringTimer = setInterval(() => during(), 1);
+          if (failureStage === 'provider') throw failure;
+        };
+
+        await expect(cleanupTest()).rejects.toBe(failure);
+        expect(cleanupServer.listening).toBe(false);
+        expect(duringTimer).toBeDefined();
+        expect(vi.isMockFunction(globalThis.setInterval)).toBe(false);
+        expect(process.env['PR1A_CLEANUP_TEST']).toBe(originalEnvironment['PR1A_CLEANUP_TEST']);
+
+        const counts = [before.mock.calls.length, during.mock.calls.length];
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        expect([before.mock.calls.length, during.mock.calls.length]).toEqual(counts);
+      } finally {
+        clearInterval(beforeTimer);
+        if (duringTimer !== undefined) clearInterval(duringTimer);
+        if (cleanupServer.listening) {
+          await new Promise<void>((resolve, reject) => {
+            cleanupServer.close((error) => (error ? reject(error) : resolve()));
+          });
+        }
+      }
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -675,11 +755,11 @@ describe('mechanism D: POST /api/funds/:fundId/tasks (real createTask + DB fake)
 
       expect(taskStore.rows.size, `${name}: one stored task`).toBe(1);
       const stored = taskStore.rows.get(key)!;
-      expect(stored.idempotencyKey).toBe(key);
-      expect(stored.requestHash).toBe(taskHash);
-      expect(stored.fundId).toBe(1);
-      expect(stored.title).toBe('Test Task');
-      expect(stored.status).toBe('open');
+      expect(stored['idempotencyKey']).toBe(key);
+      expect(stored['requestHash']).toBe(taskHash);
+      expect(stored['fundId']).toBe(1);
+      expect(stored['title']).toBe('Test Task');
+      expect(stored['status']).toBe('open');
 
       const r2 = await request(app)
         .post('/api/funds/1/tasks')
