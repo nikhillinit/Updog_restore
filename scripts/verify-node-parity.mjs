@@ -149,6 +149,11 @@ export function findNodeParityMismatches(rootDir = DEFAULT_ROOT) {
   const nvmrc = readText(rootDir, '.nvmrc', mismatches);
   if (nvmrc !== null) addMismatch(mismatches, '.nvmrc', NODE_VERSION, nvmrc.trim());
 
+  const nodeVersionFile = readText(rootDir, '.node-version', mismatches);
+  if (nodeVersionFile !== null) {
+    addMismatch(mismatches, '.node-version', NODE_VERSION, nodeVersionFile.trim());
+  }
+
   checkWorkflows(rootDir, mismatches);
   checkDockerFiles(rootDir, mismatches);
   checkBuildScripts(rootDir, mismatches);
