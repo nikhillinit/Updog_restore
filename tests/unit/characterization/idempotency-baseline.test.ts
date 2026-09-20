@@ -21,6 +21,8 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { Express } from 'express';
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isDatabaseBackedIdempotencyRoute } from '../../../server/lib/database-backed-idempotency-routes';
@@ -43,6 +45,9 @@ const effects = vi.hoisted(() => ({
 const taskStore = vi.hoisted(() => {
   const rows = new Map<string, Record<string, unknown>>();
   let _insertAttempts = 0;
+  function compositeKey(fundId: number, idempotencyKey: string): string {
+    return `${fundId}:${idempotencyKey}`;
+  }
   return {
     rows,
     get insertAttempts() {
@@ -52,10 +57,14 @@ const taskStore = vi.hoisted(() => {
       rows.clear();
       _insertAttempts = 0;
     },
+    lookup(fundId: number, idempotencyKey: string): Record<string, unknown> | undefined {
+      return rows.get(compositeKey(fundId, idempotencyKey));
+    },
     tryInsert(values: Record<string, unknown>): Record<string, unknown>[] {
       _insertAttempts++;
+      const fundId = values['fundId'] as number;
       const key = values['idempotencyKey'] as string;
-      if (key && rows.has(key)) return [];
+      if (fundId != null && key && rows.has(compositeKey(fundId, key))) return [];
       const row = {
         id: rows.size + 10,
         ...values,
@@ -63,7 +72,7 @@ const taskStore = vi.hoisted(() => {
         updatedAt: new Date('2026-09-19T00:00:00.000Z'),
         rowXmin: String(rows.size + 5),
       };
-      if (key) rows.set(key, row);
+      if (fundId != null && key) rows.set(compositeKey(fundId, key), row);
       return [row];
     },
   };
@@ -88,13 +97,22 @@ const dbState = vi.hoisted(() => {
     }
     return {
       from: vi.fn(() => ({
-        where: vi.fn(() => {
+        where: vi.fn((condition: SQL) => {
+          const { sql, params } = new PgDialect().sqlToQuery(condition);
+          const [fundId, idempotencyKey] = params;
+          // Only the real createTask replay lookup is supported by this fake.
+          if (
+            sql !== '("tasks"."fund_id" = $1 and "tasks"."idempotency_key" = $2)' ||
+            params.length !== 2 ||
+            typeof fundId !== 'number' ||
+            typeof idempotencyKey !== 'string'
+          ) {
+            throw new Error(`Unsupported task predicate in test fake: ${sql}`);
+          }
+          const matched = taskStore.lookup(fundId, idempotencyKey);
           const q: Record<string, unknown> = {
             orderBy: vi.fn(async () => []),
-            limit: vi.fn(async () => {
-              const stored = [...taskStore.rows.values()];
-              return stored.length > 0 ? [stored[0]] : [];
-            }),
+            limit: vi.fn(async () => (matched ? [matched] : [])),
           };
           q['for'] = vi.fn(() => q);
           return q;
@@ -231,6 +249,8 @@ function configureEnvironment(): void {
     'SESSION_REDIS_URL',
     'JWT_JWKS_URL',
     '_EXPLICIT_JWT_JWKS_URL',
+    'VERCEL',
+    'VERCEL_ENV',
   ]) {
     delete process.env[key];
   }
@@ -516,6 +536,8 @@ describe('mechanism B: POST /api/funds', () => {
   const payload = { name: 'Test Fund', size: 1000000, vintageYear: 2024 };
 
   it('deduplicates with explicit key (mechanism B replays)', async () => {
+    process.env['VERCEL'] = '1';
+    process.env['VERCEL_ENV'] = 'preview';
     const { surfaces, token } = await boot();
 
     for (const { name, app } of surfaces) {
@@ -554,19 +576,22 @@ describe('mechanism B: POST /api/funds', () => {
 
     for (const { name, app } of surfaces) {
       effects.createFund.mockClear();
+      // Both assemblies share Redis; derived keys must stay surface-specific.
+      const surfacePayload = { ...payload, name: `Test Fund ${name}` };
 
       const r1 = await request(app)
         .post('/api/funds')
         .auth(token, { type: 'bearer' })
-        .send(payload);
+        .send(surfacePayload);
       expect(r1.status, `${name} first call`).toBe(201);
+      expect(effects.createFund, `${name}: first request mutates`).toHaveBeenCalledTimes(1);
 
       await new Promise((r) => setTimeout(r, 100));
 
       const r2 = await request(app)
         .post('/api/funds')
         .auth(token, { type: 'bearer' })
-        .send(payload);
+        .send(surfacePayload);
       expect(r2.status, `${name} second call`).toBe(201);
 
       // BASELINE: no dedup because auto-key generation never fires.
@@ -754,7 +779,7 @@ describe('mechanism D: POST /api/funds/:fundId/tasks (real createTask + DB fake)
       expect(r1.status, `${name} first call`).toBe(201);
 
       expect(taskStore.rows.size, `${name}: one stored task`).toBe(1);
-      const stored = taskStore.rows.get(key)!;
+      const stored = taskStore.lookup(1, key)!;
       expect(stored['idempotencyKey']).toBe(key);
       expect(stored['requestHash']).toBe(taskHash);
       expect(stored['fundId']).toBe(1);
@@ -769,8 +794,47 @@ describe('mechanism D: POST /api/funds/:fundId/tasks (real createTask + DB fake)
       expect(r2.status, `${name} replay`).toBe(200);
 
       expect(taskStore.rows.size, `${name}: still one stored task`).toBe(1);
-      expect(taskStore.rows.get(key), `${name}: stored row unchanged`).toBe(stored);
+      expect(taskStore.lookup(1, key), `${name}: stored row unchanged`).toBe(stored);
       expect(taskStore.insertAttempts, `${name}: 2 insert attempts`).toBe(2);
+    }
+  });
+
+  it('isolates task replay by fund and key across multiple stored rows', async () => {
+    const { surfaces, token } = await boot();
+
+    for (const { name, app } of surfaces) {
+      taskStore.reset();
+      const commands = [
+        { fundId: 1, key: `task-scope-a-${name}` },
+        { fundId: 1, key: `task-scope-b-${name}` },
+        { fundId: 2, key: `task-scope-a-${name}` },
+      ];
+      const created: Array<{ fundId: number; key: string; id: number }> = [];
+
+      for (const command of commands) {
+        const response = await request(app)
+          .post(`/api/funds/${command.fundId}/tasks`)
+          .auth(token, { type: 'bearer' })
+          .set('Idempotency-Key', command.key)
+          .send({ fundId: command.fundId, title: 'Same task title' });
+        expect(response.status, `${name}: create ${command.fundId}/${command.key}`).toBe(201);
+        expect(response.body.fundId).toBe(command.fundId);
+        expect(response.body.id).toEqual(expect.any(Number));
+        created.push({ ...command, id: response.body.id });
+      }
+
+      expect(new Set(created.map(({ id }) => id)).size, `${name}: distinct task IDs`).toBe(3);
+      for (const command of created.reverse()) {
+        const response = await request(app)
+          .post(`/api/funds/${command.fundId}/tasks`)
+          .auth(token, { type: 'bearer' })
+          .set('Idempotency-Key', command.key)
+          .send({ fundId: command.fundId, title: 'Same task title' });
+        expect(response.status, `${name}: replay ${command.fundId}/${command.key}`).toBe(200);
+        expect(response.body).toMatchObject({ id: command.id, fundId: command.fundId });
+      }
+      expect(taskStore.rows.size, `${name}: three scoped rows`).toBe(3);
+      expect(taskStore.insertAttempts, `${name}: three creates and three replays`).toBe(6);
     }
   });
 
