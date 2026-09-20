@@ -13,7 +13,7 @@ import { toNumber } from '@shared/number';
 import { sendApiError } from '../lib/apiError';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { logger } from '../lib/logger.js';
-import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { enforceProvidedFundScope, enforceTeamWriteRole } from '../lib/auth/provided-fund-scope';
 import { parseETag, rowVersionETag } from '../lib/http-preconditions';
 import { firstString } from '../lib/request-values';
 import {
@@ -130,6 +130,26 @@ router['get']('/investments/:id', async (req: Request, res: Response) => {
 
 router.post('/investments', async (req: Request, res: Response) => {
   try {
+    const providedFundId = (req.body as Record<string, unknown> | undefined)?.['fundId'];
+    if (
+      typeof providedFundId !== 'number' ||
+      !Number.isSafeInteger(providedFundId) ||
+      providedFundId <= 0
+    ) {
+      const error: ApiError = {
+        error: 'Invalid investment data',
+        message: 'Investment validation failed',
+      };
+      return res.status(400).json(error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, providedFundId))) {
+      return;
+    }
+    if (!enforceTeamWriteRole(req, res)) {
+      return;
+    }
+
     const result = insertInvestmentSchema.safeParse(req.body);
     if (!result.success) {
       const error: ApiError = {
@@ -146,10 +166,6 @@ router.post('/investments', async (req: Request, res: Response) => {
         message: 'Legacy investment creation requires fundId and companyId.',
       };
       return res.status(400).json(error);
-    }
-
-    if (!(await enforceProvidedFundScope(req, res, result.data.fundId))) {
-      return;
     }
 
     const investment = await createLegacyInvestmentWithLedgerGuard({
@@ -288,6 +304,9 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
   try {
     const scope = await resolveInvestmentRoundRouteScope(req, res);
     if (!scope) {
+      return;
+    }
+    if (!enforceTeamWriteRole(req, res)) {
       return;
     }
 
