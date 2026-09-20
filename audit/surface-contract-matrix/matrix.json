@@ -93278,21 +93278,24 @@
               "role": "admin",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "policy-boundary",
@@ -93346,21 +93349,24 @@
               "role": "admin",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/investments.ts",
               "line": 149,
-              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner"
+              "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "policy-boundary",
@@ -93436,21 +93442,24 @@
           "role": "admin",
           "file": "server/routes/investments.ts",
           "line": 149,
-          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin"
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits admin",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/investments.ts",
           "line": 149,
-          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst"
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits analyst",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/investments.ts",
           "line": 149,
-          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner"
+          "evidence": "server/routes/investments.ts:149 enforceTeamWriteRole permits partner",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "policy-boundary",
@@ -93526,8 +93535,8 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_confirmed": true,
             "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
             "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
           },
           {
@@ -93535,8 +93544,8 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_confirmed": true,
             "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
             "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
           }
         ]
@@ -93545,11 +93554,12 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
-      "contract_fingerprint": "d3a98351e45e857a1580764baccce36fee452bd556b0ff2b45ff8cdde4898967",
+      "decision_evidence": "owner-attestation:pr1557:2026-09-20:manifest-sha256=8d14643b6347657b93a7decaf2d6ddbaafaecae5b0ede11174675b80b01122a2",
+      "contract_fingerprint": "8ec920a9b087b867203885a0f17e3aef997d6fd575513a7bf7b9880b7fbe0f4d",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
@@ -93845,21 +93855,24 @@
               "role": "admin",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "policy-boundary",
@@ -93906,21 +93919,24 @@
               "role": "admin",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/investments.ts",
               "line": 309,
-              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner"
+              "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+              "implementation_file": "server/lib/auth/provided-fund-scope.ts"
             },
             {
               "kind": "policy-boundary",
@@ -93982,21 +93998,24 @@
           "role": "admin",
           "file": "server/routes/investments.ts",
           "line": 309,
-          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin"
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits admin",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/investments.ts",
           "line": 309,
-          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst"
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits analyst",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/investments.ts",
           "line": 309,
-          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner"
+          "evidence": "server/routes/investments.ts:309 enforceTeamWriteRole permits partner",
+          "implementation_file": "server/lib/auth/provided-fund-scope.ts"
         },
         {
           "kind": "policy-boundary",
@@ -94072,8 +94091,8 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_confirmed": true,
             "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
             "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
           },
           {
@@ -94081,8 +94100,8 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_confirmed": true,
             "assertion_evidence": "tests/unit/characterization/investment-write-authorization.test.ts:270 LP-linked/read-only and cross-fund writes return 403 with zero investment or round mutation through both real app assemblers; service effects mocked; no provider or database-durability claim.",
+            "assertion_confirmed": true,
             "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
           }
         ]
@@ -94091,11 +94110,12 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8",
-      "contract_fingerprint": "73e5005089b709fde5341c26681fa70e90f39f0e51149487a733958ad17855f1",
+      "decision_evidence": "owner-attestation:pr1557:2026-09-20:manifest-sha256=8d14643b6347657b93a7decaf2d6ddbaafaecae5b0ede11174675b80b01122a2",
+      "contract_fingerprint": "6dca5b38c2bb50166dda8b1c6d98d72ff089fa8d5a2ede1c53a844ac34418226",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
@@ -114379,7 +114399,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f",
+      "snapshot_id": "snapshot:de2a94177416a1b25ab103d06b430c582e9c9fddafd3ee06d9c0f2fb46685037",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,
@@ -114402,7 +114422,7 @@
     ],
     "discovery": {
       "listener_candidates": 13,
-      "dormant_candidates": 30,
+      "dormant_candidates": 29,
       "bullmq_constructors": 16
     },
     "requirement_match_counts": {

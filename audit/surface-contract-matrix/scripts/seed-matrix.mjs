@@ -523,6 +523,7 @@ const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
         role,
         file: filePath,
         line: teamWriteRoleLine,
+        implementation_file: 'server/lib/auth/provided-fund-scope.ts',
         evidence: `${filePath}:${teamWriteRoleLine} enforceTeamWriteRole permits ${role}`,
       })));
     }
@@ -2092,6 +2093,8 @@ const sourceMappings = ({ rows, commonManifest, runtimeManifest, policyRegistry,
     for (const entry of authEvidence) {
       const source = String(entry.file ?? '').replace(/:\d+$/, '');
       if (trackedSet.has(source)) dependencies.add(source);
+      const implementationSource = String(entry.implementation_file ?? '').replace(/:\d+$/, '');
+      if (trackedSet.has(implementationSource)) dependencies.add(implementationSource);
     }
     if (protectedAuth) {
       for (const source of [

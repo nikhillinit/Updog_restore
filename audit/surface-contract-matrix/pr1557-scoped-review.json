@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
-  "review_id": "pr1557-scoped-auth-and-coverage-review-2026-09-20",
-  "snapshot_id": "snapshot:8ecec419a7837be02384e30c2d7f00317e78f0ce05db74247efc92705062b88f",
+  "review_id": "pr1557-copilot-team-write-dependency-review-2026-09-20",
+  "snapshot_id": "snapshot:de2a94177416a1b25ab103d06b430c582e9c9fddafd3ee06d9c0f2fb46685037",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
@@ -9,13 +9,13 @@
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
     "audit/surface-contract-matrix/boot-proofs.json": "dddb0b2ed25b2f90b0a9a91abc310f9c594296249b412f41c0910057dcd32a57",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "f5d4abcb0042f175fd5d0505b5d5b39c537bc04bb99ca9ff3913d41bb26c4f2f",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "edb4ce59a2dff08f47e3787e8bec3976d18b37b52b843fbf0a994f5e6d949069",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "c86a881d617a3e52b795cd024c53c92f4e70d93a962c6a2c8deaab02f2e623d6",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
@@ -172,79 +172,17 @@
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "d6e82d5bb28b74d2667d80107ccd479406a28a4b76e9f0c57b0f75e97540538f",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
-    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
+    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de",
+    "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0"
   },
   "rows": {
-    "api:GET:/api/investments": {
-      "row_id": "api:GET:/api/investments",
-      "contract_fingerprint": "0f8dc543581a72c4101929b0f17cb213b2b9eb1184ef67f85914d1f72b4afd10",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:GET:/api/investments/:id": {
-      "row_id": "api:GET:/api/investments/:id",
-      "contract_fingerprint": "feefc3f150bf06c3063b1fd78ced416c95231835af17439246ae226b4f77450f",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:GET:/api/investments/:id/rounds": {
-      "row_id": "api:GET:/api/investments/:id/rounds",
-      "contract_fingerprint": "e13e09111b2fea1cf91a358aa27dc771f37c4aa4a9c43f35296959ad2e85ee1e",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:GET:/api/investments/:id/rounds/:roundId": {
-      "row_id": "api:GET:/api/investments/:id/rounds/:roundId",
-      "contract_fingerprint": "402c2703f6ece34aa3cce0271761a50ee81bc8c68b9e81243d8e4cec86a42c19",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
     "api:POST:/api/investments": {
       "row_id": "api:POST:/api/investments",
-      "contract_fingerprint": "d3a98351e45e857a1580764baccce36fee452bd556b0ff2b45ff8cdde4898967",
+      "contract_fingerprint": "8ec920a9b087b867203885a0f17e3aef997d6fd575513a7bf7b9880b7fbe0f4d",
       "source_fingerprints": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
@@ -268,7 +206,7 @@
               "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
             }
           ],
-          "contract_fingerprint": "d3a98351e45e857a1580764baccce36fee452bd556b0ff2b45ff8cdde4898967"
+          "contract_fingerprint": "8ec920a9b087b867203885a0f17e3aef997d6fd575513a7bf7b9880b7fbe0f4d"
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -283,32 +221,17 @@
               "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
             }
           ],
-          "contract_fingerprint": "d3a98351e45e857a1580764baccce36fee452bd556b0ff2b45ff8cdde4898967"
+          "contract_fingerprint": "8ec920a9b087b867203885a0f17e3aef997d6fd575513a7bf7b9880b7fbe0f4d"
         }
-      }
-    },
-    "api:POST:/api/investments/:id/cases": {
-      "row_id": "api:POST:/api/investments/:id/cases",
-      "contract_fingerprint": "f49cb815e895b545dd03e77455f71b313ddb407003b8516af09179a87c58e883",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
       }
     },
     "api:POST:/api/investments/:id/rounds": {
       "row_id": "api:POST:/api/investments/:id/rounds",
-      "contract_fingerprint": "73e5005089b709fde5341c26681fa70e90f39f0e51149487a733958ad17855f1",
+      "contract_fingerprint": "6dca5b38c2bb50166dda8b1c6d98d72ff089fa8d5a2ede1c53a844ac34418226",
       "source_fingerprints": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investments.ts=fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
@@ -332,7 +255,7 @@
               "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
             }
           ],
-          "contract_fingerprint": "73e5005089b709fde5341c26681fa70e90f39f0e51149487a733958ad17855f1"
+          "contract_fingerprint": "6dca5b38c2bb50166dda8b1c6d98d72ff089fa8d5a2ede1c53a844ac34418226"
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -347,7 +270,7 @@
               "test_file_sha256": "fefa39bdac1d30184296088565773a218d41ac41396ba6f651f2b1bcfb225e92"
             }
           ],
-          "contract_fingerprint": "73e5005089b709fde5341c26681fa70e90f39f0e51149487a733958ad17855f1"
+          "contract_fingerprint": "6dca5b38c2bb50166dda8b1c6d98d72ff089fa8d5a2ede1c53a844ac34418226"
         }
       }
     }
@@ -415,5 +338,5 @@
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "owner-approval:codex-thread:01a0bf49-d405-75a1-9f08-85a4fe8318fc:2026-09-20:seven-row-scoped-review-and-four-coverage-attestations;plan-sha256:495bfa45f1277ffb1f908477977dc3039637fb0dfcd8ac503761c4fb5755421a;patch-sha256:582798b3659d983ba3532abfee734f53abc18fd81224382b5a565406e7bf7827;base:bfe03d0b17a4c73aacfcf2b9ce68f4b8d94be2b8"
+  "evidence_ref": "owner-attestation:pr1557:2026-09-20:manifest-sha256=8d14643b6347657b93a7decaf2d6ddbaafaecae5b0ede11174675b80b01122a2"
 }

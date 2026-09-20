@@ -1011,8 +1011,22 @@ describe('surface contract matrix seed semantic regressions', () => {
     const seed = (await loadSeedInternals()) as unknown as {
       authSuggestionFor: (input: Record<string, unknown>) => {
         auth_roles: string[];
-        auth_evidence: Array<{ kind?: string; role?: string; file?: string; line?: number }>;
+        auth_evidence: Array<{
+          kind?: string;
+          role?: string;
+          file?: string;
+          line?: number;
+          implementation_file?: string;
+        }>;
       };
+      sourceMappings: (input: Record<string, unknown>) => {
+        rowToSources: Record<string, string[]>;
+      };
+      definingSourceHashesForRow: (
+        row: Record<string, unknown>,
+        sourceHashes: Record<string, string>,
+        rowToSources: Record<string, string[]>
+      ) => string[];
     };
     const source = fs.readFileSync(path.join(repoRoot, 'server/routes/investments.ts'), 'utf8');
     const routeLine = (registration: string) =>
@@ -1054,16 +1068,61 @@ describe('surface contract matrix seed semantic regressions', () => {
               kind: 'guard',
               role,
               file: 'server/routes/investments.ts',
+              implementation_file: 'server/lib/auth/provided-fund-scope.ts',
             })
           )
         )
       );
+
+      const row = {
+        id: `api:POST:${routePath}`,
+        interface: 'http-api',
+        auth_roles: suggestion.auth_roles,
+        auth_evidence: suggestion.auth_evidence,
+        exposures: [],
+        source_mapping: {},
+      };
+      const mapping = seed.sourceMappings({
+        rows: new Map([[row.id, row]]),
+        commonManifest: [],
+        runtimeManifest: [],
+        policyRegistry: [],
+        governanceRegistry: [],
+        queueCatalog: [],
+      });
+      expect(mapping.rowToSources[row.id]).toContain('server/lib/auth/provided-fund-scope.ts');
+      expect(
+        seed.definingSourceHashesForRow(
+          row,
+          { 'server/lib/auth/provided-fund-scope.ts': 'a'.repeat(64) },
+          mapping.rowToSources
+        )
+      ).toContain(`server/lib/auth/provided-fund-scope.ts=${'a'.repeat(64)}`);
     }
 
     const adjacent = suggest('/api/investments/:id/cases', "router.post('/investments/:id/cases'");
     expect(adjacent.auth_roles).toEqual([]);
     expect(adjacent.auth_evidence).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: 'guard', role: 'admin' })])
+    );
+    const adjacentRow = {
+      id: 'api:POST:/api/investments/:id/cases',
+      interface: 'http-api',
+      auth_roles: adjacent.auth_roles,
+      auth_evidence: adjacent.auth_evidence,
+      exposures: [],
+      source_mapping: {},
+    };
+    const adjacentMapping = seed.sourceMappings({
+      rows: new Map([[adjacentRow.id, adjacentRow]]),
+      commonManifest: [],
+      runtimeManifest: [],
+      policyRegistry: [],
+      governanceRegistry: [],
+      queueCatalog: [],
+    });
+    expect(adjacentMapping.rowToSources[adjacentRow.id] ?? []).not.toContain(
+      'server/lib/auth/provided-fund-scope.ts'
     );
   });
 

@@ -1048,6 +1048,7 @@ const AUTH_SOURCE_PREFIXES = ['server/routes/', 'server/middleware/'];
 export const AUTH_TRUTH_SOURCE_PATTERNS = Object.freeze([
   'shared/auth/effective-roles.ts',
   'server/lib/auth/jwt.ts',
+  'server/lib/auth/provided-fund-scope.ts',
   'server/lib/auth/revocation.ts',
   'server/lib/public-api-boundary.ts',
   'server/websocket/**',
