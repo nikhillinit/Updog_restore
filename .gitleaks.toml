@@ -167,3 +167,16 @@ regexes = [
 paths = [
   '''^scripts/run-connected-actuals-demo\.mjs$'''
 ]
+
+[[allowlists]]
+description = "Allow historical fund-finalize deterministic idempotency UUID fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["54d21456998199f7adef213fe02e0e7fc9608379"]
+regexTarget = "line"
+regexes = [
+  '''^\s*\.set\('Idempotency-Key',\s*'550e8400-e29b-41d4-a716-446655440013'\)\s*$'''
+]
+paths = [
+  '''^tests/unit/contract/fund-finalize\.test\.ts$'''
+]

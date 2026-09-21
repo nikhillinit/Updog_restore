@@ -52,6 +52,7 @@ function installTestUser(fundIds: number[]) {
     req.user = {
       id: 'test-user',
       sub: '1',
+      role: 'partner',
       fundIds,
     } as Express.User;
     next();

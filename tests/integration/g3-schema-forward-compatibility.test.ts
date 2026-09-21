@@ -51,7 +51,8 @@ function snapshotEnvironment(): G3EnvironmentSnapshot {
     releaseCanaryMaxNotificationResidue: process.env['RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE'],
     releaseCanaryMaxGrantResidue: process.env['RELEASE_CANARY_MAX_GRANT_RESIDUE'],
     releaseCanaryMaxCalculationResidue: process.env['RELEASE_CANARY_MAX_CALCULATION_RESIDUE'],
-    releaseCanaryMaxMutationReceiptResidue: process.env['RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE'],
+    releaseCanaryMaxMutationReceiptResidue:
+      process.env['RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE'],
     releaseCanaryMaxScenarioResidue: process.env['RELEASE_CANARY_MAX_SCENARIO_RESIDUE'],
     releaseCanaryMaxReportingResidue: process.env['RELEASE_CANARY_MAX_REPORTING_RESIDUE'],
     releaseCanaryMaxTotalResidue: process.env['RELEASE_CANARY_MAX_TOTAL_RESIDUE'],
@@ -82,7 +83,10 @@ function restoreEnvironment(snapshot: G3EnvironmentSnapshot | undefined): void {
   restore('RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE', snapshot.releaseCanaryMaxNotificationResidue);
   restore('RELEASE_CANARY_MAX_GRANT_RESIDUE', snapshot.releaseCanaryMaxGrantResidue);
   restore('RELEASE_CANARY_MAX_CALCULATION_RESIDUE', snapshot.releaseCanaryMaxCalculationResidue);
-  restore('RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE', snapshot.releaseCanaryMaxMutationReceiptResidue);
+  restore(
+    'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
+    snapshot.releaseCanaryMaxMutationReceiptResidue
+  );
   restore('RELEASE_CANARY_MAX_SCENARIO_RESIDUE', snapshot.releaseCanaryMaxScenarioResidue);
   restore('RELEASE_CANARY_MAX_REPORTING_RESIDUE', snapshot.releaseCanaryMaxReportingResidue);
   restore('RELEASE_CANARY_MAX_TOTAL_RESIDUE', snapshot.releaseCanaryMaxTotalResidue);
@@ -141,6 +145,9 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       '0052_g3_capital_call_notification_outbox'
     );
     await runMigrationsWithConnectionString(databaseUrl, '0053_g3_release_gate_hardening');
+    // Keep the explicit 0052 -> 0053 transition proof above, then catch the
+    // database up before booting current application code against it.
+    await runMigrationsWithConnectionString(databaseUrl);
     pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
     Object.assign(process.env, {
@@ -421,7 +428,7 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       expect(canary.rows[0]).toEqual({
         workflow_run_id: null,
         workflow_run_attempt: null,
-      grant_residue_count: 1,
+        grant_residue_count: 1,
         calculation_residue_count: 0,
         mutation_receipt_residue_count: 0,
         scenario_residue_count: 0,

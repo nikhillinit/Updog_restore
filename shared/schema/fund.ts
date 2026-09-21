@@ -102,7 +102,9 @@ export const fundConfigs = pgTable(
       .references(() => funds.id)
       .notNull(),
     version: integer('version').notNull().default(1),
-    draftRevision: bigint('draft_revision', { mode: 'bigint' }).notNull().default(1n),
+    draftRevision: bigint('draft_revision', { mode: 'bigint' })
+      .notNull()
+      .default(sql`1`),
     config: jsonb('config').notNull(), // Stores full fund configuration
     isDraft: boolean('is_draft').default(true),
     isPublished: boolean('is_published').default(false),
