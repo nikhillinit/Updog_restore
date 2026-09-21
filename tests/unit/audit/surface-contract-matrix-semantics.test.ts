@@ -953,7 +953,7 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(publicShare.auth_roles).toEqual(['public']);
     expect(publicShare.personas).toEqual(['public']);
 
-    const partnerWrite = suggest('POST', '/api/funds', 'server/routes/funds.ts:221');
+    const partnerWrite = suggest('POST', '/api/funds', 'server/routes/funds.ts:225');
     expect(partnerWrite.auth_roles).toEqual(['admin', 'partner']);
     expect(partnerWrite.personas).toEqual(['admin', 'gp']);
 

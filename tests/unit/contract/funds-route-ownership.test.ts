@@ -13,7 +13,8 @@
  * so the factory mock is no longer needed.
  */
 
-import { afterAll, describe, it, expect, beforeAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { afterAll, describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import {
@@ -26,6 +27,17 @@ let app: express.Express;
 // vi.mock or env mutation intended to affect these route modules at import time.
 const fundRoutesModulePromise = import('../../../server/routes/funds');
 const registerRoutesModulePromise = import('../../../server/routes');
+
+// Assembly transport uses mocked persistence; transaction proof lives in fund-lifecycle-db.
+beforeEach(async () => {
+  const workflow = await import('../../../server/services/fund-workflow-service');
+  vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+    async (_command, execute) => ({
+      ...(await execute(undefined)),
+      replayed: false,
+    })
+  );
+});
 
 describe('funds endpoint ownership manifest', () => {
   it('declares one supported canonical owner per endpoint on registerRoutes', () => {
@@ -110,7 +122,7 @@ describe('POST /api/funds route ownership (post-cutover)', () => {
 
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'ownership-sole-owner-01')
+      .set('Idempotency-Key', randomUUID())
       .send(payload);
 
     // Router handler (funds.ts) returns { success, data, message }
@@ -127,7 +139,7 @@ describe('POST /api/funds route ownership (post-cutover)', () => {
   it('returns 400 with error property for invalid input', async () => {
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'ownership-invalid-01')
+      .set('Idempotency-Key', randomUUID())
       .send({ name: '', size: -1 });
 
     expect(res.status).toBe(400);
@@ -209,7 +221,7 @@ describe('registerRoutes() smoke proof', () => {
 
     const res = await request(smokeApp)
       .post('/api/funds')
-      .set('Idempotency-Key', 'smoke-proof-boot-01')
+      .set('Idempotency-Key', randomUUID())
       .send(payload);
 
     expect(res.status).toBe(201);
@@ -228,7 +240,7 @@ describe('registerRoutes() smoke proof', () => {
   it('POST -> GET /api/funds/:id round-trips on real boot path', async () => {
     const createRes = await request(smokeApp)
       .post('/api/funds')
-      .set('Idempotency-Key', 'smoke-proof-boot-detail-01')
+      .set('Idempotency-Key', randomUUID())
       .send({
         name: 'Smoke Proof Detail Fund',
         size: 80_000_000,

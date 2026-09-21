@@ -305,6 +305,8 @@ router['post'](
           };
         }
       );
+      if (!result.replayed)
+        logger.info({ fundId: result.fundId, actorId: creatorUserId }, 'fund.created');
       const [fund] = await db
         .select()
         .from(persistedFunds)

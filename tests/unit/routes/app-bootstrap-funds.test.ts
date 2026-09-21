@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -109,12 +110,20 @@ describe('makeApp bootstrap surface', () => {
   }, 30_000);
 
   it('creates funds through POST /api/funds', async () => {
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+      async (_command, execute) => ({
+        ...(await execute(undefined)),
+        replayed: false,
+      })
+    );
+
     const app = await loadApp();
 
     const res = await request(app)
       .post('/api/funds')
       .set('Authorization', await authorizationHeader())
-      .set('Idempotency-Key', 'make-app-bootstrap-fund-01')
+      .set('Idempotency-Key', randomUUID())
       .send({
         name: 'Bootstrap Surface Fund',
         size: 100_000_000,

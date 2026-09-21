@@ -28,7 +28,7 @@ describe('Idempotency Middleware', () => {
     );
 
     // Test endpoint
-    app.post('/api/funds', (req, res) => {
+    app.post('/api/idempotency-test', (req, res) => {
       requestCount++;
       res.status(201).json({
         id: 'fund-123',
@@ -86,7 +86,7 @@ describe('Idempotency Middleware', () => {
 
       // First request
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
 
@@ -101,7 +101,7 @@ describe('Idempotency Middleware', () => {
 
       // Duplicate request with same key
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
 
@@ -119,7 +119,7 @@ describe('Idempotency Middleware', () => {
 
       // First request
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', 'key-1')
         .send(payload);
 
@@ -127,7 +127,7 @@ describe('Idempotency Middleware', () => {
 
       // Different key
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', 'key-2')
         .send(payload);
 
@@ -143,7 +143,7 @@ describe('Idempotency Middleware', () => {
 
       // Using X-Idempotency-Key
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('X-Idempotency-Key', idempotencyKey)
         .send(payload);
 
@@ -154,7 +154,7 @@ describe('Idempotency Middleware', () => {
 
       // Same key with alternative header
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('X-Idempotency-Key', idempotencyKey)
         .send(payload);
 
@@ -190,7 +190,7 @@ describe('Idempotency Middleware', () => {
 
       // First request with original payload
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Original Fund' });
 
@@ -199,7 +199,7 @@ describe('Idempotency Middleware', () => {
 
       // Second request with different payload (same key)
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Different Fund' });
 
@@ -214,7 +214,7 @@ describe('Idempotency Middleware', () => {
 
       // First request with keys in one order
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Test', size: 1000000, type: 'VC' });
 
@@ -225,7 +225,7 @@ describe('Idempotency Middleware', () => {
 
       // Second request with same data but different key order
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ type: 'VC', name: 'Test', size: 1000000 });
 
@@ -455,7 +455,7 @@ describe('Idempotency Middleware', () => {
       const idempotencyKey = 'header-standard';
 
       await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Test' });
 
@@ -463,7 +463,7 @@ describe('Idempotency Middleware', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send({ name: 'Test' });
 
@@ -560,7 +560,7 @@ describe('Idempotency Middleware', () => {
       const payload = { name: 'Cached Fund' };
 
       const response1 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
 
@@ -571,7 +571,7 @@ describe('Idempotency Middleware', () => {
 
       // Replay with SAME payload (different payload triggers 422 per AP-IDEM-01)
       const response2 = await request(app)
-        .post('/api/funds')
+        .post('/api/idempotency-test')
         .set('Idempotency-Key', idempotencyKey)
         .send(payload);
 

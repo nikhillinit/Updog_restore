@@ -4,26 +4,51 @@
  * Validates:
  * - FundDraftWriteV1Schema strict validation on PUT /api/funds/:id/draft
  * - Unknown keys rejected (strict mode)
- * - Upsert: second PUT updates instead of creating duplicate
+ * - Existing draft updates preserve complete DTOs; command atomicity is covered in PG
  *
  * Note: Uses the database mock (tests/helpers/database-mock.ts) that is
  * automatically loaded by the server test project's setupFiles.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { validDraftPayload, minimalDraftPayload } from '../../fixtures/fund-contract-v1-fixtures';
 
 let app: express.Express;
 
+beforeEach(async () => {
+  const { databaseMock } = await import('../../helpers/database-mock');
+  const draft = {
+    id: 101,
+    fundId: 1,
+    version: 1,
+    draftRevision: 1n,
+    config: { fundName: 'Initial draft' },
+    isDraft: true,
+    isPublished: false,
+    publishedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  databaseMock.setMockData('fundconfigs', [draft]);
+  const workflow = await import('../../../server/services/fund-workflow-service');
+  vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+    async (_command, execute) => ({
+      ...(await execute(draft)),
+      replayed: false,
+    })
+  );
+});
+
 beforeAll(async () => {
   app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use((req, _res, next) => {
     req.user = {
-      id: 'partner-1',
-      sub: 'partner-1',
+      id: '1',
+      sub: '1',
       email: 'partner@example.com',
       role: 'partner',
       roles: ['partner'],
@@ -48,6 +73,8 @@ describe('PUT /api/funds/:id/draft validation', () => {
     // Use a hardcoded fund ID (db mock returns data for any ID via findFirst)
     const putRes = await request(app)
       .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
       .send({ fundName: 'Test', bogusField: true });
 
     expect(putRes.status).toBe(400);
@@ -57,39 +84,50 @@ describe('PUT /api/funds/:id/draft validation', () => {
   });
 
   it('rejects missing fundName', async () => {
-    const putRes = await request(app).put('/api/funds/1/draft').send({ fundSize: 50_000_000 });
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({ fundSize: 50_000_000 });
 
     expect(putRes.status).toBe(400);
     expect(putRes.body).toHaveProperty('code', 'DRAFT_VALIDATION_ERROR');
   });
 
   it('accepts valid full draft payload', async () => {
-    const putRes = await request(app).put('/api/funds/1/draft').send(validDraftPayload);
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send(validDraftPayload);
 
-    // The db mock should handle the insert/update
-    // Status should be 200 (success) or 500 (if db mock doesn't support the table)
-    // We primarily verify the validation passes (not 400)
-    expect(putRes.status).not.toBe(400);
+    expect(putRes.status).toBe(200);
 
-    if (putRes.status === 200) {
-      const getRes = await request(app).get('/api/funds/1/draft');
-      expect(getRes.status).toBe(200);
-      expect(getRes.body.config?.targetMetrics).toMatchObject(validDraftPayload.targetMetrics!);
-    }
+    const getRes = await request(app).get('/api/funds/1/draft');
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.config?.targetMetrics).toMatchObject(validDraftPayload.targetMetrics!);
   });
 
   it('accepts minimal draft payload (fundName only)', async () => {
-    const putRes = await request(app).put('/api/funds/1/draft').send(minimalDraftPayload);
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send(minimalDraftPayload);
 
-    expect(putRes.status).not.toBe(400);
+    expect(putRes.status).toBe(200);
   });
 
   it('preserves cashless GP commitment percentage through save and load', async () => {
-    const putRes = await request(app).put('/api/funds/1/draft').send({
-      fundName: 'Cashless GP Fund',
-      gpCommitment: 2_000_000,
-      fundedFromFeesPct: 0.4,
-    });
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({
+        fundName: 'Cashless GP Fund',
+        gpCommitment: 2_000_000,
+        fundedFromFeesPct: 0.4,
+      });
 
     expect(putRes.status).toBe(200);
 
@@ -101,6 +139,8 @@ describe('PUT /api/funds/:id/draft validation', () => {
   it('rejects duplicate IDs in stage arrays', async () => {
     const putRes = await request(app)
       .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
       .send({
         fundName: 'Test',
         stages: [
@@ -114,11 +154,15 @@ describe('PUT /api/funds/:id/draft validation', () => {
   });
 
   it('rejects nonpositive period values', async () => {
-    const putRes = await request(app).put('/api/funds/1/draft').send({
-      fundName: 'Invalid Period Fund',
-      fundLife: 0,
-      investmentPeriod: 0,
-    });
+    const putRes = await request(app)
+      .put('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({
+        fundName: 'Invalid Period Fund',
+        fundLife: 0,
+        investmentPeriod: 0,
+      });
 
     expect(putRes.status).toBe(400);
     expect(putRes.body).toHaveProperty('code', 'DRAFT_VALIDATION_ERROR');

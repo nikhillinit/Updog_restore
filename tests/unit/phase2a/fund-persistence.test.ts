@@ -1,7 +1,7 @@
 /**
  * Phase 2A Items 4 & 5: Atomic create + version semantics
  *
- * Tests for FundPersistenceService and version allocation in draft upsert.
+ * Tests for FundPersistenceService and version allocation. Draft revision and no-upsert behavior have real PG coverage.
  *
  * @group phase2a
  */
@@ -48,28 +48,6 @@ describe('Funds route uses FundPersistenceService', () => {
     const fs = await import('fs/promises');
     const source = await fs.readFile('server/routes/funds.ts', 'utf-8');
     expect(source).not.toContain('storage.createFund');
-  });
-});
-
-// ============================================================================
-// Item 5: Version allocation in draft upsert
-// ============================================================================
-
-describe('Draft upsert version allocation', () => {
-  it('fund-config.ts INSERT path queries MAX(version)', async () => {
-    const fs = await import('fs/promises');
-    const source = await fs.readFile('server/routes/fund-config.ts', 'utf-8');
-    // Must contain max(fundConfigs.version) query
-    expect(source).toContain('max(fundConfigs.version)');
-    // Must use nextVersion in insert
-    expect(source).toContain('nextVersion');
-    expect(source).toContain('version: nextVersion');
-  });
-
-  it('fund-config.ts imports max from drizzle-orm', async () => {
-    const fs = await import('fs/promises');
-    const source = await fs.readFile('server/routes/fund-config.ts', 'utf-8');
-    expect(source).toMatch(/import\s*\{[^}]*max[^}]*\}\s*from\s*'drizzle-orm'/);
   });
 });
 

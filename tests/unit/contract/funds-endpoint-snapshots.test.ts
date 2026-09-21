@@ -13,7 +13,8 @@
  * to default (pre-called middleware), so the mock is no longer needed.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
@@ -23,6 +24,17 @@ import {
 } from '../../../server/contracts/funds-endpoint-ownership';
 
 let app: express.Express;
+
+// Transport unit seam; real command atomicity/replay is covered by fund-lifecycle-db.
+beforeEach(async () => {
+  const workflow = await import('../../../server/services/fund-workflow-service');
+  vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+    async (_command, execute) => ({
+      ...(await execute(undefined)),
+      replayed: false,
+    })
+  );
+});
 
 const snapshotCoverageKeys = [
   fundsEndpointKey({ method: 'GET', path: '/api/funds', runtimeSurface: 'registerRoutes' }),
@@ -105,7 +117,7 @@ describe('POST /api/funds contract snapshot', () => {
 
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-valid-fund-01')
+      .set('Idempotency-Key', randomUUID())
       .send(payload);
 
     expect(res.status).toBe(201);
@@ -132,7 +144,7 @@ describe('POST /api/funds contract snapshot', () => {
 
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-shape-check-01')
+      .set('Idempotency-Key', randomUUID())
       .send(payload);
 
     expect(res.status).toBe(201);
@@ -148,7 +160,7 @@ describe('POST /api/funds contract snapshot', () => {
   it('returns 400 with error for invalid payload', async () => {
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-invalid-01')
+      .set('Idempotency-Key', randomUUID())
       .send({ name: '', size: -1 });
 
     expect(res.status).toBe(400);
@@ -158,7 +170,7 @@ describe('POST /api/funds contract snapshot', () => {
   it('accepts canonical payload with size=0 (provisional)', async () => {
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-size-zero-01')
+      .set('Idempotency-Key', randomUUID())
       .send({ name: 'Zero Size Fund', size: 0 });
 
     expect(res.status).toBe(201);
@@ -169,7 +181,7 @@ describe('POST /api/funds contract snapshot', () => {
   it('returns 400 validation error when required name field is missing', async () => {
     const res = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-no-markers-01')
+      .set('Idempotency-Key', randomUUID())
       .send({ fundSize: 50_000_000 });
 
     expect(res.status).toBe(400);
@@ -179,7 +191,7 @@ describe('POST /api/funds contract snapshot', () => {
   it('creates a fund that becomes visible through the canonical GET list endpoint', async () => {
     const postRes = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-round-trip-01')
+      .set('Idempotency-Key', randomUUID())
       .send({
         name: 'Snapshot Round Trip Fund',
         size: 65_000_000,
@@ -208,7 +220,7 @@ describe('POST /api/funds contract snapshot', () => {
   it('creates a fund retrievable by numeric ID through the canonical GET detail endpoint', async () => {
     const postRes = await request(app)
       .post('/api/funds')
-      .set('Idempotency-Key', 'snapshot-detail-readback-01')
+      .set('Idempotency-Key', randomUUID())
       .send({
         name: 'Detail Readback Fund',
         size: 42_000_000,

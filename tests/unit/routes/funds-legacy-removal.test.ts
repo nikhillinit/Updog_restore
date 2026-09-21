@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 /**
  * Tests for POST /api/funds after legacy-basics removal.
  *
@@ -160,14 +161,27 @@ const createdFundResponse = {
 describe('POST /api/funds -- legacy removal', () => {
   let app: express.Express;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    createFundWithInitialDraftMock.mockResolvedValue({ fund: createdFundResponse });
+    createFundWithInitialDraftMock.mockResolvedValue({
+      fund: createdFundResponse,
+      draft: { id: 101, fundId: 42, version: 1, draftRevision: 1n },
+    });
     app = createTestApp();
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+      async (_command, execute) => ({
+        ...(await execute(undefined)),
+        replayed: false,
+      })
+    );
   });
 
   it('creates a fund with canonical format (top-level name) -> 201', async () => {
-    const res = await request(app).post('/api/funds').send(canonicalPayload);
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send(canonicalPayload);
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
@@ -178,7 +192,10 @@ describe('POST /api/funds -- legacy removal', () => {
 
   it('applies Zod defaults when optional fields omitted', async () => {
     const minimal = { name: 'Minimal Fund', size: 10_000_000 };
-    const res = await request(app).post('/api/funds').send(minimal);
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send(minimal);
 
     expect(res.status).toBe(201);
     // Verify the persistence service received defaults
@@ -194,21 +211,27 @@ describe('POST /api/funds -- legacy removal', () => {
       strategy: { stages: [{ name: 'Seed', graduate: 30, exit: 10, months: 18 }] },
     };
 
-    const res = await request(app).post('/api/funds').send(legacyPayload);
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send(legacyPayload);
 
     expect(res.status).toBe(400);
     expect(createFundWithInitialDraftMock).not.toHaveBeenCalled();
   });
 
   it('rejects empty body -> 400 validation error', async () => {
-    const res = await request(app).post('/api/funds').send({});
+    const res = await request(app).post('/api/funds').set('Idempotency-Key', randomUUID()).send({});
 
     expect(res.status).toBe(400);
     expect(createFundWithInitialDraftMock).not.toHaveBeenCalled();
   });
 
   it('rejects body missing required name field -> 400', async () => {
-    const res = await request(app).post('/api/funds').send({ size: 50_000_000 });
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send({ size: 50_000_000 });
 
     expect(res.status).toBe(400);
     expect(createFundWithInitialDraftMock).not.toHaveBeenCalled();
@@ -217,6 +240,7 @@ describe('POST /api/funds -- legacy removal', () => {
   it('rejects unknown keys (strict mode) -> 400', async () => {
     const res = await request(app)
       .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
       .send({ ...canonicalPayload, bogusField: true });
 
     expect(res.status).toBe(400);
@@ -226,6 +250,7 @@ describe('POST /api/funds -- legacy removal', () => {
   it('rejects client-submitted canary marker fields', async () => {
     const res = await request(app)
       .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
       .send({ ...canonicalPayload, dataOrigin: 'release_canary', canaryRunId: 'run-1' });
 
     expect(res.status).toBe(400);
@@ -233,7 +258,10 @@ describe('POST /api/funds -- legacy removal', () => {
   });
 
   it('uses structured logger for fund.created event, not console.warn', async () => {
-    await request(app).post('/api/funds').send(canonicalPayload);
+    await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send(canonicalPayload);
 
     expect(loggerInfoMock).toHaveBeenCalledWith(
       expect.objectContaining({ fundId: 42 }),
@@ -241,14 +269,19 @@ describe('POST /api/funds -- legacy removal', () => {
     );
   });
 
-  it('returns 500 with error details when persistence throws', async () => {
+  it('returns a sanitized retry response when persistence throws', async () => {
     createFundWithInitialDraftMock.mockRejectedValueOnce(new Error('DB connection lost'));
 
-    const res = await request(app).post('/api/funds').send(canonicalPayload);
+    const res = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .send(canonicalPayload);
 
     expect(res.status).toBe(500);
     expect(res.body.error).toBe('Failed to create fund');
-    expect(res.body.message).toContain('DB connection lost');
+    expect(res.body.message).toContain('retry the same command');
+    expect(JSON.stringify(res.body)).not.toContain('DB connection lost');
+    expect(JSON.stringify(loggerErrorMock.mock.calls)).not.toContain('DB connection lost');
   });
 });
 

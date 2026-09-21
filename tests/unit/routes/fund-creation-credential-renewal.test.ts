@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import express from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,7 +59,9 @@ vi.mock('../../../server/storage', () => ({
 
 vi.mock('../../../server/shared/idempotency-instance', () => ({ idem: {} }));
 vi.mock('../../../server/lib/inflight-server', () => ({ getOrStart: vi.fn() }));
-vi.mock('../../../server/metrics', () => ({ calcDurationMs: { startTimer: vi.fn(() => vi.fn()) } }));
+vi.mock('../../../server/metrics', () => ({
+  calcDurationMs: { startTimer: vi.fn(() => vi.fn()) },
+}));
 vi.mock('../../../server/lib/hash', () => ({ hashPayload: vi.fn(() => 'mock-hash') }));
 vi.mock('../../../server/core/enhanced-fund-model', () => ({ EnhancedFundModel: vi.fn() }));
 
@@ -106,15 +109,11 @@ function createApp() {
   app.use(express.json());
   app.use('/api', requireAuth(), requireCsrf);
   app.use('/api', fundsRouter);
-  app.post(
-    '/api/funds/:fundId/write',
-    requireWriteRole(PARTNER_WRITE_ROLES),
-    async (req, res) => {
-      const fundId = Number(req.params['fundId']);
-      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return;
-      res.json({ ok: true, fundId });
-    }
-  );
+  app.post('/api/funds/:fundId/write', requireWriteRole(PARTNER_WRITE_ROLES), async (req, res) => {
+    const fundId = Number(req.params['fundId']);
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return;
+    res.json({ ok: true, fundId });
+  });
   return app;
 }
 
@@ -129,9 +128,20 @@ function cookieAuth(token: string, csrfToken: string) {
 }
 
 describe('fund creation credential renewal', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    createFundWithInitialDraftMock.mockResolvedValue({ fund: createdFund });
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+      async (_command, execute) => ({
+        ...(await execute(undefined)),
+        replayed: false,
+      })
+    );
+
+    createFundWithInitialDraftMock.mockResolvedValue({
+      fund: createdFund,
+      draft: { id: 101, fundId: 42, version: 1, draftRevision: 1n },
+    });
   });
 
   it('renews cookie session and permits new-fund write while stale session remains denied', async () => {
@@ -147,6 +157,7 @@ describe('fund creation credential renewal', () => {
 
     const created = await request(app)
       .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
       .set(cookieAuth(oldToken, oldCsrf))
       .send(payload);
 
@@ -179,6 +190,7 @@ describe('fund creation credential renewal', () => {
 
     const created = await request(app)
       .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
       .set('Authorization', `Bearer ${oldToken}`)
       .send(payload);
 
