@@ -652,9 +652,30 @@ describe('POST /api/funds/finalize route contract', () => {
     registerFundConfigRoutes(app);
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     clearIdempotencyCache();
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    // Database atomicity/replay is asserted by fund-lifecycle-db through the real
+    // RLS boundary. This fixture isolates the route's transport contract.
+    vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
+      async (_command, execute) => ({
+        ...(await execute(undefined)),
+        replayed: false,
+      })
+    );
+    mockDb.select.mockReturnValue({
+      from: () => ({
+        where: async () => [
+          {
+            id: 101,
+            fundId: 42,
+            version: 1,
+            draftRevision: 2n,
+          },
+        ],
+      }),
+    });
   });
 
   it('returns 400 for invalid payload (missing name)', async () => {
@@ -721,7 +742,7 @@ describe('POST /api/funds/finalize route contract', () => {
 
     const res = await request(app)
       .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-unexpected-error')
+      .set('Idempotency-Key', '550e8400-e29b-41d4-a716-446655440011')
       .send(minimalFinalizePayload);
 
     expect(res.status).toBe(201);
@@ -736,33 +757,17 @@ describe('POST /api/funds/finalize route contract', () => {
     });
   });
 
-  it('replays completed duplicate finalize requests with the same idempotency key', async () => {
-    const mod = await import('../../../server/services/fund-persistence-service');
-    const finalizeSpy = vi.spyOn(mod.fundPersistenceService, 'finalize').mockResolvedValue({
-      fundId: 77,
-      configVersion: 2,
-      correlationId: '550e8400-e29b-41d4-a716-446655440000',
-      runId: 277,
-      dispatchState: 'dispatched',
-      published: true,
-    });
-    const payload = { ...minimalFinalizePayload, draftFundId: 77 };
-
-    const first = await request(app)
+  it('requires a UUID key and an existing-draft revision before dispatch', async () => {
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    const absent = await request(app).post('/api/funds/finalize').send(minimalFinalizePayload);
+    expect(absent.status).toBe(400);
+    expect(absent.body.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    const missingRevision = await request(app)
       .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-77-stable')
-      .send(payload);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const second = await request(app)
-      .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-77-stable')
-      .send(payload);
-
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
-    expect(second.headers['idempotency-replay']).toBe('true');
-    expect(second.body.data.fundId).toBe(77);
-    expect(finalizeSpy).toHaveBeenCalledTimes(1);
+      .set('Idempotency-Key', '550e8400-e29b-41d4-a716-446655440012')
+      .send({ ...minimalFinalizePayload, draftFundId: 77 });
+    expect(missingRevision.status).toBe(428);
+    expect(workflow.executeFundWorkflowCommand).not.toHaveBeenCalled();
   });
 
   it('returns 409 when draftFundId has no active draft to publish', async () => {
@@ -773,7 +778,8 @@ describe('POST /api/funds/finalize route contract', () => {
 
     const res = await request(app)
       .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-no-active-draft')
+      .set('Idempotency-Key', '550e8400-e29b-41d4-a716-446655440013')
+      .set('If-Match', '"0123456789abcdef"')
       .send({ ...minimalFinalizePayload, draftFundId: 77 });
 
     expect(res.status).toBe(409);
@@ -786,29 +792,25 @@ describe('POST /api/funds/finalize route contract', () => {
       new Error('Database connection lost')
     );
 
-    const res = await request(app).post('/api/funds/finalize').send(minimalFinalizePayload);
+    const res = await request(app)
+      .post('/api/funds/finalize')
+      .set('Idempotency-Key', '550e8400-e29b-41d4-a716-446655440014')
+      .send(minimalFinalizePayload);
 
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
   });
 
-  it('releases idempotency locks after uncached finalize errors', async () => {
+  it('does not disclose internal failure details or retained inputs', async () => {
     const mod = await import('../../../server/services/fund-persistence-service');
-    const finalizeSpy = vi
-      .spyOn(mod.fundPersistenceService, 'finalize')
-      .mockRejectedValue(new Error('Database connection lost'));
-
-    const first = await request(app)
+    vi.spyOn(mod.fundPersistenceService, 'finalize').mockRejectedValue(
+      new Error('private-financial-input-sentinel')
+    );
+    const result = await request(app)
       .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-error-lock-release')
+      .set('Idempotency-Key', '550e8400-e29b-41d4-a716-446655440015')
       .send(minimalFinalizePayload);
-    const second = await request(app)
-      .post('/api/funds/finalize')
-      .set('Idempotency-Key', 'finalize-error-lock-release')
-      .send(minimalFinalizePayload);
-
-    expect(first.status).toBe(500);
-    expect(second.status).toBe(500);
-    expect(finalizeSpy).toHaveBeenCalledTimes(2);
+    expect(result.status).toBe(500);
+    expect(JSON.stringify(result.body)).not.toContain('private-financial-input-sentinel');
   });
 });

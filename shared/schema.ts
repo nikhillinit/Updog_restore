@@ -650,6 +650,7 @@ export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues
 });
 export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit({
   id: true,
+  draftRevision: true,
   createdAt: true,
   updatedAt: true,
 });

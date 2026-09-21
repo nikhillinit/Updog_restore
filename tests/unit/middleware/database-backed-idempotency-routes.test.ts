@@ -7,6 +7,12 @@ import { clearIdempotencyCache, idempotency } from '../../../server/middleware/i
 
 describe('database-backed idempotency route classification', () => {
   it.each([
+    ['POST', '/api/funds'],
+    ['POST', '/api/funds/finalize'],
+    ['PUT', '/api/funds/1/draft'],
+    ['POST', '/api/funds/1/publish'],
+    ['PUT', '/api/funds/invalid/draft'],
+    ['POST', '/api/FUNDS/01/PUBLISH/?retry=1'],
     ['PATCH', '/api/funds/1/tasks/2'],
     ['PATCH', '/api/FUNDS/1/TASKS/2/?mode=edit#receipt'],
     ['PATCH', '/api/funds/invalid/tasks/00'],
@@ -53,6 +59,11 @@ describe('database-backed idempotency route classification', () => {
 
   it.each([
     ['POST', '/api/funds/1/tasks/2'],
+    ['POST', '/api/funds/calculate'],
+    ['GET', '/api/funds/1/draft'],
+    ['POST', '/api/funds/finalize/extra'],
+    ['PUT', '/api/funds/1/draft/extra'],
+    ['POST', '/api/funds/1/publish//'],
     ['GET', '/api/funds/1/tasks/2'],
     ['PUT', '/api/funds/1/tasks/2'],
     ['patch', '/api/funds/1/tasks/2'],

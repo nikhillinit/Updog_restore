@@ -10,6 +10,7 @@ import {
   CANARY_TERMINAL_SOURCE_STATUSES,
   RELEASE_CANARY_RESERVED_RESIDUE,
   preflightCanaryCreation,
+  checkCanaryWorkflowResidue,
   readCanaryRuntimePolicy,
   reconcileReleaseCanaryRun,
   transitionReleaseCanaryRun,
@@ -119,6 +120,7 @@ describe('canary residue group descriptor', () => {
         'pacing_history',
         'portfolio_company_update_receipts',
         'fund_scenario_calculation_commands',
+        'fund_workflow_commands',
         'fund_scenario_sets',
         'fund_scenario_variants',
         'fund_scenario_set_events',
@@ -134,6 +136,28 @@ describe('canary residue group descriptor', () => {
       ].sort()
     );
   });
+
+  it.each([
+    { receipts: 3, publications: 0 },
+    { receipts: 4, publications: 1 },
+  ])(
+    'preserves publication and service receipt budgets after extra saves: %j',
+    async ({ receipts, publications }) => {
+      stubValidPolicy({ ...POLICY_CAPS, mutationReceipt: 5, total: 119 });
+      const counts = { ...zeroGroupRow(), mutationReceipt: receipts, fundEvent: 3 };
+      const execute = vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [counts] })
+        .mockResolvedValueOnce({ rows: [counts] })
+        .mockResolvedValueOnce({ rows: [{ receipts, saves: 2, publications }] });
+      await expect(checkCanaryWorkflowResidue({ execute }, 'run-1')).rejects.toMatchObject({
+        field: 'mutationReceipt',
+        current: receipts,
+        projected: 6,
+        limit: 5,
+      });
+    }
+  );
 
   it('pins the reserved successful-run vector to exact 33 rows', () => {
     expect(RELEASE_CANARY_RESERVED_RESIDUE).toEqual({
@@ -210,7 +234,13 @@ describe('canary residue fail-closed policy', () => {
 
   it('rejects when current residue plus the reserved total exceeds the total cap', async () => {
     stubValidPolicy();
-    const currentRow = { ...zeroGroupRow(), reporting: 30, calculation: 15, scenario: 21, fundEvent: 1 };
+    const currentRow = {
+      ...zeroGroupRow(),
+      reporting: 30,
+      calculation: 15,
+      scenario: 21,
+      fundEvent: 1,
+    };
     const execute = vi
       .fn()
       .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })

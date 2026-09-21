@@ -13,6 +13,7 @@ const {
   mockResolveBaselineForFund,
   mockComputeVarianceSnapshot,
   mockUpsertTriggeredAlertIncident,
+  mockGetRequestDatabaseScope,
 } = vi.hoisted(() => ({
   mockDb: {
     query: {
@@ -30,6 +31,11 @@ const {
   mockResolveBaselineForFund: vi.fn(),
   mockComputeVarianceSnapshot: vi.fn(),
   mockUpsertTriggeredAlertIncident: vi.fn(),
+  mockGetRequestDatabaseScope: vi.fn(),
+}));
+
+vi.mock('../../../server/db/request-context', () => ({
+  getRequestDatabaseScope: mockGetRequestDatabaseScope,
 }));
 
 vi.mock('../../../server/db', () => ({
@@ -71,6 +77,7 @@ describe('VarianceAlertAutomationService', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mockGetRequestDatabaseScope.mockReturnValue(undefined);
     mockEnsureAttributedFundMetricsForCalcRun.mockResolvedValue({});
 
     mockDb.insert.mockImplementation(() => ({
@@ -86,6 +93,36 @@ describe('VarianceAlertAutomationService', () => {
       })),
     }));
     mockDb.execute.mockResolvedValue({ rows: [] });
+  });
+
+  it('times out ordinary request work without waiting for stage settlement', async () => {
+    mockGetRequestDatabaseScope.mockReturnValue({ completed: false });
+    let release!: () => void;
+    mockEnsureAttributedFundMetricsForCalcRun.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      })
+    );
+    const { varianceAlertAutomationService } =
+      await import('../../../server/services/variance-alert-automation');
+    vi.useFakeTimers();
+    let failure: unknown;
+    const completion = varianceAlertAutomationService
+      .runCalcRunCompletion(42, 7)
+      .catch((error: unknown) => {
+        failure = error;
+      });
+    try {
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(failure).toEqual(
+        new Error('ensureAttributedFundMetricsForCalcRun timed out after 30000ms')
+      );
+      expect(mockCreateBaselineFromCalcRun).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await completion;
+      vi.useRealTimers();
+    }
   });
 
   it('enables by default outside tests and can be disabled via env', async () => {

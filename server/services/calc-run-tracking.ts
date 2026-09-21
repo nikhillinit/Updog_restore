@@ -61,7 +61,7 @@ async function runCompletionHandlers(target: CompletionTarget): Promise<void> {
     const handlerName = handler?.name || 'anonymous';
     failedHandlers.push({ handlerName, reason: result.reason });
     log.error(
-      { runId: target.id, handler: handlerName, err: result.reason },
+      { runId: target.id, handler: handlerName, code: 'CALC_RUN_COMPLETION_FAILED' },
       'Calc-run completion handler failed'
     );
   }

@@ -159,7 +159,7 @@ export async function runWithDatabaseContext<T>(
     database: NodePgDatabase<CombinedSchema>,
     client: NodePostgresPoolClient
   ) => Promise<T>,
-  options: { timeoutMs?: number } = {}
+  options: { timeoutMs?: number; signal?: AbortSignal } = {}
 ): Promise<T> {
   getRequestDatabaseScope(); // A completed request cannot acquire a fresh connection.
   if (!context.userId || typeof context.orgId !== 'string')
@@ -175,26 +175,46 @@ export async function runWithDatabaseContext<T>(
   let scope: RequestDatabaseScope | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let timeoutError: DatabaseContextTimeoutError | undefined;
+  let abortError: Error | undefined;
+  let onAbort: (() => void) | undefined;
   let released = false;
   try {
     getRequestDatabaseScope();
     const assertActive = () => {
       if (timeoutError) throw timeoutError;
+      if (abortError) throw abortError;
       getRequestDatabaseScope();
     };
     // Acquisition has its own pool bound. This deadline covers BEGIN, RLS
     // setup, the callback, and COMMIT/rollback on the acquired connection.
     const deadline =
-      options.timeoutMs === undefined
+      options.timeoutMs === undefined && options.signal === undefined
         ? undefined
         : new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(() => {
-              timeoutError = new DatabaseContextTimeoutError();
+            const destroy = (error: Error) => {
               if (scope) scope.completed = true;
-              released = true;
-              client.release(true);
-              reject(timeoutError);
-            }, options.timeoutMs);
+              if (!released) {
+                released = true;
+                client.release(true);
+              }
+              reject(error);
+            };
+            if (options.signal) {
+              onAbort = () => {
+                abortError =
+                  options.signal?.reason instanceof Error
+                    ? options.signal.reason
+                    : new Error('Database transaction aborted');
+                destroy(abortError);
+              };
+              options.signal.addEventListener('abort', onAbort, { once: true });
+              if (options.signal.aborted) onAbort();
+            }
+            if (options.timeoutMs !== undefined)
+              timer = setTimeout(() => {
+                timeoutError = new DatabaseContextTimeoutError();
+                destroy(timeoutError);
+              }, options.timeoutMs);
           });
     const operation = createClientDatabase(client).transaction(async (tx) => {
       assertActive();
@@ -205,6 +225,7 @@ export async function runWithDatabaseContext<T>(
         db: tx,
         client,
         completed: false,
+        ...(options.timeoutMs !== undefined && { executionTimeoutMs: options.timeoutMs }),
         runOwnedTransaction: (operation) =>
           runWithDatabaseContext(context, (_db, owned) => operation(owned)),
       };
@@ -220,9 +241,10 @@ export async function runWithDatabaseContext<T>(
     return await (deadline ? Promise.race([operation, deadline]) : operation);
   } catch (error) {
     // A destroyed client's rollback also rejects; retain the actual deadline.
-    throw timeoutError ?? error;
+    throw timeoutError ?? abortError ?? error;
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+    if (onAbort) options.signal?.removeEventListener('abort', onAbort);
     if (scope) scope.completed = true;
     if (!released) client.release();
   }

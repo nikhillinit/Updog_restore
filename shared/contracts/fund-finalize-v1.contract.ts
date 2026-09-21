@@ -41,7 +41,7 @@ export const FundFinalizeV1Schema = z
     // ── Required fund-level fields (from FundCreateV1) ──
 
     /** Fund display name */
-    name: z.string().min(1, 'Fund name is required'),
+    name: z.string().trim().min(1, 'Fund name is required'),
 
     /**
      * Fund size in dollars.

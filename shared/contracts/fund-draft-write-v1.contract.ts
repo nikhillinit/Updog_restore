@@ -200,14 +200,14 @@ function uniqueIds<T extends z.ZodTypeAny>(schema: z.ZodArray<T>, label: string)
 export const FundDraftWriteV1Schema = z
   .object({
     // Required
-    fundName: z.string().min(1, 'Fund name is required'),
+    fundName: z.string().trim().min(1, 'Fund name is required'),
 
     // Fund Basics (all optional -- missing = "not set")
     fundSize: z.number().nonnegative().optional(),
-    vintageYear: z.number().int().optional(),
+    vintageYear: z.number().int().min(2000).max(2100).optional(),
     managementFeeRate: z.number().optional(),
     carriedInterest: z.number().optional(),
-    establishmentDate: z.string().optional(),
+    establishmentDate: z.string().date().optional(),
     modelInputsAsOfDate: ModelInputsAsOfDateSchema.optional(),
     isEvergreen: z.boolean().optional(),
     fundLife: z.number().positive().optional(),

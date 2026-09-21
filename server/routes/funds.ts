@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
-import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { funds as persistedFunds } from '@shared/schema';
 import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
@@ -26,12 +25,17 @@ import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
-import {
-  creatorUserIdFromRequest,
-  renewCreationCredential,
-} from '../lib/auth/creator-identity';
+import { creatorUserIdFromRequest, renewCreationCredential } from '../lib/auth/creator-identity';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { productionFundPredicate } from '../lib/canary-exclusion';
+import {
+  draftETag,
+  executeFundWorkflowCommand,
+  fundWorkflowHeaders,
+  fundWorkflowWritesAllowed,
+  sendFundWorkflowError,
+  setFundWorkflowResponseHeaders,
+} from '../services/fund-workflow-service';
 
 const router = Router();
 const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
@@ -218,88 +222,129 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
   }
 });
 
-router['post']('/funds', requirePartnerWrite, idempotency, async (req: Request, res: Response) => {
-  const parsed = FundCreateV1Schema.safeParse(req.body);
-  if (!parsed.success) {
-    return sendApiError(res, 400, {
-      error: 'Validation failed',
-      code: 'FUND_CREATE_VALIDATION_ERROR',
-      issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
-    });
-  }
-
-  try {
-    const data = parsed.data;
-    const creatorUserId = creatorUserIdFromRequest(req);
-    if (creatorUserId === undefined) {
-      return sendApiError(res, 401, {
-        error: 'Authentication identity is invalid',
-        code: 'INVALID_AUTHENTICATION_IDENTITY',
-      });
-    }
-
-    // The paired headers name the exact GitHub workflow execution creating a
-    // release-canary run; the persistence service enforces who may send them.
-    const workflowRunIdHeader = req.header('Release-Canary-Workflow-Run-Id');
-    const workflowRunAttemptHeader = req.header('Release-Canary-Workflow-Run-Attempt');
-    const canaryExecutionIdentity: CanaryExecutionIdentityHeaders = {
-      ...(workflowRunIdHeader !== undefined && { workflowRunId: workflowRunIdHeader }),
-      ...(workflowRunAttemptHeader !== undefined && {
-        workflowRunAttempt: workflowRunAttemptHeader,
-      }),
-    };
-
-    const fundInput = {
-      name: data.name,
-      size: String(data.size),
-      managementFee: String(data.managementFee),
-      carryPercentage: String(data.carryPercentage),
-      vintageYear: data.vintageYear,
-      creatorUserId,
-      canaryExecutionIdentity,
-      ...(data.engineResults != null && { engineResults: data.engineResults }),
-    };
-
-    // Atomic create: fund + initial draft in one transaction
-    const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
-    logger.info({ fundId: fund.id }, 'fund.created');
-
-    const credentialRenewal = await renewCreationCredential(req, res, fund.id, creatorUserId);
-    const response = {
-      success: true,
-      data: toClientFund(fund),
-      message: 'Fund created successfully',
-      ...credentialRenewal,
-    };
-
-    if (fund.canaryRunId != null) {
-      res.setHeader('Release-Canary-Run-Id', fund.canaryRunId);
-    }
-    res.status(201);
-    return res.json(response);
-  } catch (error) {
-    if (error instanceof ReleaseCanaryExecutionIdentityForbiddenError) {
-      logger.warn({ code: error.code }, 'fund.create.canary_identity_forbidden');
-      return sendApiError(res, 403, {
-        error: 'Release canary execution identity is forbidden',
-        code: error.code,
-      });
-    }
-    if (error instanceof ReleaseCanaryExecutionIdentityInvalidError) {
-      logger.warn({ code: error.code }, 'fund.create.canary_identity_invalid');
+router['post'](
+  '/funds',
+  requirePartnerWrite,
+  fundWorkflowWritesAllowed,
+  async (req: Request, res: Response) => {
+    const parsed = FundCreateV1Schema.safeParse(req.body);
+    if (!parsed.success) {
       return sendApiError(res, 400, {
-        error: 'Release canary execution identity is invalid',
-        code: error.code,
+        error: 'Validation failed',
+        code: 'FUND_CREATE_VALIDATION_ERROR',
+        issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
       });
     }
-    logger.error({ err: error }, 'fund.create.failed');
-    res.status(500);
-    return res.json({
-      error: 'Failed to create fund',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+
+    try {
+      const data = parsed.data;
+      const creatorUserId = creatorUserIdFromRequest(req);
+      if (creatorUserId === undefined) {
+        return sendApiError(res, 401, {
+          error: 'Authentication identity is invalid',
+          code: 'INVALID_AUTHENTICATION_IDENTITY',
+        });
+      }
+
+      // The paired headers name the exact GitHub workflow execution creating a
+      // release-canary run; the persistence service enforces who may send them.
+      const workflowRunIdHeader = req.header('Release-Canary-Workflow-Run-Id');
+      const workflowRunAttemptHeader = req.header('Release-Canary-Workflow-Run-Attempt');
+      const canaryExecutionIdentity: CanaryExecutionIdentityHeaders = {
+        ...(workflowRunIdHeader !== undefined && { workflowRunId: workflowRunIdHeader }),
+        ...(workflowRunAttemptHeader !== undefined && {
+          workflowRunAttempt: workflowRunAttemptHeader,
+        }),
+      };
+
+      const fundInput = {
+        name: data.name,
+        size: String(data.size),
+        managementFee: String(data.managementFee),
+        carryPercentage: String(data.carryPercentage),
+        vintageYear: data.vintageYear,
+        creatorUserId,
+        canaryExecutionIdentity,
+        ...(data.engineResults != null && { engineResults: data.engineResults }),
+      };
+
+      const result = await executeFundWorkflowCommand(
+        {
+          actorId: creatorUserId,
+          operation: 'create',
+          ...fundWorkflowHeaders(req, false),
+          targetFundId: null,
+          unrestricted: req.user?.role === 'admin',
+          body: {
+            ...data,
+            vintageYear:
+              (req.body as Record<string, unknown>)['vintageYear'] === undefined
+                ? null
+                : data.vintageYear,
+            canaryExecutionIdentity,
+          },
+        },
+        async () => {
+          const { fund, draft } = await fundPersistenceService.createFundWithInitialDraft(
+            fundInput,
+            {
+              fundName: data.name,
+              fundSize: data.size,
+              vintageYear: data.vintageYear,
+              managementFeeRate: data.managementFee * 100,
+              carriedInterest: data.carryPercentage * 100,
+            },
+            { command: true }
+          );
+          return {
+            status: 201,
+            fundId: fund.id,
+            configId: draft.id,
+            etag: draftETag(draft),
+            body: { success: true, data: toClientFund(fund), message: 'Fund created successfully' },
+          };
+        }
+      );
+      const [fund] = await db
+        .select()
+        .from(persistedFunds)
+        .where(eq(persistedFunds.id, result.fundId));
+      if (fund?.canaryRunId != null) {
+        res.setHeader('Release-Canary-Run-Id', fund.canaryRunId);
+      }
+      const credentialRenewal = await renewCreationCredential(
+        req,
+        res,
+        result.fundId,
+        creatorUserId
+      );
+      setFundWorkflowResponseHeaders(res, result);
+      return res.status(result.status).json({ ...result.body, ...credentialRenewal });
+    } catch (error) {
+      if (sendFundWorkflowError(res, error)) return;
+      if (error instanceof ReleaseCanaryExecutionIdentityForbiddenError) {
+        logger.warn({ code: error.code }, 'fund.create.canary_identity_forbidden');
+        return sendApiError(res, 403, {
+          error: 'Release canary execution identity is forbidden',
+          code: error.code,
+        });
+      }
+      if (error instanceof ReleaseCanaryExecutionIdentityInvalidError) {
+        logger.warn({ code: error.code }, 'fund.create.canary_identity_invalid');
+        return sendApiError(res, 400, {
+          error: 'Release canary execution identity is invalid',
+          code: error.code,
+        });
+      }
+      logger.error({ code: 'FUND_CREATE_FAILED' }, 'fund.create.failed');
+      res.status(500);
+      return res.json({
+        error: 'Failed to create fund',
+        message: 'Fund creation could not be confirmed; retry the same command',
+      });
+    }
   }
-});
+);
 
 router['post']('/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -7,6 +7,15 @@ import { RELEASE_CANARY_RESERVED_RESIDUE } from '@shared/contracts/release-canar
 
 export { RELEASE_CANARY_RESERVED_RESIDUE };
 
+// The HTTP create/save/finalize journey adds three receipts and one draft-save
+// event to the historical service-only characterization. Keep that evidence frozen.
+const FUND_WORKFLOW_RESERVED_RESIDUE = Object.freeze({
+  ...RELEASE_CANARY_RESERVED_RESIDUE,
+  mutationReceipt: RELEASE_CANARY_RESERVED_RESIDUE.mutationReceipt + 3,
+  fundEvent: RELEASE_CANARY_RESERVED_RESIDUE.fundEvent + 1,
+  total: RELEASE_CANARY_RESERVED_RESIDUE.total + 4,
+});
+
 const RELEASE_CANARY_TTL_HOURS_ENV = 'RELEASE_CANARY_TTL_HOURS';
 
 const RESIDUE_CAP_ENV = {
@@ -72,6 +81,7 @@ export const CANARY_RESIDUE_GROUP_TABLES: Readonly<
     { table: 'pacing_history', scope: 'fund_id' },
   ],
   mutationReceipt: [
+    { table: 'fund_workflow_commands', scope: 'fund_id' },
     { table: 'portfolio_company_update_receipts', scope: 'fund_id' },
     { table: 'fund_scenario_calculation_commands', scope: 'fund_id' },
   ],
@@ -179,7 +189,10 @@ function requiredPositiveNumber(name: string): number {
 
 export function readCanaryRuntimePolicy(): CanaryRuntimePolicy {
   const groupCaps = Object.fromEntries(
-    CANARY_RESIDUE_GROUPS.map((group) => [group, requiredNonNegativeInteger(RESIDUE_CAP_ENV[group])])
+    CANARY_RESIDUE_GROUPS.map((group) => [
+      group,
+      requiredNonNegativeInteger(RESIDUE_CAP_ENV[group]),
+    ])
   ) as Record<CanaryResidueGroup, number>;
   const total = requiredNonNegativeInteger(RESIDUE_CAP_ENV.total);
   const groupCapSum = CANARY_RESIDUE_GROUPS.reduce((sum, group) => sum + groupCaps[group], 0);
@@ -239,8 +252,11 @@ function countQuery(runId?: string): SQL {
       WHERE ${canaryFundPredicate}${runFilter}
     )
     SELECT
-      ${sql.join(selections, sql`,
-      `)}
+      ${sql.join(
+        selections,
+        sql`,
+      `
+      )}
   `;
 }
 
@@ -249,9 +265,7 @@ function reconcileQuery(runId: string, expectedVersion: number): SQL {
     (group) => sql`${groupCountSql(group)} AS ${sql.raw(`"${group}"`)}`
   );
   const groupTotal = sql.join(
-    CANARY_RESIDUE_GROUPS.map(
-      (group) => sql`residue_group_counts.${sql.raw(`"${group}"`)}`
-    ),
+    CANARY_RESIDUE_GROUPS.map((group) => sql`residue_group_counts.${sql.raw(`"${group}"`)}`),
     sql` + `
   );
   const assignments = CANARY_RESIDUE_GROUPS.map(
@@ -280,29 +294,38 @@ function reconcileQuery(runId: string, expectedVersion: number): SQL {
     ),
     residue_group_counts AS MATERIALIZED (
       SELECT
-        ${sql.join(selections, sql`,
-        `)}
+        ${sql.join(
+          selections,
+          sql`,
+        `
+        )}
     ),
     residue_counts AS MATERIALIZED (
       SELECT residue_group_counts.*, ${groupTotal} AS total
       FROM residue_group_counts
     )
     UPDATE release_canary_runs AS run
-    SET ${sql.join(assignments, sql`,
-        `)},
+    SET ${sql.join(
+      assignments,
+      sql`,
+        `
+    )},
         total_residue_count = residue_counts.total,
         updated_at = clock_timestamp()
     FROM locked_run, residue_counts
     WHERE run.id = locked_run.id
       AND run.version = ${expectedVersion}
     RETURNING
-      ${sql.join(returnedCounts, sql`,
-      `)},
+      ${sql.join(
+        returnedCounts,
+        sql`,
+      `
+      )},
       residue_counts.total AS total
   `;
 }
 
-function numberFromRow(row: Record<string, unknown>, key: keyof CanaryResidueCounts): number {
+function numberFromRow(row: Record<string, unknown>, key: string): number {
   return numberFromValue(row[key], key);
 }
 
@@ -342,8 +365,7 @@ async function rejectActiveCanaryRun(database: SqlExecutor): Promise<void> {
     LIMIT 1
   `);
   const row = result.rows[0] as
-    | { id: string; status: string; expired: boolean | 't' | 'f' }
-    | undefined;
+    { id: string; status: string; expired: boolean | 't' | 'f' } | undefined;
   if (row) {
     throw new CanaryActiveRunError(
       String(row.id),
@@ -361,7 +383,8 @@ async function rejectActiveCanaryRun(database: SqlExecutor): Promise<void> {
  */
 export async function preflightCanaryCreation(
   database: SqlExecutor,
-  policy: CanaryRuntimePolicy = readCanaryRuntimePolicy()
+  policy: CanaryRuntimePolicy = readCanaryRuntimePolicy(),
+  workflowCommand = false
 ): Promise<CanaryResidueCounts> {
   try {
     // This probe makes exclusion availability an explicit precondition. A
@@ -375,7 +398,10 @@ export async function preflightCanaryCreation(
     const projected = Object.fromEntries(
       (Object.keys(current) as Array<keyof CanaryResidueCounts>).map((field) => [
         field,
-        current[field] + RELEASE_CANARY_RESERVED_RESIDUE[field],
+        current[field] +
+          (workflowCommand ? FUND_WORKFLOW_RESERVED_RESIDUE : RELEASE_CANARY_RESERVED_RESIDUE)[
+            field
+          ],
       ])
     ) as CanaryResidueCounts;
 
@@ -393,6 +419,43 @@ export async function preflightCanaryCreation(
   } catch (error) {
     if (error instanceof CanaryResiduePreflightError) throw error;
     throw new CanaryResiduePreflightError('Release canary residue exclusion preflight unavailable');
+  }
+}
+
+/** Caller holds release_canary_creation before any fund lock or mutation. */
+export async function checkCanaryWorkflowResidue(database: SqlExecutor, runId: string) {
+  const policy = readCanaryRuntimePolicy();
+  const current = await readResidueCounts(database);
+  const run = await readResidueCounts(database, runId);
+  const commands = await database.execute(sql`
+    SELECT count(*)::int AS receipts,
+           count(*) FILTER (WHERE c.operation = 'save_draft')::int AS saves,
+           count(*) FILTER (WHERE c.operation IN ('finalize', 'publish_draft'))::int AS publications
+    FROM fund_workflow_commands c JOIN funds f ON f.id = c.fund_id
+    WHERE f.canary_run_id = ${runId}
+  `);
+  const commandCounts = commands.rows[0] as Record<string, unknown>;
+  const pendingPublication = numberFromRow(commandCounts, 'publications') === 0 ? 1 : 0;
+  const reserved = {
+    ...FUND_WORKFLOW_RESERVED_RESIDUE,
+    mutationReceipt:
+      RELEASE_CANARY_RESERVED_RESIDUE.mutationReceipt +
+      Math.max(3, numberFromRow(commandCounts, 'receipts') + pendingPublication),
+    fundEvent:
+      RELEASE_CANARY_RESERVED_RESIDUE.fundEvent +
+      Math.max(1, numberFromRow(commandCounts, 'saves')),
+  };
+  // Extra saves consume capacity without consuming the remaining publication,
+  // scenario and reporting reservation. Replays never reach this check.
+  const remaining = Object.fromEntries(
+    CANARY_RESIDUE_GROUPS.map((group) => [group, Math.max(0, reserved[group] - run[group])])
+  ) as Record<CanaryResidueGroup, number>;
+  const remainingTotal = CANARY_RESIDUE_GROUPS.reduce((sum, group) => sum + remaining[group], 0);
+  for (const field of [...CANARY_RESIDUE_GROUPS, 'total'] as const) {
+    const projected = current[field] + (field === 'total' ? remainingTotal : remaining[field]);
+    if (projected > policy[field]) {
+      throw new CanaryResidueCapExceededError(field, current[field], projected, policy[field]);
+    }
   }
 }
 
@@ -420,7 +483,9 @@ export async function reconcileReleaseCanaryRun(
   try {
     const result = await database.execute(reconcileQuery(runId, expectedVersion));
     if (result.rowCount !== 1) {
-      throw new CanaryRunTransitionConflictError('Release canary run reconciliation lost its fence');
+      throw new CanaryRunTransitionConflictError(
+        'Release canary run reconciliation lost its fence'
+      );
     }
     return countsFromRow(result.rows[0] as ResidueRow | undefined);
   } catch (error) {
@@ -482,8 +547,11 @@ export async function transitionReleaseCanaryRun(
     const currentResult = await tx.execute(sql`
       SELECT status,
              version,
-             ${sql.join(residueColumns, sql`,
-             `)},
+             ${sql.join(
+               residueColumns,
+               sql`,
+             `
+             )},
              total_residue_count
       FROM release_canary_runs
       WHERE id = ${runId}
@@ -532,7 +600,10 @@ export async function transitionReleaseCanaryRun(
           updated_at = clock_timestamp()
       WHERE id = ${runId}
         AND version = ${expectedVersion}
-        AND status IN (${sql.join(allowedSourceStatuses.map((source) => sql`${source}`), sql`, `)})
+        AND status IN (${sql.join(
+          allowedSourceStatuses.map((source) => sql`${source}`),
+          sql`, `
+        )})
     `);
     if (result.rowCount !== 1) {
       throw new CanaryRunTransitionConflictError('Release canary run transition lost its fence');

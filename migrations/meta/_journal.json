@@ -428,6 +428,13 @@
       "when": 1789344000000,
       "tag": "0059_task_update_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1790035200000,
+      "tag": "0060_fund_workflow_commands",
+      "breakpoints": true
     }
   ]
 }
