@@ -5,22 +5,21 @@
  * Also validates upsert: second PUT updates instead of creating duplicate.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import { users } from '@shared/schema';
+import { fundConfigs, fundEvents, funds, fundWorkflowCommands, users } from '@shared/schema';
 import { db } from '../../server/db';
 import { validDraftPayload, minimalDraftPayload } from '../fixtures/fund-contract-v1-fixtures';
 import { makeJwt } from '../utils/integrationAuth';
 
 let app: express.Express;
-const fixture = { partnerUserId: undefined as number | undefined };
+const fixture = { partnerUserId: undefined as number | undefined, fundIds: [] as number[] };
 const MODULE_RUN_ID = randomUUID();
 const PARTNER_USERNAME = `integration-fund-draft-round-trip-${MODULE_RUN_ID}`;
 const PARTNER_PASSWORD = 'test-only-password';
-const idempotencyKey = (operation: string): string => `draft-rt-${MODULE_RUN_ID}-${operation}`;
 
 const partnerToken = (fundIds: number[] = []): string => {
   if (fixture.partnerUserId === undefined) {
@@ -56,7 +55,9 @@ beforeAll(async () => {
   app.use(express.json({ limit: '1mb' }));
 
   const { requireAuth } = await import('../../server/lib/auth/jwt');
+  const { protectedRLSTransaction } = await import('../../server/middleware/with-rls-transaction');
   app.use('/api', requireAuth());
+  app.use('/api', protectedRLSTransaction());
 
   // Mount funds router at /api for POST /api/funds
   const fundRoutes = await import('../../server/routes/funds');
@@ -68,10 +69,21 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (fixture.partnerUserId === undefined) return;
+  const userId = fixture.partnerUserId;
+  if (userId === undefined) return;
 
-  await db.delete(users).where(eq(users.id, fixture.partnerUserId));
-  Object.assign(fixture, { partnerUserId: undefined });
+  await db.transaction(async (tx) => {
+    if (fixture.fundIds.length > 0) {
+      await tx
+        .delete(fundWorkflowCommands)
+        .where(inArray(fundWorkflowCommands.fundId, fixture.fundIds));
+      await tx.delete(fundEvents).where(inArray(fundEvents.fundId, fixture.fundIds));
+      await tx.delete(fundConfigs).where(inArray(fundConfigs.fundId, fixture.fundIds));
+      await tx.delete(funds).where(inArray(funds.id, fixture.fundIds));
+    }
+    await tx.delete(users).where(eq(users.id, userId));
+  });
+  Object.assign(fixture, { partnerUserId: undefined, fundIds: [] });
 });
 
 describe('PUT /api/funds/:id/draft round-trip', () => {
@@ -80,17 +92,20 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', idempotencyKey('create-01'))
+      .set('Idempotency-Key', randomUUID())
       .send({ name: 'Draft RT Fund', size: 50_000_000 });
 
     expect(createRes.status).toBe(201);
     const fundId = createRes.body.data.id;
+    fixture.fundIds.push(fundId);
 
     // PUT full draft
     const authorization = `Bearer ${partnerToken([fundId])}`;
     const putRes = await request(app)
       .put(`/api/funds/${fundId}/draft`)
       .set('Authorization', authorization)
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', createRes.headers['etag'])
       .send(validDraftPayload);
 
     expect(putRes.status).toBe(200);
@@ -110,17 +125,20 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', idempotencyKey('upsert-01'))
+      .set('Idempotency-Key', randomUUID())
       .send({ name: 'Upsert Fund', size: 25_000_000 });
 
     expect(createRes.status).toBe(201);
     const fundId = createRes.body.data.id;
+    fixture.fundIds.push(fundId);
 
     // First PUT
     const authorization = `Bearer ${partnerToken([fundId])}`;
     const put1 = await request(app)
       .put(`/api/funds/${fundId}/draft`)
       .set('Authorization', authorization)
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', createRes.headers['etag'])
       .send(minimalDraftPayload);
     expect(put1.status).toBe(200);
 
@@ -128,8 +146,12 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const put2 = await request(app)
       .put(`/api/funds/${fundId}/draft`)
       .set('Authorization', authorization)
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', put1.headers['etag'])
       .send(validDraftPayload);
     expect(put2.status).toBe(200);
+    expect(put2.body.data.id).toBe(put1.body.data.id);
+    expect(put2.headers['etag']).not.toBe(put1.headers['etag']);
 
     // GET should return the second payload
     const getRes = await request(app)
@@ -143,15 +165,18 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', idempotencyKey('strict-01'))
+      .set('Idempotency-Key', randomUUID())
       .send({ name: 'Strict Fund', size: 10_000_000 });
 
     expect(createRes.status).toBe(201);
     const fundId = createRes.body.data.id;
+    fixture.fundIds.push(fundId);
 
     const putRes = await request(app)
       .put(`/api/funds/${fundId}/draft`)
       .set('Authorization', `Bearer ${partnerToken([fundId])}`)
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', createRes.headers['etag'])
       .send({ fundName: 'Test', bogusField: true });
 
     expect(putRes.status).toBe(400);
@@ -163,6 +188,8 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const putRes = await request(app)
       .put('/api/funds/999999/draft')
       .set('Authorization', `Bearer ${partnerToken([999999])}`)
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0000000000000000"')
       .send(minimalDraftPayload);
 
     expect(putRes.status).toBe(404);

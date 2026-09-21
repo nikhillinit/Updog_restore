@@ -54,7 +54,7 @@ describe.skipIf(skipIfNoDocker)('fund workflow commands migration PostgreSQL pro
   afterAll(async () => {
     if (adminPool) {
       for (const databaseName of createdDatabases.reverse()) {
-        await adminPool.query(`DROP DATABASE IF EXISTS ${escapeIdentifier(databaseName)} WITH (FORCE)`);
+        await adminPool.query(`DROP DATABASE IF EXISTS ${escapeIdentifier(databaseName)}`);
       }
       await adminPool.end();
     }
