@@ -51,7 +51,7 @@ function optionalNumericUserId(req: Request): number | undefined {
   return numericIdentity(user?.userId) ?? numericIdentity(user?.id) ?? numericIdentity(user?.sub);
 }
 
-async function getScopedFundId(req: Request, res: Response): Promise<number | null> {
+function parseFundIdOrNull(req: Request, res: Response): number | null {
   let fundId: number;
   try {
     fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
@@ -60,10 +60,6 @@ async function getScopedFundId(req: Request, res: Response): Promise<number | nu
       return null;
     }
     throw err;
-  }
-
-  if (!(await enforceProvidedFundScope(req, res, fundId))) {
-    return null;
   }
 
   return fundId;
@@ -184,8 +180,9 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Authentication identity is invalid',
             code: 'INVALID_AUTHENTICATION_IDENTITY',
           });
-        const fundId = await getScopedFundId(req, res);
+        const fundId = parseFundIdOrNull(req, res);
         if (fundId === null) return;
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
         const validation = FundDraftWriteV1Schema.safeParse(req.body);
         if (!validation.success)
           return sendApiError(res, 400, {
@@ -246,10 +243,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get latest draft
   app['get']('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const [draft] = await db
         .select()
@@ -291,8 +289,9 @@ export function registerFundConfigRoutes(app: Express) {
             error: 'Authentication identity is invalid',
             code: 'INVALID_AUTHENTICATION_IDENTITY',
           });
-        const fundId = await getScopedFundId(req, res);
+        const fundId = parseFundIdOrNull(req, res);
         if (fundId === null) return;
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
         const result = await executeFundWorkflowCommand(
           {
@@ -352,10 +351,11 @@ export function registerFundConfigRoutes(app: Express) {
     requireWriteRole(PARTNER_WRITE_ROLES),
     async (req: Request, res: Response) => {
       try {
-        const fundId = await getScopedFundId(req, res);
+        const fundId = parseFundIdOrNull(req, res);
         if (fundId === null) {
           return;
         }
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
         const userId = optionalNumericUserId(req);
 
@@ -401,10 +401,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund reserves (from snapshots)
   app['get']('/api/funds/:id/reserves', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const [snapshot] = await db
         .select()
@@ -451,10 +452,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund lifecycle state (two-axis: config + calculation)
   app['get']('/api/funds/:id/state', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundStateReadService } = await import('../services/fund-state-read-service');
       const state = await fundStateReadService.getState(fundId);
@@ -481,10 +483,11 @@ export function registerFundConfigRoutes(app: Express) {
   // GET /api/funds/:id/results -- Phase 3 results read model
   app.get('/api/funds/:id/results', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const representation = parseScenarioRepresentation(req, res);
       if (representation === null) return;
@@ -509,10 +512,11 @@ export function registerFundConfigRoutes(app: Express) {
   // GET /api/funds/:id/lifecycle-history -- M6 lifecycle history read model
   app['get']('/api/funds/:id/lifecycle-history', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundLifecycleHistoryService } =
         await import('../services/fund-lifecycle-history-service');
@@ -543,10 +547,11 @@ export function registerFundConfigRoutes(app: Express) {
   // rollout or generic forecasting API expansion.
   app['get']('/api/funds/:id/results-comparison', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundResultsComparisonService } =
         await import('../services/fund-results-comparison-service');
