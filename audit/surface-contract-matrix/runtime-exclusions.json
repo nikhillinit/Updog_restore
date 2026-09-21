@@ -10,8 +10,7 @@
       "Dockerfile.railway",
       "DECISIONS.md#ADR-080",
       "railway.toml absent: retired by ADR-080"
-    ],
-    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b"
+    ]
   },
   {
     "id": "ml-service-local-production-topology",
@@ -28,7 +27,6 @@
       "railway.worker.toml",
       "railway.capital-call-status.worker.toml",
       "DECISIONS.md#ADR-075"
-    ],
-    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f"
+    ]
   }
 ]
