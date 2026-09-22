@@ -303,7 +303,7 @@ export default function FundBasicsStep() {
               aria-describedby={
                 showRequiredErrors && fundNameMissing ? 'fund-basics-required-error' : undefined
               }
-              className="h-12 max-w-2xl text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
+              className="h-12 text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
             />
           </div>
 
@@ -487,7 +487,7 @@ export default function FundBasicsStep() {
               {bootstrapStage === 'creating'
                 ? 'Creating Draft...'
                 : bootstrapStage === 'saving'
-                  ? 'Saving Draft...'
+                  ? 'Saving draft…'
                   : 'Next Step'}
               <ArrowRight className="h-4 w-4" />
             </Button>

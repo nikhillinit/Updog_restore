@@ -494,6 +494,7 @@ describe('FundSetup draft sync', () => {
     await waitFor(() => expect(screen.getByTestId('draft-stale')).toBeInTheDocument());
 
     await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
 
     await waitFor(() => {
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
@@ -659,6 +660,9 @@ describe('FundSetup draft sync', () => {
       render(<FundSetup />);
       act(() => fundStore.getState().setDraftSyncStatus('stale'));
       await userEvent.click(screen.getByRole('button', { name: action }));
+      if (action === 'Keep my changes') {
+        await userEvent.click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
+      }
       expect(mockFetchFundDraft).toHaveBeenCalledTimes(1);
       act(() =>
         fundStore.setState({ sessionId: 'replacement-session', fundName: 'New actor values' })
