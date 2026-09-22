@@ -8,7 +8,7 @@ import { ArrowRight } from 'lucide-react';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
-import { fundCommandKey, fundStore } from '@/stores/fundStore';
+import { prepareFundCommand, fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import {
   createFund,
@@ -16,7 +16,7 @@ import {
   normalizeCreateFundResponse,
 } from '@/services/funds';
 import { saveFundDraft } from '@/services/fund-drafts';
-import { classifyWorkflowError, FundWorkflowUncertainError } from '@/services/fund-workflow';
+import { classifyWorkflowError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import { NumericInput } from '@/components/ui/NumericInput';
@@ -30,7 +30,7 @@ const UNCERTAIN_SAVE_MESSAGE =
   'Could not confirm the draft save; it may have completed. Retry to check.';
 
 function bootstrapErrorMessage(error: unknown, uncertainMessage: string, fallback: string) {
-  if (error instanceof FundWorkflowUncertainError) return uncertainMessage;
+  if (classifyWorkflowError(error) === 'uncertain') return uncertainMessage;
   return error instanceof Error ? error.message : fallback;
 }
 
@@ -131,27 +131,43 @@ export default function FundBasicsStep() {
     }
 
     setShowRequiredErrors(true);
-    if (requiredBasicsMissing) {
+    if (requiredBasicsMissing && fundStore.getState().pendingCommand?.operation !== 'create') {
       return;
     }
 
     setShowRequiredErrors(false);
     setBootstrapError(null);
     let activeDraftFundId = draftFundId;
+    const capturedSession = fundStore.getState().sessionId;
+    const stillCurrent = () => fundStore.getState().sessionId === capturedSession;
 
     if (activeDraftFundId == null) {
       setBootstrapStage('creating');
 
+      let command;
       try {
         const store = fundStore.getState();
-        const payload = fundStoreToCreateV1(store);
-        // Reserved and persisted before dispatch: a retry replays the same creation.
-        const idempotencyKey = store.reserveCreationKey();
-        const result = await createFund({ ...payload }, { idempotencyKey });
+        const pending = store.pendingCommand;
+        const payload =
+          pending?.operation === 'create'
+            ? (JSON.parse(pending.bodySignature) as ReturnType<typeof fundStoreToCreateV1>)
+            : fundStoreToCreateV1(store);
+        command = prepareFundCommand('create', null, payload, null);
+      } catch (error) {
+        setBootstrapError(
+          error instanceof Error ? error.message : 'Could not prepare fund creation'
+        );
+        setBootstrapStage('idle');
+        return;
+      }
+      try {
+        const result = await createFund(command.payload, { idempotencyKey: command.key });
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
         const raw = result.body;
         const fund = normalizeCreateFundResponse(raw);
         setDraftFundId(fund.id);
         fundStore.getState().setDraftETag(result.etag);
+        fundStore.getState().resolveCommand();
         if (handleCredentialRenewalMarker(raw)) {
           // Fund committed but this session's credential could not be renewed;
           // the session gate is now active. Keep the identity, stop writes.
@@ -183,6 +199,11 @@ export default function FundBasicsStep() {
           updatedAt: typeof fund['updatedAt'] === 'string' ? fund['updatedAt'] : now,
         });
       } catch (error) {
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
+        if (classifyWorkflowError(error) === 'rejected') {
+          fundStore.getState().resolveCommand();
+          fundStore.setState({ creationKey: null });
+        }
         setBootstrapError(
           bootstrapErrorMessage(
             error,
@@ -202,25 +223,44 @@ export default function FundBasicsStep() {
       const draftPayload = fundStoreToDraftWriteV1(store, {
         includeEconomicsAssumptions: economicsEnabled,
       });
-      const bodySignature = JSON.stringify(draftPayload);
-      const key = fundCommandKey('save_draft', activeDraftFundId, bodySignature);
-      store.beginCommand({
-        operation: 'save_draft',
-        key,
-        targetFundId: activeDraftFundId,
-        expectedETag: store.draftETag,
-        bodySignature,
-      });
+      let command;
       try {
-        const saved = await saveFundDraft(activeDraftFundId, draftPayload, {
-          key,
-          etag: store.draftETag,
+        command = prepareFundCommand(
+          'save_draft',
+          activeDraftFundId,
+          draftPayload,
+          store.draftETag
+        );
+      } catch (error) {
+        setBootstrapError(error instanceof Error ? error.message : 'Could not prepare draft save');
+        setBootstrapStage('idle');
+        return;
+      }
+      try {
+        const saved = await saveFundDraft(activeDraftFundId, command.payload, {
+          key: command.key,
+          etag: command.etag,
         });
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
         const current = fundStore.getState();
         current.setDraftETag(saved.etag ?? current.draftETag);
         current.resolveCommand();
+        if (
+          JSON.stringify(
+            fundStoreToDraftWriteV1(current, { includeEconomicsAssumptions: economicsEnabled })
+          ) !== JSON.stringify(command.payload)
+        ) {
+          setDraftServerReady(false);
+          setBootstrapError(
+            'The previous save is confirmed. Save the newer changes before continuing.'
+          );
+          setBootstrapStage('idle');
+          return;
+        }
         setDraftServerReady(true);
+        current.setDraftSyncStatus('synced');
       } catch (error) {
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
         if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
         setBootstrapError(
           bootstrapErrorMessage(error, UNCERTAIN_SAVE_MESSAGE, 'Failed to save authoritative draft')

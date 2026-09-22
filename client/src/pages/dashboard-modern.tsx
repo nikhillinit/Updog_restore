@@ -349,14 +349,15 @@ export default function ModernDashboard() {
   const [location, navigate] = useLocation();
   const search = useSearch();
   const view = resolveDashboardView(location, search);
-  const { currentFund } = useFundContext();
 
   // Unknown or duplicate tab: normalize to the Workspace, retaining a valid fundId.
   React.useEffect(() => {
     if (view && !view.normalized) {
-      navigate(buildDashboardHref(null, currentFund?.id ?? null), { replace: true });
+      navigate(buildDashboardHref(null, view.fundId.kind === 'valid' ? view.fundId.id : null), {
+        replace: true,
+      });
     }
-  }, [currentFund?.id, navigate, view]);
+  }, [navigate, view]);
 
   if (!view || view.view === 'workspace') {
     return <FundWorkspace selection={view?.fundId ?? { kind: 'absent' }} />;

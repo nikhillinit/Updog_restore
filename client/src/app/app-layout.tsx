@@ -19,7 +19,7 @@ import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 import { FundConstructionKpiHeader } from '@/components/wizard/FundConstructionKpiHeader';
 import { useFundContext } from '@/contexts/FundContext';
 import { resolveDashboardView } from '@/lib/fund-routes';
-import { bindFundWorkspaceActor } from '@/stores/fundStore';
+import { bindFundWorkspaceActor, unbindFundWorkspaceActor } from '@/stores/fundStore';
 
 const MOBILE_NAVIGATION_DISABLED_REASON = 'Complete fund setup to access this route.';
 
@@ -189,14 +189,24 @@ export function AppLayout({
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [boundActor, setBoundActor] = useState<{ id: string; role: string | null } | null>(null);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
   const isWorkspaceView = resolveDashboardView(location, search)?.view === 'workspace';
   // The authenticated shell binds the tab's fund-workspace envelope to this actor.
   useEffect(() => {
-    void bindFundWorkspaceActor(session.user.id, session.user.role);
+    let cancelled = false;
+    setBoundActor(null);
+    void bindFundWorkspaceActor(session.user.id, session.user.role).then(() => {
+      if (!cancelled) setBoundActor({ id: session.user.id, role: session.user.role });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [session.user.id, session.user.role]);
   const finishLocalLogout = () => {
+    setBoundActor(null);
+    unbindFundWorkspaceActor();
     queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
     queryClient.removeQueries({
       predicate: (query) => query.queryKey[0] !== AUTH_SESSION_QUERY_KEY[0],
@@ -225,6 +235,8 @@ export function AppLayout({
       setIsLoggingOut(false);
     }
   };
+
+  if (boundActor?.id !== session.user.id || boundActor.role !== session.user.role) return null;
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">

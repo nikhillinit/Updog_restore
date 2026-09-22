@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as economicsEngine from '@shared/lib/economics/economics-engine';
+import { ApiError } from '@/lib/queryClient';
 
 const { mockInvalidateQueries, mockUseFlag } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
@@ -84,11 +85,21 @@ const mockFundState = {
   setDraftServerReady: vi.fn(),
   draftETag: '"0123456789abcdef"' as string | null,
   draftSyncStatus: 'synced' as string,
-  pendingCommand: null,
+  workspaceActorId: 'actor-1' as string | null,
+  sessionId: 'session-1',
+  pendingCommand: null as {
+    operation: 'finalize';
+    key: string;
+    targetFundId: number | null;
+    expectedETag: string | null;
+    bodySignature: string;
+  } | null,
   beginCommand: vi.fn(),
   resolveCommand: vi.fn(),
   setDraftETag: vi.fn(),
 };
+
+const mockPrepareFundCommand = vi.fn();
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
@@ -99,7 +110,7 @@ vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
-  fundCommandKey: () => 'finalize-key-1',
+  prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
 }));
 
 // Mock finalizeFund -- use a mutable reference so tests can override
@@ -134,14 +145,21 @@ describe('ReviewStep single-submit via finalize', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
-    mockFundState.beginCommand.mockReset();
-    mockFundState.resolveCommand.mockReset();
+    mockFundState.beginCommand.mockReset().mockImplementation((command) => {
+      mockFundState.pendingCommand = command;
+    });
+    mockFundState.resolveCommand.mockReset().mockImplementation(() => {
+      mockFundState.pendingCommand = null;
+    });
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
     mockUseFlag.mockReset().mockReturnValue(true);
     mockFundState.draftSyncStatus = 'synced';
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = true;
     mockFundState.modelInputsAsOfDate = '2026-06-30';
+    mockFundState.workspaceActorId = 'actor-1';
+    mockFundState.sessionId = 'session-1';
+    mockFundState.pendingCommand = null;
 
     // Default: finalizeFund succeeds
     mockFinalizeFund.mockReset().mockResolvedValue({
@@ -173,6 +191,33 @@ describe('ReviewStep single-submit via finalize', () => {
       investmentPeriod: 5,
       gpCommitment: 3_750_000,
     });
+    mockPrepareFundCommand
+      .mockReset()
+      .mockImplementation(
+        (
+          _operation: string,
+          targetFundId: number | null,
+          payload: unknown,
+          etag: string | null
+        ) => {
+          const pending = mockFundState.pendingCommand;
+          const command = pending
+            ? {
+                payload: JSON.parse(pending.bodySignature),
+                key: pending.key,
+                etag: pending.expectedETag,
+              }
+            : { payload, key: 'finalize-key-1', etag };
+          mockFundState.beginCommand({
+            operation: 'finalize',
+            key: command.key,
+            targetFundId,
+            expectedETag: command.etag,
+            bodySignature: JSON.stringify(command.payload),
+          });
+          return command;
+        }
+      );
     mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
       fundName: 'Finalize Test Fund',
       fundSize: 75_000_000,
@@ -242,6 +287,46 @@ describe('ReviewStep single-submit via finalize', () => {
     );
   });
 
+  it('replays the persisted finalize body, key, and ETag after reload', async () => {
+    const originalPayload = {
+      name: 'Original Finalize Fund',
+      draftFundId: 77,
+      size: 75_000_000,
+      managementFee: 0.025,
+      carryPercentage: 0.2,
+      vintageYear: 2026,
+      modelInputsAsOfDate: '2026-06-30',
+    };
+    mockFundState.pendingCommand = {
+      operation: 'finalize',
+      key: 'persisted-finalize-key',
+      targetFundId: 77,
+      expectedETag: '"persisted-etag"',
+      bodySignature: JSON.stringify(originalPayload),
+    };
+    mockFundState.modelInputsAsOfDate = undefined;
+    mockFundStoreToFinalizeV1.mockImplementation(() => {
+      throw new Error('Current fields must not rebuild a pending finalize');
+    });
+    mockFundStoreToDraftWriteV1.mockImplementation(() => {
+      throw new Error('Current economics are invalid');
+    });
+
+    render(<ReviewStep />);
+
+    expect(screen.getByTestId('publish-uncertain-alert')).toBeInTheDocument();
+    expect(screen.getByTestId('create-fund-button')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Back to Step 6' })).toBeDisabled();
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => expect(mockFinalizeFund).toHaveBeenCalledTimes(1));
+    expect(mockFinalizeFund).toHaveBeenCalledWith(originalPayload, {
+      key: 'persisted-finalize-key',
+      etag: '"persisted-etag"',
+    });
+    expect(mockFundStoreToFinalizeV1).not.toHaveBeenCalled();
+  });
+
   it('blocks publish while the draft save is unsettled', async () => {
     mockFundState.draftSyncStatus = 'saving';
 
@@ -265,6 +350,7 @@ describe('ReviewStep single-submit via finalize', () => {
       expect(screen.getByTestId('publish-uncertain-alert')).toBeInTheDocument();
     });
     expect(screen.getByText('Check publication status')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Step 6' })).toBeDisabled();
     expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
@@ -455,8 +541,64 @@ describe('ReviewStep single-submit via finalize', () => {
     expect(mockFundState.resolveCommand).toHaveBeenCalled();
   });
 
+  it('ignores a finalize response after the workspace session changes', async () => {
+    let resolveFinalize!: (value: unknown) => void;
+    mockFinalizeFund.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFinalize = resolve;
+      })
+    );
+
+    render(<ReviewStep />);
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+    await waitFor(() => expect(mockFinalizeFund).toHaveBeenCalledTimes(1));
+
+    mockFundState.sessionId = 'session-2';
+    resolveFinalize({
+      success: true,
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    });
+
+    await waitFor(() => expect(screen.getByTestId('create-fund-button')).toBeDisabled());
+    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+    expect(mockSetLocation).not.toHaveBeenCalled();
+  });
+
+  it('ignores a finalize response after a newer command replaces its key', async () => {
+    let resolveFinalize!: (value: unknown) => void;
+    mockFinalizeFund.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFinalize = resolve;
+      })
+    );
+
+    render(<ReviewStep />);
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+    await waitFor(() => expect(mockFinalizeFund).toHaveBeenCalledTimes(1));
+
+    mockFundState.pendingCommand = {
+      operation: 'finalize',
+      key: 'newer-finalize-key',
+      targetFundId: 77,
+      expectedETag: '"newer-etag"',
+      bodySignature: JSON.stringify({ name: 'Newer Fund', draftFundId: 77 }),
+    };
+    resolveFinalize({
+      success: true,
+      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    });
+
+    await waitFor(() => expect(screen.getByTestId('create-fund-button')).toBeDisabled());
+    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+    expect(mockSetLocation).not.toHaveBeenCalled();
+  });
+
   it('shows error message on failure', async () => {
-    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Validation failed: fund name'));
+    mockFinalizeFund
+      .mockReset()
+      .mockRejectedValue(new ApiError(400, 'Validation failed: fund name', 'VALIDATION_FAILED'));
 
     render(<ReviewStep />);
 
@@ -521,10 +663,12 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('shows Retry text after error and allows resubmission', async () => {
-    mockFinalizeFund.mockRejectedValueOnce(new Error('Server error')).mockResolvedValueOnce({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
-    });
+    mockFinalizeFund
+      .mockRejectedValueOnce(new ApiError(400, 'Server rejected request', 'VALIDATION_FAILED'))
+      .mockResolvedValueOnce({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
 
     render(<ReviewStep />);
 

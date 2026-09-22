@@ -100,6 +100,8 @@ export async function workflowRequest<T = unknown>(
   if (options.etag) headers['If-Match'] = options.etag;
 
   let response: Response;
+  let payload: unknown;
+  let readingBody = false;
   try {
     response = await fetch(withApiBase(path), {
       method,
@@ -108,12 +110,19 @@ export async function workflowRequest<T = unknown>(
       signal: controller.signal,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
+    readingBody = true;
+    payload = await response.json();
   } catch (error) {
-    const aborted = error instanceof Error && error.name === 'AbortError';
+    const aborted =
+      controller.signal.aborted || (error instanceof Error && error.name === 'AbortError');
     throw new FundWorkflowUncertainError(
       aborted
-        ? 'Request timed out before a response arrived'
-        : 'Network error before a response arrived',
+        ? readingBody
+          ? 'Request aborted while reading the response body'
+          : 'Request timed out before a response arrived'
+        : readingBody
+          ? 'Network error while reading the response body'
+          : 'Network error before a response arrived',
       aborted
     );
   } finally {
@@ -121,7 +130,6 @@ export async function workflowRequest<T = unknown>(
     options.signal?.removeEventListener('abort', onExternalAbort);
   }
 
-  const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401) markSessionReauthRequired();
     const errorData = isRecord(payload) ? payload : {};

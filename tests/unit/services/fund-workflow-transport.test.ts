@@ -167,4 +167,101 @@ describe('workflowRequest', () => {
     expect(failure).toBeInstanceOf(FundWorkflowUncertainError);
     expect((failure as FundWorkflowUncertainError).aborted).toBe(true);
   });
+
+  it('keeps the timeout active while reading a stalled response body', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+        const response = jsonResponse(null, 200);
+        vi.spyOn(response, 'json').mockImplementation(
+          () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () =>
+                reject(new DOMException('Aborted', 'AbortError'))
+              );
+              setTimeout(() => reject(new TypeError('Body stalled')), 100);
+            })
+        );
+        return Promise.resolve(response);
+      })
+    );
+
+    const settled = workflowRequest('POST', '/api/funds', {}, { key: KEY, timeoutMs: 50 }).catch(
+      (error: unknown) => error
+    );
+    await vi.advanceTimersByTimeAsync(110);
+    const failure = await settled;
+
+    expect(failure).toBeInstanceOf(FundWorkflowUncertainError);
+    expect((failure as FundWorkflowUncertainError).aborted).toBe(true);
+  });
+
+  it('honors an external abort while reading the response body', async () => {
+    vi.useFakeTimers();
+    const external = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+        const response = jsonResponse(null, 200);
+        vi.spyOn(response, 'json').mockImplementation(
+          () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () =>
+                reject(new DOMException('Aborted', 'AbortError'))
+              );
+              setTimeout(() => reject(new TypeError('Body stalled')), 100);
+            })
+        );
+        return Promise.resolve(response);
+      })
+    );
+
+    const settled = workflowRequest(
+      'POST',
+      '/api/funds',
+      {},
+      { key: KEY, signal: external.signal }
+    ).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(1);
+    external.abort();
+    await vi.advanceTimersByTimeAsync(100);
+    const failure = await settled;
+
+    expect(failure).toBeInstanceOf(FundWorkflowUncertainError);
+    expect((failure as FundWorkflowUncertainError).aborted).toBe(true);
+  });
+
+  it('turns a response body interruption into an uncertain outcome', async () => {
+    const response = jsonResponse(null, 200);
+    vi.spyOn(response, 'json').mockRejectedValue(new TypeError('terminated'));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const failure = await workflowRequest('POST', '/api/funds', {}, { key: KEY }).catch(
+      (error: unknown) => error
+    );
+
+    expect(failure).toBeInstanceOf(FundWorkflowUncertainError);
+    expect((failure as FundWorkflowUncertainError).aborted).toBe(false);
+  });
+
+  it('preserves normal ApiError classification for a valid error response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ error: 'Draft is invalid', code: 'VALIDATION_FAILED' }, 400)
+        )
+    );
+
+    const failure = await workflowRequest('PUT', '/api/funds/1/draft', {}, { key: KEY }).catch(
+      (error: unknown) => error
+    );
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(400);
+    expect((failure as ApiError).errorCode).toBe('VALIDATION_FAILED');
+    expect(classifyWorkflowError(failure)).toBe('rejected');
+  });
 });

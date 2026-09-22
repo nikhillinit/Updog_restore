@@ -104,14 +104,22 @@ function useStepKey(): StepKey {
 }
 
 export default function FundSetup() {
-  const key = useStepKey();
+  const requestedKey = useStepKey();
   const [, setLocation] = useLocation();
   const search = useSearch();
   const { markStepVisited, getRedirectUrl } = useWizardStepGuard();
   const draftFundId = useFundSelector((s) => s.draftFundId);
-  const [hydrated, draftServerReady, fundName] = useFundTuple(
-    (s) => [s.hydrated, s.draftServerReady, s.fundName] as const
+  const [hydrated, draftServerReady, fundName, pendingCommand] = useFundTuple(
+    (s) => [s.hydrated, s.draftServerReady, s.fundName, s.pendingCommand] as const
   );
+  const pendingFinalize = pendingCommand?.operation === 'finalize';
+  const key = pendingFinalize ? 'review' : requestedKey;
+  React.useEffect(() => {
+    if (!pendingFinalize || requestedKey === 'review') return;
+    const params = new URLSearchParams(search);
+    params.set('step', '7');
+    setLocation(`/fund-setup?${params.toString()}`, { replace: true });
+  }, [pendingFinalize, requestedKey, search, setLocation]);
   const { status, error, retry, isHydrating, loadServerDraft, keepLocalDraft, missingDraftFundId } =
     useFundDraftSync({ stepKey: key });
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
@@ -123,13 +131,13 @@ export default function FundSetup() {
   React.useEffect(() => {
     if (!hydrated || explicitFund.kind !== 'valid' || explicitFund.id === draftFundId) return;
     const settled = draftServerReady && (status === 'idle' || status === 'synced');
-    if (draftFundId == null || settled) {
+    if (!pendingCommand && (draftFundId == null || settled)) {
       fundStore.getState().resumeServerDraft(explicitFund.id);
       setSwitchBlocked(false);
       return;
     }
     setSwitchBlocked(true);
-  }, [draftFundId, draftServerReady, explicitFund, hydrated, status]);
+  }, [draftFundId, draftServerReady, explicitFund, hydrated, pendingCommand, status]);
 
   const startNewFund = React.useCallback(() => {
     fundStore.getState().startNewFundSession();
@@ -141,7 +149,7 @@ export default function FundSetup() {
 
   // Step guard: redirect if trying to skip ahead via URL manipulation
   React.useEffect(() => {
-    if (isHydrating || key === 'not-found') return; // Let not-found render normally
+    if (pendingFinalize || isHydrating || key === 'not-found') return; // Recovery replays an already dispatched command.
 
     const redirectUrl = getRedirectUrl(currentStepNumber);
     if (redirectUrl) {
@@ -163,7 +171,15 @@ export default function FundSetup() {
 
     // Mark step as visited if legitimately accessed
     markStepVisited(currentStepNumber);
-  }, [currentStepNumber, getRedirectUrl, isHydrating, key, markStepVisited, setLocation]);
+  }, [
+    currentStepNumber,
+    getRedirectUrl,
+    isHydrating,
+    key,
+    markStepVisited,
+    pendingFinalize,
+    setLocation,
+  ]);
 
   // Emit telemetry on step load
   React.useEffect(() => {
@@ -194,7 +210,11 @@ export default function FundSetup() {
     >
       <div data-testid="fund-setup-wizard" className="min-h-screen bg-pov-gray">
         {/* Modern Progress Header - Single unified progress indicator */}
-        <ModernWizardProgress steps={WIZARD_STEPS} currentStepId={key} />
+        <ModernWizardProgress
+          steps={WIZARD_STEPS}
+          currentStepId={key}
+          enableNavigation={!pendingFinalize}
+        />
 
         {isHydrating && draftFundId != null ? (
           <div

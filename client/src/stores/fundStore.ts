@@ -133,7 +133,7 @@ export type PendingFundCommand = {
   key: string;
   targetFundId: number | null;
   expectedETag: string | null;
-  /** Canonical JSON of the dispatched body; same op+target+body = same command. */
+  /** Exact JSON of the dispatched body, replayed with its original key and revision. */
   bodySignature: string;
   dispatchedAt: string;
 };
@@ -323,12 +323,7 @@ export type FundState = {
 const enforceLast = (rows: StrategyStage[]): StrategyStage[] =>
   rows.map((r: StrategyStage, i: number) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
-const generateStableId = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
+const generateStableId = (): string => crypto.randomUUID();
 
 // Canonicalization types
 type StrategySlices = {
@@ -803,6 +798,7 @@ export function isFundWorkspaceEnvelope(value: unknown): value is FundWorkspaceE
 
 // Actor bound by the authenticated shell. Envelopes are only read or written for it.
 let expectedActorId: string | null = null;
+let actorBindingVersion = 0;
 
 // ponytail: drop writes while no actor is bound so a fresh in-memory state never
 // clobbers the stored envelope before rehydration; surface quota/security failures.
@@ -1297,14 +1293,24 @@ export async function bindFundWorkspaceActor(
   actorId: string,
   role: string | null = null
 ): Promise<void> {
+  const bindingVersion = ++actorBindingVersion;
   const previous = expectedActorId;
   if (previous !== null && previous !== actorId) resetFundWorkspace();
   expectedActorId = actorId;
   await fundStore.persist.rehydrate();
+  if (bindingVersion !== actorBindingVersion || expectedActorId !== actorId) return;
   const state = fundStore.getState();
   if (state.workspaceActorId !== actorId || state.workspaceActorRole !== role) {
     fundStore.setState({ workspaceActorId: actorId, workspaceActorRole: role, hydrated: true });
   }
+}
+
+/** Fence outstanding bindings and erase the signed-out actor's tab state. */
+export function unbindFundWorkspaceActor(): void {
+  actorBindingVersion++;
+  expectedActorId = null;
+  resetFundWorkspace();
+  fundStore.setState({ workspaceActorRole: null });
 }
 
 /** Clear every local field and the stored envelope for this tab. */
@@ -1327,24 +1333,54 @@ export function resetFundWorkspace(): void {
 
 /**
  * Key for a command. The pending command's key is reused only for the same
- * operation, target and body (an uncertain or retry-requested outcome); any
+ * operation, target, body and revision (an uncertain or retry-requested outcome); any
  * other attempt is a new command with a new key.
  */
 export function fundCommandKey(
   operation: FundWorkflowOperation,
   targetFundId: number | null,
-  bodySignature: string
+  bodySignature: string,
+  expectedETag: string | null = null
 ): string {
   const pending = fundStore.getState().pendingCommand;
   if (
     pending &&
     pending.operation === operation &&
     pending.targetFundId === targetFundId &&
-    pending.bodySignature === bodySignature
+    pending.bodySignature === bodySignature &&
+    pending.expectedETag === expectedETag
   ) {
     return pending.key;
   }
   return generateStableId();
+}
+
+export const FUND_COMMAND_STORAGE_MESSAGE =
+  'Changes are only in this tab. Storage is unavailable, so saving is paused.';
+
+/** Persist before dispatch; unresolved commands always replay their exact request. */
+export function prepareFundCommand<T>(
+  operation: FundWorkflowOperation,
+  targetFundId: number | null,
+  payload: T,
+  etag: string | null
+): { payload: T; key: string; etag: string | null } {
+  const state = fundStore.getState();
+  const pending = state.pendingCommand;
+  if (pending && (pending.operation !== operation || pending.targetFundId !== targetFundId)) {
+    throw new Error('Check the pending command status before starting another command.');
+  }
+  const bodySignature = pending?.bodySignature ?? JSON.stringify(payload);
+  const key =
+    pending?.key ??
+    (operation === 'create'
+      ? state.reserveCreationKey()
+      : fundCommandKey(operation, targetFundId, bodySignature, etag));
+  const expectedETag = pending ? pending.expectedETag : etag;
+  const originalPayload = JSON.parse(bodySignature) as T;
+  state.beginCommand({ operation, targetFundId, key, expectedETag, bodySignature });
+  if (fundStore.getState().persistenceFailed) throw new Error(FUND_COMMAND_STORAGE_MESSAGE);
+  return { payload: originalPayload, key, etag: expectedETag };
 }
 
 /** Test seam: bound actor lookup. */

@@ -43,7 +43,7 @@ describe('fund creation command keys', () => {
   });
 
   it('mints a UUID key when none is reserved and never derives it from the payload', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: 8 }, 201));
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse({ id: 8 }, 201));
     vi.stubGlobal('fetch', fetchMock);
 
     const payload = { name: 'Same', size: 1 };

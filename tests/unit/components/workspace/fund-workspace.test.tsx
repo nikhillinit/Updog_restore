@@ -117,6 +117,7 @@ describe('FundWorkspace', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('lists funds with lifecycle truth from the state read and the matching actions', async () => {
@@ -223,7 +224,7 @@ describe('FundWorkspace', () => {
     mockSaveFundDraft.mockRejectedValueOnce(new Error('Could not save changes'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
     await waitFor(() =>
-      expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not save changes')
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not confirm the save')
     );
     expect(fundStore.getState().fundName).toBe('Local Draft');
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -237,6 +238,47 @@ describe('FundWorkspace', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
     expect(fundStore.getState().draftFundId).toBeNull();
     expect(fundStore.getState().fundName).toBeUndefined();
+  });
+
+  it('keeps the preservation dialog and local values when command storage fails', async () => {
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftSyncStatus: 'error',
+    });
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Storage is unavailable');
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(fundStore.getState().fundName).toBe('Local Draft');
+  });
+
+  it('never discards an unresolved creation when starting another fund', async () => {
+    fundStore.setState({
+      fundName: 'Uncertain creation',
+      pendingCommand: {
+        operation: 'create',
+        key: crypto.randomUUID(),
+        targetFundId: null,
+        bodySignature: '{}',
+        expectedETag: null,
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    const original = fundStore.getState().pendingCommand;
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'Discard and start new' })).toBeDisabled();
+    expect(fundStore.getState().pendingCommand).toEqual(original);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('starts a new fund directly when the local session is settled', async () => {

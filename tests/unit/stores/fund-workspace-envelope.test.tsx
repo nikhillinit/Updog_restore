@@ -5,6 +5,8 @@ import {
   FUND_WORKSPACE_STORAGE_KEY,
   fundCommandKey,
   fundStore,
+  prepareFundCommand,
+  unbindFundWorkspaceActor,
   isFundWorkspaceEnvelope,
   resetFundWorkspace,
   toFundWorkspaceEnvelope,
@@ -227,6 +229,70 @@ describe('fund workspace envelope', () => {
     expect(fundStore.getState().reserveCreationKey()).toBe(first);
     fundStore.getState().startNewFundSession();
     expect(fundStore.getState().reserveCreationKey()).not.toBe(first);
+  });
+
+  it('does not let an older actor binding overwrite a newer actor or logout', async () => {
+    let finishFirst!: () => void;
+    const rehydrate = vi.spyOn(fundStore.persist, 'rehydrate').mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        })
+    );
+    const first = bindFundWorkspaceActor('old-actor', 'admin');
+    await bindFundWorkspaceActor('new-actor', 'viewer');
+    finishFirst();
+    await first;
+    expect(fundStore.getState().workspaceActorId).toBe('new-actor');
+    expect(fundStore.getState().workspaceActorRole).toBe('viewer');
+    rehydrate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        })
+    );
+    const loggingOut = bindFundWorkspaceActor('new-actor', 'admin');
+    unbindFundWorkspaceActor();
+    finishFirst();
+    await loggingOut;
+    expect(fundStore.getState().workspaceActorId).toBeNull();
+    expect(fundStore.getState().workspaceActorRole).toBeNull();
+    expect(sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)).toBeNull();
+  });
+
+  it('persists and replays the original command even after local edits and reload', async () => {
+    const original = prepareFundCommand('save_draft', 42, { fundName: 'Original' }, '"1"');
+    const envelope = sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!;
+    fundStore.setState({ pendingCommand: null });
+    sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, envelope);
+    await bindFundWorkspaceActor(ACTOR);
+    expect(prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"2"')).toEqual(original);
+    expect(() => prepareFundCommand('finalize', 42, {}, '"2"')).toThrow(/pending/i);
+    fundStore.getState().resolveCommand();
+    const next = prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"2"');
+    expect(next.key).not.toBe(original.key);
+    expect(next.payload).toEqual({ fundName: 'Edited' });
+    expect(next.etag).toBe('"2"');
+  });
+
+  it('refuses dispatch preparation when the pending command cannot be persisted', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    expect(() => prepareFundCommand('create', null, { name: 'Unsaved' }, null)).toThrow(/Storage/);
+    expect(fundStore.getState().pendingCommand?.bodySignature).toBe('{"name":"Unsaved"}');
+  });
+
+  it('includes the expected revision in command key identity', () => {
+    fundStore.getState().beginCommand({
+      operation: 'save_draft',
+      targetFundId: 42,
+      bodySignature: 'same',
+      expectedETag: '"1"',
+      key: 'old-key',
+    });
+    expect(fundCommandKey('save_draft', 42, 'same', '"1"')).toBe('old-key');
+    expect(fundCommandKey('save_draft', 42, 'same', '"2"')).not.toBe('old-key');
   });
 
   it('reuses the pending key only for the same operation, target and body', () => {

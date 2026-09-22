@@ -6,11 +6,11 @@ import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-quer
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
-import { fundCommandKey, fundStore } from '@/stores/fundStore';
+import { prepareFundCommand, fundStore } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { saveFundDraft } from '@/services/fund-drafts';
-import { classifyWorkflowError, FundWorkflowUncertainError } from '@/services/fund-workflow';
+import { classifyWorkflowError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { PARTNER_WRITE_ROLES, effectiveRoleOf } from '@shared/auth/effective-roles';
 import {
@@ -165,6 +165,7 @@ interface NewFundDialogProps {
   fundName: string;
   canSave: boolean;
   saving: boolean;
+  blocked: boolean;
   error: string | null;
   onKeepEditing: () => void;
   onConfirm: () => void;
@@ -172,16 +173,19 @@ interface NewFundDialogProps {
 }
 
 function NewFundDialog(props: NewFundDialogProps) {
-  const { open, fundName, canSave, saving, error, onKeepEditing, onConfirm, onClose } = props;
+  const { open, fundName, canSave, saving, blocked, error, onKeepEditing, onConfirm, onClose } =
+    props;
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent aria-describedby="new-fund-dialog-description">
         <DialogHeader>
           <DialogTitle>Start another fund?</DialogTitle>
           <DialogDescription id="new-fund-dialog-description">
-            {canSave
-              ? `Save changes to ${fundName} before starting a separate fund.`
-              : `${fundName} has not been saved to the server yet. Starting a separate fund discards its local values.`}
+            {blocked
+              ? 'Check the pending command status before starting another fund.'
+              : canSave
+                ? `Save changes to ${fundName} before starting a separate fund.`
+                : `${fundName} has not been saved to the server yet. Starting a separate fund discards its local values.`}
           </DialogDescription>
         </DialogHeader>
         {error && (
@@ -197,7 +201,7 @@ function NewFundDialog(props: NewFundDialogProps) {
             type="button"
             className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
             onClick={onConfirm}
-            disabled={saving}
+            disabled={saving || blocked}
           >
             {saving
               ? 'Saving draft'
@@ -218,16 +222,18 @@ export interface FundWorkspaceProps {
 export function FundWorkspace({ selection }: FundWorkspaceProps) {
   const [, navigate] = useLocation();
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
-  const [draftFundId, draftServerReady, draftSyncStatus, localFundName, actorRole] = useFundTuple(
-    (s) =>
-      [
-        s.draftFundId,
-        s.draftServerReady,
-        s.draftSyncStatus,
-        s.fundName,
-        s.workspaceActorRole,
-      ] as const
-  );
+  const [draftFundId, draftServerReady, draftSyncStatus, localFundName, actorRole, pendingCommand] =
+    useFundTuple(
+      (s) =>
+        [
+          s.draftFundId,
+          s.draftServerReady,
+          s.draftSyncStatus,
+          s.fundName,
+          s.workspaceActorRole,
+          s.pendingCommand,
+        ] as const
+    );
   // Early guidance only; the server checks permission on every create, save and publish.
   const role = effectiveRoleOf(actorRole);
   const canWrite = role != null && (PARTNER_WRITE_ROLES as readonly string[]).includes(role);
@@ -252,8 +258,11 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     selection.kind === 'invalid' ||
     (selection.kind === 'valid' && fundsQuery.isSuccess && !selectedFund);
   const localSessionName = localFundName?.trim() || 'the current draft';
-  const hasLocalSession = draftFundId != null || (localFundName?.trim().length ?? 0) > 0;
-  const localSettled = draftSyncStatus === 'idle' || draftSyncStatus === 'synced';
+  const hasLocalSession =
+    pendingCommand != null || draftFundId != null || (localFundName?.trim().length ?? 0) > 0;
+  const localSettled =
+    !pendingCommand && (draftSyncStatus === 'idle' || draftSyncStatus === 'synced');
+  const blockedCommand = pendingCommand != null && pendingCommand.operation !== 'save_draft';
 
   const startNewFund = React.useCallback(() => {
     fundStore.getState().startNewFundSession();
@@ -272,6 +281,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
   const canSaveLocalDraft = draftFundId != null;
 
   const confirmNewFund = React.useCallback(async () => {
+    if (blockedCommand) return;
     if (!canSaveLocalDraft) {
       startNewFund();
       return;
@@ -285,31 +295,47 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     const payload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
-    const bodySignature = JSON.stringify(payload);
-    const key = fundCommandKey('save_draft', targetFundId, bodySignature);
-    state.beginCommand({
-      operation: 'save_draft',
-      key,
-      targetFundId,
-      expectedETag: state.draftETag,
-      bodySignature,
-    });
+    let command;
+    try {
+      command = prepareFundCommand('save_draft', targetFundId, payload, state.draftETag);
+    } catch (error) {
+      setDialogError(error instanceof Error ? error.message : 'Could not prepare draft save');
+      return;
+    }
+    const stillCurrent = () =>
+      fundStore.getState().sessionId === state.sessionId &&
+      fundStore.getState().pendingCommand?.key === command.key;
     setDialogSaving(true);
     setDialogError(null);
     try {
-      const saved = await saveFundDraft(targetFundId, payload, { key, etag: state.draftETag });
+      const saved = await saveFundDraft(targetFundId, command.payload, {
+        key: command.key,
+        etag: command.etag,
+      });
+      if (!stillCurrent()) return;
       const current = fundStore.getState();
       current.setDraftETag(saved.etag ?? current.draftETag);
       current.setDraftServerReady(true);
       current.resolveCommand();
+      if (
+        JSON.stringify(
+          fundStoreToDraftWriteV1(current, { includeEconomicsAssumptions: economicsEnabled })
+        ) !== JSON.stringify(command.payload)
+      ) {
+        setDialogError(
+          'The previous save is confirmed. Save the newer changes before starting another fund.'
+        );
+        return;
+      }
       current.setDraftSyncStatus('synced');
       setDialogOpen(false);
       startNewFund();
     } catch (error) {
+      if (!stillCurrent()) return;
       // A failed or uncertain save never resets state.
       if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
       setDialogError(
-        error instanceof FundWorkflowUncertainError
+        classifyWorkflowError(error) === 'uncertain'
           ? 'Could not confirm the save; it may have completed. Keep editing to check.'
           : error instanceof Error
             ? error.message
@@ -318,7 +344,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     } finally {
       setDialogSaving(false);
     }
-  }, [canSaveLocalDraft, economicsEnabled, startNewFund]);
+  }, [blockedCommand, canSaveLocalDraft, economicsEnabled, startNewFund]);
 
   return (
     <div className="min-h-screen bg-pov-gray" data-testid="fund-workspace">
@@ -481,6 +507,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
         fundName={localSessionName}
         canSave={canSaveLocalDraft}
         saving={dialogSaving}
+        blocked={blockedCommand}
         error={dialogError}
         onKeepEditing={() => {
           setDialogOpen(false);

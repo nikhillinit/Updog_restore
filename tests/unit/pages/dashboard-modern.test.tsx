@@ -104,6 +104,18 @@ describe('ModernDashboard', () => {
     expect(screen.getByText('Fund Workspace valid')).toBeInTheDocument();
   });
 
+  it('retains the URL fund while context is still loading', async () => {
+    window.history.pushState({}, '', '/dashboard?tab=bogus&fundId=42');
+    mockUseFundContext.mockReturnValue({ currentFund: null, isLoading: true });
+
+    render(<ModernDashboard />);
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('?fundId=42');
+    });
+    expect(screen.getByText('Fund Workspace valid')).toBeInTheDocument();
+  });
+
   it('drives the analytics tab from the URL and retains the fund on change', async () => {
     const user = userEvent.setup();
     render(<ModernDashboard />);
