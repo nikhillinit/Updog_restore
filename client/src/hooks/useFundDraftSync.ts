@@ -3,51 +3,76 @@ import {
   fundDraftWriteV1ToStoreHydrationPatch,
   fundStoreToDraftWriteV1,
 } from '@/adapters/fund-store-adapters';
-import { fetchFundDraft, saveFundDraft } from '@/services/fund-drafts';
+import { fetchFundDraft, isMissingDraftError, saveFundDraft } from '@/services/fund-drafts';
+import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
-import { fundStore } from '@/stores/fundStore';
+import { fundCommandKey, fundStore, type DraftSyncStatus } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
+import { ApiError } from '@/lib/queryClient';
 
-export type DraftSyncStatus = 'idle' | 'hydrating' | 'saving' | 'synced' | 'error';
+export type { DraftSyncStatus } from '@/stores/fundStore';
 
 interface UseFundDraftSyncOptions {
   stepKey: string;
   debounceMs?: number;
 }
 
-interface UseFundDraftSyncResult {
+export interface UseFundDraftSyncResult {
   status: DraftSyncStatus;
   error: string | null;
   retry: () => void;
   isHydrating: boolean;
+  /** Stale revision: replace local values with the server draft (deliberate choice). */
+  loadServerDraft: () => void;
+  /** Stale revision: keep local values and resubmit them over the current revision. */
+  keepLocalDraft: () => void;
+  /** The routed fund has no active draft; nothing can be saved for it. */
+  missingDraftFundId: number | null;
 }
+
+export const STORAGE_UNAVAILABLE_MESSAGE =
+  'Changes are only in this tab. Storage is unavailable, so saving is paused.';
+export const STALE_DRAFT_MESSAGE = 'A newer draft is available';
+export const UNCERTAIN_SAVE_MESSAGE = 'Could not confirm the save; it may have completed';
+export const MISSING_DRAFT_MESSAGE = 'No active draft exists for this fund';
 
 function readErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
-}
-
-function isExpectedMissingServerDraft(error: unknown): boolean {
-  return error instanceof Error && error.message === 'No draft found';
 }
 
 export function useFundDraftSync({
   stepKey,
   debounceMs = 600,
 }: UseFundDraftSyncOptions): UseFundDraftSyncResult {
-  const [hydrated, draftFundId, draftServerReady] = useFundTuple(
-    (s) => [s.hydrated, s.draftFundId, s.draftServerReady] as const
+  const [hydrated, draftFundId, draftServerReady, status, sessionId] = useFundTuple(
+    (s) => [s.hydrated, s.draftFundId, s.draftServerReady, s.draftSyncStatus, s.sessionId] as const
   );
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
-  const [status, setStatus] = React.useState<DraftSyncStatus>('idle');
   const [error, setError] = React.useState<string | null>(null);
+  const [missingDraftFundId, setMissingDraftFundId] = React.useState<number | null>(null);
   const [retryNonce, setRetryNonce] = React.useState(0);
-  const recoveryCapturedRef = React.useRef(false);
-  const recoveredDraftIdRef = React.useRef<number | null>(null);
+  // Fund whose server snapshot this mount has verified. The ref serves async
+  // callbacks; the state re-arms the autosave subscription after hydration.
   const hydratedServerDraftIdRef = React.useRef<number | null>(null);
+  const [verifiedDraftFundId, setVerifiedDraftFundId] = React.useState<number | null>(null);
+  const markVerified = React.useCallback((fundId: number | null) => {
+    hydratedServerDraftIdRef.current = fundId;
+    setVerifiedDraftFundId(fundId);
+  }, []);
+  const serverETagRef = React.useRef<string | null>(null);
+  const saveInFlightRef = React.useRef(false);
+  const queuedSaveRef = React.useRef(false);
   const pendingSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextAutosaveRef = React.useRef(false);
   const lastSavedSignatureRef = React.useRef<string | null>(null);
+  // Payload signature at the last store notification; status writes to the store
+  // must not re-trigger the autosave subscription.
+  const lastObservedSignatureRef = React.useRef<string | null>(null);
   const previousStepKeyRef = React.useRef(stepKey);
+
+  const setStatus = React.useCallback((next: DraftSyncStatus) => {
+    fundStore.getState().setDraftSyncStatus(next);
+  }, []);
 
   const clearPendingSave = React.useCallback(() => {
     if (pendingSaveTimerRef.current != null) {
@@ -56,149 +81,248 @@ export function useFundDraftSync({
     }
   }, []);
 
+  const localSignature = React.useCallback(
+    () =>
+      JSON.stringify(
+        fundStoreToDraftWriteV1(fundStore.getState(), {
+          includeEconomicsAssumptions: economicsEnabled,
+        })
+      ),
+    [economicsEnabled]
+  );
+
   const persistCurrentDraft = React.useCallback(async () => {
     const state = fundStore.getState();
-    if (state.draftFundId == null) {
+    const targetFundId = state.draftFundId;
+    if (targetFundId == null) return;
+    if (saveInFlightRef.current) {
+      queuedSaveRef.current = true;
       return;
     }
 
     const payload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
-    const nextSignature = JSON.stringify(payload);
-    if (nextSignature === lastSavedSignatureRef.current) {
+    const signature = JSON.stringify(payload);
+    if (signature === lastSavedSignatureRef.current) {
       setStatus('synced');
       return;
     }
 
     clearPendingSave();
+    const key = fundCommandKey('save_draft', targetFundId, signature);
+    state.beginCommand({
+      operation: 'save_draft',
+      key,
+      targetFundId,
+      expectedETag: state.draftETag,
+      bodySignature: signature,
+    });
+    if (fundStore.getState().persistenceFailed) {
+      // The key and snapshot cannot be retained; a lost response could not be replayed.
+      fundStore.getState().resolveCommand();
+      setError(STORAGE_UNAVAILABLE_MESSAGE);
+      setStatus('error');
+      return;
+    }
+
+    saveInFlightRef.current = true;
     setStatus('saving');
     setError(null);
+    const capturedSession = state.sessionId;
+    const stillCurrent = () => {
+      const now = fundStore.getState();
+      return now.sessionId === capturedSession && now.draftFundId === targetFundId;
+    };
 
     try {
-      await saveFundDraft(state.draftFundId, payload);
-      fundStore.getState().setDraftServerReady(true);
-      hydratedServerDraftIdRef.current = state.draftFundId;
+      const saved = await saveFundDraft(targetFundId, payload, {
+        key,
+        etag: state.draftETag,
+      });
+      if (!stillCurrent()) return;
+      const current = fundStore.getState();
+      current.setDraftETag(saved.etag ?? current.draftETag);
+      current.setDraftServerReady(true);
+      current.resolveCommand();
+      markVerified(targetFundId);
       // eslint-disable-next-line require-atomic-updates -- ref stores the last server-confirmed payload signature.
-      lastSavedSignatureRef.current = nextSignature;
+      lastSavedSignatureRef.current = signature;
       setStatus('synced');
     } catch (draftError) {
-      setError(readErrorMessage(draftError, 'Draft save failed'));
+      if (!stillCurrent()) return;
+      const current = fundStore.getState();
+      if (isStaleRevisionError(draftError)) {
+        current.resolveCommand();
+        setError(STALE_DRAFT_MESSAGE);
+        setStatus('stale');
+        return;
+      }
+      const outcome = classifyWorkflowError(draftError);
+      if (outcome === 'uncertain') {
+        setError(UNCERTAIN_SAVE_MESSAGE);
+        setStatus('uncertain');
+        return;
+      }
+      if (outcome === 'rejected') {
+        current.resolveCommand();
+        if (draftError instanceof ApiError && draftError.errorCode === 'NO_ACTIVE_DRAFT') {
+          setMissingDraftFundId(targetFundId);
+          setError(MISSING_DRAFT_MESSAGE);
+          setStatus('error');
+          return;
+        }
+      }
+      setError(readErrorMessage(draftError, 'Could not save changes'));
       setStatus('error');
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- single in-flight save per hook instance.
+      saveInFlightRef.current = false;
+      if (queuedSaveRef.current) {
+        queuedSaveRef.current = false;
+        void persistCurrentDraft();
+      }
     }
-  }, [clearPendingSave, economicsEnabled]);
+  }, [clearPendingSave, economicsEnabled, markVerified, setStatus]);
+
+  const applyServerSnapshot = React.useCallback(
+    (
+      fundId: number,
+      config: Parameters<typeof fundDraftWriteV1ToStoreHydrationPatch>[0],
+      etag: string | null
+    ) => {
+      const defaults = fundStore.getInitialState();
+      const patch = fundDraftWriteV1ToStoreHydrationPatch(config, defaults);
+      skipNextAutosaveRef.current = true;
+      fundStore.setState((state) => ({
+        ...state,
+        ...patch,
+        draftFundId: fundId,
+        draftServerReady: true,
+        draftETag: etag,
+        pendingCommand: null,
+      }));
+      lastSavedSignatureRef.current = localSignature();
+      markVerified(fundId);
+      serverETagRef.current = null;
+      setError(null);
+      setStatus('synced');
+    },
+    [localSignature, markVerified, setStatus]
+  );
+
+  const loadServerDraft = React.useCallback(() => {
+    const fundId = fundStore.getState().draftFundId;
+    if (fundId == null) return;
+    setStatus('hydrating');
+    void fetchFundDraft(fundId).then(
+      (snapshot) => {
+        if (fundStore.getState().draftFundId !== fundId) return;
+        applyServerSnapshot(fundId, snapshot.config, snapshot.etag);
+      },
+      (loadError) => {
+        setError(readErrorMessage(loadError, 'Draft load failed'));
+        setStatus('error');
+      }
+    );
+  }, [applyServerSnapshot, setStatus]);
+
+  const keepLocalDraft = React.useCallback(() => {
+    const state = fundStore.getState();
+    if (state.draftFundId == null) return;
+    const rebaseTo = serverETagRef.current;
+    if (rebaseTo == null) {
+      setStatus('hydrating');
+      void fetchFundDraft(state.draftFundId).then(
+        (snapshot) => {
+          if (fundStore.getState().draftFundId !== state.draftFundId) return;
+          fundStore.getState().setDraftETag(snapshot.etag);
+          markVerified(state.draftFundId);
+          void persistCurrentDraft();
+        },
+        (loadError) => {
+          setError(readErrorMessage(loadError, 'Draft load failed'));
+          setStatus('error');
+        }
+      );
+      return;
+    }
+    state.setDraftETag(rebaseTo);
+    serverETagRef.current = null;
+    void persistCurrentDraft();
+  }, [markVerified, persistCurrentDraft, setStatus]);
 
   const retry = React.useCallback(() => {
+    const state = fundStore.getState();
     if (
-      recoveredDraftIdRef.current != null &&
-      draftFundId === recoveredDraftIdRef.current &&
-      hydratedServerDraftIdRef.current !== draftFundId
+      state.draftFundId != null &&
+      state.draftServerReady &&
+      hydratedServerDraftIdRef.current !== state.draftFundId
     ) {
       setError(null);
       setRetryNonce((value) => value + 1);
       return;
     }
-
     void persistCurrentDraft();
-  }, [draftFundId, persistCurrentDraft]);
+  }, [persistCurrentDraft]);
 
+  // Identity cleared: nothing to sync.
   React.useEffect(() => {
-    if (!hydrated || recoveryCapturedRef.current) {
-      return;
-    }
+    if (!hydrated || draftFundId != null) return;
+    clearPendingSave();
+    markVerified(null);
+    serverETagRef.current = null;
+    lastSavedSignatureRef.current = null;
+    setMissingDraftFundId(null);
+    setError(null);
+    setStatus('idle');
+  }, [clearPendingSave, draftFundId, hydrated, markVerified, setStatus]);
 
-    recoveryCapturedRef.current = true;
-    const state = fundStore.getState();
-    if (state.draftFundId != null && state.draftServerReady) {
-      recoveredDraftIdRef.current = state.draftFundId;
-    }
-  }, [hydrated]);
-
+  // Server-ready identity not yet verified this mount: load it (resume, reload, explicit ID).
   React.useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    if (draftFundId == null) {
-      clearPendingSave();
-      recoveredDraftIdRef.current = null;
-      hydratedServerDraftIdRef.current = null;
-      lastSavedSignatureRef.current = null;
-      setError(null);
-      setStatus('idle');
-      return;
-    }
-
-    if (
-      draftServerReady &&
-      recoveredDraftIdRef.current !== draftFundId &&
-      lastSavedSignatureRef.current == null
-    ) {
-      lastSavedSignatureRef.current = JSON.stringify(
-        fundStoreToDraftWriteV1(fundStore.getState(), {
-          includeEconomicsAssumptions: economicsEnabled,
-        })
-      );
-      setStatus('synced');
-    }
-  }, [clearPendingSave, draftFundId, draftServerReady, economicsEnabled, hydrated]);
-
-  React.useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
-    const recoveredDraftId = recoveredDraftIdRef.current;
-    if (
-      recoveredDraftId == null ||
-      draftFundId !== recoveredDraftId ||
-      hydratedServerDraftIdRef.current === recoveredDraftId
-    ) {
-      return;
-    }
+    if (!hydrated || draftFundId == null || !draftServerReady) return;
+    if (hydratedServerDraftIdRef.current === draftFundId) return;
 
     let cancelled = false;
     setStatus('hydrating');
     setError(null);
+    setMissingDraftFundId(null);
 
     void (async () => {
       try {
-        const draft = await fetchFundDraft(recoveredDraftId);
-        if (cancelled) {
+        const snapshot = await fetchFundDraft(draftFundId);
+        if (cancelled) return;
+        const state = fundStore.getState();
+        if (state.sessionId !== sessionId || state.draftFundId !== draftFundId) return;
+
+        if (state.draftETag == null) {
+          applyServerSnapshot(draftFundId, snapshot.config, snapshot.etag);
           return;
         }
-
-        const defaults = fundStore.getInitialState();
-        const patch = fundDraftWriteV1ToStoreHydrationPatch(draft, defaults);
-        skipNextAutosaveRef.current = true;
-        lastSavedSignatureRef.current = JSON.stringify(draft);
-        fundStore.setState((state) => ({
-          ...state,
-          ...patch,
-          draftFundId: recoveredDraftId,
-          draftServerReady: true,
-        }));
-        hydratedServerDraftIdRef.current = recoveredDraftId;
-        recoveredDraftIdRef.current = null;
-        setStatus('synced');
-      } catch (draftError) {
-        if (cancelled) {
-          return;
-        }
-
-        if (isExpectedMissingServerDraft(draftError)) {
-          // The fund identity exists, but there is no authoritative draft snapshot to hydrate yet.
-          if (fundStore.getState().draftFundId === recoveredDraftId) {
-            fundStore.getState().setDraftServerReady(false);
+        if (state.draftETag === snapshot.etag) {
+          // Local values are at or ahead of the acknowledged revision; keep them.
+          markVerified(draftFundId);
+          lastSavedSignatureRef.current = JSON.stringify(snapshot.config);
+          setStatus('synced');
+          if (localSignature() !== lastSavedSignatureRef.current) {
+            pendingSaveTimerRef.current = setTimeout(() => void persistCurrentDraft(), debounceMs);
           }
-          recoveredDraftIdRef.current = null;
-          hydratedServerDraftIdRef.current = null;
-          lastSavedSignatureRef.current = null;
-          setError(null);
-          setStatus('idle');
           return;
         }
-
+        // Stale baseline: hold local values and require a deliberate choice.
+        markVerified(draftFundId);
+        serverETagRef.current = snapshot.etag;
+        setError(STALE_DRAFT_MESSAGE);
+        setStatus('stale');
+      } catch (draftError) {
+        if (cancelled) return;
+        if (isMissingDraftError(draftError)) {
+          markVerified(draftFundId);
+          setMissingDraftFundId(draftFundId);
+          setError(MISSING_DRAFT_MESSAGE);
+          setStatus('error');
+          return;
+        }
         setError(readErrorMessage(draftError, 'Draft load failed'));
         setStatus('error');
       }
@@ -207,39 +331,41 @@ export function useFundDraftSync({
     return () => {
       cancelled = true;
     };
-  }, [draftFundId, hydrated, retryNonce]);
+  }, [
+    applyServerSnapshot,
+    debounceMs,
+    draftFundId,
+    draftServerReady,
+    hydrated,
+    localSignature,
+    markVerified,
+    persistCurrentDraft,
+    retryNonce,
+    sessionId,
+    setStatus,
+  ]);
 
+  // Autosave: local edits after identity exists. Blocked while hydrating, stale, or missing.
   React.useEffect(() => {
-    if (!hydrated || draftFundId == null) {
-      return;
-    }
+    if (!hydrated || draftFundId == null) return;
+    if (draftServerReady && verifiedDraftFundId !== draftFundId) return;
+    if (missingDraftFundId === draftFundId) return;
 
-    if (
-      draftServerReady &&
-      recoveredDraftIdRef.current === draftFundId &&
-      hydratedServerDraftIdRef.current !== draftFundId
-    ) {
-      return;
-    }
-
+    lastObservedSignatureRef.current = localSignature();
     const unsubscribe = fundStore.subscribe((state) => {
-      if (state.draftFundId == null || state.draftFundId !== draftFundId) {
-        return;
-      }
-
+      if (state.draftFundId == null || state.draftFundId !== draftFundId) return;
+      if (state.draftSyncStatus === 'stale' || state.draftSyncStatus === 'hydrating') return;
       if (skipNextAutosaveRef.current) {
         skipNextAutosaveRef.current = false;
+        lastObservedSignatureRef.current = localSignature();
         return;
       }
-
       const signature = JSON.stringify(
-        fundStoreToDraftWriteV1(state, {
-          includeEconomicsAssumptions: economicsEnabled,
-        })
+        fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: economicsEnabled })
       );
-      if (signature === lastSavedSignatureRef.current) {
-        return;
-      }
+      if (signature === lastObservedSignatureRef.current) return;
+      lastObservedSignatureRef.current = signature;
+      if (signature === lastSavedSignatureRef.current) return;
 
       clearPendingSave();
       setError(null);
@@ -249,10 +375,8 @@ export function useFundDraftSync({
       }, debounceMs);
     });
 
-    return () => {
-      unsubscribe();
-      clearPendingSave();
-    };
+    // Resubscribing must not cancel a pending debounced save; unmount does.
+    return unsubscribe;
   }, [
     clearPendingSave,
     debounceMs,
@@ -260,14 +384,18 @@ export function useFundDraftSync({
     draftServerReady,
     economicsEnabled,
     hydrated,
+    localSignature,
+    missingDraftFundId,
     persistCurrentDraft,
+    setStatus,
+    verifiedDraftFundId,
   ]);
 
-  React.useEffect(() => {
-    if (previousStepKeyRef.current === stepKey) {
-      return;
-    }
+  React.useEffect(() => clearPendingSave, [clearPendingSave]);
 
+  // Leaving a step flushes a pending debounced save.
+  React.useEffect(() => {
+    if (previousStepKeyRef.current === stepKey) return;
     previousStepKeyRef.current = stepKey;
     if (pendingSaveTimerRef.current != null) {
       void persistCurrentDraft();
@@ -279,5 +407,8 @@ export function useFundDraftSync({
     error,
     retry,
     isHydrating: status === 'hydrating',
+    loadServerDraft,
+    keepLocalDraft,
+    missingDraftFundId,
   };
 }

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useSearch } from 'wouter';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/sidebar';
@@ -18,8 +18,22 @@ import {
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 import { FundConstructionKpiHeader } from '@/components/wizard/FundConstructionKpiHeader';
 import { useFundContext } from '@/contexts/FundContext';
+import { resolveDashboardView } from '@/lib/fund-routes';
+import { bindFundWorkspaceActor } from '@/stores/fundStore';
 
 const MOBILE_NAVIGATION_DISABLED_REASON = 'Complete fund setup to access this route.';
+
+// One compact header for the account-wide Workspace: no fund KPI polling.
+function WorkspaceHeader() {
+  return (
+    <div
+      className="border-b border-beige-200 bg-pov-white px-4 py-3 md:px-8"
+      data-testid="workspace-header"
+    >
+      <p className="font-inter text-sm font-semibold text-pov-charcoal">Fund workspace</p>
+    </div>
+  );
+}
 
 function DisabledMobileNavigationItem({
   item,
@@ -170,12 +184,18 @@ export function AppLayout({
   session: AuthSession;
 }) {
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const queryClient = useQueryClient();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
+  const isWorkspaceView = resolveDashboardView(location, search)?.view === 'workspace';
+  // The authenticated shell binds the tab's fund-workspace envelope to this actor.
+  useEffect(() => {
+    void bindFundWorkspaceActor(session.user.id, session.user.role);
+  }, [session.user.id, session.user.role]);
   const finishLocalLogout = () => {
     queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
     queryClient.removeQueries({
@@ -209,7 +229,13 @@ export function AppLayout({
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
       <header>
-        {isFundSetupRoute ? <FundConstructionKpiHeader /> : <DynamicFundHeader />}
+        {isFundSetupRoute ? (
+          <FundConstructionKpiHeader />
+        ) : isWorkspaceView ? (
+          <WorkspaceHeader />
+        ) : (
+          <DynamicFundHeader />
+        )}
         <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
           {logoutError && (
             <p id="logout-error" role="alert" className="mr-4 text-sm text-error-dark">

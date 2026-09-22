@@ -62,6 +62,7 @@ vi.mock('@/lib/wizard-telemetry', () => ({
 }));
 
 vi.mock('@/services/fund-drafts', () => ({
+  isMissingDraftError: () => false,
   fetchFundDraft: async () => {
     throw new Error('No draft fetch expected');
   },
@@ -147,7 +148,7 @@ describe('routed fund draft autosave debounce behavior', () => {
     expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent(
       '1 write; fund 55; LP split 82%; GP split 18%'
     );
-    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Draft saved to server');
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
   });
 
   it('does not write an edited routed draft before the 600 ms window ends', async () => {
@@ -155,9 +156,7 @@ describe('routed fund draft autosave debounce behavior', () => {
 
     fireEvent.change(lpSplitInput, { target: { value: '81' } });
     expect(lpSplitInput).toHaveValue(81);
-    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(
-      'Saving authoritative server draft...'
-    );
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Saving draft');
 
     await advanceTimers(599);
 

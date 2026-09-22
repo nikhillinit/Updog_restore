@@ -35,7 +35,7 @@ test.describe('Navigation and Routing', () => {
 
   test('should navigate between all main modules', async () => {
     // Start from dashboard
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Skip if redirected to fund setup (fund fixture should prevent this)
     const currentUrl = navigationPage.page.url();
@@ -66,7 +66,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should show active navigation state correctly', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     const currentUrl = navigationPage.page.url();
     // SKIP: Active-state checks only make sense after the app leaves the fund setup wizard.
@@ -144,7 +144,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should be keyboard accessible', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     const currentUrl = await navigationPage.page.url();
     if (currentUrl.includes('/fund-setup')) {
@@ -174,7 +174,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should display fund name in header', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     if (await navigationPage.fundNameHeader.isVisible()) {
       const fundName = await navigationPage.fundNameHeader.textContent();
@@ -192,7 +192,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should show breadcrumbs for nested pages', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Check if breadcrumbs are implemented
     if (await navigationPage.breadcrumbs.isVisible()) {
@@ -236,7 +236,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should handle browser back/forward navigation', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     const currentUrl = navigationPage.page.url();
     // SKIP: Back/forward navigation assertions are not meaningful while the wizard owns the route flow.
@@ -258,7 +258,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should maintain navigation state during page transitions', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Check for loading states during navigation
     if (await navigationPage.portfolioLink.isVisible()) {
@@ -278,7 +278,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should handle external links appropriately', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Look for any external links (help, documentation, etc.)
     const externalLinks = navigationPage.page.locator('a[href^="http"], a[target="_blank"]');
@@ -295,7 +295,7 @@ test.describe('Navigation and Routing', () => {
   });
 
   test('should show proper loading states', async () => {
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Navigate to different sections and check for loading states
     if (await navigationPage.portfolioLink.isVisible()) {

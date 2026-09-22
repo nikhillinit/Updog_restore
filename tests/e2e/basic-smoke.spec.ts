@@ -34,6 +34,34 @@ const SMOKE_FUND = {
   termYears: 10,
 };
 
+// GET /api/funds/1/state: published, results ready (FundStateReadV1, strict).
+const SMOKE_FUND_STATE = {
+  fundId: 1,
+  configState: {
+    latestVersion: 1,
+    draftVersion: null,
+    publishedVersion: 1,
+    hasDraft: false,
+    hasPublished: true,
+    publishedAt: '2024-01-01T00:00:00.000Z',
+    draftUpdatedAt: null,
+    publishedUpdatedAt: '2024-01-01T00:00:00.000Z',
+  },
+  calculationState: {
+    status: 'ready',
+    configVersion: 1,
+    runId: 1,
+    correlationId: null,
+    dispatchState: 'dispatched',
+    availableSnapshotTypes: [],
+    expectedSnapshotTypes: [],
+    lastCalculatedAt: '2024-01-01T00:00:00.000Z',
+    lastError: null,
+    legacyEvidence: false,
+  },
+  legacy: { engineResultsPresent: false },
+};
+
 const EMPTY_VARIANCE_DASHBOARD = {
   success: true,
   data: {
@@ -445,6 +473,16 @@ async function installSmokeApiStubs(page: Page) {
       return;
     }
 
+    // Workspace lifecycle truth for the single smoke fund (GET /api/funds/:id/state).
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/state') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(SMOKE_FUND_STATE),
+      });
+      return;
+    }
+
     const requestLabel = `${request.method()} ${url.pathname}${url.search}`;
     unexpectedRequests.push(requestLabel);
     await route.fulfill({
@@ -497,17 +535,29 @@ test.describe('Basic Smoke Tests', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    const readOverflow = () =>
+      page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+      }));
+
+    // Account-wide Workspace (no tab).
     await page.goto('/dashboard?demo', { waitUntil: 'domcontentloaded', timeout: 10000 });
-
     await expect(page).toHaveURL(/\/dashboard\b/);
+    await expect(page.getByRole('heading', { name: 'Fund workspace' })).toBeVisible();
+    await expect(page.getByTestId('workspace-fund-1')).toBeVisible();
+    let overflow = await readOverflow();
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+    expect(overflow.bodyScrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+
+    // Analytics view keeps the existing dashboard shell.
+    await page.goto('/dashboard?tab=overview&demo', {
+      waitUntil: 'domcontentloaded',
+      timeout: 10000,
+    });
     await expect(page.getByRole('heading', { name: /^dashboard$/i })).toBeVisible();
-
-    const overflow = await page.evaluate(() => ({
-      clientWidth: document.documentElement.clientWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-      bodyScrollWidth: document.body.scrollWidth,
-    }));
-
+    overflow = await readOverflow();
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
     expect(overflow.bodyScrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
   });
@@ -694,7 +744,7 @@ test.describe('Actuals publication smoke', () => {
       await route.fulfill({ json: actualsMetrics });
     });
 
-    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard?tab=overview', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /^dashboard$/i })).toBeVisible({
       timeout: ROUTE_READY_TIMEOUT_MS,
     });

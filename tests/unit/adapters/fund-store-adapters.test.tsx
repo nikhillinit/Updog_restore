@@ -297,14 +297,24 @@ describe('fundStoreToFinalizeV1', () => {
     expect(FundFinalizeV1Schema.safeParse(result).success).toBe(true);
   });
 
-  it('omits draftFundId until the server draft is authoritative', () => {
+  it('blocks finalize while a known draft is not yet authoritative on the server', () => {
+    expect(() =>
+      fundStoreToFinalizeV1({
+        ...baseState,
+        draftFundId: 77,
+        draftServerReady: false,
+      })
+    ).toThrow('The draft is not saved to the server yet. Save it before publishing.');
+  });
+
+  it('retains the known draft identity once the server draft is authoritative', () => {
     const result = fundStoreToFinalizeV1({
       ...baseState,
       draftFundId: 77,
-      draftServerReady: false,
+      draftServerReady: true,
     });
 
-    expect(result.draftFundId).toBeUndefined();
+    expect(result.draftFundId).toBe(77);
   });
 
   it('includes economics assumptions only when explicitly requested', () => {

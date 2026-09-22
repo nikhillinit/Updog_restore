@@ -25,7 +25,8 @@ vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=7', mockSetLocation],
 }));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     invalidateQueries: vi.fn().mockResolvedValue(undefined),
   }),
@@ -80,6 +81,12 @@ const mockFundState = {
   setDraftFundId: vi.fn(),
   draftServerReady: false,
   setDraftServerReady: vi.fn(),
+  draftETag: null as string | null,
+  draftSyncStatus: 'idle' as string,
+  pendingCommand: null,
+  beginCommand: vi.fn(),
+  resolveCommand: vi.fn(),
+  setDraftETag: vi.fn(),
 };
 
 vi.mock('@/stores/useFundSelector', () => ({
@@ -91,6 +98,7 @@ vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
+  fundCommandKey: () => 'finalize-key-1',
 }));
 
 // Mock finalizeFund
@@ -195,12 +203,7 @@ describe('ReviewStep finalize failure handling', () => {
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
-    expect(mockSetCurrentFund).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 42,
-        name: 'Test Fund',
-      })
-    );
+    expect(mockSetCurrentFund).not.toHaveBeenCalled();
   });
 
   it('retries finalize after failure and navigates on success', async () => {

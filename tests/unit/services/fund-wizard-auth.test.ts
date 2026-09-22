@@ -29,17 +29,25 @@ describe('fund wizard service auth options', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await saveFundDraft(42, {
-      fundName: 'Draft Fund',
-      stages: [{ id: 'seed', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-    });
+    await saveFundDraft(
+      42,
+      {
+        fundName: 'Draft Fund',
+        stages: [{ id: 'seed', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      },
+      { key: '11111111-1111-4111-8111-111111111111', etag: '"0123456789abcdef"' }
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/funds/42/draft'),
       expect.objectContaining({
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': '11111111-1111-4111-8111-111111111111',
+          'If-Match': '"0123456789abcdef"',
+        },
       })
     );
   });
@@ -91,14 +99,17 @@ describe('fund wizard service auth options', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await finalizeFund({
-      name: 'Finalize Fund',
-      size: 50_000_000,
-      managementFee: 0.02,
-      carryPercentage: 0.2,
-      vintageYear: 2026,
-      stages: [{ id: 'seed', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-    });
+    await finalizeFund(
+      {
+        name: 'Finalize Fund',
+        size: 50_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+        stages: [{ id: 'seed', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      },
+      { key: '22222222-2222-4222-8222-222222222222' }
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/funds/finalize'),
@@ -107,7 +118,7 @@ describe('fund wizard service auth options', () => {
         credentials: 'include',
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
-          'Idempotency-Key': expect.any(String),
+          'Idempotency-Key': '22222222-2222-4222-8222-222222222222',
         }),
       })
     );

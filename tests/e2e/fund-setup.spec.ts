@@ -42,6 +42,17 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
       }
     });
 
+    // Production builds gate the shell on the session; the wizard smoke needs no backend.
+    await page.route('**/api/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: '314', email: 'wizard@example.com', role: 'partner', fundIds: [] },
+        }),
+      });
+    });
+
     // Expose logs to test context for better diagnostics
     (testInfo as any)._consoleLogs = consoleLogs;
     (testInfo as any)._pageErrors = pageErrors;

@@ -14,11 +14,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
-import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fundStore } from '@/stores/fundStore';
+import { fundCommandKey, fundStore } from '@/stores/fundStore';
 import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
 import { finalizeFund } from '@/services/funds';
+import {
+  classifyWorkflowError,
+  FundWorkflowUncertainError,
+  isStaleRevisionError,
+} from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { cn } from '@/lib/utils';
 import { formatUSD } from '@/lib/formatting';
@@ -39,7 +43,12 @@ interface SummarySection {
   }>;
 }
 
-type SubmitState = 'idle' | 'submitting' | 'error';
+type SubmitState = 'idle' | 'submitting' | 'error' | 'uncertain';
+
+const SETTLE_SAVE_REASON = 'Settle the draft save before publishing.';
+const UNCERTAIN_PUBLISH_MESSAGE = 'Could not confirm publication; it may have completed.';
+const STALE_PUBLISH_MESSAGE =
+  'A newer draft is available. Review the saved draft before publishing.';
 type EconomicsDryRunState =
   | { status: 'available'; result: EconomicsResultV1 }
   | {
@@ -67,7 +76,6 @@ function summarizeMessages(messages: string[]) {
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { setCurrentFund } = useFundContext();
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
 
   // Read wizard state from fundStore
@@ -83,6 +91,8 @@ export default function ReviewStep() {
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
+  const draftFundId = useFundSelector((s) => s.draftFundId);
+  const draftSyncStatus = useFundSelector((s) => s.draftSyncStatus);
   const _economicsDryRunRevision = useFundTuple((s) => [
     s.investmentPeriod,
     s.gpCommitment,
@@ -287,31 +297,10 @@ export default function ReviewStep() {
         console.warn('[ReviewStep] Failed to invalidate funds query after publish', error);
       }
 
-      setCurrentFund({
-        id: fundId,
-        name: String(fundName ?? ''),
-        size: Number(fundSize ?? 0),
-        managementFee: (managementFeeRate ?? 0) / 100,
-        carryPercentage: (carriedInterest ?? 0) / 100,
-        vintageYear: vintageYear ?? new Date().getFullYear(),
-        deployedCapital: 0,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
+      // Lifecycle truth comes from the fund-scoped results route, not a local status.
       navigateToResults(fundId);
     },
-    [
-      carriedInterest,
-      fundName,
-      fundSize,
-      managementFeeRate,
-      navigateToResults,
-      queryClient,
-      setCurrentFund,
-      vintageYear,
-    ]
+    [navigateToResults, queryClient]
   );
 
   const handleCreate = useCallback(async () => {
@@ -322,14 +311,34 @@ export default function ReviewStep() {
       return;
     }
 
+    const store = fundStore.getState();
+    if (store.draftFundId != null && !['idle', 'synced'].includes(store.draftSyncStatus)) {
+      setSubmitError(SETTLE_SAVE_REASON);
+      setSubmitState('error');
+      return;
+    }
+
     setSubmitError(null);
     setSubmitState('submitting');
 
     try {
-      const payload = fundStoreToFinalizeV1(fundStore.getState(), {
+      // Freeze exact ID, snapshot and revision before dispatch.
+      const payload = fundStoreToFinalizeV1(store, {
         includeEconomicsAssumptions: economicsEnabled,
       });
-      const result = await finalizeFund(payload);
+      const bodySignature = JSON.stringify(payload);
+      const targetFundId = payload.draftFundId ?? null;
+      const key = fundCommandKey('finalize', targetFundId, bodySignature);
+      const etag = targetFundId != null ? store.draftETag : null;
+      store.beginCommand({
+        operation: 'finalize',
+        key,
+        targetFundId,
+        expectedETag: etag,
+        bodySignature,
+      });
+      const result = await finalizeFund(payload, { key, etag });
+      fundStore.getState().resolveCommand();
       const fundId = result.data.fundId;
       if ('credentialRenewal' in result && result.credentialRenewal === 'reauth_required') {
         // Fund committed; session credential could not be renewed. The session
@@ -340,6 +349,20 @@ export default function ReviewStep() {
       }
       await finalizeSuccessfulPublish(fundId);
     } catch (err) {
+      if (isStaleRevisionError(err)) {
+        fundStore.getState().resolveCommand();
+        setSubmitError(STALE_PUBLISH_MESSAGE);
+        setSubmitState('error');
+        return;
+      }
+      if (err instanceof FundWorkflowUncertainError) {
+        // Keep the command; "Check publication status" replays the same key.
+        setSubmitError(UNCERTAIN_PUBLISH_MESSAGE);
+        setSubmitState('uncertain');
+        return;
+      }
+      // Definitive rejections release the key; anything else keeps it for a same-command retry.
+      if (classifyWorkflowError(err) === 'rejected') fundStore.getState().resolveCommand();
       const message = err instanceof Error ? err.message : 'Failed to create fund';
       setSubmitError(message);
       setSubmitState('error');
@@ -373,14 +396,17 @@ export default function ReviewStep() {
 
   const isSubmitting = submitState === 'submitting';
   const economicsBlocksSubmit = economicsEnabled && economicsDryRun?.status !== 'available';
+  const draftUnsettled = draftFundId != null && !['idle', 'synced'].includes(draftSyncStatus);
   const createDisabledReason =
     validationSummary.missing > 0
       ? 'Complete missing required fields before creating the fund.'
       : economicsBlocksSubmit
         ? 'Resolve the economics dry-run error before publishing.'
-        : isSubmitting
-          ? 'Fund creation is already in progress.'
-          : null;
+        : draftUnsettled
+          ? SETTLE_SAVE_REASON
+          : isSubmitting
+            ? 'Fund creation is already in progress.'
+            : null;
 
   return (
     <div className="space-y-6 pb-8" data-testid="review-step">
@@ -552,6 +578,17 @@ export default function ReviewStep() {
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
+      {submitState === 'uncertain' && submitError && (
+        <Alert
+          aria-live="assertive"
+          className="border-l-4 border-l-warning bg-warning/10"
+          data-testid="publish-uncertain-alert"
+        >
+          <AlertTriangle className="h-5 w-5 text-warning" />
+          <AlertTitle>Publication Not Confirmed</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between">
@@ -567,7 +604,12 @@ export default function ReviewStep() {
 
           <Button
             onClick={handleCreate}
-            disabled={validationSummary.missing > 0 || economicsBlocksSubmit || isSubmitting}
+            disabled={
+              validationSummary.missing > 0 ||
+              economicsBlocksSubmit ||
+              draftUnsettled ||
+              isSubmitting
+            }
             aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
             title={createDisabledReason ?? undefined}
             className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
@@ -581,7 +623,11 @@ export default function ReviewStep() {
             ) : (
               <>
                 <Rocket className="h-4 w-4" />
-                {submitState === 'error' ? 'Retry Publish' : 'Create, Publish, and View Results'}
+                {submitState === 'uncertain'
+                  ? 'Check publication status'
+                  : submitState === 'error'
+                    ? 'Retry Publish'
+                    : 'Create, Publish, and View Results'}
               </>
             )}
           </Button>

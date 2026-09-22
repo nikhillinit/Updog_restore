@@ -53,7 +53,7 @@ interface ApiRequestOptions {
 // Integer seconds only; malformed, negative, or >30s values are ignored.
 const RETRY_AFTER_MAX_SECONDS = 30;
 
-function parseRetryAfterMs(header: string | null): number | undefined {
+export function parseRetryAfterMs(header: string | null): number | undefined {
   if (header === null || !/^\d+$/.test(header)) return undefined;
   const seconds = Number(header);
   if (seconds > RETRY_AFTER_MAX_SECONDS) return undefined;

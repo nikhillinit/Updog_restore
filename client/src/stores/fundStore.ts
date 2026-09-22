@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla';
-import { devtools, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
 import { sortById, normalizeNumber, eq } from '../utils/state-utils';
@@ -122,6 +122,25 @@ export type CapitalPlanAllocation = {
   investmentHorizonMonths: number;
 };
 
+export type DraftSyncStatus =
+  'idle' | 'hydrating' | 'saving' | 'synced' | 'stale' | 'uncertain' | 'error';
+
+export type FundWorkflowOperation = 'create' | 'save_draft' | 'finalize' | 'publish_draft';
+
+/** An immutable dispatched command whose outcome is not yet acknowledged. */
+export type PendingFundCommand = {
+  operation: FundWorkflowOperation;
+  key: string;
+  targetFundId: number | null;
+  expectedETag: string | null;
+  /** Canonical JSON of the dispatched body; same op+target+body = same command. */
+  bodySignature: string;
+  dispatchedAt: string;
+};
+
+export const FUND_WORKSPACE_STORAGE_KEY = 'fund-workspace-session';
+export const FUND_WORKSPACE_ENVELOPE = 'fund-workspace/1';
+
 export type FundState = {
   // Hydration flag
   hydrated: boolean;
@@ -133,6 +152,29 @@ export type FundState = {
   // True once the server has an authoritative draft snapshot for draftFundId.
   draftServerReady: boolean;
   setDraftServerReady: (ready: boolean) => void;
+  // Actor whose recovery this tab session belongs to; never hydrate another actor's envelope.
+  workspaceActorId: string | null;
+  // Raw role of the bound actor (transient; early guidance only, never a server check).
+  workspaceActorRole: string | null;
+  // One local construction session per tab; callbacks fence on it.
+  sessionId: string;
+  // UUID reserved for POST /api/funds; reused on retry so replay returns the same fund.
+  creationKey: string | null;
+  reserveCreationKey: () => string;
+  // Acknowledged strong ETag of draftFundId's current revision.
+  draftETag: string | null;
+  setDraftETag: (etag: string | null) => void;
+  draftSyncStatus: DraftSyncStatus;
+  setDraftSyncStatus: (status: DraftSyncStatus) => void;
+  pendingCommand: PendingFundCommand | null;
+  beginCommand: (command: Omit<PendingFundCommand, 'dispatchedAt'>) => void;
+  resolveCommand: () => void;
+  // sessionStorage rejected the last envelope write; changes are only in this tab.
+  persistenceFailed: boolean;
+  // Reset every editable field and mint a fresh session/creation identity.
+  startNewFundSession: () => void;
+  // Fresh session bound to an existing server draft; the sync hook hydrates it.
+  resumeServerDraft: (fundId: number) => void;
 
   // Fund Basics
   fundName?: string;
@@ -481,6 +523,318 @@ function canonicalizeStrategyInput(next: InvestmentStrategy, prev: StrategySlice
   };
 }
 
+type FundData = Pick<
+  FundState,
+  | 'fundName'
+  | 'establishmentDate'
+  | 'modelInputsAsOfDate'
+  | 'vintageYear'
+  | 'isEvergreen'
+  | 'fundLife'
+  | 'investmentPeriod'
+  | 'fundSize'
+  | 'managementFeeRate'
+  | 'carriedInterest'
+  | 'gpCommitment'
+  | 'fundedFromFeesPct'
+  | 'lpClasses'
+  | 'lps'
+  | 'stages'
+  | 'sectorProfiles'
+  | 'allocations'
+  | 'followOnChecks'
+  | 'capitalStageAllocations'
+  | 'capitalPlanAllocations'
+  | 'pipelineProfiles'
+  | 'waterfallType'
+  | 'waterfallTiers'
+  | 'recyclingEnabled'
+  | 'recyclingType'
+  | 'recyclingCap'
+  | 'recyclingPeriod'
+  | 'exitRecyclingRate'
+  | 'mgmtFeeRecyclingRate'
+  | 'allowFutureRecycling'
+  | 'feeProfiles'
+  | 'fundExpenses'
+  | 'economicsAssumptions'
+>;
+
+const FUND_DATA_KEYS = [
+  'fundName',
+  'establishmentDate',
+  'modelInputsAsOfDate',
+  'vintageYear',
+  'isEvergreen',
+  'fundLife',
+  'investmentPeriod',
+  'fundSize',
+  'managementFeeRate',
+  'carriedInterest',
+  'gpCommitment',
+  'fundedFromFeesPct',
+  'lpClasses',
+  'lps',
+  'stages',
+  'sectorProfiles',
+  'allocations',
+  'followOnChecks',
+  'capitalStageAllocations',
+  'capitalPlanAllocations',
+  'pipelineProfiles',
+  'waterfallType',
+  'waterfallTiers',
+  'recyclingEnabled',
+  'recyclingType',
+  'recyclingCap',
+  'recyclingPeriod',
+  'exitRecyclingRate',
+  'mgmtFeeRecyclingRate',
+  'allowFutureRecycling',
+  'feeProfiles',
+  'fundExpenses',
+  'economicsAssumptions',
+] as const satisfies readonly (keyof FundData)[];
+
+type FundIdentity = Pick<
+  FundState,
+  | 'workspaceActorId'
+  | 'sessionId'
+  | 'creationKey'
+  | 'draftFundId'
+  | 'draftServerReady'
+  | 'draftETag'
+  | 'pendingCommand'
+>;
+
+/** Versioned, actor-scoped sessionStorage envelope: every editable field plus identity. */
+export type FundWorkspaceEnvelope = FundData &
+  FundIdentity & { envelope: typeof FUND_WORKSPACE_ENVELOPE };
+
+function createDefaultData(): FundData {
+  return {
+    // Fund Basics defaults
+    // Note: undefined optional fields are omitted per exactOptionalPropertyTypes
+    isEvergreen: false,
+
+    // Capital Structure defaults
+    fundedFromFeesPct: 0,
+    lpClasses: [],
+    lps: [],
+
+    // Investment Strategy defaults
+    stages: [
+      { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
+      { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
+      { id: generateStableId(), name: 'Series B+', graduate: 0, exit: 35, months: 30 },
+    ],
+    sectorProfiles: [
+      {
+        id: 'sector-1',
+        name: 'FinTech',
+        targetPercentage: 40,
+        description: 'Financial technology companies',
+      },
+      {
+        id: 'sector-2',
+        name: 'HealthTech',
+        targetPercentage: 30,
+        description: 'Healthcare technology companies',
+      },
+      {
+        id: 'sector-3',
+        name: 'Enterprise SaaS',
+        targetPercentage: 30,
+        description: 'B2B software solutions',
+      },
+    ],
+    allocations: [
+      {
+        id: 'alloc-1',
+        category: 'New Investments',
+        percentage: 75,
+        description: 'Fresh capital for new portfolio companies',
+      },
+      {
+        id: 'alloc-2',
+        category: 'Reserves',
+        percentage: 20,
+        description: 'Follow-on investments for existing portfolio',
+      },
+      {
+        id: 'alloc-3',
+        category: 'Operating Expenses',
+        percentage: 5,
+        description: 'Fund management and operations',
+      },
+    ],
+    followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
+
+    // Capital Plan defaults (Step 3)
+    capitalStageAllocations: [
+      { id: 'preseed_seed', label: 'Pre-Seed + Seed', pct: 43 },
+      { id: 'series_a', label: 'Series A', pct: 14 },
+      { id: 'reserved', label: 'Reserved', pct: 43 },
+    ],
+    capitalPlanAllocations: [
+      {
+        id: 'pre-seed-allocation',
+        name: 'Pre-Seed Investments',
+        entryRound: 'Pre-Seed',
+        capitalAllocationPct: 43,
+        initialCheckStrategy: 'amount' as const,
+        initialCheckAmount: 250000,
+        followOnStrategy: 'maintain_ownership' as const,
+        followOnParticipationPct: 100,
+        investmentHorizonMonths: 18,
+      },
+      {
+        id: 'seed-allocation',
+        name: 'Seed Investments',
+        entryRound: 'Seed',
+        capitalAllocationPct: 43,
+        initialCheckStrategy: 'amount' as const,
+        initialCheckAmount: 500000,
+        followOnStrategy: 'maintain_ownership' as const,
+        followOnParticipationPct: 100,
+        investmentHorizonMonths: 24,
+      },
+      {
+        id: 'series-a-allocation',
+        name: 'Series A Investments',
+        entryRound: 'Series A',
+        capitalAllocationPct: 14,
+        initialCheckStrategy: 'amount' as const,
+        initialCheckAmount: 750000,
+        followOnStrategy: 'maintain_ownership' as const,
+        followOnParticipationPct: 100,
+        investmentHorizonMonths: 18,
+      },
+    ],
+
+    // Pipeline Profiles default (empty -- populated by Step 4 or legacy migration)
+    pipelineProfiles: [],
+
+    // Distributions & Carry defaults
+    waterfallType: 'american',
+    waterfallTiers: [
+      {
+        id: 'tier-default',
+        name: 'Standard Carry',
+        lpSplit: 80,
+        gpSplit: 20,
+        preferredReturn: 8,
+        catchUp: 100,
+        condition: 'none',
+      },
+    ],
+    recyclingEnabled: false,
+    recyclingType: 'exits',
+    exitRecyclingRate: 100,
+    mgmtFeeRecyclingRate: 0,
+    allowFutureRecycling: false,
+
+    // Fees & Expenses defaults
+    feeProfiles: [
+      {
+        id: 'default-profile',
+        name: 'Default Fee Profile',
+        feeTiers: [
+          {
+            id: 'tier-1',
+            name: 'Management Fee',
+            percentage: 2.0,
+            feeBasis: 'committed_capital',
+            startMonth: 1,
+            endMonth: 120, // 10 years
+          },
+        ],
+      },
+    ],
+    fundExpenses: [],
+    economicsAssumptions: undefined,
+  };
+}
+
+function freshIdentity(actorId: string | null): FundIdentity {
+  return {
+    workspaceActorId: actorId,
+    sessionId: generateStableId(),
+    creationKey: null,
+    draftFundId: null,
+    draftServerReady: false,
+    draftETag: null,
+    pendingCommand: null,
+  };
+}
+
+export function toFundWorkspaceEnvelope(state: FundState): FundWorkspaceEnvelope {
+  const data = {} as FundData;
+  for (const key of FUND_DATA_KEYS) {
+    if (state[key] !== undefined) (data as Record<string, unknown>)[key] = state[key];
+  }
+  return {
+    envelope: FUND_WORKSPACE_ENVELOPE,
+    ...data,
+    workspaceActorId: state.workspaceActorId,
+    sessionId: state.sessionId,
+    creationKey: state.creationKey,
+    draftFundId: state.draftFundId,
+    draftServerReady: state.draftServerReady,
+    draftETag: state.draftETag,
+    pendingCommand: state.pendingCommand,
+  };
+}
+
+export function isFundWorkspaceEnvelope(value: unknown): value is FundWorkspaceEnvelope {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v['envelope'] === FUND_WORKSPACE_ENVELOPE &&
+    typeof v['sessionId'] === 'string' &&
+    (v['workspaceActorId'] === null || typeof v['workspaceActorId'] === 'string') &&
+    (v['draftFundId'] === null || typeof v['draftFundId'] === 'number') &&
+    typeof v['draftServerReady'] === 'boolean' &&
+    ['lpClasses', 'lps', 'stages', 'sectorProfiles', 'allocations', 'feeProfiles'].every((k) =>
+      Array.isArray(v[k])
+    )
+  );
+}
+
+// Actor bound by the authenticated shell. Envelopes are only read or written for it.
+let expectedActorId: string | null = null;
+
+// ponytail: drop writes while no actor is bound so a fresh in-memory state never
+// clobbers the stored envelope before rehydration; surface quota/security failures.
+const guardedSessionStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      return sessionStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    if (expectedActorId === null) return;
+    let failed = false;
+    try {
+      sessionStorage.setItem(name, value);
+    } catch {
+      failed = true;
+    }
+    if (fundStore.getState().persistenceFailed !== failed) {
+      fundStore.setState({ persistenceFailed: failed });
+    }
+  },
+  removeItem: (name) => {
+    try {
+      sessionStorage.removeItem(name);
+    } catch {
+      // nothing to remove
+    }
+  },
+};
+
 // HMR type safety
 interface HotData {
   fundStore?: ReturnType<typeof createFundStore>;
@@ -501,147 +855,59 @@ function createFundStore() {
           setDraftFundId: (fundId: number | null) => set({ draftFundId: fundId }),
           draftServerReady: false,
           setDraftServerReady: (ready: boolean) => set({ draftServerReady: ready }),
+          workspaceActorId: null,
+          workspaceActorRole: null,
+          sessionId: generateStableId(),
+          creationKey: null,
+          reserveCreationKey: () => {
+            const existing = get().creationKey;
+            if (existing) return existing;
+            const creationKey = generateStableId();
+            set({ creationKey });
+            return creationKey;
+          },
+          draftETag: null,
+          setDraftETag: (draftETag: string | null) => set({ draftETag }),
+          draftSyncStatus: 'idle',
+          setDraftSyncStatus: (draftSyncStatus: DraftSyncStatus) => set({ draftSyncStatus }),
+          pendingCommand: null,
+          beginCommand: (command) =>
+            set({ pendingCommand: { ...command, dispatchedAt: new Date().toISOString() } }),
+          resolveCommand: () => set({ pendingCommand: null }),
+          persistenceFailed: false,
+          resumeServerDraft: (fundId: number) =>
+            set(
+              (state) =>
+                ({
+                  ...pickActions(state),
+                  ...createDefaultData(),
+                  ...freshIdentity(state.workspaceActorId),
+                  workspaceActorRole: state.workspaceActorRole,
+                  draftFundId: fundId,
+                  draftServerReady: true,
+                  hydrated: true,
+                  draftSyncStatus: 'idle',
+                  persistenceFailed: state.persistenceFailed,
+                }) as FundState,
+              true
+            ),
+          startNewFundSession: () =>
+            set(
+              (state) =>
+                ({
+                  ...pickActions(state),
+                  ...createDefaultData(),
+                  ...freshIdentity(state.workspaceActorId),
+                  workspaceActorRole: state.workspaceActorRole,
+                  creationKey: generateStableId(),
+                  hydrated: true,
+                  draftSyncStatus: 'idle',
+                  persistenceFailed: state.persistenceFailed,
+                }) as FundState,
+              true
+            ),
 
-          // Fund Basics defaults
-          // Note: undefined optional fields are omitted per exactOptionalPropertyTypes
-          isEvergreen: false,
-
-          // Capital Structure defaults
-          fundedFromFeesPct: 0,
-          lpClasses: [],
-          lps: [],
-
-          // Investment Strategy defaults
-          stages: [
-            { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
-            { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
-            { id: generateStableId(), name: 'Series B+', graduate: 0, exit: 35, months: 30 },
-          ],
-          sectorProfiles: [
-            {
-              id: 'sector-1',
-              name: 'FinTech',
-              targetPercentage: 40,
-              description: 'Financial technology companies',
-            },
-            {
-              id: 'sector-2',
-              name: 'HealthTech',
-              targetPercentage: 30,
-              description: 'Healthcare technology companies',
-            },
-            {
-              id: 'sector-3',
-              name: 'Enterprise SaaS',
-              targetPercentage: 30,
-              description: 'B2B software solutions',
-            },
-          ],
-          allocations: [
-            {
-              id: 'alloc-1',
-              category: 'New Investments',
-              percentage: 75,
-              description: 'Fresh capital for new portfolio companies',
-            },
-            {
-              id: 'alloc-2',
-              category: 'Reserves',
-              percentage: 20,
-              description: 'Follow-on investments for existing portfolio',
-            },
-            {
-              id: 'alloc-3',
-              category: 'Operating Expenses',
-              percentage: 5,
-              description: 'Fund management and operations',
-            },
-          ],
-          followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
-
-          // Capital Plan defaults (Step 3)
-          capitalStageAllocations: [
-            { id: 'preseed_seed', label: 'Pre-Seed + Seed', pct: 43 },
-            { id: 'series_a', label: 'Series A', pct: 14 },
-            { id: 'reserved', label: 'Reserved', pct: 43 },
-          ],
-          capitalPlanAllocations: [
-            {
-              id: 'pre-seed-allocation',
-              name: 'Pre-Seed Investments',
-              entryRound: 'Pre-Seed',
-              capitalAllocationPct: 43,
-              initialCheckStrategy: 'amount' as const,
-              initialCheckAmount: 250000,
-              followOnStrategy: 'maintain_ownership' as const,
-              followOnParticipationPct: 100,
-              investmentHorizonMonths: 18,
-            },
-            {
-              id: 'seed-allocation',
-              name: 'Seed Investments',
-              entryRound: 'Seed',
-              capitalAllocationPct: 43,
-              initialCheckStrategy: 'amount' as const,
-              initialCheckAmount: 500000,
-              followOnStrategy: 'maintain_ownership' as const,
-              followOnParticipationPct: 100,
-              investmentHorizonMonths: 24,
-            },
-            {
-              id: 'series-a-allocation',
-              name: 'Series A Investments',
-              entryRound: 'Series A',
-              capitalAllocationPct: 14,
-              initialCheckStrategy: 'amount' as const,
-              initialCheckAmount: 750000,
-              followOnStrategy: 'maintain_ownership' as const,
-              followOnParticipationPct: 100,
-              investmentHorizonMonths: 18,
-            },
-          ],
-
-          // Pipeline Profiles default (empty -- populated by Step 4 or legacy migration)
-          pipelineProfiles: [],
-
-          // Distributions & Carry defaults
-          waterfallType: 'american',
-          waterfallTiers: [
-            {
-              id: 'tier-default',
-              name: 'Standard Carry',
-              lpSplit: 80,
-              gpSplit: 20,
-              preferredReturn: 8,
-              catchUp: 100,
-              condition: 'none',
-            },
-          ],
-          recyclingEnabled: false,
-          recyclingType: 'exits',
-          exitRecyclingRate: 100,
-          mgmtFeeRecyclingRate: 0,
-          allowFutureRecycling: false,
-
-          // Fees & Expenses defaults
-          feeProfiles: [
-            {
-              id: 'default-profile',
-              name: 'Default Fee Profile',
-              feeTiers: [
-                {
-                  id: 'tier-1',
-                  name: 'Management Fee',
-                  percentage: 2.0,
-                  feeBasis: 'committed_capital',
-                  startMonth: 1,
-                  endMonth: 120, // 10 years
-                },
-              ],
-            },
-          ],
-          fundExpenses: [],
-          economicsAssumptions: undefined,
+          ...createDefaultData(),
 
           // Fund Basics actions
           updateFundBasics: (patch: FundBasicsPatch) => set((state) => ({ ...state, ...patch })),
@@ -972,50 +1238,20 @@ function createFundStore() {
             }),
         }),
         {
-          name: 'investment-strategy',
-          version: 3,
-          partialize: (s: FundState) => ({
-            // Persist draft identity only after a server-backed draft snapshot
-            // exists. That keeps reload/resume tied to authoritative server
-            // hydration instead of a partial local slice.
-            ...(s.draftServerReady && s.draftFundId != null
-              ? {
-                  draftFundId: s.draftFundId,
-                  draftServerReady: true,
-                }
-              : {}),
-            // Only persist primitive inputs
-            stages: s.stages.map((r: StrategyStage) => ({
-              id: r.id,
-              name: r.name,
-              graduate: r.graduate,
-              exit: r.exit,
-              months: r.months,
-            })),
-            sectorProfiles: s.sectorProfiles,
-            allocations: s.allocations,
-            followOnChecks: s.followOnChecks,
-            capitalStageAllocations: s.capitalStageAllocations,
-            capitalPlanAllocations: s.capitalPlanAllocations,
-            modelVersion: 'reserves-ev1',
-          }),
-          migrate: (persistedState: unknown, from: number) => {
-            // Type guard for persisted state shape
-            const state = persistedState as {
-              stages?: Array<{ months?: number }>;
-              draftFundId?: number | null;
-              draftServerReady?: boolean;
-            };
-            if (from < 2) {
-              state.stages = (state.stages ?? []).map((r: { months?: number }) => ({
-                months: 12,
-                ...r,
-              }));
+          name: FUND_WORKSPACE_STORAGE_KEY,
+          version: 1,
+          storage: createJSONStorage(() => guardedSessionStorage),
+          partialize: (state: FundState) => toFundWorkspaceEnvelope(state),
+          merge: (persisted: unknown, current: FundState): FundState => {
+            if (
+              !isFundWorkspaceEnvelope(persisted) ||
+              expectedActorId === null ||
+              persisted.workspaceActorId !== expectedActorId
+            ) {
+              return current;
             }
-            if (from < 3) {
-              state.draftServerReady = false;
-            }
-            return state;
+            const { envelope: _envelope, ...data } = persisted;
+            return { ...current, ...data };
           },
           onRehydrateStorage: () => (_state: FundState | undefined, err: unknown) => {
             if (err) console.error('[fund-store] rehydrate error', err);
@@ -1043,6 +1279,78 @@ if (import.meta.hot) {
 }
 
 export const fundStore = store;
+
+function pickActions(state: FundState): Partial<FundState> {
+  const actions: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(state)) {
+    if (typeof value === 'function') actions[key] = value;
+  }
+  return actions as Partial<FundState>;
+}
+
+/**
+ * Bind the authenticated actor and load that actor's tab envelope. A different
+ * previous actor fences and clears the session first; nothing from another
+ * actor is ever hydrated.
+ */
+export async function bindFundWorkspaceActor(
+  actorId: string,
+  role: string | null = null
+): Promise<void> {
+  const previous = expectedActorId;
+  if (previous !== null && previous !== actorId) resetFundWorkspace();
+  expectedActorId = actorId;
+  await fundStore.persist.rehydrate();
+  const state = fundStore.getState();
+  if (state.workspaceActorId !== actorId || state.workspaceActorRole !== role) {
+    fundStore.setState({ workspaceActorId: actorId, workspaceActorRole: role, hydrated: true });
+  }
+}
+
+/** Clear every local field and the stored envelope for this tab. */
+export function resetFundWorkspace(): void {
+  const state = fundStore.getState();
+  fundStore.setState(
+    {
+      ...pickActions(state),
+      ...createDefaultData(),
+      ...freshIdentity(expectedActorId),
+      workspaceActorRole: state.workspaceActorRole,
+      hydrated: true,
+      draftSyncStatus: 'idle',
+      persistenceFailed: false,
+    } as FundState,
+    true
+  );
+  guardedSessionStorage.removeItem(FUND_WORKSPACE_STORAGE_KEY);
+}
+
+/**
+ * Key for a command. The pending command's key is reused only for the same
+ * operation, target and body (an uncertain or retry-requested outcome); any
+ * other attempt is a new command with a new key.
+ */
+export function fundCommandKey(
+  operation: FundWorkflowOperation,
+  targetFundId: number | null,
+  bodySignature: string
+): string {
+  const pending = fundStore.getState().pendingCommand;
+  if (
+    pending &&
+    pending.operation === operation &&
+    pending.targetFundId === targetFundId &&
+    pending.bodySignature === bodySignature
+  ) {
+    return pending.key;
+  }
+  return generateStableId();
+}
+
+/** Test seam: bound actor lookup. */
+export function __getBoundFundWorkspaceActor(): string | null {
+  return expectedActorId;
+}
 
 // Export factory for test isolation
 export const __createIsolatedFundStore = createFundStore;

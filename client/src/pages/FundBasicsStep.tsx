@@ -8,7 +8,7 @@ import { ArrowRight } from 'lucide-react';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
-import { fundStore } from '@/stores/fundStore';
+import { fundCommandKey, fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import {
   createFund,
@@ -16,12 +16,23 @@ import {
   normalizeCreateFundResponse,
 } from '@/services/funds';
 import { saveFundDraft } from '@/services/fund-drafts';
+import { classifyWorkflowError, FundWorkflowUncertainError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import { NumericInput } from '@/components/ui/NumericInput';
 import { WizardCard } from '@/components/wizard/WizardCard';
 
 type BootstrapStage = 'idle' | 'creating' | 'saving';
+
+const UNCERTAIN_CREATE_MESSAGE =
+  'Could not confirm fund creation; it may have completed. Retry to check.';
+const UNCERTAIN_SAVE_MESSAGE =
+  'Could not confirm the draft save; it may have completed. Retry to check.';
+
+function bootstrapErrorMessage(error: unknown, uncertainMessage: string, fallback: string) {
+  if (error instanceof FundWorkflowUncertainError) return uncertainMessage;
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
@@ -132,13 +143,18 @@ export default function FundBasicsStep() {
       setBootstrapStage('creating');
 
       try {
-        const payload = fundStoreToCreateV1(fundStore.getState());
-        const raw = await createFund({ ...payload });
+        const store = fundStore.getState();
+        const payload = fundStoreToCreateV1(store);
+        // Reserved and persisted before dispatch: a retry replays the same creation.
+        const idempotencyKey = store.reserveCreationKey();
+        const result = await createFund({ ...payload }, { idempotencyKey });
+        const raw = result.body;
         const fund = normalizeCreateFundResponse(raw);
+        setDraftFundId(fund.id);
+        fundStore.getState().setDraftETag(result.etag);
         if (handleCredentialRenewalMarker(raw)) {
           // Fund committed but this session's credential could not be renewed;
           // the session gate is now active. Keep the identity, stop writes.
-          setDraftFundId(fund.id);
           setBootstrapError('Session renewal required. Sign in again to continue editing.');
           setBootstrapStage('idle');
           return;
@@ -148,7 +164,6 @@ export default function FundBasicsStep() {
         const now = new Date().toISOString();
 
         activeDraftFundId = fund.id;
-        setDraftFundId(fund.id);
         setDraftServerReady(false);
         setCurrentFund({
           id: fund.id,
@@ -168,9 +183,13 @@ export default function FundBasicsStep() {
           updatedAt: typeof fund['updatedAt'] === 'string' ? fund['updatedAt'] : now,
         });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to create fund draft identity';
-        setBootstrapError(message);
+        setBootstrapError(
+          bootstrapErrorMessage(
+            error,
+            UNCERTAIN_CREATE_MESSAGE,
+            'Failed to create fund draft identity'
+          )
+        );
         setBootstrapStage('idle');
         return;
       }
@@ -179,16 +198,33 @@ export default function FundBasicsStep() {
     if (activeDraftFundId != null && !draftServerReady) {
       setBootstrapStage('saving');
 
+      const store = fundStore.getState();
+      const draftPayload = fundStoreToDraftWriteV1(store, {
+        includeEconomicsAssumptions: economicsEnabled,
+      });
+      const bodySignature = JSON.stringify(draftPayload);
+      const key = fundCommandKey('save_draft', activeDraftFundId, bodySignature);
+      store.beginCommand({
+        operation: 'save_draft',
+        key,
+        targetFundId: activeDraftFundId,
+        expectedETag: store.draftETag,
+        bodySignature,
+      });
       try {
-        const draftPayload = fundStoreToDraftWriteV1(fundStore.getState(), {
-          includeEconomicsAssumptions: economicsEnabled,
+        const saved = await saveFundDraft(activeDraftFundId, draftPayload, {
+          key,
+          etag: store.draftETag,
         });
-        await saveFundDraft(activeDraftFundId, draftPayload);
+        const current = fundStore.getState();
+        current.setDraftETag(saved.etag ?? current.draftETag);
+        current.resolveCommand();
         setDraftServerReady(true);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to save authoritative draft';
-        setBootstrapError(message);
+        if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
+        setBootstrapError(
+          bootstrapErrorMessage(error, UNCERTAIN_SAVE_MESSAGE, 'Failed to save authoritative draft')
+        );
         setBootstrapStage('idle');
         return;
       }

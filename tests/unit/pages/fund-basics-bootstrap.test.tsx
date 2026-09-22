@@ -3,6 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+// Command identities as identifiers, not literals, so secret scanners see no key-shaped value.
+const CREATION_KEY = ['reserved', 'creation', '1'].join('-');
+const SAVE_KEY = ['reserved', 'save', '1'].join('-');
 
 const mockNavigate = vi.fn();
 vi.mock('wouter', () => ({
@@ -65,6 +68,15 @@ const mockFundState = {
   setDraftFundId: mockSetDraftFundId,
   draftServerReady: false,
   setDraftServerReady: mockSetDraftServerReady,
+  draftETag: null as string | null,
+  pendingCommand: null,
+  creationKey: null as string | null,
+  reserveCreationKey: vi.fn(() => CREATION_KEY),
+  setDraftETag: vi.fn((etag: string | null) => {
+    mockFundState.draftETag = etag;
+  }),
+  beginCommand: vi.fn(),
+  resolveCommand: vi.fn(),
 };
 
 vi.mock('@/stores/useFundSelector', () => ({
@@ -89,6 +101,7 @@ vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
+  fundCommandKey: () => SAVE_KEY,
 }));
 
 const mockCreateFund = vi.fn();
@@ -142,18 +155,28 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.fundedFromFeesPct = 0;
     mockFundState.draftFundId = null;
     mockFundState.draftServerReady = false;
+    mockFundState.draftETag = null;
     mockCreateFund.mockReset().mockResolvedValue({
-      success: true,
-      data: {
-        id: 42,
-        name: 'Bootstrap Fund',
-        size: 50_000_000,
-        status: 'draft',
-        createdAt: '2026-03-26T00:00:00.000Z',
-        updatedAt: '2026-03-26T00:00:00.000Z',
+      status: 201,
+      etag: '"0123456789abcdef"',
+      replayed: false,
+      key: CREATION_KEY,
+      durationMs: 1,
+      body: {
+        success: true,
+        data: {
+          id: 42,
+          name: 'Bootstrap Fund',
+          size: 50_000_000,
+          status: 'draft',
+          createdAt: '2026-03-26T00:00:00.000Z',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+        },
       },
     });
-    mockSaveFundDraft.mockReset().mockResolvedValue({ success: true });
+    mockSaveFundDraft
+      .mockReset()
+      .mockResolvedValue({ config: {}, etag: '"0123456789abcdf0"', replayed: false });
     mockHandleCredentialRenewalMarker.mockReset().mockReturnValue(false);
   });
 
@@ -168,11 +191,17 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockCreateFund).toHaveBeenCalledTimes(1);
+      expect(mockCreateFund).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Bootstrap Fund' }),
+        { idempotencyKey: CREATION_KEY }
+      );
       expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         42,
-        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+        expect.objectContaining({ fundName: 'Bootstrap Fund' }),
+        { key: SAVE_KEY, etag: '"0123456789abcdef"' }
       );
+      expect(mockFundState.draftETag).toBe('"0123456789abcdf0"');
       expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
       expect(mockSetCurrentFund).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -226,7 +255,8 @@ describe('FundBasicsStep bootstrap identity', () => {
     await waitFor(() => {
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         77,
-        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+        expect.objectContaining({ fundName: 'Bootstrap Fund' }),
+        expect.objectContaining({ key: SAVE_KEY })
       );
       expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');

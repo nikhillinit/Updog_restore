@@ -484,7 +484,10 @@ export function fundStoreToFinalizeV1(
     modelInputsAsOfDate: state.modelInputsAsOfDate,
   };
 
-  if (state.draftServerReady && state.draftFundId != null) {
+  if (state.draftFundId != null) {
+    if (!state.draftServerReady) {
+      throw new Error('The draft is not saved to the server yet. Save it before publishing.');
+    }
     result.draftFundId = state.draftFundId;
   }
 

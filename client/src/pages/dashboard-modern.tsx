@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import React from 'react';
+import { useLocation, useSearch } from 'wouter';
 import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
 import { useFundContext } from '@/contexts/FundContext';
+import {
+  buildDashboardHref,
+  resolveDashboardView,
+  type DashboardTab,
+  type DashboardView,
+} from '@/lib/fund-routes';
+import { FundWorkspace } from '@/components/workspace/FundWorkspace';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { POVBrandHeader } from '@/components/ui/POVLogo';
 import { Button } from '@/components/ui/button';
@@ -338,8 +346,30 @@ function PerformanceMetricsPanel({
 }
 
 export default function ModernDashboard() {
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  const view = resolveDashboardView(location, search);
+  const { currentFund } = useFundContext();
+
+  // Unknown or duplicate tab: normalize to the Workspace, retaining a valid fundId.
+  React.useEffect(() => {
+    if (view && !view.normalized) {
+      navigate(buildDashboardHref(null, currentFund?.id ?? null), { replace: true });
+    }
+  }, [currentFund?.id, navigate, view]);
+
+  if (!view || view.view === 'workspace') {
+    return <FundWorkspace selection={view?.fundId ?? { kind: 'absent' }} />;
+  }
+  return <AnalyticsDashboard view={view} />;
+}
+
+function AnalyticsDashboard({ view }: { view: Extract<DashboardView, { view: 'analytics' }> }) {
+  const [, navigate] = useLocation();
   const { currentFund, isLoading } = useFundContext();
-  const [activeView, setActiveView] = useState('overview');
+  const activeView = view.tab;
+  const setActiveView = (tab: string) =>
+    navigate(buildDashboardHref(tab as DashboardTab, currentFund?.id ?? null));
   const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
   const contextRailEnabled = useFlag('enable_context_rail');
   const contextRailSections = buildContextRailSections({
@@ -378,6 +408,29 @@ export default function ModernDashboard() {
       ...(typed.snapshot ? { snapshot: typed.snapshot } : {}),
     };
   };
+
+  if (!isLoading && !currentFund) {
+    return (
+      <div className="min-h-screen bg-pov-gray">
+        <POVBrandHeader
+          title="Analytics"
+          subtitle="Choose a fund to view analytics"
+          variant="light"
+        />
+        <div className="max-w-7xl mx-auto px-6 py-8" data-testid="analytics-select-fund">
+          <p className="text-sm text-presson-text">No fund is selected.</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4"
+            onClick={() => navigate(buildDashboardHref(null, null))}
+          >
+            Choose a fund in the workspace
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !currentFund) {
     return (
@@ -512,6 +565,15 @@ export default function ModernDashboard() {
           </div>
 
           <div className="flex items-center space-x-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(buildDashboardHref(null, currentFund.id))}
+              data-testid="analytics-workspace-action"
+            >
+              Workspace
+            </Button>
             {contextRailEnabled && (
               <ContextRailTrigger sections={contextRailSections} className="xl:hidden" />
             )}

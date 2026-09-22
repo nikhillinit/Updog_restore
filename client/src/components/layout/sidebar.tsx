@@ -234,10 +234,10 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
               Configure your fund to access all features
             </p>
             <Link
-              href="/fund-setup"
+              href="/dashboard"
               className="block w-full bg-pov-charcoal text-pov-white px-3 py-2 rounded-md text-sm font-medium hover:bg-charcoal-700 transition-all duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2"
             >
-              Start Fund Setup
+              Open fund workspace
             </Link>
           </div>
         )}

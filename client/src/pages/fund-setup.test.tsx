@@ -12,6 +12,9 @@ const state = vi.hoisted(() => ({
     error: null as string | null,
     retry: vi.fn(),
     isHydrating: false,
+    loadServerDraft: vi.fn(),
+    keepLocalDraft: vi.fn(),
+    missingDraftFundId: null as number | null,
   },
   redirectUrl: null as string | null,
   navigate: vi.fn(),
@@ -65,6 +68,19 @@ vi.mock('@/hooks/useFundDraftSync', () => ({
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (value: { draftFundId: number | null }) => unknown) =>
     selector({ draftFundId: state.draftFundId }),
+  useFundTuple: (
+    selector: (value: {
+      hydrated: boolean;
+      draftServerReady: boolean;
+      fundName?: string;
+    }) => unknown
+  ) => selector({ hydrated: true, draftServerReady: false }),
+}));
+
+vi.mock('@/stores/fundStore', () => ({
+  fundStore: {
+    getState: () => ({ resumeServerDraft: vi.fn(), startNewFundSession: vi.fn() }),
+  },
 }));
 
 vi.mock('@/lib/wizard-telemetry', () => ({
@@ -162,8 +178,8 @@ describe('FundSetup', () => {
   });
 
   it.each([
-    ['saving', 'Saving authoritative server draft...'],
-    ['synced', 'Draft saved'],
+    ['saving', 'Saving draft'],
+    ['synced', 'Latest draft saved'],
   ] as const)('shows %s draft status', (status, label) => {
     state.draftFundId = 42;
     state.sync.status = status;

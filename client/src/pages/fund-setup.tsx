@@ -15,7 +15,9 @@ import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
-import { useFundSelector } from '@/stores/useFundSelector';
+import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
+import { fundStore } from '@/stores/fundStore';
+import { parseFundIdParam } from '@/lib/fund-routes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
@@ -104,10 +106,35 @@ function useStepKey(): StepKey {
 export default function FundSetup() {
   const key = useStepKey();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { markStepVisited, getRedirectUrl } = useWizardStepGuard();
   const draftFundId = useFundSelector((s) => s.draftFundId);
-  const { status, error, retry, isHydrating } = useFundDraftSync({ stepKey: key });
+  const [hydrated, draftServerReady, fundName] = useFundTuple(
+    (s) => [s.hydrated, s.draftServerReady, s.fundName] as const
+  );
+  const { status, error, retry, isHydrating, loadServerDraft, keepLocalDraft, missingDraftFundId } =
+    useFundDraftSync({ stepKey: key });
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
+  const explicitFund = React.useMemo(() => parseFundIdParam(search), [search]);
+  const [switchBlocked, setSwitchBlocked] = React.useState(false);
+
+  // Explicit ?fundId=N: resume that server draft, unless a different local
+  // session still has unsettled changes. Bare /fund-setup never creates anything.
+  React.useEffect(() => {
+    if (!hydrated || explicitFund.kind !== 'valid' || explicitFund.id === draftFundId) return;
+    const settled = draftServerReady && (status === 'idle' || status === 'synced');
+    if (draftFundId == null || settled) {
+      fundStore.getState().resumeServerDraft(explicitFund.id);
+      setSwitchBlocked(false);
+      return;
+    }
+    setSwitchBlocked(true);
+  }, [draftFundId, draftServerReady, explicitFund, hydrated, status]);
+
+  const startNewFund = React.useCallback(() => {
+    fundStore.getState().startNewFundSession();
+    setLocation('/fund-setup?step=1');
+  }, [setLocation]);
 
   // Get current step number from key
   const currentStepNumber = WIZARD_STEPS.find((s) => s.id === key)?.number || 1;
@@ -176,14 +203,71 @@ export default function FundSetup() {
           >
             <div className="flex items-center gap-3 rounded-xl border border-beige-200 bg-pov-white px-6 py-4 text-sm font-poppins text-pov-charcoal shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading saved draft from the server...
+              Loading your draft
             </div>
           </div>
         ) : (
           <>
+            {(switchBlocked || explicitFund.kind === 'invalid') && (
+              <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+                <Alert
+                  aria-live="polite"
+                  className="border-l-4 border-l-warning bg-warning/10"
+                  data-testid="draft-switch-blocked"
+                >
+                  <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" />
+                  <AlertTitle>
+                    {explicitFund.kind === 'invalid'
+                      ? 'That fund address is not valid'
+                      : 'Another draft is still open in this tab'}
+                  </AlertTitle>
+                  <AlertDescription className="flex flex-wrap items-center gap-3">
+                    <span>
+                      {explicitFund.kind === 'invalid'
+                        ? 'Choose a fund from the workspace instead.'
+                        : `Settle changes to ${fundName?.trim() || 'the current draft'} before opening another draft.`}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setLocation('/dashboard')}
+                    >
+                      Open fund workspace
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             {draftFundId != null && status !== 'idle' && (
               <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
-                {status === 'error' ? (
+                {missingDraftFundId === draftFundId ? (
+                  <Alert
+                    aria-live="assertive"
+                    className="border-l-4 border-l-error bg-error/10"
+                    data-testid="draft-missing"
+                  >
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
+                    <AlertTitle>No active draft</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center gap-3">
+                      <span>
+                        This fund has no active draft to edit. Open its model, or start a new fund.
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setLocation(`/fund-model-results/${draftFundId}`)}
+                      >
+                        Open model
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={startNewFund}>
+                        Start a new fund
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : status === 'error' ? (
                   <Alert
                     aria-live="assertive"
                     className="border-l-4 border-l-error bg-error/10"
@@ -192,9 +276,45 @@ export default function FundSetup() {
                     <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
                     <AlertTitle>Draft Sync Failed</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
-                      <span>{error ?? 'Unable to sync the authoritative draft.'}</span>
+                      <span>{error ?? 'Could not save changes'}</span>
                       <Button type="button" size="sm" variant="outline" onClick={retry}>
                         Retry Sync
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : status === 'stale' ? (
+                  <Alert
+                    aria-live="assertive"
+                    className="border-l-4 border-l-warning bg-warning/10"
+                    data-testid="draft-stale"
+                  >
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" />
+                    <AlertTitle>A newer draft is available</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center gap-3">
+                      <span>
+                        Your local values are kept. Load the saved draft, or keep your changes and
+                        save them over it.
+                      </span>
+                      <Button type="button" size="sm" variant="outline" onClick={loadServerDraft}>
+                        Load server draft
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={keepLocalDraft}>
+                        Keep my changes
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : status === 'uncertain' ? (
+                  <Alert
+                    aria-live="assertive"
+                    className="border-l-4 border-l-warning bg-warning/10"
+                    data-testid="draft-uncertain"
+                  >
+                    <AlertTriangle aria-hidden="true" className="h-4 w-4 text-warning" />
+                    <AlertTitle>Save not confirmed</AlertTitle>
+                    <AlertDescription className="flex flex-wrap items-center gap-3">
+                      <span>{error ?? 'Could not confirm the save; it may have completed'}</span>
+                      <Button type="button" size="sm" variant="outline" onClick={retry}>
+                        Check save status
                       </Button>
                     </AlertDescription>
                   </Alert>
@@ -204,9 +324,7 @@ export default function FundSetup() {
                     className="rounded-xl border border-beige-200 bg-pov-white px-4 py-3 text-sm font-poppins text-charcoal-600 shadow-sm"
                     data-testid="draft-sync-status"
                   >
-                    {status === 'saving'
-                      ? 'Saving authoritative server draft...'
-                      : 'Draft saved to server'}
+                    {status === 'saving' ? 'Saving draft' : 'Latest draft saved'}
                   </div>
                 )}
               </div>

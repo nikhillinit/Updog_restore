@@ -3,6 +3,11 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fundStore } from '@/stores/fundStore';
+import { ApiError } from '@/lib/queryClient';
+import { FundWorkflowUncertainError } from '@/services/fund-workflow';
+
+const SERVER_ETAG = '"0000000000000001"';
+const NEXT_ETAG = '"0000000000000002"';
 
 const mockLocation = { value: '/fund-setup?step=1' };
 const mockSetLocation = vi.fn((next: string) => {
@@ -44,7 +49,8 @@ vi.mock('@/lib/wizard-telemetry', () => ({
   emitWizard: vi.fn(),
 }));
 
-vi.mock('@/services/fund-drafts', () => ({
+vi.mock('@/services/fund-drafts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/fund-drafts')>()),
   fetchFundDraft: (...args: unknown[]) => mockFetchFundDraft(...args),
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
@@ -111,6 +117,7 @@ describe('FundSetup draft sync', () => {
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
 
     const initialState = fundStore.getInitialState();
     act(() => {
@@ -199,14 +206,17 @@ describe('FundSetup draft sync', () => {
 
   it('hydrates a recovered authoritative draft from the server before rendering the routed step', async () => {
     mockFetchFundDraft.mockResolvedValue({
-      fundName: 'Server Fund',
-      fundSize: 123_000_000,
-      managementFeeRate: 2,
-      carriedInterest: 20,
-      stages: [{ id: 'srv-stage', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-      sectorProfiles: [{ id: 'srv-sector', name: 'FinTech', targetPercentage: 100 }],
-      allocations: [{ id: 'srv-alloc', category: 'New Investments', percentage: 100 }],
-      followOnChecks: { A: 100, B: 200, C: 300 },
+      config: {
+        fundName: 'Server Fund',
+        fundSize: 123_000_000,
+        managementFeeRate: 2,
+        carriedInterest: 20,
+        stages: [{ id: 'srv-stage', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+        sectorProfiles: [{ id: 'srv-sector', name: 'FinTech', targetPercentage: 100 }],
+        allocations: [{ id: 'srv-alloc', category: 'New Investments', percentage: 100 }],
+        followOnChecks: { A: 100, B: 200, C: 300 },
+      },
+      etag: SERVER_ETAG,
     });
 
     act(() => {
@@ -233,11 +243,126 @@ describe('FundSetup draft sync', () => {
 
     expect(fundStore.getState().fundName).toBe('Server Fund');
     expect(fundStore.getState().draftServerReady).toBe(true);
-    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Draft saved to server');
+    expect(fundStore.getState().draftETag).toBe(SERVER_ETAG);
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
+  });
+
+  it('autosaves edits made after a same-tab reload restores a server-ready draft', async () => {
+    mockFetchFundDraft.mockResolvedValue({
+      config: { fundName: 'Restored Fund' },
+      etag: SERVER_ETAG,
+    });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: NEXT_ETAG, replayed: false });
+
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Restored Fund',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved')
+    );
+    await waitFor(() => expect(mockSaveFundDraft).not.toHaveBeenCalled());
+
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), fundName: 'Edited after reload' });
+    });
+
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Saving draft');
+    await waitFor(() => {
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'Edited after reload' }),
+        expect.objectContaining({ etag: SERVER_ETAG })
+      );
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved')
+    );
+    expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
+  });
+
+  it('holds local values and asks for a choice when the acknowledged revision is stale', async () => {
+    mockFetchFundDraft.mockResolvedValue({
+      config: { fundName: 'Server Fund', fundSize: 5 },
+      etag: NEXT_ETAG,
+    });
+
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Local Edits',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('draft-stale')).toBeInTheDocument();
+    });
+    expect(fundStore.getState().fundName).toBe('Local Edits');
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Load server draft' }));
+
+    await waitFor(() => {
+      expect(fundStore.getState().fundName).toBe('Server Fund');
+    });
+    expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
+  });
+
+  it('keeps local values and resubmits them over the current revision on request', async () => {
+    mockFetchFundDraft.mockResolvedValue({
+      config: { fundName: 'Server Fund' },
+      etag: NEXT_ETAG,
+    });
+    mockSaveFundDraft.mockResolvedValue({
+      config: {},
+      etag: '"0000000000000003"',
+      replayed: false,
+    });
+
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Local Edits',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await waitFor(() => expect(screen.getByTestId('draft-stale')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+
+    await waitFor(() => {
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'Local Edits' }),
+        expect.objectContaining({ etag: NEXT_ETAG })
+      );
+    });
+    expect(fundStore.getState().draftETag).toBe('"0000000000000003"');
   });
 
   it('autosaves the routed wizard to the server after draft identity bootstrap', async () => {
-    mockSaveFundDraft.mockResolvedValue({ success: true });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: NEXT_ETAG, replayed: false });
 
     act(() => {
       fundStore.setState({
@@ -258,29 +383,84 @@ describe('FundSetup draft sync', () => {
       });
     });
 
-    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(
-      'Saving authoritative server draft...'
-    );
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Saving draft');
 
     await waitFor(() => {
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         55,
-        expect.objectContaining({ fundName: 'Changed Draft Name' })
+        expect.objectContaining({ fundName: 'Changed Draft Name' }),
+        expect.objectContaining({ key: expect.any(String), etag: null })
       );
     });
 
     expect(fundStore.getState().draftServerReady).toBe(true);
-    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Draft saved to server');
+    expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
+  });
+
+  it('keeps the command key across an uncertain save and replays it on retry', async () => {
+    mockSaveFundDraft
+      .mockRejectedValueOnce(new FundWorkflowUncertainError('Request timed out', true))
+      .mockResolvedValueOnce({ config: {}, etag: NEXT_ETAG, replayed: true });
+
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), draftFundId: 55, draftServerReady: false });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), fundName: 'Uncertain Draft' });
+    });
+
+    await waitFor(() => expect(screen.getByTestId('draft-uncertain')).toBeInTheDocument());
+    const pending = fundStore.getState().pendingCommand;
+    expect(pending?.operation).toBe('save_draft');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Check save status' }));
+
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(2));
+    expect(mockSaveFundDraft.mock.calls[1]?.[2]).toMatchObject({ key: pending?.key });
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved')
+    );
+    expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('reports a stale revision on save without rebasing local values', async () => {
+    mockSaveFundDraft.mockRejectedValueOnce(
+      new ApiError(412, 'Draft revision is stale', 'PRECONDITION_FAILED', undefined, undefined, {
+        current: NEXT_ETAG,
+      })
+    );
+
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), draftFundId: 55, draftServerReady: false });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), fundName: 'Conflicting Draft' });
+    });
+
+    await waitFor(() => expect(screen.getByTestId('draft-stale')).toBeInTheDocument());
+    expect(fundStore.getState().fundName).toBe('Conflicting Draft');
+    expect(fundStore.getState().pendingCommand).toBeNull();
   });
 
   it('retries authoritative draft hydration when the initial server load fails', async () => {
     mockFetchFundDraft.mockRejectedValueOnce(new Error('Draft load failed')).mockResolvedValueOnce({
-      fundName: 'Recovered Fund',
-      fundSize: 75_000_000,
-      stages: [{ id: 'recovered-stage', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-      sectorProfiles: [{ id: 'recovered-sector', name: 'AI', targetPercentage: 100 }],
-      allocations: [{ id: 'recovered-alloc', category: 'New Investments', percentage: 100 }],
-      followOnChecks: { A: 10, B: 20, C: 30 },
+      config: {
+        fundName: 'Recovered Fund',
+        fundSize: 75_000_000,
+        stages: [{ id: 'recovered-stage', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+        sectorProfiles: [{ id: 'recovered-sector', name: 'AI', targetPercentage: 100 }],
+        allocations: [{ id: 'recovered-alloc', category: 'New Investments', percentage: 100 }],
+        followOnChecks: { A: 10, B: 20, C: 30 },
+      },
+      etag: SERVER_ETAG,
     });
 
     act(() => {
@@ -311,8 +491,8 @@ describe('FundSetup draft sync', () => {
     expect(fundStore.getState().fundName).toBe('Recovered Fund');
   });
 
-  it('silently falls back to draftless bootstrap when no recovered server draft exists', async () => {
-    mockFetchFundDraft.mockRejectedValueOnce(new Error('No draft found'));
+  it('stops on a fund with no active draft and offers its model instead of recreating one', async () => {
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(404, 'No draft found'));
 
     act(() => {
       fundStore.setState({
@@ -331,14 +511,16 @@ describe('FundSetup draft sync', () => {
     });
 
     await waitFor(() => {
-      expect(fundStore.getState().draftServerReady).toBe(false);
+      expect(screen.getByTestId('draft-missing')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
     expect(screen.queryByTestId('draft-hydrating')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('draft-sync-error')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('draft-sync-status')).not.toBeInTheDocument();
     expect(fundStore.getState().draftFundId).toBe(91);
+    expect(fundStore.getState().draftServerReady).toBe(true);
     expect(fundStore.getState().fundName).toBe('Local Cache Fund');
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open model' }));
+    expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/91');
   });
 });

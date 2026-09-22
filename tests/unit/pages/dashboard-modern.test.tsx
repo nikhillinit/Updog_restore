@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ModernDashboard from '@/pages/dashboard-modern';
 
@@ -32,8 +32,15 @@ vi.mock('@/components/sharing/ShareConfigModal', () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/components/workspace/FundWorkspace', () => ({
+  FundWorkspace: ({ selection }: { selection: { kind: string } }) => (
+    <div>Fund Workspace {selection.kind}</div>
+  ),
+}));
+
 describe('ModernDashboard', () => {
   beforeEach(() => {
+    window.history.pushState({}, '', '/dashboard?tab=overview&fundId=42');
     mockUseFundContext.mockReturnValue({
       currentFund: { id: 42, name: 'Fund Forty Two', size: 50_000_000 },
       isLoading: false,
@@ -76,6 +83,49 @@ describe('ModernDashboard', () => {
 
   afterEach(() => {
     window.localStorage.clear();
+    window.history.pushState({}, '', '/');
+  });
+
+  it('renders the account-wide Workspace when no tab is present', () => {
+    window.history.pushState({}, '', '/dashboard?fundId=42');
+    render(<ModernDashboard />);
+
+    expect(screen.getByText('Fund Workspace valid')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /overview/i })).not.toBeInTheDocument();
+  });
+
+  it('normalizes an unknown tab to the Workspace while retaining the fund', async () => {
+    window.history.pushState({}, '', '/dashboard?tab=bogus&fundId=42');
+    render(<ModernDashboard />);
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('?fundId=42');
+    });
+    expect(screen.getByText('Fund Workspace valid')).toBeInTheDocument();
+  });
+
+  it('drives the analytics tab from the URL and retains the fund on change', async () => {
+    const user = userEvent.setup();
+    render(<ModernDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /performance/i }));
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('?tab=performance&fundId=42');
+    });
+    expect(screen.getByText(/supported performance metrics/i)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('analytics-workspace-action'));
+    await waitFor(() => {
+      expect(window.location.search).toBe('?fundId=42');
+    });
+  });
+
+  it('asks for a fund selection in analytics mode when none is selected', () => {
+    mockUseFundContext.mockReturnValue({ currentFund: null, isLoading: false });
+    render(<ModernDashboard />);
+
+    expect(screen.getByTestId('analytics-select-fund')).toBeInTheDocument();
   });
 
   it('renders supported overview metrics instead of broad deferred copy', () => {

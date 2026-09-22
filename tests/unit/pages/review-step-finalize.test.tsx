@@ -26,7 +26,8 @@ vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=7', mockSetLocation],
 }));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     invalidateQueries: mockInvalidateQueries,
   }),
@@ -81,6 +82,12 @@ const mockFundState = {
   setDraftFundId: vi.fn(),
   draftServerReady: false,
   setDraftServerReady: vi.fn(),
+  draftETag: '"0123456789abcdef"' as string | null,
+  draftSyncStatus: 'synced' as string,
+  pendingCommand: null,
+  beginCommand: vi.fn(),
+  resolveCommand: vi.fn(),
+  setDraftETag: vi.fn(),
 };
 
 vi.mock('@/stores/useFundSelector', () => ({
@@ -92,6 +99,7 @@ vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
+  fundCommandKey: () => 'finalize-key-1',
 }));
 
 // Mock finalizeFund -- use a mutable reference so tests can override
@@ -126,8 +134,11 @@ describe('ReviewStep single-submit via finalize', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
+    mockFundState.beginCommand.mockReset();
+    mockFundState.resolveCommand.mockReset();
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
     mockUseFlag.mockReset().mockReturnValue(true);
+    mockFundState.draftSyncStatus = 'synced';
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = true;
     mockFundState.modelInputsAsOfDate = '2026-06-30';
@@ -223,8 +234,39 @@ describe('ReviewStep single-submit via finalize', () => {
         managementFee: 0.025,
         carryPercentage: 0.2,
         vintageYear: 2026,
-      })
+      }),
+      { key: 'finalize-key-1', etag: '"0123456789abcdef"' }
     );
+    expect(mockFundState.beginCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'finalize', key: 'finalize-key-1', targetFundId: 77 })
+    );
+  });
+
+  it('blocks publish while the draft save is unsettled', async () => {
+    mockFundState.draftSyncStatus = 'saving';
+
+    render(<ReviewStep />);
+
+    expect(screen.getByTestId('create-fund-button')).toBeDisabled();
+    expect(screen.getByText('Settle the draft save before publishing.')).toBeInTheDocument();
+    mockFundState.draftSyncStatus = 'synced';
+  });
+
+  it('keeps the command and offers a status check when the outcome is uncertain', async () => {
+    const { FundWorkflowUncertainError } = await import('@/services/fund-workflow');
+    mockFinalizeFund.mockRejectedValueOnce(
+      new FundWorkflowUncertainError('Request timed out', true)
+    );
+
+    render(<ReviewStep />);
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('publish-uncertain-alert')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Check publication status')).toBeInTheDocument();
+    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
   it('stops post-finalize navigation and surfaces reauth when renewal is required', async () => {
@@ -408,12 +450,9 @@ describe('ReviewStep single-submit via finalize', () => {
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/funds'] });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['funds'] });
-    expect(mockSetCurrentFund).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 77,
-        name: 'Finalize Test Fund',
-      })
-    );
+    // Lifecycle truth comes from the fund-scoped results route; no local Active status.
+    expect(mockSetCurrentFund).not.toHaveBeenCalled();
+    expect(mockFundState.resolveCommand).toHaveBeenCalled();
   });
 
   it('shows error message on failure', async () => {

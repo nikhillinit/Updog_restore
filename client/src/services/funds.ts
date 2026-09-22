@@ -1,15 +1,16 @@
 // client/src/services/funds.ts
-// Idempotent + cancellable fund creation with timeout and telemetry
-// Single source of truth lives in the store; this is a belt-and-suspenders final check.
+// Fund creation and finalize commands over the fund-workflow/v1 transport.
+// Keys are UUIDs reserved by the caller and persisted before dispatch, so a
+// retry after an uncertain outcome replays the same command.
 
 import { clampPct, clampInt } from '../lib/coerce';
 import * as Telemetry from '../lib/telemetry';
-import { startInFlight, isInFlight, cancelInFlight, inFlightSize } from '../lib/inflight';
-import { withApiBase } from '../lib/api-url';
+import { startInFlight, isInFlight, cancelInFlight } from '../lib/inflight';
 import type {
   FundFinalizeResponseV1,
   FundFinalizeV1,
 } from '@shared/contracts/fund-finalize-v1.contract';
+import { newWorkflowKey, workflowRequest, type WorkflowResult } from './fund-workflow';
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
@@ -29,114 +30,31 @@ interface FundPayload {
 }
 
 export interface CreateFundOptions {
+  /** UUID reserved for this creation; reused on retry so replay returns the same fund. */
+  idempotencyKey?: string;
   endpoint?: string; // default: '/api/funds'
-  method?: 'POST' | 'PUT'; // default: 'POST'
   timeoutMs?: number; // default: 10_000
   signal?: AbortSignal; // optional external signal
-  dedupe?: boolean; // default: true
   telemetry?: boolean; // default: true
-  reuseExisting?: boolean; // default: false - reuse existing fund if found
 }
 
 export interface CreateFundResult {
-  res: Response;
-  hash: string;
-  aborted: boolean;
+  status: number;
+  body: unknown;
+  etag: string | null;
+  replayed: boolean;
+  key: string;
   durationMs: number;
 }
 
-const DEFAULT_ENDPOINT = withApiBase('/api/funds');
-const DEFAULT_TIMEOUT = 10_000;
+const DEFAULT_ENDPOINT = '/api/funds';
 
-// ---------- Stable stringify + FNV-1a hash (deterministic) ----------
-function stableStringify(value: unknown): string {
-  const seen = new WeakSet();
-  const walk = (v: unknown): unknown => {
-    if (v === null || typeof v !== 'object') return v;
-    if (seen.has(v as object)) return '[Circular]';
-    seen.add(v as object);
-
-    if (Array.isArray(v)) return v.map(walk);
-
-    const obj = v as Record<string, unknown>;
-    const out: Record<string, unknown> = {};
-    for (const k of Object.keys(obj).sort()) out[k] = walk(obj[k]);
-    return out;
-  };
-  return JSON.stringify(walk(value));
+export function isCreateFundInFlight(key: string) {
+  return isInFlight(key);
 }
 
-function fnv1a(input: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-  // unsigned >>> 0, represent as hex
-  return (hash >>> 0).toString(16);
-}
-
-export function computeCreateFundHash(payload: Json): string {
-  // Add environment namespace to avoid cross-env collisions
-  const namespace = `${import.meta.env.MODE || 'unknown-env'}|fund-create|`;
-  return fnv1a(namespace + stableStringify(payload));
-}
-
-export function computeFinalizeFundHash(
-  payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
-): string {
-  const namespace = `${import.meta.env.MODE || 'unknown-env'}|fund-finalize|`;
-  return fnv1a(namespace + stableStringify(payload));
-}
-
-// ---------- Compose timeout + external AbortSignal ----------
-function _composeSignal(timeoutMs: number, external?: AbortSignal) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(new DOMException('Timeout', 'AbortError')), timeoutMs);
-
-  const onAbort = () => ctrl.abort(external?.reason ?? new DOMException('Aborted', 'AbortError'));
-  if (external) {
-    if (external.aborted) onAbort();
-    else external.addEventListener('abort', onAbort, { once: true });
-  }
-
-  const cleanup = () => {
-    clearTimeout(timer);
-    if (external) external.removeEventListener('abort', onAbort);
-  };
-
-  return { signal: ctrl.signal, controller: ctrl, cleanup };
-}
-
-// ---------- In-flight de-duplication registry (in-flight only, no cache) ----------
-// Purpose: Prevent duplicate requests while in-flight. Server handles post-completion idempotency.
-const IDEMPOTENCY_MAX = Number(import.meta.env.VITE_IDEMPOTENCY_MAX || 200);
-
-type InflightEntry = {
-  promise: Promise<CreateFundResult>;
-  controllers: AbortController[];
-  startedAt: number;
-};
-
-const inflight = new Map<string, InflightEntry>();
-
-// Ensure we don't exceed capacity (throw if at limit)
-function _assertInflightCapacity() {
-  if (inflight.size >= IDEMPOTENCY_MAX) {
-    const err = new Error('Too many concurrent requests; please retry shortly.') as Error & {
-      code?: string;
-    };
-    err.code = 'CAPACITY_EXCEEDED';
-    throw err;
-  }
-}
-
-export function isCreateFundInFlight(hash: string) {
-  return isInFlight(hash);
-}
-
-export function cancelCreateFund(hash: string) {
-  return cancelInFlight(hash);
+export function cancelCreateFund(key: string) {
+  return cancelInFlight(key);
 }
 
 // ---------- Final clamp before wire (defense-in-depth) ----------
@@ -165,140 +83,72 @@ function finalizePayload(payload: Json): FundPayload {
   }
 }
 
+function track(event: string, data: Record<string, unknown>) {
+  try {
+    Telemetry.track(event, data);
+  } catch {
+    // Ignore telemetry errors
+  }
+}
+
 // ---------- Main entry ----------
 export async function startCreateFund(
   payload: Json,
   opts: CreateFundOptions = {}
 ): Promise<CreateFundResult> {
-  const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
-  const method = opts.method ?? 'POST';
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT;
-  const dedupe = opts.dedupe ?? true;
-  const useTelemetry = opts.telemetry ?? true;
-
+  const key = opts.idempotencyKey ?? newWorkflowKey();
   const finalized = finalizePayload(payload);
-  const hash = computeCreateFundHash(finalized as Json);
-
+  const useTelemetry = opts.telemetry ?? true;
   // Optional: 1 ms hold only in test to avoid flicker; keep 0 in prod if you prefer.
   const holdForMs = import.meta.env?.MODE === 'test' ? 1 : 0;
 
-  if (!dedupe) {
-    // Skip deduplication - create unique key with timestamp
-    const uniqueHash = `${hash}-${Date.now()}-${Math.random()}`;
-    return startInFlight(
-      uniqueHash,
-      async ({ signal }) => {
-        return await executeCreateFund(
-          finalized,
-          endpoint,
-          method,
-          timeoutMs,
-          signal,
-          useTelemetry,
-          hash
-        );
-      },
-      { holdForMs }
-    );
-  }
-
+  // Same key in flight = same command; join it instead of dispatching twice.
   return startInFlight(
-    hash,
+    key,
     async ({ signal }) => {
-      return await executeCreateFund(
-        finalized,
-        endpoint,
-        method,
-        timeoutMs,
-        signal,
-        useTelemetry,
-        hash
-      );
+      const startedAt = performance.now();
+      if (useTelemetry) track('fund_create_attempt', { request_id: key });
+      try {
+        const result: WorkflowResult<unknown> = await workflowRequest(
+          'POST',
+          opts.endpoint ?? DEFAULT_ENDPOINT,
+          finalized,
+          {
+            key,
+            signal: opts.signal ? anySignal(signal, opts.signal) : signal,
+            ...(opts.timeoutMs != null ? { timeoutMs: opts.timeoutMs } : {}),
+          }
+        );
+        const durationMs = Math.round(performance.now() - startedAt);
+        if (useTelemetry) {
+          track('fund_create_success', {
+            idempotency_status: result.replayed ? 'replayed' : 'created',
+            request_id: key,
+          });
+        }
+        return { ...result, key, durationMs };
+      } catch (err) {
+        if (useTelemetry) {
+          track('fund_create_failure', { idempotency_status: 'error', request_id: key });
+        }
+        throw Object.assign(err instanceof Error ? err : new Error('Create fund failed'), {
+          key,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+      }
     },
     { holdForMs }
   );
 }
 
-// Helper function to execute the actual fund creation
-async function executeCreateFund(
-  finalized: FundPayload,
-  endpoint: string,
-  method: string,
-  timeoutMs: number,
-  signal: AbortSignal,
-  useTelemetry: boolean,
-  hash: string
-): Promise<CreateFundResult> {
-  const startedAt = performance.now();
-
-  // Track attempt
-  if (useTelemetry) {
-    try {
-      Telemetry.track('fund_create_attempt', {
-        request_id: hash,
-      });
-    } catch {
-      // Ignore telemetry errors
-    }
+function anySignal(first: AbortSignal, second: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const signal of [first, second]) {
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
   }
-
-  try {
-    const res = await fetch(endpoint, {
-      method,
-      signal,
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': hash, // Server-side deduplication
-      },
-      body: JSON.stringify(finalized),
-    });
-
-    const durationMs = Math.round(performance.now() - startedAt);
-    if (useTelemetry) {
-      try {
-        const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
-        const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
-        Telemetry.track(eventName, {
-          idempotency_status: idempotencyStatus,
-          request_id: hash,
-        });
-      } catch {
-        // Ignore telemetry errors
-      }
-    }
-    return { res, hash, aborted: false, durationMs };
-  } catch (err) {
-    const error = err as Error & { name?: string; message?: string };
-    const aborted = error?.name === 'AbortError';
-    const durationMs = Math.round(performance.now() - startedAt);
-    if (useTelemetry) {
-      try {
-        Telemetry.track('fund_create_failure', {
-          idempotency_status: 'error',
-          request_id: hash,
-        });
-      } catch {
-        // Ignore telemetry errors
-      }
-    }
-    // surface same shape; callers can inspect aborted if needed
-    const fundError = err instanceof Error ? err : new Error('Create fund failed');
-    throw Object.assign(fundError, { aborted, hash, durationMs });
-  }
-}
-
-// ---------- Toast throttling for capacity hits ----------
-let lastCapacityToast = 0;
-const TOAST_THROTTLE_MS = 10_000; // One toast every 10 seconds max
-
-function maybeToastCapacity() {
-  const now = Date.now();
-  if (now - lastCapacityToast > TOAST_THROTTLE_MS) {
-    lastCapacityToast = now;
-    return true;
-  }
-  return false;
+  return controller.signal;
 }
 
 export interface NormalizedFundResponse {
@@ -324,7 +174,6 @@ export function normalizeCreateFundResponse(raw: unknown): NormalizedFundRespons
   throw new Error('Invalid fund response: missing id');
 }
 
-// ---------- Convenience wrappers for backward compatibility ----------
 /**
  * Fund creation commits before credential renewal, so a
  * credentialRenewal: 'reauth_required' marker means the fund exists but this
@@ -345,80 +194,38 @@ export function handleCredentialRenewalMarker(body: unknown): boolean {
   return false;
 }
 
-export async function createFund(payload: Json, options?: CreateFundOptions): Promise<unknown> {
+/** POST /api/funds with a caller-reserved key. Throws ApiError / FundWorkflowUncertainError. */
+export async function createFund(
+  payload: Json,
+  options: CreateFundOptions & { idempotencyKey: string }
+): Promise<CreateFundResult> {
   const result = await startCreateFund(payload, options);
-  if (!result.res.ok) {
-    throw new Error(`Fund creation failed: ${result.res.status}`);
-  }
-  const data: unknown = await result.res.json();
-  handleCredentialRenewalMarker(data);
-  return data;
+  handleCredentialRenewalMarker(result.body);
+  return result;
 }
 
-export async function createFundWithToast(payload: Json, options?: CreateFundOptions) {
-  const { toast } = await import('../lib/toast');
-
-  try {
-    const result = await startCreateFund(payload, options);
-    if (!result.res.ok) {
-      const text = await result.res.text().catch(() => '');
-      toast(`❌ Failed to save fund: ${text || result.res.statusText}`, 'error');
-      return null;
-    }
-    const data: unknown = await result.res.json();
-    toast('✅ Fund saved successfully!', 'success');
-    return data;
-  } catch (err) {
-    const error = err as { aborted?: boolean; code?: string };
-    if (error?.aborted) {
-      toast('⚠️ Save cancelled', 'info');
-    } else if (error?.code === 'CAPACITY_EXCEEDED') {
-      // Throttled user-friendly capacity hit message
-      const showToast = maybeToastCapacity();
-      if (showToast) {
-        toast(
-          '⚠️ You have too many concurrent operations. Please wait a moment and try again.',
-          'info'
-        );
-      }
-      // Always track capacity hit for observability
-      try {
-        Telemetry.track('client_capacity_hit', {
-          route: '/api/funds',
-          concurrent: inFlightSize(),
-          throttled: !showToast,
-        });
-      } catch {
-        // Ignore telemetry errors
-      }
-    } else {
-      toast('❌ Network error saving fund', 'error');
-    }
-    throw err;
-  }
+export interface FinalizeFundOptions {
+  key: string;
+  /** Strong ETag of the reviewed draft; required when draftFundId is set. */
+  etag?: string | null;
+  signal?: AbortSignal;
 }
 
 // ---------- Single-submit finalize endpoint ----------
 export async function finalizeFund(
-  payload: FundFinalizeV1
+  payload: FundFinalizeV1,
+  options: FinalizeFundOptions
 ): Promise<FundFinalizeResponseV1> {
-  const idempotencyKey = computeFinalizeFundHash(payload);
-  const response = await fetch(withApiBase('/api/funds/finalize'), {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const errBody = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      message?: string;
-    };
-    throw new Error(
-      errBody.error || errBody.message || `Finalize failed (HTTP ${response.status})`
-    );
-  }
-  const body = (await response.json()) as FundFinalizeResponseV1;
-  handleCredentialRenewalMarker(body);
-  return body;
+  const result = await workflowRequest<FundFinalizeResponseV1>(
+    'POST',
+    '/api/funds/finalize',
+    payload,
+    {
+      key: options.key,
+      etag: payload.draftFundId != null ? (options.etag ?? null) : null,
+      ...(options.signal ? { signal: options.signal } : {}),
+    }
+  );
+  handleCredentialRenewalMarker(result.body);
+  return result.body;
 }

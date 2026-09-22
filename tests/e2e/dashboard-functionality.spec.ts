@@ -14,7 +14,7 @@ test.describe('Dashboard Functionality', () => {
     console.warn(`Testing with fund: ${fund.fundName} (id: ${fund.fundId})`);
 
     // Navigate to dashboard
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
     await dashboardPage.waitForLoadingToComplete();
 
     // Skip if still redirected to fund-setup (fund fixture should prevent this)
@@ -189,7 +189,7 @@ test.describe('Dashboard Functionality', () => {
 
   test('should handle loading states gracefully', async () => {
     // Navigate to dashboard and verify loading is handled
-    await dashboardPage.goto('dashboard');
+    await dashboardPage.goto('dashboard?tab=overview');
 
     // Wait for loading to complete
     await dashboardPage.waitForLoadingToComplete();
