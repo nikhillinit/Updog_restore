@@ -10804,7 +10804,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "d6d5cd6f0686d156fef932b509092221536274ecc9bacc2dffde5b07d69090df",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -29498,7 +29498,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "50a48c80a06fb4e682f6cad68eae36d989fd32cac20c6ef0ea188bd0e59a2c81",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -30478,7 +30478,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "29bd50e9b1b73860c7f09e316a23548ab0085664ab550c496eb8400e9dfa3885",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -30910,7 +30910,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "ac999640fb6f13f0a92448ea8588db99d538199489f293c077be331d835423fd",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -31342,7 +31342,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "c21f7fd5194b29206a088570b98f85537bd71c19d9068b58064630f8aee91225",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -31774,7 +31774,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "312a7585a74887339545905430eba7fb8ba680d3e496a95e7f99d217535855d0",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -32206,7 +32206,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "038fa8efb098a1f03f571975d40df92bc49180e834864db26f59ceea9e882b98",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -33274,7 +33274,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "1a51db8e8d5086915f4a665122786ddcad2e7366ade07733c2b49daa5e4da211",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -55436,7 +55436,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "a938270b5133546c57df7c41af0f8136be13e0cd5205eee98001b68919d89f91",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -56864,7 +56864,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "e3948d033b09dafde48dc421f6409aa1c4c4eeb0dc276390bba9dc0c37b0ea5c",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -67701,7 +67701,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "79daf01946c3b43853f80eeb3599776e89863e462afa51d28b7c442e7ce5ecf5",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -71406,7 +71406,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "725dd893802d184643957b78e020b9be7075ea0bdc77d487dd65665b1aa070e1",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -71729,7 +71729,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "3ae8d4b193eed815eab3328747de6603e5b2c00936850e90be66a59ff78ce43f",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -72052,7 +72052,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "bdfbaeea3ad042a667e25cf48528ef7d0beaef55d682b77156cb21ac16325991",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -72375,7 +72375,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "e53d5e8fbe6218bfcf526952b55a93592ea663081d4a55c0b5d74f4bd69c1661",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -89398,7 +89398,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "b4f3e90dc608df412c04dddbdc278b6f123e7c4275464a3f91c420ba59c67e4b",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -89721,7 +89721,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "7d571f8ec65add0c809fe1b10522f52f562ba8d6835e2634d8fa68cdadd901d5",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -91518,7 +91518,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "7484a1ffbfe733feb2d1303c5bcffd1b215c5ef5caf5cf5455b504df53ca85ee",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -91984,7 +91984,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "1f401f083c5934b4cb16308f1c3e7a17f5d5e384bd8ff89480e0f3f88395a36c",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -94108,7 +94108,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "c7c7551bbf654ad51299cfa43a90f563d48cb08777e1a6a9d5a08bdb33d2bdb6",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -94591,7 +94591,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "66516c688c6cf8510737f8eebb9f2642b7beb492d9e3bd031a0f37032bf027ea",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -103430,7 +103430,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_evidence": "owner-attestation:pr1558:2026-09-22:payload-sha256=26fb3dae5b7482e7e64651e5577af9d31c57ec964203d296ef96be8ba21dc5c2",
       "contract_fingerprint": "bea51d8a35686cbd0af82056b501882cf24a93fb69fa80521aa1d3b40a3db93b",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
@@ -116110,7 +116110,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:51112591c46c5f2d3ddb4a67921ba69637fa03cfb72dbdec98f5be4b7eb4bba1",
+      "snapshot_id": "snapshot:57c4ad5985c6b13bb5e93f283421f756da484f1d9afcbba2da3b05c494632286",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,

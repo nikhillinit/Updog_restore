@@ -316,22 +316,6 @@
         }
       }
     },
-    "api:GET:/api/funds": {
-      "row_id": "api:GET:/api/funds",
-      "contract_fingerprint": "d6d5cd6f0686d156fef932b509092221536274ecc9bacc2dffde5b07d69090df",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/funds.ts=e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
     "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions": {
       "row_id": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
       "contract_fingerprint": "dbe01fc22a4e5822d5febfaf931d1d1455097a5fbab9e4d5af866b25a7d184d0",
@@ -956,34 +940,6 @@
         }
       }
     },
-    "api:GET:/api/funds/:id": {
-      "row_id": "api:GET:/api/funds/:id",
-      "contract_fingerprint": "50a48c80a06fb4e682f6cad68eae36d989fd32cac20c6ef0ea188bd0e59a2c81",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/funds.ts=e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "50a48c80a06fb4e682f6cad68eae36d989fd32cac20c6ef0ea188bd0e59a2c81"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "50a48c80a06fb4e682f6cad68eae36d989fd32cac20c6ef0ea188bd0e59a2c81"
-        }
-      }
-    },
     "api:GET:/api/funds/:id/alerts": {
       "row_id": "api:GET:/api/funds/:id/alerts",
       "contract_fingerprint": "daa60ed1ab64d30b1abf6bc65711a204ea017c07ea0c7abae4841a2a2313edd2",
@@ -1040,146 +996,6 @@
         }
       }
     },
-    "api:GET:/api/funds/:id/draft": {
-      "row_id": "api:GET:/api/funds/:id/draft",
-      "contract_fingerprint": "29bd50e9b1b73860c7f09e316a23548ab0085664ab550c496eb8400e9dfa3885",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "29bd50e9b1b73860c7f09e316a23548ab0085664ab550c496eb8400e9dfa3885"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "29bd50e9b1b73860c7f09e316a23548ab0085664ab550c496eb8400e9dfa3885"
-        }
-      }
-    },
-    "api:GET:/api/funds/:id/lifecycle-history": {
-      "row_id": "api:GET:/api/funds/:id/lifecycle-history",
-      "contract_fingerprint": "ac999640fb6f13f0a92448ea8588db99d538199489f293c077be331d835423fd",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "ac999640fb6f13f0a92448ea8588db99d538199489f293c077be331d835423fd"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "ac999640fb6f13f0a92448ea8588db99d538199489f293c077be331d835423fd"
-        }
-      }
-    },
-    "api:GET:/api/funds/:id/reserves": {
-      "row_id": "api:GET:/api/funds/:id/reserves",
-      "contract_fingerprint": "c21f7fd5194b29206a088570b98f85537bd71c19d9068b58064630f8aee91225",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "c21f7fd5194b29206a088570b98f85537bd71c19d9068b58064630f8aee91225"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "c21f7fd5194b29206a088570b98f85537bd71c19d9068b58064630f8aee91225"
-        }
-      }
-    },
-    "api:GET:/api/funds/:id/results": {
-      "row_id": "api:GET:/api/funds/:id/results",
-      "contract_fingerprint": "312a7585a74887339545905430eba7fb8ba680d3e496a95e7f99d217535855d0",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "312a7585a74887339545905430eba7fb8ba680d3e496a95e7f99d217535855d0"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "312a7585a74887339545905430eba7fb8ba680d3e496a95e7f99d217535855d0"
-        }
-      }
-    },
-    "api:GET:/api/funds/:id/results-comparison": {
-      "row_id": "api:GET:/api/funds/:id/results-comparison",
-      "contract_fingerprint": "038fa8efb098a1f03f571975d40df92bc49180e834864db26f59ceea9e882b98",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "038fa8efb098a1f03f571975d40df92bc49180e834864db26f59ceea9e882b98"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "038fa8efb098a1f03f571975d40df92bc49180e834864db26f59ceea9e882b98"
-        }
-      }
-    },
     "api:GET:/api/funds/:id/sensitivity/runs": {
       "row_id": "api:GET:/api/funds/:id/sensitivity/runs",
       "contract_fingerprint": "729e63ba2daaebd3de7e25c4e98e1ed300c0c7036a30747d2952ac2898088e72",
@@ -1233,34 +1049,6 @@
           "test_coverage": "none-reviewed",
           "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
           "contract_fingerprint": "0d8599a2cb42ebbb1668f56e8bae158b2954ac07500cc584ebcef879dd1c82ee"
-        }
-      }
-    },
-    "api:GET:/api/funds/:id/state": {
-      "row_id": "api:GET:/api/funds/:id/state",
-      "contract_fingerprint": "1a51db8e8d5086915f4a665122786ddcad2e7366ade07733c2b49daa5e4da211",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "1a51db8e8d5086915f4a665122786ddcad2e7366ade07733c2b49daa5e4da211"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "1a51db8e8d5086915f4a665122786ddcad2e7366ade07733c2b49daa5e4da211"
         }
       }
     },
@@ -1768,35 +1556,6 @@
         }
       }
     },
-    "api:PATCH:/api/funds/:fundId/decisions/:decisionId": {
-      "row_id": "api:PATCH:/api/funds/:fundId/decisions/:decisionId",
-      "contract_fingerprint": "a938270b5133546c57df7c41af0f8136be13e0cd5205eee98001b68919d89f91",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-decisions.ts=b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "a938270b5133546c57df7c41af0f8136be13e0cd5205eee98001b68919d89f91"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "a938270b5133546c57df7c41af0f8136be13e0cd5205eee98001b68919d89f91"
-        }
-      }
-    },
     "api:PATCH:/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId": {
       "row_id": "api:PATCH:/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId",
       "contract_fingerprint": "64f47cec15bbecf4c2eee24bdcf35a8e6493b63f6208922cbe4209848d91305e",
@@ -1822,35 +1581,6 @@
           "test_coverage": "none-reviewed",
           "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
           "contract_fingerprint": "64f47cec15bbecf4c2eee24bdcf35a8e6493b63f6208922cbe4209848d91305e"
-        }
-      }
-    },
-    "api:PATCH:/api/funds/:fundId/tasks/:taskId": {
-      "row_id": "api:PATCH:/api/funds/:fundId/tasks/:taskId",
-      "contract_fingerprint": "e3948d033b09dafde48dc421f6409aa1c4c4eeb0dc276390bba9dc0c37b0ea5c",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "e3948d033b09dafde48dc421f6409aa1c4c4eeb0dc276390bba9dc0c37b0ea5c"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "e3948d033b09dafde48dc421f6409aa1c4c4eeb0dc276390bba9dc0c37b0ea5c"
         }
       }
     },
@@ -2047,150 +1777,6 @@
           "test_coverage": "none-reviewed",
           "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
           "contract_fingerprint": "e2dd5a715e9d56d1f707c3b2fcec8bbac72a04a387b71c63cf5e402cae55e2bf"
-        }
-      }
-    },
-    "api:POST:/api/funds": {
-      "row_id": "api:POST:/api/funds",
-      "contract_fingerprint": "79daf01946c3b43853f80eeb3599776e89863e462afa51d28b7c442e7ce5ecf5",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/funds.ts=e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "79daf01946c3b43853f80eeb3599776e89863e462afa51d28b7c442e7ce5ecf5"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "79daf01946c3b43853f80eeb3599776e89863e462afa51d28b7c442e7ce5ecf5"
-        }
-      }
-    },
-    "api:POST:/api/funds/:fundId/decisions": {
-      "row_id": "api:POST:/api/funds/:fundId/decisions",
-      "contract_fingerprint": "725dd893802d184643957b78e020b9be7075ea0bdc77d487dd65665b1aa070e1",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-decisions.ts=b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "725dd893802d184643957b78e020b9be7075ea0bdc77d487dd65665b1aa070e1"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "725dd893802d184643957b78e020b9be7075ea0bdc77d487dd65665b1aa070e1"
-        }
-      }
-    },
-    "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links": {
-      "row_id": "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
-      "contract_fingerprint": "3ae8d4b193eed815eab3328747de6603e5b2c00936850e90be66a59ff78ce43f",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-decisions.ts=b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "3ae8d4b193eed815eab3328747de6603e5b2c00936850e90be66a59ff78ce43f"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "3ae8d4b193eed815eab3328747de6603e5b2c00936850e90be66a59ff78ce43f"
-        }
-      }
-    },
-    "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome": {
-      "row_id": "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
-      "contract_fingerprint": "bdfbaeea3ad042a667e25cf48528ef7d0beaef55d682b77156cb21ac16325991",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-decisions.ts=b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "bdfbaeea3ad042a667e25cf48528ef7d0beaef55d682b77156cb21ac16325991"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "bdfbaeea3ad042a667e25cf48528ef7d0beaef55d682b77156cb21ac16325991"
-        }
-      }
-    },
-    "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede": {
-      "row_id": "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
-      "contract_fingerprint": "e53d5e8fbe6218bfcf526952b55a93592ea663081d4a55c0b5d74f4bd69c1661",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-decisions.ts=b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "e53d5e8fbe6218bfcf526952b55a93592ea663081d4a55c0b5d74f4bd69c1661"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "e53d5e8fbe6218bfcf526952b55a93592ea663081d4a55c0b5d74f4bd69c1661"
         }
       }
     },
@@ -2690,64 +2276,6 @@
         }
       }
     },
-    "api:POST:/api/funds/:fundId/tasks": {
-      "row_id": "api:POST:/api/funds/:fundId/tasks",
-      "contract_fingerprint": "b4f3e90dc608df412c04dddbdc278b6f123e7c4275464a3f91c420ba59c67e4b",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "b4f3e90dc608df412c04dddbdc278b6f123e7c4275464a3f91c420ba59c67e4b"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "b4f3e90dc608df412c04dddbdc278b6f123e7c4275464a3f91c420ba59c67e4b"
-        }
-      }
-    },
-    "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links": {
-      "row_id": "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links",
-      "contract_fingerprint": "7d571f8ec65add0c809fe1b10522f52f562ba8d6835e2634d8fa68cdadd901d5",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/operating-object-tasks.ts=8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "7d571f8ec65add0c809fe1b10522f52f562ba8d6835e2634d8fa68cdadd901d5"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "7d571f8ec65add0c809fe1b10522f52f562ba8d6835e2634d8fa68cdadd901d5"
-        }
-      }
-    },
     "api:POST:/api/funds/:id/alert-rules": {
       "row_id": "api:POST:/api/funds/:id/alert-rules",
       "contract_fingerprint": "f12b8f308127194a66b3d4341cc65e11d129e0a61f8737b1cd7a5ed37a90cb10",
@@ -2860,62 +2388,6 @@
         }
       }
     },
-    "api:POST:/api/funds/:id/publish": {
-      "row_id": "api:POST:/api/funds/:id/publish",
-      "contract_fingerprint": "7484a1ffbfe733feb2d1303c5bcffd1b215c5ef5caf5cf5455b504df53ca85ee",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "7484a1ffbfe733feb2d1303c5bcffd1b215c5ef5caf5cf5455b504df53ca85ee"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "7484a1ffbfe733feb2d1303c5bcffd1b215c5ef5caf5cf5455b504df53ca85ee"
-        }
-      }
-    },
-    "api:POST:/api/funds/:id/recalculate": {
-      "row_id": "api:POST:/api/funds/:id/recalculate",
-      "contract_fingerprint": "1f401f083c5934b4cb16308f1c3e7a17f5d5e384bd8ff89480e0f3f88395a36c",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "1f401f083c5934b4cb16308f1c3e7a17f5d5e384bd8ff89480e0f3f88395a36c"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "1f401f083c5934b4cb16308f1c3e7a17f5d5e384bd8ff89480e0f3f88395a36c"
-        }
-      }
-    },
     "api:POST:/api/funds/:id/sensitivity/stress": {
       "row_id": "api:POST:/api/funds/:id/sensitivity/stress",
       "contract_fingerprint": "e35bf1ebcb35f447e11811d0b85541d6be2cf27e54c051cde1d481c3a5180289",
@@ -3025,50 +2497,6 @@
           "test_coverage": "none-reviewed",
           "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
           "contract_fingerprint": "012f5b7c11b0461d9c269e83676f84b74554797c4237aa9fe4844599e9a882ed"
-        }
-      }
-    },
-    "api:POST:/api/funds/calculate": {
-      "row_id": "api:POST:/api/funds/calculate",
-      "contract_fingerprint": "c7c7551bbf654ad51299cfa43a90f563d48cb08777e1a6a9d5a08bdb33d2bdb6",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/funds.ts=e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:POST:/api/funds/finalize": {
-      "row_id": "api:POST:/api/funds/finalize",
-      "contract_fingerprint": "66516c688c6cf8510737f8eebb9f2642b7beb492d9e3bd031a0f37032bf027ea",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "66516c688c6cf8510737f8eebb9f2642b7beb492d9e3bd031a0f37032bf027ea"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "66516c688c6cf8510737f8eebb9f2642b7beb492d9e3bd031a0f37032bf027ea"
         }
       }
     },
@@ -3209,34 +2637,6 @@
           "test_coverage": "none-reviewed",
           "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
           "contract_fingerprint": "ec552d3c8ecdcceb8053c5c038934169a39721e416473af97641b3b18dc7dfea"
-        }
-      }
-    },
-    "api:PUT:/api/funds/:id/draft": {
-      "row_id": "api:PUT:/api/funds/:id/draft",
-      "contract_fingerprint": "bea51d8a35686cbd0af82056b501882cf24a93fb69fa80521aa1d3b40a3db93b",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "bea51d8a35686cbd0af82056b501882cf24a93fb69fa80521aa1d3b40a3db93b"
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-          "contract_fingerprint": "bea51d8a35686cbd0af82056b501882cf24a93fb69fa80521aa1d3b40a3db93b"
         }
       }
     },
