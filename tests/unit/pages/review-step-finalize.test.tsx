@@ -100,6 +100,7 @@ const mockFundState = {
 };
 
 const mockPrepareFundCommand = vi.fn();
+const mockResetFundWorkspace = vi.fn();
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
@@ -111,6 +112,7 @@ vi.mock('@/stores/fundStore', () => ({
     getState: () => mockFundState,
   },
   prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
+  resetFundWorkspace: () => mockResetFundWorkspace(),
 }));
 
 // Mock finalizeFund -- use a mutable reference so tests can override
@@ -145,6 +147,7 @@ describe('ReviewStep single-submit via finalize', () => {
   beforeEach(() => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
+    mockResetFundWorkspace.mockReset();
     mockFundState.beginCommand.mockReset().mockImplementation((command) => {
       mockFundState.pendingCommand = command;
     });
@@ -539,6 +542,8 @@ describe('ReviewStep single-submit via finalize', () => {
     // Lifecycle truth comes from the fund-scoped results route; no local Active status.
     expect(mockSetCurrentFund).not.toHaveBeenCalled();
     expect(mockFundState.resolveCommand).toHaveBeenCalled();
+    // The published draft is retired; the tab must not resume it.
+    expect(mockResetFundWorkspace).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a finalize response after the workspace session changes', async () => {

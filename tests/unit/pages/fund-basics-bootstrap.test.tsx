@@ -328,7 +328,8 @@ describe('FundBasicsStep bootstrap identity', () => {
       expect(mockCreateFund).not.toHaveBeenCalled();
       expect(mockSaveFundDraft).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();
-      expect(mockFundState.pendingCommand).not.toBeNull();
+      // Never stored, never dispatched: nothing is left pending.
+      expect(mockFundState.pendingCommand).toBeNull();
     }
   );
 

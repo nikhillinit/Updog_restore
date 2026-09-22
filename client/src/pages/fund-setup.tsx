@@ -164,7 +164,8 @@ export default function FundSetup() {
       setSwitchBlocked(false);
       return;
     }
-    const settled = draftServerReady && (status === 'idle' || status === 'synced');
+    // Only a confirmed save is settled; 'idle' after reload can hold unsaved restored edits.
+    const settled = draftServerReady && status === 'synced';
     if (!pendingCommand && (!hasLocalSession || (draftFundId != null && settled))) {
       fundStore.getState().resumeServerDraft(explicitFund.id);
       setSwitchBlocked(false);

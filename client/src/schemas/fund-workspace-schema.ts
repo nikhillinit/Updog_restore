@@ -47,17 +47,45 @@ const pendingCommand = z
   ])
   .refine((value) => value.targetFundId !== null || value.expectedETag === null);
 
+const identityShape = {
+  envelope: z.literal('fund-workspace/1'),
+  workspaceActorId: z.string().min(1).nullable(),
+  sessionId: FundWorkflowKeySchema,
+  creationKey: FundWorkflowKeySchema.nullable(),
+  draftFundId: fundId.nullable(),
+  draftServerReady: z.boolean(),
+  draftETag: FundDraftETagSchema.nullable(),
+  pendingCommand: pendingCommand.nullable(),
+};
+
+type IdentityInvariantInput = {
+  draftFundId: number | null;
+  draftServerReady: boolean;
+  draftETag: string | null;
+  pendingCommand: { targetFundId: number | null } | null;
+};
+
+const draftIdentityConsistent = (value: IdentityInvariantInput) =>
+  value.draftFundId !== null || (!value.draftServerReady && value.draftETag === null);
+
+const commandMatchesDraft = (value: IdentityInvariantInput) =>
+  value.pendingCommand == null ||
+  value.pendingCommand.targetFundId == null ||
+  value.pendingCommand.targetFundId === value.draftFundId;
+
+/**
+ * Identity and pending command only. Recovered on its own when form values fail
+ * validation, so an unsettled command keeps its idempotency key across reloads.
+ */
+export const FundWorkspaceIdentitySchema = z
+  .object(identityShape)
+  .refine(draftIdentityConsistent)
+  .refine(commandMatchesDraft);
+
 // Recovery accepts unfinished form values. Business validation belongs to save/publish.
 export const FundWorkspaceEnvelopeSchema = z
   .object({
-    envelope: z.literal('fund-workspace/1'),
-    workspaceActorId: z.string().min(1).nullable(),
-    sessionId: FundWorkflowKeySchema,
-    creationKey: FundWorkflowKeySchema.nullable(),
-    draftFundId: fundId.nullable(),
-    draftServerReady: z.boolean(),
-    draftETag: FundDraftETagSchema.nullable(),
-    pendingCommand: pendingCommand.nullable(),
+    ...identityShape,
     fundName: z.string().optional(),
     establishmentDate: z.string().optional(),
     modelInputsAsOfDate: z.string().optional(),
@@ -213,12 +241,5 @@ export const FundWorkspaceEnvelopeSchema = z
     economicsAssumptions: EconomicsAssumptionsV1Schema.optional(),
   })
   .strict()
-  .refine(
-    (value) => value.draftFundId !== null || (!value.draftServerReady && value.draftETag === null)
-  )
-  .refine(
-    (value) =>
-      value.pendingCommand == null ||
-      value.pendingCommand.targetFundId == null ||
-      value.pendingCommand.targetFundId === value.draftFundId
-  );
+  .refine(draftIdentityConsistent)
+  .refine(commandMatchesDraft);

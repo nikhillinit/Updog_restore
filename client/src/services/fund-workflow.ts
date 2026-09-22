@@ -99,23 +99,10 @@ export async function workflowRequest<T = unknown>(
   if (options.key) headers['Idempotency-Key'] = options.key;
   if (options.etag) headers['If-Match'] = options.etag;
 
-  let response: Response;
-  let payload: unknown;
-  let readingBody = false;
-  try {
-    response = await fetch(withApiBase(path), {
-      method,
-      credentials: 'include',
-      headers,
-      signal: controller.signal,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-    readingBody = true;
-    payload = await response.json();
-  } catch (error) {
+  const uncertain = (error: unknown, readingBody: boolean) => {
     const aborted =
       controller.signal.aborted || (error instanceof Error && error.name === 'AbortError');
-    throw new FundWorkflowUncertainError(
+    return new FundWorkflowUncertainError(
       aborted
         ? readingBody
           ? 'Request aborted while reading the response body'
@@ -125,11 +112,34 @@ export async function workflowRequest<T = unknown>(
           : 'Network error before a response arrived',
       aborted
     );
+  };
+
+  let response: Response;
+  let payload: unknown = null;
+  let bodyError: unknown = null;
+  try {
+    try {
+      response = await fetch(withApiBase(path), {
+        method,
+        credentials: 'include',
+        headers,
+        signal: controller.signal,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (error) {
+      throw uncertain(error, false);
+    }
+    try {
+      payload = await response.json();
+    } catch (error) {
+      bodyError = error;
+    }
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', onExternalAbort);
   }
 
+  // A non-2xx status is definitive whatever its body (proxy HTML, empty, truncated).
   if (!response.ok) {
     if (response.status === 401) markSessionReauthRequired();
     const errorData = isRecord(payload) ? payload : {};
@@ -148,6 +158,9 @@ export async function workflowRequest<T = unknown>(
       response.status >= 500 ? undefined : errorData['details']
     );
   }
+
+  // A 2xx whose body could not be read may still have committed.
+  if (bodyError !== null) throw uncertain(bodyError, true);
 
   return {
     status: response.status,

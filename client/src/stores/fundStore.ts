@@ -4,7 +4,10 @@ import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
 import { sortById, normalizeNumber, eq } from '../utils/state-utils';
 import dequal from 'fast-deep-equal';
-import { FundWorkspaceEnvelopeSchema } from '../schemas/fund-workspace-schema';
+import {
+  FundWorkspaceEnvelopeSchema,
+  FundWorkspaceIdentitySchema,
+} from '../schemas/fund-workspace-schema';
 import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
 
@@ -1243,15 +1246,24 @@ function createFundStore() {
           storage: createJSONStorage(() => guardedSessionStorage),
           partialize: (state: FundState) => toFundWorkspaceEnvelope(state),
           merge: (persisted: unknown, current: FundState): FundState => {
-            if (
-              !isFundWorkspaceEnvelope(persisted) ||
-              expectedActorId === null ||
-              persisted.workspaceActorId !== expectedActorId
-            ) {
+            if (expectedActorId === null) return current;
+            if (isFundWorkspaceEnvelope(persisted)) {
+              if (persisted.workspaceActorId !== expectedActorId) return current;
+              const { envelope: _envelope, ...data } = persisted;
+              return { ...current, ...data };
+            }
+            // Invalid form values must not cost an unsettled command its key:
+            // keep identity, drop the values (a server-ready draft re-hydrates).
+            const identity = FundWorkspaceIdentitySchema.safeParse(persisted);
+            if (!identity.success || identity.data.workspaceActorId !== expectedActorId) {
               return current;
             }
-            const { envelope: _envelope, ...data } = persisted;
-            return { ...current, ...data };
+            const full = FundWorkspaceEnvelopeSchema.safeParse(persisted);
+            console.warn('[fund-store] discarded invalid workspace values', {
+              paths: full.success ? [] : full.error.issues.map((issue) => issue.path.join('.')),
+            });
+            const { envelope: _envelope, ...recovered } = identity.data;
+            return { ...current, ...recovered };
           },
           onRehydrateStorage: () => (_state: FundState | undefined, err: unknown) => {
             if (err) console.error('[fund-store] rehydrate error', err);
@@ -1383,7 +1395,12 @@ export function prepareFundCommand<T>(
   const expectedETag = pending ? pending.expectedETag : etag;
   const originalPayload = JSON.parse(bodySignature) as T;
   state.beginCommand({ operation, targetFundId, key, expectedETag, bodySignature });
-  if (fundStore.getState().persistenceFailed) throw new Error(FUND_COMMAND_STORAGE_MESSAGE);
+  if (fundStore.getState().persistenceFailed) {
+    // Never dispatched and never stored: release it. A pre-existing command was
+    // stored when first dispatched, so its outcome stays unsettled.
+    if (!pending) fundStore.getState().resolveCommand();
+    throw new Error(FUND_COMMAND_STORAGE_MESSAGE);
+  }
   return { payload: originalPayload, key, etag: expectedETag };
 }
 

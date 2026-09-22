@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fundStore } from '@/stores/fundStore';
+import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { ApiError } from '@/lib/queryClient';
 import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 
@@ -394,10 +395,6 @@ describe('FundSetup draft sync', () => {
   });
 
   it('autosaves edits made after a same-tab reload restores a server-ready draft', async () => {
-    mockFetchFundDraft.mockResolvedValue({
-      config: { fundName: 'Restored Fund' },
-      etag: SERVER_ETAG,
-    });
     mockSaveFundDraft.mockResolvedValue({ config: {}, etag: NEXT_ETAG, replayed: false });
 
     act(() => {
@@ -408,6 +405,10 @@ describe('FundSetup draft sync', () => {
         draftServerReady: true,
         draftETag: SERVER_ETAG,
       });
+    });
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: SERVER_ETAG,
     });
 
     const { default: FundSetup } = await import('@/pages/fund-setup');
@@ -435,6 +436,42 @@ describe('FundSetup draft sync', () => {
       expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(/Latest draft saved at /)
     );
     expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
+  });
+
+  it('treats restored edits ahead of the acknowledged revision as unsettled and saves them', async () => {
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: NEXT_ETAG, replayed: false });
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Server Name',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+      });
+    });
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: SERVER_ETAG,
+    });
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), fundName: 'Unsaved Local Edit' });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Saving draft')
+    );
+    expect(fundStore.getState().draftSyncStatus).toBe('saving');
+    await waitFor(() => {
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'Unsaved Local Edit' }),
+        expect.objectContaining({ etag: SERVER_ETAG })
+      );
+    });
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('synced'));
   });
 
   it('holds local values and asks for a choice when the acknowledged revision is stale', async () => {

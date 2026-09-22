@@ -1,5 +1,6 @@
 import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
 import { ApiError } from '@/lib/queryClient';
+import { startInFlight } from '@/lib/inflight';
 import { workflowRequest, type WorkflowResult } from './fund-workflow';
 
 type DraftRecordResponse = {
@@ -38,11 +39,14 @@ export async function saveFundDraft(
   payload: FundDraftWriteV1,
   options: SaveDraftOptions
 ): Promise<SaveDraftResult> {
-  const result = await workflowRequest<DraftRecordResponse | null>(
-    'PUT',
-    `/api/funds/${fundId}/draft`,
-    payload,
-    { key: options.key, etag: options.etag }
+  // Callers replaying the same command (autosave, bootstrap, workspace dialog)
+  // join one request instead of colliding on the server's in-progress guard.
+  const result = await startInFlight(`save_draft:${fundId}:${options.key}`, ({ signal }) =>
+    workflowRequest<DraftRecordResponse | null>('PUT', `/api/funds/${fundId}/draft`, payload, {
+      key: options.key,
+      etag: options.etag,
+      signal,
+    })
   );
   return {
     config: result.body?.config ?? result.body?.data?.config ?? payload,

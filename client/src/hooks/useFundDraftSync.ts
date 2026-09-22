@@ -344,9 +344,12 @@ export function useFundDraftSync({
           // Local values are at or ahead of the acknowledged revision; keep them.
           markVerified(draftFundId);
           lastSavedSignatureRef.current = canonicalJson(snapshot.config);
-          setStatus('synced');
           if (localSignature() !== lastSavedSignatureRef.current) {
+            // Restored edits are not on the server yet; they are not settled.
+            setStatus('saving');
             pendingSaveTimerRef.current = setTimeout(() => void persistCurrentDraft(), debounceMs);
+          } else {
+            setStatus('synced');
           }
           return;
         }

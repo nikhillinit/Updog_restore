@@ -246,12 +246,6 @@ describe('fund workspace envelope', () => {
     ['unsafe draft ID', { draftFundId: Number.MAX_SAFE_INTEGER + 1 }],
     ['draft revision', { draftETag: 'W/"0000000000000007"' }],
     ['creation key', { creationKey: 42 }],
-    ['nested fee', { feeProfiles: [{ id: 'fee', name: '', feeTiers: ['bad'] }] }],
-    ['nested pipeline', { pipelineProfiles: [{ id: 'pipe', name: '', stages: [null] }] }],
-    ['nested LP', { lps: [{ id: 'lp', name: 'LP', commitment: 'bad', type: 'other' }] }],
-    ['nested capital plan', { capitalPlanAllocations: [false] }],
-    ['nested follow-on checks', { followOnChecks: { A: 0, B: 0, C: 'bad' } }],
-    ['unknown top-level field', { resolveCommand: 'bad' }],
   ])('rejects a malformed %s before hydration', async (_label, patch) => {
     fundStore.setState(fullState());
     const malformed = { ...toFundWorkspaceEnvelope(fundStore.getState()), ...patch };
@@ -264,6 +258,56 @@ describe('fund workspace envelope', () => {
     expect(fundStore.getState().pendingCommand).toBeNull();
     expect(fundStore.getState().draftFundId).toBeNull();
     expect(typeof fundStore.getState().resolveCommand).toBe('function');
+  });
+
+  it.each([
+    ['nested fee', { feeProfiles: [{ id: 'fee', name: '', feeTiers: ['bad'] }] }],
+    ['nested pipeline', { pipelineProfiles: [{ id: 'pipe', name: '', stages: [null] }] }],
+    ['nested LP', { lps: [{ id: 'lp', name: 'LP', commitment: 'bad', type: 'other' }] }],
+    ['nested capital plan', { capitalPlanAllocations: [false] }],
+    ['nested follow-on checks', { followOnChecks: { A: 0, B: 0, C: 'bad' } }],
+    ['non-finite number', { fundSize: null }],
+    ['unknown top-level field', { resolveCommand: 'bad' }],
+  ])('keeps identity and the pending command when a %s is invalid', async (_label, patch) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    fundStore.setState(fullState());
+    const valid = toFundWorkspaceEnvelope(fundStore.getState());
+    const malformed = { ...valid, ...patch };
+    expect(isFundWorkspaceEnvelope(malformed)).toBe(false);
+    sessionStorage.setItem(
+      FUND_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({ state: malformed, version: 1 })
+    );
+    resetFundWorkspaceStateOnly();
+    await bindFundWorkspaceActor(ACTOR);
+    const state = fundStore.getState();
+    expect(state.fundName).toBeUndefined();
+    expect(state.pendingCommand).toEqual(valid.pendingCommand);
+    expect(state.draftFundId).toBe(valid.draftFundId);
+    expect(state.draftETag).toBe(valid.draftETag);
+    expect(state.sessionId).toBe(valid.sessionId);
+    expect(typeof state.resolveCommand).toBe('function');
+    expect(warn).toHaveBeenCalledWith(
+      '[fund-store] discarded invalid workspace values',
+      expect.objectContaining({ paths: expect.any(Array) })
+    );
+  });
+
+  it('never salvages identity bound to another actor', async () => {
+    fundStore.setState(fullState());
+    const malformed = {
+      ...toFundWorkspaceEnvelope(fundStore.getState()),
+      workspaceActorId: 'someone-else',
+      fundSize: null,
+    };
+    sessionStorage.setItem(
+      FUND_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({ state: malformed, version: 1 })
+    );
+    resetFundWorkspaceStateOnly();
+    await bindFundWorkspaceActor(ACTOR);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(fundStore.getState().draftFundId).toBeNull();
   });
 
   it('preserves structurally valid unfinished form values', () => {
@@ -371,7 +415,23 @@ describe('fund workspace envelope', () => {
       throw new DOMException('quota', 'QuotaExceededError');
     });
     expect(() => prepareFundCommand('create', null, { name: 'Unsaved' }, null)).toThrow(/Storage/);
-    expect(fundStore.getState().pendingCommand?.bodySignature).toBe('{"name":"Unsaved"}');
+    // Never stored, never dispatched: released so it cannot block or replay later.
+    expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('keeps a previously stored command when a replay cannot be persisted', () => {
+    fundStore.getState().beginCommand({
+      operation: 'create',
+      targetFundId: null,
+      key: '6f1b0d9e-2f4a-4c1e-9f5b-3c8d7a6b5e4f',
+      expectedETag: null,
+      bodySignature: '{"name":"Dispatched"}',
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    expect(() => prepareFundCommand('create', null, { name: 'Other' }, null)).toThrow(/Storage/);
+    expect(fundStore.getState().pendingCommand?.bodySignature).toBe('{"name":"Dispatched"}');
   });
 
   it('includes the expected revision in command key identity', () => {

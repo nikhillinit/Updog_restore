@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fundStore, prepareFundCommand } from '@/stores/fundStore';
+import { fundStore, prepareFundCommand, resetFundWorkspace } from '@/stores/fundStore';
 import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
 import { finalizeFund } from '@/services/funds';
 import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
@@ -377,6 +377,9 @@ export default function ReviewStep() {
       const result = await finalizeFund(command.payload, { key: command.key, etag: command.etag });
       if (!isCurrentCommand(sessionId, actorId, command.key)) return;
       fundStore.getState().resolveCommand();
+      // Publishing retired the draft server-side; this tab must never resume it.
+      resetFundWorkspace();
+      const publishedSessionId = fundStore.getState().sessionId;
       const fundId = result.data.fundId;
       if ('credentialRenewal' in result && result.credentialRenewal === 'reauth_required') {
         // Fund committed; session credential could not be renewed. The session
@@ -385,7 +388,7 @@ export default function ReviewStep() {
         setSubmitState('error');
         return;
       }
-      await finalizeSuccessfulPublish(fundId, sessionId, actorId);
+      await finalizeSuccessfulPublish(fundId, publishedSessionId, actorId);
     } catch (err) {
       if (!isCurrentCommand(sessionId, actorId, command.key)) return;
       if (isStaleRevisionError(err)) {

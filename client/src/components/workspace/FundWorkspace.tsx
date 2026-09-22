@@ -291,8 +291,8 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     selection.kind === 'invalid' ||
     (selection.kind === 'valid' && fundsQuery.isSuccess && !selectedFund);
   const localSessionName = localFundName?.trim() || 'the current draft';
-  const localSettled =
-    !pendingCommand && (draftSyncStatus === 'idle' || draftSyncStatus === 'synced');
+  // Only a confirmed save is settled; 'idle' after reload can hold unsaved restored edits.
+  const localSettled = !pendingCommand && draftSyncStatus === 'synced';
   const blockedCommand = pendingCommand != null && pendingCommand.operation !== 'save_draft';
 
   const startNewFund = React.useCallback(() => {

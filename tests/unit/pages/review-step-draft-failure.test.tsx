@@ -105,11 +105,14 @@ vi.mock('@/stores/useFundSelector', () => ({
   useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
 }));
 
+const mockResetFundWorkspace = vi.fn();
+
 vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
   prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
+  resetFundWorkspace: () => mockResetFundWorkspace(),
 }));
 
 // Mock finalizeFund

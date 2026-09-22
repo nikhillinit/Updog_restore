@@ -245,6 +245,29 @@ describe('workflowRequest', () => {
     expect((failure as FundWorkflowUncertainError).aborted).toBe(false);
   });
 
+  it.each([
+    ['proxy HTML 401', 401, 'rejected'],
+    ['empty 502', 502, 'uncertain'],
+  ])('classifies a non-JSON %s by status', async (_label, status, outcome) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(status === 401 ? '<html>Sign in</html>' : '', {
+          status,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      )
+    );
+
+    const failure = await workflowRequest('PUT', '/api/funds/1/draft', {}, { key: KEY }).catch(
+      (error: unknown) => error
+    );
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(status);
+    expect(classifyWorkflowError(failure)).toBe(outcome);
+  });
+
   it('preserves normal ApiError classification for a valid error response', async () => {
     vi.stubGlobal(
       'fetch',

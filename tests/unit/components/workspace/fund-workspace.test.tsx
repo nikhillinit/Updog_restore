@@ -327,6 +327,22 @@ describe('FundWorkspace', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it('asks before starting another fund when a restored session is only idle', async () => {
+    fundStore.setState({
+      fundName: 'Restored edits',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftSyncStatus: 'idle',
+    });
+    renderWorkspace();
+    await screen.findByTestId('workspace-fund-2');
+
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    expect(await screen.findByRole('dialog', { name: 'Start another fund?' })).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(fundStore.getState().fundName).toBe('Restored edits');
+  });
+
   it('starts a new fund directly when the local session is settled', async () => {
     fundStore.setState({
       fundName: 'Settled',
