@@ -134,10 +134,14 @@ export default function FundSetup() {
   }, [pendingFinalize, requestedKey, search, setLocation]);
   const { status, error, retry, isHydrating, loadServerDraft, keepLocalDraft, missingDraftFundId } =
     useFundDraftSync({ stepKey: key });
+  // Stamp only a save this tab confirmed; hydrating an old draft must not claim "saved now".
   const [savedAt, setSavedAt] = React.useState<Date | null>(null);
+  const previousStatus = React.useRef(status);
   React.useEffect(() => {
-    if (status === 'synced') setSavedAt(new Date());
+    if (status === 'synced' && previousStatus.current === 'saving') setSavedAt(new Date());
+    previousStatus.current = status;
   }, [status]);
+  React.useEffect(() => setSavedAt(null), [draftFundId]);
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
   const explicitFund = React.useMemo(() => parseFundIdParam(search), [search]);
   const [switchBlocked, setSwitchBlocked] = React.useState(false);
