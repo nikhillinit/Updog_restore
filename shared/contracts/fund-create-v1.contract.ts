@@ -16,7 +16,7 @@ import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
 export const FundCreateV1Schema = z
   .object({
     /** Fund display name */
-    name: z.string().min(1, 'Fund name is required'),
+    name: z.string().trim().min(1, 'Fund name is required'),
 
     /**
      * Fund size in dollars.

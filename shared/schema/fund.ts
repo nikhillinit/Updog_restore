@@ -8,6 +8,7 @@
  * @module shared/schema/fund
  */
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -101,6 +102,9 @@ export const fundConfigs = pgTable(
       .references(() => funds.id)
       .notNull(),
     version: integer('version').notNull().default(1),
+    draftRevision: bigint('draft_revision', { mode: 'bigint' })
+      .notNull()
+      .default(sql`1`),
     config: jsonb('config').notNull(), // Stores full fund configuration
     isDraft: boolean('is_draft').default(true),
     isPublished: boolean('is_published').default(false),
@@ -110,6 +114,10 @@ export const fundConfigs = pgTable(
   },
   (table) => ({
     fundVersionUnique: unique()['on'](table.fundId, table.version),
+    draftRevisionPositive: check(
+      'fundconfigs_draft_revision_positive',
+      sql`${table.draftRevision} > 0`
+    ),
     fundVersionIdx: index('fundconfigs_fund_version_idx')['on'](table.fundId, table.version),
   })
 );
@@ -456,6 +464,57 @@ export const fundScenarioCalculationRuns = pgTable(
 // ============================================================================
 // TYPES (Insert schemas with .omit() rules are defined in schema.ts)
 // ============================================================================
+
+export const fundWorkflowCommands = pgTable(
+  'fund_workflow_commands',
+  {
+    id: serial('id').primaryKey(),
+    actorUserId: integer('actor_user_id')
+      .notNull()
+      .references(() => users.id),
+    operation: text('operation')
+      .notNull()
+      .$type<import('../contracts/fund-workflow-v1.contract').FundWorkflowOperation>(),
+    idempotencyKey: uuid('idempotency_key').notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    contractVersion: text('contract_version').notNull(),
+    responseStatus: integer('response_status').notNull(),
+    responseBody: jsonb('response_body').notNull().$type<Record<string, unknown>>(),
+    resultEtag: text('result_etag').notNull(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    configId: integer('config_id')
+      .notNull()
+      .references(() => fundConfigs.id),
+    runId: integer('run_id').references(() => calcRuns.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    identityUnique: unique('fund_workflow_commands_identity_unique').on(
+      table.actorUserId,
+      table.operation,
+      table.idempotencyKey
+    ),
+    fundIdx: index('fund_workflow_commands_fund_idx').on(table.fundId),
+    operationCheck: check(
+      'fund_workflow_commands_operation_check',
+      sql`${table.operation} IN ('create', 'save_draft', 'finalize', 'publish_draft')`
+    ),
+    hashCheck: check(
+      'fund_workflow_commands_hash_check',
+      sql`${table.requestHash} ~ '^[0-9a-f]{64}$'`
+    ),
+    etagCheck: check(
+      'fund_workflow_commands_etag_check',
+      sql`${table.resultEtag} ~ '^"[0-9a-f]{16}"$'`
+    ),
+    responseCheck: check(
+      'fund_workflow_commands_response_check',
+      sql`${table.responseStatus} IN (200, 201) AND jsonb_typeof(${table.responseBody}) = 'object'`
+    ),
+  })
+);
 
 export type Fund = typeof funds.$inferSelect;
 export type NewFund = typeof funds.$inferInsert;

@@ -281,9 +281,11 @@ describe('post calc-run trigger (Decision 0.1b)', () => {
       );
 
       expect(mockLogError).toHaveBeenCalledWith(
-        expect.objectContaining({ runId: 42, err: handlerError }),
+        expect.objectContaining({ runId: 42, code: 'CALC_RUN_COMPLETION_FAILED' }),
         'Calc-run completion handler failed'
       );
+      expect(mockLogError.mock.calls[0]![0]).not.toHaveProperty('err');
+      expect(JSON.stringify(mockLogError.mock.calls)).not.toContain(handlerError.message);
     });
 
     it('subsequent handlers still fire even if earlier one fails', async () => {

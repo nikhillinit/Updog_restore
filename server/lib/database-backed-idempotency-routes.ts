@@ -28,7 +28,16 @@ const ACTUALS_RESTATEMENT_PREVIEW_PATH =
 const ACTUALS_RESTATEMENT_PUBLISH_PATH =
   /^\/api\/funds\/[^/?#]+\/imports\/actuals\/restatements\/publish\/?$/i;
 
+export function isFundWorkflowCommandRoute(method: string, path: string): boolean {
+  const pathname = path.split(/[?#]/, 1)[0] ?? '';
+  return (
+    (method === 'POST' && /^\/api\/funds(?:\/finalize|\/[^/?#]+\/publish)?\/?$/i.test(pathname)) ||
+    (method === 'PUT' && /^\/api\/funds\/[^/?#]+\/draft\/?$/i.test(pathname))
+  );
+}
+
 export function isDatabaseBackedIdempotencyRoute(method: string, path: string): boolean {
+  if (isFundWorkflowCommandRoute(method, path)) return true;
   const pathnameEnd = path.search(/[?#]/);
   const pathname = pathnameEnd === -1 ? path : path.slice(0, pathnameEnd);
   if (method === 'PATCH') return TASK_UPDATE_PATH.test(pathname);

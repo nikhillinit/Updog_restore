@@ -69,6 +69,7 @@ const expectedJournaledDriftPatchFiles = [
   '0057_actuals_restatement_commands.sql',
   '0058_capital_plan_override.sql',
   '0059_task_update_commands.sql',
+  '0060_fund_workflow_commands.sql',
 ].sort();
 
 afterEach(() => {

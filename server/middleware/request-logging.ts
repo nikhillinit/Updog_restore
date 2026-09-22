@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 
 import type { AppConfig } from '../config/index.js';
+import { isFundWorkflowCommandRoute } from '../lib/database-backed-idempotency-routes.js';
 
 type RequestLoggingConfig = Pick<AppConfig, 'APP_VERSION' | 'NODE_ENV'>;
 
@@ -22,7 +23,8 @@ export function requestLoggingMiddleware(
   return (req, res, next) => {
     const start = Date.now();
     const path = req.path;
-    const captureResponse = !isSensitiveFinancialResponsePath(path);
+    const captureResponse =
+      !isSensitiveFinancialResponsePath(path) && !isFundWorkflowCommandRoute(req.method, path);
     let capturedJsonResponse: unknown;
 
     const originalResJson = res.json;

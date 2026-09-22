@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { db, pool as dbPool, runWithDatabaseContext } from '../db.js';
 import { getRequestDatabaseScope } from '../db/request-context.js';
 import { isPublicApiPath } from '../lib/public-api-boundary.js';
+import { isFundWorkflowCommandRoute } from '../lib/database-backed-idempotency-routes.js';
 import { logger } from '../lib/logger.js';
 import type { UserContext } from '../lib/secure-context.js';
 import type { Pool, PoolClient } from 'pg';
@@ -43,9 +44,16 @@ export function withRLSTransaction() {
     const originalFlushHeaders = res.flushHeaders;
     const rejectedResponse = new Error('Request returned an error status');
     const disconnected = new Error('Request disconnected');
+    const workflow = isFundWorkflowCommandRoute(req.method, req.originalUrl);
+    const disconnectController = new AbortController();
     let pendingEnd: Parameters<Response['end']> | undefined;
     let rejectResponse: (error: Error) => void = () => {};
-    const onClose = () => rejectResponse(disconnected);
+    const onClose = () => {
+      // Captured tx objects bypass the ALS proxy. Destroy the connection before
+      // rollback can release it while delayed command handlers are still alive.
+      if (workflow) disconnectController.abort(disconnected);
+      rejectResponse(disconnected);
+    };
     const restoreResponse = () => {
       res.end = originalEnd;
       res.write = originalWrite;
@@ -55,35 +63,39 @@ export function withRLSTransaction() {
     };
 
     try {
-      await runWithDatabaseContext(context, async (tx, connection) => {
-        if (res.destroyed) throw disconnected;
-        req.pgClient = connection;
-        req.tx = tx;
-        const scope = getRequestDatabaseScope()!;
-        await new Promise<void>((resolve, reject) => {
-          rejectResponse = reject;
-          res.end = ((...args: Parameters<Response['end']>) => {
-            if (pendingEnd) return res;
-            pendingEnd = args;
-            if (res.statusCode >= 400) reject(rejectedResponse);
-            else resolve();
-            return res;
-          }) as Response['end'];
-          const denyEarlyWrite = () => {
-            throw new Error('Streaming is not supported inside a request transaction');
-          };
-          res.write = denyEarlyWrite as Response['write'];
-          res.writeHead = denyEarlyWrite as Response['writeHead'];
-          res.flushHeaders = denyEarlyWrite;
-          res.once('close', onClose);
-          try {
-            next();
-          } catch (error) {
-            reject(error);
-          }
-        });
-        scope.completed = true;
-      });
+      await runWithDatabaseContext(
+        context,
+        async (tx, connection) => {
+          if (res.destroyed) throw disconnected;
+          req.pgClient = connection;
+          req.tx = tx;
+          const scope = getRequestDatabaseScope()!;
+          await new Promise<void>((resolve, reject) => {
+            rejectResponse = reject;
+            res.end = ((...args: Parameters<Response['end']>) => {
+              if (pendingEnd) return res;
+              pendingEnd = args;
+              if (res.statusCode >= 400) reject(rejectedResponse);
+              else resolve();
+              return res;
+            }) as Response['end'];
+            const denyEarlyWrite = () => {
+              throw new Error('Streaming is not supported inside a request transaction');
+            };
+            res.write = denyEarlyWrite as Response['write'];
+            res.writeHead = denyEarlyWrite as Response['writeHead'];
+            res.flushHeaders = denyEarlyWrite;
+            res.once('close', onClose);
+            try {
+              next();
+            } catch (error) {
+              reject(error);
+            }
+          });
+          scope.completed = true;
+        },
+        workflow ? { timeoutMs: 60_000, signal: disconnectController.signal } : {}
+      );
       restoreResponse();
       if (!res.destroyed && pendingEnd) originalEnd.apply(res, pendingEnd);
     } catch (error) {
@@ -92,9 +104,13 @@ export function withRLSTransaction() {
       if (error === rejectedResponse && pendingEnd) {
         originalEnd.apply(res, pendingEnd);
       } else {
-        log.error({ err: error }, 'Request transaction failed');
+        log.error(
+          workflow ? { code: 'FUND_WORKFLOW_TRANSACTION_FAILED' } : { err: error },
+          'Request transaction failed'
+        );
         res.removeHeader('Content-Length');
         res.removeHeader('ETag');
+        res.removeHeader('Set-Cookie');
         res
           .status(500)
           .json({ error: 'internal_error', code: 'TRANSACTION_FAILED', requestId: req.requestId });

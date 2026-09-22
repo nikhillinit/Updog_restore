@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db';
+import { getRequestDatabaseScope } from '../db/request-context';
 import { logger } from '../lib/logger';
 import { ensureAttributedFundMetricsForCalcRun } from './fund-metrics-attribution-service';
 import { jobOutbox, alertRules, variancePlannerLeader, type JobOutbox } from '@shared/schema';
@@ -67,27 +68,37 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function withTimeout<T>(
+async function withTimeout<T>(
   label: string,
   work: () => Promise<T> | T,
   timeoutMs = DEFAULT_STEP_TIMEOUT_MS
 ) {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+  const bounded = getRequestDatabaseScope()?.executionTimeoutMs !== undefined;
+  const operation = Promise.resolve().then(work);
+  let timedOut = false;
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        timedOut = true;
+        reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
 
-    void Promise.resolve()
-      .then(() => work())
-      .then((result) => {
-        clearTimeout(timer);
-        resolve(result);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-  });
+      void operation
+        .then((result) => {
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+  } catch (error) {
+    // The outer database deadline destroys the connection if this never settles.
+    // Do not roll back and release a usable tx underneath captured stage work.
+    if (bounded && timedOut) await operation.catch(() => undefined);
+    throw error;
+  }
 }
 
 function computeInstanceIdentity(): string {
@@ -378,7 +389,7 @@ export class VarianceAlertAutomationService {
           event: 'alert.calc_run.failed',
           runId,
           fundId,
-          err: error,
+          code: 'CALC_RUN_COMPLETION_FAILED',
         },
         'Calc-run alert automation failed'
       );

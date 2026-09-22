@@ -258,7 +258,7 @@ beforeAll(async () => {
 
   for (const role of ROLES) {
     const token = auth.signToken({
-      sub: `${role}-1`,
+      sub: String(ROLES.indexOf(role) + 1),
       email: `${role}@example.com`,
       role,
       fundIds: role === 'admin' ? [] : [TARGET_FUND_ID],

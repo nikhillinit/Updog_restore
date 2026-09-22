@@ -1,8 +1,8 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
 import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
-import { funds, fundConfigs, fundEvents, fundSnapshots } from '@shared/schema';
-import { eq, and, desc, max, isNull } from 'drizzle-orm';
+import { fundConfigs, fundEvents, fundSnapshots } from '@shared/schema';
+import { eq, and, desc, isNull, sql } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { createRouteLogger } from '../lib/route-logger.js';
@@ -13,7 +13,15 @@ import { sendApiError } from '../lib/apiError';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { creatorUserIdFromRequest, renewCreationCredential } from '../lib/auth/creator-identity';
 import { handleNumberParseError } from '../lib/number-parse-error';
-import idempotency from '../middleware/idempotency';
+import {
+  draftETag,
+  draftResponse,
+  executeFundWorkflowCommand,
+  fundWorkflowHeaders,
+  fundWorkflowWritesAllowed,
+  sendFundWorkflowError,
+  setFundWorkflowResponseHeaders,
+} from '../services/fund-workflow-service';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 import { parseScenarioRepresentation } from '../lib/scenario-representation.js';
 
@@ -43,7 +51,7 @@ function optionalNumericUserId(req: Request): number | undefined {
   return numericIdentity(user?.userId) ?? numericIdentity(user?.id) ?? numericIdentity(user?.sub);
 }
 
-async function getScopedFundId(req: Request, res: Response): Promise<number | null> {
+function parseFundIdOrNull(req: Request, res: Response): number | null {
   let fundId: number;
   try {
     fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
@@ -54,10 +62,6 @@ async function getScopedFundId(req: Request, res: Response): Promise<number | nu
     throw err;
   }
 
-  if (!(await enforceProvidedFundScope(req, res, fundId))) {
-    return null;
-  }
-
   return fundId;
 }
 
@@ -66,7 +70,7 @@ export function registerFundConfigRoutes(app: Express) {
   app.post(
     '/api/funds/finalize',
     requireWriteRole(PARTNER_WRITE_ROLES),
-    idempotency,
+    fundWorkflowWritesAllowed,
     async (req: Request, res: Response) => {
       try {
         const { FundFinalizeV1Schema: Schema } =
@@ -94,9 +98,46 @@ export function registerFundConfigRoutes(app: Express) {
         }
 
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
-        const result = await fundPersistenceService.finalize(
-          { ...validation.data, creatorUserId },
-          inlineCalculationQueues
+        const result = await executeFundWorkflowCommand(
+          {
+            actorId: creatorUserId,
+            operation: 'finalize',
+            ...fundWorkflowHeaders(req, draftFundId != null),
+            targetFundId: draftFundId ?? null,
+            unrestricted: req.user?.role === 'admin',
+            body: {
+              ...validation.data,
+              vintageYear:
+                (req.body as Record<string, unknown>)['vintageYear'] === undefined
+                  ? null
+                  : validation.data.vintageYear,
+            },
+          },
+          async () => {
+            const published = await fundPersistenceService.finalize(
+              { ...validation.data, creatorUserId },
+              inlineCalculationQueues,
+              { command: true }
+            );
+            const [config] = await db
+              .select()
+              .from(fundConfigs)
+              .where(
+                and(
+                  eq(fundConfigs.fundId, published.fundId),
+                  eq(fundConfigs.version, published.configVersion)
+                )
+              );
+            if (!config) throw new Error('Published config missing');
+            return {
+              status: 201,
+              body: { success: true, data: published },
+              etag: draftETag(config),
+              fundId: published.fundId,
+              configId: config.id,
+              runId: published.runId,
+            };
+          }
         );
         const credentialRenewal = await renewCreationCredential(
           req,
@@ -105,12 +146,10 @@ export function registerFundConfigRoutes(app: Express) {
           creatorUserId
         );
 
-        res.status(201).json({
-          success: true as const,
-          data: result,
-          ...credentialRenewal,
-        });
+        setFundWorkflowResponseHeaders(res, result);
+        res.status(result.status).json({ ...result.body, ...credentialRenewal });
       } catch (error) {
+        if (sendFundWorkflowError(res, error)) return;
         if (error instanceof Error && error.name === 'NoActiveDraftForFinalizeError') {
           return sendApiError(res, 409, {
             error: error.message,
@@ -118,139 +157,85 @@ export function registerFundConfigRoutes(app: Express) {
           });
         }
 
-        routeLog.error('Finalize error:', error);
+        routeLog.error('Finalize failed', { code: 'FINALIZE_FAILED' });
         const apiError: ApiError = {
           error: 'Failed to finalize fund',
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message: 'Publication could not be confirmed; retry the same command',
         };
         res.status(500).json(apiError);
       }
     }
   );
 
-  // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
+  // Full replacement of the active draft under its acknowledged revision.
   app.put(
     '/api/funds/:id/draft',
     requireWriteRole(PARTNER_WRITE_ROLES),
+    fundWorkflowWritesAllowed,
     async (req: Request, res: Response) => {
       try {
-        const fundId = await getScopedFundId(req, res);
-        if (fundId === null) {
-          return;
-        }
-
-        // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
+        const actorId = creatorUserIdFromRequest(req);
+        if (actorId === undefined)
+          return sendApiError(res, 401, {
+            error: 'Authentication identity is invalid',
+            code: 'INVALID_AUTHENTICATION_IDENTITY',
+          });
+        const fundId = parseFundIdOrNull(req, res);
+        if (fundId === null) return;
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
         const validation = FundDraftWriteV1Schema.safeParse(req.body);
-        if (!validation.success) {
+        if (!validation.success)
           return sendApiError(res, 400, {
             error: 'Draft configuration is invalid',
             code: 'DRAFT_VALIDATION_ERROR',
             issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
           });
-        }
-
-        // Check if fund exists
-        const [fund] = await db.select().from(funds).where(eq(funds.id, fundId)).limit(1);
-
-        if (!fund) {
-          const error: ApiError = {
-            error: 'Fund not found',
-            message: `No fund exists with ID: ${fundId}`,
-          };
-          return res.status(404).json(error);
-        }
-
-        // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
-        const [existingDraft] = await db
-          .select()
-          .from(fundConfigs)
-          .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
-          .orderBy(desc(fundConfigs.version))
-          .limit(1);
-
-        const gatedConfig = omitEconomicsAssumptionsWhenDisabled(validation.data);
-        const fieldCount = Object.keys(gatedConfig).length;
-        let savedConfig;
-
-        if (existingDraft) {
-          const priorFieldCount = existingDraft.config
-            ? Object.keys(existingDraft.config as Record<string, unknown>).length
-            : 0;
-          routeLog.warn('draft-save', { fundId, fieldCount, priorFieldCount });
-
-          const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
-            config: gatedConfig,
-            updatedAt: new Date(),
-          };
-          const [updated] = await db
-            .update(fundConfigs)
-            .set(updateValues)
-            .where(eq(fundConfigs.id, existingDraft.id))
-            .returning();
-          savedConfig = updated;
-        } else {
-          // No active draft: allocate next version (MAX(version)+1)
-          const [versionResult] = await db
-            .select({ maxVersion: max(fundConfigs.version) })
-            .from(fundConfigs)
-            .where(eq(fundConfigs.fundId, fundId));
-          const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
-
-          routeLog.warn('draft-save', { fundId, fieldCount, nextVersion });
-
-          try {
-            const [inserted] = await db
-              .insert(fundConfigs)
-              .values({
-                fundId,
-                version: nextVersion,
-                config: gatedConfig,
-              })
-              .returning();
-            savedConfig = inserted;
-          } catch (insertErr) {
-            // Unique constraint race: retry as UPDATE targeting isDraft=true
-            const [retryDraft] = await db
-              .select()
-              .from(fundConfigs)
-              .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
-              .limit(1);
-            if (retryDraft) {
-              const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
-                config: gatedConfig,
+        const result = await executeFundWorkflowCommand(
+          {
+            actorId,
+            operation: 'save_draft',
+            ...fundWorkflowHeaders(req, true),
+            targetFundId: fundId,
+            body: validation.data,
+            unrestricted: req.user?.role === 'admin',
+          },
+          async (draft) => {
+            if (!draft) throw new Error('Active draft missing');
+            const [saved] = await db
+              .update(fundConfigs)
+              .set({
+                config: omitEconomicsAssumptionsWhenDisabled(validation.data),
                 updatedAt: new Date(),
-              };
-              const [updated] = await db
-                .update(fundConfigs)
-                .set(retryValues)
-                .where(eq(fundConfigs.id, retryDraft.id))
-                .returning();
-              savedConfig = updated;
-            } else {
-              throw insertErr;
-            }
+                draftRevision: sql`${fundConfigs.draftRevision} + 1`,
+              })
+              .where(eq(fundConfigs.id, draft.id))
+              .returning();
+            if (!saved) throw new Error('Draft save failed');
+            await db
+              .insert(fundEvents)
+              .values({ fundId, userId: actorId, eventType: 'DRAFT_SAVED', eventTime: new Date() });
+            return {
+              status: 200,
+              fundId,
+              configId: saved.id,
+              etag: draftETag(saved),
+              body: {
+                success: true,
+                data: draftResponse(saved),
+                message: 'Draft saved successfully',
+              },
+            };
           }
-        }
-
-        // Log event
-        await db.insert(fundEvents).values({
-          fundId,
-          eventType: 'DRAFT_SAVED',
-          eventTime: new Date(),
-        });
-
-        res.json({
-          success: true,
-          data: savedConfig,
-          message: 'Draft saved successfully',
-        });
+        );
+        setFundWorkflowResponseHeaders(res, result);
+        res.status(result.status).json(result.body);
       } catch (error) {
-        routeLog.error('Draft save error:', error);
-        const apiError: ApiError = {
+        if (sendFundWorkflowError(res, error)) return;
+        routeLog.error('Draft save failed', { code: 'DRAFT_SAVE_FAILED' });
+        res.status(500).json({
           error: 'Failed to save draft',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
-        res.status(500).json(apiError);
+          message: 'Save could not be confirmed; retry the same command',
+        });
       }
     }
   );
@@ -258,10 +243,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get latest draft
   app['get']('/api/funds/:id/draft', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const [draft] = await db
         .select()
@@ -278,7 +264,9 @@ export function registerFundConfigRoutes(app: Express) {
         return res.status(404).json(error);
       }
 
-      res.json(draft);
+      res.setHeader('ETag', draftETag(draft));
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(draftResponse(draft));
     } catch (error) {
       const apiError: ApiError = {
         error: 'Failed to fetch draft',
@@ -288,54 +276,71 @@ export function registerFundConfigRoutes(app: Express) {
     }
   });
 
-  // Publish configuration (delegates to FundPersistenceService)
+  // Publication shares the same durable command and revision guard as finalize.
   app.post(
     '/api/funds/:id/publish',
     requireWriteRole(PARTNER_WRITE_ROLES),
+    fundWorkflowWritesAllowed,
     async (req: Request, res: Response) => {
       try {
-        const fundId = await getScopedFundId(req, res);
-        if (fundId === null) {
-          return;
-        }
-
-        const userId = optionalNumericUserId(req);
-
+        const actorId = creatorUserIdFromRequest(req);
+        if (actorId === undefined)
+          return sendApiError(res, 401, {
+            error: 'Authentication identity is invalid',
+            code: 'INVALID_AUTHENTICATION_IDENTITY',
+          });
+        const fundId = parseFundIdOrNull(req, res);
+        if (fundId === null) return;
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
-        const result = await fundPersistenceService.publishDraft(
-          fundId,
-          inlineCalculationQueues,
-          userId
+        const result = await executeFundWorkflowCommand(
+          {
+            actorId,
+            operation: 'publish_draft',
+            ...fundWorkflowHeaders(req, true),
+            targetFundId: fundId,
+            body: req.body ?? {},
+            unrestricted: req.user?.role === 'admin',
+          },
+          async () => {
+            const published = await fundPersistenceService.publishDraft(
+              fundId,
+              inlineCalculationQueues,
+              actorId,
+              { command: true }
+            );
+            return {
+              status: 200,
+              fundId,
+              configId: published.published.id,
+              runId: published.run.id,
+              etag: draftETag(published.published),
+              body: {
+                success: true,
+                data: draftResponse(published.published),
+                message: 'Configuration published and calculations started',
+                correlationId: published.correlationId,
+                runId: published.run.id,
+                dispatchState: published.run.dispatchState,
+              },
+            };
+          }
         );
-
-        res.json({
-          success: true,
-          data: result.published,
-          message: 'Configuration published and calculations started',
-          correlationId: result.correlationId,
-          runId: result.run.id,
-          dispatchState: result.run.dispatchState,
-        });
+        setFundWorkflowResponseHeaders(res, result);
+        res.status(result.status).json(result.body);
       } catch (error) {
-        if (error instanceof Error && error.message === 'No draft to publish') {
-          const apiError: ApiError = {
-            error: 'No draft to publish',
-            message: 'Create a draft configuration first',
-          };
-          return res.status(400).json(apiError);
-        }
+        if (sendFundWorkflowError(res, error)) return;
         if (error instanceof Error && error.name === 'ModelInputsAsOfDateRequiredError') {
           return sendApiError(res, 422, {
             error: error.message,
             code: 'MODEL_INPUTS_AS_OF_DATE_REQUIRED',
           });
         }
-        routeLog.error('Publish error:', error);
-        const apiError: ApiError = {
+        routeLog.error('Publish failed', { code: 'PUBLISH_FAILED' });
+        res.status(500).json({
           error: 'Failed to publish configuration',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
-        res.status(500).json(apiError);
+          message: 'Publication could not be confirmed; retry the same command',
+        });
       }
     }
   );
@@ -346,10 +351,11 @@ export function registerFundConfigRoutes(app: Express) {
     requireWriteRole(PARTNER_WRITE_ROLES),
     async (req: Request, res: Response) => {
       try {
-        const fundId = await getScopedFundId(req, res);
+        const fundId = parseFundIdOrNull(req, res);
         if (fundId === null) {
           return;
         }
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
         const userId = optionalNumericUserId(req);
 
@@ -395,10 +401,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund reserves (from snapshots)
   app['get']('/api/funds/:id/reserves', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const [snapshot] = await db
         .select()
@@ -445,10 +452,11 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund lifecycle state (two-axis: config + calculation)
   app['get']('/api/funds/:id/state', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundStateReadService } = await import('../services/fund-state-read-service');
       const state = await fundStateReadService.getState(fundId);
@@ -475,10 +483,11 @@ export function registerFundConfigRoutes(app: Express) {
   // GET /api/funds/:id/results -- Phase 3 results read model
   app.get('/api/funds/:id/results', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const representation = parseScenarioRepresentation(req, res);
       if (representation === null) return;
@@ -503,10 +512,11 @@ export function registerFundConfigRoutes(app: Express) {
   // GET /api/funds/:id/lifecycle-history -- M6 lifecycle history read model
   app['get']('/api/funds/:id/lifecycle-history', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundLifecycleHistoryService } =
         await import('../services/fund-lifecycle-history-service');
@@ -537,10 +547,11 @@ export function registerFundConfigRoutes(app: Express) {
   // rollout or generic forecasting API expansion.
   app['get']('/api/funds/:id/results-comparison', async (req: Request, res: Response) => {
     try {
-      const fundId = await getScopedFundId(req, res);
+      const fundId = parseFundIdOrNull(req, res);
       if (fundId === null) {
         return;
       }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
 
       const { fundResultsComparisonService } =
         await import('../services/fund-results-comparison-service');

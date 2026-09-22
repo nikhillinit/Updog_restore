@@ -7,7 +7,7 @@
  *
  * Routes:
  *   POST /api/investments    -- mechanism NONE (makeApp) / A (Docker per-request store)
- *   POST /api/funds          -- mechanism B (Redis-backed per-route middleware)
+ *   POST /api/funds          -- durable workflow command boundary
  *   POST /api/funds/calculate -- mechanism C (getOrStart operation-status)
  *   POST /api/funds/:id/tasks -- mechanism D (database-backed, dispatcher bypass)
  *
@@ -531,110 +531,29 @@ describe('mechanism A: POST /api/funds/:id/recalculate (generic dispatcher)', ()
 });
 
 // ---------------------------------------------------------------------------
-// 2. POST /api/funds -- mechanism B (Redis-backed per-route middleware)
+// 2. POST /api/funds -- durable workflow command boundary
 // ---------------------------------------------------------------------------
-describe('mechanism B: POST /api/funds', () => {
-  const payload = { name: 'Test Fund', size: 1000000, vintageYear: 2024 };
-
-  it('deduplicates with explicit key (mechanism B replays)', async () => {
-    process.env['VERCEL'] = '1';
-    process.env['VERCEL_ENV'] = 'preview';
+describe('workflow command headers: POST /api/funds', () => {
+  it.each([
+    { header: null, value: '', code: 'IDEMPOTENCY_KEY_REQUIRED' },
+    { header: 'Idempotency-Key', value: 'legacy-fund-key', code: 'INVALID_IDEMPOTENCY_KEY' },
+    {
+      header: 'X-Idempotency-Key',
+      value: '550e8400-e29b-41d4-a716-446655440000',
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+    },
+  ])('rejects $header / $value before writes', async ({ header, value, code }) => {
     const { surfaces, token } = await boot();
-
     for (const { name, app } of surfaces) {
       effects.createFund.mockClear();
-      const key = `fund-b-dedup-${name}`;
-
-      const r1 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .set('Idempotency-Key', key)
-        .send(payload);
-      expect(r1.status, `${name} first call`).toBe(201);
-      expect(r1.body.success, `${name} first call success`).toBe(true);
-
-      // async store needs a tick to persist the response
-      await new Promise((r) => setTimeout(r, 100));
-
-      const r2 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .set('Idempotency-Key', key)
-        .send(payload);
-
-      // Mechanism B replays cached response; handler NOT re-executed.
-      expect(r2.status, `${name} replay status`).toBe(201);
-      expect(r2.headers['idempotency-replay'], `${name} replay header`).toBe('true');
-      expect(
-        effects.createFund.mock.calls.length,
-        `${name}: handler ran once (mechanism B dedup)`
-      ).toBe(1);
-    }
-  });
-
-  it('auto-generated key does NOT dedup identical payloads (baseline gap)', async () => {
-    const { surfaces, token } = await boot();
-
-    for (const { name, app } of surfaces) {
-      effects.createFund.mockClear();
-      // Both assemblies share Redis; derived keys must stay surface-specific.
-      const surfacePayload = { ...payload, name: `Test Fund ${name}` };
-
-      const r1 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .send(surfacePayload);
-      expect(r1.status, `${name} first call`).toBe(201);
-      expect(effects.createFund, `${name}: first request mutates`).toHaveBeenCalledTimes(1);
-
-      await new Promise((r) => setTimeout(r, 100));
-
-      const r2 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .send(surfacePayload);
-      expect(r2.status, `${name} second call`).toBe(201);
-
-      // BASELINE: no dedup because auto-key generation never fires.
-      // shouldAutoGenerateKey (idempotency.ts:159) checks req.path.startsWith('/api/funds'),
-      // but funds router is mounted at '/api' so req.path is mount-relative '/funds',
-      // which does not match the '/api/funds' prefix. No key = no dedup.
-      // P1b MUST change this to 1.
-      expect(
-        effects.createFund.mock.calls.length,
-        `${name}: handler ran twice (auto-key = no dedup)`
-      ).toBe(2);
-    }
-  });
-
-  it('rejects key reuse with different payload (fingerprint mismatch)', async () => {
-    const { surfaces, token } = await boot();
-
-    for (const { name, app } of surfaces) {
-      effects.createFund.mockClear();
-      const key = `fund-fingerprint-${name}`;
-
-      const r1 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .set('Idempotency-Key', key)
-        .send({ name: 'Fund One', size: 1000000, vintageYear: 2024 });
-      expect(r1.status, `${name} first call succeeds`).toBe(201);
-
-      await new Promise((r) => setTimeout(r, 100));
-
-      const r2 = await request(app)
-        .post('/api/funds')
-        .auth(token, { type: 'bearer' })
-        .set('Idempotency-Key', key)
-        .send({ name: 'Fund Two', size: 2000000, vintageYear: 2025 });
-
-      expect(r2.status, `${name} fingerprint mismatch`).toBe(422);
-      expect(r2.body.error, `${name} conflict error code`).toBe('idempotency_key_reused');
-      expect(
-        effects.createFund.mock.calls.length,
-        `${name}: mutation ran once despite two requests`
-      ).toBe(1);
+      effects.renewCredential.mockClear();
+      const pending = request(app).post('/api/funds').auth(token, { type: 'bearer' });
+      if (header) pending.set(header, value);
+      const response = await pending.send({ name: 'Test Fund', size: 1000000, vintageYear: 2024 });
+      expect(response.status, name).toBe(400);
+      expect(response.body.code, name).toBe(code);
+      expect(effects.createFund, name).not.toHaveBeenCalled();
+      expect(effects.renewCredential, name).not.toHaveBeenCalled();
     }
   });
 });
@@ -985,11 +904,15 @@ describe('mechanism D: POST /api/funds/:fundId/tasks (real createTask + DB fake)
 // not as expect(true) stubs or hardcoded method arrays in the test file.
 
 // ---------------------------------------------------------------------------
-// 7. Database-backed route classification (16 patterns)
+// 7. Database-backed route classification (20 patterns)
 // ---------------------------------------------------------------------------
 describe('database-backed route classification', () => {
-  it('all 16 patterns are classified as database-backed', () => {
+  it('all 20 patterns are classified as database-backed', () => {
     const patterns: [string, string][] = [
+      ['POST', '/api/funds'],
+      ['POST', '/api/funds/finalize'],
+      ['PUT', '/api/funds/1/draft'],
+      ['POST', '/api/funds/1/publish'],
       ['PATCH', '/api/funds/1/tasks/2'],
       ['POST', '/api/funds/1/internal-economics/runs'],
       ['POST', '/api/funds/1/current-forecast/recompute'],
@@ -1010,6 +933,6 @@ describe('database-backed route classification', () => {
     for (const [method, path] of patterns) {
       expect(isDatabaseBackedIdempotencyRoute(method, path), `${method} ${path}`).toBe(true);
     }
-    expect(patterns).toHaveLength(16);
+    expect(patterns).toHaveLength(20);
   });
 });

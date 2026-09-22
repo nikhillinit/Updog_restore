@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:de2a94177416a1b25ab103d06b430c582e9c9fddafd3ee06d9c0f2fb46685037",
+  "snapshot_id": "snapshot:51112591c46c5f2d3ddb4a67921ba69637fa03cfb72dbdec98f5be4b7eb4bba1",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -504,7 +504,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "dddb0b2ed25b2f90b0a9a91abc310f9c594296249b412f41c0910057dcd32a57",
+    "audit/surface-contract-matrix/boot-proofs.json": "835bc2a7320a3e93fbee8346d331a427d27000f8dc2ed8d510ff865a7b8d1ed7",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
@@ -544,6 +544,7 @@
     "server/app.ts": "5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
     "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
     "server/lib/auth/jwt.ts": "914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+    "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
     "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
     "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
     "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
@@ -578,12 +579,12 @@
     "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
     "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
     "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
-    "server/routes/fund-config.ts": "3875410f030d27480d16a57316ea81ddd5c6bf1bab754c642411be4228a1ad30",
+    "server/routes/fund-config.ts": "6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba",
     "server/routes/fund-scenario-sets.ts": "de4d651ce5ecfedcb86d7c5dfb8cbd8b9f67fa6b8973fb1ba5741698d3f07d35",
-    "server/routes/funds.ts": "6d712d6b211eda9ee05fde7cbfff7bca162c8d59ecb3e6ccad416b1889571393",
+    "server/routes/funds.ts": "e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
     "server/routes/health.ts": "9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
     "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
@@ -668,8 +669,7 @@
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "d6e82d5bb28b74d2667d80107ccd479406a28a4b76e9f0c57b0f75e97540538f",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
-    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de",
-    "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0"
+    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
   },
   "source_to_rows": {
     "api/telemetry/wizard.ts": [
@@ -4176,6 +4176,18 @@
     "api:PATCH:/api/funds/:fundId/decisions/:decisionId": [
       "api:PATCH:/api/funds/:fundId/decisions/:decisionId"
     ],
+    "server/lib/auth/provided-fund-scope.ts": [
+      "api:PATCH:/api/funds/:fundId/decisions/:decisionId",
+      "api:PATCH:/api/funds/:fundId/tasks/:taskId",
+      "api:POST:/api/funds/:fundId/decisions",
+      "api:POST:/api/funds/:fundId/decisions/:decisionId/evidence-links",
+      "api:POST:/api/funds/:fundId/decisions/:decisionId/outcome",
+      "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
+      "api:POST:/api/funds/:fundId/tasks",
+      "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links",
+      "api:POST:/api/investments",
+      "api:POST:/api/investments/:id/rounds"
+    ],
     "api:PATCH:/api/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference": [
       "api:PATCH:/api/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference"
     ],
@@ -6394,10 +6406,6 @@
     ],
     "QUEUE_CATALOG:lp-view-refresh": [
       "worker:lp-view-refresh"
-    ],
-    "server/lib/auth/provided-fund-scope.ts": [
-      "api:POST:/api/investments",
-      "api:POST:/api/investments/:id/rounds"
     ]
   },
   "row_to_sources": {
@@ -8822,6 +8830,7 @@
       "policy:api:patch:/api/funds/:fundId/decisions/:decisionId",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-decisions.ts",
@@ -8881,6 +8890,7 @@
       "manifest:operating-object-tasks",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-tasks.ts",
@@ -9526,6 +9536,7 @@
       "policy:api:post:/api/funds/:fundId/decisions",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-decisions.ts",
@@ -9538,6 +9549,7 @@
       "policy:api:post:/api/funds/:fundId/decisions/:decisionId/evidence-links",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-decisions.ts",
@@ -9550,6 +9562,7 @@
       "policy:api:post:/api/funds/:fundId/decisions/:decisionId/outcome",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-decisions.ts",
@@ -9562,6 +9575,7 @@
       "policy:api:post:/api/funds/:fundId/decisions/:decisionId/supersede",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-decisions.ts",
@@ -10270,6 +10284,7 @@
       "manifest:operating-object-tasks",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-tasks.ts",
@@ -10281,6 +10296,7 @@
       "manifest:operating-object-tasks",
       "server/app.ts",
       "server/lib/auth/jwt.ts",
+      "server/lib/auth/provided-fund-scope.ts",
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/operating-object-tasks.ts",
@@ -11538,7 +11554,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:de2a94177416a1b25ab103d06b430c582e9c9fddafd3ee06d9c0f2fb46685037"
+      "snapshot:51112591c46c5f2d3ddb4a67921ba69637fa03cfb72dbdec98f5be4b7eb4bba1"
     ]
   },
   "kg_counts": {

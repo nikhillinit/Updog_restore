@@ -42,6 +42,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts',
   'tests/integration/migrations/current-forecast-recompute-commands-schema.pg.test.ts',
   'tests/integration/migrations/task-update-commands-schema.pg.test.ts',
+  'tests/integration/migrations/fund-workflow-commands-schema.pg.test.ts',
   'tests/integration/current-forecast-manual-recompute.pg.test.ts',
   'tests/integration/current-forecast-manual-recompute-http.pg.test.ts',
   'tests/integration/database-context-neon-adapter.pg.test.ts',

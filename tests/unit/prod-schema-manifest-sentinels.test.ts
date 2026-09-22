@@ -115,6 +115,13 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
         surviving.add(pgIdentifier(`${tableName}_pkey`));
       }
       for (const column of tableBody.matchAll(
+        /^\s*(?!CONSTRAINT\b)([a-z0-9_]+)\s+[^\n]*\bREFERENCES\s+/gim
+      )) {
+        if (!/\bCONSTRAINT\b/i.test(column[0])) {
+          surviving.add(pgIdentifier(`${tableName}_${column[1]}_fkey`));
+        }
+      }
+      for (const column of tableBody.matchAll(
         /^\s*(?!CONSTRAINT\b)([a-z0-9_]+)\s+[^\n]*\bCHECK\s*\(/gim
       )) {
         if (!/\bCONSTRAINT\b/i.test(column[0])) {
@@ -181,6 +188,7 @@ describe('prod-schema manifest sentinels', () => {
       '34-actuals-restatement-commands.json',
       '35-capital-plan-override.json',
       '36-task-update-commands.json',
+      '37-fund-workflow-commands.json',
     ]);
   });
 

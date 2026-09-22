@@ -1,0 +1,272 @@
+{
+  "name": "fund-workflow-commands",
+  "order": 37,
+  "description": "Migration 0060: positive draft revisions and immutable fund workflow command receipts. Catalog definitions measured from the journaled PostgreSQL migration.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0060_fund_workflow_commands.sql"],
+  "allowedCreateTables": ["fund_workflow_commands"],
+  "expectedTables": [
+    {
+      "name": "fundconfigs",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "draft_revision",
+          "type": "bigint",
+          "nullable": false,
+          "expectedDefaultExpression": "1"
+        }
+      ],
+      "constraints": ["fundconfigs_draft_revision_positive"],
+      "constraintDefinitions": [
+        {
+          "name": "fundconfigs_draft_revision_positive",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((draft_revision > 0))",
+            "orderedFragments": ["CHECK"],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fund_workflow_commands",
+      "enforceInsertContract": true,
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "expectedDefaultExpression": "nextval('fund_workflow_commands_id_seq'::regclass)",
+          "expectedSequence": {
+            "name": "fund_workflow_commands_id_seq",
+            "dataType": "integer",
+            "startValue": "1",
+            "minimumValue": "1",
+            "maximumValue": "2147483647",
+            "increment": "1",
+            "cycleOption": "NO"
+          }
+        },
+        {
+          "name": "actor_user_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "operation",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false,
+          "expectedCharacterMaximumLength": 64
+        },
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "response_status",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "response_body",
+          "type": "jsonb",
+          "nullable": false
+        },
+        {
+          "name": "result_etag",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "config_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "run_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "expectedDefaultExpression": "now()"
+        }
+      ],
+      "constraints": [
+        "fund_workflow_commands_actor_user_id_fkey",
+        "fund_workflow_commands_config_id_fkey",
+        "fund_workflow_commands_etag_check",
+        "fund_workflow_commands_fund_id_fkey",
+        "fund_workflow_commands_hash_check",
+        "fund_workflow_commands_identity_unique",
+        "fund_workflow_commands_operation_check",
+        "fund_workflow_commands_pkey",
+        "fund_workflow_commands_response_check",
+        "fund_workflow_commands_run_id_fkey"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "fund_workflow_commands_actor_user_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (actor_user_id) REFERENCES users(id)",
+            "orderedFragments": ["FOREIGN"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_config_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (config_id) REFERENCES fundconfigs(id)",
+            "orderedFragments": ["FOREIGN"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_etag_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((result_etag ~ '^\"[0-9a-f]{16}\"$'::text))",
+            "orderedFragments": ["CHECK"],
+            "stringLiterals": ["^\"[0-9a-f]{16}\"$"]
+          }
+        },
+        {
+          "name": "fund_workflow_commands_fund_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": ["FOREIGN"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_hash_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((request_hash)::text ~ '^[0-9a-f]{64}$'::text))",
+            "orderedFragments": ["CHECK"],
+            "stringLiterals": ["^[0-9a-f]{64}$"]
+          }
+        },
+        {
+          "name": "fund_workflow_commands_identity_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (actor_user_id, operation, idempotency_key)",
+            "orderedFragments": ["UNIQUE"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_operation_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((operation = ANY (ARRAY['create'::text, 'save_draft'::text, 'finalize'::text, 'publish_draft'::text])))",
+            "orderedFragments": ["CHECK"],
+            "stringLiterals": [
+              "create",
+              "save_draft",
+              "finalize",
+              "publish_draft"
+            ]
+          }
+        },
+        {
+          "name": "fund_workflow_commands_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_response_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((response_status = ANY (ARRAY[200, 201])) AND (jsonb_typeof(response_body) = 'object'::text)))",
+            "orderedFragments": ["CHECK"],
+            "stringLiterals": ["object"]
+          }
+        },
+        {
+          "name": "fund_workflow_commands_run_id_fkey",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (run_id) REFERENCES calc_runs(id)",
+            "orderedFragments": ["FOREIGN"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": [
+        "fund_workflow_commands_fund_idx",
+        "fund_workflow_commands_identity_unique",
+        "fund_workflow_commands_pkey"
+      ],
+      "indexDefinitions": [
+        {
+          "name": "fund_workflow_commands_fund_idx",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE INDEX fund_workflow_commands_fund_idx ON public.fund_workflow_commands USING btree (fund_id)",
+            "orderedFragments": ["CREATE"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_identity_unique",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX fund_workflow_commands_identity_unique ON public.fund_workflow_commands USING btree (actor_user_id, operation, idempotency_key)",
+            "orderedFragments": ["CREATE"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "fund_workflow_commands_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX fund_workflow_commands_pkey ON public.fund_workflow_commands USING btree (id)",
+            "orderedFragments": ["CREATE"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "fund_workflow_commands_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER fund_workflow_commands_forbid_update_trigger BEFORE UPDATE ON public.fund_workflow_commands FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": ["CREATE"],
+            "stringLiterals": []
+          }
+        }
+      ]
+    }
+  ],
+  "functionDefinitions": [
+    {
+      "name": "internal_economics_forbid_update",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'immutable_row_update_forbidden: %', TG_TABLE_NAME;\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()",
+          "RETURNS trigger",
+          "LANGUAGE plpgsql",
+          "RAISE EXCEPTION",
+          "TG_TABLE_NAME"
+        ],
+        "stringLiterals": ["immutable_row_update_forbidden: %"]
+      }
+    }
+  ]
+}

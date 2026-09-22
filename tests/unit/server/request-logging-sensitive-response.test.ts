@@ -30,6 +30,28 @@ function buildApp(info: ReturnType<typeof vi.fn>, createStatus = 201) {
 
 describe('request logging sensitive-response boundary', () => {
   it.each([
+    ['post', '/api/funds'],
+    ['post', '/api/funds/finalize'],
+    ['put', '/api/funds/1/draft'],
+    ['post', '/api/funds/1/publish'],
+  ] as const)('omits workflow credentials and inputs for %s %s', async (method, path) => {
+    const info = vi.fn();
+    const app = express();
+    app.use(requestLoggingMiddleware({ APP_VERSION: 'test', NODE_ENV: 'test' }, { info }));
+    app[method](path, (_req, res) =>
+      res.status(201).json({
+        renewedAccessToken: 'workflow-secret-sentinel',
+        data: { config: { fundName: 'workflow-input-sentinel' } },
+      })
+    );
+    await request(app)[method](path).expect(201);
+    expect(info).toHaveBeenCalledOnce();
+    expect(info.mock.calls[0]![0]).not.toHaveProperty('response');
+    expect(JSON.stringify(info.mock.calls)).not.toContain('workflow-secret-sentinel');
+    expect(JSON.stringify(info.mock.calls)).not.toContain('workflow-input-sentinel');
+  });
+
+  it.each([
     '/api/funds/1/internal-economics/runs/9',
     '/api/funds/1/internal-economics/runs/9/',
     '/api/FUNDS/1/INTERNAL-ECONOMICS/RUNS/9',

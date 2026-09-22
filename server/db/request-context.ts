@@ -9,6 +9,7 @@ export interface RequestDatabaseScope {
   db: NodePgDatabase<CombinedSchema>;
   client: PoolClient;
   completed: boolean;
+  executionTimeoutMs?: number;
   runOwnedTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
 }
 

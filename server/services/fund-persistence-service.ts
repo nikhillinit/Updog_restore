@@ -289,7 +289,8 @@ class PublishDraftRaceLostError extends Error {
 export class FundPersistenceService {
   async createFundWithInitialDraft(
     fundInput: CreateFundInput,
-    configInput?: Record<string, unknown>
+    configInput?: Record<string, unknown>,
+    options: { command?: boolean } = {}
   ): Promise<CreateFundResult> {
     const gatedConfigInput = omitEconomicsAssumptionsWhenDisabled(configInput ?? {});
 
@@ -320,7 +321,7 @@ export class FundPersistenceService {
         );
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`);
         const canaryPolicy = readCanaryRuntimePolicy();
-        await preflightCanaryCreation(tx, canaryPolicy);
+        await preflightCanaryCreation(tx, canaryPolicy, options.command);
         const [createdCanaryRun] = await tx
           .insert(releaseCanaryRuns)
           .values(
@@ -377,6 +378,7 @@ export class FundPersistenceService {
         fundId: fund.id,
         eventType: 'FUND_CREATED',
         eventTime: new Date(),
+        ...(fundInput.creatorUserId !== undefined && { userId: fundInput.creatorUserId }),
         payload: {
           configId: draft.id,
           configVersion: draft.version,
@@ -408,7 +410,8 @@ export class FundPersistenceService {
   async publishDraft(
     fundId: number,
     queues: PublishQueues,
-    userId?: number
+    userId?: number,
+    options: { command?: boolean } = {}
   ): Promise<PublishResult> {
     const { v4: generateUuid } = await import('uuid');
     const correlationId = generateUuid();
@@ -439,6 +442,7 @@ export class FundPersistenceService {
             isDraft: false,
             publishedAt: new Date(),
             updatedAt: new Date(),
+            draftRevision: sql`${fundConfigs.draftRevision} + 1`,
           })
           .where(and(eq(fundConfigs.id, draft.id), eq(fundConfigs.isDraft, true)))
           .returning();
@@ -483,9 +487,12 @@ export class FundPersistenceService {
         return { published: pub, run: newRun };
       });
 
-      const dispatchedRun = await this.dispatchCalcJobs(created.run, queues);
+      const dispatchedRun = await this.dispatchCalcJobs(created.run, queues, {
+        throwOnInlineFailure: options.command === true,
+      });
       return { published: created.published, run: dispatchedRun, correlationId };
     } catch (error) {
+      if (options.command) throw error;
       if (!(
         error instanceof NoPublishableDraftError || error instanceof PublishDraftRaceLostError
       )) {
@@ -514,7 +521,11 @@ export class FundPersistenceService {
    * Atomic finalize: create fund + save draft config + publish in one call.
    * Orchestrates existing methods; no logic duplication.
    */
-  async finalize(input: FinalizeInput, queues: PublishQueues): Promise<FinalizeResult> {
+  async finalize(
+    input: FinalizeInput,
+    queues: PublishQueues,
+    options: { command?: boolean } = {}
+  ): Promise<FinalizeResult> {
     if (!input.name || input.name.trim().length === 0) {
       throw new Error('Fund name is required');
     }
@@ -566,7 +577,12 @@ export class FundPersistenceService {
         throw new NoActiveDraftForFinalizeError(draftFundId);
       }
 
-      const publishResult = await this.publishDraft(draftFundId, queues);
+      const publishResult = await this.publishDraft(
+        draftFundId,
+        queues,
+        input.creatorUserId,
+        options
+      );
 
       return {
         fundId: draftFundId,
@@ -579,10 +595,10 @@ export class FundPersistenceService {
     }
 
     // Step 1+2: Create fund with initial draft containing full config
-    const { fund, draft } = await this.createFundWithInitialDraft(fundInput, configInput);
+    const { fund, draft } = await this.createFundWithInitialDraft(fundInput, configInput, options);
 
     // Step 3: Publish the draft (creates calcRun, dispatches engines)
-    const publishResult = await this.publishDraft(fund.id, queues);
+    const publishResult = await this.publishDraft(fund.id, queues, input.creatorUserId, options);
 
     return {
       fundId: fund.id,
@@ -637,6 +653,7 @@ export class FundPersistenceService {
         fundId,
         eventType: 'DRAFT_SAVED',
         eventTime: new Date(),
+        ...(fundInput.creatorUserId !== undefined && { userId: fundInput.creatorUserId }),
       });
 
       return draft;
@@ -736,7 +753,7 @@ export class FundPersistenceService {
   private async dispatchCalcJobs(
     run: CalcRun,
     queues: PublishQueues,
-    options: { redispatchExistingRun?: boolean } = {}
+    options: { redispatchExistingRun?: boolean; throwOnInlineFailure?: boolean } = {}
   ): Promise<CalcRun> {
     const targetEngines = await this.getDispatchTargets(
       run,
@@ -781,6 +798,7 @@ export class FundPersistenceService {
           dispatched++;
           continue;
         } catch (err) {
+          if (options.throwOnInlineFailure) throw err;
           failed++;
           lastError = err instanceof Error ? err.message : String(err);
           console.error(`Failed to dispatch ${engine} job for run ${run.id}:`, err);
@@ -798,6 +816,7 @@ export class FundPersistenceService {
         } catch (err) {
           failed++;
           const detail = err instanceof Error ? err.message : String(err);
+          if (options.throwOnInlineFailure) throw err;
           lastError = `Inline ${engine} calculation failed: ${detail}`;
           console.error(`Failed inline ${engine} calculation for run ${run.id}:`, err);
           continue;

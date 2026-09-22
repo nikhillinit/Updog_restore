@@ -944,6 +944,52 @@ describe('surface contract matrix seed semantic regressions', () => {
       }
     }
 
+    const fundConfigSource = fs.readFileSync(
+      path.join(repoRoot, 'server/routes/fund-config.ts'),
+      'utf8'
+    );
+    const registrationLine = (registration: string) =>
+      fundConfigSource.slice(0, fundConfigSource.indexOf(registration)).split('\n').length;
+    for (const [method, routePath, registration, expectedRoles] of [
+      ['PUT', '/api/funds/:id/draft', "app.put(\n    '/api/funds/:id/draft'", ['admin', 'partner']],
+      ['GET', '/api/funds/:id/draft', "app['get']('/api/funds/:id/draft'", ['admin', 'analyst', 'partner']],
+      ['POST', '/api/funds/:id/publish', "app.post(\n    '/api/funds/:id/publish'", ['admin', 'partner']],
+      ['POST', '/api/funds/:id/recalculate', "app.post(\n    '/api/funds/:id/recalculate'", ['admin', 'partner']],
+      ['GET', '/api/funds/:id/reserves', "app['get']('/api/funds/:id/reserves'", ['admin', 'analyst', 'partner']],
+      ['GET', '/api/funds/:id/state', "app['get']('/api/funds/:id/state'", ['admin', 'analyst', 'partner']],
+      ['GET', '/api/funds/:id/results', "app.get('/api/funds/:id/results'", ['admin', 'analyst', 'partner']],
+      ['GET', '/api/funds/:id/lifecycle-history', "app['get']('/api/funds/:id/lifecycle-history'", ['admin', 'analyst', 'partner']],
+      ['GET', '/api/funds/:id/results-comparison', "app['get']('/api/funds/:id/results-comparison'", ['admin', 'analyst', 'partner']],
+    ] as const) {
+      const definition = {
+        method,
+        path: routePath,
+        role: 'handler',
+        site: `server/routes/fund-config.ts:${registrationLine(registration)}`,
+      };
+      const exposures = ['create_server', 'make_app'].map((runtime) => ({
+        runtime,
+        definitions: [definition],
+        auth_evidence: [] as Array<{ boundary?: string; file?: string }>,
+      }));
+      const suggestion = seed.authSuggestionFor({
+        manifest: { authBoundary: 'require_auth' },
+        exposures,
+        additionalAuthEvidence: [globalAuthentication],
+        method,
+        path: routePath,
+      });
+      expect(suggestion.auth_roles, routePath).toEqual(expectedRoles);
+      for (const exposure of exposures) {
+        expect(exposure.auth_evidence, `${routePath} ${exposure.runtime}`).toContainEqual(
+          expect.objectContaining({
+            boundary: 'fund_scope',
+            file: 'server/routes/fund-config.ts',
+          })
+        );
+      }
+    }
+
     const publicShare = suggest(
       'GET',
       '/api/public/shares/:shareId',
@@ -953,7 +999,7 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(publicShare.auth_roles).toEqual(['public']);
     expect(publicShare.personas).toEqual(['public']);
 
-    const partnerWrite = suggest('POST', '/api/funds', 'server/routes/funds.ts:221');
+    const partnerWrite = suggest('POST', '/api/funds', 'server/routes/funds.ts:225');
     expect(partnerWrite.auth_roles).toEqual(['admin', 'partner']);
     expect(partnerWrite.personas).toEqual(['admin', 'gp']);
 
