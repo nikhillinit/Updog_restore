@@ -23,18 +23,6 @@ import { bindFundWorkspaceActor, unbindFundWorkspaceActor } from '@/stores/fundS
 
 const MOBILE_NAVIGATION_DISABLED_REASON = 'Complete fund setup to access this route.';
 
-// One compact header for the account-wide Workspace: no fund KPI polling.
-function WorkspaceHeader() {
-  return (
-    <div
-      className="border-b border-beige-200 bg-pov-white px-4 py-3 md:px-8"
-      data-testid="workspace-header"
-    >
-      <p className="font-inter text-sm font-semibold text-pov-charcoal">Fund workspace</p>
-    </div>
-  );
-}
-
 function DisabledMobileNavigationItem({
   item,
   disabledReasonId,
@@ -241,11 +229,10 @@ export function AppLayout({
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
       <header>
+        {/* The account-wide Workspace owns its title and polls no fund KPIs. */}
         {isFundSetupRoute ? (
           <FundConstructionKpiHeader />
-        ) : isWorkspaceView ? (
-          <WorkspaceHeader />
-        ) : (
+        ) : isWorkspaceView ? null : (
           <DynamicFundHeader />
         )}
         <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">

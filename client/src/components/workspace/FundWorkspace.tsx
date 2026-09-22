@@ -84,14 +84,30 @@ function unavailableReason(error: unknown): string {
   return 'Status unavailable';
 }
 
+function lastUpdated(fund: Fund, read: LifecycleRead): string {
+  const config = read.kind === 'state' ? read.state.configState : null;
+  const iso =
+    config?.draftUpdatedAt ??
+    config?.publishedUpdatedAt ??
+    config?.publishedAt ??
+    fund.updatedAt ??
+    null;
+  if (!iso) return '—';
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 interface FundRowProps {
   fund: Fund;
   read: LifecycleRead;
   canWrite: boolean;
+  selected: boolean;
   onRetry: () => void;
 }
 
-function FundRow({ fund, read, canWrite, onRetry }: FundRowProps) {
+function FundRow({ fund, read, canWrite, selected, onRetry }: FundRowProps) {
   const [, navigate] = useLocation();
   const search = useSearch();
   const hasPublished = read.kind === 'state' && read.state.configState.hasPublished;
@@ -99,16 +115,23 @@ function FundRow({ fund, read, canWrite, onRetry }: FundRowProps) {
   const calculation = read.kind === 'state' ? read.state.calculationState.status : null;
 
   return (
-    <TableRow data-testid={`workspace-fund-${fund.id}`}>
+    <TableRow
+      data-testid={`workspace-fund-${fund.id}`}
+      data-state={selected ? 'selected' : undefined}
+      aria-current={selected ? 'true' : undefined}
+    >
       <TableCell className="font-medium text-presson-text">
         <span className="block whitespace-normal break-words">{fund.name}</span>
-        <span className="mt-1 block text-xs text-presson-textMuted md:hidden">
+        <span className="mt-1 block text-xs tabular-nums text-presson-textMuted md:hidden">
           {fund.vintageYear} · {formatUSDShort(fund.size)}
         </span>
       </TableCell>
       <TableCell className="hidden tabular-nums md:table-cell">{fund.vintageYear}</TableCell>
       <TableCell className="hidden tabular-nums md:table-cell">
         {formatUSDShort(fund.size)}
+      </TableCell>
+      <TableCell className="hidden tabular-nums text-presson-textMuted lg:table-cell">
+        {lastUpdated(fund, read)}
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="whitespace-normal font-normal">
@@ -147,14 +170,16 @@ function FundRow({ fund, read, canWrite, onRetry }: FundRowProps) {
               Resume Draft
             </Button>
           )}
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => navigate(buildDashboardHref('overview', fund.id, search))}
-          >
-            Analytics
-          </Button>
+          {hasPublished && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate(buildDashboardHref('overview', fund.id, search))}
+            >
+              Analytics
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>
@@ -200,12 +225,17 @@ function NewFundDialog(props: NewFundDialogProps) {
           </Button>
           <Button
             type="button"
-            className="bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
+            variant={canSave ? 'default' : 'outline'}
+            className={
+              canSave
+                ? 'bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90'
+                : 'border-error-dark text-error-dark hover:bg-error/10'
+            }
             onClick={onConfirm}
             disabled={saving || blocked}
           >
             {saving
-              ? 'Saving draft'
+              ? 'Saving draft…'
               : canSave
                 ? 'Save draft and start new'
                 : 'Discard and start new'}
@@ -370,7 +400,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
                 disabled={funds.length === 0}
               >
                 <SelectTrigger id="workspace-fund-select" aria-label="Viewing fund">
-                  <SelectValue placeholder="Select a fund" />
+                  <SelectValue placeholder="Set active fund" />
                 </SelectTrigger>
                 <SelectContent>
                   {funds.map((fund) => (
@@ -415,7 +445,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
 
         {draftFundId != null && canWrite && (
           <Alert
-            className="border-l-4 border-l-presson-accent bg-pov-white"
+            className="border-presson-borderSubtle bg-pov-white"
             data-testid="workspace-resume-draft"
           >
             <AlertTitle>Draft in progress</AlertTitle>
@@ -474,6 +504,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
                   <TableHead>Fund</TableHead>
                   <TableHead className="hidden md:table-cell">Vintage</TableHead>
                   <TableHead className="hidden md:table-cell">Size</TableHead>
+                  <TableHead className="hidden lg:table-cell">Updated</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -493,6 +524,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
                       fund={fund}
                       read={read}
                       canWrite={canWrite}
+                      selected={fund.id === selectedFundId}
                       onRetry={() => void query?.refetch()}
                     />
                   );

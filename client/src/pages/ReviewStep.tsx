@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
 import { fundStore, prepareFundCommand } from '@/stores/fundStore';
 import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
@@ -21,7 +21,6 @@ import { finalizeFund } from '@/services/funds';
 import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { cn } from '@/lib/utils';
-import { formatUSD } from '@/lib/formatting';
 import {
   EconomicsInputValidationError,
   EconomicsInvariantError,
@@ -150,7 +149,7 @@ export default function ReviewStep() {
           },
           {
             label: 'Fund Size',
-            value: formatUSD(fundSize ?? 0),
+            value: fundSize ? formatMillions(fundSize) : 'Not set',
             status: fundSize ? 'ok' : 'warning',
             stepNumber: 1,
           },
@@ -208,7 +207,7 @@ export default function ReviewStep() {
           },
           {
             label: 'Waterfall',
-            value: waterfallType ?? 'Not set',
+            value: waterfallType ? capitalize(waterfallType) : 'Not set',
             status: waterfallType ? 'ok' : 'warning',
             stepNumber: 5,
           },
@@ -459,7 +458,7 @@ export default function ReviewStep() {
           : null;
 
   return (
-    <div className="space-y-6 pb-8" data-testid="review-step">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 pb-8 pt-6 sm:px-6" data-testid="review-step">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-presson-text">Review & Create Fund</h1>
@@ -542,7 +541,7 @@ export default function ReviewStep() {
       </Alert>
 
       {/* Summary Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {sections.map((section) => (
           <Card key={section.title} className="border-presson-borderSubtle">
             <CardHeader className="pb-3">
@@ -550,7 +549,7 @@ export default function ReviewStep() {
             </CardHeader>
             <CardContent className="space-y-3">
               {section.items.map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
+                <div key={item.label} className="flex items-center justify-between gap-4">
                   <span className="text-sm text-presson-textMuted">{item.label}</span>
                   <div className="flex items-center gap-2">
                     {item.status === 'ok' || item.stepNumber == null ? (
@@ -591,11 +590,11 @@ export default function ReviewStep() {
               />
               <DryRunMetric
                 label="Management Fees"
-                value={formatUSD(economicsDryRun.result.summary.totalManagementFees)}
+                value={formatMillions(economicsDryRun.result.summary.totalManagementFees)}
               />
               <DryRunMetric
                 label="Total GP Carry"
-                value={formatUSD(economicsDryRun.result.summary.totalGpCarryDistributed)}
+                value={formatMillions(economicsDryRun.result.summary.totalGpCarryDistributed)}
               />
               <DryRunMetric
                 label="Final DPI"
@@ -607,10 +606,10 @@ export default function ReviewStep() {
               />
               <DryRunMetric
                 label="Clawback Exposure"
-                value={formatUSD(economicsDryRun.result.summary.finalClawbackDue)}
+                value={formatMillions(economicsDryRun.result.summary.finalClawbackDue)}
               />
               <DryRunMetric
-                label="Invariant Status"
+                label="Consistency checks"
                 value={economicsDryRun.result.checks.passed ? 'Passed' : 'Failed'}
               />
             </div>
@@ -641,53 +640,55 @@ export default function ReviewStep() {
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          disabled={isSubmitting || submitState === 'uncertain' || Boolean(pendingFinalize)}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Step 6
-        </Button>
-
-        <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="text-sm">
-            Step 7 of 7
-          </Badge>
-
+      <div className="space-y-3">
+        {createDisabledReason && (
+          <p id="create-disabled-reason" className="text-sm text-presson-textMuted sm:text-right">
+            {createDisabledReason}
+          </p>
+        )}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
-            onClick={handleCreate}
-            disabled={
-              missingBlocksSubmit || economicsBlocksSubmit || draftUnsettled || isSubmitting
-            }
-            aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
-            title={createDisabledReason ?? undefined}
-            className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
-            data-testid="create-fund-button"
+            variant="outline"
+            onClick={handleBack}
+            disabled={isSubmitting || submitState === 'uncertain' || Boolean(pendingFinalize)}
+            className="gap-2"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating, Publishing, and Starting Calculations...
-              </>
-            ) : (
-              <>
-                <Rocket className="h-4 w-4" />
-                {submitState === 'uncertain'
-                  ? 'Check publication status'
-                  : submitState === 'error'
-                    ? 'Retry Publish'
-                    : 'Create, Publish, and View Results'}
-              </>
-            )}
+            <ArrowLeft className="h-4 w-4" />
+            Back to Step 6
           </Button>
-          {createDisabledReason && (
-            <p id="create-disabled-reason" className="max-w-xs text-sm text-presson-textMuted">
-              {createDisabledReason}
-            </p>
-          )}
+
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="hidden text-sm sm:inline-flex">
+              Step 7 of 7
+            </Badge>
+
+            <Button
+              onClick={handleCreate}
+              disabled={
+                missingBlocksSubmit || economicsBlocksSubmit || draftUnsettled || isSubmitting
+              }
+              aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
+              title={createDisabledReason ?? undefined}
+              className="h-auto min-h-11 w-full gap-2 whitespace-normal bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90 sm:w-auto"
+              data-testid="create-fund-button"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating, Publishing, and Starting Calculations...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  {submitState === 'uncertain'
+                    ? 'Check publication status'
+                    : submitState === 'error'
+                      ? 'Retry Publish'
+                      : 'Create, Publish, and View Results'}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -698,9 +699,18 @@ function DryRunMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-presson-background p-3">
       <p className="text-xs text-presson-textMuted">{label}</p>
-      <p className="text-sm font-medium text-presson-text">{value}</p>
+      <p className="text-sm font-medium tabular-nums text-presson-text">{value}</p>
     </div>
   );
+}
+
+// Draft money is in $M: the dry run runs on the draft fundSize entered as Capital Committed ($M).
+function formatMillions(value: number) {
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}M`;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function formatNullablePercent(value: number | null) {

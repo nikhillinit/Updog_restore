@@ -253,7 +253,8 @@ export function FundConstructionKpiHeader() {
   ];
   const visibleCards = cards.filter(hasUsableDisplayValue);
 
-  if (visibleCards.length === 0) {
+  // No fund size means no draft to preview; orphan allocation-only cards read as fact.
+  if (fundSizeDollars == null || visibleCards.length === 0) {
     return null;
   }
 
@@ -262,6 +263,12 @@ export function FundConstructionKpiHeader() {
       className="border-b border-beige-200 bg-white px-3 py-3 sm:px-6"
       data-testid="fund-construction-kpis"
     >
+      <p
+        className="mb-2 text-xs text-presson-textMuted"
+        data-testid="fund-construction-kpis-draft-label"
+      >
+        Draft preview · not published. Estimates from the current construction inputs.
+      </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {visibleCards.map((card) => (
           <HeaderMetricCard key={card.key} card={card} testId={`construction-kpi-${card.key}`} />

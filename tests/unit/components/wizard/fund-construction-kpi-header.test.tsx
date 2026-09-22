@@ -43,6 +43,9 @@ describe('FundConstructionKpiHeader', () => {
     expect(screen.getByTestId('construction-kpi-currentValue')).toHaveTextContent('Current Value');
     expect(screen.getByTestId('construction-kpi-currentValue')).not.toHaveTextContent('N/A');
     expect(screen.getByTestId('construction-kpi-avgCheckSize')).toHaveTextContent('$500.0K');
+    expect(screen.getByTestId('fund-construction-kpis-draft-label')).toHaveTextContent(
+      'Draft preview · not published'
+    );
   });
 
   it('hides the header when no draft KPI values are actionable yet', () => {

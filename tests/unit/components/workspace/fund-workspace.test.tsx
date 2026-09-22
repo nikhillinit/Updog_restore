@@ -137,6 +137,7 @@ describe('FundWorkspace', () => {
     await waitFor(() => expect(within(rowTwo).getByText('Draft')).toBeInTheDocument());
     expect(within(rowTwo).getByText('Calculations not requested')).toBeInTheDocument();
     expect(within(rowTwo).queryByRole('button', { name: 'Open model' })).not.toBeInTheDocument();
+    expect(within(rowTwo).queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
 
     await userEvent.click(within(rowTwo).getByRole('button', { name: 'Resume Draft' }));
     expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?fundId=2&step=1');

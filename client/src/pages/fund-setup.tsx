@@ -134,6 +134,10 @@ export default function FundSetup() {
   }, [pendingFinalize, requestedKey, search, setLocation]);
   const { status, error, retry, isHydrating, loadServerDraft, keepLocalDraft, missingDraftFundId } =
     useFundDraftSync({ stepKey: key });
+  const [savedAt, setSavedAt] = React.useState<Date | null>(null);
+  React.useEffect(() => {
+    if (status === 'synced') setSavedAt(new Date());
+  }, [status]);
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
   const explicitFund = React.useMemo(() => parseFundIdParam(search), [search]);
   const [switchBlocked, setSwitchBlocked] = React.useState(false);
@@ -269,7 +273,7 @@ export default function FundSetup() {
         ) : (
           <>
             {(switchBlocked || explicitFund.kind === 'invalid') && (
-              <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-4xl px-4 pt-4 sm:px-6">
                 <Alert
                   aria-live="polite"
                   className="border-l-4 border-l-warning bg-warning/10"
@@ -328,7 +332,7 @@ export default function FundSetup() {
             )}
 
             {draftFundId != null && status !== 'idle' && (
-              <div className="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-4xl px-4 pt-4 sm:px-6">
                 {missingDraftFundId === draftFundId ? (
                   <Alert
                     aria-live="assertive"
@@ -361,7 +365,7 @@ export default function FundSetup() {
                     data-testid="draft-sync-error"
                   >
                     <AlertTriangle aria-hidden="true" className="h-4 w-4 text-error" />
-                    <AlertTitle>Draft Sync Failed</AlertTitle>
+                    <AlertTitle>Draft sync failed</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>{error ?? 'Could not save changes'}</span>
                       <Button type="button" size="sm" variant="outline" onClick={retry}>
@@ -385,9 +389,31 @@ export default function FundSetup() {
                       <Button type="button" size="sm" variant="outline" onClick={loadServerDraft}>
                         Load server draft
                       </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={keepLocalDraft}>
-                        Keep my changes
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button type="button" size="sm" variant="outline">
+                            Keep my changes
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Overwrite the saved draft?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Someone saved a newer version of this draft. Your values will replace
+                              it on the server, and the other changes will be lost.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-pov-charcoal hover:bg-charcoal-700"
+                              onClick={keepLocalDraft}
+                            >
+                              Overwrite saved draft
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </AlertDescription>
                   </Alert>
                 ) : status === 'uncertain' ? (
@@ -411,7 +437,11 @@ export default function FundSetup() {
                     className="rounded-xl border border-beige-200 bg-pov-white px-4 py-3 text-sm font-poppins text-charcoal-600 shadow-sm"
                     data-testid="draft-sync-status"
                   >
-                    {status === 'saving' ? 'Saving draft' : 'Latest draft saved'}
+                    {status === 'saving'
+                      ? 'Saving draft…'
+                      : savedAt
+                        ? `Latest draft saved at ${savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                        : 'Latest draft saved'}
                   </div>
                 )}
               </div>
