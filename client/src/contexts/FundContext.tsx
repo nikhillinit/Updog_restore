@@ -217,28 +217,13 @@ export function FundProvider({ children }: FundProviderProps) {
     suppressImplicitFundSelection &&
     !isDemoMode &&
     funds.length === 1;
-  const allowsMissingActiveFund =
-    hasResolvedFunds &&
-    !currentFund &&
-    routeFundId == null &&
-    suppressImplicitFundSelection &&
-    !awaitingSingletonRecovery;
-
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
   // redirecting to /fund-setup during the fetch -> effect handoff.
   const isInitializing = isLoading || awaitingResolvedFundSelection || awaitingSingletonRecovery;
-  // The Workspace (/ -> /dashboard) admits authenticated empty accounts; setup is a
-  // Workspace action, never a redirect.
-  const needsSetup =
-    !isInitializing &&
-    !fundLoadError &&
-    !currentFund &&
-    routeFundId == null &&
-    !isDemoMode &&
-    !allowsMissingActiveFund &&
-    pathname !== '/' &&
-    pathname !== '/dashboard';
+  // Account setup state is independent of the active route and fund selection.
+  // Route guards decide which surfaces admit an account that still needs setup.
+  const needsSetup = !isInitializing && !fundLoadError && !hasResolvedFunds && !isDemoMode;
   const suppressRouteFundContext =
     invalidFundResultsRoute || (routeFundId != null && Number(currentFund?.id) !== routeFundId);
 

@@ -6,8 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fundStore, resetFundWorkspace, bindFundWorkspaceActor } from '@/stores/fundStore';
 
 const mockNavigate = vi.fn();
+const mockSearch = { value: '' };
 vi.mock('wouter', () => ({
   useLocation: () => ['/dashboard', mockNavigate],
+  useSearch: () => mockSearch.value,
 }));
 
 vi.mock('@/hooks/useUnifiedFlag', () => ({ useFlag: () => false }));
@@ -104,6 +106,7 @@ describe('FundWorkspace', () => {
   beforeEach(async () => {
     sessionStorage.clear();
     mockNavigate.mockReset();
+    mockSearch.value = '';
     mockSaveFundDraft.mockReset();
     mockApiRequest.mockReset().mockImplementation(async (_method: string, url: string) => {
       if (url === '/api/funds') return FUNDS;
@@ -159,6 +162,33 @@ describe('FundWorkspace', () => {
     expect(within(row).getByRole('button', { name: 'Open model' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Resume Draft' })).toBeInTheDocument();
     expect(screen.queryByText(/archived/i)).not.toBeInTheDocument();
+  });
+
+  it('preserves demo mode when opening fund analytics', async () => {
+    mockSearch.value = 'demo=gp';
+    renderWorkspace();
+
+    const row = await screen.findByTestId('workspace-fund-1');
+    await userEvent.click(within(row).getByRole('button', { name: 'Analytics' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=overview&fundId=1&demo=gp');
+  });
+
+  it('preserves demo mode when selecting a fund', async () => {
+    const user = userEvent.setup();
+    Object.defineProperties(HTMLElement.prototype, {
+      hasPointerCapture: { configurable: true, value: () => false },
+      setPointerCapture: { configurable: true, value: () => undefined },
+      releasePointerCapture: { configurable: true, value: () => undefined },
+      scrollIntoView: { configurable: true, value: () => undefined },
+    });
+    mockSearch.value = 'demo=gp';
+    renderWorkspace();
+
+    await user.click(await screen.findByRole('combobox', { name: 'Viewing fund' }));
+    await user.click(await screen.findByRole('option', { name: 'Example Fund II' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?fundId=2&demo=gp');
   });
 
   it('shows an honest unavailable status with a retry when the state read fails', async () => {
@@ -238,6 +268,21 @@ describe('FundWorkspace', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
     expect(fundStore.getState().draftFundId).toBeNull();
     expect(fundStore.getState().fundName).toBeUndefined();
+  });
+
+  it('preserves an unnamed pre-create wizard session when starting another fund', async () => {
+    fundStore.setState({
+      creationKey: null,
+      fundName: undefined,
+      fundSize: 25_000_000,
+    });
+    renderWorkspace();
+
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+
+    expect(await screen.findByRole('dialog', { name: 'Start another fund?' })).toBeInTheDocument();
+    expect(fundStore.getState().fundSize).toBe(25_000_000);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('keeps the preservation dialog and local values when command storage fails', async () => {

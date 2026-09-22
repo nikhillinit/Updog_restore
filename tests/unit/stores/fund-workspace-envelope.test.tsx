@@ -5,6 +5,7 @@ import {
   FUND_WORKSPACE_STORAGE_KEY,
   fundCommandKey,
   fundStore,
+  hasFundWorkspaceSession,
   prepareFundCommand,
   unbindFundWorkspaceActor,
   isFundWorkspaceEnvelope,
@@ -198,6 +199,84 @@ describe('fund workspace envelope', () => {
     expect(isFundWorkspaceEnvelope({ envelope: FUND_WORKSPACE_ENVELOPE })).toBe(false);
   });
 
+  it('recognizes unnamed edits and reserved sessions without treating generated IDs as edits', () => {
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(false);
+    resetFundWorkspace();
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(false);
+    fundStore.getState().updateFundBasics({ fundSize: 20_000_000 });
+    expect(fundStore.getState().creationKey).toBeNull();
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(true);
+    resetFundWorkspace();
+    fundStore.getState().updateStageRate(0, { months: 42 });
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(true);
+    resetFundWorkspace();
+    fundStore.getState().reserveCreationKey();
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(true);
+  });
+
+  it.each([
+    ['command primitive', { pendingCommand: 'bad' }],
+    ['command shape', { pendingCommand: { operation: 'save_draft' } }],
+    ['command operation', { pendingCommand: { ...fullState().pendingCommand, operation: 'bad' } }],
+    ['command key', { pendingCommand: { ...fullState().pendingCommand, key: 'bad' } }],
+    [
+      'command revision',
+      { pendingCommand: { ...fullState().pendingCommand, expectedETag: 'bad' } },
+    ],
+    ['command body', { pendingCommand: { ...fullState().pendingCommand, bodySignature: '{bad' } }],
+    [
+      'command body array',
+      { pendingCommand: { ...fullState().pendingCommand, bodySignature: '[]' } },
+    ],
+    [
+      'command timestamp',
+      { pendingCommand: { ...fullState().pendingCommand, dispatchedAt: 'bad' } },
+    ],
+    ['command target', { pendingCommand: { ...fullState().pendingCommand, targetFundId: null } }],
+    ['creation target', { pendingCommand: { ...fullState().pendingCommand, operation: 'create' } }],
+    ['draft ID', { draftFundId: -1 }],
+    [
+      'command/store identity',
+      { pendingCommand: { ...fullState().pendingCommand, targetFundId: 43 } },
+    ],
+    [
+      'command without draft identity',
+      { draftFundId: null, draftServerReady: false, draftETag: null },
+    ],
+    ['unsafe draft ID', { draftFundId: Number.MAX_SAFE_INTEGER + 1 }],
+    ['draft revision', { draftETag: 'W/"0000000000000007"' }],
+    ['creation key', { creationKey: 42 }],
+    ['nested fee', { feeProfiles: [{ id: 'fee', name: '', feeTiers: ['bad'] }] }],
+    ['nested pipeline', { pipelineProfiles: [{ id: 'pipe', name: '', stages: [null] }] }],
+    ['nested LP', { lps: [{ id: 'lp', name: 'LP', commitment: 'bad', type: 'other' }] }],
+    ['nested capital plan', { capitalPlanAllocations: [false] }],
+    ['nested follow-on checks', { followOnChecks: { A: 0, B: 0, C: 'bad' } }],
+    ['unknown top-level field', { resolveCommand: 'bad' }],
+  ])('rejects a malformed %s before hydration', async (_label, patch) => {
+    fundStore.setState(fullState());
+    const malformed = { ...toFundWorkspaceEnvelope(fundStore.getState()), ...patch };
+    expect(isFundWorkspaceEnvelope(malformed)).toBe(false);
+    const raw = JSON.stringify({ state: malformed, version: 1 });
+    sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, raw);
+    resetFundWorkspaceStateOnly();
+    await bindFundWorkspaceActor(ACTOR);
+    expect(fundStore.getState().fundName).toBeUndefined();
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(fundStore.getState().draftFundId).toBeNull();
+    expect(typeof fundStore.getState().resolveCommand).toBe('function');
+  });
+
+  it('preserves structurally valid unfinished form values', () => {
+    fundStore.setState({
+      fundName: '',
+      establishmentDate: '',
+      modelInputsAsOfDate: '',
+      fundSize: -1,
+      sectorProfiles: [{ id: 'unfinished', name: '', targetPercentage: 110 }],
+    });
+    expect(isFundWorkspaceEnvelope(toFundWorkspaceEnvelope(fundStore.getState()))).toBe(true);
+  });
+
   it('starts a new session with a fresh creation key and no draft identity', () => {
     fundStore.setState(fullState());
     const previousSession = fundStore.getState().sessionId;
@@ -261,18 +340,30 @@ describe('fund workspace envelope', () => {
   });
 
   it('persists and replays the original command even after local edits and reload', async () => {
-    const original = prepareFundCommand('save_draft', 42, { fundName: 'Original' }, '"1"');
+    fundStore.setState({
+      draftFundId: 42,
+      draftETag: '"0000000000000001"',
+      draftServerReady: true,
+    });
+    const original = prepareFundCommand(
+      'save_draft',
+      42,
+      { fundName: 'Original' },
+      '"0000000000000001"'
+    );
     const envelope = sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!;
     fundStore.setState({ pendingCommand: null });
     sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, envelope);
     await bindFundWorkspaceActor(ACTOR);
-    expect(prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"2"')).toEqual(original);
-    expect(() => prepareFundCommand('finalize', 42, {}, '"2"')).toThrow(/pending/i);
+    expect(
+      prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"0000000000000002"')
+    ).toEqual(original);
+    expect(() => prepareFundCommand('finalize', 42, {}, '"0000000000000002"')).toThrow(/pending/i);
     fundStore.getState().resolveCommand();
-    const next = prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"2"');
+    const next = prepareFundCommand('save_draft', 42, { fundName: 'Edited' }, '"0000000000000002"');
     expect(next.key).not.toBe(original.key);
     expect(next.payload).toEqual({ fundName: 'Edited' });
-    expect(next.etag).toBe('"2"');
+    expect(next.etag).toBe('"0000000000000002"');
   });
 
   it('refuses dispatch preparation when the pending command cannot be persisted', () => {

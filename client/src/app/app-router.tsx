@@ -4,7 +4,7 @@ import { AdminRoute } from '@/components/AdminRoute';
 import { LPProvider } from '@/contexts/LPContext';
 import { FundProvider, useFundContext } from '@/contexts/FundContext';
 import { resolveRouteControlFlag } from '@/app/route-control-flags';
-import { isFundResultsRoute } from '@/lib/fund-routes';
+import { getLocationPathname, isFundResultsRoute } from '@/lib/fund-routes';
 import { Button } from '@/components/ui/button';
 import { useAuthSession, type AuthSession } from '@/lib/auth-session';
 import { queryClient } from '@/lib/queryClient';
@@ -52,7 +52,7 @@ function FundContextRecovery() {
 }
 
 function HomeRoute() {
-  const { needsSetup, isLoading, fundLoadError } = useFundContext();
+  const { isLoading, fundLoadError } = useFundContext();
 
   if (isLoading) {
     return (
@@ -63,7 +63,7 @@ function HomeRoute() {
   }
 
   if (fundLoadError) return <FundContextRecovery />;
-  return needsSetup ? <Redirect to="/fund-setup" /> : <Redirect to="/dashboard" />;
+  return <Redirect to="/dashboard" />;
 }
 
 interface ProtectedRouteProps {
@@ -85,7 +85,7 @@ function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps)
 
   if (fundLoadError && !isFundResultsRoute(location)) return <FundContextRecovery />;
 
-  if (needsSetup) {
+  if (needsSetup && getLocationPathname(location) !== '/dashboard') {
     return <Redirect to="/fund-setup" />;
   }
 

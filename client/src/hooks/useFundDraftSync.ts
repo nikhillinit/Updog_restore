@@ -14,6 +14,7 @@ import {
 } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
 import { ApiError } from '@/lib/queryClient';
+import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 
 export type { DraftSyncStatus } from '@/stores/fundStore';
 
@@ -87,7 +88,7 @@ export function useFundDraftSync({
 
   const localSignature = React.useCallback(
     () =>
-      JSON.stringify(
+      canonicalJson(
         fundStoreToDraftWriteV1(fundStore.getState(), {
           includeEconomicsAssumptions: economicsEnabled,
         })
@@ -108,7 +109,7 @@ export function useFundDraftSync({
     const currentPayload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
-    if (!state.pendingCommand && JSON.stringify(currentPayload) === lastSavedSignatureRef.current) {
+    if (!state.pendingCommand && canonicalJson(currentPayload) === lastSavedSignatureRef.current) {
       setStatus('synced');
       return;
     }
@@ -123,7 +124,7 @@ export function useFundDraftSync({
       return;
     }
     const { payload, key, etag } = command;
-    const signature = JSON.stringify(payload);
+    const signature = canonicalJson(payload);
 
     saveInFlightRef.current = true;
     setStatus('saving');
@@ -342,7 +343,7 @@ export function useFundDraftSync({
         if (state.draftETag === snapshot.etag) {
           // Local values are at or ahead of the acknowledged revision; keep them.
           markVerified(draftFundId);
-          lastSavedSignatureRef.current = JSON.stringify(snapshot.config);
+          lastSavedSignatureRef.current = canonicalJson(snapshot.config);
           setStatus('synced');
           if (localSignature() !== lastSavedSignatureRef.current) {
             pendingSaveTimerRef.current = setTimeout(() => void persistCurrentDraft(), debounceMs);
@@ -402,7 +403,7 @@ export function useFundDraftSync({
         lastObservedSignatureRef.current = localSignature();
         return;
       }
-      const signature = JSON.stringify(
+      const signature = canonicalJson(
         fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: economicsEnabled })
       );
       if (signature === lastObservedSignatureRef.current) return;

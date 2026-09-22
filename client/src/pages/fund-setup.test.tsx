@@ -7,6 +7,13 @@ const state = vi.hoisted(() => ({
   location: '/fund-setup',
   search: '',
   draftFundId: null as number | null,
+  draftServerReady: false,
+  fundName: undefined as string | undefined,
+  pendingCommand: null,
+  creationKey: '11111111-1111-4111-8111-111111111111' as string | null,
+  reserveCreationKey: vi.fn(),
+  resumeServerDraft: vi.fn(),
+  startNewFundSession: vi.fn(),
   sync: {
     status: 'idle' as 'idle' | 'hydrating' | 'saving' | 'synced' | 'error',
     error: null as string | null,
@@ -66,20 +73,21 @@ vi.mock('@/hooks/useFundDraftSync', () => ({
 }));
 
 vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (value: { draftFundId: number | null }) => unknown) =>
-    selector({ draftFundId: state.draftFundId }),
-  useFundTuple: (
-    selector: (value: {
-      hydrated: boolean;
-      draftServerReady: boolean;
-      fundName?: string;
-    }) => unknown
-  ) => selector({ hydrated: true, draftServerReady: false }),
+  useFundSelector: (selector: (value: typeof state & { hydrated: boolean }) => unknown) =>
+    selector({ ...state, hydrated: true }),
+  useFundTuple: (selector: (value: typeof state & { hydrated: boolean }) => unknown) =>
+    selector({ ...state, hydrated: true }),
 }));
 
 vi.mock('@/stores/fundStore', () => ({
+  hasFundWorkspaceSession: (value: typeof state) =>
+    value.creationKey != null || value.pendingCommand != null || value.draftFundId != null,
   fundStore: {
-    getState: () => ({ resumeServerDraft: vi.fn(), startNewFundSession: vi.fn() }),
+    getState: () => ({
+      reserveCreationKey: state.reserveCreationKey,
+      resumeServerDraft: state.resumeServerDraft,
+      startNewFundSession: state.startNewFundSession,
+    }),
   },
 }));
 
@@ -92,6 +100,10 @@ describe('FundSetup', () => {
     state.location = '/fund-setup';
     state.search = '';
     state.draftFundId = null;
+    state.draftServerReady = false;
+    state.fundName = undefined;
+    state.pendingCommand = null;
+    state.creationKey = '11111111-1111-4111-8111-111111111111';
     state.sync.status = 'idle';
     state.sync.error = null;
     state.sync.isHydrating = false;

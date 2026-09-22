@@ -72,6 +72,13 @@ describe('buildDashboardHref', () => {
     expect(buildDashboardHref(null, 3)).toBe('/dashboard?fundId=3');
     expect(buildDashboardHref('performance', 3)).toBe('/dashboard?tab=performance&fundId=3');
   });
+
+  it('preserves only the supported URL demo activation', () => {
+    expect(buildDashboardHref('performance', 3, '?demo&ignored=value')).toBe(
+      '/dashboard?tab=performance&fundId=3&demo='
+    );
+    expect(buildDashboardHref(null, null, '?demo=gp')).toBe('/dashboard?demo=gp');
+  });
 });
 
 describe('/dashboard fund context', () => {

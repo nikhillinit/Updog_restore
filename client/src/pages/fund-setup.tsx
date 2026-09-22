@@ -16,9 +16,20 @@ import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fundStore } from '@/stores/fundStore';
+import { fundStore, hasFundWorkspaceSession } from '@/stores/fundStore';
 import { parseFundIdParam } from '@/lib/fund-routes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -109,9 +120,10 @@ export default function FundSetup() {
   const search = useSearch();
   const { markStepVisited, getRedirectUrl } = useWizardStepGuard();
   const draftFundId = useFundSelector((s) => s.draftFundId);
-  const [hydrated, draftServerReady, fundName, pendingCommand] = useFundTuple(
-    (s) => [s.hydrated, s.draftServerReady, s.fundName, s.pendingCommand] as const
+  const [hydrated, draftServerReady, fundName, pendingCommand, creationKey] = useFundTuple(
+    (s) => [s.hydrated, s.draftServerReady, s.fundName, s.pendingCommand, s.creationKey] as const
   );
+  const hasLocalSession = useFundSelector(hasFundWorkspaceSession);
   const pendingFinalize = pendingCommand?.operation === 'finalize';
   const key = pendingFinalize ? 'review' : requestedKey;
   React.useEffect(() => {
@@ -125,24 +137,52 @@ export default function FundSetup() {
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
   const explicitFund = React.useMemo(() => parseFundIdParam(search), [search]);
   const [switchBlocked, setSwitchBlocked] = React.useState(false);
+  const needsLocalSessionIdentity =
+    hydrated &&
+    explicitFund.kind === 'absent' &&
+    draftFundId == null &&
+    pendingCommand == null &&
+    creationKey == null;
+
+  React.useEffect(() => {
+    if (needsLocalSessionIdentity) fundStore.getState().reserveCreationKey();
+  }, [needsLocalSessionIdentity]);
 
   // Explicit ?fundId=N: resume that server draft, unless a different local
   // session still has unsettled changes. Bare /fund-setup never creates anything.
   React.useEffect(() => {
-    if (!hydrated || explicitFund.kind !== 'valid' || explicitFund.id === draftFundId) return;
+    if (!hydrated) return;
+    if (explicitFund.kind !== 'valid' || explicitFund.id === draftFundId) {
+      setSwitchBlocked(false);
+      return;
+    }
     const settled = draftServerReady && (status === 'idle' || status === 'synced');
-    if (!pendingCommand && (draftFundId == null || settled)) {
+    if (!pendingCommand && (!hasLocalSession || (draftFundId != null && settled))) {
       fundStore.getState().resumeServerDraft(explicitFund.id);
       setSwitchBlocked(false);
       return;
     }
     setSwitchBlocked(true);
-  }, [draftFundId, draftServerReady, explicitFund, hydrated, pendingCommand, status]);
+  }, [
+    draftFundId,
+    draftServerReady,
+    explicitFund,
+    hasLocalSession,
+    hydrated,
+    pendingCommand,
+    status,
+  ]);
 
   const startNewFund = React.useCallback(() => {
     fundStore.getState().startNewFundSession();
     setLocation('/fund-setup?step=1');
   }, [setLocation]);
+
+  const discardLocalAndOpenTarget = React.useCallback(() => {
+    if (pendingCommand || explicitFund.kind !== 'valid') return;
+    fundStore.getState().resumeServerDraft(explicitFund.id);
+    setSwitchBlocked(false);
+  }, [explicitFund, pendingCommand]);
 
   // Get current step number from key
   const currentStepNumber = WIZARD_STEPS.find((s) => s.id === key)?.number || 1;
@@ -216,14 +256,14 @@ export default function FundSetup() {
           enableNavigation={!pendingFinalize}
         />
 
-        {isHydrating && draftFundId != null ? (
+        {(isHydrating && draftFundId != null) || needsLocalSessionIdentity ? (
           <div
             className="flex min-h-[320px] items-center justify-center px-6"
             data-testid="draft-hydrating"
           >
             <div className="flex items-center gap-3 rounded-xl border border-beige-200 bg-pov-white px-6 py-4 text-sm font-poppins text-pov-charcoal shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading your draft
+              {needsLocalSessionIdentity ? 'Preparing fund workspace' : 'Loading your draft'}
             </div>
           </div>
         ) : (
@@ -255,6 +295,33 @@ export default function FundSetup() {
                     >
                       Open fund workspace
                     </Button>
+                    {switchBlocked && explicitFund.kind === 'valid' && !pendingCommand && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button type="button" size="sm" variant="outline">
+                            Discard local draft and open selected fund
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Discard local draft?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Unsaved changes to {fundName?.trim() || 'the current draft'} will be
+                              discarded before opening the selected fund.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep local draft</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-pov-charcoal hover:bg-charcoal-700"
+                              onClick={discardLocalAndOpenTarget}
+                            >
+                              Discard and open
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </AlertDescription>
                 </Alert>
               </div>

@@ -132,10 +132,10 @@ export class FundSetupPage extends BasePage {
 
   async verifyReviewData(expectedData: { name: string; fundSize?: string }) {
     await expect(this.stepContainer(7)).toBeVisible();
-    const bodyText = await this.page.textContent('body');
-    expect(bodyText).toContain(expectedData.name);
+    const body = this.page.locator('body');
+    await expect(body).toContainText(expectedData.name);
     if (expectedData.fundSize) {
-      expect(bodyText).toContain(expectedData.fundSize);
+      await expect(body).toContainText(expectedData.fundSize);
     }
   }
 

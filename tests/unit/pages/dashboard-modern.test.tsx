@@ -104,6 +104,15 @@ describe('ModernDashboard', () => {
     expect(screen.getByText('Fund Workspace valid')).toBeInTheDocument();
   });
 
+  it('retains URL demo activation while normalizing an unknown tab', async () => {
+    window.history.pushState({}, '', '/dashboard?tab=bogus&fundId=42&demo');
+    render(<ModernDashboard />);
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('?fundId=42&demo=');
+    });
+  });
+
   it('retains the URL fund while context is still loading', async () => {
     window.history.pushState({}, '', '/dashboard?tab=bogus&fundId=42');
     mockUseFundContext.mockReturnValue({ currentFund: null, isLoading: true });
@@ -130,6 +139,22 @@ describe('ModernDashboard', () => {
     await user.click(screen.getByTestId('analytics-workspace-action'));
     await waitFor(() => {
       expect(window.location.search).toBe('?fundId=42');
+    });
+  });
+
+  it('retains URL demo activation across analytics navigation', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/dashboard?tab=overview&fundId=42&demo');
+    render(<ModernDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /performance/i }));
+    await waitFor(() => {
+      expect(window.location.search).toBe('?tab=performance&fundId=42&demo=');
+    });
+
+    await user.click(screen.getByTestId('analytics-workspace-action'));
+    await waitFor(() => {
+      expect(window.location.search).toBe('?fundId=42&demo=');
     });
   });
 

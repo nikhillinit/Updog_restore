@@ -17,6 +17,7 @@ let draftRevision = 1;
 const draftETag = () => `"${String(draftRevision).padStart(16, '0')}"`;
 
 async function installFundSetupApiStubs(page: Page, apiRequests: ApiRequests) {
+  let persistedFund: Record<string, unknown> | null = null;
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -52,7 +53,7 @@ async function installFundSetupApiStubs(page: Page, apiRequests: ApiRequests) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([]),
+        body: JSON.stringify(persistedFund ? [persistedFund] : []),
       });
       return;
     }
@@ -63,21 +64,22 @@ async function installFundSetupApiStubs(page: Page, apiRequests: ApiRequests) {
         idempotencyKey: request.headers()['idempotency-key'] ?? null,
       });
       draftRevision = 1;
+      persistedFund = {
+        id: DRAFT_FUND_ID,
+        name: 'Persisted Draft Fund',
+        size: 75_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+        status: 'draft',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         headers: { ETag: CREATE_ETAG, 'Cache-Control': 'no-store' },
-        body: JSON.stringify({
-          id: DRAFT_FUND_ID,
-          name: 'Persisted Draft Fund',
-          size: 75_000_000,
-          managementFee: 0.02,
-          carryPercentage: 0.2,
-          vintageYear: 2026,
-          status: 'draft',
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        }),
+        body: JSON.stringify(persistedFund),
       });
       return;
     }

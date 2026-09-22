@@ -353,24 +353,31 @@ export default function ModernDashboard() {
   // Unknown or duplicate tab: normalize to the Workspace, retaining a valid fundId.
   React.useEffect(() => {
     if (view && !view.normalized) {
-      navigate(buildDashboardHref(null, view.fundId.kind === 'valid' ? view.fundId.id : null), {
-        replace: true,
-      });
+      navigate(
+        buildDashboardHref(null, view.fundId.kind === 'valid' ? view.fundId.id : null, search),
+        { replace: true }
+      );
     }
-  }, [navigate, view]);
+  }, [navigate, search, view]);
 
   if (!view || view.view === 'workspace') {
     return <FundWorkspace selection={view?.fundId ?? { kind: 'absent' }} />;
   }
-  return <AnalyticsDashboard view={view} />;
+  return <AnalyticsDashboard view={view} search={search} />;
 }
 
-function AnalyticsDashboard({ view }: { view: Extract<DashboardView, { view: 'analytics' }> }) {
+function AnalyticsDashboard({
+  view,
+  search,
+}: {
+  view: Extract<DashboardView, { view: 'analytics' }>;
+  search: string;
+}) {
   const [, navigate] = useLocation();
   const { currentFund, isLoading } = useFundContext();
   const activeView = view.tab;
   const setActiveView = (tab: string) =>
-    navigate(buildDashboardHref(tab as DashboardTab, currentFund?.id ?? null));
+    navigate(buildDashboardHref(tab as DashboardTab, currentFund?.id ?? null, search));
   const metricsQuery = useFundMetrics({ enabled: Boolean(currentFund) });
   const contextRailEnabled = useFlag('enable_context_rail');
   const contextRailSections = buildContextRailSections({
@@ -424,7 +431,7 @@ function AnalyticsDashboard({ view }: { view: Extract<DashboardView, { view: 'an
             type="button"
             variant="outline"
             className="mt-4"
-            onClick={() => navigate(buildDashboardHref(null, null))}
+            onClick={() => navigate(buildDashboardHref(null, null, search))}
           >
             Choose a fund in the workspace
           </Button>
@@ -570,7 +577,7 @@ function AnalyticsDashboard({ view }: { view: Extract<DashboardView, { view: 'an
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => navigate(buildDashboardHref(null, currentFund.id))}
+              onClick={() => navigate(buildDashboardHref(null, currentFund.id, search))}
               data-testid="analytics-workspace-action"
             >
               Workspace

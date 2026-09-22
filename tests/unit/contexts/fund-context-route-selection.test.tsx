@@ -424,7 +424,7 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('does not demand setup for an authenticated empty account on / or /dashboard', async () => {
+  it('reports account setup truth independently of the current route', async () => {
     mockUseQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     const { Wrapper, goto } = createWouterWrapper('/');
 
@@ -437,14 +437,14 @@ describe('FundProvider route-aware selection', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
     });
 
     act(() => {
       goto('/dashboard');
     });
     await waitFor(() => {
-      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
     });
 
     act(() => {

@@ -141,7 +141,8 @@ describe('FundSetup draft sync', () => {
     const { default: FundSetup } = await import('@/pages/fund-setup');
     render(<FundSetup />);
 
-    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
+    expect(await screen.findByText('Fund Basics Step')).toBeInTheDocument();
+    expect(fundStore.getState().creationKey).toMatch(/^[0-9a-f-]{36}$/);
     expect(screen.queryByTestId('draft-sync-error')).not.toBeInTheDocument();
     expect(screen.queryByTestId('draft-sync-status')).not.toBeInTheDocument();
     expect(mockFetchFundDraft).not.toHaveBeenCalled();
@@ -172,9 +173,107 @@ describe('FundSetup draft sync', () => {
     const { default: FundSetup } = await import('@/pages/fund-setup');
     render(<FundSetup />);
     expect(await screen.findByTestId('draft-switch-blocked')).toHaveTextContent('Pending creation');
+    expect(
+      screen.queryByRole('button', { name: 'Discard local draft and open selected fund' })
+    ).not.toBeInTheDocument();
     expect(fundStore.getState().pendingCommand).toEqual(pending);
     expect(fundStore.getState().draftFundId).toBeNull();
     expect(mockFetchFundDraft).not.toHaveBeenCalled();
+  });
+
+  it('does not replace unnamed pre-create edits when an explicit fund URL is opened', async () => {
+    mockLocation.value = '/fund-setup?fundId=99';
+    act(() =>
+      fundStore.setState({
+        creationKey: null,
+        fundName: undefined,
+        fundSize: 25_000_000,
+      })
+    );
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(await screen.findByTestId('draft-switch-blocked')).toBeInTheDocument();
+    expect(fundStore.getState().draftFundId).toBeNull();
+    expect(fundStore.getState().fundSize).toBe(25_000_000);
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+  });
+
+  it('keeps local edits on cancel and opens the selected fund only after discard confirmation', async () => {
+    mockLocation.value = '/fund-setup?fundId=99';
+    mockFetchFundDraft.mockResolvedValue({ config: { fundName: 'Fund 99' }, etag: SERVER_ETAG });
+    act(() =>
+      fundStore.setState({
+        creationKey: crypto.randomUUID(),
+        fundName: 'Local draft',
+        fundSize: 25_000_000,
+      })
+    );
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    const discardButton = await screen.findByRole('button', {
+      name: 'Discard local draft and open selected fund',
+    });
+
+    await userEvent.click(discardButton);
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Unsaved changes to Local draft');
+    await userEvent.click(screen.getByRole('button', { name: 'Keep local draft' }));
+
+    expect(fundStore.getState().draftFundId).toBeNull();
+    expect(fundStore.getState().fundName).toBe('Local draft');
+    expect(fundStore.getState().fundSize).toBe(25_000_000);
+    expect(screen.getByTestId('draft-switch-blocked')).toBeInTheDocument();
+
+    await userEvent.click(discardButton);
+    await userEvent.click(screen.getByRole('button', { name: 'Discard and open' }));
+
+    await waitFor(() => expect(fundStore.getState().draftFundId).toBe(99));
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledWith(99));
+    expect(screen.queryByTestId('draft-switch-blocked')).not.toBeInTheDocument();
+  });
+
+  it('clears a blocked draft-switch warning after same-mount navigation to the bare wizard', async () => {
+    mockLocation.value = '/fund-setup?fundId=99';
+    act(() =>
+      fundStore.setState({
+        creationKey: crypto.randomUUID(),
+        fundName: 'Local draft',
+      })
+    );
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    const { rerender } = render(<FundSetup />);
+    expect(await screen.findByTestId('draft-switch-blocked')).toHaveTextContent('Local draft');
+
+    mockLocation.value = '/fund-setup';
+    rerender(<FundSetup />);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('draft-switch-blocked')).not.toBeInTheDocument()
+    );
+    expect(screen.getByText('Fund Basics Step')).toBeInTheDocument();
+  });
+
+  it('switches a confirmed synced server draft to another explicit fund', async () => {
+    mockLocation.value = '/fund-setup?fundId=99';
+    mockFetchFundDraft.mockResolvedValue({ config: { fundName: 'Fund 99' }, etag: SERVER_ETAG });
+    act(() =>
+      fundStore.setState({
+        draftFundId: 55,
+        draftServerReady: true,
+        draftSyncStatus: 'synced',
+        fundName: 'Fund 55',
+      })
+    );
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    await waitFor(() => expect(fundStore.getState().draftFundId).toBe(99));
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledWith(99));
+    expect(screen.queryByTestId('draft-switch-blocked')).not.toBeInTheDocument();
   });
 
   it('keeps all wizard editing steps closed while publication status is unresolved', async () => {

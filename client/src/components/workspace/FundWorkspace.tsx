@@ -1,13 +1,13 @@
 import React from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
-import { prepareFundCommand, fundStore } from '@/stores/fundStore';
-import { useFundTuple } from '@/stores/useFundSelector';
+import { hasFundWorkspaceSession, prepareFundCommand, fundStore } from '@/stores/fundStore';
+import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { saveFundDraft } from '@/services/fund-drafts';
 import { classifyWorkflowError } from '@/services/fund-workflow';
@@ -93,6 +93,7 @@ interface FundRowProps {
 
 function FundRow({ fund, read, canWrite, onRetry }: FundRowProps) {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const hasPublished = read.kind === 'state' && read.state.configState.hasPublished;
   const hasDraft = read.kind === 'state' && read.state.configState.hasDraft;
   const calculation = read.kind === 'state' ? read.state.calculationState.status : null;
@@ -150,7 +151,7 @@ function FundRow({ fund, read, canWrite, onRetry }: FundRowProps) {
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => navigate(buildDashboardHref('overview', fund.id))}
+            onClick={() => navigate(buildDashboardHref('overview', fund.id, search))}
           >
             Analytics
           </Button>
@@ -221,6 +222,7 @@ export interface FundWorkspaceProps {
 
 export function FundWorkspace({ selection }: FundWorkspaceProps) {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
   const [draftFundId, draftServerReady, draftSyncStatus, localFundName, actorRole, pendingCommand] =
     useFundTuple(
@@ -234,6 +236,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
           s.pendingCommand,
         ] as const
     );
+  const hasLocalSession = useFundSelector(hasFundWorkspaceSession);
   // Early guidance only; the server checks permission on every create, save and publish.
   const role = effectiveRoleOf(actorRole);
   const canWrite = role != null && (PARTNER_WRITE_ROLES as readonly string[]).includes(role);
@@ -258,8 +261,6 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     selection.kind === 'invalid' ||
     (selection.kind === 'valid' && fundsQuery.isSuccess && !selectedFund);
   const localSessionName = localFundName?.trim() || 'the current draft';
-  const hasLocalSession =
-    pendingCommand != null || draftFundId != null || (localFundName?.trim().length ?? 0) > 0;
   const localSettled =
     !pendingCommand && (draftSyncStatus === 'idle' || draftSyncStatus === 'synced');
   const blockedCommand = pendingCommand != null && pendingCommand.operation !== 'save_draft';
@@ -365,7 +366,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
               </label>
               <Select
                 value={selectedFund ? String(selectedFund.id) : ''}
-                onValueChange={(value) => navigate(buildDashboardHref(null, Number(value)))}
+                onValueChange={(value) => navigate(buildDashboardHref(null, Number(value), search))}
                 disabled={funds.length === 0}
               >
                 <SelectTrigger id="workspace-fund-select" aria-label="Viewing fund">

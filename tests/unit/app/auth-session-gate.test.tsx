@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   enabledCalls: [] as boolean[],
   fundProviderMounts: 0,
+  needsSetup: false,
   session: {
     data: undefined as
       undefined | null | { user: { id: string; email: string; role: string; fundIds: number[] } },
@@ -27,7 +28,11 @@ vi.mock('@/contexts/FundContext', () => ({
     mocks.fundProviderMounts += 1;
     return <div data-testid="fund-provider">{children}</div>;
   },
-  useFundContext: () => ({ needsSetup: false, isLoading: false, fundLoadError: false }),
+  useFundContext: () => ({
+    needsSetup: mocks.needsSetup,
+    isLoading: false,
+    fundLoadError: false,
+  }),
 }));
 
 vi.mock('@/contexts/LPContext', () => ({
@@ -53,9 +58,18 @@ vi.mock('@/app/app-routes', () => ({
   ADMIN_GATED_ROUTES: { uiCatalog: '/admin/ui-catalog' },
   APP_ROUTES: [
     {
+      path: '/fund-setup',
+      component: () => <div>Fund Setup Page</div>,
+    },
+    {
       path: '/dashboard',
       isProtected: true,
       component: () => <div>Dashboard Page</div>,
+    },
+    {
+      path: '/portfolio',
+      isProtected: true,
+      component: () => <div>Portfolio Page</div>,
     },
   ],
   ARCHIVED_PLACEHOLDER_ROUTES: [],
@@ -88,6 +102,7 @@ describe('production auth session gate', () => {
   beforeEach(() => {
     mocks.enabledCalls.length = 0;
     mocks.fundProviderMounts = 0;
+    mocks.needsSetup = false;
     mocks.session.data = undefined;
     mocks.session.isPending = false;
     mocks.session.isError = false;
@@ -155,5 +170,27 @@ describe('production auth session gate', () => {
     expect(await screen.findByText('Dashboard Page')).toBeInTheDocument();
     expect(screen.getByTestId('app-layout')).toBeInTheDocument();
     expect(mocks.fundProviderMounts).toBe(1);
+  });
+
+  it('admits setup-incomplete accounts to home and dashboard Workspace routes', async () => {
+    mocks.session.data = {
+      user: { id: '7', email: 'admin@example.com', role: 'admin', fundIds: [] },
+    };
+    mocks.needsSetup = true;
+
+    renderAt('/');
+    expect(await screen.findByText('Dashboard Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/dashboard');
+  });
+
+  it('redirects setup-incomplete accounts from other protected routes', async () => {
+    mocks.session.data = {
+      user: { id: '7', email: 'admin@example.com', role: 'admin', fundIds: [] },
+    };
+    mocks.needsSetup = true;
+
+    renderAt('/portfolio');
+    expect(await screen.findByText('Fund Setup Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/fund-setup');
   });
 });

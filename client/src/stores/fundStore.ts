@@ -4,6 +4,7 @@ import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
 import { sortById, normalizeNumber, eq } from '../utils/state-utils';
 import dequal from 'fast-deep-equal';
+import { FundWorkspaceEnvelopeSchema } from '../schemas/fund-workspace-schema';
 import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
 
@@ -781,19 +782,22 @@ export function toFundWorkspaceEnvelope(state: FundState): FundWorkspaceEnvelope
   };
 }
 
-export function isFundWorkspaceEnvelope(value: unknown): value is FundWorkspaceEnvelope {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    v['envelope'] === FUND_WORKSPACE_ENVELOPE &&
-    typeof v['sessionId'] === 'string' &&
-    (v['workspaceActorId'] === null || typeof v['workspaceActorId'] === 'string') &&
-    (v['draftFundId'] === null || typeof v['draftFundId'] === 'number') &&
-    typeof v['draftServerReady'] === 'boolean' &&
-    ['lpClasses', 'lps', 'stages', 'sectorProfiles', 'allocations', 'feeProfiles'].every((k) =>
-      Array.isArray(v[k])
-    )
+/** Explicit session identity plus unnamed edits recovered from older envelopes. */
+export function hasFundWorkspaceSession(state: FundState): boolean {
+  if (state.creationKey != null || state.pendingCommand != null || state.draftFundId != null) {
+    return true;
+  }
+  const defaults = fundStore.getInitialState();
+  const stageValues = ({ id: _id, ...values }: StrategyStage) => values;
+  return FUND_DATA_KEYS.some((key) =>
+    key === 'stages'
+      ? !dequal(state.stages.map(stageValues), defaults.stages.map(stageValues))
+      : !dequal(state[key], defaults[key])
   );
+}
+
+export function isFundWorkspaceEnvelope(value: unknown): value is FundWorkspaceEnvelope {
+  return FundWorkspaceEnvelopeSchema.safeParse(value).success;
 }
 
 // Actor bound by the authenticated shell. Envelopes are only read or written for it.

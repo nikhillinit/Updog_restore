@@ -124,11 +124,19 @@ export function resolveDashboardView(location: string, search = ''): DashboardVi
   return { view: 'workspace', tab: null, fundId, normalized: false };
 }
 
-/** Only tab and fundId change on /dashboard; nothing else is carried. */
-export function buildDashboardHref(tab: DashboardTab | null, fundId: number | null): string {
+/** Only tab, fundId and supported mode activation change on /dashboard. */
+export function buildDashboardHref(
+  tab: DashboardTab | null,
+  fundId: number | null,
+  currentSearch = ''
+): string {
   const params = new URLSearchParams();
   if (tab) params.set('tab', tab);
   if (fundId != null) params.set('fundId', String(fundId));
+  const currentParams = new URLSearchParams(
+    currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch
+  );
+  if (currentParams.has('demo')) params.set('demo', currentParams.get('demo') ?? '');
   const query = params.toString();
   return query ? `${DASHBOARD_PATH}?${query}` : DASHBOARD_PATH;
 }
