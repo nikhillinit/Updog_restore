@@ -389,6 +389,8 @@ describe('FundSetup draft sync', () => {
     expect(fundStore.getState().draftServerReady).toBe(true);
     expect(fundStore.getState().draftETag).toBe(SERVER_ETAG);
     expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
+    // Hydration is not a save: no "saved at" time for a draft loaded from the server.
+    expect(screen.getByTestId('draft-sync-status')).not.toHaveTextContent(/saved at/);
   });
 
   it('autosaves edits made after a same-tab reload restores a server-ready draft', async () => {
@@ -414,6 +416,7 @@ describe('FundSetup draft sync', () => {
     await waitFor(() =>
       expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved')
     );
+    expect(screen.getByTestId('draft-sync-status')).not.toHaveTextContent(/saved at/);
     await waitFor(() => expect(mockSaveFundDraft).not.toHaveBeenCalled());
 
     act(() => {
@@ -429,7 +432,7 @@ describe('FundSetup draft sync', () => {
       );
     });
     await waitFor(() =>
-      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved')
+      expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(/Latest draft saved at /)
     );
     expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
   });
