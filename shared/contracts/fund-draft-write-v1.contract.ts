@@ -6,8 +6,8 @@
  *
  * Source types: fundStore.ts:1-171 (FundState and related types)
  *
- * @unit fundSize ambiguous -- client stores dollars, but adapter may need
- *       conversion in Phase 2A. For now, pass through as-is.
+ * @unit fundSize dollars -- store and wire values pass through unchanged;
+ *       Fund Basics converts millions at the input/display boundary.
  */
 
 import { z } from 'zod';

@@ -19,7 +19,6 @@ import {
   formatCompactMoney,
   formatMultiple,
   formatNullablePercent,
-  percent,
   percentPoints,
 } from './formatters';
 
@@ -96,11 +95,13 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
               <FactTile
                 label="Preferred Return"
-                value={tier.preferredReturn != null ? percent(tier.preferredReturn) : 'Not set'}
+                value={
+                  tier.preferredReturn != null ? percentPoints(tier.preferredReturn) : 'Not set'
+                }
               />
               <FactTile
                 label="Catch-up"
-                value={tier.catchUp != null ? percent(tier.catchUp) : 'Not set'}
+                value={tier.catchUp != null ? percentPoints(tier.catchUp) : 'Not set'}
               />
               <FactTile
                 label="Recycling Cap"

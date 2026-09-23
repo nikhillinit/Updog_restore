@@ -12,7 +12,7 @@ describe('FundConstructionKpiHeader', () => {
           ...initialState,
           hydrated: true,
           fundName: 'Builder Fund I',
-          fundSize: 75,
+          fundSize: 75_000_000,
           managementFeeRate: 2,
           carriedInterest: 20,
           fundLife: 10,
@@ -66,5 +66,15 @@ describe('FundConstructionKpiHeader', () => {
     const { container } = render(<FundConstructionKpiHeader />);
 
     expect(container.firstChild).toBeNull();
+  });
+
+  it('keeps sub-million fund sizes in dollars without magnitude guessing', () => {
+    act(() => {
+      fundStore.setState({ fundSize: 750_000 });
+    });
+
+    render(<FundConstructionKpiHeader />);
+
+    expect(screen.getByTestId('construction-kpi-totalInvested')).toHaveTextContent('$750.0K');
   });
 });

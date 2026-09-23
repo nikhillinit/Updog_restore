@@ -259,8 +259,8 @@ describe('FundModelResultsPage (server-backed)', () => {
         tiers: [
           {
             name: 'Tier 1',
-            preferredReturn: 0.08,
-            catchUp: null,
+            preferredReturn: 8,
+            catchUp: 100,
             gpSplit: 20,
             lpSplit: 80,
             condition: 'irr',
@@ -294,6 +294,8 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(within(waterfallSection as HTMLElement).queryByText(/CALCULATING|CURRENT/i)).toBeNull();
     expect(screen.getByText('American')).toBeInTheDocument();
     expect(screen.getByText('GP 20% / LP 80%')).toBeInTheDocument();
+    expect(screen.getByText('Preferred Return').parentElement).toHaveTextContent('8%');
+    expect(screen.getByText('Catch-up').parentElement).toHaveTextContent('100%');
     expect(screen.getByText('Enabled')).toBeInTheDocument();
   });
 
@@ -358,7 +360,7 @@ describe('FundModelResultsPage (server-backed)', () => {
         tiers: [
           {
             name: 'Tier 1',
-            preferredReturn: 0.08,
+            preferredReturn: 8,
             catchUp: null,
             gpSplit: 20,
             lpSplit: 80,
