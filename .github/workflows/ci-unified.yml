@@ -60,6 +60,7 @@ jobs:
       financial_calc_relevant: ${{ steps.classify.outputs.financial_calc_relevant }}
       change_count: ${{ steps.classify.outputs.change_count }}
       test_full_groups: ${{ steps.groups.outputs.test_full_groups }}
+      full_suite: ${{ steps.groups.outputs.full_suite }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -110,8 +111,10 @@ jobs:
           # Ordinary heavy pull requests run integration and validate-core;
           # main, run_full_suite, and schema changes keep all three groups.
           if [[ "$REF_NAME" == "refs/heads/main" || "$RUN_FULL_SUITE" == "true" || "$SCHEMA_CHANGED" == "true" ]]; then
+            echo 'full_suite=true' >> "$GITHUB_OUTPUT"
             echo 'test_full_groups=["integration","e2e","validate-core"]' >> "$GITHUB_OUTPUT"
           else
+            echo 'full_suite=false' >> "$GITHUB_OUTPUT"
             echo 'test_full_groups=["integration","validate-core"]' >> "$GITHUB_OUTPUT"
           fi
 
@@ -307,7 +310,7 @@ jobs:
     name: Test ${{ matrix.group }}
     needs: [changes, check]
     if: |
-      (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.schema == 'true' || (github.event_name == 'pull_request' && needs.changes.outputs.heavy_ci_relevant == 'true')) &&
+      (needs.changes.outputs.full_suite == 'true' || (github.event_name == 'pull_request' && needs.changes.outputs.heavy_ci_relevant == 'true')) &&
       (
         needs.changes.outputs.heavy_ci_relevant == 'true' ||
         github.event.inputs.run_full_suite == 'true' ||

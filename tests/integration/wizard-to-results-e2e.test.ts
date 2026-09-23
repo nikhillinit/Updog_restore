@@ -106,6 +106,7 @@ describe('wizard to results flow', () => {
     mockSetCurrentFund.mockReset();
     mockInvalidateQueries.mockClear();
     resetFundWorkspace();
+    await bindFundWorkspaceActor(TEST_ACTOR_ID, TEST_ACTOR_ROLE);
     fundStore.setState({
       fundName: 'Test Fund',
       fundSize: 50_000_000,
@@ -120,8 +121,7 @@ describe('wizard to results flow', () => {
       recyclingEnabled: false,
       hydrated: true,
     });
-    await bindFundWorkspaceActor(TEST_ACTOR_ID, TEST_ACTOR_ROLE);
-    // The real store must carry the fixture and the bound actor before the wizard renders.
+    // Bind first, then seed: the fixture must not depend on how rehydrate treats an unowned envelope.
     expect(fundStore.getState().fundName).toBe('Test Fund');
     expect(fundStore.getState().workspaceActorId).toBe(TEST_ACTOR_ID);
     expect(fundStore.getState().pendingCommand).toBeNull();
