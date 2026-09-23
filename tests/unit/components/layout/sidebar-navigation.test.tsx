@@ -261,10 +261,12 @@ describe('sidebar results navigation', () => {
 
     hoverSidebar(container);
 
-    const dashboard = screen.getByRole('button', { name: /dashboard/i });
-    expect(dashboard).toBeDisabled();
-    expect(dashboard).toHaveAttribute('aria-describedby', 'sidebar-disabled-reason-dashboard');
-    expect(document.getElementById('sidebar-disabled-reason-dashboard')).toHaveTextContent(
+    // The Workspace stays reachable so an empty account can create its first fund.
+    expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
+    const portfolio = screen.getByRole('button', { name: /portfolio/i });
+    expect(portfolio).toBeDisabled();
+    expect(portfolio).toHaveAttribute('aria-describedby', 'sidebar-disabled-reason-portfolio');
+    expect(document.getElementById('sidebar-disabled-reason-portfolio')).toHaveTextContent(
       'Complete fund setup to access this route.'
     );
   });

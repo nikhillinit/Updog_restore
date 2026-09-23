@@ -53,16 +53,27 @@ interface ApiRequestOptions {
 // Integer seconds only; malformed, negative, or >30s values are ignored.
 const RETRY_AFTER_MAX_SECONDS = 30;
 
-function parseRetryAfterMs(header: string | null): number | undefined {
+export function parseRetryAfterMs(header: string | null): number | undefined {
   if (header === null || !/^\d+$/.test(header)) return undefined;
   const seconds = Number(header);
   if (seconds > RETRY_AFTER_MAX_SECONDS) return undefined;
   return seconds * 1000;
 }
 
+/**
+ * Drop every cached query except the session. Cached data belongs to the identity
+ * that fetched it and, with staleTime Infinity, would be served to the next one.
+ */
+export function clearIdentityScopedQueries(client: QueryClient = queryClient): void {
+  client.removeQueries({
+    predicate: (query) => query.queryKey[0] !== AUTH_SESSION_QUERY_KEY[0],
+  });
+}
+
 /** Make an unexpected 401 visible to the session-gated application shell. */
 function handleUnauthorized(): void {
   queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
+  clearIdentityScopedQueries();
 }
 
 /**

@@ -8,10 +8,12 @@ describe('client JSON request authentication handling', () => {
     vi.unstubAllGlobals();
   });
 
-  it('clears the cached session on an unexpected 401', async () => {
+  it('clears the cached session and the previous identity data on an unexpected 401', async () => {
     queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, {
       user: { id: '1', email: 'admin@example.com', role: 'admin', fundIds: [1] },
     });
+    queryClient.setQueryData(['/api/funds'], [{ id: 1, name: 'Previous actor fund' }]);
+    queryClient.setQueryData(['fund-state', 1], { status: 'published' });
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -27,5 +29,8 @@ describe('client JSON request authentication handling', () => {
       'Session expired'
     );
     expect(queryClient.getQueryData(AUTH_SESSION_QUERY_KEY)).toBeNull();
+    // staleTime is Infinity: anything left here would be served to the next sign-in.
+    expect(queryClient.getQueryData(['/api/funds'])).toBeUndefined();
+    expect(queryClient.getQueryData(['fund-state', 1])).toBeUndefined();
   });
 });

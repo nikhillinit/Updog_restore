@@ -8,7 +8,7 @@ import { ArrowRight } from 'lucide-react';
 import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
-import { fundStore } from '@/stores/fundStore';
+import { prepareFundCommand, fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import {
   createFund,
@@ -16,12 +16,23 @@ import {
   normalizeCreateFundResponse,
 } from '@/services/funds';
 import { saveFundDraft } from '@/services/fund-drafts';
+import { classifyWorkflowError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import { NumericInput } from '@/components/ui/NumericInput';
 import { WizardCard } from '@/components/wizard/WizardCard';
 
 type BootstrapStage = 'idle' | 'creating' | 'saving';
+
+const UNCERTAIN_CREATE_MESSAGE =
+  'Could not confirm fund creation; it may have completed. Retry to check.';
+const UNCERTAIN_SAVE_MESSAGE =
+  'Could not confirm the draft save; it may have completed. Retry to check.';
+
+function bootstrapErrorMessage(error: unknown, uncertainMessage: string, fallback: string) {
+  if (classifyWorkflowError(error) === 'uncertain') return uncertainMessage;
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
@@ -120,25 +131,46 @@ export default function FundBasicsStep() {
     }
 
     setShowRequiredErrors(true);
-    if (requiredBasicsMissing) {
+    if (requiredBasicsMissing && fundStore.getState().pendingCommand?.operation !== 'create') {
       return;
     }
 
     setShowRequiredErrors(false);
     setBootstrapError(null);
     let activeDraftFundId = draftFundId;
+    const capturedSession = fundStore.getState().sessionId;
+    const stillCurrent = () => fundStore.getState().sessionId === capturedSession;
 
     if (activeDraftFundId == null) {
       setBootstrapStage('creating');
 
+      let command;
       try {
-        const payload = fundStoreToCreateV1(fundStore.getState());
-        const raw = await createFund({ ...payload });
+        const store = fundStore.getState();
+        const pending = store.pendingCommand;
+        const payload =
+          pending?.operation === 'create'
+            ? (JSON.parse(pending.bodySignature) as ReturnType<typeof fundStoreToCreateV1>)
+            : fundStoreToCreateV1(store);
+        command = prepareFundCommand('create', null, payload, null);
+      } catch (error) {
+        setBootstrapError(
+          error instanceof Error ? error.message : 'Could not prepare fund creation'
+        );
+        setBootstrapStage('idle');
+        return;
+      }
+      try {
+        const result = await createFund(command.payload, { idempotencyKey: command.key });
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
+        const raw = result.body;
         const fund = normalizeCreateFundResponse(raw);
+        setDraftFundId(fund.id);
+        fundStore.getState().setDraftETag(result.etag);
+        fundStore.getState().resolveCommand();
         if (handleCredentialRenewalMarker(raw)) {
           // Fund committed but this session's credential could not be renewed;
           // the session gate is now active. Keep the identity, stop writes.
-          setDraftFundId(fund.id);
           setBootstrapError('Session renewal required. Sign in again to continue editing.');
           setBootstrapStage('idle');
           return;
@@ -148,7 +180,6 @@ export default function FundBasicsStep() {
         const now = new Date().toISOString();
 
         activeDraftFundId = fund.id;
-        setDraftFundId(fund.id);
         setDraftServerReady(false);
         setCurrentFund({
           id: fund.id,
@@ -168,9 +199,18 @@ export default function FundBasicsStep() {
           updatedAt: typeof fund['updatedAt'] === 'string' ? fund['updatedAt'] : now,
         });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to create fund draft identity';
-        setBootstrapError(message);
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
+        if (classifyWorkflowError(error) === 'rejected') {
+          fundStore.getState().resolveCommand();
+          fundStore.setState({ creationKey: null });
+        }
+        setBootstrapError(
+          bootstrapErrorMessage(
+            error,
+            UNCERTAIN_CREATE_MESSAGE,
+            'Failed to create fund draft identity'
+          )
+        );
         setBootstrapStage('idle');
         return;
       }
@@ -179,16 +219,52 @@ export default function FundBasicsStep() {
     if (activeDraftFundId != null && !draftServerReady) {
       setBootstrapStage('saving');
 
+      const store = fundStore.getState();
+      const draftPayload = fundStoreToDraftWriteV1(store, {
+        includeEconomicsAssumptions: economicsEnabled,
+      });
+      let command;
       try {
-        const draftPayload = fundStoreToDraftWriteV1(fundStore.getState(), {
-          includeEconomicsAssumptions: economicsEnabled,
-        });
-        await saveFundDraft(activeDraftFundId, draftPayload);
-        setDraftServerReady(true);
+        command = prepareFundCommand(
+          'save_draft',
+          activeDraftFundId,
+          draftPayload,
+          store.draftETag
+        );
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to save authoritative draft';
-        setBootstrapError(message);
+        setBootstrapError(error instanceof Error ? error.message : 'Could not prepare draft save');
+        setBootstrapStage('idle');
+        return;
+      }
+      try {
+        const saved = await saveFundDraft(activeDraftFundId, command.payload, {
+          key: command.key,
+          etag: command.etag,
+        });
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
+        const current = fundStore.getState();
+        current.setDraftETag(saved.etag ?? current.draftETag);
+        current.resolveCommand();
+        if (
+          JSON.stringify(
+            fundStoreToDraftWriteV1(current, { includeEconomicsAssumptions: economicsEnabled })
+          ) !== JSON.stringify(command.payload)
+        ) {
+          setDraftServerReady(false);
+          setBootstrapError(
+            'The previous save is confirmed. Save the newer changes before continuing.'
+          );
+          setBootstrapStage('idle');
+          return;
+        }
+        setDraftServerReady(true);
+        current.setDraftSyncStatus('synced');
+      } catch (error) {
+        if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
+        if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
+        setBootstrapError(
+          bootstrapErrorMessage(error, UNCERTAIN_SAVE_MESSAGE, 'Failed to save authoritative draft')
+        );
         setBootstrapStage('idle');
         return;
       }
@@ -227,7 +303,7 @@ export default function FundBasicsStep() {
               aria-describedby={
                 showRequiredErrors && fundNameMissing ? 'fund-basics-required-error' : undefined
               }
-              className="h-12 max-w-2xl text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
+              className="h-12 text-base font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
             />
           </div>
 
@@ -411,7 +487,7 @@ export default function FundBasicsStep() {
               {bootstrapStage === 'creating'
                 ? 'Creating Draft...'
                 : bootstrapStage === 'saving'
-                  ? 'Saving Draft...'
+                  ? 'Saving draft…'
                   : 'Next Step'}
               <ArrowRight className="h-4 w-4" />
             </Button>

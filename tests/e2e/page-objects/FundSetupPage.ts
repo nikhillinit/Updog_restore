@@ -76,13 +76,20 @@ export class FundSetupPage extends BasePage {
     return Number.isFinite(stepValue) ? stepValue : 1;
   }
 
-  async fillFundBasics(fundData: { name: string; fundSize?: string }) {
+  get modelInputsAsOfDateInput(): Locator {
+    return this.page.getByTestId('model-inputs-as-of-date');
+  }
+
+  async fillFundBasics(fundData: { name: string; fundSize?: string; asOfDate?: string }) {
     await expect(this.fundNameInput).toBeVisible();
     await this.fundNameInput.fill(fundData.name);
 
     if (fundData.fundSize) {
       await this.capitalCommittedInput.fill(fundData.fundSize);
     }
+
+    // Required owner-asserted provenance date; step 1 blocks Next without it.
+    await this.modelInputsAsOfDateInput.fill(fundData.asOfDate ?? '2026-06-30');
   }
 
   async completeStepOneAndWaitForDraft(fundData: { name: string; fundSize: string }): Promise<{
@@ -112,7 +119,7 @@ export class FundSetupPage extends BasePage {
     await expect(draftResponse.ok()).toBeTruthy();
     await expect(this.page).toHaveURL(/\/fund-setup\?step=2$/);
     await expect(this.stepContainer(2)).toBeVisible();
-    await expect(this.page.getByTestId('draft-sync-status')).toContainText('Draft saved to server');
+    await expect(this.page.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
 
     return { createResponse, draftResponse };
   }
@@ -125,10 +132,10 @@ export class FundSetupPage extends BasePage {
 
   async verifyReviewData(expectedData: { name: string; fundSize?: string }) {
     await expect(this.stepContainer(7)).toBeVisible();
-    const bodyText = await this.page.textContent('body');
-    expect(bodyText).toContain(expectedData.name);
+    const body = this.page.locator('body');
+    await expect(body).toContainText(expectedData.name);
     if (expectedData.fundSize) {
-      expect(bodyText).toContain(expectedData.fundSize);
+      await expect(body).toContainText(expectedData.fundSize);
     }
   }
 

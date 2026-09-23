@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ApiError } from '@/lib/queryClient';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
 const { mockUseFlag } = vi.hoisted(() => ({
@@ -25,7 +26,8 @@ vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=7', mockSetLocation],
 }));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     invalidateQueries: vi.fn().mockResolvedValue(undefined),
   }),
@@ -80,17 +82,37 @@ const mockFundState = {
   setDraftFundId: vi.fn(),
   draftServerReady: false,
   setDraftServerReady: vi.fn(),
+  draftETag: null as string | null,
+  draftSyncStatus: 'idle' as string,
+  workspaceActorId: 'actor-1' as string | null,
+  sessionId: 'session-1',
+  pendingCommand: null as {
+    operation: 'finalize';
+    key: string;
+    targetFundId: number | null;
+    expectedETag: string | null;
+    bodySignature: string;
+  } | null,
+  beginCommand: vi.fn(),
+  resolveCommand: vi.fn(),
+  setDraftETag: vi.fn(),
 };
+
+const mockPrepareFundCommand = vi.fn();
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
   useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
 }));
 
+const mockResetFundWorkspace = vi.fn();
+
 vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
+  prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
+  resetFundWorkspace: () => mockResetFundWorkspace(),
 }));
 
 // Mock finalizeFund
@@ -135,7 +157,36 @@ describe('ReviewStep finalize failure handling', () => {
     mockSetCurrentFund.mockReset();
     mockUseFlag.mockReset().mockReturnValue(true);
     mockFundState.draftFundId = null;
+    mockFundState.workspaceActorId = 'actor-1';
+    mockFundState.sessionId = 'session-1';
+    mockFundState.pendingCommand = null;
+    mockFundState.beginCommand.mockReset().mockImplementation((command) => {
+      mockFundState.pendingCommand = command;
+    });
+    mockFundState.resolveCommand.mockReset().mockImplementation(() => {
+      mockFundState.pendingCommand = null;
+    });
     mockFinalizeFund.mockReset().mockResolvedValue(successResponse);
+    mockPrepareFundCommand
+      .mockReset()
+      .mockImplementation(
+        (
+          _operation: string,
+          targetFundId: number | null,
+          payload: unknown,
+          etag: string | null
+        ) => {
+          const command = { payload, key: 'finalize-key-1', etag };
+          mockFundState.beginCommand({
+            operation: 'finalize',
+            key: command.key,
+            targetFundId,
+            expectedETag: etag,
+            bodySignature: JSON.stringify(payload),
+          });
+          return command;
+        }
+      );
     mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
       fundName: 'Test Fund',
       fundSize: 50_000_000,
@@ -154,7 +205,9 @@ describe('ReviewStep finalize failure handling', () => {
   });
 
   it('shows error when finalize returns validation error', async () => {
-    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Draft configuration is invalid'));
+    mockFinalizeFund
+      .mockReset()
+      .mockRejectedValue(new ApiError(400, 'Draft configuration is invalid', 'VALIDATION_FAILED'));
 
     render(<ReviewStep />);
 
@@ -168,8 +221,8 @@ describe('ReviewStep finalize failure handling', () => {
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
-  it('shows error when finalize returns server error, no navigation', async () => {
-    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Finalize failed (HTTP 500)'));
+  it('shows an uncertain outcome when finalize returns an ordinary 500', async () => {
+    mockFinalizeFund.mockReset().mockRejectedValue(new ApiError(500, 'Finalize failed'));
 
     render(<ReviewStep />);
 
@@ -177,10 +230,35 @@ describe('ReviewStep finalize failure handling', () => {
     await userEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('Fund Creation and Publish Failed')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-uncertain-alert')).toBeInTheDocument();
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
+    expect(mockSetLocation).not.toHaveBeenCalled();
+  });
+
+  it('does not dispatch or clear pending state when command preparation fails', async () => {
+    const pending = {
+      operation: 'finalize' as const,
+      key: 'persisted-key',
+      targetFundId: null,
+      expectedETag: null,
+      bodySignature: JSON.stringify({ name: 'Persisted Fund' }),
+    };
+    mockFundState.pendingCommand = pending;
+    mockPrepareFundCommand.mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+
+    render(<ReviewStep />);
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Storage unavailable')).toBeInTheDocument();
+    }, FULL_SUITE_WAIT_OPTIONS);
+    expect(mockFinalizeFund).not.toHaveBeenCalled();
+    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(mockFundState.pendingCommand).toBe(pending);
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
@@ -195,17 +273,12 @@ describe('ReviewStep finalize failure handling', () => {
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
-    expect(mockSetCurrentFund).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 42,
-        name: 'Test Fund',
-      })
-    );
+    expect(mockSetCurrentFund).not.toHaveBeenCalled();
   });
 
   it('retries finalize after failure and navigates on success', async () => {
     mockFinalizeFund
-      .mockRejectedValueOnce(new Error('Finalize failed (HTTP 500)'))
+      .mockRejectedValueOnce(new ApiError(400, 'Finalize rejected', 'VALIDATION_FAILED'))
       .mockResolvedValueOnce(successResponse);
 
     render(<ReviewStep />);
@@ -229,7 +302,9 @@ describe('ReviewStep finalize failure handling', () => {
   });
 
   it('shows error when publish queue fails via finalize', async () => {
-    mockFinalizeFund.mockReset().mockRejectedValue(new Error('Publish queue error'));
+    mockFinalizeFund
+      .mockReset()
+      .mockRejectedValue(new ApiError(400, 'Publish queue error', 'PUBLISH_REJECTED'));
 
     render(<ReviewStep />);
 
@@ -245,7 +320,7 @@ describe('ReviewStep finalize failure handling', () => {
 
   it('retries after publish failure and navigates on success', async () => {
     mockFinalizeFund
-      .mockRejectedValueOnce(new Error('Publish queue error'))
+      .mockRejectedValueOnce(new ApiError(400, 'Publish queue error', 'PUBLISH_REJECTED'))
       .mockResolvedValueOnce(successResponse);
 
     render(<ReviewStep />);
@@ -266,7 +341,7 @@ describe('ReviewStep finalize failure handling', () => {
     expect(mockFinalizeFund).toHaveBeenCalledTimes(2);
   });
 
-  it('uses fallback message for non-Error thrown values', async () => {
+  it('treats non-Error thrown values as uncertain', async () => {
     mockFinalizeFund.mockReset().mockRejectedValue('raw string error');
 
     render(<ReviewStep />);
@@ -274,7 +349,7 @@ describe('ReviewStep finalize failure handling', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to create fund')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-uncertain-alert')).toBeInTheDocument();
     }, FULL_SUITE_WAIT_OPTIONS);
   });
 });

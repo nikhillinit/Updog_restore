@@ -7,7 +7,10 @@ last_updated: 2026-01-19
 
 ## Overview
 
-The wizard calculations layer provides a clean API for modeling wizard components to perform portfolio validation, reserve calculations, and metrics enrichment. This guide explains how to integrate the calculation system with the XState wizard machine and React components.
+The wizard calculations layer provides a clean API for modeling wizard
+components to perform portfolio validation, reserve calculations, and metrics
+enrichment. This guide explains how to integrate the calculation system with the
+XState wizard machine and React components.
 
 ## Architecture
 
@@ -68,19 +71,20 @@ import { useActor } from '@xstate/react';
 ```typescript
 function CapitalAllocationStep() {
   const [state, send] = useActor(wizardMachine);
-  const portfolio = state.context.steps.capitalAllocation?.syntheticPortfolio || [];
+  const portfolio =
+    state.context.steps.capitalAllocation?.syntheticPortfolio || [];
 
   // Hook provides reactive validation and metrics
   const {
-    validation,      // Full validation result
-    isValid,         // Boolean: is portfolio valid?
-    hasErrors,       // Boolean: has validation errors?
-    hasWarnings,     // Boolean: has validation warnings?
-    summary,         // Portfolio summary stats
+    validation, // Full validation result
+    isValid, // Boolean: is portfolio valid?
+    hasErrors, // Boolean: has validation errors?
+    hasWarnings, // Boolean: has validation warnings?
+    summary, // Portfolio summary stats
     enrichedMetrics, // Enriched reserve metrics (if calculated)
     isReadyForCalculation, // Boolean: ready to calculate reserves?
-    reserveAllocation,     // Raw reserve results (if available)
-    hasReserves      // Boolean: has reserves been calculated?
+    reserveAllocation, // Raw reserve results (if available)
+    hasReserves, // Boolean: has reserves been calculated?
   } = useWizardCalculations(portfolio, state.context);
 
   // ... rest of component
@@ -97,8 +101,8 @@ const handlePortfolioChange = (newPortfolio: WizardPortfolioCompany[]) => {
     step: 'capitalAllocation',
     data: {
       ...state.context.steps.capitalAllocation,
-      syntheticPortfolio: newPortfolio
-    }
+      syntheticPortfolio: newPortfolio,
+    },
   });
 
   // Trigger reactive validation
@@ -231,10 +235,13 @@ const handleCalculateReserves = () => {
 ### Hook: `useWizardCalculations(portfolio, wizardContext)`
 
 **Parameters:**
+
 - `portfolio: WizardPortfolioCompany[]` - Array of portfolio companies
-- `wizardContext: ModelingWizardContext | undefined` - Wizard machine context (strongly-typed, NO `any`)
+- `wizardContext: ModelingWizardContext | undefined` - Wizard machine context
+  (strongly-typed, NO `any`)
 
 **Returns:**
+
 ```typescript
 {
   validation: PortfolioValidationResult,
@@ -250,21 +257,25 @@ const handleCalculateReserves = () => {
 ```
 
 **Performance Optimization:**
+
 - ✅ `validation` and `summary` only recalculate when `portfolio` changes
 - ✅ `enrichedMetrics` only recalculates when specific context fields change:
   - `reserveAllocation`
   - `generalInfo`
   - `capitalAllocation`
-- ✅ Does NOT recalculate on unrelated context changes (e.g., `currentStep`, `isDirty`)
+- ✅ Does NOT recalculate on unrelated context changes (e.g., `currentStep`,
+  `isDirty`)
 
 ### Function: `validateWizardPortfolio(portfolio)`
 
 Validates portfolio data before reserve calculation.
 
 **Parameters:**
+
 - `portfolio: WizardPortfolioCompany[]` - Companies to validate
 
 **Returns:**
+
 ```typescript
 {
   valid: boolean,        // true if no errors
@@ -274,6 +285,7 @@ Validates portfolio data before reserve calculation.
 ```
 
 **Validation Rules:**
+
 - Portfolio cannot be empty
 - No duplicate company IDs
 - All monetary values must be non-negative
@@ -286,9 +298,11 @@ Validates portfolio data before reserve calculation.
 Generates summary statistics and breakdowns.
 
 **Parameters:**
+
 - `portfolio: WizardPortfolioCompany[]` - Companies to summarize
 
 **Returns:**
+
 ```typescript
 {
   totalCompanies: number,
@@ -305,10 +319,12 @@ Generates summary statistics and breakdowns.
 Enriches reserve allocation with fund-specific insights.
 
 **Parameters:**
+
 - `allocation: ReserveAllocation` - Base reserve allocation
 - `context: ModelingWizardContext` - Wizard context for fund data
 
 **Returns:**
+
 ```typescript
 {
   totalPlanned: number,
@@ -325,6 +341,7 @@ Enriches reserve allocation with fund-specific insights.
 ```
 
 **Risk Levels:**
+
 - **Concentration Risk:**
   - Low: Top 3 companies < 50% of reserves
   - Medium: Top 3 companies 50-75% of reserves
@@ -340,6 +357,7 @@ Enriches reserve allocation with fund-specific insights.
 Main reserve calculation function (re-exported from bridge).
 
 **Parameters:**
+
 - `ctx: ModelingWizardContext` - Wizard state
 - `portfolio: WizardPortfolioCompany[]` - Companies
 
@@ -368,10 +386,14 @@ interface ModelingWizardContext {
 
 ```typescript
 // Reactive validation
-{ type: 'PORTFOLIO_CHANGED' }
+{
+  type: 'PORTFOLIO_CHANGED';
+}
 
 // Calculate reserves
-{ type: 'CALCULATE_RESERVES' }
+{
+  type: 'CALCULATE_RESERVES';
+}
 ```
 
 ### States
@@ -394,9 +416,11 @@ active
 3. **Validation stored in context** → `context.portfolioValidation` updated
 4. **Hook provides reactive validation** → UI shows errors/warnings immediately
 5. **User clicks "Calculate"** → UI sends CALCULATE_RESERVES event
-6. **Machine transitions to calculatingReserves** → Invokes `calculateReserves` actor
+6. **Machine transitions to calculatingReserves** → Invokes `calculateReserves`
+   actor
 7. **Actor validates** → Checks `context.portfolioValidation.valid`
-8. **Actor calculates** → Calls `calculateReservesForWizard()` and `enrichWizardMetrics()`
+8. **Actor calculates** → Calls `calculateReservesForWizard()` and
+   `enrichWizardMetrics()`
 9. **Results stored in context** → `context.calculations` updated
 10. **Hook provides enriched metrics** → UI displays results
 
@@ -405,11 +429,12 @@ active
 ### ✅ NO `any` TYPES
 
 The hook is strongly typed:
+
 ```typescript
 export function useWizardCalculations(
   portfolio: WizardPortfolioCompany[],
-  wizardContext: ModelingWizardContext | undefined  // ✅ NOT any!
-)
+  wizardContext: ModelingWizardContext | undefined // ✅ NOT any!
+);
 ```
 
 ### Type Imports
@@ -420,7 +445,7 @@ import {
   type PortfolioValidationResult,
   type PortfolioSummary,
   type EnrichedReserveAllocation,
-  type ReserveAllocation
+  type ReserveAllocation,
 } from '@/lib/wizard-calculations';
 
 import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
@@ -429,16 +454,19 @@ import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 ## Performance Considerations
 
 ### Validation & Summary
+
 - **Complexity:** O(n) where n = portfolio size
 - **Performance:** Very fast (< 1ms for typical portfolios)
 - **Memoization:** Recalculates only when `portfolio` array changes
 
 ### Enrichment
+
 - **Complexity:** O(n) for metrics calculation
 - **Performance:** Fast (< 5ms for typical portfolios)
 - **Memoization:** Recalculates only when specific context fields change
 
 ### Reserve Calculation
+
 - **Complexity:** O(n²) due to optimization algorithm
 - **Performance:** 100-500ms for typical portfolios (10-50 companies)
 - **Async:** Runs in background actor, doesn't block UI
@@ -494,6 +522,7 @@ npm test -- wizard-calculations --watch
 ### Integration Tests
 
 The test suite includes:
+
 - Validation tests (10 tests)
 - Enrichment tests (10 tests)
 - Summary tests (7 tests)
@@ -505,20 +534,26 @@ The test suite includes:
 ## Troubleshooting
 
 ### "Required wizard data not available"
-**Cause:** `generalInfo` or `capitalAllocation` steps incomplete
-**Fix:** Ensure user completes General Info and Capital Allocation steps before calculating reserves
+
+**Cause:** `generalInfo` or `capitalAllocation` steps incomplete **Fix:** Ensure
+user completes General Info and Capital Allocation steps before calculating
+reserves
 
 ### "Portfolio validation must pass before calculation"
-**Cause:** Attempting to calculate with invalid portfolio
-**Fix:** UI should disable calculate button when `!isReadyForCalculation`
+
+**Cause:** Attempting to calculate with invalid portfolio **Fix:** UI should
+disable calculate button when `!isReadyForCalculation`
 
 ### Hook returns stale metrics
-**Cause:** Context reference changed but specific fields didn't
-**Fix:** Hook is already optimized - this shouldn't happen. Check if portfolio array identity is stable.
+
+**Cause:** Context reference changed but specific fields didn't **Fix:** Hook is
+already optimized - this shouldn't happen. Check if portfolio array identity is
+stable.
 
 ### Calculation takes too long
-**Cause:** Large portfolio (>100 companies)
-**Fix:** Consider pagination or showing progress indicator during calculation
+
+**Cause:** Large portfolio (>100 companies) **Fix:** Consider pagination or
+showing progress indicator during calculation
 
 ## Best Practices
 
@@ -572,9 +607,14 @@ Show warnings even if validation passes:
 
 ## See Also
 
-- [wizard-calculations.ts](../client/src/lib/wizard-calculations.ts) - Calculation functions
-- [wizard-reserve-bridge.ts](../client/src/lib/wizard-reserve-bridge.ts) - Format translation layer
-- [modeling-wizard.machine.ts](../client/src/machines/modeling-wizard.machine.ts) - XState machine
-- [useWizardCalculations.ts](../client/src/hooks/useWizardCalculations.ts) - React hook
-- [reserves-adapter.ts](../client/src/adapters/reserves-adapter.ts) - Adapter for reserves engine
+- [wizard-calculations.ts](../client/src/lib/wizard-calculations.ts) -
+  Calculation functions
+- [wizard-reserve-bridge.ts](../client/src/lib/wizard-reserve-bridge.ts) -
+  Format translation layer
+- [fundStore.ts](../client/src/stores/fundStore.ts) - Current fund workspace
+  state
+- [useWizardCalculations.ts](../client/src/hooks/useWizardCalculations.ts) -
+  React hook
+- [reserves-adapter.ts](../client/src/adapters/reserves-adapter.ts) - Adapter
+  for reserves engine
 - [reserves-v11.ts](../shared/lib/reserves-v11.ts) - Core calculation engine

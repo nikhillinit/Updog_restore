@@ -50,6 +50,7 @@ type FundStateSlice = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'targetMetrics'
   | 'draftFundId'
   | 'draftServerReady'
 >;
@@ -386,6 +387,8 @@ export function fundStoreToDraftWriteV1(
   // Fees & Expenses
   if (state.feeProfiles.length > 0) draft.feeProfiles = state.feeProfiles;
   if (state.fundExpenses.length > 0) draft.fundExpenses = state.fundExpenses;
+  // PUT /draft replaces the whole config; omitting this would erase it.
+  if (state.targetMetrics != null) draft.targetMetrics = state.targetMetrics;
   if (options.includeEconomicsAssumptions === true) {
     const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
     if (economicsAssumptions != null) {
@@ -428,6 +431,8 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
       ? hydrateFundExpenses(draft.fundExpenses)
       : defaults.fundExpenses,
     economicsAssumptions: draft.economicsAssumptions ?? defaults.economicsAssumptions,
+    // Explicit undefined clears a previous draft's value on hydration.
+    targetMetrics: draft.targetMetrics,
     ...spreadIfDefined('fundSize', draft.fundSize),
     ...spreadIfDefined('vintageYear', draft.vintageYear),
     ...spreadIfDefined('managementFeeRate', draft.managementFeeRate),
@@ -484,7 +489,10 @@ export function fundStoreToFinalizeV1(
     modelInputsAsOfDate: state.modelInputsAsOfDate,
   };
 
-  if (state.draftServerReady && state.draftFundId != null) {
+  if (state.draftFundId != null) {
+    if (!state.draftServerReady) {
+      throw new Error('The draft is not saved to the server yet. Save it before publishing.');
+    }
     result.draftFundId = state.draftFundId;
   }
 
@@ -531,6 +539,7 @@ export function fundStoreToFinalizeV1(
   // Fees & Expenses
   if (state.feeProfiles.length > 0) result.feeProfiles = state.feeProfiles;
   if (state.fundExpenses.length > 0) result.fundExpenses = state.fundExpenses;
+  if (state.targetMetrics != null) result.targetMetrics = state.targetMetrics;
   if (options.includeEconomicsAssumptions === true) {
     const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
     if (economicsAssumptions != null) {

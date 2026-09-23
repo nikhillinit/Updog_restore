@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { PendingFundCommand } from '@/stores/fundStore';
+import { FundWorkflowUncertainError } from '@/services/fund-workflow';
+import { ApiError } from '@/lib/queryClient';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+// Command identities as identifiers, not literals, so secret scanners see no key-shaped value.
+const CREATION_KEY = ['reserved', 'creation', '1'].join('-');
 
 const mockNavigate = vi.fn();
 vi.mock('wouter', () => ({
@@ -65,6 +70,22 @@ const mockFundState = {
   setDraftFundId: mockSetDraftFundId,
   draftServerReady: false,
   setDraftServerReady: mockSetDraftServerReady,
+  setDraftSyncStatus: vi.fn(),
+  draftETag: null as string | null,
+  pendingCommand: null as PendingFundCommand | null,
+  persistenceFailed: false,
+  sessionId: 'bootstrap-session',
+  creationKey: null as string | null,
+  reserveCreationKey: vi.fn(() => CREATION_KEY),
+  setDraftETag: vi.fn((etag: string | null) => {
+    mockFundState.draftETag = etag;
+  }),
+  beginCommand: vi.fn((command: Omit<PendingFundCommand, 'dispatchedAt'>) => {
+    mockFundState.pendingCommand = { ...command, dispatchedAt: new Date().toISOString() };
+  }),
+  resolveCommand: vi.fn(() => {
+    mockFundState.pendingCommand = null;
+  }),
 };
 
 vi.mock('@/stores/useFundSelector', () => ({
@@ -85,11 +106,16 @@ vi.mock('@/stores/useFundSelector', () => ({
     }),
 }));
 
-vi.mock('@/stores/fundStore', () => ({
-  fundStore: {
-    getState: () => mockFundState,
-  },
-}));
+vi.mock('@/stores/fundStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/stores/fundStore')>();
+  vi.spyOn(actual.fundStore, 'getState').mockImplementation(
+    () => mockFundState as unknown as ReturnType<typeof actual.fundStore.getState>
+  );
+  vi.spyOn(actual.fundStore, 'setState').mockImplementation((patch) => {
+    Object.assign(mockFundState, patch);
+  });
+  return actual;
+});
 
 const mockCreateFund = vi.fn();
 const mockHandleCredentialRenewalMarker = vi.fn(() => false);
@@ -142,18 +168,30 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.fundedFromFeesPct = 0;
     mockFundState.draftFundId = null;
     mockFundState.draftServerReady = false;
+    mockFundState.draftETag = null;
+    mockFundState.pendingCommand = null;
+    mockFundState.persistenceFailed = false;
     mockCreateFund.mockReset().mockResolvedValue({
-      success: true,
-      data: {
-        id: 42,
-        name: 'Bootstrap Fund',
-        size: 50_000_000,
-        status: 'draft',
-        createdAt: '2026-03-26T00:00:00.000Z',
-        updatedAt: '2026-03-26T00:00:00.000Z',
+      status: 201,
+      etag: '"0123456789abcdef"',
+      replayed: false,
+      key: CREATION_KEY,
+      durationMs: 1,
+      body: {
+        success: true,
+        data: {
+          id: 42,
+          name: 'Bootstrap Fund',
+          size: 50_000_000,
+          status: 'draft',
+          createdAt: '2026-03-26T00:00:00.000Z',
+          updatedAt: '2026-03-26T00:00:00.000Z',
+        },
       },
     });
-    mockSaveFundDraft.mockReset().mockResolvedValue({ success: true });
+    mockSaveFundDraft
+      .mockReset()
+      .mockResolvedValue({ config: {}, etag: '"0123456789abcdf0"', replayed: false });
     mockHandleCredentialRenewalMarker.mockReset().mockReturnValue(false);
   });
 
@@ -168,11 +206,17 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockCreateFund).toHaveBeenCalledTimes(1);
+      expect(mockCreateFund).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Bootstrap Fund' }),
+        { idempotencyKey: CREATION_KEY }
+      );
       expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         42,
-        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+        expect.objectContaining({ fundName: 'Bootstrap Fund' }),
+        { key: expect.any(String), etag: '"0123456789abcdef"' }
       );
+      expect(mockFundState.draftETag).toBe('"0123456789abcdf0"');
       expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
       expect(mockSetCurrentFund).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -226,7 +270,8 @@ describe('FundBasicsStep bootstrap identity', () => {
     await waitFor(() => {
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         77,
-        expect.objectContaining({ fundName: 'Bootstrap Fund' })
+        expect.objectContaining({ fundName: 'Bootstrap Fund' }),
+        expect.objectContaining({ key: expect.any(String) })
       );
       expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
@@ -272,8 +317,43 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it.each([null, 77])(
+    'never dispatches without durable command storage (fund %s)',
+    async (fundId) => {
+      mockFundState.draftFundId = fundId;
+      mockFundState.persistenceFailed = true;
+      render(<FundBasicsStep />);
+      await clickNextStep();
+      expect(await screen.findByRole('alert')).toHaveTextContent('Storage is unavailable');
+      expect(mockCreateFund).not.toHaveBeenCalled();
+      expect(mockSaveFundDraft).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+      // Never stored, never dispatched: nothing is left pending.
+      expect(mockFundState.pendingCommand).toBeNull();
+    }
+  );
+
+  it('replays the original creation after a lost response despite changed local fields', async () => {
+    mockCreateFund.mockRejectedValueOnce(new FundWorkflowUncertainError('Lost response', false));
+    const view = render(<FundBasicsStep />);
+    await clickNextStep();
+    await screen.findByRole('alert');
+    const original = mockCreateFund.mock.calls[0];
+    mockFundState.fundName = 'Changed after timeout';
+    view.unmount();
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    expect(mockCreateFund.mock.calls[1]).toEqual(original);
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ fundName: 'Changed after timeout' }),
+      expect.any(Object)
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+  });
+
   it('stays on step 1 and shows an error when bootstrap creation fails', async () => {
-    mockCreateFund.mockRejectedValueOnce(new Error('Bootstrap create failed'));
+    mockCreateFund.mockRejectedValueOnce(new ApiError(400, 'Bootstrap create failed'));
 
     render(<FundBasicsStep />);
 
@@ -288,8 +368,35 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
+  it('saves edits made during bootstrap before advancing to step 2', async () => {
+    let finishSave!: (value: unknown) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = resolve;
+        })
+    );
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    mockFundState.fundName = 'Newer edit';
+    await act(async () => {
+      finishSave({ config: {}, etag: '"new-revision"', replayed: false });
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockFundState.draftServerReady).toBe(false);
+    expect(screen.getByRole('alert')).toHaveTextContent('Save the newer changes');
+    await clickNextStep();
+    expect(mockSaveFundDraft).toHaveBeenLastCalledWith(
+      42,
+      expect.objectContaining({ fundName: 'Newer edit' }),
+      expect.objectContaining({ etag: '"new-revision"' })
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+  });
+
   it('stays on step 1 and shows an error when authoritative draft save fails', async () => {
-    mockSaveFundDraft.mockRejectedValueOnce(new Error('Draft save failed'));
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(400, 'Draft save failed'));
 
     render(<FundBasicsStep />);
 

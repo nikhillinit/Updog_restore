@@ -51,6 +51,7 @@ vi.mock('@/stores/fundStore', () => ({
   fundStore: {
     getState: () => mockFundState,
   },
+  fundCommandKey: vi.fn(),
 }));
 
 vi.mock('@/services/funds', () => ({

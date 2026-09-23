@@ -184,7 +184,7 @@ describe('FundProvider route-aware selection', () => {
   });
 
   it('falls back to the first fund on non-results routes', async () => {
-    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { Wrapper } = createWouterWrapper('/portfolio');
 
     render(
       <Wrapper>
@@ -371,8 +371,92 @@ describe('FundProvider route-aware selection', () => {
     });
   });
 
-  it('drops an implicit first-fund selection when navigating from /dashboard to /financial-modeling', async () => {
-    const { Wrapper, goto } = createWouterWrapper('/dashboard');
+  it.each([
+    ['/dashboard', 'none:none:false:false'],
+    ['/dashboard?fundId=2', '2:Route Fund:false:false'],
+    ['/dashboard?fundId=abc', 'none:none:false:false'],
+    ['/dashboard?fundId=1&fundId=2', 'none:none:false:false'],
+    ['/dashboard?fundId=999', 'none:none:false:false'],
+  ])('selects only an explicit valid fund on %s', async (route, expected) => {
+    const { Wrapper } = createWouterWrapper(route);
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+  });
+
+  it('recovers the only available fund on /dashboard without a substitute for invalid IDs', async () => {
+    mockUseQuery.mockReturnValue({ data: [mockFunds[0]], isLoading: false, error: null });
+    const singleton = createWouterWrapper('/dashboard');
+
+    const first = render(
+      <singleton.Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </singleton.Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('1:First Fund:false:false')).toBeInTheDocument();
+    });
+    first.unmount();
+
+    const invalid = createWouterWrapper('/dashboard?fundId=0');
+    render(
+      <invalid.Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </invalid.Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:false:false')).toBeInTheDocument();
+    });
+  });
+
+  it('reports account setup truth independently of the current route', async () => {
+    mockUseQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+    const { Wrapper, goto } = createWouterWrapper('/');
+
+    render(
+      <Wrapper>
+        <FundProvider>
+          <Consumer />
+        </FundProvider>
+      </Wrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+    });
+
+    act(() => {
+      goto('/dashboard');
+    });
+    await waitFor(() => {
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+    });
+
+    act(() => {
+      goto('/portfolio');
+    });
+    await waitFor(() => {
+      expect(screen.getByText('none:none:true:false')).toBeInTheDocument();
+    });
+  });
+
+  it('drops an implicit first-fund selection when navigating from /portfolio to /financial-modeling', async () => {
+    const { Wrapper, goto } = createWouterWrapper('/portfolio');
 
     render(
       <Wrapper>
@@ -449,7 +533,7 @@ describe('FundProvider route-aware selection', () => {
       isLoading: false,
       error: new Error('API temporarily unavailable'),
     });
-    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { Wrapper } = createWouterWrapper('/portfolio');
     render(
       <Wrapper>
         <FundProvider>
@@ -518,7 +602,7 @@ describe('FundProvider route-aware selection', () => {
       error: new Error('API unavailable'),
     });
 
-    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { Wrapper } = createWouterWrapper('/portfolio');
 
     render(
       <Wrapper>
@@ -542,7 +626,7 @@ describe('FundProvider route-aware selection', () => {
 
     localStorage.setItem('DEMO_TOOLBAR', '1');
 
-    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { Wrapper } = createWouterWrapper('/portfolio');
 
     render(
       <Wrapper>

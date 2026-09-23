@@ -193,6 +193,32 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(FundFinalizeV1Schema.safeParse(finalized).success).toBe(true);
   });
 
+  it('carries server target metrics through load, save and finalize without an editor', () => {
+    const targetMetrics = { targetIRR: 0.25, targetTVPI: 3, targetCompanyCount: 30 };
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
+      { fundName: 'API Fund', targetMetrics },
+      hydrationDefaults
+    );
+    expect(hydrated.targetMetrics).toEqual(targetMetrics);
+
+    // PUT /draft replaces the whole config; the next autosave must keep the block.
+    const saved = fundStoreToDraftWriteV1({ ...baseState, ...hydrated });
+    expect(saved.targetMetrics).toEqual(targetMetrics);
+    expect(FundDraftWriteV1Schema.safeParse(saved).success).toBe(true);
+
+    const finalized = fundStoreToFinalizeV1({ ...baseState, ...hydrated });
+    expect(finalized.targetMetrics).toEqual(targetMetrics);
+    expect(FundFinalizeV1Schema.safeParse(finalized).success).toBe(true);
+  });
+
+  it('clears target metrics when the loaded draft has none', () => {
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
+      { fundName: 'Plain Fund' },
+      hydrationDefaults
+    );
+    expect(hydrated).toHaveProperty('targetMetrics', undefined);
+  });
+
   it('hydrates an omitted cashless GP commitment percentage as zero', () => {
     const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
       { fundName: 'Existing Fund' },
@@ -297,14 +323,24 @@ describe('fundStoreToFinalizeV1', () => {
     expect(FundFinalizeV1Schema.safeParse(result).success).toBe(true);
   });
 
-  it('omits draftFundId until the server draft is authoritative', () => {
+  it('blocks finalize while a known draft is not yet authoritative on the server', () => {
+    expect(() =>
+      fundStoreToFinalizeV1({
+        ...baseState,
+        draftFundId: 77,
+        draftServerReady: false,
+      })
+    ).toThrow('The draft is not saved to the server yet. Save it before publishing.');
+  });
+
+  it('retains the known draft identity once the server draft is authoritative', () => {
     const result = fundStoreToFinalizeV1({
       ...baseState,
       draftFundId: 77,
-      draftServerReady: false,
+      draftServerReady: true,
     });
 
-    expect(result.draftFundId).toBeUndefined();
+    expect(result.draftFundId).toBe(77);
   });
 
   it('includes economics assumptions only when explicitly requested', () => {

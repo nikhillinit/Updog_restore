@@ -231,7 +231,8 @@ const EMPTY_VARIANCE_DASHBOARD = {
 };
 
 const ROUTE_SLICE = [
-  '/dashboard',
+  // Batch B: bare /dashboard is the account-wide Workspace; analytics needs a tab.
+  '/dashboard?tab=overview',
   '/portfolio',
   '/portfolio?tab=reserve-planning',
   '/performance',

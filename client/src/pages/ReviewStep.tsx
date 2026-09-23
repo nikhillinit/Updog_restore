@@ -13,15 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, AlertTriangle, ArrowLeft, Rocket, Loader2 } from 'lucide-react';
-import { useFundContext } from '@/contexts/FundContext';
+import { CheckCircle, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fundStore } from '@/stores/fundStore';
+import { fundStore, prepareFundCommand, resetFundWorkspace } from '@/stores/fundStore';
+import { FUND_STATE_QUERY_KEY } from '@/lib/funds-query';
 import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
 import { finalizeFund } from '@/services/funds';
+import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { cn } from '@/lib/utils';
-import { formatUSD } from '@/lib/formatting';
 import {
   EconomicsInputValidationError,
   EconomicsInvariantError,
@@ -39,7 +39,12 @@ interface SummarySection {
   }>;
 }
 
-type SubmitState = 'idle' | 'submitting' | 'error';
+type SubmitState = 'idle' | 'submitting' | 'error' | 'uncertain';
+
+const SETTLE_SAVE_REASON = 'Settle the draft save before publishing.';
+const UNCERTAIN_PUBLISH_MESSAGE = 'Could not confirm publication; it may have completed.';
+const STALE_PUBLISH_MESSAGE =
+  'A newer draft is available. Review the saved draft before publishing.';
 type EconomicsDryRunState =
   | { status: 'available'; result: EconomicsResultV1 }
   | {
@@ -67,7 +72,6 @@ function summarizeMessages(messages: string[]) {
 export default function ReviewStep() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { setCurrentFund } = useFundContext();
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
 
   // Read wizard state from fundStore
@@ -83,6 +87,11 @@ export default function ReviewStep() {
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
+  const draftFundId = useFundSelector((s) => s.draftFundId);
+  const draftSyncStatus = useFundSelector((s) => s.draftSyncStatus);
+  const pendingFinalize = useFundSelector((s) =>
+    s.pendingCommand?.operation === 'finalize' ? s.pendingCommand : null
+  );
   const _economicsDryRunRevision = useFundTuple((s) => [
     s.investmentPeriod,
     s.gpCommitment,
@@ -99,8 +108,12 @@ export default function ReviewStep() {
     s.economicsAssumptions,
   ]);
 
-  const [submitState, setSubmitState] = useState<SubmitState>('idle');
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<SubmitState>(
+    pendingFinalize ? 'uncertain' : 'idle'
+  );
+  const [submitError, setSubmitError] = useState<string | null>(
+    pendingFinalize ? UNCERTAIN_PUBLISH_MESSAGE : null
+  );
 
   const navigateToResults = useCallback(
     (fundId: number) => {
@@ -108,6 +121,20 @@ export default function ReviewStep() {
     },
     [setLocation]
   );
+
+  const isCurrentWorkspace = useCallback((sessionId: string, actorId: string | null) => {
+    const current = fundStore.getState();
+    return current.sessionId === sessionId && current.workspaceActorId === actorId;
+  }, []);
+
+  const isCurrentCommand = useCallback((sessionId: string, actorId: string | null, key: string) => {
+    const current = fundStore.getState();
+    return (
+      current.sessionId === sessionId &&
+      current.workspaceActorId === actorId &&
+      current.pendingCommand?.key === key
+    );
+  }, []);
 
   // Build summary from fundStore state
   const sections = useMemo<SummarySection[]>(() => {
@@ -123,7 +150,7 @@ export default function ReviewStep() {
           },
           {
             label: 'Fund Size',
-            value: formatUSD(fundSize ?? 0),
+            value: fundSize ? formatMillions(fundSize) : 'Not set',
             status: fundSize ? 'ok' : 'warning',
             stepNumber: 1,
           },
@@ -181,7 +208,7 @@ export default function ReviewStep() {
           },
           {
             label: 'Waterfall',
-            value: waterfallType ?? 'Not set',
+            value: waterfallType ? capitalize(waterfallType) : 'Not set',
             status: waterfallType ? 'ok' : 'warning',
             stepNumber: 5,
           },
@@ -273,51 +300,47 @@ export default function ReviewStep() {
   })();
 
   const handleBack = useCallback(() => {
+    if (fundStore.getState().pendingCommand?.operation === 'finalize') return;
     setLocation('/fund-setup?step=6');
   }, [setLocation]);
 
   const finalizeSuccessfulPublish = useCallback(
-    async (fundId: number) => {
+    async (fundId: number, sessionId: string, actorId: string | null) => {
+      if (!isCurrentWorkspace(sessionId, actorId)) return;
       try {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['/api/funds'] }),
           queryClient.invalidateQueries({ queryKey: ['funds'] }),
+          // Workspace chooses Resume vs Open from this lifecycle read.
+          queryClient.invalidateQueries({ queryKey: [FUND_STATE_QUERY_KEY, fundId] }),
         ]);
       } catch (error) {
         console.warn('[ReviewStep] Failed to invalidate funds query after publish', error);
       }
 
-      setCurrentFund({
-        id: fundId,
-        name: String(fundName ?? ''),
-        size: Number(fundSize ?? 0),
-        managementFee: (managementFeeRate ?? 0) / 100,
-        carryPercentage: (carriedInterest ?? 0) / 100,
-        vintageYear: vintageYear ?? new Date().getFullYear(),
-        deployedCapital: 0,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
+      if (!isCurrentWorkspace(sessionId, actorId)) return;
+      // Lifecycle truth comes from the fund-scoped results route, not a local status.
       navigateToResults(fundId);
     },
-    [
-      carriedInterest,
-      fundName,
-      fundSize,
-      managementFeeRate,
-      navigateToResults,
-      queryClient,
-      setCurrentFund,
-      vintageYear,
-    ]
+    [isCurrentWorkspace, navigateToResults, queryClient]
   );
 
   const handleCreate = useCallback(async () => {
     if (submitState === 'submitting') return;
-    if (economicsEnabled && economicsDryRun?.status !== 'available') {
+    const store = fundStore.getState();
+    const replayingFinalize = store.pendingCommand?.operation === 'finalize';
+    if (!replayingFinalize && economicsEnabled && economicsDryRun?.status !== 'available') {
       setSubmitError(economicsDryRun?.message ?? 'Economics dry-run failed');
+      setSubmitState('error');
+      return;
+    }
+
+    if (
+      !replayingFinalize &&
+      store.draftFundId != null &&
+      !['idle', 'synced'].includes(store.draftSyncStatus)
+    ) {
+      setSubmitError(SETTLE_SAVE_REASON);
       setSubmitState('error');
       return;
     }
@@ -325,11 +348,41 @@ export default function ReviewStep() {
     setSubmitError(null);
     setSubmitState('submitting');
 
+    const sessionId = store.sessionId;
+    const actorId = store.workspaceActorId;
+    let command: {
+      payload: ReturnType<typeof fundStoreToFinalizeV1>;
+      key: string;
+      etag: string | null;
+    };
     try {
-      const payload = fundStoreToFinalizeV1(fundStore.getState(), {
-        includeEconomicsAssumptions: economicsEnabled,
-      });
-      const result = await finalizeFund(payload);
+      const payload = replayingFinalize
+        ? (JSON.parse(store.pendingCommand!.bodySignature) as ReturnType<
+            typeof fundStoreToFinalizeV1
+          >)
+        : fundStoreToFinalizeV1(store, {
+            includeEconomicsAssumptions: economicsEnabled,
+          });
+      const targetFundId = replayingFinalize
+        ? store.pendingCommand!.targetFundId
+        : (payload.draftFundId ?? null);
+      const etag = targetFundId != null ? store.draftETag : null;
+      command = prepareFundCommand('finalize', targetFundId, payload, etag);
+    } catch (err) {
+      if (isCurrentWorkspace(sessionId, actorId)) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to prepare fund publication');
+        setSubmitState('error');
+      }
+      return;
+    }
+
+    try {
+      const result = await finalizeFund(command.payload, { key: command.key, etag: command.etag });
+      if (!isCurrentCommand(sessionId, actorId, command.key)) return;
+      fundStore.getState().resolveCommand();
+      // Publishing retired the draft server-side; this tab must never resume it.
+      resetFundWorkspace();
+      const publishedSessionId = fundStore.getState().sessionId;
       const fundId = result.data.fundId;
       if ('credentialRenewal' in result && result.credentialRenewal === 'reauth_required') {
         // Fund committed; session credential could not be renewed. The session
@@ -338,13 +391,36 @@ export default function ReviewStep() {
         setSubmitState('error');
         return;
       }
-      await finalizeSuccessfulPublish(fundId);
+      await finalizeSuccessfulPublish(fundId, publishedSessionId, actorId);
     } catch (err) {
+      if (!isCurrentCommand(sessionId, actorId, command.key)) return;
+      if (isStaleRevisionError(err)) {
+        fundStore.getState().resolveCommand();
+        setSubmitError(STALE_PUBLISH_MESSAGE);
+        setSubmitState('error');
+        return;
+      }
+      const outcome = classifyWorkflowError(err);
+      if (outcome === 'uncertain') {
+        // Keep the command; "Check publication status" replays the same key.
+        setSubmitError(UNCERTAIN_PUBLISH_MESSAGE);
+        setSubmitState('uncertain');
+        return;
+      }
+      // Definitive rejections release the key; anything else keeps it for a same-command retry.
+      if (outcome === 'rejected') fundStore.getState().resolveCommand();
       const message = err instanceof Error ? err.message : 'Failed to create fund';
       setSubmitError(message);
       setSubmitState('error');
     }
-  }, [submitState, finalizeSuccessfulPublish, economicsDryRun, economicsEnabled]);
+  }, [
+    submitState,
+    finalizeSuccessfulPublish,
+    economicsDryRun,
+    economicsEnabled,
+    isCurrentCommand,
+    isCurrentWorkspace,
+  ]);
 
   const getStatusIcon = (status?: 'ok' | 'warning' | 'missing') => {
     switch (status) {
@@ -372,18 +448,23 @@ export default function ReviewStep() {
   };
 
   const isSubmitting = submitState === 'submitting';
-  const economicsBlocksSubmit = economicsEnabled && economicsDryRun?.status !== 'available';
-  const createDisabledReason =
-    validationSummary.missing > 0
-      ? 'Complete missing required fields before creating the fund.'
-      : economicsBlocksSubmit
-        ? 'Resolve the economics dry-run error before publishing.'
+  const economicsBlocksSubmit =
+    !pendingFinalize && economicsEnabled && economicsDryRun?.status !== 'available';
+  const draftUnsettled =
+    !pendingFinalize && draftFundId != null && !['idle', 'synced'].includes(draftSyncStatus);
+  const missingBlocksSubmit = !pendingFinalize && validationSummary.missing > 0;
+  const createDisabledReason = missingBlocksSubmit
+    ? 'Complete missing required fields before creating the fund.'
+    : economicsBlocksSubmit
+      ? 'Resolve the economics dry-run error before publishing.'
+      : draftUnsettled
+        ? SETTLE_SAVE_REASON
         : isSubmitting
           ? 'Fund creation is already in progress.'
           : null;
 
   return (
-    <div className="space-y-6 pb-8" data-testid="review-step">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 pb-8 pt-6 sm:px-6" data-testid="review-step">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-presson-text">Review & Create Fund</h1>
@@ -466,7 +547,7 @@ export default function ReviewStep() {
       </Alert>
 
       {/* Summary Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {sections.map((section) => (
           <Card key={section.title} className="border-presson-borderSubtle">
             <CardHeader className="pb-3">
@@ -474,7 +555,7 @@ export default function ReviewStep() {
             </CardHeader>
             <CardContent className="space-y-3">
               {section.items.map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
+                <div key={item.label} className="flex items-center justify-between gap-4">
                   <span className="text-sm text-presson-textMuted">{item.label}</span>
                   <div className="flex items-center gap-2">
                     {item.status === 'ok' || item.stepNumber == null ? (
@@ -515,11 +596,11 @@ export default function ReviewStep() {
               />
               <DryRunMetric
                 label="Management Fees"
-                value={formatUSD(economicsDryRun.result.summary.totalManagementFees)}
+                value={formatMillions(economicsDryRun.result.summary.totalManagementFees)}
               />
               <DryRunMetric
                 label="Total GP Carry"
-                value={formatUSD(economicsDryRun.result.summary.totalGpCarryDistributed)}
+                value={formatMillions(economicsDryRun.result.summary.totalGpCarryDistributed)}
               />
               <DryRunMetric
                 label="Final DPI"
@@ -531,10 +612,10 @@ export default function ReviewStep() {
               />
               <DryRunMetric
                 label="Clawback Exposure"
-                value={formatUSD(economicsDryRun.result.summary.finalClawbackDue)}
+                value={formatMillions(economicsDryRun.result.summary.finalClawbackDue)}
               />
               <DryRunMetric
-                label="Invariant Status"
+                label="Consistency checks"
                 value={economicsDryRun.result.checks.passed ? 'Passed' : 'Failed'}
               />
             </div>
@@ -552,44 +633,68 @@ export default function ReviewStep() {
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       )}
+      {submitState === 'uncertain' && submitError && (
+        <Alert
+          aria-live="assertive"
+          className="border-l-4 border-l-warning bg-warning/10"
+          data-testid="publish-uncertain-alert"
+        >
+          <AlertTriangle className="h-5 w-5 text-warning" />
+          <AlertTitle>Publication Not Confirmed</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={handleBack} disabled={isSubmitting} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Step 6
-        </Button>
-
-        <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="text-sm">
-            Step 7 of 7
-          </Badge>
-
+      <div className="space-y-3">
+        {createDisabledReason && (
+          <p id="create-disabled-reason" className="text-sm text-presson-textMuted sm:text-right">
+            {createDisabledReason}
+          </p>
+        )}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
-            onClick={handleCreate}
-            disabled={validationSummary.missing > 0 || economicsBlocksSubmit || isSubmitting}
-            aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
-            title={createDisabledReason ?? undefined}
-            className="gap-2 bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90"
-            data-testid="create-fund-button"
+            variant="outline"
+            onClick={handleBack}
+            disabled={isSubmitting || submitState === 'uncertain' || Boolean(pendingFinalize)}
+            className="gap-2"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating, Publishing, and Starting Calculations...
-              </>
-            ) : (
-              <>
-                <Rocket className="h-4 w-4" />
-                {submitState === 'error' ? 'Retry Publish' : 'Create, Publish, and View Results'}
-              </>
-            )}
+            <ArrowLeft className="h-4 w-4" />
+            Back to Step 6
           </Button>
-          {createDisabledReason && (
-            <p id="create-disabled-reason" className="max-w-xs text-sm text-presson-textMuted">
-              {createDisabledReason}
-            </p>
-          )}
+
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="hidden text-sm sm:inline-flex">
+              Step 7 of 7
+            </Badge>
+
+            <Button
+              onClick={handleCreate}
+              disabled={
+                missingBlocksSubmit || economicsBlocksSubmit || draftUnsettled || isSubmitting
+              }
+              aria-describedby={createDisabledReason ? 'create-disabled-reason' : undefined}
+              title={createDisabledReason ?? undefined}
+              className="h-auto min-h-11 w-full gap-2 whitespace-normal bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90 sm:w-auto"
+              data-testid="create-fund-button"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating, Publishing, and Starting Calculations...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  {submitState === 'uncertain'
+                    ? 'Check publication status'
+                    : submitState === 'error'
+                      ? 'Retry Publish'
+                      : 'Create, Publish, and View Results'}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -600,9 +705,18 @@ function DryRunMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-presson-background p-3">
       <p className="text-xs text-presson-textMuted">{label}</p>
-      <p className="text-sm font-medium text-presson-text">{value}</p>
+      <p className="text-sm font-medium tabular-nums text-presson-text">{value}</p>
     </div>
   );
+}
+
+// Draft money is in $M: the dry run runs on the draft fundSize entered as Capital Committed ($M).
+function formatMillions(value: number) {
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}M`;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function formatNullablePercent(value: number | null) {

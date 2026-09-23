@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest, type ApiError } from '@/lib/queryClient';
+import { apiRequest, clearIdentityScopedQueries, type ApiError } from '@/lib/queryClient';
 import { purgeLegacyAuthToken } from '@/lib/auth-token';
 import { AUTH_SESSION_QUERY_KEY, type AuthSession } from '@/lib/auth-session';
 
@@ -16,6 +16,8 @@ export function useLogin() {
     mutationFn: (credentials) => apiRequest<AuthSession>('POST', '/api/auth/login', credentials),
     onSuccess: (data) => {
       purgeLegacyAuthToken();
+      // Nothing cached before sign-in may be shown to the new identity.
+      clearIdentityScopedQueries(queryClient);
       queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, data);
     },
   });

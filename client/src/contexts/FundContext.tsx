@@ -6,7 +6,9 @@ import { logger } from '@/lib/logger';
 import {
   extractRouteScopedFundId,
   getLocationPathname,
+  getLocationSearch,
   isFundResultsRoute,
+  parseFundIdParam,
 } from '@/lib/fund-routes';
 import { isDemoMode as resolveDemoMode } from '@/core/demo/persona';
 import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
@@ -45,11 +47,17 @@ export function FundProvider({ children }: FundProviderProps) {
     [location, search]
   );
   const pathname = React.useMemo(() => getLocationPathname(location), [location]);
-  const invalidFundResultsRoute = isFundResultsRoute(location) && routeFundId == null;
-  // Deterministic model routes must not silently inherit an implicit first-fund
-  // selection from unrelated surfaces like /dashboard.
+  // A malformed, duplicate or non-positive /dashboard?fundId never substitutes another fund.
+  const invalidDashboardFundParam =
+    pathname === '/dashboard' &&
+    parseFundIdParam(getLocationSearch(location, search)).kind === 'invalid';
+  const invalidFundResultsRoute =
+    (isFundResultsRoute(location) && routeFundId == null) || invalidDashboardFundParam;
+  // Deterministic model routes and the account-wide Workspace must not silently
+  // inherit an implicit first-fund selection.
   const suppressImplicitFundSelection =
     invalidFundResultsRoute ||
+    pathname === '/dashboard' ||
     pathname === '/financial-modeling' ||
     pathname === '/forecasting' ||
     pathname === '/model-results';
@@ -205,27 +213,17 @@ export function FundProvider({ children }: FundProviderProps) {
     hasResolvedFunds &&
     !currentFund &&
     routeFundId == null &&
+    !invalidFundResultsRoute &&
     suppressImplicitFundSelection &&
     !isDemoMode &&
     funds.length === 1;
-  const allowsMissingActiveFund =
-    hasResolvedFunds &&
-    !currentFund &&
-    routeFundId == null &&
-    suppressImplicitFundSelection &&
-    !awaitingSingletonRecovery;
-
   // Consider "loading" until the first resolved fund has been copied into context
   // or demo mode has fully initialized. This prevents ProtectedRoute/HomeRoute from
   // redirecting to /fund-setup during the fetch -> effect handoff.
   const isInitializing = isLoading || awaitingResolvedFundSelection || awaitingSingletonRecovery;
-  const needsSetup =
-    !isInitializing &&
-    !fundLoadError &&
-    !currentFund &&
-    routeFundId == null &&
-    !isDemoMode &&
-    !allowsMissingActiveFund;
+  // Account setup state is independent of the active route and fund selection.
+  // Route guards decide which surfaces admit an account that still needs setup.
+  const needsSetup = !isInitializing && !fundLoadError && !hasResolvedFunds && !isDemoMode;
   const suppressRouteFundContext =
     invalidFundResultsRoute || (routeFundId != null && Number(currentFund?.id) !== routeFundId);
 

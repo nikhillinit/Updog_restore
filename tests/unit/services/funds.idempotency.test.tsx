@@ -1,147 +1,137 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  computeCreateFundHash,
-  computeFinalizeFundHash,
-  finalizeFund,
-  startCreateFund,
-} from '@/services/funds';
+import { createFund, finalizeFund, startCreateFund } from '@/services/funds';
 
-describe('Wave 2 funds boundary', () => {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const KEY = '11111111-1111-4111-8111-111111111111';
+
+function jsonResponse(body: unknown, status: number, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
+
+describe('fund creation command keys', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('deduplicates concurrent identical create-fund requests', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: 'F-1' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Status': 'created',
-        },
-      })
-    );
+  it('joins concurrent dispatches of the same reserved key into one request', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ id: 7 }, 201, { ETag: '"0123456789abcdef"' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const payload = {
-      basics: { name: 'Idem', size: 1_000_000, modelVersion: 'reserves-ev1' },
-      strategy: { stages: [] },
-    };
+    const payload = { name: 'Idem', size: 1_000_000 };
+    const [first, second] = await Promise.all([
+      startCreateFund(payload, { idempotencyKey: KEY }),
+      startCreateFund(payload, { idempotencyKey: KEY }),
+    ]);
 
-    const [first, second] = await Promise.all([startCreateFund(payload), startCreateFund(payload)]);
-
-    expect(first.hash).toBe(second.hash);
+    expect(first.key).toBe(KEY);
+    expect(second.key).toBe(KEY);
+    expect(first.etag).toBe('"0123456789abcdef"');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/funds'),
       expect.objectContaining({
         credentials: 'include',
-        headers: expect.objectContaining({
-          'Idempotency-Key': first.hash,
-        }),
+        headers: expect.objectContaining({ 'Idempotency-Key': KEY }),
       })
     );
   });
 
-  it('produces stable hashes for identical payloads', () => {
-    const payload = {
-      basics: { name: 'Test Fund', size: 1_000_000, modelVersion: 'reserves-ev1' },
-      strategy: { stages: [{ name: 'Seed', graduate: 30, exit: 20, months: 18 }] },
-    };
+  it('mints a UUID key when none is reserved and never derives it from the payload', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse({ id: 8 }, 201));
+    vi.stubGlobal('fetch', fetchMock);
 
-    expect(computeCreateFundHash(payload)).toBe(computeCreateFundHash(payload));
+    const payload = { name: 'Same', size: 1 };
+    const first = await startCreateFund(payload);
+    const second = await startCreateFund(payload);
+
+    expect(first.key).toMatch(UUID_RE);
+    expect(second.key).toMatch(UUID_RE);
+    expect(first.key).not.toBe(second.key);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('changes the hash when the payload changes', () => {
-    const baseline = {
-      basics: { name: 'Fund A', size: 1_000_000, modelVersion: 'reserves-ev1' },
-      strategy: { stages: [] },
-    };
-    const variant = {
-      basics: { name: 'Fund B', size: 1_000_000, modelVersion: 'reserves-ev1' },
-      strategy: { stages: [] },
-    };
+  it('surfaces the replay marker of a stored response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ id: 9 }, 201, { 'Idempotency-Replay': 'true' }))
+    );
 
-    expect(computeCreateFundHash(baseline)).not.toBe(computeCreateFundHash(variant));
+    const result = await createFund(
+      { name: 'Replay', size: 1 },
+      { idempotencyKey: '33333333-3333-4333-8333-333333333333' }
+    );
+
+    expect(result.replayed).toBe(true);
+    expect(result.status).toBe(201);
+    expect(result.body).toEqual({ id: 9 });
   });
 });
 
-describe('finalizeFund idempotency', () => {
-  it('produces stable finalize hashes for equivalent payloads', () => {
-    const payload = {
-      draftFundId: 77,
-      name: 'Test Fund',
-      size: 50_000_000,
-      managementFee: 0.02,
-      carryPercentage: 0.2,
-      vintageYear: 2026,
-    };
-    const reorderedPayload = {
-      vintageYear: 2026,
-      carryPercentage: 0.2,
-      managementFee: 0.02,
-      size: 50_000_000,
-      name: 'Test Fund',
-      draftFundId: 77,
-    };
-
-    expect(computeFinalizeFundHash(payload)).toBe(computeFinalizeFundHash(reorderedPayload));
+describe('finalizeFund command', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it('includes draft identity in finalize hash scope', () => {
-    const payload = {
-      draftFundId: 77,
-      name: 'Test Fund',
-      size: 50_000_000,
-      managementFee: 0.02,
-      carryPercentage: 0.2,
-      vintageYear: 2026,
-    };
+  const payload = {
+    draftFundId: 77,
+    name: 'Test Fund',
+    size: 50_000_000,
+    managementFee: 0.02,
+    carryPercentage: 0.2,
+    vintageYear: 2026,
+    modelInputsAsOfDate: '2026-06-30',
+  };
 
-    expect(computeFinalizeFundHash(payload)).not.toBe(
-      computeFinalizeFundHash({ ...payload, draftFundId: 78 })
-    );
-  });
-
-  it('sends an idempotency key on finalize', async () => {
-    const payload = {
-      draftFundId: 77,
-      name: 'Test Fund',
-      size: 50_000_000,
-      managementFee: 0.02,
-      carryPercentage: 0.2,
-      vintageYear: 2026,
-    };
+  it('sends the reserved key and the reviewed revision as If-Match', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          success: true,
-          data: {
-            fundId: 77,
-            configVersion: 1,
-            correlationId: '550e8400-e29b-41d4-a716-446655440000',
-            published: true,
-          },
-        }),
+      jsonResponse(
         {
-          status: 201,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          success: true,
+          data: { fundId: 77, configVersion: 1, correlationId: KEY, published: true },
+        },
+        201
       )
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await finalizeFund(payload);
+    await finalizeFund(payload, { key: KEY, etag: '"0123456789abcdef"' });
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/funds/finalize'),
       expect.objectContaining({
         credentials: 'include',
         headers: expect.objectContaining({
-          'Idempotency-Key': computeFinalizeFundHash(payload),
+          'Idempotency-Key': KEY,
+          'If-Match': '"0123456789abcdef"',
         }),
       })
     );
+  });
+
+  it('omits If-Match for an ID-less finalize', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        {
+          success: true,
+          data: { fundId: 78, configVersion: 1, correlationId: KEY, published: true },
+        },
+        201
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { draftFundId: _ignored, ...idless } = payload;
+    await finalizeFund(idless, { key: KEY, etag: '"0123456789abcdef"' });
+
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers['If-Match']).toBeUndefined();
+    expect(headers['Idempotency-Key']).toBe(KEY);
   });
 });

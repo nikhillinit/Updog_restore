@@ -285,9 +285,7 @@ function requiredString(value: unknown, label: string): string {
 
 function requiredUuid(value: unknown, label: string): string {
   const uuid = requiredString(value, label);
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid)
-  ) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid)) {
     throw new Error(`[release-canaries] ${label} must be a UUID`);
   }
   return uuid;
@@ -637,8 +635,7 @@ test.describe('release mutation canaries', () => {
     );
     const draftResponsePromise = page.waitForResponse(
       (response) =>
-        /\/api\/funds\/\d+\/draft$/.test(response.url()) &&
-        response.request().method() === 'PUT'
+        /\/api\/funds\/\d+\/draft$/.test(response.url()) && response.request().method() === 'PUT'
     );
     await fundSetup.nextButton.click();
     const createResponse = await createResponsePromise;
@@ -665,7 +662,7 @@ test.describe('release mutation canaries', () => {
     expect(draftResponse.ok(), 'initial fund draft save must succeed').toBe(true);
     await expect(page).toHaveURL(/\/fund-setup\?step=2$/);
     await expect(fundSetup.stepContainer(2)).toBeVisible();
-    await expect(page.getByTestId('draft-sync-status')).toContainText('Draft saved to server');
+    await expect(page.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
 
     for (const step of [3, 4, 5, 6] as const) {
       await fundSetup.nextButton.click();
@@ -704,11 +701,7 @@ test.describe('release mutation canaries', () => {
     // client so later canaries receive the same creator grant.
     await api.login(CANARY_USERNAME, CANARY_PASSWORD);
 
-    const reloadResponse = await api.call(
-      'GET',
-      ROUTES.fundById(fundId),
-      'canary1.reload-fund'
-    );
+    const reloadResponse = await api.call('GET', ROUTES.fundById(fundId), 'canary1.reload-fund');
     expect(reloadResponse.status(), 'created fund must be readable').toBe(200);
     const reloadedFund = await readJsonObject(reloadResponse, 'reloaded fund response');
     expect(reloadedFund['id']).toBe(fundId);
@@ -811,10 +804,7 @@ test.describe('release mutation canaries', () => {
       'canary2.reload-company'
     );
     expect(persistedResponse.status(), 'portfolio metadata patch must persist').toBe(200);
-    const persistedCompany = await readJsonObject(
-      persistedResponse,
-      'persisted company response'
-    );
+    const persistedCompany = await readJsonObject(persistedResponse, 'persisted company response');
     expect(persistedCompany['description']).toBe(updatedDescription);
     expect(persistedCompany['rowVersion']).toBe(expectedVersion + 1);
 
@@ -842,9 +832,7 @@ test.describe('release mutation canaries', () => {
       ROUTES.portfolioCompanyById(companyId, fundId),
       'canary2.reload-after-conflict'
     );
-    expect(afterConflictResponse.status(), 'company must remain readable after conflict').toBe(
-      200
-    );
+    expect(afterConflictResponse.status(), 'company must remain readable after conflict').toBe(200);
     const afterConflict = await readJsonObject(
       afterConflictResponse,
       'post-conflict company response'
@@ -974,9 +962,7 @@ test.describe('release mutation canaries', () => {
       firstState.lastCalculatedAt,
       'canary3 lastCalculatedAt'
     );
-    expect(Date.parse(reloadedCalculatedAt)).toBeGreaterThanOrEqual(
-      Date.parse(firstCalculatedAt)
-    );
+    expect(Date.parse(reloadedCalculatedAt)).toBeGreaterThanOrEqual(Date.parse(firstCalculatedAt));
     expect(reloaded.sections.reserve).toEqual(firstRead.sections.reserve);
     expect(reloaded.sections.pacing).toEqual(firstRead.sections.pacing);
   });
@@ -1001,10 +987,7 @@ test.describe('release mutation canaries', () => {
       }
     );
     expect(scenarioSetResponse.status(), 'scenario set creation must succeed').toBe(201);
-    const scenarioSet = await readJsonObject(
-      scenarioSetResponse,
-      'canary5 scenario set response'
-    );
+    const scenarioSet = await readJsonObject(scenarioSetResponse, 'canary5 scenario set response');
     const scenarioSetId = requiredUuid(scenarioSet['id'], 'canary5 scenario set ID');
     expect(scenarioSet['fundId']).toBe(fundId);
 
@@ -1046,9 +1029,7 @@ test.describe('release mutation canaries', () => {
         ...enqueueRequest,
       }
     );
-    expect(replayEnqueueResponse.status(), 'replayed enqueue must return the stored 202').toBe(
-      202
-    );
+    expect(replayEnqueueResponse.status(), 'replayed enqueue must return the stored 202').toBe(202);
     const replayEnqueueBody = await readJsonObject(
       replayEnqueueResponse,
       'canary5 replayed enqueue response'
@@ -1141,10 +1122,9 @@ test.describe('release mutation canaries', () => {
       forbiddenFmvResponse,
       'partner planning-FMV denial response'
     );
-    expect(
-      forbiddenFmvBody['code'],
-      'the denial must be the role boundary, not fund scope'
-    ).toBe('planning_fmv_approval_forbidden');
+    expect(forbiddenFmvBody['code'], 'the denial must be the role boundary, not fund scope').toBe(
+      'planning_fmv_approval_forbidden'
+    );
 
     const fmvIdempotencyKey = `g4-release-canary-fmv-${randomUUID()}`;
     const fmvBody = {
@@ -1397,7 +1377,12 @@ test.describe('release mutation canaries', () => {
     expect(locked.metricRun.status).toBe('locked');
     expect(locked.metricRun.version).toBe(3);
 
-    const narrativeTypes = ['no_dpi', 'methodology', 'portfolio_update', 'risk_disclosure'] as const;
+    const narrativeTypes = [
+      'no_dpi',
+      'methodology',
+      'portfolio_update',
+      'risk_disclosure',
+    ] as const;
     const narrativeRefs: Array<{
       narrativeType: (typeof narrativeTypes)[number];
       narrativeRunId: number;
@@ -1415,7 +1400,10 @@ test.describe('release mutation canaries', () => {
         `narrative ${narrativeType} creation must insert`
       ).toBe(201);
       const createdNarrative = NarrativeRunCreateResponseSchema.parse(
-        await readJsonObject(createNarrativeResponse, `narrative ${narrativeType} creation response`)
+        await readJsonObject(
+          createNarrativeResponse,
+          `narrative ${narrativeType} creation response`
+        )
       );
       expect(createdNarrative.inserted).toBe(true);
       const narrativeRunId = createdNarrative.record.narrativeRunId;
@@ -1475,7 +1463,10 @@ test.describe('release mutation canaries', () => {
         `narrative ${narrativeType} approve must succeed`
       ).toBe(200);
       const approvedNarrative = NarrativeRunLifecycleResponseSchema.parse(
-        await readJsonObject(approveNarrativeResponse, `narrative ${narrativeType} approve response`)
+        await readJsonObject(
+          approveNarrativeResponse,
+          `narrative ${narrativeType} approve response`
+        )
       );
       expect(approvedNarrative.record.status).toBe('approved');
       expect(approvedNarrative.record.version).toBe(4);
@@ -1601,8 +1592,10 @@ test.describe('release mutation canaries', () => {
     const nonzeroRows = artifact.export.renderModel.metricSections
       .flatMap((section) => section.rows)
       .filter((row) => row.value !== null && Number(row.value) > 0);
-    expect(nonzeroRows.length, 'metric sections must contain nonzero financial content').
-      toBeGreaterThan(0);
+    expect(
+      nonzeroRows.length,
+      'metric sections must contain nonzero financial content'
+    ).toBeGreaterThan(0);
     expect(artifact.export.renderModel.references.sourceMarkIds).toEqual([planningMarkId]);
 
     const narrativeSections = artifact.export.renderModel.narrativeSections;

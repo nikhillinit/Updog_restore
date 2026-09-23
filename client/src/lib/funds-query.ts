@@ -38,6 +38,9 @@ export interface Fund {
 
 export const FUNDS_QUERY_KEY = ['/api/funds'] as const;
 
+/** Per-fund lifecycle read (GET /api/funds/:id/state); key is [FUND_STATE_QUERY_KEY, fundId]. */
+export const FUND_STATE_QUERY_KEY = 'fund-state';
+
 export async function fetchFundSummaries(): Promise<Fund[]> {
   return FundSummariesSchema.parse(await apiRequest<unknown>('GET', '/api/funds')) as Fund[];
 }

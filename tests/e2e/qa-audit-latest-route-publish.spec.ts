@@ -168,6 +168,43 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       return;
     }
 
+    // Workspace lifecycle truth (GET /api/funds/:id/state) for the stubbed funds.
+    const stateMatch = /^\/api\/funds\/(\d+)\/state$/.exec(url.pathname);
+    if (request.method() === 'GET' && stateMatch) {
+      const fundId = Number(stateMatch[1]);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          fundId,
+          configState: {
+            latestVersion: 1,
+            draftVersion: null,
+            publishedVersion: 1,
+            hasDraft: false,
+            hasPublished: true,
+            publishedAt: '2026-01-01T00:00:00.000Z',
+            draftUpdatedAt: null,
+            publishedUpdatedAt: '2026-01-01T00:00:00.000Z',
+          },
+          calculationState: {
+            status: 'ready',
+            configVersion: 1,
+            runId: fundId,
+            correlationId: null,
+            dispatchState: 'dispatched',
+            availableSnapshotTypes: [],
+            expectedSnapshotTypes: [],
+            lastCalculatedAt: '2026-01-01T00:00:00.000Z',
+            lastError: null,
+            legacyEvidence: false,
+          },
+          legacy: { engineResultsPresent: false },
+        }),
+      });
+      return;
+    }
+
     if (url.pathname === '/api/dashboard-summary/1') {
       await route.fulfill({
         status: 200,
