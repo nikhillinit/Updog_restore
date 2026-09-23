@@ -373,6 +373,9 @@ test('authenticated user can publish one fund and persist a distinct second draf
     await expect(page.getByLabel('Capital Committed ($M)')).toHaveValue(SECOND_FUND.capital);
     await expect(page.getByTestId('model-inputs-as-of-date')).toHaveValue(SECOND_FUND.asOfDate);
 
+    await expect(page.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    await openWorkspace(page);
+
     // A new tab has no local ETag: its first edit must save after server hydration.
     const resumedPage = await page.context().newPage();
     monitorPage(resumedPage);
@@ -409,7 +412,6 @@ test('authenticated user can publish one fund and persist a distinct second draf
     acceptance['invalidLocalValuesRecovered'] = true;
     await resumedPage.close();
 
-    await openWorkspace(page);
     await page
       .getByTestId(`workspace-fund-${firstFundId}`)
       .getByRole('button', { name: 'Open model' })

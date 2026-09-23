@@ -150,6 +150,93 @@ describe('FundSetup draft sync', () => {
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
+  it('keeps recovery controls visible without exposing edits after a failed read', async () => {
+    fundStore.setState({
+      draftFundId: 88,
+      draftServerReady: true,
+      needsServerHydration: true,
+      draftETag: SERVER_ETAG,
+    });
+    mockFetchFundDraft
+      .mockRejectedValueOnce(new Error('Temporary read failure'))
+      .mockResolvedValueOnce({
+        config: { fundName: 'Recovered server fund', fundSize: 25_000_000 },
+        etag: SERVER_ETAG,
+      });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: NEXT_ETAG, replayed: false });
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(await screen.findByTestId('draft-sync-error')).toBeInTheDocument();
+    expect(screen.queryByText('Fund Basics Step')).not.toBeInTheDocument();
+    expect(screen.getByTestId('draft-recovery-required')).toHaveTextContent(
+      'Recover the saved draft before editing.'
+    );
+    expect(screen.getByRole('button', { name: 'Step 2: INVESTMENT ROUNDS' })).toBeDisabled();
+    expect(mockMarkStepVisited).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retry Sync' }));
+    expect(await screen.findByText('Fund Basics Step')).toBeInTheDocument();
+    expect(fundStore.getState().fundName).toBe('Recovered server fund');
+    expect(fundStore.getState().needsServerHydration).toBe(false);
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Step 2: INVESTMENT ROUNDS' })).toBeEnabled();
+
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'First post-recovery edit' }));
+    await waitFor(() =>
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'First post-recovery edit' }),
+        expect.objectContaining({ etag: SERVER_ETAG })
+      )
+    );
+  });
+
+  it('keeps pending save recovery reachable without exposing editable steps', async () => {
+    fundStore.setState({
+      draftFundId: 88,
+      draftServerReady: true,
+      needsServerHydration: true,
+      draftETag: SERVER_ETAG,
+      pendingCommand: {
+        operation: 'save_draft',
+        key: crypto.randomUUID(),
+        targetFundId: 88,
+        expectedETag: SERVER_ETAG,
+        bodySignature: '{"fundName":"Dispatched draft"}',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    expect(await screen.findByRole('button', { name: 'Check save status' })).toBeEnabled();
+    expect(screen.queryByText('Fund Basics Step')).not.toBeInTheDocument();
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 88])(
+    'keeps finalize recovery visible with incomplete values and draft identity %s',
+    async (draftFundId) => {
+      fundStore.setState({
+        draftFundId,
+        needsServerHydration: true,
+        pendingCommand: {
+          operation: 'finalize',
+          key: crypto.randomUUID(),
+          targetFundId: draftFundId,
+          expectedETag: draftFundId === null ? null : SERVER_ETAG,
+          bodySignature: '{"name":"Dispatched finalize"}',
+          dispatchedAt: new Date().toISOString(),
+        },
+      });
+      const { default: FundSetup } = await import('@/pages/fund-setup');
+      render(<FundSetup />);
+      expect(await screen.findByText('Review Step')).toBeInTheDocument();
+      expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    }
+  );
+
   it('labels the distributions step as the waterfall configuration step', async () => {
     mockLocation.value = '/fund-setup?step=5';
 
