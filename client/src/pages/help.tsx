@@ -37,9 +37,9 @@ export default function HelpPage() {
                   <BookOpen className="h-6 w-6 text-pov-charcoal" />
                 </div>
                 <div>
-                  <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
+                  <h2 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
                     Documentation
-                  </h3>
+                  </h2>
                   <p className="font-poppins text-xs text-presson-textMuted mb-3">
                     Documentation is not available in this workspace.
                   </p>
@@ -58,9 +58,9 @@ export default function HelpPage() {
                   <Video className="h-6 w-6 text-pov-charcoal" />
                 </div>
                 <div>
-                  <h3 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
+                  <h2 className="font-inter font-semibold text-sm text-pov-charcoal mb-1">
                     Video Tutorials
-                  </h3>
+                  </h2>
                   <p className="font-poppins text-xs text-presson-textMuted mb-3">
                     Video tutorials are not available in this workspace.
                   </p>
@@ -79,7 +79,9 @@ export default function HelpPage() {
             <div className="flex items-center gap-3">
               <HelpCircle className="h-5 w-5 text-pov-charcoal" />
               <div>
-                <CardTitle className="font-inter text-lg">Frequently Asked Questions</CardTitle>
+                <h2 className="text-lg font-inter font-bold leading-none tracking-tight text-charcoal">
+                  Frequently Asked Questions
+                </h2>
                 <CardDescription className="font-poppins text-sm">
                   Quick answers to common questions
                 </CardDescription>
@@ -88,27 +90,27 @@ export default function HelpPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-b border-beige-200 pb-4">
-              <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
+              <h3 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 How do I add a new portfolio company?
-              </h4>
+              </h3>
               <p className="font-poppins text-xs text-presson-textMuted">
                 Navigate to Portfolio, then click "Add Company" in the Companies tab. Fill in the
                 company details and investment information.
               </p>
             </div>
             <div className="border-b border-beige-200 pb-4">
-              <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
+              <h3 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 What is Reserve Planning?
-              </h4>
+              </h3>
               <p className="font-poppins text-xs text-presson-textMuted">
                 Reserve Planning helps you allocate follow-on capital across your portfolio. Use the
                 Reallocation Tools to optimize reserve distribution.
               </p>
             </div>
             <div>
-              <h4 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
+              <h3 className="font-inter font-medium text-sm text-pov-charcoal mb-2">
                 How do I model scenarios?
-              </h4>
+              </h3>
               <p className="font-poppins text-xs text-presson-textMuted">
                 Open Fund Model Results for the active fund, then choose Scenarios to open the
                 Scenario Workspace. Company detail pages are summary-only and do not have a
@@ -124,7 +126,9 @@ export default function HelpPage() {
             <div className="flex items-center gap-3">
               <MessageCircle className="h-5 w-5 text-pov-charcoal" />
               <div>
-                <CardTitle className="font-inter text-lg">Contact Support</CardTitle>
+                <h2 className="text-lg font-inter font-bold leading-none tracking-tight text-charcoal">
+                  Contact Support
+                </h2>
                 <CardDescription className="font-poppins text-sm">
                   Get help from our team
                 </CardDescription>

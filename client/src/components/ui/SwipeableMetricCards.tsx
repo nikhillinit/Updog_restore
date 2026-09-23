@@ -43,6 +43,7 @@ interface SwipeableMetricCardsProps {
   compactMode?: boolean;
   cardsPerView?: number; // Mobile: 1, Tablet: 2, Desktop: 4
   enableSwipeNavigation?: boolean;
+  headingLevel?: 2 | 3;
 }
 
 // Individual metric card component
@@ -173,7 +174,9 @@ export function SwipeableMetricCards({
   compactMode = false,
   cardsPerView = 1,
   enableSwipeNavigation = true,
+  headingLevel = 3,
 }: SwipeableMetricCardsProps) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0, time: 0 });
@@ -348,7 +351,9 @@ export function SwipeableMetricCards({
       {/* Header with title and navigation */}
       {showNavigation && (
         <div className="flex items-center justify-between">
-          <h3 className="font-inter font-semibold text-lg text-pov-charcoal">Key Metrics</h3>
+          <Heading className="font-inter font-semibold text-lg text-pov-charcoal">
+            Key Metrics
+          </Heading>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"

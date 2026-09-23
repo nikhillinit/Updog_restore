@@ -8,6 +8,7 @@ const fund = { ...MOCK_FUND, establishmentDate: null, isActive: true };
 const routes = [
   '/',
   '/dashboard',
+  '/dashboard?tab=overview',
   '/portfolio',
   '/pipeline',
   '/performance',
@@ -18,6 +19,50 @@ const routes = [
   '/forecasting?fundId=1',
 ];
 
+const portfolioOverview = {
+  fundId: 1,
+  generatedAt: '2026-09-12T00:00:00.000Z',
+  currency: 'USD',
+  provenance: {
+    sourceKind: 'imported_actual',
+    actionability: 'actionable',
+    isFinanciallyActionable: true,
+    generatedAt: '2026-09-12T00:00:00.000Z',
+    warnings: [],
+  },
+  sourceRecordCounts: { companies: 1 },
+  metrics: {
+    totalInvested: '100000',
+    totalValue: '150000',
+    averageMOIC: '1.5',
+    returnPct: '50',
+    valuedCount: 1,
+    totalCount: 1,
+    totalCompanies: 1,
+    activeCompanies: 1,
+    exitedCompanies: 0,
+  },
+  companies: [
+    {
+      id: 1,
+      name: 'QA Company',
+      sector: 'Software',
+      stage: 'Seed',
+      status: 'active',
+      invested: '100000.00',
+      currentValue: '150000.00',
+      moic: '1.5',
+    },
+  ],
+  meta: {
+    mode: 'live',
+    requestedAsOf: null,
+    resolvedAsOf: null,
+    source: 'live',
+    historicalAvailable: false,
+  },
+};
+
 test.beforeEach(async ({ page }) => {
   await installQaAuditApi(page);
   await page.route('**/api/auth/session', (route) =>
@@ -27,49 +72,7 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('**/api/funds', (route) => route.fulfill({ json: [fund] }));
   await page.route('**/api/portfolio-overview?*', (route) =>
-    route.fulfill({
-      json: {
-        fundId: 1,
-        generatedAt: '2026-09-12T00:00:00.000Z',
-        currency: 'USD',
-        provenance: {
-          sourceKind: 'imported_actual',
-          actionability: 'actionable',
-          isFinanciallyActionable: true,
-          generatedAt: '2026-09-12T00:00:00.000Z',
-          warnings: [],
-        },
-        sourceRecordCounts: { companies: 1 },
-        metrics: {
-          totalInvested: '100000',
-          totalValue: '150000',
-          averageMOIC: '1.5',
-          returnPct: '50',
-          totalCompanies: 1,
-          activeCompanies: 1,
-          exitedCompanies: 0,
-        },
-        companies: [
-          {
-            id: 1,
-            name: 'QA Company',
-            sector: 'Software',
-            stage: 'Seed',
-            status: 'active',
-            invested: '100000.00',
-            currentValue: '150000.00',
-            moic: '1.5',
-          },
-        ],
-        meta: {
-          mode: 'live',
-          requestedAsOf: null,
-          resolvedAsOf: null,
-          source: 'live',
-          historicalAvailable: false,
-        },
-      },
-    })
+    route.fulfill({ json: portfolioOverview })
   );
   const forecast = makeDualForecastResponse({
     fundId: 1,
@@ -103,9 +106,15 @@ for (const viewport of [
         const errors: string[] = [];
         const warnings: string[] = [];
         const failed: string[] = [];
+        const requestFailures: string[] = [];
         page.on('pageerror', (error) => errors.push(error.message));
         page.on('console', (message) => {
           if (['warning', 'error'].includes(message.type())) warnings.push(message.text());
+        });
+        page.on('requestfailed', (request) => {
+          requestFailures.push(
+            `${request.method()} ${request.url()}: ${request.failure()?.errorText}`
+          );
         });
         page.on('response', (response) => {
           if (response.status() >= 400) failed.push(`${response.status()} ${response.url()}`);
@@ -134,9 +143,22 @@ for (const viewport of [
         const axe = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
           .analyze();
+        const headings = await new AxeBuilder({ page })
+          .withRules(['heading-order', 'page-has-heading-one'])
+          .analyze();
         await testInfo.attach('route-evidence', {
           body: JSON.stringify(
-            { path, url: page.url(), viewport, errors, warnings, failed, axe: axe.violations },
+            {
+              path,
+              url: page.url(),
+              viewport,
+              errors,
+              warnings,
+              failed,
+              requestFailures,
+              axe: axe.violations,
+              headings: headings.violations,
+            },
             null,
             2
           ),
@@ -148,7 +170,8 @@ for (const viewport of [
         expect(
           axe.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) }))
         ).toEqual([]);
-        if (path === '/dashboard') {
+        expect(headings.violations).toEqual([]);
+        if (path === '/dashboard?tab=overview') {
           await page.getByRole('tab', { name: 'Overview', exact: true }).focus();
           await page.keyboard.press('ArrowRight');
           const performanceTab = page.getByRole('tab', { name: 'Performance', exact: true });
@@ -156,9 +179,75 @@ for (const viewport of [
           const panel = page.getByRole('tabpanel', { name: 'Performance', exact: true });
           await expect(panel).toBeVisible();
           await expect(panel.getByText('Supported performance metrics')).toBeVisible();
+          const performanceHeadings = await new AxeBuilder({ page })
+            .withRules(['heading-order', 'page-has-heading-one'])
+            .analyze();
+          expect(performanceHeadings.violations).toEqual([]);
         }
       });
     }
+
+    test('portfolio empty, unavailable and historical-empty states keep heading order', async ({
+      page,
+    }) => {
+      const states = [
+        {
+          path: '/portfolio',
+          heading: 'No Portfolio Companies Yet',
+          reply: {
+            json: {
+              ...portfolioOverview,
+              sourceRecordCounts: { companies: 0 },
+              metrics: {
+                ...portfolioOverview.metrics,
+                totalInvested: '0',
+                totalValue: null,
+                averageMOIC: null,
+                returnPct: null,
+                valuedCount: 0,
+                totalCount: 0,
+                totalCompanies: 0,
+                activeCompanies: 0,
+              },
+              companies: [],
+            },
+          },
+        },
+        {
+          path: '/portfolio',
+          heading: 'Portfolio metrics unavailable',
+          reply: { status: 503, json: { error: 'unavailable' } },
+        },
+        {
+          path: '/portfolio?asOf=2025-01-31',
+          heading: 'No Historical Snapshot',
+          reply: {
+            json: {
+              ...portfolioOverview,
+              companies: [],
+              meta: {
+                mode: 'historical',
+                requestedAsOf: '2025-01-31',
+                resolvedAsOf: null,
+                source: 'snapshot',
+                historicalAvailable: false,
+                emptyReason: 'no_snapshot',
+              },
+            },
+          },
+        },
+      ];
+      for (const state of states) {
+        await page.unroute('**/api/portfolio-overview?*');
+        await page.route('**/api/portfolio-overview?*', (route) => route.fulfill(state.reply));
+        await page.goto(state.path);
+        await expect(page.getByRole('heading', { name: state.heading, level: 2 })).toBeVisible();
+        const headings = await new AxeBuilder({ page })
+          .withRules(['heading-order', 'page-has-heading-one'])
+          .analyze();
+        expect(headings.violations, state.heading).toEqual([]);
+      }
+    });
 
     test('fund failure stays recoverable without leaking server details or redirecting to setup', async ({
       page,
@@ -200,14 +289,24 @@ for (const viewport of [
     }, testInfo) => {
       await page.route('**/api/funds', (route) => route.fulfill({ json: [] }));
       await page.goto('/');
+      await expect(page).toHaveURL(/\/dashboard$/);
+      await expect(page.getByRole('heading', { name: 'Fund workspace', level: 1 })).toBeVisible();
+      await page.getByRole('button', { name: 'New Fund', exact: true }).click();
       await expect(page).toHaveURL(/fund-setup/);
       await expect(
         page.getByRole('heading', { name: 'Fund Construction Wizard', level: 1 })
       ).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
-      await expect(page.getByRole('switch', { name: 'Evergreen Fund Structure' })).toHaveCount(1);
+      const evergreen = page.getByRole('switch', { name: 'Evergreen Fund Structure' });
+      await expect(evergreen).not.toBeChecked();
+      await evergreen.focus();
+      await page.keyboard.press('Space');
+      await expect(evergreen).toBeChecked();
+      await page.keyboard.press('Space');
+      await expect(evergreen).not.toBeChecked();
+      await page.getByLabel('Capital Committed ($M)').fill('50');
       const tooltip = page.getByRole('button', {
-        name: /Average initial check from capital allocation rows/,
+        name: /Fund size less currently planned allocation/,
       });
       await expect(tooltip).toBeVisible();
       {
