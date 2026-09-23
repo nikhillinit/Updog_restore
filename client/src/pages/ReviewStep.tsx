@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
 import { fundStore, prepareFundCommand, resetFundWorkspace } from '@/stores/fundStore';
+import { FUND_STATE_QUERY_KEY } from '@/lib/funds-query';
 import { fundStoreToDraftWriteV1, fundStoreToFinalizeV1 } from '@/adapters/fund-store-adapters';
 import { finalizeFund } from '@/services/funds';
 import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
@@ -310,6 +311,8 @@ export default function ReviewStep() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['/api/funds'] }),
           queryClient.invalidateQueries({ queryKey: ['funds'] }),
+          // Workspace chooses Resume vs Open from this lifecycle read.
+          queryClient.invalidateQueries({ queryKey: [FUND_STATE_QUERY_KEY, fundId] }),
         ]);
       } catch (error) {
         console.warn('[ReviewStep] Failed to invalidate funds query after publish', error);

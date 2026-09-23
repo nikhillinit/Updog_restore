@@ -1,7 +1,11 @@
-import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
+import {
+  FundDraftWriteV1Schema,
+  type FundDraftWriteV1,
+} from '@shared/contracts/fund-draft-write-v1.contract';
+import { FundDraftETagSchema } from '@shared/contracts/fund-workflow-v1.contract';
 import { ApiError } from '@/lib/queryClient';
 import { startInFlight } from '@/lib/inflight';
-import { workflowRequest, type WorkflowResult } from './fund-workflow';
+import { FundWorkflowUncertainError, workflowRequest, type WorkflowResult } from './fund-workflow';
 
 type DraftRecordResponse = {
   config?: FundDraftWriteV1;
@@ -28,10 +32,16 @@ export function isMissingDraftError(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-function draftConfigFrom(result: WorkflowResult<DraftRecordResponse | null>): FundDraftWriteV1 {
-  const config = result.body?.config ?? result.body?.data?.config;
-  if (!config) throw new Error('Draft response is missing the config payload');
-  return config;
+function isDraftETag(etag: string | null): etag is string {
+  return FundDraftETagSchema.safeParse(etag).success;
+}
+
+function draftSnapshotFrom(result: WorkflowResult<DraftRecordResponse | null>): DraftSnapshot {
+  const parsed = FundDraftWriteV1Schema.safeParse(result.body?.config ?? result.body?.data?.config);
+  if (!parsed.success) throw new Error('Draft response does not match the draft contract');
+  // Every later write is conditional on this revision; never hydrate without it.
+  if (!isDraftETag(result.etag)) throw new Error('Draft response is missing its revision');
+  return { config: parsed.data, etag: result.etag };
 }
 
 export async function saveFundDraft(
@@ -48,6 +58,11 @@ export async function saveFundDraft(
       signal,
     })
   );
+  // Committed, but without a revision the next write cannot be conditional.
+  // Uncertain keeps the key, so a retry replays and returns the revision.
+  if (!isDraftETag(result.etag)) {
+    throw new FundWorkflowUncertainError('Draft save response is missing its revision', false);
+  }
   return {
     config: result.body?.config ?? result.body?.data?.config ?? payload,
     etag: result.etag,
@@ -61,5 +76,5 @@ export async function fetchFundDraft(fundId: number): Promise<DraftSnapshot> {
     `/api/funds/${fundId}/draft`,
     undefined
   );
-  return { config: draftConfigFrom(result), etag: result.etag };
+  return draftSnapshotFrom(result);
 }

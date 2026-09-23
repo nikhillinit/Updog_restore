@@ -24,7 +24,7 @@ describe('fund wizard service auth options', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ success: true, data: { id: 1 } }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ETag: '"0123456789abcdf0"' },
       })
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -64,7 +64,7 @@ describe('fund wizard service auth options', () => {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ETag: '"0123456789abcdef"' },
         }
       )
     );

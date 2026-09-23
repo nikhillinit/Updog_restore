@@ -539,6 +539,7 @@ describe('ReviewStep single-submit via finalize', () => {
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/funds'] });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['funds'] });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['fund-state', 77] });
     // Lifecycle truth comes from the fund-scoped results route; no local Active status.
     expect(mockSetCurrentFund).not.toHaveBeenCalled();
     expect(mockFundState.resolveCommand).toHaveBeenCalled();

@@ -8,6 +8,7 @@ import {
   newWorkflowKey,
   workflowRequest,
 } from '@/services/fund-workflow';
+import { fetchFundDraft, saveFundDraft } from '@/services/fund-drafts';
 
 const KEY = '11111111-1111-4111-8111-111111111111';
 
@@ -286,5 +287,48 @@ describe('workflowRequest', () => {
     expect((failure as ApiError).status).toBe(400);
     expect((failure as ApiError).errorCode).toBe('VALIDATION_FAILED');
     expect(classifyWorkflowError(failure)).toBe('rejected');
+  });
+});
+
+describe('draft response validation', () => {
+  const ETAG = '"0000000000000003"';
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns the contract-parsed config and revision', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(jsonResponse({ config: { fundName: 'Draft' } }, 200, { ETag: ETAG }))
+    );
+    await expect(fetchFundDraft(1)).resolves.toEqual({ config: { fundName: 'Draft' }, etag: ETAG });
+  });
+
+  it.each([
+    ['a config that breaks the contract', { config: { fundName: '', legacy: true } }, ETAG],
+    ['no config', { data: {} }, ETAG],
+    ['no revision', { config: { fundName: 'Draft' } }, null],
+    ['a weak revision', { config: { fundName: 'Draft' } }, 'W/"0000000000000003"'],
+  ])('refuses to hydrate %s', async (_label, body, etag) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse(body, 200, etag ? { ETag: etag } : {}))
+    );
+    await expect(fetchFundDraft(1)).rejects.toThrow(/draft contract|revision/);
+  });
+
+  it('treats a committed save without a revision as uncertain so the key is kept', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ success: true, data: { config: {} } }, 200))
+    );
+    const failure = await saveFundDraft(1, { fundName: 'Draft' }, { key: KEY, etag: ETAG }).catch(
+      (error: unknown) => error
+    );
+    expect(failure).toBeInstanceOf(FundWorkflowUncertainError);
+    expect(classifyWorkflowError(failure)).toBe('uncertain');
   });
 });

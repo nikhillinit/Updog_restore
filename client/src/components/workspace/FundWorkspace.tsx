@@ -2,7 +2,12 @@ import React from 'react';
 import { useLocation, useSearch } from 'wouter';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { fetchFundSummaries, FUNDS_QUERY_KEY, type Fund } from '@/lib/funds-query';
+import {
+  fetchFundSummaries,
+  FUND_STATE_QUERY_KEY,
+  FUNDS_QUERY_KEY,
+  type Fund,
+} from '@/lib/funds-query';
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
@@ -44,7 +49,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export const FUND_STATE_QUERY_KEY = 'fund-state';
+export { FUND_STATE_QUERY_KEY };
 
 async function fetchFundState(fundId: number): Promise<FundStateReadV1> {
   return FundStateReadV1Schema.parse(
