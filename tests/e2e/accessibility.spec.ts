@@ -90,7 +90,10 @@ test.describe('Tranche 5 accessibility critical gate', () => {
     await expect(
       page.getByRole('spinbutton', { name: 'Default Variance Threshold (%)' })
     ).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Analysis Frequency' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Analysis Frequency' })).toBeDisabled();
+    await expect(page.getByRole('textbox', { name: 'Analysis Frequency' })).toHaveValue(
+      'Unavailable'
+    );
 
     const results = await new AxeBuilder({ page })
       .include('main [role="tabpanel"]')

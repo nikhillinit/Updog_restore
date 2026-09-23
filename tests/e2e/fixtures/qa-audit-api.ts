@@ -15,6 +15,7 @@ import {
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import type { FundMoicRankingsResponseV2 } from '../../../shared/contracts/fund-moic-v2.contract';
+import type { FundStateReadV1 } from '../../../shared/contracts/fund-state-read-v1.contract';
 import { makeDashboardSummaryFixture } from './dashboard-summary';
 
 export const MOCK_FUND = {
@@ -83,6 +84,8 @@ const PORTFOLIO_OVERVIEW_RESPONSE = {
     totalValue: '46100000',
     averageMOIC: '2.77',
     returnPct: '176.05',
+    valuedCount: MOCK_COMPANIES.length,
+    totalCount: MOCK_COMPANIES.length,
     totalCompanies: MOCK_COMPANIES.length,
     activeCompanies: MOCK_COMPANIES.length,
     exitedCompanies: 0,
@@ -1260,6 +1263,36 @@ export async function installQaAuditApi(page: Page) {
 
     if (request.method() === 'GET' && url.pathname === '/api/funds') {
       await fulfillJson(route, [MOCK_FUND]);
+      return;
+    }
+
+    if (request.method() === 'GET' && url.pathname === `/api/funds/${MOCK_FUND.id}/state`) {
+      await fulfillJson(route, {
+        fundId: MOCK_FUND.id,
+        configState: {
+          latestVersion: 1,
+          draftVersion: null,
+          publishedVersion: 1,
+          hasDraft: false,
+          hasPublished: true,
+          publishedAt: MOCK_FUND.createdAt,
+          draftUpdatedAt: null,
+          publishedUpdatedAt: MOCK_FUND.updatedAt,
+        },
+        calculationState: {
+          status: 'ready',
+          configVersion: 1,
+          runId: 1,
+          correlationId: null,
+          dispatchState: 'dispatched',
+          availableSnapshotTypes: [],
+          expectedSnapshotTypes: [],
+          lastCalculatedAt: MOCK_FUND.updatedAt,
+          lastError: null,
+          legacyEvidence: false,
+        },
+        legacy: { engineResultsPresent: false },
+      } satisfies FundStateReadV1);
       return;
     }
 

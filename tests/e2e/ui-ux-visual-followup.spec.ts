@@ -8,6 +8,7 @@ const fund = { ...MOCK_FUND, establishmentDate: null, isActive: true };
 const routes = [
   '/',
   '/dashboard',
+  '/dashboard?tab=overview',
   '/portfolio',
   '/pipeline',
   '/performance',
@@ -45,6 +46,8 @@ test.beforeEach(async ({ page }) => {
           totalValue: '150000',
           averageMOIC: '1.5',
           returnPct: '50',
+          valuedCount: 1,
+          totalCount: 1,
           totalCompanies: 1,
           activeCompanies: 1,
           exitedCompanies: 0,
@@ -103,9 +106,15 @@ for (const viewport of [
         const errors: string[] = [];
         const warnings: string[] = [];
         const failed: string[] = [];
+        const requestFailures: string[] = [];
         page.on('pageerror', (error) => errors.push(error.message));
         page.on('console', (message) => {
           if (['warning', 'error'].includes(message.type())) warnings.push(message.text());
+        });
+        page.on('requestfailed', (request) => {
+          requestFailures.push(
+            `${request.method()} ${request.url()}: ${request.failure()?.errorText}`
+          );
         });
         page.on('response', (response) => {
           if (response.status() >= 400) failed.push(`${response.status()} ${response.url()}`);
@@ -134,9 +143,22 @@ for (const viewport of [
         const axe = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
           .analyze();
+        const headings = await new AxeBuilder({ page })
+          .withRules(['heading-order', 'page-has-heading-one'])
+          .analyze();
         await testInfo.attach('route-evidence', {
           body: JSON.stringify(
-            { path, url: page.url(), viewport, errors, warnings, failed, axe: axe.violations },
+            {
+              path,
+              url: page.url(),
+              viewport,
+              errors,
+              warnings,
+              failed,
+              requestFailures,
+              axe: axe.violations,
+              headings: headings.violations,
+            },
             null,
             2
           ),
@@ -148,7 +170,8 @@ for (const viewport of [
         expect(
           axe.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) }))
         ).toEqual([]);
-        if (path === '/dashboard') {
+        expect(headings.violations).toEqual([]);
+        if (path === '/dashboard?tab=overview') {
           await page.getByRole('tab', { name: 'Overview', exact: true }).focus();
           await page.keyboard.press('ArrowRight');
           const performanceTab = page.getByRole('tab', { name: 'Performance', exact: true });
@@ -200,14 +223,24 @@ for (const viewport of [
     }, testInfo) => {
       await page.route('**/api/funds', (route) => route.fulfill({ json: [] }));
       await page.goto('/');
+      await expect(page).toHaveURL(/\/dashboard$/);
+      await expect(page.getByRole('heading', { name: 'Fund workspace', level: 1 })).toBeVisible();
+      await page.getByRole('button', { name: 'New Fund', exact: true }).click();
       await expect(page).toHaveURL(/fund-setup/);
       await expect(
         page.getByRole('heading', { name: 'Fund Construction Wizard', level: 1 })
       ).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
-      await expect(page.getByRole('switch', { name: 'Evergreen Fund Structure' })).toHaveCount(1);
+      const evergreen = page.getByRole('switch', { name: 'Evergreen Fund Structure' });
+      await expect(evergreen).not.toBeChecked();
+      await evergreen.focus();
+      await page.keyboard.press('Space');
+      await expect(evergreen).toBeChecked();
+      await page.keyboard.press('Space');
+      await expect(evergreen).not.toBeChecked();
+      await page.getByLabel('Capital Committed ($M)').fill('50');
       const tooltip = page.getByRole('button', {
-        name: /Average initial check from capital allocation rows/,
+        name: /Fund size less currently planned allocation/,
       });
       await expect(tooltip).toBeVisible();
       {

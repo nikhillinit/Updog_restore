@@ -162,7 +162,7 @@ function PortfolioCard({
     <div className="bg-white border border-presson-borderSubtle rounded-lg p-4 space-y-3">
       <div className="flex justify-between items-start gap-3">
         <div>
-          <h4 className="font-bold text-presson-text">{company.company}</h4>
+          <h3 className="font-bold text-presson-text">{company.company}</h3>
           <p className="text-sm text-presson-textMuted">
             {company.stage} • {company.sector}
           </p>
@@ -701,12 +701,14 @@ export function OverviewTab() {
               showNavigation={true}
               showIndicators={true}
               cardsPerView={1}
+              headingLevel={2}
             />
           </div>
 
           <div className="hidden md:block">
             <PremiumCard
               title="Portfolio Companies"
+              headingLevel={2}
               subtitle={
                 isHistoricalMode
                   ? `${filteredCompanies.length} companies as of ${historicalLabel}`
@@ -776,7 +778,7 @@ export function OverviewTab() {
 
           <div className="md:hidden space-y-3">
             <div className="flex justify-between items-center px-1">
-              <h3 className="font-bold text-presson-text">Portfolio Companies</h3>
+              <h2 className="font-bold text-presson-text">Portfolio Companies</h2>
               <span className="text-sm text-presson-textMuted">
                 {filteredCompanies.length} companies
               </span>

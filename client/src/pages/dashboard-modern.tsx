@@ -468,6 +468,7 @@ function AnalyticsDashboard({
       <TabsContent value="overview" className="space-y-8">
         <PremiumCard
           title="Supported overview metrics"
+          headingLevel={2}
           subtitle="Backed by the unified metrics layer for the selected fund"
         >
           <OverviewMetricsPanel
@@ -479,6 +480,7 @@ function AnalyticsDashboard({
 
         <PremiumCard
           title="Capital structure"
+          headingLevel={2}
           subtitle="Commitment, deployment, and distribution lifecycle"
         >
           <CapitalStructurePanel
@@ -490,6 +492,7 @@ function AnalyticsDashboard({
 
         <PremiumCard
           title="Portfolio composition"
+          headingLevel={2}
           subtitle="Company status breakdown and investment sizing"
         >
           <PortfolioCompositionPanel
@@ -501,6 +504,7 @@ function AnalyticsDashboard({
 
         <PremiumCard
           title="Performance snapshot"
+          headingLevel={2}
           subtitle="Key return metrics from the unified layer"
         >
           <PerformanceSnapshotPanel
@@ -515,6 +519,7 @@ function AnalyticsDashboard({
       <TabsContent value="performance" className="space-y-8">
         <PremiumCard
           title="Supported performance metrics"
+          headingLevel={2}
           subtitle="Current fund performance from supported metrics contracts"
         >
           <PerformanceMetricsPanel

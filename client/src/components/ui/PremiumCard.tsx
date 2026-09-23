@@ -9,6 +9,7 @@ interface PremiumCardProps {
   headerActions?: React.ReactNode;
   variant?: 'default' | 'highlight' | 'outlined';
   loading?: boolean;
+  headingLevel?: 2 | 3;
 }
 
 export function PremiumCard({
@@ -19,7 +20,9 @@ export function PremiumCard({
   headerActions,
   variant = 'default',
   loading = false,
+  headingLevel = 3,
 }: PremiumCardProps) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
   const cardClasses = cn(
     'bg-white rounded-xl transition-all duration-200 ease-out',
     {
@@ -54,9 +57,9 @@ export function PremiumCard({
           <div className="flex items-center justify-between">
             <div className="flex-1">
               {title && (
-                <h3 className="font-inter font-bold text-lg text-pov-charcoal leading-tight">
+                <Heading className="font-inter font-bold text-lg text-pov-charcoal leading-tight">
                   {title}
-                </h3>
+                </Heading>
               )}
               {subtitle && (
                 <p className="font-poppins text-sm text-charcoal-600 mt-1">{subtitle}</p>
