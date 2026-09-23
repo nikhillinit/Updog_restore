@@ -20,8 +20,10 @@ vi.mock('@/lib/queryClient', async (importOriginal) => ({
   apiRequest: (...args: unknown[]) => mockApiRequest(...args),
 }));
 
+const mockFetchFundDraft = vi.fn();
 const mockSaveFundDraft = vi.fn();
 vi.mock('@/services/fund-drafts', () => ({
+  fetchFundDraft: (...args: unknown[]) => mockFetchFundDraft(...args),
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
 
@@ -107,6 +109,7 @@ describe('FundWorkspace', () => {
     sessionStorage.clear();
     mockNavigate.mockReset();
     mockSearch.value = '';
+    mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
     mockApiRequest.mockReset().mockImplementation(async (_method: string, url: string) => {
       if (url === '/api/funds') return FUNDS;
@@ -325,6 +328,56 @@ describe('FundWorkspace', () => {
     expect(within(dialog).getByRole('button', { name: 'Discard and start new' })).toBeDisabled();
     expect(fundStore.getState().pendingCommand).toEqual(original);
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('replays and hydrates an identity-only recovered save before starting another fund', async () => {
+    const key = crypto.randomUUID();
+    fundStore.setState({
+      fundName: 'Placeholder',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'uncertain',
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'save_draft',
+        key,
+        targetFundId: 2,
+        bodySignature: '{"fundName":"Dispatched draft"}',
+        expectedETag: '"0000000000000001"',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    mockSaveFundDraft.mockResolvedValue({
+      config: {},
+      etag: '"0000000000000002"',
+      replayed: true,
+    });
+    mockFetchFundDraft
+      .mockRejectedValueOnce(new Error('Recovery read failed'))
+      .mockResolvedValueOnce({
+        config: { fundName: 'Dispatched draft' },
+        etag: '"0000000000000002"',
+      });
+
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
+    expect(fundStore.getState().needsServerHydration).toBe(true);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(
+      2,
+      { fundName: 'Dispatched draft' },
+      { key, etag: '"0000000000000001"' }
+    );
+    expect(mockFetchFundDraft).toHaveBeenCalledTimes(2);
+    expect(mockFetchFundDraft).toHaveBeenCalledWith(2);
+    expect(fundStore.getState().needsServerHydration).toBe(false);
   });
 
   it('asks before starting another fund when a restored session is only idle', async () => {

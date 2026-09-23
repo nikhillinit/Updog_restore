@@ -49,8 +49,25 @@ export function useFundDraftSync({
   stepKey,
   debounceMs = 600,
 }: UseFundDraftSyncOptions): UseFundDraftSyncResult {
-  const [hydrated, draftFundId, draftServerReady, status, sessionId] = useFundTuple(
-    (s) => [s.hydrated, s.draftFundId, s.draftServerReady, s.draftSyncStatus, s.sessionId] as const
+  const [
+    hydrated,
+    draftFundId,
+    draftServerReady,
+    needsServerHydration,
+    status,
+    sessionId,
+    pendingCommand,
+  ] = useFundTuple(
+    (s) =>
+      [
+        s.hydrated,
+        s.draftFundId,
+        s.draftServerReady,
+        s.needsServerHydration,
+        s.draftSyncStatus,
+        s.sessionId,
+        s.pendingCommand,
+      ] as const
   );
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
   const [error, setError] = React.useState<string | null>(null);
@@ -68,7 +85,6 @@ export function useFundDraftSync({
   const saveInFlightRef = React.useRef(false);
   const queuedSaveRef = React.useRef(false);
   const pendingSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipNextAutosaveRef = React.useRef(false);
   const lastSavedSignatureRef = React.useRef<string | null>(null);
   // Payload signature at the last store notification; status writes to the store
   // must not re-trigger the autosave subscription.
@@ -125,6 +141,7 @@ export function useFundDraftSync({
     }
     const { payload, key, etag } = command;
     const signature = canonicalJson(payload);
+    const recoveringServerValues = state.needsServerHydration;
 
     saveInFlightRef.current = true;
     setStatus('saving');
@@ -145,6 +162,13 @@ export function useFundDraftSync({
       current.setDraftETag(saved.etag ?? current.draftETag);
       current.setDraftServerReady(true);
       current.resolveCommand();
+      if (recoveringServerValues) {
+        queuedSaveRef.current = false;
+        markVerified(null);
+        setStatus('hydrating');
+        setRetryNonce((value) => value + 1);
+        return;
+      }
       markVerified(targetFundId);
       // eslint-disable-next-line require-atomic-updates -- ref stores the last server-confirmed payload signature.
       lastSavedSignatureRef.current = signature;
@@ -199,12 +223,12 @@ export function useFundDraftSync({
     ) => {
       const defaults = fundStore.getInitialState();
       const patch = fundDraftWriteV1ToStoreHydrationPatch(config, defaults);
-      skipNextAutosaveRef.current = true;
       fundStore.setState((state) => ({
         ...state,
         ...patch,
         draftFundId: fundId,
         draftServerReady: true,
+        needsServerHydration: false,
         draftETag: etag,
         pendingCommand: null,
       }));
@@ -281,6 +305,12 @@ export function useFundDraftSync({
 
   const retry = React.useCallback(() => {
     const state = fundStore.getState();
+    if (state.needsServerHydration && !state.pendingCommand) {
+      markVerified(null);
+      setError(null);
+      setRetryNonce((value) => value + 1);
+      return;
+    }
     if (
       state.draftFundId != null &&
       state.draftServerReady &&
@@ -291,7 +321,7 @@ export function useFundDraftSync({
       return;
     }
     void persistCurrentDraft();
-  }, [persistCurrentDraft]);
+  }, [markVerified, persistCurrentDraft]);
 
   // Identity cleared: nothing to sync.
   React.useEffect(() => {
@@ -308,13 +338,12 @@ export function useFundDraftSync({
   // Server-ready identity not yet verified this mount: load it (resume, reload, explicit ID).
   React.useEffect(() => {
     if (!hydrated || draftFundId == null) return;
-    if (hydratedServerDraftIdRef.current === draftFundId) return;
+    if (hydratedServerDraftIdRef.current === draftFundId && !needsServerHydration) return;
 
-    const pending = fundStore.getState().pendingCommand;
-    if (pending) {
+    if (pendingCommand) {
       // Recovery must settle the exact dispatched command before fetching over it.
       markVerified(draftFundId);
-      if (pending.operation === 'save_draft') {
+      if (pendingCommand.operation === 'save_draft') {
         setError(UNCERTAIN_SAVE_MESSAGE);
         setStatus('uncertain');
       } else {
@@ -322,7 +351,7 @@ export function useFundDraftSync({
       }
       return;
     }
-    if (!draftServerReady) return;
+    if (!draftServerReady && !needsServerHydration) return;
 
     let cancelled = false;
     setStatus('hydrating');
@@ -336,7 +365,7 @@ export function useFundDraftSync({
         const state = fundStore.getState();
         if (state.sessionId !== sessionId || state.draftFundId !== draftFundId) return;
 
-        if (state.draftETag == null) {
+        if (state.needsServerHydration || state.draftETag == null) {
           applyServerSnapshot(draftFundId, snapshot.config, snapshot.etag);
           return;
         }
@@ -385,6 +414,8 @@ export function useFundDraftSync({
     hydrated,
     localSignature,
     markVerified,
+    needsServerHydration,
+    pendingCommand,
     persistCurrentDraft,
     retryNonce,
     sessionId,
@@ -394,6 +425,7 @@ export function useFundDraftSync({
   // Autosave: local edits after identity exists. Blocked while hydrating, stale, or missing.
   React.useEffect(() => {
     if (!hydrated || draftFundId == null) return;
+    if (needsServerHydration) return;
     if (draftServerReady && verifiedDraftFundId !== draftFundId) return;
     if (missingDraftFundId === draftFundId) return;
 
@@ -401,11 +433,6 @@ export function useFundDraftSync({
     const unsubscribe = fundStore.subscribe((state) => {
       if (state.draftFundId == null || state.draftFundId !== draftFundId) return;
       if (state.draftSyncStatus === 'stale' || state.draftSyncStatus === 'hydrating') return;
-      if (skipNextAutosaveRef.current) {
-        skipNextAutosaveRef.current = false;
-        lastObservedSignatureRef.current = localSignature();
-        return;
-      }
       const signature = canonicalJson(
         fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: economicsEnabled })
       );
@@ -436,6 +463,7 @@ export function useFundDraftSync({
     hydrated,
     localSignature,
     missingDraftFundId,
+    needsServerHydration,
     persistCurrentDraft,
     setStatus,
     verifiedDraftFundId,

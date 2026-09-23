@@ -111,6 +111,7 @@ describe('fund workspace envelope', () => {
     const written = JSON.parse(sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY) ?? 'null');
     expect(written?.state?.envelope).toBe(FUND_WORKSPACE_ENVELOPE);
     expect(written?.state?.workspaceActorId).toBe(ACTOR);
+    expect(written?.state?.needsServerHydration).toBe(false);
     for (const [key, value] of Object.entries(fullState())) {
       if (value === undefined) continue;
       expect(written.state[key], key).toEqual(value);
@@ -409,6 +410,34 @@ describe('fund workspace envelope', () => {
     expect(next.key).not.toBe(original.key);
     expect(next.payload).toEqual({ fundName: 'Edited' });
     expect(next.etag).toBe('"0000000000000002"');
+  });
+
+  it('blocks fresh writes during identity-only recovery but permits the exact pending replay', () => {
+    fundStore.setState({
+      draftFundId: 42,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      needsServerHydration: true,
+    });
+
+    expect(() =>
+      prepareFundCommand('save_draft', 42, { fundName: 'Placeholder' }, '"0000000000000001"')
+    ).toThrow(/Recover the saved draft/);
+
+    fundStore.getState().beginCommand({
+      operation: 'save_draft',
+      key: '22222222-2222-4222-8222-222222222222',
+      targetFundId: 42,
+      expectedETag: '"0000000000000001"',
+      bodySignature: '{"fundName":"Dispatched"}',
+    });
+    expect(
+      prepareFundCommand('save_draft', 42, { fundName: 'Placeholder' }, '"0000000000000001"')
+    ).toMatchObject({
+      payload: { fundName: 'Dispatched' },
+      key: '22222222-2222-4222-8222-222222222222',
+      etag: '"0000000000000001"',
+    });
   });
 
   it('refuses dispatch preparation when the pending command cannot be persisted', () => {
