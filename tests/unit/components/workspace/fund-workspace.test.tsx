@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fundStore, resetFundWorkspace, bindFundWorkspaceActor } from '@/stores/fundStore';
@@ -330,6 +330,46 @@ describe('FundWorkspace', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it('preserves a newer command when an old workspace save rejects', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftSyncStatus: 'error',
+    });
+    let rejectOld!: (error: unknown) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectOld = reject;
+        })
+    );
+    const view = renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    const old = fundStore.getState().pendingCommand!;
+    view.unmount();
+
+    // Wizard replay settles A, then starts B before the original request A completes.
+    fundStore.getState().resolveCommand();
+    const newerKey = crypto.randomUUID();
+    fundStore.getState().beginCommand({
+      operation: old.operation,
+      targetFundId: old.targetFundId,
+      key: newerKey,
+      expectedETag: '"0000000000000002"',
+      bodySignature: '{"fundName":"Newer edits"}',
+    });
+    await act(async () => {
+      rejectOld(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+      await Promise.resolve();
+    });
+    expect(fundStore.getState().pendingCommand?.key).toBe(newerKey);
+  });
+
   it('replays and hydrates an identity-only recovered save before starting another fund', async () => {
     const key = crypto.randomUUID();
     fundStore.setState({
@@ -366,6 +406,7 @@ describe('FundWorkspace', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
     await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
     expect(fundStore.getState().needsServerHydration).toBe(true);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not confirm the save');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));

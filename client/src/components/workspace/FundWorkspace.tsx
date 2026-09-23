@@ -412,7 +412,9 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     } catch (error) {
       if (!sameSession()) return;
       // A failed or uncertain save never resets state.
-      if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
+      if (classifyWorkflowError(error) === 'rejected' && stillCurrent()) {
+        fundStore.getState().resolveCommand();
+      }
       setDialogError(
         classifyWorkflowError(error) === 'uncertain'
           ? 'Could not confirm the save; it may have completed. Keep editing to check.'
