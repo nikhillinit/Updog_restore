@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EconomicsAssumptionsV1Schema } from '@shared/contracts/economics-v1.contract';
+import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import {
   FundDraftETagSchema,
   FundWorkflowKeySchema,
@@ -239,6 +240,7 @@ export const FundWorkspaceEnvelopeSchema = z
         .strict()
     ),
     economicsAssumptions: EconomicsAssumptionsV1Schema.optional(),
+    targetMetrics: FundDraftWriteV1Schema.shape.targetMetrics,
   })
   .strict()
   .refine(draftIdentityConsistent)

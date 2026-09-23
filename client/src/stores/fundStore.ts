@@ -10,6 +10,7 @@ import {
 } from '../schemas/fund-workspace-schema';
 import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 import type { EconomicsAssumptionsV1 } from '@shared/contracts/economics-v1.contract';
+import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
 
 export type StrategyStage = {
   id: string;
@@ -229,6 +230,9 @@ export type FundState = {
 
   // Experimental GP economics assumptions
   economicsAssumptions?: EconomicsAssumptionsV1 | undefined;
+
+  // No editor yet; carried so full-replace draft writes never drop server values.
+  targetMetrics?: FundDraftWriteV1['targetMetrics'] | undefined;
 
   // Fund Basics actions
   updateFundBasics: (
@@ -557,6 +561,7 @@ type FundData = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'targetMetrics'
 >;
 
 const FUND_DATA_KEYS = [
@@ -593,6 +598,7 @@ const FUND_DATA_KEYS = [
   'feeProfiles',
   'fundExpenses',
   'economicsAssumptions',
+  'targetMetrics',
 ] as const satisfies readonly (keyof FundData)[];
 
 type FundIdentity = Pick<

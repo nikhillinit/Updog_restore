@@ -77,6 +77,7 @@ function fullState() {
     ],
     fundExpenses: [{ id: 'e1', category: 'Audit', monthlyAmount: 1_000, startMonth: 1 }],
     economicsAssumptions: undefined,
+    targetMetrics: { targetIRR: 0.2, targetTVPI: 2.5, targetCompanyCount: 25 },
     draftFundId: 42,
     draftServerReady: true,
     draftETag: '"0000000000000007"',

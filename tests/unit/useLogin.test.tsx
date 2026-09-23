@@ -40,10 +40,12 @@ describe('useLogin', () => {
       } as Response)
     );
     const { qc, wrapper } = makeWrapper();
+    qc.setQueryData(['/api/funds'], [{ id: 9, name: 'Previous actor fund' }]);
     const { result } = renderHook(() => useLogin(), { wrapper });
     result.current.mutate({ username: 'admin', password: 'admin-dev-2026' });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(qc.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(session);
+    expect(qc.getQueryData(['/api/funds'])).toBeUndefined();
     expect(window.localStorage.getItem(LEGACY_AUTH_TOKEN_KEY)).toBeNull();
   });
 
