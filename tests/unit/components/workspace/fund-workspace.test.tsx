@@ -365,6 +365,12 @@ describe('FundWorkspace', () => {
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
     await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
+      )
+    );
+    expect(within(dialog).getByRole('alert')).not.toHaveTextContent('Could not confirm the save');
     expect(fundStore.getState().needsServerHydration).toBe(true);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
 
