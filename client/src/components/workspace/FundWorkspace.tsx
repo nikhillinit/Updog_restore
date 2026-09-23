@@ -393,7 +393,16 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       current.setDraftServerReady(true);
       current.resolveCommand();
       if (current.needsServerHydration) {
-        await hydrateThenStartNew();
+        // The save is already confirmed; a hydration failure must not reuse save-error wording.
+        try {
+          await hydrateThenStartNew();
+        } catch {
+          if (sameSession()) {
+            setDialogError(
+              'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
+            );
+          }
+        }
         return;
       }
       if (
