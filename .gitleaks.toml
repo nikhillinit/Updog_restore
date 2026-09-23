@@ -182,3 +182,16 @@ regexes = [
 paths = [
   '''^tests/unit/contract/fund-finalize\.test\.ts$'''
 ]
+
+[[allowlists]]
+description = "Allow historical fund-workspace replay deterministic idempotency UUID fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["02b81fdfcc54b087b188f010c390068573d368a8"]
+regexTarget = "line"
+regexes = [
+  '''^\s*key:\s*'6f1b0d9e-2f4a-4c1e-9f5b-3c8d7a6b5e4f',\s*$'''
+]
+paths = [
+  '''^tests/unit/stores/fund-workspace-envelope\.test\.tsx$'''
+]

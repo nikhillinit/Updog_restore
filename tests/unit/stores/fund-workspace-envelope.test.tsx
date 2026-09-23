@@ -424,7 +424,7 @@ describe('fund workspace envelope', () => {
     fundStore.getState().beginCommand({
       operation: 'create',
       targetFundId: null,
-      key: '6f1b0d9e-2f4a-4c1e-9f5b-3c8d7a6b5e4f',
+      key: crypto.randomUUID(),
       expectedETag: null,
       bodySignature: '{"name":"Dispatched"}',
     });
