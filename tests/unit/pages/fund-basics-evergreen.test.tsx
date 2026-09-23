@@ -1,5 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  bindFundWorkspaceActor,
+  fundStore,
+  resetFundWorkspace,
+  unbindFundWorkspaceActor,
+} from '@/stores/fundStore';
+
+const TEST_ACTOR_ID = 'fund-basics-evergreen-user';
 
 const mockNavigate = vi.fn();
 vi.mock('wouter', () => ({
@@ -13,49 +21,9 @@ vi.mock('@/contexts/FundContext', () => ({
   }),
 }));
 
-const mockFundState = {
-  fundName: 'Evergreen Coverage Fund',
-  fundSize: 50_000_000,
-  isEvergreen: false,
-  fundLife: 10,
-  investmentPeriod: 5,
-  managementFeeRate: 2,
-  carriedInterest: 20,
-  establishmentDate: '2026-01-15',
-  vintageYear: 2026,
-  draftFundId: null as number | null,
-  draftServerReady: false,
-};
-
-const mockUpdateFundBasics = vi.fn((update: Partial<typeof mockFundState>) => {
-  Object.assign(mockFundState, update);
-});
-
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (state: typeof mockFundState) => unknown) => selector(mockFundState),
-  useFundAction: (
-    selector: (actions: {
-      updateFundBasics: typeof mockUpdateFundBasics;
-      setDraftFundId: (value: number | null) => void;
-      setDraftServerReady: (value: boolean) => void;
-    }) => unknown
-  ) =>
-    selector({
-      updateFundBasics: mockUpdateFundBasics,
-      setDraftFundId: vi.fn(),
-      setDraftServerReady: vi.fn(),
-    }),
-}));
-
-vi.mock('@/stores/fundStore', () => ({
-  fundStore: {
-    getState: () => mockFundState,
-  },
-  fundCommandKey: vi.fn(),
-}));
-
 vi.mock('@/services/funds', () => ({
   createFund: vi.fn(),
+  handleCredentialRenewalMarker: vi.fn(() => false),
   normalizeCreateFundResponse: vi.fn(),
 }));
 
@@ -70,11 +38,29 @@ function renderFundBasicsStep() {
 }
 
 describe('FundBasicsStep evergreen controls', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    mockFundState.isEvergreen = false;
-    mockFundState.fundLife = 10;
-    mockFundState.investmentPeriod = 5;
+    resetFundWorkspace();
+    await bindFundWorkspaceActor(TEST_ACTOR_ID);
+    fundStore.setState({
+      fundName: 'Evergreen Coverage Fund',
+      fundSize: 50_000_000,
+      isEvergreen: false,
+      fundLife: 10,
+      investmentPeriod: 5,
+      managementFeeRate: 2,
+      carriedInterest: 20,
+      establishmentDate: '2026-01-15',
+      modelInputsAsOfDate: '2026-09-12',
+      vintageYear: 2026,
+      hydrated: true,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    unbindFundWorkspaceActor();
   });
 
   it('renders the current closed-end defaults', () => {
@@ -93,12 +79,11 @@ describe('FundBasicsStep evergreen controls', () => {
   });
 
   it('hides closed-end fields after enabling evergreen mode', () => {
-    const view = renderFundBasicsStep();
+    renderFundBasicsStep();
 
     fireEvent.click(screen.getByRole('switch', { name: /evergreen fund structure/i }));
-    view.rerender(<FundBasicsStep />);
 
-    expect(mockUpdateFundBasics).toHaveBeenCalledWith({ isEvergreen: true });
+    expect(fundStore.getState().isEvergreen).toBe(true);
     expect(screen.queryByLabelText(/fund life \(years\)/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/investment period \(years\)/i)).not.toBeInTheDocument();
   });

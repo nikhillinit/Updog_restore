@@ -1,19 +1,20 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  bindFundWorkspaceActor,
+  fundStore,
+  resetFundWorkspace,
+  unbindFundWorkspaceActor,
+} from '@/stores/fundStore';
 import FundSetup from './fund-setup';
+
+const TEST_ACTOR_ID = 'fund-setup-test-user';
+const TEST_ACTOR_ROLE = 'admin';
 
 const state = vi.hoisted(() => ({
   location: '/fund-setup',
   search: '',
-  draftFundId: null as number | null,
-  draftServerReady: false,
-  fundName: undefined as string | undefined,
-  pendingCommand: null,
-  creationKey: '11111111-1111-4111-8111-111111111111' as string | null,
-  reserveCreationKey: vi.fn(),
-  resumeServerDraft: vi.fn(),
-  startNewFundSession: vi.fn(),
   sync: {
     status: 'idle' as 'idle' | 'hydrating' | 'saving' | 'synced' | 'error',
     error: null as string | null,
@@ -72,43 +73,36 @@ vi.mock('@/hooks/useFundDraftSync', () => ({
   useFundDraftSync: () => state.sync,
 }));
 
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (value: typeof state & { hydrated: boolean }) => unknown) =>
-    selector({ ...state, hydrated: true }),
-  useFundTuple: (selector: (value: typeof state & { hydrated: boolean }) => unknown) =>
-    selector({ ...state, hydrated: true }),
-}));
-
-vi.mock('@/stores/fundStore', () => ({
-  hasFundWorkspaceSession: (value: typeof state) =>
-    value.creationKey != null || value.pendingCommand != null || value.draftFundId != null,
-  fundStore: {
-    getState: () => ({
-      reserveCreationKey: state.reserveCreationKey,
-      resumeServerDraft: state.resumeServerDraft,
-      startNewFundSession: state.startNewFundSession,
-    }),
-  },
-}));
-
 vi.mock('@/lib/wizard-telemetry', () => ({
   emitWizard: (...args: unknown[]) => state.emitWizard(...args),
 }));
 
 describe('FundSetup', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     state.location = '/fund-setup';
     state.search = '';
-    state.draftFundId = null;
-    state.draftServerReady = false;
-    state.fundName = undefined;
-    state.pendingCommand = null;
-    state.creationKey = '11111111-1111-4111-8111-111111111111';
     state.sync.status = 'idle';
     state.sync.error = null;
     state.sync.isHydrating = false;
     state.redirectUrl = null;
     vi.clearAllMocks();
+    resetFundWorkspace();
+    await bindFundWorkspaceActor(TEST_ACTOR_ID, TEST_ACTOR_ROLE);
+    act(() => {
+      fundStore.setState({
+        draftFundId: null,
+        draftServerReady: false,
+        needsServerHydration: false,
+        fundName: undefined,
+        pendingCommand: null,
+        creationKey: '11111111-1111-4111-8111-111111111111',
+        hydrated: true,
+      });
+    });
+  });
+
+  afterEach(() => {
+    act(() => unbindFundWorkspaceActor());
   });
 
   it('renders the wizard root without crashing', () => {
@@ -165,7 +159,7 @@ describe('FundSetup', () => {
   });
 
   it('shows hydration state for a persisted draft', () => {
-    state.draftFundId = 42;
+    act(() => fundStore.setState({ draftFundId: 42 }));
     state.sync.isHydrating = true;
     state.sync.status = 'hydrating';
     render(<FundSetup />);
@@ -173,7 +167,7 @@ describe('FundSetup', () => {
   });
 
   it('shows draft sync errors', () => {
-    state.draftFundId = 42;
+    act(() => fundStore.setState({ draftFundId: 42 }));
     state.sync.status = 'error';
     state.sync.error = 'Draft fetch failed';
     render(<FundSetup />);
@@ -181,7 +175,7 @@ describe('FundSetup', () => {
   });
 
   it('retries draft sync from the error alert', () => {
-    state.draftFundId = 42;
+    act(() => fundStore.setState({ draftFundId: 42 }));
     state.sync.status = 'error';
     state.sync.error = 'Draft fetch failed';
     render(<FundSetup />);
@@ -193,7 +187,7 @@ describe('FundSetup', () => {
     ['saving', 'Saving draft'],
     ['synced', 'Latest draft saved'],
   ] as const)('shows %s draft status', (status, label) => {
-    state.draftFundId = 42;
+    act(() => fundStore.setState({ draftFundId: 42 }));
     state.sync.status = status;
     render(<FundSetup />);
     expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(label);

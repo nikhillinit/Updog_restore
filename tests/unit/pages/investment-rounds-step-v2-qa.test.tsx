@@ -1,13 +1,17 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  bindFundWorkspaceActor,
+  fundStore,
+  resetFundWorkspace,
+  unbindFundWorkspaceActor,
+} from '@/stores/fundStore';
+
+const TEST_ACTOR_ID = 'investment-rounds-qa-user';
+const TEST_ACTOR_ROLE = 'admin';
 
 vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=2', vi.fn()],
-}));
-
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundAction: (selector: (actions: { fromInvestmentStrategy: () => void }) => unknown) =>
-    selector({ fromInvestmentStrategy: vi.fn() }),
 }));
 
 vi.mock('@/components/wizard/ModernStepContainer', () => ({
@@ -35,6 +39,16 @@ vi.mock('@/components/wizard/InfoBanner', () => ({
 import InvestmentRoundsStepV2 from '@/pages/InvestmentRoundsStepV2';
 
 describe('InvestmentRoundsStepV2 QA regressions', () => {
+  beforeEach(async () => {
+    resetFundWorkspace();
+    await bindFundWorkspaceActor(TEST_ACTOR_ID, TEST_ACTOR_ROLE);
+    act(() => fundStore.setState({ hydrated: true }));
+  });
+
+  afterEach(() => {
+    act(() => unbindFundWorkspaceActor());
+  });
+
   it('does not add a second main landmark or invent an edit timestamp', () => {
     const { container } = render(
       <main>
