@@ -263,21 +263,37 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockUpdateCapitalStructure).toHaveBeenLastCalledWith({ fundedFromFeesPct: 0.4 });
   });
 
-  it('displays committed capital in millions while storing and syncing dollars', async () => {
-    mockCurrentFund = { id: 9, name: 'Bootstrap Fund', size: 50_000_000 };
-    const user = userEvent.setup();
-    render(<FundBasicsStep />);
+  it.each([
+    ['72', 72_000_000],
+    ['4.1', 4_100_000],
+  ])(
+    'converts %s million to whole dollars for context, creation, and draft saves',
+    async (inputValue, dollars) => {
+      mockCurrentFund = { id: 9, name: 'Bootstrap Fund', size: 50_000_000 };
+      const user = userEvent.setup();
+      render(<FundBasicsStep />);
 
-    const input = screen.getByLabelText(/Capital Committed \(\$M\)/);
-    expect(input).toHaveValue('50');
-    await user.clear(input);
-    await user.type(input, '72');
+      const input = screen.getByLabelText(/Capital Committed \(\$M\)/);
+      expect(input).toHaveValue('50');
+      await user.clear(input);
+      await user.type(input, inputValue);
 
-    expect(mockUpdateFundBasics).toHaveBeenLastCalledWith({ fundSize: 72_000_000 });
-    expect(mockSetCurrentFund).toHaveBeenLastCalledWith(
-      expect.objectContaining({ size: 72_000_000 })
-    );
-  });
+      expect(mockUpdateFundBasics).toHaveBeenLastCalledWith({ fundSize: dollars });
+      expect(mockSetCurrentFund).toHaveBeenLastCalledWith(
+        expect.objectContaining({ size: dollars })
+      );
+      await clickNextStep();
+      expect(mockCreateFund).toHaveBeenCalledWith(
+        expect.objectContaining({ size: dollars }),
+        expect.any(Object)
+      );
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({ fundSize: dollars }),
+        expect.any(Object)
+      );
+    }
+  );
 
   it('reuses an existing draft identity and saves it when the server snapshot is not ready yet', async () => {
     mockFundState.draftFundId = 77;

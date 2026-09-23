@@ -33,7 +33,7 @@ const FIRST_FUND = {
 
 const SECOND_FUND = {
   name: 'Batch B Persisted Draft',
-  capital: '81',
+  capital: '4.1',
   asOfDate: '2026-07-31',
 };
 
@@ -172,48 +172,51 @@ test('authenticated user can publish one fund and persist a distinct second draf
     abortedGetRequests,
   };
 
-  page.on('console', (message) => {
-    if (message.type() !== 'error') return;
-    const pathname = new URL(message.location().url || page.url()).pathname;
-    const status = Number(message.text().match(/status of (\d+)/)?.[1]);
-    if (isExpectedEmptyState(pathname, status)) expectedConsoleErrors.push(message.text());
-    else consoleErrors.push(message.text());
-  });
-  page.on('pageerror', (error) => pageErrors.push(error.message));
-  page.on('requestfailed', (failedRequest) => {
-    const url = new URL(failedRequest.url());
-    const errorText = failedRequest.failure()?.errorText ?? 'unknown failure';
-    if (errorText.includes('ERR_ABORTED') && failedRequest.method() === 'GET') {
-      abortedGetRequests.push(url.pathname);
-      return;
-    }
-    requestFailures.push(`${failedRequest.method()} ${url.pathname}: ${errorText}`);
-  });
-  page.on('response', (response) => {
-    const url = new URL(response.url());
-    if (!url.pathname.startsWith('/api/')) return;
-    const method = response.request().method();
-    if (
-      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
-      !url.pathname.startsWith('/api/telemetry/')
-    ) {
-      const headers = response.request().headers();
-      mutations.push({
-        method,
-        path: url.pathname,
-        status: response.status(),
-        csrf: !!headers['x-csrf-token'],
-        idempotency: !!headers['idempotency-key'],
-        optimisticLock: !!headers['if-match'],
-      });
-    }
-    if (response.status() >= 400) {
-      const target = isExpectedEmptyState(url.pathname, response.status())
-        ? expectedEmptyStates
-        : apiFailures;
-      target.push(`${method} ${url.pathname}: ${response.status()}`);
-    }
-  });
+  function monitorPage(monitoredPage: Page) {
+    monitoredPage.on('console', (message) => {
+      if (message.type() !== 'error') return;
+      const pathname = new URL(message.location().url || monitoredPage.url()).pathname;
+      const status = Number(message.text().match(/status of (\d+)/)?.[1]);
+      if (isExpectedEmptyState(pathname, status)) expectedConsoleErrors.push(message.text());
+      else consoleErrors.push(message.text());
+    });
+    monitoredPage.on('pageerror', (error) => pageErrors.push(error.message));
+    monitoredPage.on('requestfailed', (failedRequest) => {
+      const url = new URL(failedRequest.url());
+      const errorText = failedRequest.failure()?.errorText ?? 'unknown failure';
+      if (errorText.includes('ERR_ABORTED') && failedRequest.method() === 'GET') {
+        abortedGetRequests.push(url.pathname);
+        return;
+      }
+      requestFailures.push(`${failedRequest.method()} ${url.pathname}: ${errorText}`);
+    });
+    monitoredPage.on('response', (response) => {
+      const url = new URL(response.url());
+      if (!url.pathname.startsWith('/api/')) return;
+      const method = response.request().method();
+      if (
+        ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+        !url.pathname.startsWith('/api/telemetry/')
+      ) {
+        const headers = response.request().headers();
+        mutations.push({
+          method,
+          path: url.pathname,
+          status: response.status(),
+          csrf: !!headers['x-csrf-token'],
+          idempotency: !!headers['idempotency-key'],
+          optimisticLock: !!headers['if-match'],
+        });
+      }
+      if (response.status() >= 400) {
+        const target = isExpectedEmptyState(url.pathname, response.status())
+          ? expectedEmptyStates
+          : apiFailures;
+        target.push(`${method} ${url.pathname}: ${response.status()}`);
+      }
+    });
+  }
+  monitorPage(page);
 
   try {
     await page.goto('/login');
@@ -260,6 +263,61 @@ test('authenticated user can publish one fund and persist a distinct second draf
     acceptance['unauthenticatedFundsStatus'] = unauthenticatedFunds.status();
     expect(unauthenticatedFunds.status()).toBe(401);
     await unauthenticated.dispose();
+
+    const primaryNav = page.getByRole('navigation', { name: 'Primary', exact: true });
+    const sidebar = page.locator('aside').filter({ has: primaryNav });
+    await page.mouse.move(600, 400);
+    await expect(sidebar).toHaveCSS('width', '64px');
+    acceptance['collapsedNavigation'] = await primaryNav.evaluate((nav) => ({
+      width: nav.clientWidth,
+      scrollWidth: nav.scrollWidth,
+      overflowX: getComputedStyle(nav).overflowX,
+    }));
+    await expect(primaryNav).toHaveCSS('overflow-x', 'hidden');
+    const dashboardLink = primaryNav.getByRole('link', { name: 'Dashboard', exact: true });
+    const collapsedTop = (await dashboardLink.boundingBox())!.y;
+    await page.mouse.move(30, collapsedTop + 20);
+    await expect(sidebar).toHaveCSS('width', '256px');
+    await expect(primaryNav.getByText('Setup Required', { exact: true })).toBeVisible();
+    expect(Math.abs((await dashboardLink.boundingBox())!.y - collapsedTop)).toBeLessThanOrEqual(1);
+    await attachScreenshot(page, testInfo, 'batch-b-sidebar-expanded.png');
+    await page.mouse.move(600, 400);
+    await expect(sidebar).toHaveCSS('width', '64px');
+    await attachScreenshot(page, testInfo, 'batch-b-sidebar-collapsed.png');
+
+    // A separate tab keeps this fresh deep link independent of the workspace journey.
+    const deepLinkPage = await page.context().newPage();
+    monitorPage(deepLinkPage);
+    const deepLinkWrites: string[] = [];
+    deepLinkPage.on('request', (request) => {
+      if (
+        /\/api\/funds(?:\/|$)/.test(new URL(request.url()).pathname) &&
+        ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method())
+      ) {
+        deepLinkWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      }
+    });
+    await deepLinkPage.goto('/fund-setup?step=3');
+    await expect(deepLinkPage).toHaveURL(/\/fund-setup\?step=2$/);
+    expect(
+      await deepLinkPage.evaluate(() => {
+        const stored = sessionStorage.getItem('fund-workspace-session');
+        return stored ? JSON.parse(stored).state.creationKey : null;
+      })
+    ).toBeNull();
+    acceptance['freshDeepLinkRoute'] =
+      new URL(deepLinkPage.url()).pathname + new URL(deepLinkPage.url()).search;
+    await deepLinkPage.getByTestId('previous-step').click();
+    await expect(deepLinkPage).toHaveURL(/\/fund-setup\?step=1$/);
+    await expect(deepLinkPage.getByTestId('fund-name')).toBeVisible();
+    expect(
+      await deepLinkPage.evaluate(
+        () => JSON.parse(sessionStorage.getItem('fund-workspace-session')!).state.creationKey
+      )
+    ).toMatch(/^[0-9a-f-]{36}$/);
+    expect(deepLinkWrites).toEqual([]);
+    acceptance['freshDeepLinkWrites'] = deepLinkWrites;
+    await deepLinkPage.close();
 
     await page.getByTestId('workspace-new-fund').click();
     await expect(page).toHaveURL(/\/fund-setup\?step=1$/);
@@ -346,10 +404,10 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expect(firstRows.some((row) => row.name === FIRST_FUND.name && row.is_published)).toBe(true);
     expect(secondRows.some((row) => row.name === SECOND_FUND.name && row.is_draft)).toBe(true);
     expect(Number(firstRows[0]?.size)).toBe(Number(FIRST_FUND.capital) * 1_000_000);
-    expect(Number(secondRows[0]?.size)).toBe(Number(SECOND_FUND.capital) * 1_000_000);
+    expect(Number(secondRows[0]?.size)).toBe(4_100_000);
     expect(secondRows.find((row) => row.is_draft)?.config).toMatchObject({
       fundName: SECOND_FUND.name,
-      fundSize: 81_000_000,
+      fundSize: 4_100_000,
       modelInputsAsOfDate: SECOND_FUND.asOfDate,
     });
     expect((await pool.query('SELECT count(*)::int AS count FROM funds')).rows[0].count).toBe(2);

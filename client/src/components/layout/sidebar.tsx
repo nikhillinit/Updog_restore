@@ -227,7 +227,10 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
         )}
       </div>
 
-      <nav aria-label="Primary" className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
+      <nav
+        aria-label="Primary"
+        className="flex-1 p-2 overflow-x-hidden overflow-y-auto custom-scrollbar bg-white"
+      >
         {needsSetup && (
           <div
             aria-hidden={!isExpanded}

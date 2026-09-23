@@ -311,7 +311,10 @@ export default function FundBasicsStep() {
             label="Capital Committed ($M)"
             value={fundSize == null ? undefined : fundSize / 1_000_000}
             onChange={(value: number | undefined) =>
-              handleInputChange('fundSize', value == null ? undefined : value * 1_000_000)
+              handleInputChange(
+                'fundSize',
+                value == null ? undefined : Math.round(value * 1_000_000)
+              )
             }
             mode="number"
             min={0}
