@@ -59,6 +59,8 @@ jobs:
       heavy_ci_relevant: ${{ steps.classify.outputs.heavy_ci_relevant }}
       financial_calc_relevant: ${{ steps.classify.outputs.financial_calc_relevant }}
       change_count: ${{ steps.classify.outputs.change_count }}
+      test_full_groups: ${{ steps.groups.outputs.test_full_groups }}
+      full_suite: ${{ steps.groups.outputs.full_suite }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -97,6 +99,24 @@ jobs:
             --head "$HEAD_SHA" \
             --filters .github/path-filters.yml \
             --github-output "$GITHUB_OUTPUT"
+      - name: Select full test groups
+        id: groups
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref }}
+          RUN_FULL_SUITE: ${{ github.event.inputs.run_full_suite }}
+          SCHEMA_CHANGED: ${{ steps.filter.outputs.schema }}
+        run: |
+          set -euo pipefail
+          # Ordinary heavy pull requests run integration and validate-core;
+          # main, run_full_suite, and schema changes keep all three groups.
+          if [[ "$REF_NAME" == "refs/heads/main" || "$RUN_FULL_SUITE" == "true" || "$SCHEMA_CHANGED" == "true" ]]; then
+            echo 'full_suite=true' >> "$GITHUB_OUTPUT"
+            echo 'test_full_groups=["integration","e2e","validate-core"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'full_suite=false' >> "$GITHUB_OUTPUT"
+            echo 'test_full_groups=["integration","validate-core"]' >> "$GITHUB_OUTPUT"
+          fi
 
   financial-truth:
     name: Financial Truth
@@ -290,7 +310,7 @@ jobs:
     name: Test ${{ matrix.group }}
     needs: [changes, check]
     if: |
-      (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.schema == 'true') &&
+      (needs.changes.outputs.full_suite == 'true' || (github.event_name == 'pull_request' && needs.changes.outputs.heavy_ci_relevant == 'true')) &&
       (
         needs.changes.outputs.heavy_ci_relevant == 'true' ||
         github.event.inputs.run_full_suite == 'true' ||
@@ -303,7 +323,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [integration, e2e, validate-core]
+        group: ${{ fromJSON(needs.changes.outputs.test_full_groups) }}
     services:
       postgres:
         image: postgres:16-alpine
@@ -946,6 +966,12 @@ jobs:
             fi
           fi
 
+          # Ordinary heavy pull requests must pass both the affected lane and the
+          # PR-time full lanes; schema pull requests already required the full lanes.
+          test_full_expected=false
+          if [[ "$schema_changed" == "true" || "$heavy_ci_relevant" == "true" ]]; then
+            test_full_expected=true
+          fi
           guards_expected="$is_pr"
           docs_link_expected="${{ needs.changes.outputs.docs_links == 'true' }}"
           dependency_expected="${{ github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true') }}"
@@ -989,7 +1015,7 @@ jobs:
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
           if [[ "$is_pr" == "true" && "$run_full_suite" != "true" ]]; then
-            require_result "Test (full integration)" "${{ needs.test-full.result }}" "$schema_changed"
+            require_result "Test (full integration)" "${{ needs.test-full.result }}" "$test_full_expected"
           fi
           require_result "Build" "$build_result" "$build_expected"
           require_result "Static release diagnostic" "$release_static_result" "$release_static_expected"
@@ -1011,7 +1037,7 @@ jobs:
             echo "| financial-truth | $financial_truth_result | $financial_truth_expected |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
-            echo "| tests-full (schema gate) | ${{ needs.test-full.result }} | $schema_changed |"
+            echo "| tests-full (pull request gate) | ${{ needs.test-full.result }} | $test_full_expected |"
             echo "| build | $build_result | $build_expected |"
             echo "| release-static | $release_static_result | $release_static_expected |"
             echo "| guards | $guards_result | $guards_expected |"
