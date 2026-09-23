@@ -67,5 +67,9 @@ describe('CI Unified pull request full test lanes', () => {
     expect(gate?.run).toContain(
       'require_result "Test (full integration)" "${{ needs.test-full.result }}" "$test_full_expected"'
     );
+    expect(gate?.run).toContain('require_result "Test" "$test_result" "$test_expected"');
+    expect(gate?.run).toContain(
+      'if [[ "$schema_changed" == "true" || "$heavy_ci_relevant" == "true" ]]; then'
+    );
   });
 });

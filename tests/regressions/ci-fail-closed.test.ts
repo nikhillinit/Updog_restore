@@ -2806,6 +2806,10 @@ type GateEvaluatorScenario = {
   financialCalcRelevant?: boolean;
   financialTruthResult?: string;
   schemaChanged?: boolean;
+  // Ordinary heavy pull request (heavy=true, schema=false). Defaults to
+  // schemaChanged so every existing scenario keeps its prior meaning.
+  heavyCiRelevant?: boolean;
+  affectedTestResult?: string;
   fullTestResult?: string;
   // Optional: isolate the surface-projection-audit require_result pairing
   // from every other gate feeder. Defaults reproduce the pre-existing
@@ -2817,6 +2821,7 @@ type GateEvaluatorScenario = {
 
 function interpolateGateExpression(expression: string, scenario: GateEvaluatorScenario): string {
   const normalized = expression.trim();
+  const heavy = scenario.heavyCiRelevant ?? scenario.schemaChanged ?? false;
 
   if (normalized === "github.event_name == 'pull_request'") return 'true';
   if (normalized === 'github.event_name') return 'pull_request';
@@ -2839,26 +2844,26 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   // contradiction check (auto_docs_only == heavy_ci_relevant fails the
   // gate) holds. Schema changes require successful unrelated heavy feeders.
   if (normalized === 'needs.changes.outputs.auto_docs_only') {
-    return scenario.schemaChanged ? 'false' : 'true';
+    return heavy ? 'false' : 'true';
   }
   if (normalized === 'needs.changes.outputs.heavy_ci_relevant') {
-    return scenario.schemaChanged ? 'true' : 'false';
+    return heavy ? 'true' : 'false';
   }
   if (
     ['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)
   ) {
-    return scenario.schemaChanged ? 'success' : 'skipped';
+    return heavy ? 'success' : 'skipped';
   }
   if (
     normalized ===
     "needs.changes.outputs.heavy_ci_relevant == 'true' || github.event.inputs.run_full_suite == 'true'"
   ) {
-    return scenario.schemaChanged ? 'true' : 'false';
+    return heavy ? 'true' : 'false';
   }
   if (normalized === 'needs.guards.result') return 'success';
   if (normalized === 'needs.secret-scan.result') return 'success';
   if (normalized === 'needs.surface-projection-audit.result') {
-    return scenario.auditResult ?? (scenario.schemaChanged ? 'success' : 'skipped');
+    return scenario.auditResult ?? (heavy ? 'success' : 'skipped');
   }
   if (
     // Reordered relative to release-static's identical-condition expression
@@ -2871,8 +2876,9 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
     normalized ===
     "github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true'"
   ) {
-    return (scenario.auditExpected ?? scenario.schemaChanged) ? 'true' : 'false';
+    return (scenario.auditExpected ?? heavy) ? 'true' : 'false';
   }
+  if (normalized === 'needs.test-affected.result') return scenario.affectedTestResult ?? 'skipped';
   if (normalized.endsWith('.result')) return 'skipped';
   return 'false';
 }
@@ -7173,6 +7179,28 @@ describe('required CI fails closed', () => {
       await expect(
         evaluateCiGateStatus({
           schemaChanged: true,
+          fullTestResult,
+          financialCalcRelevant: true,
+          financialTruthResult: 'success',
+        })
+      ).resolves.toBe(expected);
+    }
+  );
+
+  it.each([
+    ['success', 'success', 'passed'],
+    ['success', 'skipped', 'failed'],
+    ['success', 'failure', 'failed'],
+    ['skipped', 'success', 'failed'],
+    ['failure', 'success', 'failed'],
+  ] as const)(
+    'gates ordinary heavy pull requests on both lanes (affected=%s, full=%s)',
+    async (affectedTestResult, fullTestResult, expected) => {
+      await expect(
+        evaluateCiGateStatus({
+          heavyCiRelevant: true,
+          schemaChanged: false,
+          affectedTestResult,
           fullTestResult,
           financialCalcRelevant: true,
           financialTruthResult: 'success',
