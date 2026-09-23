@@ -440,49 +440,46 @@ describe('fund workspace envelope', () => {
     });
   });
 
-  it.each([null, 42])(
-    'resolves recovery fencing according to draft identity %s',
-    (draftFundId) => {
-      const key = crypto.randomUUID();
-      const originalPayload = { name: 'Recovered finalize' };
-      const etag = draftFundId === null ? null : '"0000000000000007"';
-      fundStore.setState({
-        ...fullState(),
-        draftFundId,
-        needsServerHydration: true,
-        pendingCommand: {
-          operation: 'finalize',
-          key,
-          targetFundId: draftFundId,
-          expectedETag: etag,
-          bodySignature: JSON.stringify(originalPayload),
-          dispatchedAt: new Date().toISOString(),
-        },
-      });
+  it.each([null, 42])('resolves recovery fencing according to draft identity %s', (draftFundId) => {
+    const key = crypto.randomUUID();
+    const originalPayload = { name: 'Recovered finalize' };
+    const etag = draftFundId === null ? null : '"0000000000000007"';
+    fundStore.setState({
+      ...fullState(),
+      draftFundId,
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'finalize',
+        key,
+        targetFundId: draftFundId,
+        expectedETag: etag,
+        bodySignature: JSON.stringify(originalPayload),
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
 
-      const replay = prepareFundCommand(
-        'finalize',
-        draftFundId,
-        { name: 'Must not replace replay' },
-        etag
-      );
-      expect(replay).toEqual({ payload: originalPayload, key, etag });
-      expect(fundStore.getState().needsServerHydration).toBe(true);
-      expect(fundStore.getState().pendingCommand?.key).toBe(key);
+    const replay = prepareFundCommand(
+      'finalize',
+      draftFundId,
+      { name: 'Must not replace replay' },
+      etag
+    );
+    expect(replay).toEqual({ payload: originalPayload, key, etag });
+    expect(fundStore.getState().needsServerHydration).toBe(true);
+    expect(fundStore.getState().pendingCommand?.key).toBe(key);
 
-      // ReviewStep's definitive rejection invokes this real resolution action.
-      fundStore.getState().resolveCommand();
-      expect(fundStore.getState().pendingCommand).toBeNull();
-      expect(fundStore.getState().needsServerHydration).toBe(draftFundId !== null);
-      const persisted = JSON.parse(sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!);
-      expect(persisted.state.needsServerHydration).toBe(draftFundId !== null);
+    // ReviewStep's definitive rejection invokes this real resolution action.
+    fundStore.getState().resolveCommand();
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(fundStore.getState().needsServerHydration).toBe(draftFundId !== null);
+    const persisted = JSON.parse(sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!);
+    expect(persisted.state.needsServerHydration).toBe(draftFundId !== null);
 
-      const freshWrite = () =>
-        prepareFundCommand('finalize', draftFundId, { name: 'Corrected finalize' }, etag);
-      if (draftFundId === null) expect(freshWrite).not.toThrow();
-      else expect(freshWrite).toThrow('Recover the saved draft');
-    }
-  );
+    const freshWrite = () =>
+      prepareFundCommand('finalize', draftFundId, { name: 'Corrected finalize' }, etag);
+    if (draftFundId === null) expect(freshWrite).not.toThrow();
+    else expect(freshWrite).toThrow('Recover the saved draft');
+  });
 
   it('refuses dispatch preparation when the pending command cannot be persisted', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {

@@ -406,7 +406,9 @@ describe('FundWorkspace', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
     await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
     expect(fundStore.getState().needsServerHydration).toBe(true);
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not confirm the save');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not confirm the save'
+    );
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
