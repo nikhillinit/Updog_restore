@@ -1,8 +1,13 @@
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import YAML from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { TESTCONTAINERS_TEST_PATHS } from '../config/testcontainers-test-paths.mjs';
+
+const execFileAsync = promisify(execFile);
 
 interface WorkflowStep {
   id?: string;
@@ -115,6 +120,42 @@ describe('CI Unified pull request full test lanes', () => {
     expect(groups?.run).toContain('["integration","validate-core"]');
     expect(groups?.run).toContain('["integration","e2e","validate-core"]');
   });
+
+  it.each([
+    ['refs/heads/main', '', 'false', 'true', '["integration","e2e","validate-core"]'],
+    ['refs/pull/1/merge', 'true', 'false', 'true', '["integration","e2e","validate-core"]'],
+    ['refs/pull/1/merge', '', 'true', 'true', '["integration","e2e","validate-core"]'],
+    ['refs/pull/1/merge', '', 'false', 'false', '["integration","validate-core"]'],
+    ['refs/pull/1/merge', '', '', 'false', '["integration","validate-core"]'],
+  ] as const)(
+    'selects groups for ref=%s run_full_suite=%s schema=%s',
+    async (ref, runFullSuite, schema, expectedFullSuite, expectedGroups) => {
+      const workflow = await readCiUnifiedWorkflow();
+      const run = workflow.jobs?.changes?.steps?.find((step) => step.id === 'groups')?.run;
+      if (!run) throw new Error('Select full test groups step not found');
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'updog-test-full-groups-'));
+      const outputPath = path.join(dir, 'output');
+      try {
+        await execFileAsync('bash', ['--noprofile', '--norc', '-c', run], {
+          env: {
+            ...process.env,
+            GITHUB_OUTPUT: outputPath,
+            REF_NAME: ref,
+            RUN_FULL_SUITE: runFullSuite,
+            SCHEMA_CHANGED: schema,
+          },
+        });
+        const output = await fs.readFile(outputPath, 'utf-8');
+        expect(output).toContain(`full_suite=${expectedFullSuite}\n`);
+        expect(output).toContain(`test_full_groups=${expectedGroups}\n`);
+        expect(JSON.parse(expectedGroups)).toEqual(
+          expect.arrayContaining(['integration', 'validate-core'])
+        );
+      } finally {
+        await fs.rm(dir, { recursive: true, force: true });
+      }
+    }
+  );
 
   it('runs full tests without suppressing failures or a leading conditional', async () => {
     const workflow = await readCiUnifiedWorkflow();
