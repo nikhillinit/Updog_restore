@@ -248,6 +248,7 @@ describe('ReviewStep single-submit via finalize', () => {
     expect(screen.getByText('Economics')).toBeInTheDocument();
     expect(screen.getByText('Strategy')).toBeInTheDocument();
     expect(screen.getByText('Finalize Test Fund')).toBeInTheDocument();
+    expect(screen.getByText('$75M')).toBeInTheDocument();
   });
 
   it('renders the owner date and blocks publication when it is absent', () => {

@@ -145,8 +145,10 @@ export default function FundSetup() {
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
   const explicitFund = React.useMemo(() => parseFundIdParam(search), [search]);
   const [switchBlocked, setSwitchBlocked] = React.useState(false);
+  // Publication clears identity while Review is still mounted; only entry starts a session.
   const needsLocalSessionIdentity =
     hydrated &&
+    key === 'fund-basics' &&
     explicitFund.kind === 'absent' &&
     draftFundId == null &&
     pendingCommand == null &&

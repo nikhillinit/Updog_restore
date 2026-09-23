@@ -31,10 +31,9 @@ export default function CapitalStructureStep() {
   const [, navigate] = useLocation();
   const [editingAllocation, setEditingAllocation] = useState<string | null>(null);
 
-  // Fund size from store ($M) converted to dollars
+  // Fund size is stored in dollars.
   // NOTE: Investable capital cannot be calculated yet because expenses are captured in step 5
-  const fundSizeM = useFundSelector((s) => s.fundSize);
-  const fundSize = (fundSizeM ?? 20) * 1_000_000;
+  const fundSize = useFundSelector((s) => s.fundSize) ?? 20_000_000;
 
   // Stage-level capital allocations (persisted via fundStore)
   const stageAllocations = useFundSelector((s) => s.capitalStageAllocations);
@@ -194,7 +193,7 @@ export default function CapitalStructureStep() {
         return null; // Can't calculate without valuation assumption
       }
 
-      const checkSize = allocation.initialCheckAmount * 1000000;
+      const checkSize = allocation.initialCheckAmount;
       const ownership = (checkSize / postMoneyValuation) * 100;
 
       // Return null if ownership is unrealistic (>50% or <0.1%)

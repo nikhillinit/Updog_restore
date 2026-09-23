@@ -15,9 +15,10 @@ vi.mock('wouter', () => ({
 }));
 
 const mockSetCurrentFund = vi.fn();
+let mockCurrentFund: Record<string, unknown> | null = null;
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
-    currentFund: null,
+    currentFund: mockCurrentFund,
     setCurrentFund: mockSetCurrentFund,
   }),
 }));
@@ -152,7 +153,10 @@ describe('FundBasicsStep bootstrap identity', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockSetCurrentFund.mockReset();
-    mockUpdateFundBasics.mockReset();
+    mockCurrentFund = null;
+    mockUpdateFundBasics.mockReset().mockImplementation((update) => {
+      Object.assign(mockFundState, update);
+    });
     mockUpdateCapitalStructure.mockReset();
     mockSetDraftFundId.mockClear();
     mockSetDraftServerReady.mockClear();
@@ -257,6 +261,22 @@ describe('FundBasicsStep bootstrap identity', () => {
     await user.type(input, '40');
 
     expect(mockUpdateCapitalStructure).toHaveBeenLastCalledWith({ fundedFromFeesPct: 0.4 });
+  });
+
+  it('displays committed capital in millions while storing and syncing dollars', async () => {
+    mockCurrentFund = { id: 9, name: 'Bootstrap Fund', size: 50_000_000 };
+    const user = userEvent.setup();
+    render(<FundBasicsStep />);
+
+    const input = screen.getByLabelText(/Capital Committed \(\$M\)/);
+    expect(input).toHaveValue('50');
+    await user.clear(input);
+    await user.type(input, '72');
+
+    expect(mockUpdateFundBasics).toHaveBeenLastCalledWith({ fundSize: 72_000_000 });
+    expect(mockSetCurrentFund).toHaveBeenLastCalledWith(
+      expect.objectContaining({ size: 72_000_000 })
+    );
   });
 
   it('reuses an existing draft identity and saves it when the server snapshot is not ready yet', async () => {

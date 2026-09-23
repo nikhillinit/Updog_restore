@@ -14,11 +14,6 @@ interface DraftEconomicsPreview {
   projectedValue: number | null;
 }
 
-function fundSizeToDollars(value: number | undefined): number | null {
-  if (value == null || value <= 0) return null;
-  return value >= 1_000_000 ? value : value * 1_000_000;
-}
-
 function formatCurrency(value: number | null | undefined) {
   return value == null || !Number.isFinite(value) ? 'N/A' : formatUSDShort(value);
 }
@@ -142,7 +137,7 @@ export function FundConstructionKpiHeader() {
     state.economicsAssumptions,
   ]);
 
-  const fundSizeDollars = fundSizeToDollars(fundSize);
+  const fundSizeDollars = fundSize != null && fundSize > 0 ? fundSize : null;
   const plannedCapital = useMemo(
     () => sumPlannedCapital(fundSizeDollars, capitalPlanAllocations),
     [capitalPlanAllocations, fundSizeDollars]

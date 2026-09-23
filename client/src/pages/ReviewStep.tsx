@@ -710,9 +710,8 @@ function DryRunMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Draft money is in $M: the dry run runs on the draft fundSize entered as Capital Committed ($M).
 function formatMillions(value: number) {
-  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}M`;
+  return `$${(value / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`;
 }
 
 function capitalize(value: string) {

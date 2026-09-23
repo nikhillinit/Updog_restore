@@ -2,7 +2,7 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { fundStore } from '@/stores/fundStore';
+import { fundStore, hasFundWorkspaceSession, resetFundWorkspace } from '@/stores/fundStore';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { ApiError } from '@/lib/queryClient';
 import { FundWorkflowUncertainError } from '@/services/fund-workflow';
@@ -158,6 +158,19 @@ describe('FundSetup draft sync', () => {
 
     expect(screen.getByText('Distributions Step')).toBeInTheDocument();
     expect(screen.getByText('DISTRIBUTIONS & WATERFALL')).toBeInTheDocument();
+  });
+
+  it('does not recreate a local draft when publication clears the mounted review session', async () => {
+    mockLocation.value = '/fund-setup?step=7';
+    fundStore.getState().startNewFundSession();
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+
+    act(() => resetFundWorkspace());
+
+    expect(fundStore.getState().creationKey).toBeNull();
+    expect(hasFundWorkspaceSession(fundStore.getState())).toBe(false);
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
   it('does not replace an unresolved creation when an explicit fund URL is opened', async () => {

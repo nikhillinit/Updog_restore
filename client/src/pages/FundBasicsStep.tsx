@@ -90,7 +90,7 @@ export default function FundBasicsStep() {
           updatedFund.name = (value as string) || 'Untitled Fund';
           break;
         case 'fundSize':
-          updatedFund.size = value ? (value as number) * 1000000 : 0; // Convert from M to dollars
+          updatedFund.size = (value as number) || 0;
           break;
         case 'managementFeeRate':
           updatedFund.managementFee = value ? (value as number) / 100 : 0; // Convert from percentage to decimal
@@ -309,8 +309,10 @@ export default function FundBasicsStep() {
 
           <NumericInput
             label="Capital Committed ($M)"
-            value={fundSize}
-            onChange={(value: number | undefined) => handleInputChange('fundSize', value)}
+            value={fundSize == null ? undefined : fundSize / 1_000_000}
+            onChange={(value: number | undefined) =>
+              handleInputChange('fundSize', value == null ? undefined : value * 1_000_000)
+            }
             mode="number"
             min={0}
             step={0.1}

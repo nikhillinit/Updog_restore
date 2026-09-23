@@ -199,7 +199,7 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
             <POVIcon variant="white" size="md" />
           </div>
           <div
-            className={`ml-3 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
+            className={`ml-3 whitespace-nowrap transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
           >
             <p className="font-inter font-bold text-lg text-pov-white whitespace-nowrap">
               {BRANDING.app.nameStyled}
@@ -209,8 +209,14 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
             </p>
           </div>
         </div>
-        {currentFund && isExpanded && (
-          <div className="bg-white/10 rounded-lg p-3 border border-white/10 transition-all duration-300">
+        {currentFund && (
+          <div
+            aria-hidden={!isExpanded}
+            className={cn(
+              'h-16 overflow-hidden bg-white/10 rounded-lg px-3 py-2 border border-white/10',
+              !isExpanded && 'invisible'
+            )}
+          >
             <p className="font-poppins font-medium text-sm text-pov-white truncate">
               {currentFund.name}
             </p>
@@ -222,8 +228,14 @@ export default function Sidebar({ activeModule, className }: SidebarProps) {
       </div>
 
       <nav aria-label="Primary" className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
-        {needsSetup && isExpanded && (
-          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 mb-4 transition-all duration-300">
+        {needsSetup && (
+          <div
+            aria-hidden={!isExpanded}
+            className={cn(
+              'w-56 bg-warning/10 border border-warning/50 rounded-lg p-3 mb-4',
+              !isExpanded && 'invisible'
+            )}
+          >
             <div className="flex items-center space-x-2 mb-2">
               <Plus className="h-4 w-4 text-warning-dark" />
               <span className="font-poppins text-sm font-medium text-warning-dark">
