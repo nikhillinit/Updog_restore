@@ -3,7 +3,13 @@ import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
-import { fundStore } from '@/stores/fundStore';
+import {
+  bindFundWorkspaceActor,
+  FUND_WORKSPACE_STORAGE_KEY,
+  fundStore,
+  toFundWorkspaceEnvelope,
+  unbindFundWorkspaceActor,
+} from '@/stores/fundStore';
 
 const { mockFetchFundDraft, mockSaveFundDraft } = vi.hoisted(() => ({
   mockFetchFundDraft: vi.fn(),
@@ -21,6 +27,7 @@ vi.mock('@/services/fund-drafts', async (importOriginal) => ({
 }));
 
 const SERVER_ETAG = '"0000000000000001"';
+let retryDraftSync = () => {};
 
 function reverseObjectKeys(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(reverseObjectKeys);
@@ -33,7 +40,7 @@ function reverseObjectKeys(value: unknown): unknown {
 }
 
 function Harness() {
-  useFundDraftSync({ stepKey: '1', debounceMs: 25 });
+  retryDraftSync = useFundDraftSync({ stepKey: '1', debounceMs: 25 }).retry;
   return null;
 }
 
@@ -42,6 +49,7 @@ describe('useFundDraftSync canonical snapshot equality', () => {
     vi.useFakeTimers();
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
+    unbindFundWorkspaceActor();
     localStorage.clear();
     sessionStorage.clear();
 
@@ -84,4 +92,110 @@ describe('useFundDraftSync canonical snapshot equality', () => {
     expect(mockFetchFundDraft).toHaveBeenCalledWith(42);
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
+
+  it('autosaves the first edit after hydrating a draft without a local ETag', async () => {
+    fundStore.setState({ draftETag: null });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: SERVER_ETAG, replayed: false });
+
+    render(<Harness />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => fundStore.setState({ fundName: 'First edit after hydration' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30);
+    });
+
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ fundName: 'First edit after hydration' }),
+      expect.objectContaining({ etag: SERVER_ETAG })
+    );
+  });
+
+  it('does not save default values after replaying a command from an identity-only recovery', async () => {
+    unbindFundWorkspaceActor();
+    const actorId = 'draft-sync-actor';
+    const originalPayload = fundStoreToDraftWriteV1({
+      ...fundStore.getState(),
+      fundName: 'Dispatched fund name',
+      fundSize: 25_000_000,
+    });
+    const envelope = {
+      ...toFundWorkspaceEnvelope(fundStore.getState()),
+      workspaceActorId: actorId,
+      draftFundId: 42,
+      draftServerReady: true,
+      draftETag: SERVER_ETAG,
+      fundSize: null,
+      pendingCommand: {
+        operation: 'save_draft' as const,
+        key: crypto.randomUUID(),
+        targetFundId: 42,
+        expectedETag: SERVER_ETAG,
+        bodySignature: JSON.stringify(originalPayload),
+        dispatchedAt: new Date().toISOString(),
+      },
+    };
+    sessionStorage.setItem(
+      FUND_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({ state: envelope, version: 1 })
+    );
+    await bindFundWorkspaceActor(actorId);
+    expect(fundStore.getState().needsServerHydration).toBe(true);
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: SERVER_ETAG, replayed: true });
+
+    render(<Harness />);
+    await act(async () => retryDraftSync());
+
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockFetchFundDraft).toHaveBeenCalledWith(42);
+    expect(fundStore.getState().needsServerHydration).toBe(false);
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ fundName: 'Dispatched fund name', fundSize: 25_000_000 }),
+      expect.objectContaining({ etag: SERVER_ETAG })
+    );
+  });
+
+  it.each([false, true])(
+    'hydrates identity-only recovery without a pending command when server-ready is %s',
+    async (draftServerReady) => {
+      unbindFundWorkspaceActor();
+      const actorId = 'draft-sync-actor';
+      const serverPayload = fundStoreToDraftWriteV1({
+        ...fundStore.getState(),
+        fundName: 'Server fund name',
+        fundSize: 25_000_000,
+      });
+      const envelope = {
+        ...toFundWorkspaceEnvelope(fundStore.getState()),
+        workspaceActorId: actorId,
+        draftFundId: 42,
+        draftServerReady,
+        draftETag: SERVER_ETAG,
+        fundSize: null,
+        pendingCommand: null,
+      };
+      sessionStorage.setItem(
+        FUND_WORKSPACE_STORAGE_KEY,
+        JSON.stringify({ state: envelope, version: 1 })
+      );
+      await bindFundWorkspaceActor(actorId);
+      expect(fundStore.getState().needsServerHydration).toBe(true);
+      mockFetchFundDraft.mockResolvedValue({ config: serverPayload, etag: SERVER_ETAG });
+      mockSaveFundDraft.mockResolvedValue({ config: {}, etag: SERVER_ETAG, replayed: false });
+
+      render(<Harness />);
+      await act(async () => {
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(30);
+      });
+
+      expect(mockFetchFundDraft).toHaveBeenCalledWith(42);
+      expect(mockSaveFundDraft).not.toHaveBeenCalled();
+      expect(fundStore.getState().needsServerHydration).toBe(false);
+    }
+  );
 });

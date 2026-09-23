@@ -71,6 +71,7 @@ const mockFundState = {
   setDraftFundId: mockSetDraftFundId,
   draftServerReady: false,
   setDraftServerReady: mockSetDraftServerReady,
+  needsServerHydration: false,
   setDraftSyncStatus: vi.fn(),
   draftETag: null as string | null,
   pendingCommand: null as PendingFundCommand | null,
@@ -172,6 +173,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.fundedFromFeesPct = 0;
     mockFundState.draftFundId = null;
     mockFundState.draftServerReady = false;
+    mockFundState.needsServerHydration = false;
     mockFundState.draftETag = null;
     mockFundState.pendingCommand = null;
     mockFundState.persistenceFailed = false;
@@ -383,6 +385,64 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockSaveFundDraft).toHaveBeenCalledWith(
       42,
       expect.objectContaining({ fundName: 'Changed after timeout' }),
+      expect.any(Object)
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+  });
+
+  it('replays a recovered creation without saving placeholder draft values', async () => {
+    mockFundState.needsServerHydration = true;
+    mockFundState.pendingCommand = {
+      operation: 'create',
+      key: CREATION_KEY,
+      targetFundId: null,
+      expectedETag: null,
+      bodySignature: JSON.stringify({
+        name: 'Dispatched Fund',
+        size: 25_000_000,
+        managementFee: 0.02,
+        carryPercentage: 0.2,
+        vintageYear: 2026,
+      }),
+      dispatchedAt: new Date().toISOString(),
+    };
+
+    render(<FundBasicsStep />);
+    await clickNextStep();
+
+    await waitFor(() => expect(mockCreateFund).toHaveBeenCalledTimes(1));
+    expect(mockCreateFund).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Dispatched Fund', size: 25_000_000 }),
+      { idempotencyKey: CREATION_KEY }
+    );
+    expect(mockSetDraftServerReady).toHaveBeenLastCalledWith(true);
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockFundState.needsServerHydration).toBe(true);
+  });
+
+  it('allows a corrected creation after a recovered command is definitively rejected', async () => {
+    mockFundState.needsServerHydration = true;
+    mockFundState.pendingCommand = {
+      operation: 'create',
+      key: CREATION_KEY,
+      targetFundId: null,
+      expectedETag: null,
+      bodySignature: JSON.stringify({ name: 'Rejected Fund' }),
+      dispatchedAt: new Date().toISOString(),
+    };
+    mockCreateFund.mockRejectedValueOnce(new ApiError(400, 'Invalid fund basics'));
+    render(<FundBasicsStep />);
+
+    await clickNextStep();
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Invalid fund basics'));
+    expect(mockFundState.pendingCommand).toBeNull();
+    expect(mockFundState.needsServerHydration).toBe(false);
+
+    await clickNextStep();
+    await waitFor(() => expect(mockCreateFund).toHaveBeenCalledTimes(2));
+    expect(mockCreateFund).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Bootstrap Fund' }),
       expect.any(Object)
     );
     expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');

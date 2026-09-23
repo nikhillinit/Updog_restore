@@ -373,6 +373,42 @@ test('authenticated user can publish one fund and persist a distinct second draf
     await expect(page.getByLabel('Capital Committed ($M)')).toHaveValue(SECOND_FUND.capital);
     await expect(page.getByTestId('model-inputs-as-of-date')).toHaveValue(SECOND_FUND.asOfDate);
 
+    // A new tab has no local ETag: its first edit must save after server hydration.
+    const resumedPage = await page.context().newPage();
+    monitorPage(resumedPage);
+    const resumedAsOfDate = '2026-09-20';
+    await resumedPage.goto(`/fund-setup?fundId=${secondFundId}&step=1`);
+    await expect(resumedPage.getByTestId('fund-name')).toHaveValue(SECOND_FUND.name);
+    await expect(resumedPage.getByTestId('model-inputs-as-of-date')).toHaveValue(
+      SECOND_FUND.asOfDate
+    );
+    await expect(resumedPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    const resumedSave = resumedPage.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === `/api/funds/${secondFundId}/draft` &&
+        response.request().method() === 'PUT'
+    );
+    await resumedPage.getByTestId('model-inputs-as-of-date').fill(resumedAsOfDate);
+    expect((await resumedSave).status()).toBe(200);
+    await expect(resumedPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    await resumedPage.reload();
+    await expect(resumedPage.getByTestId('model-inputs-as-of-date')).toHaveValue(resumedAsOfDate);
+    await expect(resumedPage.getByTestId('fund-name')).toHaveValue(SECOND_FUND.name);
+    await expect(resumedPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    acceptance['freshTabFirstEditPersisted'] = true;
+    await resumedPage.evaluate(() => {
+      const envelope = JSON.parse(sessionStorage.getItem('fund-workspace-session')!);
+      envelope.state.fundSize = null;
+      sessionStorage.setItem('fund-workspace-session', JSON.stringify(envelope));
+    });
+    await resumedPage.reload();
+    await expect(resumedPage.getByTestId('fund-name')).toHaveValue(SECOND_FUND.name);
+    await expect(resumedPage.getByLabel('Capital Committed ($M)')).toHaveValue(SECOND_FUND.capital);
+    await expect(resumedPage.getByTestId('model-inputs-as-of-date')).toHaveValue(resumedAsOfDate);
+    await expect(resumedPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    acceptance['invalidLocalValuesRecovered'] = true;
+    await resumedPage.close();
+
     await openWorkspace(page);
     await page
       .getByTestId(`workspace-fund-${firstFundId}`)
@@ -408,7 +444,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expect(secondRows.find((row) => row.is_draft)?.config).toMatchObject({
       fundName: SECOND_FUND.name,
       fundSize: 4_100_000,
-      modelInputsAsOfDate: SECOND_FUND.asOfDate,
+      modelInputsAsOfDate: resumedAsOfDate,
     });
     expect((await pool.query('SELECT count(*)::int AS count FROM funds')).rows[0].count).toBe(2);
     const fundMutations = mutations.filter((mutation) => mutation.path.startsWith('/api/funds'));

@@ -55,6 +55,7 @@ const identityShape = {
   creationKey: FundWorkflowKeySchema.nullable(),
   draftFundId: fundId.nullable(),
   draftServerReady: z.boolean(),
+  needsServerHydration: z.boolean().default(false),
   draftETag: FundDraftETagSchema.nullable(),
   pendingCommand: pendingCommand.nullable(),
 };

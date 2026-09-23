@@ -198,11 +198,16 @@ export default function FundBasicsStep() {
           createdAt: typeof fund['createdAt'] === 'string' ? fund['createdAt'] : now,
           updatedAt: typeof fund['updatedAt'] === 'string' ? fund['updatedAt'] : now,
         });
+        if (fundStore.getState().needsServerHydration) {
+          setDraftServerReady(true);
+          setBootstrapStage('idle');
+          return;
+        }
       } catch (error) {
         if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== command.key) return;
         if (classifyWorkflowError(error) === 'rejected') {
           fundStore.getState().resolveCommand();
-          fundStore.setState({ creationKey: null });
+          fundStore.setState({ creationKey: null, needsServerHydration: false });
         }
         setBootstrapError(
           bootstrapErrorMessage(

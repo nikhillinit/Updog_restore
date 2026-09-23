@@ -157,6 +157,8 @@ export type FundState = {
   // True once the server has an authoritative draft snapshot for draftFundId.
   draftServerReady: boolean;
   setDraftServerReady: (ready: boolean) => void;
+  // Persisted fence: local values were discarded and must be replaced from the server.
+  needsServerHydration: boolean;
   // Actor whose recovery this tab session belongs to; never hydrate another actor's envelope.
   workspaceActorId: string | null;
   // Raw role of the bound actor (transient; early guidance only, never a server check).
@@ -608,6 +610,7 @@ type FundIdentity = Pick<
   | 'creationKey'
   | 'draftFundId'
   | 'draftServerReady'
+  | 'needsServerHydration'
   | 'draftETag'
   | 'pendingCommand'
 >;
@@ -768,6 +771,7 @@ function freshIdentity(actorId: string | null): FundIdentity {
     creationKey: null,
     draftFundId: null,
     draftServerReady: false,
+    needsServerHydration: false,
     draftETag: null,
     pendingCommand: null,
   };
@@ -786,6 +790,7 @@ export function toFundWorkspaceEnvelope(state: FundState): FundWorkspaceEnvelope
     creationKey: state.creationKey,
     draftFundId: state.draftFundId,
     draftServerReady: state.draftServerReady,
+    needsServerHydration: state.needsServerHydration,
     draftETag: state.draftETag,
     pendingCommand: state.pendingCommand,
   };
@@ -864,6 +869,7 @@ function createFundStore() {
           setDraftFundId: (fundId: number | null) => set({ draftFundId: fundId }),
           draftServerReady: false,
           setDraftServerReady: (ready: boolean) => set({ draftServerReady: ready }),
+          needsServerHydration: false,
           workspaceActorId: null,
           workspaceActorRole: null,
           sessionId: generateStableId(),
@@ -1253,9 +1259,10 @@ function createFundStore() {
           partialize: (state: FundState) => toFundWorkspaceEnvelope(state),
           merge: (persisted: unknown, current: FundState): FundState => {
             if (expectedActorId === null) return current;
-            if (isFundWorkspaceEnvelope(persisted)) {
-              if (persisted.workspaceActorId !== expectedActorId) return current;
-              const { envelope: _envelope, ...data } = persisted;
+            const full = FundWorkspaceEnvelopeSchema.safeParse(persisted);
+            if (full.success) {
+              if (full.data.workspaceActorId !== expectedActorId) return current;
+              const { envelope: _envelope, ...data } = full.data as FundWorkspaceEnvelope;
               return { ...current, ...data };
             }
             // Invalid form values must not cost an unsettled command its key:
@@ -1264,12 +1271,16 @@ function createFundStore() {
             if (!identity.success || identity.data.workspaceActorId !== expectedActorId) {
               return current;
             }
-            const full = FundWorkspaceEnvelopeSchema.safeParse(persisted);
             console.warn('[fund-store] discarded invalid workspace values', {
-              paths: full.success ? [] : full.error.issues.map((issue) => issue.path.join('.')),
+              paths: full.error.issues.map((issue) => issue.path.join('.')),
             });
             const { envelope: _envelope, ...recovered } = identity.data;
-            return { ...current, ...recovered };
+            return {
+              ...current,
+              ...recovered,
+              needsServerHydration:
+                recovered.draftFundId !== null || recovered.pendingCommand !== null,
+            };
           },
           onRehydrateStorage: () => (_state: FundState | undefined, err: unknown) => {
             if (err) console.error('[fund-store] rehydrate error', err);
@@ -1379,6 +1390,8 @@ export function fundCommandKey(
 
 export const FUND_COMMAND_STORAGE_MESSAGE =
   'Changes are only in this tab. Storage is unavailable, so saving is paused.';
+export const FUND_DRAFT_HYDRATION_MESSAGE =
+  'Recover the saved draft before starting another write.';
 
 /** Persist before dispatch; unresolved commands always replay their exact request. */
 export function prepareFundCommand<T>(
@@ -1391,6 +1404,9 @@ export function prepareFundCommand<T>(
   const pending = state.pendingCommand;
   if (pending && (pending.operation !== operation || pending.targetFundId !== targetFundId)) {
     throw new Error('Check the pending command status before starting another command.');
+  }
+  if (state.needsServerHydration && !pending) {
+    throw new Error(FUND_DRAFT_HYDRATION_MESSAGE);
   }
   const bodySignature = pending?.bodySignature ?? JSON.stringify(payload);
   const key =

@@ -13,8 +13,11 @@ import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
 import { hasFundWorkspaceSession, prepareFundCommand, fundStore } from '@/stores/fundStore';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
-import { saveFundDraft } from '@/services/fund-drafts';
+import {
+  fundDraftWriteV1ToStoreHydrationPatch,
+  fundStoreToDraftWriteV1,
+} from '@/adapters/fund-store-adapters';
+import { fetchFundDraft, saveFundDraft } from '@/services/fund-drafts';
 import { classifyWorkflowError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { PARTNER_WRITE_ROLES, effectiveRoleOf } from '@shared/auth/effective-roles';
@@ -328,6 +331,43 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       startNewFund();
       return;
     }
+    const sameSession = () =>
+      fundStore.getState().sessionId === state.sessionId &&
+      fundStore.getState().draftFundId === targetFundId;
+    const hydrateThenStartNew = async () => {
+      const snapshot = await fetchFundDraft(targetFundId);
+      if (!sameSession()) return;
+      const patch = fundDraftWriteV1ToStoreHydrationPatch(
+        snapshot.config,
+        fundStore.getInitialState()
+      );
+      fundStore.setState((latest) => ({
+        ...latest,
+        ...patch,
+        draftFundId: targetFundId,
+        draftServerReady: true,
+        needsServerHydration: false,
+        draftETag: snapshot.etag,
+        pendingCommand: null,
+        draftSyncStatus: 'synced',
+      }));
+      setDialogOpen(false);
+      startNewFund();
+    };
+    if (state.needsServerHydration && !state.pendingCommand) {
+      setDialogSaving(true);
+      setDialogError(null);
+      try {
+        await hydrateThenStartNew();
+      } catch (error) {
+        if (sameSession()) {
+          setDialogError(error instanceof Error ? error.message : 'Could not recover saved draft');
+        }
+      } finally {
+        setDialogSaving(false);
+      }
+      return;
+    }
     const payload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
@@ -339,8 +379,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       return;
     }
     const stillCurrent = () =>
-      fundStore.getState().sessionId === state.sessionId &&
-      fundStore.getState().pendingCommand?.key === command.key;
+      sameSession() && fundStore.getState().pendingCommand?.key === command.key;
     setDialogSaving(true);
     setDialogError(null);
     try {
@@ -353,6 +392,10 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       current.setDraftETag(saved.etag ?? current.draftETag);
       current.setDraftServerReady(true);
       current.resolveCommand();
+      if (current.needsServerHydration) {
+        await hydrateThenStartNew();
+        return;
+      }
       if (
         JSON.stringify(
           fundStoreToDraftWriteV1(current, { includeEconomicsAssumptions: economicsEnabled })
@@ -367,7 +410,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       setDialogOpen(false);
       startNewFund();
     } catch (error) {
-      if (!stillCurrent()) return;
+      if (!sameSession()) return;
       // A failed or uncertain save never resets state.
       if (classifyWorkflowError(error) === 'rejected') fundStore.getState().resolveCommand();
       setDialogError(
