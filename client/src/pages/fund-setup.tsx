@@ -120,11 +120,13 @@ export default function FundSetup() {
   const search = useSearch();
   const { markStepVisited, getRedirectUrl } = useWizardStepGuard();
   const draftFundId = useFundSelector((s) => s.draftFundId);
+  const needsServerHydration = useFundSelector((s) => s.needsServerHydration);
   const [hydrated, draftServerReady, fundName, pendingCommand, creationKey] = useFundTuple(
     (s) => [s.hydrated, s.draftServerReady, s.fundName, s.pendingCommand, s.creationKey] as const
   );
   const hasLocalSession = useFundSelector(hasFundWorkspaceSession);
   const pendingFinalize = pendingCommand?.operation === 'finalize';
+  const recoveryBlocksEditing = needsServerHydration && draftFundId !== null && !pendingFinalize;
   const key = pendingFinalize ? 'review' : requestedKey;
   React.useEffect(() => {
     if (!pendingFinalize || requestedKey === 'review') return;
@@ -200,7 +202,7 @@ export default function FundSetup() {
 
   // Step guard: redirect if trying to skip ahead via URL manipulation
   React.useEffect(() => {
-    if (pendingFinalize || isHydrating || key === 'not-found') return; // Recovery replays an already dispatched command.
+    if (pendingFinalize || isHydrating || recoveryBlocksEditing || key === 'not-found') return; // Recovery replays an already dispatched command.
 
     const redirectUrl = getRedirectUrl(currentStepNumber);
     if (redirectUrl) {
@@ -229,6 +231,7 @@ export default function FundSetup() {
     key,
     markStepVisited,
     pendingFinalize,
+    recoveryBlocksEditing,
     setLocation,
   ]);
 
@@ -264,7 +267,7 @@ export default function FundSetup() {
         <ModernWizardProgress
           steps={WIZARD_STEPS}
           currentStepId={key}
-          enableNavigation={!pendingFinalize}
+          enableNavigation={!pendingFinalize && !recoveryBlocksEditing}
         />
 
         {(isHydrating && draftFundId != null) || needsLocalSessionIdentity ? (
@@ -455,9 +458,18 @@ export default function FundSetup() {
             )}
 
             {/* Step Content */}
-            <div data-testid={`wizard-step-${key}-container`} className="relative">
-              <Step />
-            </div>
+            {recoveryBlocksEditing ? (
+              <div
+                data-testid="draft-recovery-required"
+                className="mx-auto max-w-4xl px-4 py-6 text-sm text-presson-text"
+              >
+                Recover the saved draft before editing.
+              </div>
+            ) : (
+              <div data-testid={`wizard-step-${key}-container`} className="relative">
+                <Step />
+              </div>
+            )}
           </>
         )}
       </div>

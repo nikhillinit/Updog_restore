@@ -888,7 +888,11 @@ function createFundStore() {
           pendingCommand: null,
           beginCommand: (command) =>
             set({ pendingCommand: { ...command, dispatchedAt: new Date().toISOString() } }),
-          resolveCommand: () => set({ pendingCommand: null }),
+          resolveCommand: () =>
+            set((state) => ({
+              pendingCommand: null,
+              needsServerHydration: state.needsServerHydration && state.draftFundId !== null,
+            })),
           persistenceFailed: false,
           resumeServerDraft: (fundId: number) =>
             set(
