@@ -10,54 +10,19 @@ import { TestQueryClientProvider } from '../utils/test-query-client';
 import { createSandbox } from '../setup/test-infrastructure';
 import ReviewStep from '@/pages/ReviewStep';
 import FundModelResultsPage from '@/pages/fund-model-results';
+import {
+  fundStore,
+  bindFundWorkspaceActor,
+  unbindFundWorkspaceActor,
+  resetFundWorkspace,
+} from '@/stores/fundStore';
+
+const TEST_ACTOR_ID = 'user-1';
+const TEST_ACTOR_ROLE = 'admin';
 
 const mockSetCurrentFund = vi.fn();
 const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined);
 const mockFetch = vi.fn();
-
-const mockFundState = {
-  fundName: 'Test Fund',
-  fundSize: 50_000_000,
-  managementFeeRate: 2.0,
-  carriedInterest: 20.0,
-  vintageYear: 2026,
-  fundLife: 10,
-  establishmentDate: '2026-01-15',
-  modelInputsAsOfDate: '2026-06-30',
-  stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-  waterfallType: 'american' as const,
-  recyclingEnabled: false,
-  isEvergreen: false,
-  investmentPeriod: 5,
-  gpCommitment: 2_500_000,
-  lpClasses: [],
-  lps: [],
-  sectorProfiles: [],
-  allocations: [],
-  followOnChecks: { A: 1, B: 2, C: 3 },
-  capitalStageAllocations: [],
-  capitalPlanAllocations: [],
-  pipelineProfiles: [],
-  waterfallTiers: [],
-  recyclingType: undefined,
-  recyclingCap: undefined,
-  recyclingPeriod: undefined,
-  exitRecyclingRate: undefined,
-  mgmtFeeRecyclingRate: undefined,
-  allowFutureRecycling: undefined,
-  feeProfiles: [],
-  fundExpenses: [],
-  hydrated: true,
-  setHydrated: vi.fn(),
-  draftFundId: null as number | null,
-  setDraftFundId: vi.fn((fundId: number | null) => {
-    mockFundState.draftFundId = fundId;
-  }),
-  draftServerReady: false,
-  setDraftServerReady: vi.fn((ready: boolean) => {
-    mockFundState.draftServerReady = ready;
-  }),
-};
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>();
@@ -121,18 +86,6 @@ vi.mock('@/hooks/useCurrentPlanVersions', () => ({
   }),
 }));
 
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
-  useFundTuple: (selector: (s: typeof mockFundState) => readonly unknown[]) =>
-    selector(mockFundState),
-}));
-
-vi.mock('@/stores/fundStore', () => ({
-  fundStore: {
-    getState: () => mockFundState,
-  },
-}));
-
 function FlowHarness() {
   const [location] = useLocation();
   const reviewMatch = location.startsWith('/fund-setup');
@@ -149,13 +102,29 @@ function FlowHarness() {
 }
 
 describe('wizard to results flow', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockSetCurrentFund.mockReset();
     mockInvalidateQueries.mockClear();
-    mockFundState.draftFundId = null;
-    mockFundState.draftServerReady = false;
-    mockFundState.setDraftFundId.mockClear();
-    mockFundState.setDraftServerReady.mockClear();
+    resetFundWorkspace();
+    fundStore.setState({
+      fundName: 'Test Fund',
+      fundSize: 50_000_000,
+      managementFeeRate: 2.0,
+      carriedInterest: 20.0,
+      vintageYear: 2026,
+      fundLife: 10,
+      establishmentDate: '2026-01-15',
+      modelInputsAsOfDate: '2026-06-30',
+      stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      waterfallType: 'american',
+      recyclingEnabled: false,
+      hydrated: true,
+    });
+    await bindFundWorkspaceActor(TEST_ACTOR_ID, TEST_ACTOR_ROLE);
+    // The real store must carry the fixture and the bound actor before the wizard renders.
+    expect(fundStore.getState().fundName).toBe('Test Fund');
+    expect(fundStore.getState().workspaceActorId).toBe(TEST_ACTOR_ID);
+    expect(fundStore.getState().pendingCommand).toBeNull();
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
     vi.stubGlobal(
@@ -175,6 +144,7 @@ describe('wizard to results flow', () => {
   });
 
   afterEach(() => {
+    unbindFundWorkspaceActor();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -243,6 +213,11 @@ describe('wizard to results flow', () => {
     await sandbox.isolate(async () => {
       const firstRender = renderFlow('/fund-setup?step=7');
 
+      // Pre-assertions: the real store renders a submittable review step.
+      expect(screen.getByText('Ready to Create')).toBeTruthy();
+      expect((screen.getByTestId('create-fund-button') as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByText('Fund Creation and Publish Failed')).toBeNull();
+      expect(screen.queryByTestId('publish-uncertain-alert')).toBeNull();
       await userEvent.click(screen.getByTestId('create-fund-button'));
 
       await waitFor(() => {
@@ -312,11 +287,7 @@ function expectFetchCall(path: string, init?: Record<string, unknown>) {
 function renderFlow(initialPath: string) {
   const { Wrapper, location } = createWouterWrapper(initialPath);
   const rendered = render(
-    React.createElement(
-      TestQueryClientProvider,
-      null,
-      React.createElement(FlowHarness)
-    ),
+    React.createElement(TestQueryClientProvider, null, React.createElement(FlowHarness)),
     { wrapper: Wrapper }
   );
 

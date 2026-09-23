@@ -2844,7 +2844,9 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   if (normalized === 'needs.changes.outputs.heavy_ci_relevant') {
     return scenario.schemaChanged ? 'true' : 'false';
   }
-  if (['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)) {
+  if (
+    ['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)
+  ) {
     return scenario.schemaChanged ? 'success' : 'skipped';
   }
   if (
@@ -4426,7 +4428,7 @@ describe('required CI fails closed', () => {
     const checkMatrix = workflow.jobs?.check?.strategy?.matrix?.job;
     const fullMatrix = workflow.jobs?.['test-full']?.strategy?.matrix?.group;
     expect(checkMatrix).toEqual(['typecheck', 'lint', 'unit-fast']);
-    expect(fullMatrix).toEqual(['integration', 'e2e', 'validate-core']);
+    expect(fullMatrix).toBe('${{ fromJSON(needs.changes.outputs.test_full_groups) }}');
     expect(workflow.jobs?.['test-affected']?.if).toContain(
       "needs.changes.outputs.schema != 'true'"
     );
