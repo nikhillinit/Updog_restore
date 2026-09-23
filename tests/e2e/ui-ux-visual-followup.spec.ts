@@ -179,6 +179,10 @@ for (const viewport of [
           const panel = page.getByRole('tabpanel', { name: 'Performance', exact: true });
           await expect(panel).toBeVisible();
           await expect(panel.getByText('Supported performance metrics')).toBeVisible();
+          const performanceHeadings = await new AxeBuilder({ page })
+            .withRules(['heading-order', 'page-has-heading-one'])
+            .analyze();
+          expect(performanceHeadings.violations).toEqual([]);
         }
       });
     }
