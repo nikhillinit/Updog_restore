@@ -19,6 +19,50 @@ const routes = [
   '/forecasting?fundId=1',
 ];
 
+const portfolioOverview = {
+  fundId: 1,
+  generatedAt: '2026-09-12T00:00:00.000Z',
+  currency: 'USD',
+  provenance: {
+    sourceKind: 'imported_actual',
+    actionability: 'actionable',
+    isFinanciallyActionable: true,
+    generatedAt: '2026-09-12T00:00:00.000Z',
+    warnings: [],
+  },
+  sourceRecordCounts: { companies: 1 },
+  metrics: {
+    totalInvested: '100000',
+    totalValue: '150000',
+    averageMOIC: '1.5',
+    returnPct: '50',
+    valuedCount: 1,
+    totalCount: 1,
+    totalCompanies: 1,
+    activeCompanies: 1,
+    exitedCompanies: 0,
+  },
+  companies: [
+    {
+      id: 1,
+      name: 'QA Company',
+      sector: 'Software',
+      stage: 'Seed',
+      status: 'active',
+      invested: '100000.00',
+      currentValue: '150000.00',
+      moic: '1.5',
+    },
+  ],
+  meta: {
+    mode: 'live',
+    requestedAsOf: null,
+    resolvedAsOf: null,
+    source: 'live',
+    historicalAvailable: false,
+  },
+};
+
 test.beforeEach(async ({ page }) => {
   await installQaAuditApi(page);
   await page.route('**/api/auth/session', (route) =>
@@ -28,51 +72,7 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('**/api/funds', (route) => route.fulfill({ json: [fund] }));
   await page.route('**/api/portfolio-overview?*', (route) =>
-    route.fulfill({
-      json: {
-        fundId: 1,
-        generatedAt: '2026-09-12T00:00:00.000Z',
-        currency: 'USD',
-        provenance: {
-          sourceKind: 'imported_actual',
-          actionability: 'actionable',
-          isFinanciallyActionable: true,
-          generatedAt: '2026-09-12T00:00:00.000Z',
-          warnings: [],
-        },
-        sourceRecordCounts: { companies: 1 },
-        metrics: {
-          totalInvested: '100000',
-          totalValue: '150000',
-          averageMOIC: '1.5',
-          returnPct: '50',
-          valuedCount: 1,
-          totalCount: 1,
-          totalCompanies: 1,
-          activeCompanies: 1,
-          exitedCompanies: 0,
-        },
-        companies: [
-          {
-            id: 1,
-            name: 'QA Company',
-            sector: 'Software',
-            stage: 'Seed',
-            status: 'active',
-            invested: '100000.00',
-            currentValue: '150000.00',
-            moic: '1.5',
-          },
-        ],
-        meta: {
-          mode: 'live',
-          requestedAsOf: null,
-          resolvedAsOf: null,
-          source: 'live',
-          historicalAvailable: false,
-        },
-      },
-    })
+    route.fulfill({ json: portfolioOverview })
   );
   const forecast = makeDualForecastResponse({
     fundId: 1,
@@ -182,6 +182,68 @@ for (const viewport of [
         }
       });
     }
+
+    test('portfolio empty, unavailable and historical-empty states keep heading order', async ({
+      page,
+    }) => {
+      const states = [
+        {
+          path: '/portfolio',
+          heading: 'No Portfolio Companies Yet',
+          reply: {
+            json: {
+              ...portfolioOverview,
+              sourceRecordCounts: { companies: 0 },
+              metrics: {
+                ...portfolioOverview.metrics,
+                totalInvested: '0',
+                totalValue: null,
+                averageMOIC: null,
+                returnPct: null,
+                valuedCount: 0,
+                totalCount: 0,
+                totalCompanies: 0,
+                activeCompanies: 0,
+              },
+              companies: [],
+            },
+          },
+        },
+        {
+          path: '/portfolio',
+          heading: 'Portfolio metrics unavailable',
+          reply: { status: 503, json: { error: 'unavailable' } },
+        },
+        {
+          path: '/portfolio?asOf=2025-01-31',
+          heading: 'No Historical Snapshot',
+          reply: {
+            json: {
+              ...portfolioOverview,
+              companies: [],
+              meta: {
+                mode: 'historical',
+                requestedAsOf: '2025-01-31',
+                resolvedAsOf: null,
+                source: 'snapshot',
+                historicalAvailable: false,
+                emptyReason: 'no_snapshot',
+              },
+            },
+          },
+        },
+      ];
+      for (const state of states) {
+        await page.unroute('**/api/portfolio-overview?*');
+        await page.route('**/api/portfolio-overview?*', (route) => route.fulfill(state.reply));
+        await page.goto(state.path);
+        await expect(page.getByRole('heading', { name: state.heading, level: 2 })).toBeVisible();
+        const headings = await new AxeBuilder({ page })
+          .withRules(['heading-order', 'page-has-heading-one'])
+          .analyze();
+        expect(headings.violations, state.heading).toEqual([]);
+      }
+    });
 
     test('fund failure stays recoverable without leaking server details or redirecting to setup', async ({
       page,

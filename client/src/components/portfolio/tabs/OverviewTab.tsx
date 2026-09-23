@@ -131,7 +131,7 @@ function EmptyState({ onGetStarted }: { onGetStarted: () => void }) {
       <div className="p-4 bg-presson-highlight rounded-full mb-6">
         <Rocket className="h-8 w-8 text-presson-text" />
       </div>
-      <h3 className="text-xl font-bold text-presson-text mb-2">No Portfolio Companies Yet</h3>
+      <h2 className="text-xl font-bold text-presson-text mb-2">No Portfolio Companies Yet</h2>
       <p className="text-presson-textMuted mb-6 max-w-md">
         Start building your portfolio by adding your first investment. Track performance and
         historical snapshots in one place.
@@ -613,9 +613,9 @@ export function OverviewTab() {
       ) : isUnavailable ? (
         <PremiumCard>
           <div className="py-12 text-center space-y-2">
-            <h3 className="text-lg font-semibold text-presson-text">
+            <h2 className="text-lg font-semibold text-presson-text">
               Portfolio metrics unavailable
-            </h3>
+            </h2>
             <p className="mx-auto max-w-md text-sm text-presson-textMuted">
               Server-computed portfolio metrics could not be loaded right now. Values are hidden to
               avoid showing untrusted figures. Please try again shortly.
@@ -633,7 +633,7 @@ export function OverviewTab() {
               <History className="h-5 w-5 text-presson-text" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-presson-text">No Historical Snapshot</h3>
+              <h2 className="text-lg font-semibold text-presson-text">No Historical Snapshot</h2>
               <p className="mt-2 text-sm text-presson-textMuted">
                 {meta.emptyReason === 'unsupported_snapshot'
                   ? 'Historical snapshots exist, but they do not yet contain a compatible companies view for this surface.'
