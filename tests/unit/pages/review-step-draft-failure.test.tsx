@@ -11,9 +11,16 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/queryClient';
+import {
+  fundStore,
+  resetFundWorkspace,
+  bindFundWorkspaceActor,
+  unbindFundWorkspaceActor,
+  FUND_COMMAND_STORAGE_MESSAGE,
+} from '@/stores/fundStore';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
 const { mockUseFlag } = vi.hoisted(() => ({
@@ -42,77 +49,6 @@ vi.mock('@/contexts/FundContext', () => ({
 
 vi.mock('@/hooks/useUnifiedFlag', () => ({
   useFlag: (...args: unknown[]) => mockUseFlag(...args),
-}));
-
-const mockFundState = {
-  fundName: 'Test Fund',
-  fundSize: 50_000_000,
-  managementFeeRate: 2.0,
-  carriedInterest: 20.0,
-  vintageYear: 2026,
-  fundLife: 10,
-  establishmentDate: '2026-01-15',
-  modelInputsAsOfDate: '2026-06-30',
-  stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-  waterfallType: 'american' as const,
-  recyclingEnabled: false,
-  isEvergreen: false,
-  investmentPeriod: 5,
-  gpCommitment: 2_500_000,
-  lpClasses: [],
-  lps: [],
-  sectorProfiles: [],
-  allocations: [],
-  followOnChecks: { A: 1, B: 2, C: 3 },
-  capitalStageAllocations: [],
-  capitalPlanAllocations: [],
-  pipelineProfiles: [],
-  waterfallTiers: [],
-  recyclingType: undefined,
-  recyclingCap: undefined,
-  recyclingPeriod: undefined,
-  exitRecyclingRate: undefined,
-  mgmtFeeRecyclingRate: undefined,
-  allowFutureRecycling: undefined,
-  feeProfiles: [],
-  fundExpenses: [],
-  hydrated: true,
-  setHydrated: vi.fn(),
-  draftFundId: null as number | null,
-  setDraftFundId: vi.fn(),
-  draftServerReady: false,
-  setDraftServerReady: vi.fn(),
-  draftETag: null as string | null,
-  draftSyncStatus: 'idle' as string,
-  workspaceActorId: 'actor-1' as string | null,
-  sessionId: 'session-1',
-  pendingCommand: null as {
-    operation: 'finalize';
-    key: string;
-    targetFundId: number | null;
-    expectedETag: string | null;
-    bodySignature: string;
-  } | null,
-  beginCommand: vi.fn(),
-  resolveCommand: vi.fn(),
-  setDraftETag: vi.fn(),
-};
-
-const mockPrepareFundCommand = vi.fn();
-
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
-  useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
-}));
-
-const mockResetFundWorkspace = vi.fn();
-
-vi.mock('@/stores/fundStore', () => ({
-  fundStore: {
-    getState: () => mockFundState,
-  },
-  prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
-  resetFundWorkspace: () => mockResetFundWorkspace(),
 }));
 
 // Mock finalizeFund
@@ -152,41 +88,30 @@ const successResponse = {
 };
 
 describe('ReviewStep finalize failure handling', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
     mockUseFlag.mockReset().mockReturnValue(true);
-    mockFundState.draftFundId = null;
-    mockFundState.workspaceActorId = 'actor-1';
-    mockFundState.sessionId = 'session-1';
-    mockFundState.pendingCommand = null;
-    mockFundState.beginCommand.mockReset().mockImplementation((command) => {
-      mockFundState.pendingCommand = command;
-    });
-    mockFundState.resolveCommand.mockReset().mockImplementation(() => {
-      mockFundState.pendingCommand = null;
+    resetFundWorkspace();
+    await bindFundWorkspaceActor('actor-1', 'admin');
+    fundStore.setState({
+      fundName: 'Test Fund',
+      fundSize: 50_000_000,
+      managementFeeRate: 2,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      fundLife: 10,
+      establishmentDate: '2026-01-15',
+      modelInputsAsOfDate: '2026-06-30',
+      stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      waterfallType: 'american',
+      recyclingEnabled: false,
+      isEvergreen: false,
+      investmentPeriod: 5,
+      gpCommitment: 2_500_000,
+      followOnChecks: { A: 1, B: 2, C: 3 },
     });
     mockFinalizeFund.mockReset().mockResolvedValue(successResponse);
-    mockPrepareFundCommand
-      .mockReset()
-      .mockImplementation(
-        (
-          _operation: string,
-          targetFundId: number | null,
-          payload: unknown,
-          etag: string | null
-        ) => {
-          const command = { payload, key: 'finalize-key-1', etag };
-          mockFundState.beginCommand({
-            operation: 'finalize',
-            key: command.key,
-            targetFundId,
-            expectedETag: etag,
-            bodySignature: JSON.stringify(payload),
-          });
-          return command;
-        }
-      );
     mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
       fundName: 'Test Fund',
       fundSize: 50_000_000,
@@ -201,7 +126,9 @@ describe('ReviewStep finalize failure handling', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
+    unbindFundWorkspaceActor();
   });
 
   it('shows error when finalize returns validation error', async () => {
@@ -245,8 +172,8 @@ describe('ReviewStep finalize failure handling', () => {
       expectedETag: null,
       bodySignature: JSON.stringify({ name: 'Persisted Fund' }),
     };
-    mockFundState.pendingCommand = pending;
-    mockPrepareFundCommand.mockImplementation(() => {
+    fundStore.getState().beginCommand(pending);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('Storage unavailable');
     });
 
@@ -254,11 +181,11 @@ describe('ReviewStep finalize failure handling', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Storage unavailable')).toBeInTheDocument();
+      expect(screen.getByText(FUND_COMMAND_STORAGE_MESSAGE)).toBeInTheDocument();
     }, FULL_SUITE_WAIT_OPTIONS);
     expect(mockFinalizeFund).not.toHaveBeenCalled();
-    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
-    expect(mockFundState.pendingCommand).toBe(pending);
+    expect(fundStore.getState().persistenceFailed).toBe(true);
+    expect(fundStore.getState().pendingCommand).toMatchObject(pending);
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 

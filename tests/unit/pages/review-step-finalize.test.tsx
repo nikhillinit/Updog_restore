@@ -11,10 +11,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as economicsEngine from '@shared/lib/economics/economics-engine';
 import { ApiError } from '@/lib/queryClient';
+import {
+  fundStore,
+  resetFundWorkspace,
+  bindFundWorkspaceActor,
+  unbindFundWorkspaceActor,
+  type PendingFundCommand,
+} from '@/stores/fundStore';
 
 const { mockInvalidateQueries, mockUseFlag } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
@@ -43,76 +50,6 @@ vi.mock('@/contexts/FundContext', () => ({
 
 vi.mock('@/hooks/useUnifiedFlag', () => ({
   useFlag: (...args: unknown[]) => mockUseFlag(...args),
-}));
-
-const mockFundState = {
-  fundName: 'Finalize Test Fund',
-  fundSize: 75_000_000,
-  managementFeeRate: 2.5,
-  carriedInterest: 20.0,
-  vintageYear: 2026,
-  fundLife: 10,
-  establishmentDate: '2026-03-01',
-  modelInputsAsOfDate: '2026-06-30' as string | undefined,
-  stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-  waterfallType: 'american' as const,
-  recyclingEnabled: false,
-  isEvergreen: false,
-  investmentPeriod: 5,
-  gpCommitment: 3_750_000,
-  lpClasses: [],
-  lps: [],
-  sectorProfiles: [],
-  allocations: [],
-  followOnChecks: { A: 1, B: 2, C: 3 },
-  capitalStageAllocations: [],
-  capitalPlanAllocations: [],
-  pipelineProfiles: [],
-  waterfallTiers: [],
-  recyclingType: undefined,
-  recyclingCap: undefined,
-  recyclingPeriod: undefined,
-  exitRecyclingRate: undefined,
-  mgmtFeeRecyclingRate: undefined,
-  allowFutureRecycling: undefined,
-  feeProfiles: [],
-  fundExpenses: [],
-  hydrated: true,
-  setHydrated: vi.fn(),
-  draftFundId: null as number | null,
-  setDraftFundId: vi.fn(),
-  draftServerReady: false,
-  setDraftServerReady: vi.fn(),
-  draftETag: '"0123456789abcdef"' as string | null,
-  draftSyncStatus: 'synced' as string,
-  workspaceActorId: 'actor-1' as string | null,
-  sessionId: 'session-1',
-  pendingCommand: null as {
-    operation: 'finalize';
-    key: string;
-    targetFundId: number | null;
-    expectedETag: string | null;
-    bodySignature: string;
-  } | null,
-  beginCommand: vi.fn(),
-  resolveCommand: vi.fn(),
-  setDraftETag: vi.fn(),
-};
-
-const mockPrepareFundCommand = vi.fn();
-const mockResetFundWorkspace = vi.fn();
-
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
-  useFundTuple: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
-}));
-
-vi.mock('@/stores/fundStore', () => ({
-  fundStore: {
-    getState: () => mockFundState,
-  },
-  prepareFundCommand: (...args: unknown[]) => mockPrepareFundCommand(...args),
-  resetFundWorkspace: () => mockResetFundWorkspace(),
 }));
 
 // Mock finalizeFund -- use a mutable reference so tests can override
@@ -144,25 +81,34 @@ vi.mock('@/lib/formatting', () => ({
 import ReviewStep from '@/pages/ReviewStep';
 
 describe('ReviewStep single-submit via finalize', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockSetLocation.mockReset();
     mockSetCurrentFund.mockReset();
-    mockResetFundWorkspace.mockReset();
-    mockFundState.beginCommand.mockReset().mockImplementation((command) => {
-      mockFundState.pendingCommand = command;
-    });
-    mockFundState.resolveCommand.mockReset().mockImplementation(() => {
-      mockFundState.pendingCommand = null;
-    });
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined);
     mockUseFlag.mockReset().mockReturnValue(true);
-    mockFundState.draftSyncStatus = 'synced';
-    mockFundState.draftFundId = 77;
-    mockFundState.draftServerReady = true;
-    mockFundState.modelInputsAsOfDate = '2026-06-30';
-    mockFundState.workspaceActorId = 'actor-1';
-    mockFundState.sessionId = 'session-1';
-    mockFundState.pendingCommand = null;
+    resetFundWorkspace();
+    await bindFundWorkspaceActor('actor-1', 'admin');
+    fundStore.setState({
+      fundName: 'Finalize Test Fund',
+      fundSize: 75_000_000,
+      managementFeeRate: 2.5,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      fundLife: 10,
+      establishmentDate: '2026-03-01',
+      modelInputsAsOfDate: '2026-06-30',
+      stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      waterfallType: 'american',
+      recyclingEnabled: false,
+      isEvergreen: false,
+      investmentPeriod: 5,
+      gpCommitment: 3_750_000,
+      followOnChecks: { A: 1, B: 2, C: 3 },
+      draftFundId: 77,
+      draftServerReady: true,
+      draftETag: '"0123456789abcdef"',
+      draftSyncStatus: 'synced',
+    });
 
     // Default: finalizeFund succeeds
     mockFinalizeFund.mockReset().mockResolvedValue({
@@ -194,33 +140,6 @@ describe('ReviewStep single-submit via finalize', () => {
       investmentPeriod: 5,
       gpCommitment: 3_750_000,
     });
-    mockPrepareFundCommand
-      .mockReset()
-      .mockImplementation(
-        (
-          _operation: string,
-          targetFundId: number | null,
-          payload: unknown,
-          etag: string | null
-        ) => {
-          const pending = mockFundState.pendingCommand;
-          const command = pending
-            ? {
-                payload: JSON.parse(pending.bodySignature),
-                key: pending.key,
-                etag: pending.expectedETag,
-              }
-            : { payload, key: 'finalize-key-1', etag };
-          mockFundState.beginCommand({
-            operation: 'finalize',
-            key: command.key,
-            targetFundId,
-            expectedETag: command.etag,
-            bodySignature: JSON.stringify(command.payload),
-          });
-          return command;
-        }
-      );
     mockFundStoreToDraftWriteV1.mockReset().mockReturnValue({
       fundName: 'Finalize Test Fund',
       fundSize: 75_000_000,
@@ -235,6 +154,8 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   afterEach(() => {
+    cleanup();
+    unbindFundWorkspaceActor();
     vi.restoreAllMocks();
   });
 
@@ -252,7 +173,7 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('renders the owner date and blocks publication when it is absent', () => {
-    mockFundState.modelInputsAsOfDate = undefined;
+    fundStore.setState({ modelInputsAsOfDate: undefined });
 
     render(<ReviewStep />);
 
@@ -262,6 +183,15 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('calls finalizeFund with correct payload on submit', async () => {
+    const stateBeforeSubmit = fundStore.getState();
+    let commandAtDispatch: PendingFundCommand | null = null;
+    mockFinalizeFund.mockImplementationOnce(async () => {
+      commandAtDispatch = fundStore.getState().pendingCommand;
+      return {
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      };
+    });
     render(<ReviewStep />);
 
     const button = screen.getByTestId('create-fund-button');
@@ -269,7 +199,7 @@ describe('ReviewStep single-submit via finalize', () => {
 
     await waitFor(() => {
       expect(mockFundStoreToFinalizeV1).toHaveBeenCalledTimes(1);
-      expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(mockFundState, {
+      expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(stateBeforeSubmit, {
         includeEconomicsAssumptions: true,
       });
     });
@@ -284,11 +214,15 @@ describe('ReviewStep single-submit via finalize', () => {
         carryPercentage: 0.2,
         vintageYear: 2026,
       }),
-      { key: 'finalize-key-1', etag: '"0123456789abcdef"' }
+      { key: expect.any(String), etag: '"0123456789abcdef"' }
     );
-    expect(mockFundState.beginCommand).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: 'finalize', key: 'finalize-key-1', targetFundId: 77 })
-    );
+    expect(commandAtDispatch).toMatchObject({
+      operation: 'finalize',
+      key: mockFinalizeFund.mock.calls[0]![1].key,
+      targetFundId: 77,
+      expectedETag: '"0123456789abcdef"',
+      bodySignature: JSON.stringify(mockFinalizeFund.mock.calls[0]![0]),
+    });
   });
 
   it('replays the persisted finalize body, key, and ETag after reload', async () => {
@@ -301,14 +235,14 @@ describe('ReviewStep single-submit via finalize', () => {
       vintageYear: 2026,
       modelInputsAsOfDate: '2026-06-30',
     };
-    mockFundState.pendingCommand = {
+    fundStore.getState().beginCommand({
       operation: 'finalize',
       key: 'persisted-finalize-key',
       targetFundId: 77,
       expectedETag: '"persisted-etag"',
       bodySignature: JSON.stringify(originalPayload),
-    };
-    mockFundState.modelInputsAsOfDate = undefined;
+    });
+    fundStore.setState({ modelInputsAsOfDate: undefined });
     mockFundStoreToFinalizeV1.mockImplementation(() => {
       throw new Error('Current fields must not rebuild a pending finalize');
     });
@@ -332,13 +266,15 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('blocks publish while the draft save is unsettled', async () => {
-    mockFundState.draftSyncStatus = 'saving';
+    fundStore.setState({ draftSyncStatus: 'saving' });
 
     render(<ReviewStep />);
 
     expect(screen.getByTestId('create-fund-button')).toBeDisabled();
     expect(screen.getByText('Settle the draft save before publishing.')).toBeInTheDocument();
-    mockFundState.draftSyncStatus = 'synced';
+    act(() => fundStore.getState().setDraftSyncStatus('synced'));
+    expect(screen.getByTestId('create-fund-button')).toBeEnabled();
+    expect(screen.queryByText('Settle the draft save before publishing.')).not.toBeInTheDocument();
   });
 
   it('keeps the command and offers a status check when the outcome is uncertain', async () => {
@@ -355,7 +291,13 @@ describe('ReviewStep single-submit via finalize', () => {
     });
     expect(screen.getByText('Check publication status')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to Step 6' })).toBeDisabled();
-    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(fundStore.getState().pendingCommand).toMatchObject({
+      operation: 'finalize',
+      key: mockFinalizeFund.mock.calls[0]![1].key,
+      targetFundId: 77,
+      expectedETag: '"0123456789abcdef"',
+      bodySignature: JSON.stringify(mockFinalizeFund.mock.calls[0]![0]),
+    });
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
 
@@ -461,6 +403,7 @@ describe('ReviewStep single-submit via finalize', () => {
   });
 
   it('skips economics dry-run blocking when the economics flag is disabled', async () => {
+    const stateBeforeSubmit = fundStore.getState();
     mockUseFlag.mockReturnValue(false);
     mockFundStoreToDraftWriteV1.mockReturnValue({
       fundName: 'Finalize Test Fund',
@@ -496,7 +439,7 @@ describe('ReviewStep single-submit via finalize', () => {
       expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(mockFundState, {
+    expect(mockFundStoreToFinalizeV1).toHaveBeenCalledWith(stateBeforeSubmit, {
       includeEconomicsAssumptions: false,
     });
   });
@@ -523,13 +466,16 @@ describe('ReviewStep single-submit via finalize', () => {
     });
 
     // Resolve to prevent hanging
-    resolveFinalize({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    await act(async () => {
+      resolveFinalize({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
     });
   });
 
   it('navigates to results page on success', async () => {
+    const { sessionId } = fundStore.getState();
     render(<ReviewStep />);
 
     await userEvent.click(screen.getByTestId('create-fund-button'));
@@ -543,9 +489,11 @@ describe('ReviewStep single-submit via finalize', () => {
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['fund-state', 77] });
     // Lifecycle truth comes from the fund-scoped results route; no local Active status.
     expect(mockSetCurrentFund).not.toHaveBeenCalled();
-    expect(mockFundState.resolveCommand).toHaveBeenCalled();
+    expect(fundStore.getState().pendingCommand).toBeNull();
     // The published draft is retired; the tab must not resume it.
-    expect(mockResetFundWorkspace).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState().draftFundId).toBeNull();
+    expect(fundStore.getState().fundName).toBeUndefined();
+    expect(fundStore.getState().sessionId).not.toBe(sessionId);
   });
 
   it('ignores a finalize response after the workspace session changes', async () => {
@@ -560,14 +508,17 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
     await waitFor(() => expect(mockFinalizeFund).toHaveBeenCalledTimes(1));
 
-    mockFundState.sessionId = 'session-2';
-    resolveFinalize({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    const pendingCommand = fundStore.getState().pendingCommand;
+    act(() => fundStore.setState({ sessionId: 'session-2' }));
+    await act(async () => {
+      resolveFinalize({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
     });
 
     await waitFor(() => expect(screen.getByTestId('create-fund-button')).toBeDisabled());
-    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(fundStore.getState().pendingCommand).toEqual(pendingCommand);
     expect(mockInvalidateQueries).not.toHaveBeenCalled();
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
@@ -584,20 +535,25 @@ describe('ReviewStep single-submit via finalize', () => {
     await userEvent.click(screen.getByTestId('create-fund-button'));
     await waitFor(() => expect(mockFinalizeFund).toHaveBeenCalledTimes(1));
 
-    mockFundState.pendingCommand = {
-      operation: 'finalize',
-      key: 'newer-finalize-key',
-      targetFundId: 77,
-      expectedETag: '"newer-etag"',
-      bodySignature: JSON.stringify({ name: 'Newer Fund', draftFundId: 77 }),
-    };
-    resolveFinalize({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    act(() =>
+      fundStore.getState().beginCommand({
+        operation: 'finalize',
+        key: 'newer-finalize-key',
+        targetFundId: 77,
+        expectedETag: '"newer-etag"',
+        bodySignature: JSON.stringify({ name: 'Newer Fund', draftFundId: 77 }),
+      })
+    );
+    const pendingCommand = fundStore.getState().pendingCommand;
+    await act(async () => {
+      resolveFinalize({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
     });
 
     await waitFor(() => expect(screen.getByTestId('create-fund-button')).toBeDisabled());
-    expect(mockFundState.resolveCommand).not.toHaveBeenCalled();
+    expect(fundStore.getState().pendingCommand).toEqual(pendingCommand);
     expect(mockInvalidateQueries).not.toHaveBeenCalled();
     expect(mockSetLocation).not.toHaveBeenCalled();
   });
@@ -638,9 +594,11 @@ describe('ReviewStep single-submit via finalize', () => {
     });
 
     // Resolve to prevent hanging
-    resolveFinalize({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    await act(async () => {
+      resolveFinalize({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
     });
   });
 
@@ -663,9 +621,11 @@ describe('ReviewStep single-submit via finalize', () => {
       expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
     });
 
-    resolveFinalize({
-      success: true,
-      data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+    await act(async () => {
+      resolveFinalize({
+        success: true,
+        data: { fundId: 77, configVersion: 1, correlationId: 'test', published: true },
+      });
     });
   });
 

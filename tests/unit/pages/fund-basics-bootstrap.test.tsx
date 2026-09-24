@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PendingFundCommand } from '@/stores/fundStore';
+import {
+  bindFundWorkspaceActor,
+  fundStore,
+  resetFundWorkspace,
+  unbindFundWorkspaceActor,
+} from '@/stores/fundStore';
 import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 import { ApiError } from '@/lib/queryClient';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
+const TEST_ACTOR_ID = 'fund-basics-bootstrap-user';
 // Command identities as identifiers, not literals, so secret scanners see no key-shaped value.
 const CREATION_KEY = ['reserved', 'creation', '1'].join('-');
 
@@ -22,102 +28,6 @@ vi.mock('@/contexts/FundContext', () => ({
     setCurrentFund: mockSetCurrentFund,
   }),
 }));
-
-const mockUpdateFundBasics = vi.fn();
-const mockUpdateCapitalStructure = vi.fn();
-const mockSetDraftFundId = vi.fn((fundId: number | null) => {
-  mockFundState.draftFundId = fundId;
-});
-const mockSetDraftServerReady = vi.fn((ready: boolean) => {
-  mockFundState.draftServerReady = ready;
-});
-
-const mockFundState = {
-  fundName: 'Bootstrap Fund',
-  fundSize: 50_000_000,
-  managementFeeRate: 2.0,
-  carriedInterest: 20.0,
-  vintageYear: 2026,
-  establishmentDate: '2026-01-15',
-  modelInputsAsOfDate: '2026-09-12',
-  isEvergreen: false,
-  fundLife: 10,
-  investmentPeriod: 5,
-  gpCommitment: 2_500_000,
-  fundedFromFeesPct: 0,
-  lpClasses: [],
-  lps: [],
-  stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
-  sectorProfiles: [],
-  allocations: [],
-  followOnChecks: { A: 1, B: 2, C: 3 },
-  capitalStageAllocations: [],
-  capitalPlanAllocations: [],
-  pipelineProfiles: [],
-  waterfallType: 'american' as const,
-  waterfallTiers: [],
-  recyclingEnabled: false,
-  recyclingType: undefined,
-  recyclingCap: undefined,
-  recyclingPeriod: undefined,
-  exitRecyclingRate: undefined,
-  mgmtFeeRecyclingRate: undefined,
-  allowFutureRecycling: undefined,
-  feeProfiles: [],
-  fundExpenses: [],
-  hydrated: true,
-  setHydrated: vi.fn(),
-  draftFundId: null as number | null,
-  setDraftFundId: mockSetDraftFundId,
-  draftServerReady: false,
-  setDraftServerReady: mockSetDraftServerReady,
-  needsServerHydration: false,
-  setDraftSyncStatus: vi.fn(),
-  draftETag: null as string | null,
-  pendingCommand: null as PendingFundCommand | null,
-  persistenceFailed: false,
-  sessionId: 'bootstrap-session',
-  creationKey: null as string | null,
-  reserveCreationKey: vi.fn(() => CREATION_KEY),
-  setDraftETag: vi.fn((etag: string | null) => {
-    mockFundState.draftETag = etag;
-  }),
-  beginCommand: vi.fn((command: Omit<PendingFundCommand, 'dispatchedAt'>) => {
-    mockFundState.pendingCommand = { ...command, dispatchedAt: new Date().toISOString() };
-  }),
-  resolveCommand: vi.fn(() => {
-    mockFundState.pendingCommand = null;
-  }),
-};
-
-vi.mock('@/stores/useFundSelector', () => ({
-  useFundSelector: (selector: (state: typeof mockFundState) => unknown) => selector(mockFundState),
-  useFundAction: (
-    selector: (actions: {
-      updateFundBasics: typeof mockUpdateFundBasics;
-      updateCapitalStructure: typeof mockUpdateCapitalStructure;
-      setDraftFundId: typeof mockSetDraftFundId;
-      setDraftServerReady: typeof mockSetDraftServerReady;
-    }) => unknown
-  ) =>
-    selector({
-      updateFundBasics: mockUpdateFundBasics,
-      updateCapitalStructure: mockUpdateCapitalStructure,
-      setDraftFundId: mockSetDraftFundId,
-      setDraftServerReady: mockSetDraftServerReady,
-    }),
-}));
-
-vi.mock('@/stores/fundStore', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/stores/fundStore')>();
-  vi.spyOn(actual.fundStore, 'getState').mockImplementation(
-    () => mockFundState as unknown as ReturnType<typeof actual.fundStore.getState>
-  );
-  vi.spyOn(actual.fundStore, 'setState').mockImplementation((patch) => {
-    Object.assign(mockFundState, patch);
-  });
-  return actual;
-});
 
 const mockCreateFund = vi.fn();
 const mockHandleCredentialRenewalMarker = vi.fn(() => false);
@@ -151,32 +61,32 @@ async function clickNextStep() {
 }
 
 describe('FundBasicsStep bootstrap identity', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockNavigate.mockReset();
     mockSetCurrentFund.mockReset();
     mockCurrentFund = null;
-    mockUpdateFundBasics.mockReset().mockImplementation((update) => {
-      Object.assign(mockFundState, update);
+    resetFundWorkspace();
+    await bindFundWorkspaceActor(TEST_ACTOR_ID);
+    fundStore.setState({
+      fundName: 'Bootstrap Fund',
+      fundSize: 50_000_000,
+      managementFeeRate: 2.0,
+      carriedInterest: 20.0,
+      vintageYear: 2026,
+      establishmentDate: '2026-01-15',
+      modelInputsAsOfDate: '2026-09-12',
+      isEvergreen: false,
+      fundLife: 10,
+      investmentPeriod: 5,
+      gpCommitment: 2_500_000,
+      fundedFromFeesPct: 0,
+      stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      followOnChecks: { A: 1, B: 2, C: 3 },
+      waterfallType: 'american',
+      recyclingEnabled: false,
+      hydrated: true,
+      creationKey: CREATION_KEY,
     });
-    mockUpdateCapitalStructure.mockReset();
-    mockSetDraftFundId.mockClear();
-    mockSetDraftServerReady.mockClear();
-    mockFundState.fundName = 'Bootstrap Fund';
-    mockFundState.fundSize = 50_000_000;
-    mockFundState.managementFeeRate = 2.0;
-    mockFundState.carriedInterest = 20.0;
-    mockFundState.vintageYear = 2026;
-    mockFundState.establishmentDate = '2026-01-15';
-    mockFundState.modelInputsAsOfDate = '2026-09-12';
-    mockFundState.fundLife = 10;
-    mockFundState.investmentPeriod = 5;
-    mockFundState.fundedFromFeesPct = 0;
-    mockFundState.draftFundId = null;
-    mockFundState.draftServerReady = false;
-    mockFundState.needsServerHydration = false;
-    mockFundState.draftETag = null;
-    mockFundState.pendingCommand = null;
-    mockFundState.persistenceFailed = false;
     mockCreateFund.mockReset().mockResolvedValue({
       status: 201,
       etag: '"0123456789abcdef"',
@@ -202,7 +112,9 @@ describe('FundBasicsStep bootstrap identity', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    cleanup();
+    vi.restoreAllMocks();
+    unbindFundWorkspaceActor();
   });
 
   it('bootstraps a canonical fund identity and saves the authoritative draft before advancing', async () => {
@@ -216,14 +128,14 @@ describe('FundBasicsStep bootstrap identity', () => {
         expect.objectContaining({ name: 'Bootstrap Fund' }),
         { idempotencyKey: CREATION_KEY }
       );
-      expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
+      expect(fundStore.getState().draftFundId).toBe(42);
       expect(mockSaveFundDraft).toHaveBeenCalledWith(
         42,
         expect.objectContaining({ fundName: 'Bootstrap Fund' }),
         { key: expect.any(String), etag: '"0123456789abcdef"' }
       );
-      expect(mockFundState.draftETag).toBe('"0123456789abcdf0"');
-      expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
+      expect(fundStore.getState().draftETag).toBe('"0123456789abcdf0"');
+      expect(fundStore.getState().draftServerReady).toBe(true);
       expect(mockSetCurrentFund).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 42,
@@ -244,7 +156,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     await waitFor(() => {
       expect(mockCreateFund).toHaveBeenCalledTimes(1);
-      expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
+      expect(fundStore.getState().draftFundId).toBe(42);
       expect(
         screen.getByText('Session renewal required. Sign in again to continue editing.')
       ).toBeInTheDocument();
@@ -262,7 +174,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     await user.clear(input);
     await user.type(input, '40');
 
-    expect(mockUpdateCapitalStructure).toHaveBeenLastCalledWith({ fundedFromFeesPct: 0.4 });
+    expect(fundStore.getState().fundedFromFeesPct).toBe(0.4);
   });
 
   it.each([
@@ -280,7 +192,7 @@ describe('FundBasicsStep bootstrap identity', () => {
       await user.clear(input);
       await user.type(input, inputValue);
 
-      expect(mockUpdateFundBasics).toHaveBeenLastCalledWith({ fundSize: dollars });
+      expect(fundStore.getState().fundSize).toBe(dollars);
       expect(mockSetCurrentFund).toHaveBeenLastCalledWith(
         expect.objectContaining({ size: dollars })
       );
@@ -298,8 +210,7 @@ describe('FundBasicsStep bootstrap identity', () => {
   );
 
   it('reuses an existing draft identity and saves it when the server snapshot is not ready yet', async () => {
-    mockFundState.draftFundId = 77;
-    mockFundState.draftServerReady = false;
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
 
     render(<FundBasicsStep />);
 
@@ -311,7 +222,7 @@ describe('FundBasicsStep bootstrap identity', () => {
         expect.objectContaining({ fundName: 'Bootstrap Fund' }),
         expect.objectContaining({ key: expect.any(String) })
       );
-      expect(mockSetDraftServerReady).toHaveBeenCalledWith(true);
+      expect(fundStore.getState().draftServerReady).toBe(true);
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
 
@@ -319,8 +230,7 @@ describe('FundBasicsStep bootstrap identity', () => {
   });
 
   it('reuses an existing authoritative draft identity and skips redundant create/save work', async () => {
-    mockFundState.draftFundId = 77;
-    mockFundState.draftServerReady = true;
+    fundStore.setState({ draftFundId: 77, draftServerReady: true });
 
     render(<FundBasicsStep />);
 
@@ -332,13 +242,11 @@ describe('FundBasicsStep bootstrap identity', () => {
 
     expect(mockCreateFund).not.toHaveBeenCalled();
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
-    expect(mockSetDraftServerReady).not.toHaveBeenCalled();
+    expect(fundStore.getState().draftServerReady).toBe(true);
   });
 
   it('blocks navigation and draft writes when required basics are incomplete', async () => {
-    mockFundState.fundName = '';
-    mockFundState.fundSize = undefined;
-    mockFundState.modelInputsAsOfDate = undefined;
+    fundStore.setState({ fundName: '', fundSize: undefined, modelInputsAsOfDate: undefined });
 
     render(<FundBasicsStep />);
 
@@ -358,16 +266,19 @@ describe('FundBasicsStep bootstrap identity', () => {
   it.each([null, 77])(
     'never dispatches without durable command storage (fund %s)',
     async (fundId) => {
-      mockFundState.draftFundId = fundId;
-      mockFundState.persistenceFailed = true;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('Storage unavailable');
+      });
+      fundStore.setState({ draftFundId: fundId });
       render(<FundBasicsStep />);
       await clickNextStep();
       expect(await screen.findByRole('alert')).toHaveTextContent('Storage is unavailable');
       expect(mockCreateFund).not.toHaveBeenCalled();
       expect(mockSaveFundDraft).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();
+      expect(fundStore.getState().persistenceFailed).toBe(true);
       // Never stored, never dispatched: nothing is left pending.
-      expect(mockFundState.pendingCommand).toBeNull();
+      expect(fundStore.getState().pendingCommand).toBeNull();
     }
   );
 
@@ -377,7 +288,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     await clickNextStep();
     await screen.findByRole('alert');
     const original = mockCreateFund.mock.calls[0];
-    mockFundState.fundName = 'Changed after timeout';
+    act(() => fundStore.setState({ fundName: 'Changed after timeout' }));
     view.unmount();
     render(<FundBasicsStep />);
     await clickNextStep();
@@ -391,22 +302,23 @@ describe('FundBasicsStep bootstrap identity', () => {
   });
 
   it('replays a recovered creation without saving placeholder draft values', async () => {
-    mockFundState.needsServerHydration = true;
-    mockFundState.pendingCommand = {
-      operation: 'create',
-      key: CREATION_KEY,
-      targetFundId: null,
-      expectedETag: null,
-      bodySignature: JSON.stringify({
-        name: 'Dispatched Fund',
-        size: 25_000_000,
-        managementFee: 0.02,
-        carryPercentage: 0.2,
-        vintageYear: 2026,
-      }),
-      dispatchedAt: new Date().toISOString(),
-    };
-
+    fundStore.setState({
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'create',
+        key: CREATION_KEY,
+        targetFundId: null,
+        expectedETag: null,
+        bodySignature: JSON.stringify({
+          name: 'Dispatched Fund',
+          size: 25_000_000,
+          managementFee: 0.02,
+          carryPercentage: 0.2,
+          vintageYear: 2026,
+        }),
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
     render(<FundBasicsStep />);
     await clickNextStep();
 
@@ -415,29 +327,31 @@ describe('FundBasicsStep bootstrap identity', () => {
       expect.objectContaining({ name: 'Dispatched Fund', size: 25_000_000 }),
       { idempotencyKey: CREATION_KEY }
     );
-    expect(mockSetDraftServerReady).toHaveBeenLastCalledWith(true);
+    expect(fundStore.getState().draftServerReady).toBe(true);
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(mockFundState.needsServerHydration).toBe(true);
+    expect(fundStore.getState().needsServerHydration).toBe(true);
   });
 
   it('allows a corrected creation after a recovered command is definitively rejected', async () => {
-    mockFundState.needsServerHydration = true;
-    mockFundState.pendingCommand = {
-      operation: 'create',
-      key: CREATION_KEY,
-      targetFundId: null,
-      expectedETag: null,
-      bodySignature: JSON.stringify({ name: 'Rejected Fund' }),
-      dispatchedAt: new Date().toISOString(),
-    };
+    fundStore.setState({
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'create',
+        key: CREATION_KEY,
+        targetFundId: null,
+        expectedETag: null,
+        bodySignature: JSON.stringify({ name: 'Rejected Fund' }),
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
     mockCreateFund.mockRejectedValueOnce(new ApiError(400, 'Invalid fund basics'));
     render(<FundBasicsStep />);
 
     await clickNextStep();
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Invalid fund basics'));
-    expect(mockFundState.pendingCommand).toBeNull();
-    expect(mockFundState.needsServerHydration).toBe(false);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(fundStore.getState().needsServerHydration).toBe(false);
 
     await clickNextStep();
     await waitFor(() => expect(mockCreateFund).toHaveBeenCalledTimes(2));
@@ -460,7 +374,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(mockSetDraftFundId).not.toHaveBeenCalled();
+    expect(fundStore.getState().draftFundId).toBeNull();
     expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
@@ -475,12 +389,12 @@ describe('FundBasicsStep bootstrap identity', () => {
     render(<FundBasicsStep />);
     await clickNextStep();
     await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
-    mockFundState.fundName = 'Newer edit';
+    act(() => fundStore.setState({ fundName: 'Newer edit' }));
     await act(async () => {
       finishSave({ config: {}, etag: '"new-revision"', replayed: false });
     });
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(mockFundState.draftServerReady).toBe(false);
+    expect(fundStore.getState().draftServerReady).toBe(false);
     expect(screen.getByRole('alert')).toHaveTextContent('Save the newer changes');
     await clickNextStep();
     expect(mockSaveFundDraft).toHaveBeenLastCalledWith(
@@ -503,7 +417,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).toHaveBeenCalledTimes(1);
-    expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
+    expect(fundStore.getState().draftFundId).toBe(42);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
