@@ -1,9 +1,13 @@
 import React from 'react';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
-import { applyDraftSnapshot, saveDraftAndSettle } from '@/services/fund-draft-settlement';
+import {
+  applyDraftSnapshot,
+  isDraftSaveInFlight,
+  saveDraftAndSettle,
+} from '@/services/fund-draft-settlement';
 import { fetchFundDraft, isMissingDraftError, type DraftSnapshot } from '@/services/fund-drafts';
 import { useFlag } from '@/hooks/useUnifiedFlag';
-import { fundStore, FUND_COMMAND_STORAGE_MESSAGE, type DraftSyncStatus } from '@/stores/fundStore';
+import { fundStore, type DraftSyncStatus } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
 import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 
@@ -27,7 +31,6 @@ export interface UseFundDraftSyncResult {
   missingDraftFundId: number | null;
 }
 
-export const STORAGE_UNAVAILABLE_MESSAGE = FUND_COMMAND_STORAGE_MESSAGE;
 export const STALE_DRAFT_MESSAGE = 'A newer draft is available';
 export const UNCERTAIN_SAVE_MESSAGE = 'Could not confirm the save; it may have completed';
 export const MISSING_DRAFT_MESSAGE = 'No active draft exists for this fund';
@@ -107,7 +110,15 @@ export function useFundDraftSync({
     const state = fundStore.getState();
     const targetFundId = state.draftFundId;
     if (targetFundId == null) return;
+    clearPendingSave();
     if (saveInFlightRef.current) {
+      queuedSaveRef.current = true;
+      return;
+    }
+    if (
+      state.pendingCommand?.operation === 'save_draft' &&
+      isDraftSaveInFlight(state.sessionId, state.pendingCommand)
+    ) {
       queuedSaveRef.current = true;
       return;
     }
@@ -121,7 +132,6 @@ export function useFundDraftSync({
       return;
     }
 
-    clearPendingSave();
     saveInFlightRef.current = true;
     setStatus('saving');
     setError(null);
@@ -313,8 +323,10 @@ export function useFundDraftSync({
       // Recovery must settle the exact dispatched command before fetching over it.
       markVerified(draftFundId);
       if (pendingCommand.operation === 'save_draft') {
-        setError(UNCERTAIN_SAVE_MESSAGE);
-        setStatus('uncertain');
+        if (!isDraftSaveInFlight(sessionId, pendingCommand)) {
+          setError(UNCERTAIN_SAVE_MESSAGE);
+          setStatus('uncertain');
+        }
       } else {
         setStatus('synced');
       }

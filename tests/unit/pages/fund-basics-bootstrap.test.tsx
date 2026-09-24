@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   bindFundWorkspaceActor,
@@ -11,6 +11,7 @@ import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 import { ApiError } from '@/lib/queryClient';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { FUND_COMMAND_STORAGE_MESSAGE } from '@/stores/fundStore';
+import { useFundDraftSync } from '@/hooks/useFundDraftSync';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
 const TEST_ACTOR_ID = 'fund-basics-bootstrap-user';
@@ -19,7 +20,8 @@ const CREATION_KEY = ['reserved', 'creation', '1'].join('-');
 
 const mockNavigate = vi.fn();
 vi.mock('wouter', () => ({
-  useLocation: () => ['/fund-setup?step=1', mockNavigate],
+  useLocation: () => ['/fund-setup', mockNavigate],
+  useSearch: () => 'step=1',
 }));
 
 const mockSetCurrentFund = vi.fn();
@@ -56,6 +58,19 @@ vi.mock('@/services/fund-drafts', () => ({
 }));
 
 import FundBasicsStep from '@/pages/FundBasicsStep';
+import FundSetup from '@/pages/fund-setup';
+
+function BootstrapWithDraftSync({ stepKey = '1' }: { stepKey?: string }) {
+  const { status, error, retry } = useFundDraftSync({ stepKey });
+  return (
+    <>
+      <output data-testid="bootstrap-sync-status">{status}</output>
+      <output data-testid="bootstrap-sync-error">{error}</output>
+      <button onClick={retry}>Retry draft sync</button>
+      <FundBasicsStep />
+    </>
+  );
+}
 
 async function clickNextStep() {
   const user = userEvent.setup();
@@ -131,6 +146,7 @@ describe('FundBasicsStep bootstrap identity', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     unbindFundWorkspaceActor();
   });
@@ -163,6 +179,176 @@ describe('FundBasicsStep bootstrap identity', () => {
       );
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
+  });
+
+  it('does not report a live bootstrap save as uncertain while its response is pending', async () => {
+    fundStore.setState({ creationKey: crypto.randomUUID() });
+    const finishSave = holdDraftSave();
+    const view = render(<BootstrapWithDraftSync />);
+    await clickNextStep();
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+
+    const pending = fundStore.getState().pendingCommand;
+    expect(pending?.operation).toBe('save_draft');
+    expect(screen.getByTestId('bootstrap-sync-status')).not.toHaveTextContent('uncertain');
+    expect(screen.getByTestId('bootstrap-sync-error')).toBeEmptyDOMElement();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry draft sync' }));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+
+    view.unmount();
+    // The authenticated shell rehydrates the same actor when their role changes.
+    await act(async () => bindFundWorkspaceActor(TEST_ACTOR_ID, 'partner'));
+    expect(fundStore.getState().pendingCommand).not.toBe(pending);
+    render(<BootstrapWithDraftSync />);
+    expect(screen.getByTestId('bootstrap-sync-status')).not.toHaveTextContent('uncertain');
+    expect(screen.getByTestId('bootstrap-sync-error')).toBeEmptyDOMElement();
+
+    await act(async () => {
+      finishSave({ config: {}, etag: '"0123456789abcdf0"', replayed: false });
+    });
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockSaveFundDraft.mock.calls[0]?.[2]).toEqual({
+      key: pending?.key,
+      etag: '"0123456789abcdef"',
+    });
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(screen.getByTestId('bootstrap-sync-status')).toHaveTextContent('synced');
+    expect(screen.getByTestId('bootstrap-sync-error')).toBeEmptyDOMElement();
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+  });
+
+  it('confirms an uncertain bootstrap save in the mounted shell before Next advances', async () => {
+    let rejectSave!: (error: Error) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSave = reject;
+        })
+    );
+    const finishReplay = holdDraftSave();
+    const user = userEvent.setup();
+    render(<FundSetup />);
+    await clickNextStep();
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('draft-uncertain')).not.toBeInTheDocument();
+    const original = mockSaveFundDraft.mock.calls[0];
+    const pending = fundStore.getState().pendingCommand;
+
+    await act(async () => rejectSave(new FundWorkflowUncertainError('lost response', false)));
+    expect(fundStore.getState().draftSyncStatus).toBe('uncertain');
+    expect(screen.getByTestId('draft-uncertain')).toHaveTextContent('Check save status');
+    expect(screen.getByTestId('next-step')).toBeDisabled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Check save status' }));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(2);
+    expect(mockSaveFundDraft.mock.calls[1]).toEqual(original);
+    expect(fundStore.getState().pendingCommand).toMatchObject({
+      key: pending?.key,
+      bodySignature: pending?.bodySignature,
+      expectedETag: pending?.expectedETag,
+    });
+    expect(fundStore.getState().draftSyncStatus).toBe('saving');
+    expect(screen.getByTestId('next-step')).toBeEnabled();
+    await clickNextStep();
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(2);
+    expect(fundStore.getState().pendingCommand).toMatchObject({
+      key: pending?.key,
+      bodySignature: pending?.bodySignature,
+      expectedETag: pending?.expectedETag,
+    });
+
+    await act(async () => finishReplay({ config: {}, etag: '"0123456789abcdf0"', replayed: true }));
+    expect(fundStore.getState().pendingCommand).toBeNull();
+    expect(fundStore.getState().draftSyncStatus).toBe('synced');
+    expect(screen.queryByTestId('draft-uncertain')).not.toBeInTheDocument();
+    expect(screen.queryByText(/could not confirm|save not confirmed/i)).not.toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('next-step')).toBeEnabled();
+    await clickNextStep();
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not flush an expired autosave timer again after a direct save advances the step', async () => {
+    vi.useFakeTimers();
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    const finishSave = holdDraftSave();
+    const view = render(<BootstrapWithDraftSync />);
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Edited before Next' }));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('next-step'));
+    });
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+
+    await act(async () => vi.advanceTimersByTimeAsync(600));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishSave({ config: {}, etag: '"0000000000000002"', replayed: false });
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+
+    view.rerender(<BootstrapWithDraftSync stepKey="2" />);
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it.each([
+    ['stale', new ApiError(412, 'Old revision', 'STALE_REVISION'), 'A newer draft is available'],
+    ['error', new ApiError(400, 'Draft rejected'), 'Draft sync failed'],
+  ])(
+    'replaces uncertainty with the %s replay alert in the mounted shell',
+    async (status, error, alert) => {
+      let rejectSave!: (error: Error) => void;
+      mockSaveFundDraft
+        .mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              rejectSave = reject;
+            })
+        )
+        .mockRejectedValueOnce(error);
+      render(<FundSetup />);
+      await clickNextStep();
+      await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+      await act(async () => rejectSave(new FundWorkflowUncertainError('lost response', false)));
+      expect(screen.getByTestId('next-step')).toBeDisabled();
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Check save status' }));
+      await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe(status));
+      expect(screen.getByText(alert)).toBeInTheDocument();
+      expect(fundStore.getState().pendingCommand).toBeNull();
+      expect(mockSaveFundDraft.mock.calls[1]).toEqual(mockSaveFundDraft.mock.calls[0]);
+      expect(screen.queryByTestId('draft-uncertain')).not.toBeInTheDocument();
+      expect(screen.queryByText(/could not confirm|save not confirmed/i)).not.toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('ignores an old uncertain bootstrap response in the mounted replacement session', async () => {
+    let rejectSave!: (error: Error) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSave = reject;
+        })
+    );
+    render(<FundSetup />);
+    await clickNextStep();
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    act(() => {
+      replaceDraftSession();
+      fundStore.getState().setDraftSyncStatus('error');
+    });
+    await act(async () => rejectSave(new FundWorkflowUncertainError('old lost response', false)));
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Fund B',
+      draftFundId: 78,
+      draftSyncStatus: 'error',
+    });
+    expect(screen.queryByTestId('draft-uncertain')).not.toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('preserves the committed fund id and stops follow-on writes when renewal requires reauth', async () => {
@@ -256,12 +442,16 @@ describe('FundBasicsStep bootstrap identity', () => {
       () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
       FULL_SUITE_WAIT_OPTIONS
     );
-    act(replaceDraftSession);
+    act(() => {
+      replaceDraftSession();
+      fundStore.getState().setDraftSyncStatus('error');
+    });
     await act(async () => {
       finishSave({ config: {}, etag: '"0000000000000002"', replayed: false });
     });
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(fundStore.getState().draftServerReady).toBe(false);
+    expect(fundStore.getState().draftSyncStatus).toBe('error');
     expect(screen.getByTestId('next-step')).toBeEnabled();
   });
 
@@ -346,8 +536,9 @@ describe('FundBasicsStep bootstrap identity', () => {
       etag: '"0000000000000002"',
       replayed: true,
     });
-    render(<FundBasicsStep />);
-    await clickNextStep();
+    render(<BootstrapWithDraftSync />);
+    expect(screen.getByTestId('bootstrap-sync-status')).toHaveTextContent('uncertain');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry draft sync' }));
     await waitFor(
       () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
       FULL_SUITE_WAIT_OPTIONS
@@ -357,6 +548,8 @@ describe('FundBasicsStep bootstrap identity', () => {
       etag: '"0000000000000001"',
     });
     expect(screen.queryByRole('alert')?.textContent ?? '').not.toContain('Save the newer changes');
+    expect(mockNavigate).not.toHaveBeenCalled();
+    await clickNextStep();
     await waitFor(
       () => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2'),
       FULL_SUITE_WAIT_OPTIONS
@@ -366,13 +559,17 @@ describe('FundBasicsStep bootstrap identity', () => {
   it('keeps the pending key when a draft save is uncertain', async () => {
     fundStore.setState({ draftFundId: 77, draftServerReady: false });
     mockSaveFundDraft.mockRejectedValueOnce(new FundWorkflowUncertainError('lost response', false));
-    render(<FundBasicsStep />);
+    const view = render(<BootstrapWithDraftSync />);
     await clickNextStep();
     await waitFor(
-      () => expect(screen.getByRole('alert')).toHaveTextContent('Could not confirm the draft save'),
+      () => expect(fundStore.getState().draftSyncStatus).toBe('uncertain'),
       FULL_SUITE_WAIT_OPTIONS
     );
     expect(fundStore.getState().pendingCommand?.key).toBe(mockSaveFundDraft.mock.calls[0]?.[2].key);
+    view.unmount();
+    render(<BootstrapWithDraftSync />);
+    expect(screen.getByTestId('bootstrap-sync-status')).toHaveTextContent('uncertain');
+    expect(screen.getByTestId('bootstrap-sync-error')).toHaveTextContent('Could not confirm');
   });
 
   it('refuses a save when command storage is unavailable', async () => {

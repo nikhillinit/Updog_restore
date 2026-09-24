@@ -1,6 +1,6 @@
 import { saveFundDraft, type DraftSnapshot } from '@/services/fund-drafts';
 import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
-import { fundStore, prepareFundCommand } from '@/stores/fundStore';
+import { fundStore, prepareFundCommand, type PendingFundCommand } from '@/stores/fundStore';
 import {
   fundStoreToDraftWriteV1,
   fundDraftWriteV1ToStoreHydrationPatch,
@@ -20,6 +20,21 @@ export type DraftSaveOutcome =
 export type DraftSaveOutcomeHandler = (outcome: DraftSaveOutcome) => void | Promise<void>;
 
 export type SaveDraftAndSettleOptions = { includeEconomicsAssumptions: boolean };
+
+// A reload clears live ownership; same-session envelope hydration must retain it.
+const inFlightSaves = new Set<{ sessionId: string; command: PendingFundCommand }>();
+
+export function isDraftSaveInFlight(sessionId: string, command: PendingFundCommand): boolean {
+  return [...inFlightSaves].some(
+    (save) =>
+      save.sessionId === sessionId &&
+      save.command.key === command.key &&
+      save.command.operation === command.operation &&
+      save.command.targetFundId === command.targetFundId &&
+      save.command.bodySignature === command.bodySignature &&
+      save.command.expectedETag === command.expectedETag
+  );
+}
 
 export async function saveDraftAndSettle(
   fundId: number,
@@ -53,6 +68,11 @@ export async function saveDraftAndSettle(
 
   const capturedSession = state.sessionId;
   const dispatchedSignature = canonicalJson(command.payload);
+  const inFlightSave = {
+    sessionId: capturedSession,
+    command: fundStore.getState().pendingCommand!,
+  };
+  inFlightSaves.add(inFlightSave);
   let result: { saved: Awaited<ReturnType<typeof saveFundDraft>> } | { error: unknown };
   try {
     result = {
@@ -63,6 +83,8 @@ export async function saveDraftAndSettle(
     };
   } catch (error) {
     result = { error };
+  } finally {
+    inFlightSaves.delete(inFlightSave);
   }
 
   const current = fundStore.getState();
