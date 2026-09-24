@@ -108,6 +108,30 @@ None.
   plan to-do covered unused imports, not exports. **Disposition: open.**
   One-line deletion, no behavior change; fold into the next touch of the hook.
 
+- **Plan says `docs/ARCHI.md` changes are none; the merge adds 13 lines** —
+  `docs/1-plans/F_1.15.0_fund-draft-command-settlement.plan.md:594-596`
+  (Documentation Impact: "`docs/ARCHI.md` ... none") versus `docs/ARCHI.md`
+  section 5 note in the merged diff. The PR description discloses the note; the
+  plan, the w10 changelog Changes list, and the Codex review's Files Reviewed
+  list do not, so the note landed without a recorded review. Content is
+  accurate. **Disposition: open, documentation only.**
+- **`router-fast.json` regeneration misdescribed** — the PR description says the
+  file was "regenerated for the three new docs"; the merged diff changes only
+  `generatedAt` (2026-09-16 to 2026-09-24) and adds no entries. The plan's rule
+  was "commit it only if it changed", which a timestamp satisfies literally but
+  not usefully. **Disposition: open, documentation only.**
+- **Unstated-diff sweep (2026-09-24, post-merge)**: merged files not covered by
+  the plan's expected-diff list are `tests/e2e/fund-setup-workflow.spec.ts`
+  (undeclared, contradicts the PR's Explicit Non-Goals), `docs/ARCHI.md`
+  (declared in the PR only), and the two TRIP-3 release records (changelog w10,
+  CR_w10; declared in the PR, conventional). Four of seventeen merged files are
+  absent from the Codex review's Files Reviewed list: those same four. Inside
+  the declared files, every hunk maps to plan sections 1-4 or rulings R1-R11;
+  the one edit to a pre-existing assertion
+  (`fund-workspace-real-backend.spec.ts:557`, final as-of date now the replayed
+  value) is a consequence of the added journey. Test-count claims (+26, +4, +7
+  blocks, +1 case and +1 assertion) match the diff.
+
 ### Suggestions
 
 - **Generated-file churn** — `docs/_generated/router-fast.json` changed by
