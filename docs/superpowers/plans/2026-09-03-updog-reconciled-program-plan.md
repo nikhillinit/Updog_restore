@@ -1,7 +1,7 @@
 ---
 status: PROPOSED
 audience: agents
-last_updated: 2026-09-12
+last_updated: 2026-09-24
 owner: Repository Owner
 categories: [release, current-forecast, economics, decision-workspace]
 keywords:
@@ -9,6 +9,59 @@ keywords:
 ---
 
 # Updog Restore Reconciled Program Implementation Plan
+
+## September 24, 2026 queue refresh (proposed)
+
+Evidence: `origin/main` at `f6ef7d5de` (#1576) and the research memo
+[`research_2026-09-24_roadmap-reprioritization.md`](../../6-memo/research_2026-09-24_roadmap-reprioritization.md).
+This refresh changes resource order only. Every source, candidate, runtime,
+owner and production gate below stays in force. It records no owner approval and
+grants no merge, schema, provider or production authority.
+
+Why the order changes:
+
+- The "Now" slot below (capital-planning decision acceptance) had no source
+  activity after #1505 because its fixture, oracle, tolerance and scoring inputs
+  are still owner-unset. It stays owner-gated and ready to run; it no longer
+  holds the implementation slot.
+- The 50 PRs merged from #1510 to #1576 followed untracked roadmaps (QA closure,
+  semantic convergence P0, a September 20 delivery handoff, the September 23
+  stabilize-and-qualify review, and fund workspace Batches A and B). The memo
+  maps each to its state on `main`.
+- Production serves version 1.3.2 from `068430726` (July 30). The last
+  `release-production` dispatch (August 7) stopped at the production schema
+  drift audit, and no release has been dispatched since. 188 commits are not
+  deployed. The release evidence contract also rejects the HTTP canary vector
+  that #1558 introduced, and `prod-schema-reconcile` has apply modes only
+  through 0057.
+- Plan ID collision: this plan used F_1.15.0 for capital-planning acceptance,
+  but `docs/1-plans/F_1.15.0_fund-draft-command-settlement.plan.md` now owns
+  that ID. Below, capital-planning acceptance is named by its scripts
+  (`scripts/run-f115-capital-planning-e2e.mjs`,
+  `scripts/measure-f115-capital-plan-capacity.mjs`). The owner assigns a new ID.
+
+| Order                 | Work                                                                                                                                                                                                                                                                     | Who acts                                           | Exit                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1                     | Stabilize PR3a: versioned canary residue characterization and evidence consumers. #1558 already reserves the HTTP workflow vector (44 total, 5 fund events, 5 receipts), but the release evidence contract still requires measured residue to equal the frozen v1 vector | Agent implements; owner merges                     | Release evidence consumers accept the HTTP lifecycle vector                       |
+| 2                     | Release rehearsal in parallel, read-only and non-production: exact missing-object and ledger vectors against the journal, schema audit against a disposable copy, Vercel Node setting                                                                                    | Agent prepares; owner approves any provider access | Owner packet listing each gap and whether an admitted apply route exists          |
+| 3                     | Stabilize PR2: fund workspace journey qualification on the real backend and the built `makeApp` runtime (lost finalize response, stale-ETag 412, double submit)                                                                                                          | Agent implements; owner merges                     | Both runtimes green on the exact candidate; a failing case fails `CI Gate Status` |
+| 4                     | Production apply capability only for gaps without an admitted route: `prod-schema-reconcile` modes stop at 0057, so 0058 to 0060 need governed modes if the rehearsal shows them missing                                                                                 | Agent implements; owner merges                     | Bounded, rehearsed apply mode per missing migration                               |
+| 5                     | Owner-authorized bounded schema dispatches with fresh backup or restore evidence, then a fresh post-apply audit and immutable candidate certification                                                                                                                    | Owner dispatches; agent verifies                   | Clean schema audit on the certified candidate                                     |
+| 6                     | Separate owner-authorized `release-production` dispatch of the certified candidate                                                                                                                                                                                       | Owner only                                         | Production `/api/version` reports the candidate; post-promotion smoke green       |
+| 7                     | QA closure PR C (client reliability items C1 to C10, `TODOS.md`); the `ReallocationTab` version item first                                                                                                                                                               | Agent implements; owner merges                     | Items present with tests; `npm run build:web` green                               |
+| 8                     | Fund workspace defects: duplicate autosave after a fast bootstrap save, missing-draft dialog dead end, Batch C acceptance                                                                                                                                                | Agent implements; owner signs the visual verdict   | One PUT per settled save; dialog recovers; Batch C acceptance record              |
+| Owner-gated, parallel | Capital-planning decision acceptance (five-row, two-session scorecard below)                                                                                                                                                                                             | Workspace owner sets inputs; agent runs            | Unchanged                                                                         |
+| Read-only lane        | Program A Task 7 Steps 1 to 1b (#1283, #1287) and C specification decisions                                                                                                                                                                                              | Unchanged                                          | Unchanged                                                                         |
+| Next product          | Semantic convergence items 7 to 10, reconciled against C1 to C3 first so that no second program forms                                                                                                                                                                    | Owner selects                                      | One merged scope                                                                  |
+| Conditional           | September 20 handoff items for recalculation durability and scenario stale-write protection; no repository plan exists                                                                                                                                                   | Owner decides                                      | A reviewed plan or a recorded deferral                                            |
+| Maintenance           | Dependabot triage (#1565 and #1556 first; #1446 is an ESLint major); #1373; #1375 to #1379 stay deferred                                                                                                                                                                 | Agent triages; owner merges                        | Kept outside any frozen candidate                                                 |
+| Deferred              | Rows marked deferred or conditional below, unchanged                                                                                                                                                                                                                     | Unchanged                                          | Unchanged                                                                         |
+
+Open owner questions: a new plan ID and the unset inputs for capital-planning
+acceptance; decision D11 (receipt-uniqueness invariant) for stabilize PR3b; the
+QA owner packet (LP portal, `ReallocationTab` keep or delete, null or zero
+ownership policy, real-Postgres two-organization RLS tests); and whether the
+four seven-day Program A windows stay as written for an internal team.
 
 ## September 12, 2026 owner-directed readiness boundary
 
@@ -246,6 +299,9 @@ or alter A's frozen candidate. C1 -> C2 and C3a -> C3b -> C3c dependencies
 remain.
 
 ## Reprioritized remaining work
+
+The September 24, 2026 queue refresh above proposes a different resource order
+for this section. Gates, dependencies and stop conditions here remain in force.
 
 This is proposed resource priority, not activated approval. Capital acceptance
 gets the active implementation slot; one read-only lane prepares A or C. A

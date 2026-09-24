@@ -205,3 +205,60 @@ future session (or teammate) can pick them up without re-deriving the decision.
   and the step changes. Preserve later edits, uncertain same-key replay, and the
   existing held-save timing control. Investigate timer ownership and direct-save
   acknowledgement in `client/src/hooks/useFundDraftSync.ts`.
+
+---
+
+## QA closure PR C: client reliability (C1 to C10)
+
+- **What:** The client half of the September 2026 QA closure. PR A (#1535,
+  #1536) and PR B (#1537) landed; PR C was never started. Items: C1
+  `pipeline.tsx` deals query disabled until a fund is selected; C2 one
+  `Idempotency-Key` per submit intent, reused on retry, in `AddDealModal.tsx`,
+  `AddCompanyDialog.tsx` and the import-confirm caller; C3 `ReallocationTab.tsx`
+  reads the real allocation version instead of the hard-coded
+  `currentVersion = 1` and refetches on a 409; C4 `PerformanceDashboard.tsx`
+  per-query error and retry blocks; C5 `variance-tracking.tsx` shows the
+  acceptable-variance sentence only when a baseline and a completed analysis
+  exist; C6 `shared-dashboard.tsx` passkey 401 as inline form error with label,
+  `aria-describedby` and `role="alert"`; C7 `ScenarioComparisonTable.tsx`
+  focusable labelled scroll region; C8 no raw SQL or table names in user-facing
+  blocker text; C9 Help stays enabled when `needsSetup` is true; C10 readable
+  muted text uses `text-presson-textMuted` on the axe-flagged routes (do not
+  remap the `charcoal` scale).
+- **Why:** C3 defeats optimistic locking on allocation commits. The others are
+  user-visible recovery, accessibility and contrast defects.
+- **Acceptance:** Each item has a focused test; `npm run check` 0 new errors;
+  `npm run test:unit` and `npm run build:web` green. A shifted visual baseline
+  after C10 is expected and must be reported as such.
+- **Context:** Queue item 7 of the September 24, 2026 refresh in
+  `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
+- **Effort:** M.
+
+---
+
+## Stabilize-and-qualify PR2, PR3a and PR3b
+
+- **PR2, fund workspace journey qualification:** Add a built runtime to the
+  Batch B harness that runs the Vercel build command
+  (`npm run build:web && node scripts/build-vercel-api.mjs`), serves the built
+  client, and hosts `makeApp()` from `_app.generated.mjs` at the root of a Node
+  listener. Add browser cases for a lost finalize response (`route.fetch()`,
+  database check, then `route.abort()`), a stale-ETag 412 from two sessions, and
+  a double submit during an in-flight finalize. Acceptance: both runtimes green
+  on the exact candidate, and a deliberately failing case fails
+  `CI Gate Status`.
+- **PR3a, canary residue contract v2:** The release canary drives
+  `POST /api/funds`, `PUT /api/funds/:id/draft` and `POST /api/funds/finalize`
+  (`tests/smoke/release-canaries.spec.ts`). #1558 already reserves that HTTP
+  vector (44 total, 5 fund events, 5 receipts) in
+  `server/services/canary-residue-service.ts`, but the policy-measurement schema
+  in `shared/contracts/release-evidence-fragment-v1.contract.ts` requires
+  measured residue to equal the frozen v1 vector and rejects it. Add a versioned
+  characterization and make the evidence fragment and manifest builders accept
+  it. This is a release blocker.
+- **PR3b, receipt uniqueness:** Waits on owner decision D11 (canonical-baseline
+  reuse or global uniqueness for current-forecast receipts written by the
+  checkpoint and shadow paths).
+- **Context:** Queue items 1 and 3 of the September 24, 2026 refresh. PR1
+  (#1570) and D13 (#1571) landed.
+- **Effort:** PR2 M, PR3a M, PR3b S after D11.

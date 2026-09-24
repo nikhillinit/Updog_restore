@@ -20,7 +20,17 @@ Milestone 0A is now landed on `main`. The canonical validation command is
 `npm run validate:core`, and the integration harness now coordinates startup
 through a machine-readable ready-file contract instead of human log parsing.
 
-## Current Program Navigation (2026-09-12)
+## Current Program Navigation (2026-09-24)
+
+The
+[September 24 queue refresh](superpowers/plans/2026-09-03-updog-reconciled-program-plan.md#september-24-2026-queue-refresh-proposed)
+proposes a new resource order against `origin/main` `f6ef7d5de`: canary residue
+evidence, a parallel release rehearsal and fund workspace qualification, then
+separate owner schema and release dispatches, then QA closure and workspace
+defects. Capital-planning acceptance stays owner-gated. The refresh is PROPOSED
+and changes no gate. The September 12 navigation below remains the gate record.
+
+### September 12 navigation
 
 The
 [reconciled program plan](superpowers/plans/2026-09-03-updog-reconciled-program-plan.md#september-12-2026-external-roadmap-review-disposition)

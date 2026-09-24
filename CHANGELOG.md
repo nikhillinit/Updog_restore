@@ -22,6 +22,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Documentation (2026-09-24)
+
+- Propose a refreshed queue order in the reconciled program plan and
+  stabilization navigation, with the supporting research memo
+  `docs/6-memo/research_2026-09-24_roadmap-reprioritization.md`: canary residue
+  evidence, release rehearsal and workspace qualification ahead of separate
+  schema and release dispatches, QA closure PR C and workspace defects next, and
+  capital-planning acceptance kept owner-gated. Records the F_1.15.0 plan ID
+  collision for the owner. Changes no gate and grants no production authority.
+
 ### Changed (2026-09-24)
 
 - Concentrate fund draft command settlement in
