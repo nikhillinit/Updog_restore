@@ -205,7 +205,7 @@ test.describe('Fund Setup Workflow', () => {
     expect(apiRequests.drafts[0]?.ifMatch).toBe(CREATE_ETAG);
     expect(apiRequests.drafts[0]?.body).toMatchObject({
       fundName: 'Persisted Draft Fund',
-      fundSize: 75,
+      fundSize: 75_000_000,
     });
   });
 
