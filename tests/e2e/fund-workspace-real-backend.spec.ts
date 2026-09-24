@@ -149,7 +149,10 @@ test('authenticated user can publish one fund and persist a distinct second draf
   const apiFailures: string[] = [];
   const expectedEmptyStates: string[] = [];
   const abortedGetRequests: string[] = [];
+  const abortedPutRequests: string[] = [];
+  const abortedPutFailureTexts: string[] = [];
   const expectedConsoleErrors: string[] = [];
+  let expectedAbortedDraftPath: string | null = null;
   let authenticated = false;
   const isExpectedEmptyState = (pathname: string, status: number) =>
     (!authenticated && pathname === '/api/auth/session' && status === 401) ||
@@ -170,6 +173,8 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expectedEmptyStates,
     expectedConsoleErrors,
     abortedGetRequests,
+    abortedPutRequests,
+    abortedPutFailureTexts,
   };
 
   function monitorPage(monitoredPage: Page) {
@@ -177,7 +182,14 @@ test('authenticated user can publish one fund and persist a distinct second draf
       if (message.type() !== 'error') return;
       const pathname = new URL(message.location().url || monitoredPage.url()).pathname;
       const status = Number(message.text().match(/status of (\d+)/)?.[1]);
-      if (isExpectedEmptyState(pathname, status)) expectedConsoleErrors.push(message.text());
+      if (
+        isExpectedEmptyState(pathname, status) ||
+        (abortedPutRequests.length > 0 &&
+          expectedAbortedDraftPath !== null &&
+          (pathname === expectedAbortedDraftPath ||
+            message.text().includes(expectedAbortedDraftPath)))
+      )
+        expectedConsoleErrors.push(message.text());
       else consoleErrors.push(message.text());
     });
     monitoredPage.on('pageerror', (error) => pageErrors.push(error.message));
@@ -186,6 +198,15 @@ test('authenticated user can publish one fund and persist a distinct second draf
       const errorText = failedRequest.failure()?.errorText ?? 'unknown failure';
       if (errorText.includes('ERR_ABORTED') && failedRequest.method() === 'GET') {
         abortedGetRequests.push(url.pathname);
+        return;
+      }
+      if (
+        failedRequest.method() === 'PUT' &&
+        url.pathname === expectedAbortedDraftPath &&
+        errorText.includes('net::ERR_FAILED')
+      ) {
+        abortedPutRequests.push(url.pathname);
+        abortedPutFailureTexts.push(errorText);
         return;
       }
       requestFailures.push(`${failedRequest.method()} ${url.pathname}: ${errorText}`);
@@ -412,6 +433,93 @@ test('authenticated user can publish one fund and persist a distinct second draf
     acceptance['invalidLocalValuesRecovered'] = true;
     await resumedPage.close();
 
+    const replayPage = await page.context().newPage();
+    monitorPage(replayPage);
+    const draftPath = `/api/funds/${secondFundId}/draft`;
+    const replayedAsOfDate = '2026-09-21';
+    await replayPage.goto(`/fund-setup?fundId=${secondFundId}&step=1`);
+    await expect(replayPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    const beforeSave = await replayPage.request.get(draftPath);
+    expect(beforeSave.status()).toBe(200);
+    const beforeRevision = beforeSave.headers()['etag'];
+    expect(beforeRevision).toBeTruthy();
+
+    let firstPut = true;
+    let recordedIdempotencyKey: string | undefined;
+    let recordedIfMatch: string | undefined;
+    let committedRevision: string | undefined;
+    let committedStatus: number | undefined;
+    expectedAbortedDraftPath = draftPath;
+    await replayPage.route(`**${draftPath}`, async (route) => {
+      if (route.request().method() !== 'PUT' || !firstPut) return route.continue();
+      firstPut = false;
+      recordedIdempotencyKey = route.request().headers()['idempotency-key'];
+      recordedIfMatch = route.request().headers()['if-match'];
+      const committed = await route.fetch();
+      committedStatus = committed.status();
+      committedRevision = committed.headers()['etag'];
+      await route.abort('failed');
+    });
+    const failedSave = replayPage.waitForEvent('requestfailed', {
+      predicate: (failedRequest) =>
+        failedRequest.method() === 'PUT' && new URL(failedRequest.url()).pathname === draftPath,
+    });
+    await replayPage.getByTestId('model-inputs-as-of-date').fill(replayedAsOfDate);
+    await failedSave;
+    expect(abortedPutRequests).toEqual([draftPath]);
+    expect(committedStatus).toBe(200);
+    expect(committedRevision).toBeTruthy();
+    expect(recordedIdempotencyKey).toBeTruthy();
+    expect(recordedIfMatch).toBe(beforeRevision);
+    await expect(replayPage.getByTestId('draft-uncertain')).toContainText(
+      'Could not confirm the save; it may have completed'
+    );
+    const pendingBeforeReload = await replayPage.evaluate(
+      () => JSON.parse(sessionStorage.getItem('fund-workspace-session')!).state.pendingCommand
+    );
+    expect(pendingBeforeReload).toMatchObject({
+      operation: 'save_draft',
+      key: recordedIdempotencyKey,
+    });
+
+    await replayPage.reload();
+    await expect(replayPage.getByRole('button', { name: 'Check save status' })).toBeVisible();
+    const replaySave = replayPage.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === draftPath && response.request().method() === 'PUT'
+    );
+    await replayPage.getByRole('button', { name: 'Check save status' }).click();
+    const replayResponse = await replaySave;
+    expect(replayResponse.request().headers()['idempotency-key']).toBe(recordedIdempotencyKey);
+    expect(replayResponse.request().headers()['if-match']).toBe(recordedIfMatch);
+    expect(replayResponse.status()).toBe(200);
+    expect(replayResponse.headers()['idempotency-replay']).toBe('true');
+    expect(replayResponse.headers()['etag']).toBe(committedRevision);
+    expect(replayResponse.headers()['etag']).not.toBe(beforeRevision);
+    await expect(replayPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    await expect(replayPage.getByTestId('model-inputs-as-of-date')).toHaveValue(replayedAsOfDate);
+    expect(
+      await replayPage.evaluate(
+        () => JSON.parse(sessionStorage.getItem('fund-workspace-session')!).state.pendingCommand
+      )
+    ).toBeNull();
+    const savedDraft = await pool.query<{ config: Record<string, unknown> }>(
+      `SELECT config FROM fundconfigs
+        WHERE fund_id = $1 AND is_draft = true
+        ORDER BY version DESC LIMIT 1`,
+      [secondFundId]
+    );
+    expect(savedDraft.rows).toHaveLength(1);
+    expect(savedDraft.rows[0].config).toMatchObject({ modelInputsAsOfDate: replayedAsOfDate });
+    await replayPage.close();
+    expectedAbortedDraftPath = null;
+    acceptance['interruptedSaveReplayed'] = {
+      idempotencyKeyLength: recordedIdempotencyKey!.length,
+      ifMatchReplayed: true,
+      replayStatus: replayResponse.status(),
+      revisionAdvancedOnce: true,
+    };
+
     await page
       .getByTestId(`workspace-fund-${firstFundId}`)
       .getByRole('button', { name: 'Open model' })
@@ -446,7 +554,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expect(secondRows.find((row) => row.is_draft)?.config).toMatchObject({
       fundName: SECOND_FUND.name,
       fundSize: 4_100_000,
-      modelInputsAsOfDate: resumedAsOfDate,
+      modelInputsAsOfDate: replayedAsOfDate,
     });
     expect((await pool.query('SELECT count(*)::int AS count FROM funds')).rows[0].count).toBe(2);
     const fundMutations = mutations.filter((mutation) => mutation.path.startsWith('/api/funds'));
@@ -477,6 +585,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expect(pageErrors).toEqual([]);
     expect(requestFailures).toEqual([]);
     expect(apiFailures).toEqual([]);
+    expect(abortedPutRequests).toEqual([`/api/funds/${secondFundId}/draft`]);
   } catch (error) {
     await attachScreenshot(page, testInfo, 'batch-b-failure.png').catch(() => undefined);
     throw error;

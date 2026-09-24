@@ -464,6 +464,19 @@ plain `ls` will show more if untracked files are present) includes:
 - **Design tokens**: `client/src/theme/presson.tokens.ts` (only file in
   `theme/`, 5285 bytes) — read `DESIGN.md` before touching.
 
+- **Fund draft command settlement** (F_1.15.0, 2026-09-24):
+  `client/src/services/fund-draft-settlement.ts` sits between the three
+  `save_draft` callers (`hooks/useFundDraftSync.ts`,
+  `components/workspace/FundWorkspace.tsx`, `pages/FundBasicsStep.tsx`) and the
+  transport in `services/fund-drafts.ts`. `saveDraftAndSettle` runs
+  synchronously through `prepareFundCommand` to the PUT, fences the result on
+  session, fund, and command key, settles the store journal, and delivers a
+  typed outcome to a synchronous callback in the same turn; callers own status,
+  `draftServerReady`, dialog text, and navigation. `applyDraftSnapshot` is the
+  shared hydration patch and never writes `draftSyncStatus`. It is a separate
+  module (not a helper inside `fund-drafts.ts`) so the six caller suites that
+  `vi.mock('@/services/fund-drafts')` keep their mock shape.
+
 ### Three routing surfaces (`client/src/App.tsx` → `app/app-router.tsx` → `app/app-routes.tsx`)
 
 `AppRouter` branches on `isPublicEntryLocation`:

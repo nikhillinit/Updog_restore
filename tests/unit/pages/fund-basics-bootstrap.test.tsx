@@ -9,6 +9,8 @@ import {
 } from '@/stores/fundStore';
 import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 import { ApiError } from '@/lib/queryClient';
+import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
+import { FUND_COMMAND_STORAGE_MESSAGE } from '@/stores/fundStore';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
 const TEST_ACTOR_ID = 'fund-basics-bootstrap-user';
@@ -58,6 +60,22 @@ import FundBasicsStep from '@/pages/FundBasicsStep';
 async function clickNextStep() {
   const user = userEvent.setup();
   await user.click(screen.getByTestId('next-step'));
+}
+
+function holdDraftSave() {
+  let finishSave!: (value: unknown) => void;
+  mockSaveFundDraft.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishSave = resolve;
+      })
+  );
+  return (value: unknown) => finishSave(value);
+}
+
+function replaceDraftSession() {
+  fundStore.getState().startNewFundSession();
+  fundStore.setState({ fundName: 'Fund B', draftFundId: 78, draftServerReady: false });
 }
 
 describe('FundBasicsStep bootstrap identity', () => {
@@ -227,6 +245,186 @@ describe('FundBasicsStep bootstrap identity', () => {
     }, FULL_SUITE_WAIT_OPTIONS);
 
     expect(mockCreateFund).not.toHaveBeenCalled();
+  });
+
+  it('reenables Next without navigating when a save belongs to a replaced session', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    const finishSave = holdDraftSave();
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    act(replaceDraftSession);
+    await act(async () => {
+      finishSave({ config: {}, etag: '"0000000000000002"', replayed: false });
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(fundStore.getState().draftServerReady).toBe(false);
+    expect(screen.getByTestId('next-step')).toBeEnabled();
+  });
+
+  it('navigates once before a replacement queued after the save resolution', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    const finishSave = holdDraftSave();
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    await act(async () => {
+      finishSave({ config: {}, etag: '"0000000000000002"', replayed: false });
+      Promise.resolve().then(replaceDraftSession);
+    });
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Fund B',
+      draftFundId: 78,
+      draftServerReady: false,
+    });
+  });
+
+  it.each([
+    ['stale', new ApiError(412, 'Old revision', 'STALE_REVISION')],
+    ['uncertain', new FundWorkflowUncertainError('lost response', false)],
+    ['superseded', null],
+  ])('does not navigate after a %s save', async (_outcome, failure) => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    let settleSave!: (value: unknown) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          settleSave = failure ? reject : resolve;
+        })
+    );
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    await act(async () => {
+      if (!failure) replaceDraftSession();
+      settleSave(failure ?? { config: {}, etag: '"0000000000000002"', replayed: false });
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    if (!failure) expect(screen.getByTestId('next-step')).toBeEnabled();
+  });
+
+  it('replays a recovered save with reordered allocation keys before advancing', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, waterfallType: 'hybrid' });
+    const payload = fundStoreToDraftWriteV1(fundStore.getState(), {
+      includeEconomicsAssumptions: false,
+    });
+    const [allocation, ...remaining] = payload.capitalPlanAllocations!;
+    const originalBody = {
+      ...payload,
+      capitalPlanAllocations: [
+        Object.fromEntries(Object.entries(allocation!).reverse()) as typeof allocation,
+        ...remaining,
+      ],
+    };
+    expect(originalBody).toEqual(payload);
+    expect(JSON.stringify(originalBody)).not.toBe(JSON.stringify(payload));
+    const key = crypto.randomUUID();
+    fundStore.setState({
+      draftETag: '"0000000000000001"',
+      pendingCommand: {
+        operation: 'save_draft',
+        targetFundId: 77,
+        key,
+        bodySignature: JSON.stringify(originalBody),
+        expectedETag: '"0000000000000001"',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    mockSaveFundDraft.mockResolvedValueOnce({
+      config: {},
+      etag: '"0000000000000002"',
+      replayed: true,
+    });
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(77, originalBody, {
+      key,
+      etag: '"0000000000000001"',
+    });
+    expect(screen.queryByRole('alert')?.textContent ?? '').not.toContain('Save the newer changes');
+    await waitFor(
+      () => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2'),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+  });
+
+  it('keeps the pending key when a draft save is uncertain', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    mockSaveFundDraft.mockRejectedValueOnce(new FundWorkflowUncertainError('lost response', false));
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(screen.getByRole('alert')).toHaveTextContent('Could not confirm the draft save'),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    expect(fundStore.getState().pendingCommand?.key).toBe(mockSaveFundDraft.mock.calls[0]?.[2].key);
+  });
+
+  it('refuses a save when command storage is unavailable', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    fundStore.setState({ fundName: 'Bootstrap Fund 2' });
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    expect(await screen.findByRole('alert')).toHaveTextContent(FUND_COMMAND_STORAGE_MESSAGE);
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+  });
+
+  it('keeps the hydration flag while advancing a recovered pending save', async () => {
+    fundStore.setState({
+      draftFundId: 77,
+      draftServerReady: false,
+      draftETag: '"0000000000000001"',
+      waterfallType: 'hybrid',
+    });
+    const payload = fundStoreToDraftWriteV1(fundStore.getState(), {
+      includeEconomicsAssumptions: false,
+    });
+    const key = crypto.randomUUID();
+    fundStore.setState({
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'save_draft',
+        targetFundId: 77,
+        key,
+        bodySignature: JSON.stringify(payload),
+        expectedETag: '"0000000000000001"',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    mockSaveFundDraft.mockResolvedValueOnce({
+      config: {},
+      etag: '"0000000000000002"',
+      replayed: true,
+    });
+    render(<FundBasicsStep />);
+    await clickNextStep();
+    await waitFor(
+      () => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    await waitFor(
+      () => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2'),
+      FULL_SUITE_WAIT_OPTIONS
+    );
+    expect(fundStore.getState().needsServerHydration).toBe(true);
   });
 
   it('reuses an existing authoritative draft identity and skips redundant create/save work', async () => {

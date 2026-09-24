@@ -11,14 +11,10 @@ import {
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
-import { hasFundWorkspaceSession, prepareFundCommand, fundStore } from '@/stores/fundStore';
+import { hasFundWorkspaceSession, fundStore } from '@/stores/fundStore';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import {
-  fundDraftWriteV1ToStoreHydrationPatch,
-  fundStoreToDraftWriteV1,
-} from '@/adapters/fund-store-adapters';
-import { fetchFundDraft, saveFundDraft } from '@/services/fund-drafts';
-import { classifyWorkflowError } from '@/services/fund-workflow';
+import { fetchFundDraft } from '@/services/fund-drafts';
+import { applyDraftSnapshot, saveDraftAndSettle } from '@/services/fund-draft-settlement';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { PARTNER_WRITE_ROLES, effectiveRoleOf } from '@shared/auth/effective-roles';
 import {
@@ -337,20 +333,8 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     const hydrateThenStartNew = async () => {
       const snapshot = await fetchFundDraft(targetFundId);
       if (!sameSession()) return;
-      const patch = fundDraftWriteV1ToStoreHydrationPatch(
-        snapshot.config,
-        fundStore.getInitialState()
-      );
-      fundStore.setState((latest) => ({
-        ...latest,
-        ...patch,
-        draftFundId: targetFundId,
-        draftServerReady: true,
-        needsServerHydration: false,
-        draftETag: snapshot.etag,
-        pendingCommand: null,
-        draftSyncStatus: 'synced',
-      }));
+      applyDraftSnapshot(targetFundId, snapshot);
+      fundStore.getState().setDraftSyncStatus('synced');
       setDialogOpen(false);
       startNewFund();
     };
@@ -368,68 +352,56 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       }
       return;
     }
-    const payload = fundStoreToDraftWriteV1(state, {
-      includeEconomicsAssumptions: economicsEnabled,
-    });
-    let command;
-    try {
-      command = prepareFundCommand('save_draft', targetFundId, payload, state.draftETag);
-    } catch (error) {
-      setDialogError(error instanceof Error ? error.message : 'Could not prepare draft save');
-      return;
-    }
-    const stillCurrent = () =>
-      sameSession() && fundStore.getState().pendingCommand?.key === command.key;
     setDialogSaving(true);
     setDialogError(null);
     try {
-      const saved = await saveFundDraft(targetFundId, command.payload, {
-        key: command.key,
-        etag: command.etag,
-      });
-      if (!stillCurrent()) return;
-      const current = fundStore.getState();
-      current.setDraftETag(saved.etag ?? current.draftETag);
-      current.setDraftServerReady(true);
-      current.resolveCommand();
-      if (current.needsServerHydration) {
-        // The save is already confirmed; a hydration failure must not reuse save-error wording.
-        try {
-          await hydrateThenStartNew();
-        } catch {
-          if (sameSession()) {
-            setDialogError(
-              'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
-            );
+      await saveDraftAndSettle(
+        targetFundId,
+        { includeEconomicsAssumptions: economicsEnabled },
+        (outcome) => {
+          switch (outcome.kind) {
+            case 'superseded':
+              return;
+            case 'not_dispatched':
+              setDialogError(outcome.message);
+              return;
+            case 'saved':
+              fundStore.getState().setDraftServerReady(true);
+              if (outcome.needsHydration) {
+                return hydrateThenStartNew().catch(() => {
+                  if (sameSession()) {
+                    setDialogError(
+                      'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
+                    );
+                  }
+                });
+              }
+              if (outcome.newerEdits) {
+                setDialogError(
+                  'The previous save is confirmed. Save the newer changes before starting another fund.'
+                );
+                return;
+              }
+              fundStore.getState().setDraftSyncStatus('synced');
+              setDialogOpen(false);
+              startNewFund();
+              return;
+            case 'uncertain':
+              setDialogError(
+                'Could not confirm the save; it may have completed. Keep editing to check.'
+              );
+              return;
+            case 'stale':
+            case 'rejected':
+            case 'retry_same_key':
+              setDialogError(outcome.message);
+              return;
+            default: {
+              const exhaustive: never = outcome;
+              return exhaustive;
+            }
           }
         }
-        return;
-      }
-      if (
-        JSON.stringify(
-          fundStoreToDraftWriteV1(current, { includeEconomicsAssumptions: economicsEnabled })
-        ) !== JSON.stringify(command.payload)
-      ) {
-        setDialogError(
-          'The previous save is confirmed. Save the newer changes before starting another fund.'
-        );
-        return;
-      }
-      current.setDraftSyncStatus('synced');
-      setDialogOpen(false);
-      startNewFund();
-    } catch (error) {
-      if (!sameSession()) return;
-      // A failed or uncertain save never resets state.
-      if (classifyWorkflowError(error) === 'rejected' && stillCurrent()) {
-        fundStore.getState().resolveCommand();
-      }
-      setDialogError(
-        classifyWorkflowError(error) === 'uncertain'
-          ? 'Could not confirm the save; it may have completed. Keep editing to check.'
-          : error instanceof Error
-            ? error.message
-            : 'Could not save changes'
       );
     } finally {
       setDialogSaving(false);

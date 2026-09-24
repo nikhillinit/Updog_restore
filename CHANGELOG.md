@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-09-24)
+
+- Concentrate fund draft command settlement in
+  `client/src/services/fund-draft-settlement.ts`: the wizard autosave hook, the
+  Fund Workspace "save before starting another fund" dialog, and the Fund Basics
+  bootstrap save now dispatch `save_draft` through one helper that prepares the
+  command, fences the result on session, fund, and command key, settles the
+  journal, and delivers a typed outcome in the same turn. Two behavior changes
+  (F_1.15.0 rulings R5 and R9): the workspace dialog no longer shows the error
+  text of a command that a newer command already replaced, and Fund Basics
+  re-enables Next after a superseded save; recovered pending saves compare
+  canonically, so equal values with reordered nested keys no longer trigger the
+  "Save the newer changes" refusal.
+
 ### Fixed (2026-09-16)
 
 - Send the archived `/moic-analysis` placeholder to `/model-results`, the
