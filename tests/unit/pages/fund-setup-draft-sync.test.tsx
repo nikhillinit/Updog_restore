@@ -606,6 +606,10 @@ describe('FundSetup draft sync', () => {
     });
     expect(fundStore.getState().draftETag).toBe(NEXT_ETAG);
     expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Latest draft saved');
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    });
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
   it('keeps local values and resubmits them over the current revision on request', async () => {
@@ -781,6 +785,28 @@ describe('FundSetup draft sync', () => {
     await waitFor(() => expect(screen.getByTestId('draft-stale')).toBeInTheDocument());
     expect(fundStore.getState().fundName).toBe('Conflicting Draft');
     expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('reports a missing draft after save and does not schedule another PUT', async () => {
+    mockSaveFundDraft.mockRejectedValueOnce(
+      new ApiError(404, 'No active draft', 'NO_ACTIVE_DRAFT')
+    );
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), draftFundId: 55, draftServerReady: false });
+    });
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    act(() => {
+      fundStore.setState({ ...fundStore.getState(), fundName: 'Missing Draft' });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-missing')).toHaveTextContent('No active draft')
+    );
+    expect(fundStore.getState().draftSyncStatus).toBe('error');
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    });
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
   });
 
   it.each(['Load server draft', 'Keep my changes'])(

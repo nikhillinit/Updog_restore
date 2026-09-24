@@ -1,19 +1,10 @@
 import React from 'react';
-import {
-  fundDraftWriteV1ToStoreHydrationPatch,
-  fundStoreToDraftWriteV1,
-} from '@/adapters/fund-store-adapters';
-import { fetchFundDraft, isMissingDraftError, saveFundDraft } from '@/services/fund-drafts';
-import { classifyWorkflowError, isStaleRevisionError } from '@/services/fund-workflow';
+import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
+import { applyDraftSnapshot, saveDraftAndSettle } from '@/services/fund-draft-settlement';
+import { fetchFundDraft, isMissingDraftError, type DraftSnapshot } from '@/services/fund-drafts';
 import { useFlag } from '@/hooks/useUnifiedFlag';
-import {
-  prepareFundCommand,
-  fundStore,
-  FUND_COMMAND_STORAGE_MESSAGE,
-  type DraftSyncStatus,
-} from '@/stores/fundStore';
+import { fundStore, FUND_COMMAND_STORAGE_MESSAGE, type DraftSyncStatus } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
-import { ApiError } from '@/lib/queryClient';
 import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 
 export type { DraftSyncStatus } from '@/stores/fundStore';
@@ -131,107 +122,85 @@ export function useFundDraftSync({
     }
 
     clearPendingSave();
-    let command;
-    try {
-      command = prepareFundCommand('save_draft', targetFundId, currentPayload, state.draftETag);
-    } catch (preparationError) {
-      setError(readErrorMessage(preparationError, STORAGE_UNAVAILABLE_MESSAGE));
-      setStatus('error');
-      return;
-    }
-    const { payload, key, etag } = command;
-    const signature = canonicalJson(payload);
-    const recoveringServerValues = state.needsServerHydration;
-
     saveInFlightRef.current = true;
     setStatus('saving');
     setError(null);
-    const capturedSession = state.sessionId;
-    const stillCurrent = () => {
-      const now = fundStore.getState();
-      return now.sessionId === capturedSession && now.draftFundId === targetFundId;
-    };
 
     try {
-      const saved = await saveFundDraft(targetFundId, payload, {
-        key,
-        etag,
-      });
-      if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== key) return;
-      const current = fundStore.getState();
-      current.setDraftETag(saved.etag ?? current.draftETag);
-      current.setDraftServerReady(true);
-      current.resolveCommand();
-      if (recoveringServerValues) {
-        queuedSaveRef.current = false;
-        markVerified(null);
-        setStatus('hydrating');
-        setRetryNonce((value) => value + 1);
-        return;
-      }
-      markVerified(targetFundId);
-      // eslint-disable-next-line require-atomic-updates -- ref stores the last server-confirmed payload signature.
-      lastSavedSignatureRef.current = signature;
-      queuedSaveRef.current = localSignature() !== signature;
-      setStatus('synced');
-    } catch (draftError) {
-      if (!stillCurrent() || fundStore.getState().pendingCommand?.key !== key) return;
-      const current = fundStore.getState();
-      if (isStaleRevisionError(draftError)) {
-        current.resolveCommand();
-        setError(STALE_DRAFT_MESSAGE);
-        setStatus('stale');
-        return;
-      }
-      const outcome = classifyWorkflowError(draftError);
-      if (outcome === 'uncertain') {
-        setError(UNCERTAIN_SAVE_MESSAGE);
-        setStatus('uncertain');
-        return;
-      }
-      if (outcome === 'rejected') {
-        current.resolveCommand();
-        if (draftError instanceof ApiError && draftError.errorCode === 'NO_ACTIVE_DRAFT') {
-          setMissingDraftFundId(targetFundId);
-          setError(MISSING_DRAFT_MESSAGE);
-          setStatus('error');
-          return;
+      await saveDraftAndSettle(
+        targetFundId,
+        { includeEconomicsAssumptions: economicsEnabled },
+        (outcome) => {
+          switch (outcome.kind) {
+            case 'superseded':
+              return;
+            case 'not_dispatched':
+              setError(outcome.message);
+              setStatus('error');
+              return;
+            case 'saved':
+              fundStore.getState().setDraftServerReady(true);
+              if (outcome.needsHydration) {
+                queuedSaveRef.current = false;
+                markVerified(null);
+                setStatus('hydrating');
+                setRetryNonce((value) => value + 1);
+                return;
+              }
+              markVerified(targetFundId);
+              lastSavedSignatureRef.current = outcome.dispatchedSignature;
+              queuedSaveRef.current = outcome.newerEdits;
+              setStatus('synced');
+              return;
+            case 'stale':
+              setError(STALE_DRAFT_MESSAGE);
+              setStatus('stale');
+              return;
+            case 'uncertain':
+              setError(UNCERTAIN_SAVE_MESSAGE);
+              setStatus('uncertain');
+              return;
+            case 'rejected':
+              if (outcome.missingDraft) {
+                setMissingDraftFundId(targetFundId);
+                setError(MISSING_DRAFT_MESSAGE);
+                setStatus('error');
+                return;
+              }
+              setError(outcome.message);
+              setStatus('error');
+              return;
+            case 'retry_same_key':
+              setError(outcome.message);
+              setStatus('error');
+              return;
+            default: {
+              const exhaustive: never = outcome;
+              return exhaustive;
+            }
+          }
         }
-      }
-      setError(readErrorMessage(draftError, 'Could not save changes'));
-      setStatus('error');
+      );
     } finally {
       // eslint-disable-next-line require-atomic-updates -- single in-flight save per hook instance.
       saveInFlightRef.current = false;
+      const now = fundStore.getState();
       if (
-        stillCurrent() &&
+        now.sessionId === state.sessionId &&
+        now.draftFundId === targetFundId &&
         queuedSaveRef.current &&
-        !fundStore.getState().pendingCommand &&
-        fundStore.getState().draftSyncStatus === 'synced'
+        !now.pendingCommand &&
+        now.draftSyncStatus === 'synced'
       ) {
         queuedSaveRef.current = false;
         void persistCurrentDraft();
       }
     }
-  }, [clearPendingSave, economicsEnabled, localSignature, markVerified, setStatus]);
+  }, [clearPendingSave, economicsEnabled, markVerified, setStatus]);
 
   const applyServerSnapshot = React.useCallback(
-    (
-      fundId: number,
-      config: Parameters<typeof fundDraftWriteV1ToStoreHydrationPatch>[0],
-      etag: string | null
-    ) => {
-      const defaults = fundStore.getInitialState();
-      const patch = fundDraftWriteV1ToStoreHydrationPatch(config, defaults);
-      fundStore.setState((state) => ({
-        ...state,
-        ...patch,
-        draftFundId: fundId,
-        draftServerReady: true,
-        needsServerHydration: false,
-        draftETag: etag,
-        pendingCommand: null,
-      }));
+    (fundId: number, config: DraftSnapshot['config'], etag: string | null) => {
+      applyDraftSnapshot(fundId, { config, etag });
       lastSavedSignatureRef.current = localSignature();
       markVerified(fundId);
       serverETagRef.current = null;
