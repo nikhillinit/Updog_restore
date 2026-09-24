@@ -387,6 +387,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
               startNewFund();
               return;
             case 'uncertain':
+              fundStore.getState().setDraftSyncStatus('uncertain');
               setDialogError(
                 'Could not confirm the save; it may have completed. Keep editing to check.'
               );

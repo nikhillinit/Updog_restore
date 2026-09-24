@@ -184,31 +184,24 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
-## False "Save not confirmed" alert during the Fund Basics bootstrap save
+## Duplicate autosave after a fast direct bootstrap save
 
-- **What:** Stop the wizard autosave hook from reporting `uncertain` while the
-  Fund Basics bootstrap `save_draft` is still in flight.
-- **Why:** The hook's verify effect
-  (`client/src/hooks/useFundDraftSync.ts:343-352`) treats any pending
-  `save_draft` as a recovered, unsettled command: it marks the fund verified,
-  sets `UNCERTAIN_SAVE_MESSAGE`, and reports `uncertain`. The bootstrap save
-  (`client/src/pages/FundBasicsStep.tsx:224-274`) begins that command in the
-  same session and only sets `synced` after the response, so the user can see a
-  "Save not confirmed" alert for a save that then succeeds.
-- **Pros:** Removes a user-visible false alarm on the first save after fund
-  creation; the uncertain state keeps its meaning (outcome genuinely unknown).
-- **Cons:** Needs a real repro first (only observed once, during a stubbed walk
-  on 2026-09-22); the fix touches recovery semantics, which must still treat a
-  command recovered from a reload as uncertain.
-- **Context:** Found in the 2026-09-22 Fund Workspace Batch B handoff and left
-  uninvestigated. F_1.15.0 (fund draft command settlement,
-  `docs/1-plans/F_1.15.0_fund-draft-command-settlement.plan.md`) deliberately
-  preserves this sequencing so the refactor stays behavior-neutral except for
-  rulings R5 and R9. Likely direction: distinguish a command recovered from the
-  persisted envelope from one begun by a live caller in this session (for
-  example, compare `dispatchedAt` or a per-session marker) before reporting
-  `uncertain`. Start with a test in
-  `tests/unit/pages/fund-basics-bootstrap.test.tsx` that mounts the hook
-  alongside Fund Basics and holds the save pending.
-- **Depends on / blocked by:** Best done after F_1.15.0 lands, since the
-  bootstrap save path moves into `client/src/services/fund-draft-settlement.ts`.
+- **What:** A direct Fund Basics save that finishes before the 600 ms debounce
+  expires can leave the autosave timer pending. The next step change flushes it
+  with a new key, producing a redundant PUT and revision advance.
+- **Evidence:** The 2026-09-24 F_1.15.1 review probe reproduced two PUTs both on
+  the repaired candidate and with all four production files restored to
+  `origin/main` at `9e552f0ace`. Local evidence:
+  `fast-debounce-current-red.log`, `fast-debounce-main-red.log`, and
+  `fast-debounce-diagnostic.patch`.
+- **Reproduction:** Use the bootstrap suite's `BootstrapWithDraftSync` harness
+  with draft 77 and `draftServerReady: false`. Edit to queue autosave, click
+  Next, acknowledge the held direct save before advancing the fake clock, then
+  rerender with step key 2. The one-PUT assertion receives two calls.
+- **Scope:** Pre-existing settled-save scheduling defect. F_1.15.1 fixes the
+  separate case where the debounce expires while the direct PUT is still live;
+  it does not promise deduplication after every direct save completes.
+- **Acceptance:** Prove one PUT when direct save settles before debounce expiry
+  and the step changes. Preserve later edits, uncertain same-key replay, and the
+  existing held-save timing control. Investigate timer ownership and direct-save
+  acknowledgement in `client/src/hooks/useFundDraftSync.ts`.

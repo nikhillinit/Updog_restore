@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fundStore, resetFundWorkspace, bindFundWorkspaceActor } from '@/stores/fundStore';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
+import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 
 const mockNavigate = vi.fn();
 const mockSearch = { value: '' };
@@ -244,6 +245,7 @@ describe('FundWorkspace', () => {
       fundName: 'Local Draft',
       draftFundId: 2,
       draftServerReady: true,
+      draftETag: '"0000000000000001"',
       draftSyncStatus: 'saving',
     });
     renderWorkspace();
@@ -256,20 +258,54 @@ describe('FundWorkspace', () => {
       'Save changes to Local Draft before starting a separate fund.'
     );
 
-    mockSaveFundDraft.mockRejectedValueOnce(new Error('Could not save changes'));
+    mockSaveFundDraft.mockRejectedValueOnce(
+      new FundWorkflowUncertainError('Could not save changes', false)
+    );
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
     await waitFor(() =>
       expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not confirm the save')
     );
-    expect(fundStore.getState().fundName).toBe('Local Draft');
+    const [firstFundId, firstBody, firstOptions] = mockSaveFundDraft.mock.calls[0]!;
+    const pending = fundStore.getState().pendingCommand!;
+    const pendingIdentity = {
+      operation: pending.operation,
+      key: pending.key,
+      targetFundId: pending.targetFundId,
+      bodySignature: pending.bodySignature,
+      expectedETag: pending.expectedETag,
+    };
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'uncertain',
+      pendingCommand: pendingIdentity,
+    });
+    expect(pendingIdentity).toMatchObject({
+      key: firstOptions.key,
+      expectedETag: firstOptions.etag,
+      bodySignature: JSON.stringify(firstBody),
+    });
     expect(mockNavigate).not.toHaveBeenCalled();
 
-    mockSaveFundDraft.mockResolvedValueOnce({
-      config: {},
-      etag: '"0000000000000002"',
-      replayed: false,
-    });
+    let finishReplay!: (value: unknown) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishReplay = resolve;
+        })
+    );
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(2));
+    const [replayFundId, replayBody, replayOptions] = mockSaveFundDraft.mock.calls[1]!;
+    expect(replayFundId).toBe(firstFundId);
+    expect(replayBody).toEqual(firstBody);
+    expect(replayOptions).toEqual({ key: firstOptions.key, etag: firstOptions.etag });
+    expect(fundStore.getState().pendingCommand).toMatchObject(pendingIdentity);
+
+    await act(async () => {
+      finishReplay({ config: {}, etag: '"0000000000000002"', replayed: true });
+    });
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
     expect(fundStore.getState().draftFundId).toBeNull();
     expect(fundStore.getState().fundName).toBeUndefined();
@@ -364,55 +400,69 @@ describe('FundWorkspace', () => {
       expectedETag: '"0000000000000002"',
       bodySignature: '{"fundName":"Newer edits"}',
     });
+    fundStore.getState().setDraftSyncStatus('saving');
     await act(async () => {
       rejectOld(new ApiError(412, 'Old revision', 'STALE_REVISION'));
       await Promise.resolve();
     });
     expect(fundStore.getState().pendingCommand?.key).toBe(newerKey);
+    expect(fundStore.getState().draftSyncStatus).toBe('saving');
   });
 
-  it('does not show an old rejection while a newer command owns the mounted dialog', async () => {
-    const { ApiError } = await import('@/lib/queryClient');
-    fundStore.setState({
-      fundName: 'Local Draft',
-      draftFundId: 2,
-      draftServerReady: true,
-      draftSyncStatus: 'error',
-    });
-    let rejectOld!: (error: unknown) => void;
-    mockSaveFundDraft.mockImplementationOnce(
-      () =>
-        new Promise((_resolve, reject) => {
-          rejectOld = reject;
-        })
-    );
-    renderWorkspace();
-    await userEvent.click(screen.getByTestId('workspace-new-fund'));
-    const dialog = await screen.findByRole('dialog');
-    const saveButton = within(dialog).getByRole('button', { name: 'Save draft and start new' });
-    await userEvent.click(saveButton);
-    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
-    const old = fundStore.getState().pendingCommand!;
-    fundStore.getState().resolveCommand();
-    const newerKey = crypto.randomUUID();
-    fundStore.getState().beginCommand({
-      operation: old.operation,
-      targetFundId: old.targetFundId,
-      key: newerKey,
-      expectedETag: '"0000000000000002"',
-      bodySignature: '{"fundName":"Newer edits"}',
-    });
-    await act(async () => {
-      rejectOld(new ApiError(412, 'Old revision', 'STALE_REVISION'));
-    });
-    expect(within(dialog).queryByRole('alert')?.textContent ?? '').not.toContain('Old revision');
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(fundStore.getState().pendingCommand).toMatchObject({
-      key: newerKey,
-      expectedETag: '"0000000000000002"',
-    });
-    expect(saveButton).toBeEnabled();
-  });
+  it.each(['stale', 'uncertain'] as const)(
+    'does not show an old %s rejection while a newer command owns the mounted dialog',
+    async (outcome) => {
+      const { ApiError } = await import('@/lib/queryClient');
+      fundStore.setState({
+        fundName: 'Local Draft',
+        draftFundId: 2,
+        draftServerReady: true,
+        draftSyncStatus: 'error',
+      });
+      let rejectOld!: (error: unknown) => void;
+      mockSaveFundDraft.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectOld = reject;
+          })
+      );
+      renderWorkspace();
+      await userEvent.click(screen.getByTestId('workspace-new-fund'));
+      const dialog = await screen.findByRole('dialog');
+      const saveButton = within(dialog).getByRole('button', { name: 'Save draft and start new' });
+      await userEvent.click(saveButton);
+      await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+      const old = fundStore.getState().pendingCommand!;
+      const newerKey = crypto.randomUUID();
+      await act(async () => {
+        fundStore.getState().resolveCommand();
+        fundStore.getState().beginCommand({
+          operation: old.operation,
+          targetFundId: old.targetFundId,
+          key: newerKey,
+          expectedETag: '"0000000000000002"',
+          bodySignature: '{"fundName":"Newer edits"}',
+        });
+        fundStore.getState().setDraftSyncStatus('saving');
+      });
+      await act(async () => {
+        rejectOld(
+          outcome === 'stale'
+            ? new ApiError(412, 'Old revision', 'STALE_REVISION')
+            : new FundWorkflowUncertainError('Lost response', false)
+        );
+      });
+      expect(within(dialog).queryByRole('alert')?.textContent ?? '').not.toContain('Old revision');
+      expect(within(dialog).queryByRole('alert')?.textContent ?? '').not.toContain('Lost response');
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(fundStore.getState().pendingCommand).toMatchObject({
+        key: newerKey,
+        expectedETag: '"0000000000000002"',
+      });
+      expect(fundStore.getState().draftSyncStatus).toBe('saving');
+      expect(saveButton).toBeEnabled();
+    }
+  );
 
   it('does not reset a replacement session queued after the save resolves', async () => {
     fundStore.setState({ fundName: 'Local Draft', draftFundId: 2, draftServerReady: true });
@@ -432,13 +482,61 @@ describe('FundWorkspace', () => {
       finishSave({ config: {}, etag: '"0000000000000002"', replayed: false });
       Promise.resolve().then(() => {
         fundStore.getState().startNewFundSession();
-        fundStore.setState({ fundName: 'Fund B', draftFundId: 3 });
+        fundStore.setState({ fundName: 'Fund B', draftFundId: 3, draftSyncStatus: 'stale' });
       });
     });
-    expect(fundStore.getState()).toMatchObject({ fundName: 'Fund B', draftFundId: 3 });
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Fund B',
+      draftFundId: 3,
+      draftSyncStatus: 'stale',
+    });
     expect(mockNavigate.mock.calls.filter(([path]) => path === '/fund-setup?step=1')).toHaveLength(
       1
     );
+  });
+
+  it('does not show old uncertainty or change status after the draft session is replaced', async () => {
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftSyncStatus: 'error',
+    });
+    let rejectOld!: (error: unknown) => void;
+    mockSaveFundDraft.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectOld = reject;
+        })
+    );
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      fundStore.getState().startNewFundSession();
+      fundStore.setState({
+        fundName: 'Fund B',
+        draftFundId: 3,
+        draftServerReady: true,
+        draftSyncStatus: 'stale',
+      });
+      rejectOld(new FundWorkflowUncertainError('Lost response', false));
+    });
+
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Fund B',
+      draftFundId: 3,
+      draftServerReady: true,
+      draftSyncStatus: 'stale',
+    });
+    expect(within(dialog).queryByRole('alert')?.textContent ?? '').not.toContain(
+      'Could not confirm the save'
+    );
+    expect(within(dialog).queryByRole('alert')?.textContent ?? '').not.toContain('Lost response');
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it.each([

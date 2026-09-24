@@ -475,7 +475,10 @@ plain `ls` will show more if untracked files are present) includes:
   `draftServerReady`, dialog text, and navigation. `applyDraftSnapshot` is the
   shared hydration patch and never writes `draftSyncStatus`. It is a separate
   module (not a helper inside `fund-drafts.ts`) so the six caller suites that
-  `vi.mock('@/services/fund-drafts')` keep their mock shape.
+  `vi.mock('@/services/fund-drafts')` keep their mock shape. The module-local
+  live-save registry distinguishes recovery from an active PUT and supplies the
+  hook and Next handler's shared dispatch guard; direct callers write
+  `uncertain` themselves when the outcome is unknown.
 
 ### Three routing surfaces (`client/src/App.tsx` → `app/app-router.tsx` → `app/app-routes.tsx`)
 

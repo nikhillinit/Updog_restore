@@ -15,7 +15,7 @@ import {
   handleCredentialRenewalMarker,
   normalizeCreateFundResponse,
 } from '@/services/funds';
-import { saveDraftAndSettle } from '@/services/fund-draft-settlement';
+import { isDraftSaveInFlight, saveDraftAndSettle } from '@/services/fund-draft-settlement';
 import { classifyWorkflowError } from '@/services/fund-workflow';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
@@ -26,8 +26,6 @@ type BootstrapStage = 'idle' | 'creating' | 'saving';
 
 const UNCERTAIN_CREATE_MESSAGE =
   'Could not confirm fund creation; it may have completed. Retry to check.';
-const UNCERTAIN_SAVE_MESSAGE =
-  'Could not confirm the draft save; it may have completed. Retry to check.';
 
 function bootstrapErrorMessage(error: unknown, uncertainMessage: string, fallback: string) {
   if (classifyWorkflowError(error) === 'uncertain') return uncertainMessage;
@@ -51,6 +49,7 @@ export default function FundBasicsStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const draftFundId = useFundSelector((s) => s.draftFundId);
   const draftServerReady = useFundSelector((s) => s.draftServerReady);
+  const draftSyncStatus = useFundSelector((s) => s.draftSyncStatus);
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
 
   // Actions
@@ -127,6 +126,13 @@ export default function FundBasicsStep() {
 
   const handleNext = async () => {
     if (isBootstrapping) {
+      return;
+    }
+    const liveSave = fundStore.getState();
+    if (
+      liveSave.pendingCommand?.operation === 'save_draft' &&
+      isDraftSaveInFlight(liveSave.sessionId, liveSave.pendingCommand)
+    ) {
       return;
     }
 
@@ -250,7 +256,7 @@ export default function FundBasicsStep() {
               navigate('/fund-setup?step=2');
               return;
             case 'uncertain':
-              setBootstrapError(UNCERTAIN_SAVE_MESSAGE);
+              fundStore.getState().setDraftSyncStatus('uncertain');
               setBootstrapStage('idle');
               return;
             case 'stale':
@@ -485,7 +491,7 @@ export default function FundBasicsStep() {
               onClick={() => {
                 void handleNext();
               }}
-              disabled={isBootstrapping}
+              disabled={isBootstrapping || draftSyncStatus === 'uncertain'}
               className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
             >
               {bootstrapStage === 'creating'
