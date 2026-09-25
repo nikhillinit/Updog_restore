@@ -47,8 +47,7 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "approved",
-    "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
+    "decision_status": "proposed"
   },
   {
     "candidate_path": "Dockerfile.simple",
