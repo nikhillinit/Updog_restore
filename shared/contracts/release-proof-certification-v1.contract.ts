@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+import {
+  ReleaseCanaryCharacterizationEvidenceV2Schema,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from './release-canary-residue-characterization-v2.contract';
+
 const GitHubRepositorySchema = z
   .string()
   .max(256)
@@ -31,6 +36,7 @@ const CharacterizationArtifactSchema = z
     artifactArchiveSha256: Sha256HexSchema,
     fileSha256: Sha256HexSchema,
     sourceSha: SourceShaSchema,
+    evidence: ReleaseCanaryCharacterizationEvidenceV2Schema,
   })
   .strict();
 
@@ -68,10 +74,15 @@ export const ReleaseProofCertificationV1Schema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['proofWorkflowRef'],
-        message: 'proofWorkflowRef must be <repository>/.github/workflows/release-proof.yml@<sourceSha>',
+        message:
+          'proofWorkflowRef must be <repository>/.github/workflows/release-proof.yml@<sourceSha>',
       });
     }
-    const expectedCharacterizationName = `release-canary-residue-characterization-v1-${certification.runId}-${certification.runAttempt}-${certification.sourceSha}`;
+    const expectedCharacterizationName = releaseCanaryResidueCharacterizationV2ArtifactName(
+      certification.runId,
+      certification.runAttempt,
+      certification.sourceSha
+    );
     const { conclusions, characterizationArtifact, summaries } = certification;
     // Null summaries record an early proof failure that never produced the
     // evidence step; a successful full release proof always has summaries.
@@ -90,7 +101,9 @@ export const ReleaseProofCertificationV1Schema = z
       (conclusions.providerIdentity === 'success' || conclusions.providerIdentity === 'skipped') &&
       characterizationArtifact !== null &&
       characterizationArtifact.sourceSha === certification.sourceSha &&
-      characterizationArtifact.artifactName === expectedCharacterizationName;
+      characterizationArtifact.artifactName === expectedCharacterizationName &&
+      characterizationArtifact.evidence.workflowRunId === certification.runId &&
+      characterizationArtifact.evidence.workflowRunAttempt === certification.runAttempt;
     if (certification.overallConclusion === 'success' && !eligibleForSuccess) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

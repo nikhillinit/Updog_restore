@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 import { RELEASE_CANARY_RESIDUE_GROUP_KEYS } from './release-canary-residue-characterization-v1.contract';
 import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  ReleaseCanaryCharacterizationEvidenceV2Schema,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from './release-canary-residue-characterization-v2.contract';
+import {
   OperatorEvidenceFragmentPayloadSchema,
   PolicyRatificationFragmentPayloadSchema,
   RELEASE_EVIDENCE_FRAGMENT_KINDS,
@@ -182,11 +188,13 @@ const CharacterizationEvidenceSchema = z
     artifactArchiveSha256: Sha256HexSchema,
     fileSha256: Sha256HexSchema,
     sourceSha: SourceShaSchema,
+    evidence: ReleaseCanaryCharacterizationEvidenceV2Schema,
   })
   .strict();
 
 const PolicySchema = z
   .object({
+    reservationIdentity: z.literal(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY),
     reservedPerRun: ResidueVectorSchema,
     stagedMeasuredResidue: ResidueVectorSchema.nullable(),
     configuredCaps: ResidueVectorSchema,
@@ -226,6 +234,7 @@ const ReleaseSectionSchema = z
 
 const CanarySectionSchema = z
   .object({
+    reservationIdentity: z.literal(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY),
     execution: z
       .object({
         fundId: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
@@ -491,28 +500,66 @@ export const ReleaseEvidenceManifestV1Schema = z
       );
     }
     const capsAreTripleReserved =
-      policy.configuredCaps.total === 120 &&
+      policy.configuredCaps.total === RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE.total * 3 &&
       RELEASE_CANARY_RESIDUE_GROUP_KEYS.every(
         (key) => policy.configuredCaps[key] === policy.reservedPerRun[key] * 3
       );
     if (!capsAreTripleReserved) {
       issue(
         ['policy', 'configuredCaps'],
-        'configuredCaps must be component-wise exactly 3x reserved with total 120'
+        'configuredCaps must be component-wise exactly 3x reserved with total 132'
       );
     }
     if (policy.characterizationEvidence !== null) {
-      if (policy.characterizationEvidence.sourceSha !== source.sha) {
+      const characterization = policy.characterizationEvidence;
+      if (characterization.sourceSha !== source.sha) {
         issue(
           ['policy', 'characterizationEvidence', 'sourceSha'],
           'characterizationEvidence.sourceSha must equal source.sha'
         );
       }
-      const expectedCharacterizationName = `release-canary-residue-characterization-v1-${workflow.runId}-${workflow.runAttempt}-${source.sha}`;
-      if (policy.characterizationEvidence.artifactName !== expectedCharacterizationName) {
+      const expectedCharacterizationName = releaseCanaryResidueCharacterizationV2ArtifactName(
+        workflow.runId,
+        workflow.runAttempt,
+        source.sha
+      );
+      if (characterization.artifactName !== expectedCharacterizationName) {
         issue(
           ['policy', 'characterizationEvidence', 'artifactName'],
-          'characterizationEvidence.artifactName must be release-canary-residue-characterization-v1-<runId>-<runAttempt>-<sourceSha>'
+          'characterizationEvidence.artifactName must be release-canary-residue-characterization-v2-<runId>-<runAttempt>-<sourceSha>'
+        );
+      }
+      if (characterization.evidence.workflowRunId !== workflow.runId) {
+        issue(
+          ['policy', 'characterizationEvidence', 'evidence', 'workflowRunId'],
+          'characterizationEvidence.evidence.workflowRunId must equal workflow.runId'
+        );
+      }
+      if (characterization.evidence.workflowRunAttempt !== workflow.runAttempt) {
+        issue(
+          ['policy', 'characterizationEvidence', 'evidence', 'workflowRunAttempt'],
+          'characterizationEvidence.evidence.workflowRunAttempt must equal workflow.runAttempt'
+        );
+      }
+      if (
+        characterization.evidence.reservationIdentity !== policy.reservationIdentity ||
+        (manifest.canary !== null &&
+          characterization.evidence.reservationIdentity !== manifest.canary.reservationIdentity)
+      ) {
+        issue(
+          ['policy', 'characterizationEvidence', 'evidence', 'reservationIdentity'],
+          'characterization evidence, policy, and canary reservation identities must match'
+        );
+      }
+      if (
+        characterization.evidence.finalResidue.total !== policy.reservedPerRun.total ||
+        RELEASE_CANARY_RESIDUE_GROUP_KEYS.some(
+          (key) => characterization.evidence.finalResidue[key] !== policy.reservedPerRun[key]
+        )
+      ) {
+        issue(
+          ['policy', 'characterizationEvidence', 'evidence', 'finalResidue'],
+          'characterization evidence final residue must equal policy.reservedPerRun'
         );
       }
     }
@@ -595,6 +642,12 @@ export const ReleaseEvidenceManifestV1Schema = z
     }
 
     if (manifest.canary !== null) {
+      if (manifest.canary.reservationIdentity !== policy.reservationIdentity) {
+        issue(
+          ['canary', 'reservationIdentity'],
+          'canary.reservationIdentity must equal policy.reservationIdentity'
+        );
+      }
       if (manifest.canary.execution.releaseSha !== source.sha) {
         issue(
           ['canary', 'execution', 'releaseSha'],
@@ -678,6 +731,12 @@ export const ReleaseEvidenceManifestV1Schema = z
         issue(
           ['certification', 'conclusion'],
           'certification.conclusion must be success when preManifestOutcome is success'
+        );
+      }
+      if (manifest.canary !== null && !vectorEqualsReserved(manifest.canary.residue)) {
+        issue(
+          ['canary', 'residue'],
+          'Successful releases require canary residue to exactly equal the reserved vector'
         );
       }
     }

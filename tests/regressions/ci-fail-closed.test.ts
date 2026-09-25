@@ -12,6 +12,10 @@ import {
   parseReleaseCanaryResidueCharacterization,
   RELEASE_CANARY_RESERVED_RESIDUE,
 } from '../../shared/contracts/release-canary-residue-characterization-v1.contract';
+import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+} from '../../shared/contracts/release-canary-residue-characterization-v2.contract';
 
 type WorkflowStep = {
   ['continue-on-error']?: boolean | string;
@@ -4815,10 +4819,19 @@ describe('required CI fails closed', () => {
       // Residue characterization is a required, immutable, attempt-qualified proof.
       const characterizationJob = proofWorkflow.jobs?.['canary-residue-characterization'];
       expect(characterizationJob?.needs).toBe('full-release-proof');
-      expect(characterizationJob?.['timeout-minutes']).toBe(30);
+      expect(characterizationJob?.['timeout-minutes']).toBe(45);
       const characterizationScripts = allRunScripts({
         jobs: { characterization: characterizationJob },
       } as never).join('\n');
+      const characterizationSteps = characterizationJob?.steps ?? [];
+      const prepareCharacterizationStep = characterizationSteps.find(
+        (step) => step.name === 'Prepare characterization paths'
+      );
+      const preparedPaths = Object.values(prepareCharacterizationStep?.env ?? {}).join('\n');
+      expect(prepareCharacterizationStep?.run).toContain('rm -f --');
+      expect(preparedPaths).toContain('release-canary-residue-characterization-v1.json');
+      expect(preparedPaths).toContain('release-canary-http-fund-proof-v2.json');
+      expect(preparedPaths).toContain('release-canary-residue-characterization-v2.json');
       expect(characterizationScripts).toContain(
         'tests/integration/release-canary-residue-characterization.test.ts'
       );
@@ -4831,7 +4844,34 @@ describe('required CI fails closed', () => {
       expect(characterizationRunStep?.env?.['RELEASE_CANARY_CHARACTERIZATION_SOURCE_SHA']).toBe(
         '${{ needs.full-release-proof.outputs.candidate_sha }}'
       );
+      const httpRunStep = characterizationSteps.find((step) =>
+        step.run?.includes('tests/integration/fund-lifecycle-db.test.ts')
+      );
+      expect(httpRunStep?.['timeout-minutes']).toBe(15);
+      expect(httpRunStep?.run).toContain('-c vitest.config.testcontainers.ts');
+      expect(httpRunStep?.env?.['RELEASE_CANARY_HTTP_RESULT_PATH']).toBe(
+        '${{ runner.temp }}/release-canary-http-fund-proof-v2.json'
+      );
+      expect(httpRunStep?.env?.['RELEASE_CANARY_HTTP_SOURCE_SHA']).toBe(
+        '${{ needs.full-release-proof.outputs.candidate_sha }}'
+      );
+      expect(httpRunStep?.env?.['RELEASE_CANARY_HTTP_WORKFLOW_RUN_ID']).toBe(
+        '${{ github.run_id }}'
+      );
+      expect(httpRunStep?.env?.['RELEASE_CANARY_HTTP_WORKFLOW_RUN_ATTEMPT']).toBe(
+        '${{ github.run_attempt }}'
+      );
+      expect(characterizationSteps.indexOf(characterizationRunStep!)).toBeLessThan(
+        characterizationSteps.indexOf(httpRunStep!)
+      );
       expect(characterizationScripts).toContain('parseReleaseCanaryResidueCharacterization');
+      expect(characterizationScripts).toContain('parseReleaseCanaryHttpFundProofV2');
+      expect(characterizationScripts).toContain('composeReleaseCanaryResidueCharacterizationV2');
+      expect(characterizationScripts).toContain('releaseCanaryCharacterizationEvidenceV2');
+      expect(characterizationScripts).toContain('vitest.config.testcontainers.ts');
+      expect(characterizationScripts).toContain('mode: 0o600');
+      expect(characterizationScripts).toContain('await rename(tempPath, composedPath)');
+      expect(characterizationScripts).toContain('characterization_evidence_json=');
       expect(characterizationScripts).toContain('provenance.storedRun.releaseSha');
       expect(characterizationScripts).toContain('snapshotTypeCounts');
       expect(characterizationScripts).toContain('foreignKey.table');
@@ -4894,23 +4934,31 @@ describe('required CI fails closed', () => {
         })
       ).toThrow();
       expect(characterizationScripts).toContain(
-        'release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}'
+        'release-canary-residue-characterization-v2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}'
       );
       const characterizationUpload = characterizationJob?.steps?.find(
         (step) => step.id === 'upload_characterization'
       );
       expect(characterizationUpload?.with?.['retention-days']).toBe(30);
       expect(characterizationUpload?.with?.['if-no-files-found']).toBe('error');
-      const characterizationCleanup = characterizationJob?.steps?.find((step) =>
-        step.run?.includes('rm -f "$RUNNER_TEMP/release-canary-residue-characterization-v1.json"')
+      const characterizationCleanup = characterizationSteps.find(
+        (step) => step.name === 'Remove local characterization evidence'
       );
       expect(characterizationCleanup?.if).toBe('always()');
+      const cleanedPaths = Object.values(characterizationCleanup?.env ?? {}).join('\n');
+      expect(characterizationCleanup?.run).toContain('rm -f --');
+      expect(cleanedPaths).toContain('release-canary-residue-characterization-v1.json');
+      expect(cleanedPaths).toContain('release-canary-http-fund-proof-v2.json');
+      expect(cleanedPaths).toContain('release-canary-residue-characterization-v2.json');
+      expect(cleanedPaths).toContain('validate-characterization.tmp.mts');
+      expect(cleanedPaths).toContain('compose-characterization.tmp.mts');
       expect(Object.keys(characterizationJob?.outputs ?? {})).toEqual([
         'characterization_artifact_id',
         'characterization_artifact_name',
         'characterization_artifact_digest',
         'characterization_file_sha256',
         'characterization_source_sha',
+        'characterization_evidence_json',
       ]);
       const workflowCallOutputs =
         (
@@ -4940,6 +4988,7 @@ describe('required CI fails closed', () => {
         'characterization_artifact_digest',
         'characterization_file_sha256',
         'characterization_source_sha',
+        'characterization_evidence_json',
       ];
       expect(Object.keys(workflowCallOutputs)).toEqual([
         ...finalizerOwnedOutputs,
@@ -4955,6 +5004,12 @@ describe('required CI fails closed', () => {
           `\${{ jobs.canary-residue-characterization.outputs.${outputName} }}`
         );
       }
+      const certificationBuildStep = proofWorkflow.jobs?.['release-proof-finalizer']?.steps?.find(
+        (step) => step.name === 'Build pre-upload certification payload'
+      );
+      expect(certificationBuildStep?.env?.CHARACTERIZATION_EVIDENCE_JSON).toBe(
+        '${{ needs.canary-residue-characterization.outputs.characterization_evidence_json }}'
+      );
       expect(characterizationScripts).not.toMatch(/vercel\s+(deploy|promote|alias|rollback)/i);
       expect(characterizationScripts).not.toMatch(/railway\s+(up|deploy|redeploy|scale)/i);
       const verdictScripts = allRunScripts({
@@ -5700,8 +5755,7 @@ describe('required CI fails closed', () => {
       const stagedResidueIndex = stagedSteps.findIndex(
         (step) => step.name === 'Assert bounded canary residue'
       );
-      expect(stagedPolicyIndex).toBeGreaterThan(-1);
-      expect(stagedPolicyIndex).toBeLessThan(stagedBoundaryIndex);
+      expect(stagedPolicyIndex).toBe(-1);
       expect(stagedWindowIndex).toBeGreaterThan(stagedBoundaryIndex);
       expect(stagedCanaryIndex).toBe(stagedWindowIndex + 1);
       expect(stagedResidueIndex).toBeGreaterThan(stagedCanaryIndex);
@@ -5757,31 +5811,6 @@ describe('required CI fails closed', () => {
         'H9_METADATA_PATH="$RUNNER_TEMP/release-canary-h9-metadata-v1.json"'
       );
       expect(stagedWindow?.run).toContain('h9_metadata_path=$H9_METADATA_PATH');
-
-      const stagedPolicy = stagedSteps[stagedPolicyIndex];
-      expect(stagedPolicy?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
-      expect(stagedPolicy?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
-      expect(stagedPolicy?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
-      expect(stagedPolicy?.run).toContain('https://api.vercel.com/v10/projects/');
-      expect(stagedPolicy?.run).toContain('teamId=${VERCEL_ORG_ID}');
-      expect(stagedPolicy?.run).toContain('Authorization: Bearer ${VERCEL_TOKEN}');
-      for (const policyKey of [
-        'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
-        'RELEASE_CANARY_MAX_FUND_RESIDUE',
-        'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
-        'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
-        'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
-        'RELEASE_CANARY_MAX_GRANT_RESIDUE',
-        'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
-        'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
-        'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
-        'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
-        'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
-        'RELEASE_CANARY_TTL_HOURS',
-      ]) {
-        expect(stagedPolicy?.run).toContain(policyKey);
-      }
-      expect(stagedPolicy?.run).not.toContain('entry.value');
 
       const stagedCanary = stagedSteps[stagedCanaryIndex];
       expect(stagedCanary?.id).toBe('release_canaries');
@@ -5869,6 +5898,9 @@ describe('required CI fails closed', () => {
       expect(stagedResidue?.run).toContain('--expected-canary-run-id "$RELEASE_CANARY_RUN_ID"');
       expect(stagedResidue?.run).toContain('--github-run-id "$GITHUB_RUN_ID"');
       expect(stagedResidue?.run).toContain('--github-run-attempt "$GITHUB_RUN_ATTEMPT"');
+      expect(stagedResidue?.run).toContain(
+        '--reservation-identity release-canary-http-workflow-v2'
+      );
       expect(stagedResidue?.run).toContain('--started-at "$CANARY_STARTED_AT"');
       expect(stagedResidue?.run).toContain('--max-clock-skew-seconds 300');
       // The emit path is a duplicated literal across three steps (emit, then
@@ -6174,6 +6206,138 @@ describe('required CI fails closed', () => {
     },
     120_000
   );
+
+  it('pins production evidence to HTTP v2 while recovery remains aggregate-only', async () => {
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+    const baselinePreflight = releaseWorkflow.jobs?.['baseline-policy-preflight'];
+    const policyConfigStep = baselinePreflight?.steps?.find(
+      (step) => step.name === 'Build policy-config evidence fragment'
+    );
+    const policyConfigRun = policyConfigStep?.run ?? '';
+    expect(policyConfigRun).toContain(
+      './shared/contracts/release-canary-residue-characterization-v2.contract'
+    );
+    expect(policyConfigRun).toContain('RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE');
+    expect(policyConfigRun).toContain('RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY');
+    expect(policyConfigRun).toContain(
+      'reservedPerRun: RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE'
+    );
+    expect(policyConfigRun).toContain(
+      'reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY'
+    );
+    expect(policyConfigRun).not.toContain(
+      './shared/contracts/release-canary-residue-characterization-v1.contract'
+    );
+    expect(RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE).toMatchObject({
+      fundEvent: 5,
+      mutationReceipt: 5,
+      total: 44,
+    });
+    expect(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY).toBe(
+      'release-canary-http-workflow-v2'
+    );
+
+    const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
+    const stagedSteps = stagedSmoke?.steps ?? [];
+    const residueStep = stagedSteps.find((step) => step.name === 'Assert bounded canary residue');
+    expect(residueStep?.run).toContain('--reservation-identity release-canary-http-workflow-v2');
+    const measurementStep = stagedSteps.find(
+      (step) => step.name === 'Build policy-measurement evidence fragment'
+    );
+    expect(measurementStep?.run).toContain('reservationIdentity: result.reservationIdentity');
+    expect(measurementStep?.run).toContain('residue: result.residue');
+    const canaryResultStep = stagedSteps.find(
+      (step) => step.name === 'Build canary-result evidence fragment'
+    );
+    expect(canaryResultStep?.run).toContain('reservationIdentity: result.reservationIdentity');
+
+    const manifestStep = releaseWorkflow.jobs?.['evidence-finalizer']?.steps?.find(
+      (step) => step.name === 'Build and validate release evidence manifest'
+    );
+    expect(manifestStep?.env?.CHARACTERIZATION_EVIDENCE_JSON).toBe(
+      '${{ needs.release-proof.outputs.characterization_evidence_json }}'
+    );
+    expect(manifestStep?.run).toContain(
+      'evidence: JSON.parse(process.env.CHARACTERIZATION_EVIDENCE_JSON'
+    );
+
+    const stageProduction = releaseWorkflow.jobs?.['stage-production'];
+    const deployStep = stageProduction?.steps?.find(
+      (step) => step.name === 'Create staged production deployment'
+    );
+    const deployRun = deployStep?.run ?? '';
+    for (const policyKey of [
+      'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+      'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+      'RELEASE_CANARY_MAX_GRANT_RESIDUE',
+      'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
+      'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
+      'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
+      'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
+      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_TTL_HOURS',
+    ]) {
+      expect(deployStep?.env?.[policyKey]).toBe(`\${{ vars.${policyKey} }}`);
+    }
+    expect(deployRun).toContain('verify_vercel_canary_policy()');
+    expect(deployRun).toContain("target.includes('production')");
+    expect(deployRun).toContain('productionEntries.length !== 1');
+    expect(deployRun).toContain('https://api.vercel.com/v1/projects/');
+    expect(deployRun).toMatch(/type === ['"]sensitive['"]/);
+    expect(deployRun).toMatch(/typeof entry\?\.value !== ['"]string['"]/);
+    expect(deployRun).not.toMatch(/\/env\?[^\n]*decrypt=true/);
+    // Every staged cap is pinned to the certified 3x-v2 value, not only the
+    // three that changed from v1.
+    for (const [group, reserved] of Object.entries(RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE)) {
+      const envName = `RELEASE_CANARY_MAX_${group.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}_RESIDUE`;
+      expect(deployRun).toContain(`${envName}: '${reserved * 3}',`);
+    }
+    expect(deployRun).toContain("RELEASE_CANARY_TTL_HOURS: '24',");
+    expect(deployRun).toContain('entry.value !== certifiedPolicy[key]');
+    const verificationCalls = [...deployRun.matchAll(/^\s*verify_vercel_canary_policy\s*$/gm)].map(
+      (match) => match.index ?? -1
+    );
+    expect(verificationCalls).toHaveLength(2);
+    const buildIndex = deployRun.indexOf('npx --yes vercel@55.0.0 build');
+    const deployIndex = deployRun.indexOf('npx --yes vercel@55.0.0 deploy');
+    const outputIndex = deployRun.indexOf('deployment_url=');
+    const summaryIndex = deployRun.indexOf('GITHUB_STEP_SUMMARY');
+    expect(verificationCalls[0]).toBeLessThan(buildIndex);
+    expect(verificationCalls[1]).toBeGreaterThan(deployIndex);
+    expect(outputIndex).toBeGreaterThan(deployIndex);
+    expect(summaryIndex).toBeGreaterThan(deployIndex);
+    expect(outputIndex).toBeLessThan(verificationCalls[1]);
+    expect(summaryIndex).toBeLessThan(verificationCalls[1]);
+    expect(deployRun).toContain('trap ');
+    expect(deployRun).toContain('$RUNNER_TEMP');
+
+    expect(
+      stagedSteps.find((step) => step.name === 'Assert staged Vercel runtime canary policy')
+    ).toBeUndefined();
+    expect(normalizeNeeds(releaseWorkflow.jobs?.['validate-deployment']?.needs)).toEqual([
+      'stage-production',
+    ]);
+    expect(normalizeNeeds(releaseWorkflow.jobs?.['staged-smoke']?.needs)).toContain(
+      'validate-deployment'
+    );
+    expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain('staged-smoke');
+
+    const recoveryWorkflow = await readWorkflow('release-canary-recovery.yml');
+    const recoveryScripts = allRunScripts(recoveryWorkflow).join('\n');
+    expect(recoveryScripts).toContain('--global-only');
+    expect(recoveryScripts).not.toContain('--reservation-identity');
+    for (const policyKey of [
+      'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_TTL_HOURS',
+    ]) {
+      expect(recoveryScripts).toContain(policyKey);
+    }
+  });
 
   it('bounds the canary worker poll inside the Playwright budget and forbids success fallbacks', async () => {
     const pollingSource = await readFile(

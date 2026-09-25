@@ -8,6 +8,12 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from '../../../shared/contracts/release-canary-residue-characterization-v2.contract';
+import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../../shared/contracts/release-canary-residue-characterization-v1.contract';
 import { parseReleaseProofCertification } from '../../../shared/contracts/release-proof-certification-v1.contract';
 
 const execFileAsync = promisify(execFile);
@@ -18,7 +24,31 @@ const SCRIPT = path.join(ROOT, 'scripts', 'release', 'build-release-proof-certif
 const SHA = 'a'.repeat(40);
 const hex = (digit: string) => digit.repeat(64);
 const RUN_ID = '17178572726';
-const CHARACTERIZATION_NAME = `release-canary-residue-characterization-v1-${RUN_ID}-1-${SHA}`;
+const CHARACTERIZATION_NAME = releaseCanaryResidueCharacterizationV2ArtifactName(RUN_ID, 1, SHA);
+const CHARACTERIZATION_EVIDENCE = {
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  baselineResidue: { ...RELEASE_CANARY_RESERVED_RESIDUE },
+  deltaResidue: {
+    portfolioCompany: 0,
+    fund: 0,
+    fundConfig: 0,
+    fundEvent: 1,
+    notification: 0,
+    grant: 0,
+    calculation: 0,
+    mutationReceipt: 3,
+    scenario: 0,
+    reporting: 0,
+    total: 4,
+  },
+  finalResidue: { ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE },
+  workflowRunId: RUN_ID,
+  workflowRunAttempt: 1,
+  databaseCanaryRunId: '123e4567-e89b-12d3-a456-426614174000',
+  serviceCharacterizationPayloadSha256: hex('5'),
+  httpFundProofPayloadSha256: hex('6'),
+  bindingSha256: hex('7'),
+};
 
 function baseEnv(overrides: Record<string, string> = {}): Record<string, string> {
   return {
@@ -39,6 +69,7 @@ function baseEnv(overrides: Record<string, string> = {}): Record<string, string>
     CHARACTERIZATION_ARTIFACT_DIGEST: hex('3'),
     CHARACTERIZATION_FILE_SHA256: hex('4'),
     CHARACTERIZATION_SOURCE_SHA: SHA,
+    CHARACTERIZATION_EVIDENCE_JSON: JSON.stringify(CHARACTERIZATION_EVIDENCE),
     ...overrides,
   };
 }
@@ -78,7 +109,7 @@ describe('build-release-proof-certification', { timeout: 120_000 }, () => {
     await rm(workdir, { recursive: true, force: true });
   });
 
-  it('builds a success certification, writes 0600, and prints only the documented line', async () => {
+  it('builds HTTP v2 certification from the bound characterization inputs', async () => {
     const result = await runBuilder(['--output', output], baseEnv());
     expect(result.code).toBe(0);
     expect(result.stderr).toBe('');
@@ -91,6 +122,7 @@ describe('build-release-proof-certification', { timeout: 120_000 }, () => {
     const certification = parseReleaseProofCertification(JSON.parse(fileContent));
     expect(certification.overallConclusion).toBe('success');
     expect(certification.characterizationArtifact?.artifactArchiveSha256).toBe(hex('3'));
+    expect(certification.characterizationArtifact?.evidence).toEqual(CHARACTERIZATION_EVIDENCE);
     expect(createHash('sha256').update(fileContent).digest('hex')).toBe(
       parsed['certificationFileSha256']
     );
@@ -106,6 +138,7 @@ describe('build-release-proof-certification', { timeout: 120_000 }, () => {
         CHARACTERIZATION_ARTIFACT_DIGEST: '',
         CHARACTERIZATION_FILE_SHA256: '',
         CHARACTERIZATION_SOURCE_SHA: '',
+        CHARACTERIZATION_EVIDENCE_JSON: '',
       })
     );
     expect(result.code).toBe(0);
@@ -187,6 +220,23 @@ describe('build-release-proof-certification', { timeout: 120_000 }, () => {
       JSON.parse(await readFile(output, 'utf8'))
     );
     expect(certification.conclusions.fullReleaseProof).toBe('failure');
+    expect(certification.overallConclusion).toBe('failure');
+  });
+
+  it('derives failure when characterization evidence names another workflow run', async () => {
+    const result = await runBuilder(
+      ['--output', output],
+      baseEnv({
+        CHARACTERIZATION_EVIDENCE_JSON: JSON.stringify({
+          ...CHARACTERIZATION_EVIDENCE,
+          workflowRunId: '999',
+        }),
+      })
+    );
+    expect(result.code).toBe(0);
+    const certification = parseReleaseProofCertification(
+      JSON.parse(await readFile(output, 'utf8'))
+    );
     expect(certification.overallConclusion).toBe('failure');
   });
 

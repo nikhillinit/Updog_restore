@@ -74,6 +74,9 @@ on:
       characterization_source_sha:
         description: Source SHA the characterization was measured at
         value: ${{ jobs.canary-residue-characterization.outputs.characterization_source_sha }}
+      characterization_evidence_json:
+        description: Strict v2 characterization evidence JSON for certification
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_evidence_json }}
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -373,13 +376,14 @@ jobs:
     name: Canary Residue Characterization
     needs: full-release-proof
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     outputs:
       characterization_artifact_id: ${{ steps.upload_characterization.outputs.artifact-id }}
       characterization_artifact_name: ${{ steps.artifact_meta.outputs.artifact_name }}
       characterization_artifact_digest: ${{ steps.upload_characterization.outputs.artifact-digest }}
       characterization_file_sha256: ${{ steps.validate_characterization.outputs.file_sha256 }}
       characterization_source_sha: ${{ needs.full-release-proof.outputs.candidate_sha }}
+      characterization_evidence_json: ${{ steps.validate_characterization.outputs.characterization_evidence_json }}
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -389,7 +393,19 @@ jobs:
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
 
-      - name: Run Testcontainers residue characterization
+      - name: Prepare characterization paths
+        env:
+          SERVICE_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          HTTP_RESULT_PATH: ${{ runner.temp }}/release-canary-http-fund-proof-v2.json
+          COMPOSED_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v2.json
+          SERVICE_VALIDATOR_PATH: ${{ github.workspace }}/validate-characterization.tmp.mts
+          COMPOSE_VALIDATOR_PATH: ${{ github.workspace }}/compose-characterization.tmp.mts
+        run: |
+          set -euo pipefail
+          rm -f -- "$SERVICE_RESULT_PATH" "$HTTP_RESULT_PATH" "$COMPOSED_RESULT_PATH" \
+            "$SERVICE_VALIDATOR_PATH" "$COMPOSE_VALIDATOR_PATH" "$COMPOSED_RESULT_PATH".tmp-*
+
+      - name: Run service residue characterization
         timeout-minutes: 22
         env:
           CI: 'true'
@@ -399,21 +415,43 @@ jobs:
           RELEASE_CANARY_CHARACTERIZATION_SOURCE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
         run: |
           set -euo pipefail
-          rm -f "$RELEASE_CANARY_CHARACTERIZATION_RESULT_PATH"
           npx vitest run tests/integration/release-canary-residue-characterization.test.ts \
             -c vitest.config.int.ts --configLoader native
 
-      - name: Validate characterization record and recompute file hash
+      - name: Run HTTP fund residue proof
+        timeout-minutes: 15
+        env:
+          CI: 'true'
+          TZ: UTC
+          NODE_OPTIONS: --max-old-space-size=4096
+          RELEASE_CANARY_HTTP_RESULT_PATH: ${{ runner.temp }}/release-canary-http-fund-proof-v2.json
+          RELEASE_CANARY_HTTP_SOURCE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+          RELEASE_CANARY_HTTP_WORKFLOW_RUN_ID: ${{ github.run_id }}
+          RELEASE_CANARY_HTTP_WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          # full-release-proof already runs this whole file; only the canary
+          # proof that writes the HTTP result belongs to characterization.
+          npx vitest run tests/integration/fund-lifecycle-db.test.ts \
+            -c vitest.config.testcontainers.ts --configLoader native \
+            -t 'reserves HTTP canary residue'
+
+      - name: Validate characterization records and compose v2 artifact
         id: validate_characterization
         env:
           RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          HTTP_RESULT_PATH: ${{ runner.temp }}/release-canary-http-fund-proof-v2.json
+          COMPOSED_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v2.json
+          SERVICE_VALIDATOR_PATH: ${{ github.workspace }}/validate-characterization.tmp.mts
+          COMPOSE_VALIDATOR_PATH: ${{ github.workspace }}/compose-characterization.tmp.mts
           CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           test -f "$RESULT_PATH"
-          # Workspace-resident helper: relative contract imports must resolve
+          test -f "$HTTP_RESULT_PATH"
+          # Workspace-resident helpers: relative contract imports must resolve
           # against the checkout, never RUNNER_TEMP.
-          cat > ./validate-characterization.tmp.mts <<'VALIDATE'
+          cat > "$SERVICE_VALIDATOR_PATH" <<'VALIDATE'
           import { readFile } from 'node:fs/promises';
           import { parseReleaseCanaryResidueCharacterization } from './shared/contracts/release-canary-residue-characterization-v1.contract';
 
@@ -470,10 +508,58 @@ jobs:
             throw new Error('Characterization direct fund FK identities are not sorted');
           }
           VALIDATE
-          npx tsx ./validate-characterization.tmp.mts
-          rm -f ./validate-characterization.tmp.mts
-          FILE_SHA256="$(sha256sum "$RESULT_PATH" | cut -d' ' -f1)"
-          echo "file_sha256=$FILE_SHA256" >> "$GITHUB_OUTPUT"
+          npx tsx "$SERVICE_VALIDATOR_PATH"
+
+          cat > "$COMPOSE_VALIDATOR_PATH" <<'COMPOSE'
+          import { createHash } from 'node:crypto';
+          import { appendFile, readFile, rename, writeFile } from 'node:fs/promises';
+          import { parseReleaseCanaryResidueCharacterization } from './shared/contracts/release-canary-residue-characterization-v1.contract';
+          import {
+            composeReleaseCanaryResidueCharacterizationV2,
+            parseReleaseCanaryHttpFundProofV2,
+            parseReleaseCanaryResidueCharacterizationV2,
+            releaseCanaryCharacterizationEvidenceV2,
+          } from './shared/contracts/release-canary-residue-characterization-v2.contract';
+
+          const required = (name: string): string => {
+            const value = process.env[name];
+            if (!value) throw new Error(`${name} is required`);
+            return value;
+          };
+
+          const service = parseReleaseCanaryResidueCharacterization(
+            JSON.parse(await readFile(required('RESULT_PATH'), 'utf8'))
+          );
+          const http = parseReleaseCanaryHttpFundProofV2(
+            JSON.parse(await readFile(required('HTTP_RESULT_PATH'), 'utf8'))
+          );
+          const artifact = composeReleaseCanaryResidueCharacterizationV2(
+            service,
+            http,
+            required('CANDIDATE_SHA'),
+            required('GITHUB_RUN_ID'),
+            Number(required('GITHUB_RUN_ATTEMPT'))
+          );
+          const composedPath = required('COMPOSED_RESULT_PATH');
+          const tempPath = `${composedPath}.tmp-${process.pid}`;
+          await writeFile(tempPath, `${JSON.stringify(artifact)}\n`, {
+            encoding: 'utf8',
+            mode: 0o600,
+            flag: 'wx',
+          });
+          await rename(tempPath, composedPath);
+          const composedBytes = await readFile(composedPath);
+          const roundTrip = parseReleaseCanaryResidueCharacterizationV2(
+            JSON.parse(composedBytes.toString('utf8'))
+          );
+          const evidence = releaseCanaryCharacterizationEvidenceV2(roundTrip);
+          const fileSha256 = createHash('sha256').update(composedBytes).digest('hex');
+          await appendFile(
+            required('GITHUB_OUTPUT'),
+            `file_sha256=${fileSha256}\ncharacterization_evidence_json=${JSON.stringify(evidence)}\n`
+          );
+          COMPOSE
+          npx tsx "$COMPOSE_VALIDATOR_PATH"
 
       - name: Name attempt-qualified characterization artifact
         id: artifact_meta
@@ -481,20 +567,28 @@ jobs:
           CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
         run: |
           set -euo pipefail
-          echo "artifact_name=release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=release-canary-residue-characterization-v2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable characterization artifact
         id: upload_characterization
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact_meta.outputs.artifact_name }}
-          path: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          path: ${{ runner.temp }}/release-canary-residue-characterization-v2.json
           retention-days: 30
           if-no-files-found: error
 
-      - name: Remove local characterization record
+      - name: Remove local characterization evidence
         if: always()
-        run: rm -f "$RUNNER_TEMP/release-canary-residue-characterization-v1.json"
+        env:
+          SERVICE_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          HTTP_RESULT_PATH: ${{ runner.temp }}/release-canary-http-fund-proof-v2.json
+          COMPOSED_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v2.json
+          SERVICE_VALIDATOR_PATH: ${{ github.workspace }}/validate-characterization.tmp.mts
+          COMPOSE_VALIDATOR_PATH: ${{ github.workspace }}/compose-characterization.tmp.mts
+        run: |
+          rm -f -- "$SERVICE_RESULT_PATH" "$HTTP_RESULT_PATH" "$COMPOSED_RESULT_PATH" \
+            "$SERVICE_VALIDATOR_PATH" "$COMPOSE_VALIDATOR_PATH" "$COMPOSED_RESULT_PATH".tmp-*
 
   g3-exact-sha-verdict:
     name: G3 Exact-SHA Verdict
@@ -693,6 +787,7 @@ jobs:
           CHARACTERIZATION_ARTIFACT_DIGEST: ${{ needs.canary-residue-characterization.outputs.characterization_artifact_digest }}
           CHARACTERIZATION_FILE_SHA256: ${{ needs.canary-residue-characterization.outputs.characterization_file_sha256 }}
           CHARACTERIZATION_SOURCE_SHA: ${{ needs.canary-residue-characterization.outputs.characterization_source_sha }}
+          CHARACTERIZATION_EVIDENCE_JSON: ${{ needs.canary-residue-characterization.outputs.characterization_evidence_json }}
         run: |
           set -euo pipefail
           BUILD_OUTPUT="$(npx tsx scripts/release/build-release-proof-certification.ts \

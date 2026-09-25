@@ -103,6 +103,7 @@ const EXACT_ARGS = Object.freeze([
   '--github-run-attempt', String(GITHUB_RUN_ATTEMPT),
   '--started-at', STARTED_AT,
   '--max-clock-skew-seconds', '300',
+  '--reservation-identity', 'release-canary-http-workflow-v2',
   '--complete-current-run',
 ]);
 
@@ -569,6 +570,7 @@ describe('release canary residue assertion', () => {
       expectedCanaryRunId: RUN_UUID,
       githubRunId: GITHUB_RUN_ID,
       githubRunAttempt: GITHUB_RUN_ATTEMPT,
+      reservationIdentity: 'release-canary-http-workflow-v2',
       startedAt: STARTED_AT,
       maxClockSkewSeconds: 300,
       terminalStatus: 'completed',
@@ -586,6 +588,32 @@ describe('release canary residue assertion', () => {
     expect(() => parseCanaryResidueArgs([...EXACT_ARGS, '--max-age-hours', '0'])).toThrow(
       /positive number/i
     );
+  });
+
+  it('requires exact-run HTTP-v2 identity and emits it', async () => {
+    const identityIndex = EXACT_ARGS.indexOf('--reservation-identity');
+    const withoutIdentity = EXACT_ARGS.filter(
+      (_, index) => index !== identityIndex && index !== identityIndex + 1
+    );
+    expect(() => parseCanaryResidueArgs(withoutIdentity)).toThrow(/reservation-identity/);
+    expect(() =>
+      parseCanaryResidueArgs([...withoutIdentity, '--reservation-identity', 'release-canary-v1'])
+    ).toThrow(/reservation-identity/);
+    expect(() =>
+      parseCanaryResidueArgs([
+        '--expected-sha', SHA,
+        '--global-only',
+        '--reservation-identity', 'release-canary-http-workflow-v2',
+      ])
+    ).toThrow('--reservation-identity is forbidden with --global-only');
+
+    const readReservedResidue = vi.fn(() => RESERVED);
+    const { exitCodePromise, output } = runExact({ readReservedResidue });
+    await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+    expect(readReservedResidue).toHaveBeenCalledWith('release-canary-http-workflow-v2');
+    expect(JSON.parse(output[0])).toMatchObject({
+      reservationIdentity: 'release-canary-http-workflow-v2',
+    });
   });
 
   it('removes the SHA-wide reconcile surface entirely', async () => {
@@ -608,6 +636,7 @@ describe('release canary residue assertion', () => {
       '--expected-canary-run-id',
       '--github-run-id',
       '--github-run-attempt',
+      '--reservation-identity',
       '--started-at',
       '--max-clock-skew-seconds',
       '--complete-current-run',
@@ -964,6 +993,7 @@ describe('release canary residue assertion', () => {
         canaryRunId: RUN_UUID,
         githubRunId: GITHUB_RUN_ID,
         githubRunAttempt: GITHUB_RUN_ATTEMPT,
+        reservationIdentity: 'release-canary-http-workflow-v2',
         transition,
         residue: exactCounts(),
       };

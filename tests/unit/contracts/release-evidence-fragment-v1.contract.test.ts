@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { RELEASE_CANARY_RESERVED_RESIDUE } from '@shared/contracts/release-canary-residue-characterization-v1.contract';
 import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+} from '@shared/contracts/release-canary-residue-characterization-v2.contract';
+import {
   RELEASE_EVIDENCE_FRAGMENT_KINDS,
   RELEASE_EVIDENCE_FRAGMENT_PRODUCER_JOBS,
   ReleaseEvidenceFragmentV1Schema,
@@ -17,10 +21,13 @@ const BASELINE_MAIN_SHA = 'c'.repeat(40);
 const CONTEXT_SHA256 = '6'.repeat(64);
 const UUID = '123e4567-e89b-12d3-a456-426614174000';
 
-const reservedResidue = () => ({ ...RELEASE_CANARY_RESERVED_RESIDUE });
+const reservedResidue = () => ({ ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE });
 const tripledCaps = () =>
   Object.fromEntries(
-    Object.entries(RELEASE_CANARY_RESERVED_RESIDUE).map(([key, value]) => [key, value * 3])
+    Object.entries(RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE).map(([key, value]) => [
+      key,
+      value * 3,
+    ])
   );
 
 const vercelIdentity = () => ({
@@ -90,13 +97,17 @@ const schemaPayload = () => ({
 });
 
 const policyConfigPayload = () => ({
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
   reservedPerRun: reservedResidue(),
   configuredCaps: tripledCaps(),
   retainedRunBudget: 3,
   ttlHours: 24,
 });
 
-const policyMeasurementPayload = () => ({ residue: reservedResidue() });
+const policyMeasurementPayload = () => ({
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  residue: reservedResidue(),
+});
 
 const policyRatificationPayload = () => ({
   environmentId: '99',
@@ -124,6 +135,7 @@ const releaseProviderPayload = () => ({
 });
 
 const canaryResultPayload = () => ({
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
   execution: {
     fundId: 1,
     canaryRunId: UUID,
@@ -205,18 +217,54 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
 
   it('rejects policy-config caps that are not component-wise exactly 3x reserved', () => {
     const payload = policyConfigPayload();
-    payload.configuredCaps['scenario'] = RELEASE_CANARY_RESERVED_RESIDUE.scenario * 3 + 3;
-    payload.configuredCaps['total'] = RELEASE_CANARY_RESERVED_RESIDUE.total * 3 + 3;
+    payload.configuredCaps['scenario'] =
+      RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE.scenario * 3 + 3;
+    payload.configuredCaps['total'] = RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE.total * 3 + 3;
     expect(
       ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', payload)).success
     ).toBe(false);
   });
 
-  it('rejects policy-config caps whose total is not 120', () => {
+  it('rejects policy-config caps whose total is not 132', () => {
     const payload = policyConfigPayload();
     payload.configuredCaps['total'] = 99;
     expect(
       ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', payload)).success
+    ).toBe(false);
+  });
+
+  it('requires HTTP-v2 reservation identity and exact caps', () => {
+    const identityFree = policyConfigPayload() as Record<string, unknown>;
+    delete identityFree.reservationIdentity;
+    expect(
+      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', identityFree)).success
+    ).toBe(false);
+
+    const v1Vector = {
+      ...policyConfigPayload(),
+      reservedPerRun: { ...RELEASE_CANARY_RESERVED_RESIDUE },
+    };
+    expect(
+      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', v1Vector)).success
+    ).toBe(false);
+
+    const wrongIdentity = {
+      ...policyMeasurementPayload(),
+      reservationIdentity: 'release-canary-v1',
+    };
+    expect(
+      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-measurement', wrongIdentity))
+        .success
+    ).toBe(false);
+
+    const v1Caps = {
+      ...policyConfigPayload(),
+      configuredCaps: Object.fromEntries(
+        Object.entries(RELEASE_CANARY_RESERVED_RESIDUE).map(([key, value]) => [key, value * 3])
+      ),
+    };
+    expect(
+      ReleaseEvidenceFragmentV1Schema.safeParse(fragment('policy-config', v1Caps)).success
     ).toBe(false);
   });
 

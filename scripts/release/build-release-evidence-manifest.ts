@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
 
 import {
+  parseReleaseCanaryCharacterizationEvidenceV2,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from '../../shared/contracts/release-canary-residue-characterization-v2.contract';
+import {
   RELEASE_EVIDENCE_FRAGMENT_PRODUCER_JOBS,
   parseReleaseEvidenceFragment,
   sha256CanonicalJsonOfPayload,
@@ -488,19 +492,27 @@ export async function main(
             'characterization.fileSha256'
           ),
           sourceSha: asString(characterizationInput['sourceSha'], 'characterization.sourceSha'),
+          evidence: parseReleaseCanaryCharacterizationEvidenceV2(characterizationInput['evidence']),
         };
   if (characterizationEvidence !== null) {
-    const recorded = certification.characterizationArtifact;
-    if (
-      recorded === null ||
-      recorded.artifactId !== characterizationEvidence.artifactId ||
-      recorded.artifactName !== characterizationEvidence.artifactName ||
-      recorded.artifactArchiveSha256 !== characterizationEvidence.artifactArchiveSha256 ||
-      recorded.fileSha256 !== characterizationEvidence.fileSha256 ||
-      recorded.sourceSha !== characterizationEvidence.sourceSha
-    ) {
-      fail('characterization evidence does not match the certification record');
+    const expectedCharacterizationName = releaseCanaryResidueCharacterizationV2ArtifactName(
+      runId,
+      runAttempt,
+      sourceSha
+    );
+    if (characterizationEvidence.artifactName !== expectedCharacterizationName) {
+      fail('characterization evidence artifact name does not match the current run');
     }
+  }
+  const recorded = certification.characterizationArtifact;
+  if (
+    (recorded === null) !== (characterizationEvidence === null) ||
+    (recorded !== null &&
+      characterizationEvidence !== null &&
+      sha256CanonicalJsonOfPayload(recorded) !==
+        sha256CanonicalJsonOfPayload(characterizationEvidence))
+  ) {
+    fail('characterization evidence does not match the certification record');
   }
 
   // Schema fragment must be provable against the dispatcher schema inputs.
@@ -569,6 +581,20 @@ export async function main(
         ? canaryResult.envelope.payload
         : fail('canary-result fragment kind mismatch');
 
+  const policyReservationIdentity = asString(
+    policyConfigPayload.reservationIdentity,
+    'policyConfig.reservationIdentity'
+  );
+  if (
+    (measurementPayload !== null &&
+      measurementPayload.reservationIdentity !== policyReservationIdentity) ||
+    (canaryPayload !== null && canaryPayload.reservationIdentity !== policyReservationIdentity) ||
+    (characterizationEvidence !== null &&
+      characterizationEvidence.evidence.reservationIdentity !== policyReservationIdentity)
+  ) {
+    fail('policy, measurement, canary, and characterization reservation identities must match');
+  }
+
   const manifest = {
     schemaVersion: 'release-evidence-manifest-v1',
     designation: args.designation,
@@ -619,6 +645,7 @@ export async function main(
     },
     schema: schemaSection,
     policy: {
+      reservationIdentity: policyReservationIdentity,
       reservedPerRun: policyConfigPayload.reservedPerRun,
       stagedMeasuredResidue: measurementPayload === null ? null : measurementPayload.residue,
       configuredCaps: policyConfigPayload.configuredCaps,
@@ -638,6 +665,7 @@ export async function main(
       canaryPayload === null
         ? null
         : {
+            reservationIdentity: canaryPayload.reservationIdentity,
             execution: canaryPayload.execution,
             status: canaryPayload.status,
             residue: canaryPayload.residue,

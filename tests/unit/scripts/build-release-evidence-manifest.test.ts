@@ -16,6 +16,11 @@ import {
 
 import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../../shared/contracts/release-canary-residue-characterization-v1.contract';
 import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from '../../../shared/contracts/release-canary-residue-characterization-v2.contract';
+import {
   sha256CanonicalJsonOfPayload,
   type ReleaseEvidenceFragmentKind,
 } from '../../../shared/contracts/release-evidence-fragment-v1.contract';
@@ -40,8 +45,36 @@ const CATCHUP_ARCHIVE_DIGEST = `sha256:${CATCHUP_ARCHIVE_SHA256}`;
 const CATCHUP_RECEIPT_SHA256 = 'af35a0385b5835a6119e5797a34af7f4505cd4c2412602d2d9d5f621e845bc9b';
 const CATCHUP_SOURCE_SHA = 'de932a2af2a876320003293dd6ae5bbbc6400397';
 
-const RESERVED = RELEASE_CANARY_RESERVED_RESIDUE;
+const SERVICE_RESERVED = RELEASE_CANARY_RESERVED_RESIDUE;
+const RESERVED = RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE;
 const CAPS = Object.fromEntries(Object.entries(RESERVED).map(([key, value]) => [key, value * 3]));
+
+function characterizationEvidence() {
+  return {
+    reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+    baselineResidue: { ...SERVICE_RESERVED },
+    deltaResidue: {
+      portfolioCompany: 0,
+      fund: 0,
+      fundConfig: 0,
+      fundEvent: 1,
+      notification: 0,
+      grant: 0,
+      calculation: 0,
+      mutationReceipt: 3,
+      scenario: 0,
+      reporting: 0,
+      total: 4,
+    },
+    finalResidue: { ...RESERVED },
+    workflowRunId: RUN_ID,
+    workflowRunAttempt: RUN_ATTEMPT,
+    databaseCanaryRunId: '11111111-2222-4333-8444-555555555555',
+    serviceCharacterizationPayloadSha256: hex('service-characterization'),
+    httpFundProofPayloadSha256: hex('http-fund-proof'),
+    bindingSha256: hex('binding'),
+  };
+}
 
 function hex(seed: string): string {
   return createHash('sha256').update(seed).digest('hex');
@@ -170,12 +203,16 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     },
   };
   const policyConfigPayload = {
+    reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
     reservedPerRun: RESERVED,
     configuredCaps: CAPS,
     retainedRunBudget: 3,
     ttlHours: 24,
   };
-  const measurementPayload = { residue: RESERVED };
+  const measurementPayload = {
+    reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+    residue: RESERVED,
+  };
   const operatorPayload = {
     bundleSha256: hex('bundle'),
     capturedAt: '2026-08-19T00:30:00Z',
@@ -186,6 +223,7 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     railway: railwayIdentity(SOURCE_SHA),
   };
   const canaryPayload = {
+    reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
     execution: {
       fundId: 1,
       canaryRunId: '11111111-2222-4333-8444-555555555555',
@@ -265,10 +303,15 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     characterizationArtifact: success
       ? {
           artifactId: '5555',
-          artifactName: `release-canary-residue-characterization-v1-${RUN_ID}-${RUN_ATTEMPT}-${SOURCE_SHA}`,
+          artifactName: releaseCanaryResidueCharacterizationV2ArtifactName(
+            RUN_ID,
+            RUN_ATTEMPT,
+            SOURCE_SHA
+          ),
           artifactArchiveSha256: hex('char-archive'),
           fileSha256: characterizationFileSha256,
           sourceSha: SOURCE_SHA,
+          evidence: characterizationEvidence(),
         }
       : null,
     overallConclusion: success ? 'success' : 'failure',
@@ -337,10 +380,15 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     characterization: success
       ? {
           artifactId: '5555',
-          artifactName: `release-canary-residue-characterization-v1-${RUN_ID}-${RUN_ATTEMPT}-${SOURCE_SHA}`,
+          artifactName: releaseCanaryResidueCharacterizationV2ArtifactName(
+            RUN_ID,
+            RUN_ATTEMPT,
+            SOURCE_SHA
+          ),
           artifactArchiveSha256: `sha256:${hex('char-archive')}`,
           fileSha256: characterizationFileSha256,
           sourceSha: SOURCE_SHA,
+          evidence: characterizationEvidence(),
         }
       : null,
     schemaInputs: success
@@ -435,6 +483,21 @@ async function runBuilder(
 }
 
 describe('build-release-evidence-manifest', () => {
+  it('builds HTTP-v2 fragments and manifest', async () => {
+    const fixture = await buildFixture();
+    const { outputPath } = await runBuilder(fixture);
+    const manifest = parseReleaseEvidenceManifest(
+      JSON.parse((await readFile(outputPath)).toString('utf8'))
+    );
+    expect(manifest.policy.reservationIdentity).toBe(
+      RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY
+    );
+    expect(manifest.canary?.reservationIdentity).toBe(
+      RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY
+    );
+    expect(manifest.policy.characterizationEvidence?.evidence).toEqual(characterizationEvidence());
+  });
+
   it('builds a success manifest end-to-end with exact stdout format', async () => {
     const fixture = await buildFixture();
     const { outputPath, lines } = await runBuilder(fixture);
@@ -684,6 +747,69 @@ describe('build-release-evidence-manifest', () => {
     );
     expect(manifest.designation).toBe('activation_candidate');
     expect(manifest.candidate).toBe(true);
+  });
+
+  it('rejects identity-free, v1-vector, identity-mismatch, vector-mismatch, and provenance-hash-mismatch inputs', async () => {
+    const identityFree = await buildFixture();
+    const identityFreePolicy = structuredClone(identityFree.payloads.policyConfig) as Record<
+      string,
+      unknown
+    >;
+    delete identityFreePolicy.reservationIdentity;
+    (identityFree.inputs['fragments'] as Record<string, unknown>).policyConfig =
+      await writeFragmentFile(
+        identityFree.dir,
+        'policy-config',
+        identityFreePolicy,
+        'baseline-policy-preflight'
+      );
+    await expect(runBuilder(identityFree)).rejects.toThrow(/reservationIdentity/);
+
+    const v1Vector = await buildFixture();
+    const v1Policy = structuredClone(v1Vector.payloads.policyConfig) as Record<string, unknown>;
+    v1Policy['reservedPerRun'] = { ...SERVICE_RESERVED };
+    v1Policy['configuredCaps'] = Object.fromEntries(
+      Object.entries(SERVICE_RESERVED).map(([key, value]) => [key, value * 3])
+    );
+    (v1Vector.inputs['fragments'] as Record<string, unknown>).policyConfig =
+      await writeFragmentFile(v1Vector.dir, 'policy-config', v1Policy, 'baseline-policy-preflight');
+    await expect(runBuilder(v1Vector)).rejects.toThrow(/reservedPerRun|configuredCaps/);
+
+    const identityMismatch = await buildFixture();
+    const mismatchedCharacterization = identityMismatch.inputs['characterization'] as Record<
+      string,
+      unknown
+    >;
+    (mismatchedCharacterization['evidence'] as Record<string, unknown>).reservationIdentity =
+      'release-canary-v1';
+    await expect(runBuilder(identityMismatch)).rejects.toThrow();
+
+    const vectorMismatch = await buildFixture();
+    const mismatchedCanary = structuredClone(vectorMismatch.payloads.canaryResult) as {
+      residue: { scenario: number; total: number };
+    };
+    mismatchedCanary.residue.scenario += 1;
+    mismatchedCanary.residue.total += 1;
+    (vectorMismatch.inputs['fragments'] as Record<string, unknown>).canaryResult =
+      await writeFragmentFile(
+        vectorMismatch.dir,
+        'canary-result',
+        mismatchedCanary,
+        'staged-smoke'
+      );
+    await expect(runBuilder(vectorMismatch)).rejects.toThrow(/residue|payload/);
+
+    const provenanceMismatch = await buildFixture();
+    const provenanceCharacterization = provenanceMismatch.inputs['characterization'] as Record<
+      string,
+      unknown
+    >;
+    (provenanceCharacterization['evidence'] as Record<string, unknown>).bindingSha256 = '0'.repeat(
+      64
+    );
+    await expect(runBuilder(provenanceMismatch)).rejects.toThrow(
+      /characterization evidence does not match/
+    );
   });
 
   it('rejects secret-shaped content flowing into the manifest', async () => {

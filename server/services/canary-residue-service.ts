@@ -4,17 +4,9 @@ import { db } from '../db';
 import { productionFundPredicate } from '../lib/canary-exclusion';
 import { funds } from '@shared/schema/fund';
 import { RELEASE_CANARY_RESERVED_RESIDUE } from '@shared/contracts/release-canary-residue-characterization-v1.contract';
+import { RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE } from '@shared/contracts/release-canary-residue-characterization-v2.contract';
 
 export { RELEASE_CANARY_RESERVED_RESIDUE };
-
-// The HTTP create/save/finalize journey adds three receipts and one draft-save
-// event to the historical service-only characterization. Keep that evidence frozen.
-const FUND_WORKFLOW_RESERVED_RESIDUE = Object.freeze({
-  ...RELEASE_CANARY_RESERVED_RESIDUE,
-  mutationReceipt: RELEASE_CANARY_RESERVED_RESIDUE.mutationReceipt + 3,
-  fundEvent: RELEASE_CANARY_RESERVED_RESIDUE.fundEvent + 1,
-  total: RELEASE_CANARY_RESERVED_RESIDUE.total + 4,
-});
 
 const RELEASE_CANARY_TTL_HOURS_ENV = 'RELEASE_CANARY_TTL_HOURS';
 
@@ -399,9 +391,9 @@ export async function preflightCanaryCreation(
       (Object.keys(current) as Array<keyof CanaryResidueCounts>).map((field) => [
         field,
         current[field] +
-          (workflowCommand ? FUND_WORKFLOW_RESERVED_RESIDUE : RELEASE_CANARY_RESERVED_RESIDUE)[
-            field
-          ],
+          (workflowCommand
+            ? RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE
+            : RELEASE_CANARY_RESERVED_RESIDUE)[field],
       ])
     ) as CanaryResidueCounts;
 
@@ -437,7 +429,7 @@ export async function checkCanaryWorkflowResidue(database: SqlExecutor, runId: s
   const commandCounts = commands.rows[0] as Record<string, unknown>;
   const pendingPublication = numberFromRow(commandCounts, 'publications') === 0 ? 1 : 0;
   const reserved = {
-    ...FUND_WORKFLOW_RESERVED_RESIDUE,
+    ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
     mutationReceipt:
       RELEASE_CANARY_RESERVED_RESIDUE.mutationReceipt +
       Math.max(3, numberFromRow(commandCounts, 'receipts') + pendingPublication),

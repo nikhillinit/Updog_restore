@@ -2,6 +2,7 @@ import express from 'express';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import { once } from 'node:events';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool } from 'pg';
 import request from 'supertest';
@@ -13,6 +14,10 @@ import type {
 } from '../../shared/contracts/fund-finalize-v1.contract';
 import type { FundResultsReadV1 } from '../../shared/contracts/fund-results-v1.contract';
 import type { FundStateReadV1 } from '../../shared/contracts/fund-state-read-v1.contract';
+import {
+  parseReleaseCanaryHttpFundProofV2,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+} from '../../shared/contracts/release-canary-residue-characterization-v2.contract';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -20,6 +25,18 @@ const AUTH_SECRET = 'fund-lifecycle-db-secret-minimum-32';
 const AUTH_ISSUER = 'updog-api';
 const AUTH_AUDIENCE = 'updog-client';
 const ORGANIZATION_ID = 'ce000000-0000-4000-8000-000000000001';
+const initialHttpProofEnv = {
+  resultPath: process.env['RELEASE_CANARY_HTTP_RESULT_PATH'],
+  sourceSha: process.env['RELEASE_CANARY_HTTP_SOURCE_SHA'],
+  workflowRunId: process.env['RELEASE_CANARY_HTTP_WORKFLOW_RUN_ID'],
+  workflowRunAttempt: process.env['RELEASE_CANARY_HTTP_WORKFLOW_RUN_ATTEMPT'],
+};
+const httpProofSourceSha = initialHttpProofEnv.sourceSha ?? 'a'.repeat(40);
+const httpProofWorkflowRunId = initialHttpProofEnv.workflowRunId ?? '987654321';
+const httpProofWorkflowRunAttempt = Number(initialHttpProofEnv.workflowRunAttempt ?? '1');
+const httpProofConfigured = Object.values(initialHttpProofEnv).every(
+  (value) => value !== undefined
+);
 
 type SignToken = (data: object) => string;
 
@@ -225,14 +242,15 @@ async function rowCounts(active: Runtime, fundId: number): Promise<RowCounts> {
   };
 }
 
-async function createDraft(active: Runtime) {
+async function createDraft(active: Runtime, headers?: Record<string, string>) {
   const key = randomUUID();
   const body = { name: 'Synthetic Workspace Fund', size: 25_000_000, vintageYear: 2026 };
-  const response = await request(active.app)
+  const createRequest = request(active.app)
     .post('/api/funds')
     .set('Authorization', authHeader(active))
-    .set('Idempotency-Key', key)
-    .send(body);
+    .set('Idempotency-Key', key);
+  if (headers !== undefined) createRequest.set(headers);
+  const response = await createRequest.send(body);
   expect(response.status, JSON.stringify(response.body)).toBe(201);
   return {
     fundId: response.body.data.id as number,
@@ -512,6 +530,11 @@ describe('fund lifecycle DB proof', () => {
   it('reserves HTTP canary residue, caps extra saves, and avoids run/fund lock inversion', async () => {
     const active = runtime!;
     const env = { ...process.env };
+    const releaseIdentityEnv = {
+      VERCEL_GIT_COMMIT_SHA: process.env['VERCEL_GIT_COMMIT_SHA'],
+      RAILWAY_GIT_COMMIT_SHA: process.env['RAILWAY_GIT_COMMIT_SHA'],
+      COMMIT_REF: process.env['COMMIT_REF'],
+    };
     const { RELEASE_CANARY_RESERVED_RESIDUE, transitionReleaseCanaryRun } =
       await import('../../server/services/canary-residue-service');
     const caps = {
@@ -562,9 +585,32 @@ describe('fund lifecycle DB proof', () => {
         RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: '5',
         RELEASE_CANARY_MAX_TOTAL_RESIDUE: '49',
       });
-      const created = await createDraft(canary);
+      // Provider SHAs outrank COMMIT_REF; the decoys make the release_sha
+      // readback fail if this clear is ever dropped.
+      process.env.VERCEL_GIT_COMMIT_SHA = 'b'.repeat(40);
+      process.env.RAILWAY_GIT_COMMIT_SHA = 'c'.repeat(40);
+      delete process.env.VERCEL_GIT_COMMIT_SHA;
+      delete process.env.RAILWAY_GIT_COMMIT_SHA;
+      process.env.COMMIT_REF = httpProofSourceSha;
+      const created = await createDraft(canary, {
+        'Release-Canary-Workflow-Run-Id': httpProofWorkflowRunId,
+        'Release-Canary-Workflow-Run-Attempt': String(httpProofWorkflowRunAttempt),
+      });
       const runId = created.response.headers['release-canary-run-id'];
       expect(runId).toEqual(expect.any(String));
+      const identity = await active.pool.query<{
+        release_sha: string;
+        workflow_run_id: string | null;
+        workflow_run_attempt: number | null;
+      }>(
+        'SELECT release_sha, workflow_run_id, workflow_run_attempt FROM release_canary_runs WHERE id=$1',
+        [runId]
+      );
+      expect(identity.rows).toHaveLength(1);
+      const persistedIdentity = identity.rows[0]!;
+      expect(persistedIdentity.release_sha).toBe(httpProofSourceSha);
+      expect(String(persistedIdentity.workflow_run_id)).toBe(httpProofWorkflowRunId);
+      expect(Number(persistedIdentity.workflow_run_attempt)).toBe(httpProofWorkflowRunAttempt);
       const runLock = await active.pool.connect();
       const saveKey = randomUUID();
       let saved;
@@ -594,9 +640,14 @@ describe('fund lifecycle DB proof', () => {
         .set('If-Match', saved.headers['etag'])
         .send({ ...finalizeFixture(), draftFundId: created.fundId });
       expect(finalized.status, JSON.stringify(finalized.body)).toBe(201);
-      expect(await durableState(active, created.fundId)).toMatchObject({ receipts: 3, runs: 1 });
-      const counts = await transitionReleaseCanaryRun(runId, 'completed', 1, ['created']);
-      expect(counts.mutationReceipt).toBe(3);
+      expect(await durableState(active, created.fundId)).toMatchObject({
+        receipts: 3,
+        events: 5,
+        runs: 1,
+      });
+      const observedFundPhaseResidue = await transitionReleaseCanaryRun(runId, 'completed', 1, [
+        'created',
+      ]);
       const recorded = await active.pool.query(
         'SELECT mutation_receipt_residue_count FROM release_canary_runs WHERE id=$1',
         [runId]
@@ -604,8 +655,32 @@ describe('fund lifecycle DB proof', () => {
       expect(recorded.rows[0].mutation_receipt_residue_count).toBe(3);
       // Historical service-only proof is deliberately not rewritten by this test.
       expect(RELEASE_CANARY_RESERVED_RESIDUE.mutationReceipt).toBe(2);
+      if (httpProofConfigured) {
+        const result = parseReleaseCanaryHttpFundProofV2({
+          schemaVersion: 'release-canary-http-fund-proof-v2',
+          sourceSha: persistedIdentity.release_sha,
+          workflowRunId: String(persistedIdentity.workflow_run_id),
+          workflowRunAttempt: Number(persistedIdentity.workflow_run_attempt),
+          databaseCanaryRunId: runId,
+          reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+          observedFundPhaseResidue,
+          replayZeroGrowth: true,
+          overCapZeroGrowth: true,
+          result: 'passed',
+        });
+        const resultPath = initialHttpProofEnv.resultPath!;
+        const tempPath = `${resultPath}.tmp-${process.pid}-${randomUUID()}`;
+        await writeFile(tempPath, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 });
+        await rename(tempPath, resultPath);
+        const written = JSON.parse(await readFile(resultPath, 'utf8')) as unknown;
+        expect(parseReleaseCanaryHttpFundProofV2(written)).toEqual(result);
+      }
     } finally {
       restoreEnv(env);
+      restoreEnv(releaseIdentityEnv);
+      expect(process.env['VERCEL_GIT_COMMIT_SHA']).toBe(releaseIdentityEnv.VERCEL_GIT_COMMIT_SHA);
+      expect(process.env['RAILWAY_GIT_COMMIT_SHA']).toBe(releaseIdentityEnv.RAILWAY_GIT_COMMIT_SHA);
+      expect(process.env['COMMIT_REF']).toBe(releaseIdentityEnv.COMMIT_REF);
     }
   });
 

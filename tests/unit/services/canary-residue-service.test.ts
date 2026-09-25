@@ -16,6 +16,7 @@ import {
   transitionReleaseCanaryRun,
   type CanaryResidueCounts,
 } from '../../../server/services/canary-residue-service';
+import { RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE } from '../../../shared/contracts/release-canary-residue-characterization-v2.contract';
 
 const GROUP_CAP_ENV = {
   portfolioCompany: 'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
@@ -174,6 +175,27 @@ describe('canary residue group descriptor', () => {
       total: 40,
     });
     expect(Object.isFrozen(RELEASE_CANARY_RESERVED_RESIDUE)).toBe(true);
+  });
+
+  it('selects the HTTP v2 reservation without changing the service-only v1 reservation', async () => {
+    const servicePolicy = { ...RELEASE_CANARY_RESERVED_RESIDUE, ttlHours: 24 };
+    const httpPolicy = { ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE, ttlHours: 24 };
+    const emptyPreflight = () =>
+      vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
+        .mockResolvedValueOnce(NO_ACTIVE_RUNS)
+        .mockResolvedValueOnce({ rows: [zeroGroupRow()], rowCount: 1 });
+
+    await expect(
+      preflightCanaryCreation({ execute: emptyPreflight() }, servicePolicy, false)
+    ).resolves.toEqual(zeroCounts());
+    await expect(
+      preflightCanaryCreation({ execute: emptyPreflight() }, servicePolicy, true)
+    ).rejects.toMatchObject({ field: 'fundEvent', projected: 5, limit: 4 });
+    await expect(
+      preflightCanaryCreation({ execute: emptyPreflight() }, httpPolicy, true)
+    ).resolves.toEqual(zeroCounts());
   });
 });
 

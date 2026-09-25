@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
 
 import {
+  parseReleaseCanaryCharacterizationEvidenceV2,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from '../../shared/contracts/release-canary-residue-characterization-v2.contract';
+import {
   parseReleaseProofCertification,
   type ReleaseProofCertificationV1,
 } from '../../shared/contracts/release-proof-certification-v1.contract';
@@ -92,9 +96,7 @@ const SUMMARY_ENVIRONMENT = ['MATRIX_SUMMARY_SHA256', 'RELEASE_CHECK_SUMMARY_SHA
 // A proof job that failed before its evidence step produces no summary hashes;
 // the certification then records summaries: null. A successful full release
 // proof must always carry both summaries.
-function readSummaries(
-  fullReleaseProofResult: string
-): ReleaseProofCertificationV1['summaries'] {
+function readSummaries(fullReleaseProofResult: string): ReleaseProofCertificationV1['summaries'] {
   const values = SUMMARY_ENVIRONMENT.map((name) => process.env[name]?.trim() ?? '');
   const populated = values.filter((value) => value !== '').length;
   if (populated === SUMMARY_ENVIRONMENT.length) {
@@ -120,6 +122,7 @@ const CHARACTERIZATION_ENVIRONMENT = [
   'CHARACTERIZATION_ARTIFACT_DIGEST',
   'CHARACTERIZATION_FILE_SHA256',
   'CHARACTERIZATION_SOURCE_SHA',
+  'CHARACTERIZATION_EVIDENCE_JSON',
 ] as const;
 
 function readCharacterizationArtifact(): ReleaseProofCertificationV1['characterizationArtifact'] {
@@ -127,9 +130,13 @@ function readCharacterizationArtifact(): ReleaseProofCertificationV1['characteri
   const populated = values.filter((value) => value !== '').length;
   if (populated === 0) return null;
   if (populated !== CHARACTERIZATION_ENVIRONMENT.length) {
-    throw new BuilderError(
-      'Characterization environment variables must be all set or all empty'
-    );
+    throw new BuilderError('Characterization environment variables must be all set or all empty');
+  }
+  let evidenceJson: unknown;
+  try {
+    evidenceJson = JSON.parse(requiredEnvironment('CHARACTERIZATION_EVIDENCE_JSON')) as unknown;
+  } catch {
+    throw new BuilderError('CHARACTERIZATION_EVIDENCE_JSON is not valid JSON');
   }
   return {
     artifactId: requiredEnvironment('CHARACTERIZATION_ARTIFACT_ID'),
@@ -139,6 +146,7 @@ function readCharacterizationArtifact(): ReleaseProofCertificationV1['characteri
     ),
     fileSha256: requiredEnvironment('CHARACTERIZATION_FILE_SHA256'),
     sourceSha: requiredEnvironment('CHARACTERIZATION_SOURCE_SHA'),
+    evidence: parseReleaseCanaryCharacterizationEvidenceV2(evidenceJson),
   };
 }
 
@@ -160,7 +168,11 @@ async function main(): Promise<void> {
 
   // Mirrors the certification contract's eligibleForSuccess rule exactly; the
   // contract's superRefine re-checks both directions after parse.
-  const expectedCharacterizationName = `release-canary-residue-characterization-v1-${runId}-${runAttempt}-${sourceSha}`;
+  const expectedCharacterizationName = releaseCanaryResidueCharacterizationV2ArtifactName(
+    runId,
+    runAttempt,
+    sourceSha
+  );
   const eligibleForSuccess =
     summaries !== null &&
     conclusions.fullReleaseProof === 'success' &&
@@ -169,7 +181,9 @@ async function main(): Promise<void> {
     (conclusions.providerIdentity === 'success' || conclusions.providerIdentity === 'skipped') &&
     characterizationArtifact !== null &&
     characterizationArtifact.sourceSha === sourceSha &&
-    characterizationArtifact.artifactName === expectedCharacterizationName;
+    characterizationArtifact.artifactName === expectedCharacterizationName &&
+    characterizationArtifact.evidence.workflowRunId === runId &&
+    characterizationArtifact.evidence.workflowRunAttempt === runAttempt;
 
   const certification = parseReleaseProofCertification({
     schemaVersion: 'release-proof-certification-v1',

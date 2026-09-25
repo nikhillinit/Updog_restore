@@ -22,7 +22,7 @@ import {
   RECOVER_CANARY_RESOLVE_QUERY,
   runCanaryRecovery,
 } from '../../scripts/release/recover-canary-run.mjs';
-import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../shared/contracts/release-canary-residue-characterization-v1.contract';
+import { RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE } from '../../shared/contracts/release-canary-residue-characterization-v2.contract';
 import { applyScenarioMigrations } from '../helpers/scenario-migrations';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
@@ -180,7 +180,11 @@ type BackendLockWait = {
   waitEvent: string | null;
 };
 
-async function waitForBackendLock(pool: Pool, pid: number, timeoutMs = 2_000): Promise<BackendLockWait> {
+async function waitForBackendLock(
+  pool: Pool,
+  pid: number,
+  timeoutMs = 2_000
+): Promise<BackendLockWait> {
   const deadline = Date.now() + timeoutMs;
   let lastObserved: BackendLockWait | undefined;
   do {
@@ -352,7 +356,8 @@ describe('release canary local write-path and worker lifecycle', () => {
             'SELECT pg_backend_pid() AS pid'
           );
           const childWriterPid = childWriterPidResult.rows[0]?.pid;
-          if (childWriterPid === undefined) throw new Error('child writer backend PID was unavailable');
+          if (childWriterPid === undefined)
+            throw new Error('child writer backend PID was unavailable');
 
           childInsert = childWriterClient.query(
             `INSERT INTO fund_events (fund_id, event_type, event_time, operation)
@@ -372,10 +377,7 @@ describe('release canary local write-path and worker lifecycle', () => {
 
           const storedSnapshot = await active.pool.query<{
             fund_event_residue_count: number;
-          }>(
-            'SELECT fund_event_residue_count FROM release_canary_runs WHERE id = $1',
-            [runId]
-          );
+          }>('SELECT fund_event_residue_count FROM release_canary_runs WHERE id = $1', [runId]);
           const actualFundEvents = await active.pool.query<{ count: string }>(
             'SELECT count(*)::int AS count FROM fund_events WHERE fund_id = $1',
             [fundId]
@@ -700,9 +702,9 @@ describe('release canary local write-path and worker lifecycle', () => {
         expect(() =>
           proveExactCurrentExecution({ ...proofInputs, expectedSha: 'b'.repeat(40) })
         ).toThrow(/release SHA/);
-        expect(() =>
-          proveExactCurrentExecution({ ...proofInputs, githubRunAttempt: 2 })
-        ).toThrow(/attempt/);
+        expect(() => proveExactCurrentExecution({ ...proofInputs, githubRunAttempt: 2 })).toThrow(
+          /attempt/
+        );
         expect(() =>
           proveExactCurrentExecution({ ...proofInputs, githubRunId: '999999999' })
         ).toThrow(/workflow run ID/);
@@ -767,18 +769,27 @@ describe('release canary local write-path and worker lifecycle', () => {
         const maskingOutput: string[] = [];
         const maskingExit = await runCanaryResidueAssertion({
           args: [
-            '--expected-sha', CANARY_SHA,
-            '--expected-fund-id', String(ordinaryFundId),
-            '--expected-canary-run-id', runAId,
-            '--github-run-id', GITHUB_RUN_ID,
-            '--github-run-attempt', '1',
-            '--started-at', startedAt,
-            '--max-clock-skew-seconds', '300',
+            '--expected-sha',
+            CANARY_SHA,
+            '--expected-fund-id',
+            String(ordinaryFundId),
+            '--expected-canary-run-id',
+            runAId,
+            '--github-run-id',
+            GITHUB_RUN_ID,
+            '--github-run-attempt',
+            '1',
+            '--reservation-identity',
+            'release-canary-http-workflow-v2',
+            '--started-at',
+            startedAt,
+            '--max-clock-skew-seconds',
+            '300',
             '--complete-current-run',
           ],
           env: process.env,
           readRuntimePolicy: () => ({ ...CANARY_POLICY }),
-          readReservedResidue: () => RELEASE_CANARY_RESERVED_RESIDUE,
+          readReservedResidue: () => RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
           queryExactRunRows,
           queryRows: queryGlobalRows,
           transitionRun: transitionReleaseCanaryRun as never,
@@ -806,18 +817,27 @@ describe('release canary local write-path and worker lifecycle', () => {
         const completeOutput: string[] = [];
         const completeExit = await runCanaryResidueAssertion({
           args: [
-            '--expected-sha', CANARY_SHA,
-            '--expected-fund-id', String(fundAId),
-            '--expected-canary-run-id', runAId,
-            '--github-run-id', GITHUB_RUN_ID,
-            '--github-run-attempt', '1',
-            '--started-at', startedAt,
-            '--max-clock-skew-seconds', '300',
+            '--expected-sha',
+            CANARY_SHA,
+            '--expected-fund-id',
+            String(fundAId),
+            '--expected-canary-run-id',
+            runAId,
+            '--github-run-id',
+            GITHUB_RUN_ID,
+            '--github-run-attempt',
+            '1',
+            '--reservation-identity',
+            'release-canary-http-workflow-v2',
+            '--started-at',
+            startedAt,
+            '--max-clock-skew-seconds',
+            '300',
             '--complete-current-run',
           ],
           env: process.env,
           readRuntimePolicy: () => ({ ...CANARY_POLICY }),
-          readReservedResidue: () => RELEASE_CANARY_RESERVED_RESIDUE,
+          readReservedResidue: () => RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
           queryExactRunRows,
           queryRows: queryGlobalRows,
           transitionRun: transitionReleaseCanaryRun as never,
@@ -876,9 +896,12 @@ describe('release canary local write-path and worker lifecycle', () => {
         const resolveExit = await runCanaryRecovery({
           args: [
             'resolve',
-            '--github-run-id', GITHUB_RUN_ID,
-            '--github-run-attempt', '2',
-            '--expected-sha', CANARY_SHA,
+            '--github-run-id',
+            GITHUB_RUN_ID,
+            '--github-run-attempt',
+            '2',
+            '--expected-sha',
+            CANARY_SHA,
           ],
           env: process.env,
           queryResolveRows,
@@ -899,9 +922,12 @@ describe('release canary local write-path and worker lifecycle', () => {
           runCanaryRecovery({
             args: [
               'resolve',
-              '--github-run-id', GITHUB_RUN_ID,
-              '--github-run-attempt', '3',
-              '--expected-sha', CANARY_SHA,
+              '--github-run-id',
+              GITHUB_RUN_ID,
+              '--github-run-attempt',
+              '3',
+              '--expected-sha',
+              CANARY_SHA,
             ],
             env: process.env,
             queryResolveRows,
@@ -912,11 +938,16 @@ describe('release canary local write-path and worker lifecycle', () => {
 
         const markFailedArgs = [
           'mark-failed',
-          '--github-run-id', GITHUB_RUN_ID,
-          '--github-run-attempt', '2',
-          '--fund-id', String(fundBId),
-          '--canary-run-id', runBId,
-          '--expected-sha', CANARY_SHA,
+          '--github-run-id',
+          GITHUB_RUN_ID,
+          '--github-run-attempt',
+          '2',
+          '--fund-id',
+          String(fundBId),
+          '--canary-run-id',
+          runBId,
+          '--expected-sha',
+          CANARY_SHA,
         ];
         const markFailedOutput: string[] = [];
         const markFailedExit = await runCanaryRecovery({
