@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   buildReleaseCheckSteps,
@@ -5,6 +6,16 @@ import {
 } from '../../../scripts/release-check.mjs';
 const names = (steps) => steps.map((step) => step.name);
 describe('release check execution plan', () => {
+  it('gives lint the same heap as the ci-unified lint lane', async () => {
+    const ciLint = (await readFile('.github/workflows/ci-unified.yml', 'utf8')).match(
+      /NODE_OPTIONS=(--max-old-space-size=\d+) npm run lint\n/
+    );
+    const lintStep = buildReleaseCheckSteps({ skipDbProof: false, reuseCiGates: false }).find(
+      (step) => step.name === 'Lint and guardrails'
+    );
+    expect(ciLint?.[1]).toBeDefined();
+    expect(lintStep?.command).toBe(`cross-env NODE_OPTIONS=${ciLint?.[1]} npm run lint`);
+  });
   it('keeps full release proof complete by default', () => {
     const stepNames = names(
       buildReleaseCheckSteps({ skipDbProof: false, reuseCiGates: false })

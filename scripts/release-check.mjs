@@ -108,7 +108,11 @@ function checkReleaseOwnedFilesTracked() {
 
 const upstreamSharedSteps = [
   { name: 'TypeScript baseline', command: 'npm run check' },
-  { name: 'Lint and guardrails', command: 'npm run lint' },
+  // Typed ESLint outgrew a 4 GB heap (#1489); keep in step with ci-unified.yml's lint lane.
+  {
+    name: 'Lint and guardrails',
+    command: 'cross-env NODE_OPTIONS=--max-old-space-size=6144 npm run lint',
+  },
 ];
 
 const releaseSurfaceSteps = [
