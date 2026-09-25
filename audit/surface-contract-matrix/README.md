@@ -235,14 +235,16 @@ preserving approval state is not a success criterion.
 Use the existing `SEED_REGENERATION` supervisor and its `run_seed_command`,
 `verify_seed_source`, `copy_seed_snapshot`, and `compare_seed_snapshot` helpers
 above. Inside `run_seed_regeneration()`, run this exact command sequence, with
-the same signal cleanup and snapshot setup:
+the same signal cleanup and snapshot setup. This sequence uses `npm ci`, not
+`npm install`: npm 12 rewrites `package-lock.json` metadata on install, which
+dirties the tracked tree and fails the second `verify_seed_source`.
 
 ```sh
 test -z "$(git status --short --untracked-files=no)" &&
 export COMMITTED_SOURCE_SHA="$(git rev-parse HEAD)"
 
 verify_seed_source || return $?
-run_seed_command npm install || return $?
+run_seed_command npm ci || return $?
 run_seed_command npm ls || return $?
 verify_seed_source || return $?
 run_seed_command npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" || return $?
