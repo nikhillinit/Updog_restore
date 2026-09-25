@@ -8,7 +8,10 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../../shared/contracts/release-canary-residue-characterization-v1.contract';
+import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+} from '../../../shared/contracts/release-canary-residue-characterization-v2.contract';
 import {
   parseReleaseEvidenceFragment,
   sha256CanonicalJsonOfPayload,
@@ -21,7 +24,10 @@ const SCRIPT = path.join(ROOT, 'scripts', 'release', 'build-release-evidence-fra
 
 const SHA = 'a'.repeat(40);
 const RUN_ID = '17178572726';
-const MEASUREMENT_PAYLOAD = { residue: { ...RELEASE_CANARY_RESERVED_RESIDUE } };
+const MEASUREMENT_PAYLOAD = {
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  residue: { ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE },
+};
 
 function baseEnv(overrides: Record<string, string> = {}): Record<string, string> {
   return {
@@ -81,7 +87,7 @@ describe('build-release-evidence-fragment', { timeout: 120_000 }, () => {
     await rm(workdir, { recursive: true, force: true });
   });
 
-  it('builds a policy-measurement fragment, writes 0600, prints only the documented line', async () => {
+  it('builds HTTP-v2 fragments, writes 0600, prints only the documented line', async () => {
     const result = await runBuilder(measurementArgs(), baseEnv());
     expect(result.code).toBe(0);
     expect(result.stderr).toBe('');

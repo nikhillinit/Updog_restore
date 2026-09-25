@@ -22,6 +22,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-09-25)
+
+- Move release canary residue evidence to the HTTP workflow reservation
+  (F_1.16.0). A new strict `release-canary-http-workflow-v2` contract reserves
+  44/5/5 per run, and the frozen v1 service characterization (40/4/2) stays
+  byte-identical. Release proof now also runs the real-HTTP fund canary test. It
+  composes that test's observed +1 fund event / +3 receipt delta with the
+  service artifact into a hash-bound v2 characterization, which flows through
+  certification and the evidence manifest. The exact-run residue CLI requires
+  `--reservation-identity`. Policy fragments require caps of exactly 3x v2
+  (15/15/132). Staging checks all twelve Vercel Production cap values against
+  GitHub and the certified policy before `vercel build` and after
+  `vercel deploy`; the check reads values per key without bulk decryption. The
+  presence-only staged-smoke check is removed. Recovery stays aggregate-only.
+  After merge, the owner updates both provider stores to 15/15/132; this change
+  grants no production authority.
+
 ### Documentation (2026-09-24)
 
 - Propose a refreshed queue order in the reconciled program plan and

@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
 import {
-  RELEASE_CANARY_RESERVED_RESIDUE,
   RELEASE_CANARY_RESIDUE_GROUP_KEYS,
   type ResidueVector,
 } from './release-canary-residue-characterization-v1.contract';
+import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+} from './release-canary-residue-characterization-v2.contract';
 import { sha256CanonicalJson } from '../lib/canonical-json';
 
 export const RELEASE_EVIDENCE_FRAGMENT_KINDS = [
@@ -115,7 +118,8 @@ export const ResidueVectorSchema = z
   });
 
 // Compile-time parity between the rebuilt schema and the frozen contract type.
-const RESERVED_RESIDUE: z.infer<typeof ResidueVectorSchema> = RELEASE_CANARY_RESERVED_RESIDUE;
+const RESERVED_RESIDUE: z.infer<typeof ResidueVectorSchema> =
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE;
 
 export const vectorEqualsReserved = (vector: ResidueVector): boolean =>
   vector.total === RESERVED_RESIDUE.total &&
@@ -280,6 +284,7 @@ export const SchemaFragmentPayloadSchema = z
 
 export const PolicyConfigFragmentPayloadSchema = z
   .object({
+    reservationIdentity: z.literal(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY),
     reservedPerRun: ResidueVectorSchema,
     configuredCaps: ResidueVectorSchema,
     retainedRunBudget: z.literal(3),
@@ -303,13 +308,14 @@ export const PolicyConfigFragmentPayloadSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['configuredCaps'],
-        message: 'configuredCaps must be component-wise exactly 3x reserved with total 120',
+        message: 'configuredCaps must be component-wise exactly 3x reserved with total 132',
       });
     }
   });
 
 export const PolicyMeasurementFragmentPayloadSchema = z
   .object({
+    reservationIdentity: z.literal(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY),
     residue: ResidueVectorSchema,
   })
   .strict()
@@ -366,6 +372,7 @@ export const ReleaseProviderFragmentPayloadSchema = z
 
 export const CanaryResultFragmentPayloadSchema = z
   .object({
+    reservationIdentity: z.literal(RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY),
     execution: z
       .object({
         fundId: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
@@ -391,7 +398,16 @@ export const CanaryResultFragmentPayloadSchema = z
       })
       .strict(),
   })
-  .strict();
+  .strict()
+  .superRefine((payload, ctx) => {
+    if (!vectorEqualsReserved(payload.residue)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['residue'],
+        message: 'Canary result residue must exactly equal the HTTP workflow reserved vector',
+      });
+    }
+  });
 
 const fragmentEnvelopeSchema = <K extends ReleaseEvidenceFragmentKind, P extends z.ZodTypeAny>(
   kind: K,

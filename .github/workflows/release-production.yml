@@ -287,7 +287,10 @@ jobs:
           # RUNNER_TEMP location cannot reach ./shared/contracts.
           cat > ./build-policy-config-payload.tmp.mts <<'BUILD'
           import { writeFileSync } from 'node:fs';
-          import { RELEASE_CANARY_RESERVED_RESIDUE } from './shared/contracts/release-canary-residue-characterization-v1.contract';
+          import {
+            RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+            RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+          } from './shared/contracts/release-canary-residue-characterization-v2.contract';
 
           const capEnvByGroup = {
             portfolioCompany: 'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
@@ -316,7 +319,8 @@ jobs:
             throw new Error('RELEASE_CANARY_TTL_HOURS must be a bounded non-negative integer');
           }
           const payload = {
-            reservedPerRun: RELEASE_CANARY_RESERVED_RESIDUE,
+            reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+            reservedPerRun: RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
             configuredCaps,
             retainedRunBudget: 3,
             ttlHours: Number(ttlRaw),
@@ -473,11 +477,110 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE }}
+          RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE }}
+          RELEASE_CANARY_MAX_GRANT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_GRANT_RESIDUE }}
+          RELEASE_CANARY_MAX_CALCULATION_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_CALCULATION_RESIDUE }}
+          RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE }}
+          RELEASE_CANARY_MAX_SCENARIO_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_SCENARIO_RESIDUE }}
+          RELEASE_CANARY_MAX_REPORTING_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_REPORTING_RESIDUE }}
+          RELEASE_CANARY_MAX_TOTAL_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_TOTAL_RESIDUE }}
+          RELEASE_CANARY_TTL_HOURS: ${{ vars.RELEASE_CANARY_TTL_HOURS }}
         run: |
           set -euo pipefail
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          policy_index="$RUNNER_TEMP/vercel-canary-policy-index.json"
+          policy_value="$RUNNER_TEMP/vercel-canary-policy-value.json"
+          trap 'rm -f -- "$policy_index" "$policy_value"' EXIT
+          verify_vercel_canary_policy() {
+            curl --fail --silent --show-error --request GET \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_ORG_ID}" \
+              --output "$policy_index"
+            for key in \
+              RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE \
+              RELEASE_CANARY_MAX_FUND_RESIDUE \
+              RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE \
+              RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE \
+              RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE \
+              RELEASE_CANARY_MAX_GRANT_RESIDUE \
+              RELEASE_CANARY_MAX_CALCULATION_RESIDUE \
+              RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE \
+              RELEASE_CANARY_MAX_SCENARIO_RESIDUE \
+              RELEASE_CANARY_MAX_REPORTING_RESIDUE \
+              RELEASE_CANARY_MAX_TOTAL_RESIDUE \
+              RELEASE_CANARY_TTL_HOURS; do
+              env_id="$(KEY="$key" POLICY_INDEX="$policy_index" node <<'NODE'
+          const fs = require('node:fs');
+          const key = process.env.KEY;
+          const payload = JSON.parse(fs.readFileSync(process.env.POLICY_INDEX, 'utf8'));
+          const productionEntries = (Array.isArray(payload.envs) ? payload.envs : []).filter(
+            (entry) => entry?.key === key && Array.isArray(entry.target) && entry.target.includes('production')
+          );
+          if (productionEntries.length !== 1) {
+            console.error(`Expected exactly one production Vercel environment entry for ${key}.`);
+            process.exit(1);
+          }
+          const id = productionEntries[0]?.id;
+          if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+            console.error(`Production Vercel environment entry for ${key} has no valid ID.`);
+            process.exit(1);
+          }
+          process.stdout.write(id);
+          NODE
+              )"
+              curl --fail --silent --show-error --request GET \
+                --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+                "https://api.vercel.com/v1/projects/${VERCEL_PROJECT_ID}/env/${env_id}?teamId=${VERCEL_ORG_ID}" \
+                --output "$policy_value"
+              KEY="$key" EXPECTED_VALUE="${!key}" POLICY_VALUE="$policy_value" node <<'NODE'
+          const fs = require('node:fs');
+          const key = process.env.KEY;
+          const expected = process.env.EXPECTED_VALUE;
+          const entry = JSON.parse(fs.readFileSync(process.env.POLICY_VALUE, 'utf8'));
+          if (entry?.type === 'sensitive') {
+            console.error(`Vercel production canary policy key ${key} is sensitive.`);
+            process.exit(1);
+          }
+          if (typeof entry?.value !== 'string') {
+            console.error(`Vercel production canary policy key ${key} has no value.`);
+            process.exit(1);
+          }
+          if (entry.value !== expected) {
+            console.error(`Vercel production canary policy key ${key} does not match GitHub.`);
+            process.exit(1);
+          }
+          // Mirrors the policy-config fragment contract: every cap is exactly 3x
+          // the HTTP v2 reservation and the TTL is 24 hours, so drift in both
+          // stores after baseline certification still fails here.
+          const certifiedPolicy = {
+            RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: '3',
+            RELEASE_CANARY_MAX_FUND_RESIDUE: '3',
+            RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '3',
+            RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '15',
+            RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '0',
+            RELEASE_CANARY_MAX_GRANT_RESIDUE: '3',
+            RELEASE_CANARY_MAX_CALCULATION_RESIDUE: '36',
+            RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: '15',
+            RELEASE_CANARY_MAX_SCENARIO_RESIDUE: '21',
+            RELEASE_CANARY_MAX_REPORTING_RESIDUE: '33',
+            RELEASE_CANARY_MAX_TOTAL_RESIDUE: '132',
+            RELEASE_CANARY_TTL_HOURS: '24',
+          };
+          if (entry.value !== certifiedPolicy[key]) {
+            console.error(`Vercel production canary policy key ${key} is not the certified value.`);
+            process.exit(1);
+          }
+          console.log(`Verified production canary policy key: ${key}`);
+          NODE
+            done
+          }
+          verify_vercel_canary_policy
           npx --yes vercel@55.0.0 build --prod --yes
           DEPLOYMENT_URL="$(
             npx --yes vercel@55.0.0 deploy \
@@ -513,8 +616,10 @@ jobs:
             process.exit(1);
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `deployment_url=${raw}\n`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `deployment_url=${raw}\n`);
           console.log('Staged production deployment created.');
           NODE
+          verify_vercel_canary_policy
 
   validate-deployment:
     name: Validate Staged Deployment Identity
@@ -866,60 +971,6 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Assert staged Vercel runtime canary policy
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
-          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
-          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
-          env_json="$RUNNER_TEMP/vercel-canary-policy.json"
-          trap 'rm -f "$env_json"' EXIT
-          curl --fail --silent --show-error --request GET \
-            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
-            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_ORG_ID}" \
-            --output "$env_json"
-          VERCEL_ENV_JSON="$env_json" node <<'NODE'
-          const fs = require('node:fs');
-
-          const requiredKeys = [
-            'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
-            'RELEASE_CANARY_MAX_FUND_RESIDUE',
-            'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
-            'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
-            'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
-            'RELEASE_CANARY_MAX_GRANT_RESIDUE',
-            'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
-            'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
-            'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
-            'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
-            'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
-            'RELEASE_CANARY_TTL_HOURS',
-          ];
-          const payload = JSON.parse(fs.readFileSync(process.env.VERCEL_ENV_JSON, 'utf8'));
-          const productionKeys = new Set(
-            (Array.isArray(payload.envs) ? payload.envs : [])
-              .filter(
-                (entry) => Array.isArray(entry?.target) && entry.target.includes('production')
-              )
-              .map((entry) => entry.key)
-              .filter((key) => typeof key === 'string')
-          );
-          const missingKeys = requiredKeys.filter((key) => !productionKeys.has(key));
-          if (missingKeys.length > 0) {
-            console.error(
-              `Missing production canary policy keys: ${missingKeys.join(', ')}`
-            );
-            process.exit(1);
-          }
-          for (const key of requiredKeys) {
-            console.log(`Verified production canary policy key: ${key}`);
-          }
-          NODE
-
       - name: Run authenticated staged smoke
         env:
           PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
@@ -1066,6 +1117,7 @@ jobs:
             --expected-canary-run-id "$RELEASE_CANARY_RUN_ID" \
             --github-run-id "$GITHUB_RUN_ID" \
             --github-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --reservation-identity release-canary-http-workflow-v2 \
             --started-at "$CANARY_STARTED_AT" \
             --max-clock-skew-seconds 300 \
             --emit-result "$RUNNER_TEMP/release-canary-residue-result.json" \
@@ -1097,7 +1149,10 @@ jobs:
           );
           fs.writeFileSync(
             `${process.env.RUNNER_TEMP}/policy-measurement-fragment-payload.json`,
-            JSON.stringify({ residue: result.residue }),
+            JSON.stringify({
+              reservationIdentity: result.reservationIdentity,
+              residue: result.residue,
+            }),
             { mode: 0o600 }
           );
           NODE
@@ -1153,6 +1208,7 @@ jobs:
               startedAt: process.env.CANARY_STARTED_AT,
             },
             status: 'completed',
+            reservationIdentity: result.reservationIdentity,
             residue: result.residue,
             h9Artifact: {
               recordId: h9.recordId,
@@ -2161,6 +2217,7 @@ jobs:
           CHARACTERIZATION_ARTIFACT_DIGEST: ${{ needs.release-proof.outputs.characterization_artifact_digest }}
           CHARACTERIZATION_FILE_SHA256: ${{ needs.release-proof.outputs.characterization_file_sha256 }}
           CHARACTERIZATION_SOURCE_SHA: ${{ needs.release-proof.outputs.characterization_source_sha }}
+          CHARACTERIZATION_EVIDENCE_JSON: ${{ needs.release-proof.outputs.characterization_evidence_json }}
           BASELINE_ARTIFACT_ID: ${{ needs.baseline-policy-preflight.outputs.baseline_artifact_id }}
           BASELINE_ARTIFACT_NAME: ${{ needs.baseline-policy-preflight.outputs.baseline_artifact_name }}
           BASELINE_ARTIFACT_DIGEST: ${{ needs.baseline-policy-preflight.outputs.baseline_artifact_digest }}
@@ -2253,6 +2310,7 @@ jobs:
                     artifactArchiveSha256: process.env.CHARACTERIZATION_ARTIFACT_DIGEST,
                     fileSha256: process.env.CHARACTERIZATION_FILE_SHA256,
                     sourceSha: process.env.CHARACTERIZATION_SOURCE_SHA,
+                    evidence: JSON.parse(process.env.CHARACTERIZATION_EVIDENCE_JSON ?? ''),
                   }
                 : null,
             schemaInputs:

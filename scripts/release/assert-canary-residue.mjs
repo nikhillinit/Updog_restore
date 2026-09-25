@@ -24,6 +24,7 @@ const RESIDUE_FIELDS = Object.freeze([
 const RUN_STATUSES = new Set(['created', 'running', 'completed', 'failed', 'expired', 'purged']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKFLOW_RUN_ID = /^[1-9][0-9]{0,31}$/;
+const RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY = 'release-canary-http-workflow-v2';
 const TERMINAL_TRANSITIONS = Object.freeze({
   '--complete-current-run': 'completed',
   '--fail-current-run': 'failed',
@@ -200,6 +201,13 @@ export function parseCanaryResidueArgs(args) {
       options.githubRunId = requireWorkflowRunId(value, '--github-run-id');
     } else if (flag === '--github-run-attempt') {
       options.githubRunAttempt = requirePositiveInteger(value, '--github-run-attempt');
+    } else if (flag === '--reservation-identity') {
+      if (value !== RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY) {
+        invalid(
+          `--reservation-identity must equal ${RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY}`
+        );
+      }
+      options.reservationIdentity = value;
     } else if (flag === '--started-at') {
       options.startedAt = requireTimestampString(value, '--started-at');
     } else if (flag === '--max-clock-skew-seconds') {
@@ -220,6 +228,7 @@ export function parseCanaryResidueArgs(args) {
       expectedCanaryRunId: '--expected-canary-run-id',
       githubRunId: '--github-run-id',
       githubRunAttempt: '--github-run-attempt',
+      reservationIdentity: '--reservation-identity',
       startedAt: '--started-at',
       maxClockSkewSeconds: '--max-clock-skew-seconds',
       emitResultPath: '--emit-result',
@@ -240,6 +249,9 @@ export function parseCanaryResidueArgs(args) {
   if (options.expectedCanaryRunId === undefined) invalid('--expected-canary-run-id is required');
   if (options.githubRunId === undefined) invalid('--github-run-id is required');
   if (options.githubRunAttempt === undefined) invalid('--github-run-attempt is required');
+  if (options.reservationIdentity === undefined) {
+    invalid('--reservation-identity is required for exact-run mode');
+  }
   if (options.startedAt === undefined) invalid('--started-at is required');
   if (options.maxClockSkewSeconds === undefined) invalid('--max-clock-skew-seconds is required');
   if (options.terminalStatus === undefined) {
@@ -254,6 +266,7 @@ export function parseCanaryResidueArgs(args) {
     expectedCanaryRunId: options.expectedCanaryRunId,
     githubRunId: options.githubRunId,
     githubRunAttempt: options.githubRunAttempt,
+    reservationIdentity: options.reservationIdentity,
     startedAt: options.startedAt,
     maxClockSkewSeconds: options.maxClockSkewSeconds,
     terminalStatus: options.terminalStatus,
@@ -572,13 +585,18 @@ export async function readSharedCanaryRunTransition() {
   return transitionReleaseCanaryRun;
 }
 
-export async function readSharedReservedResidue() {
+export async function readSharedReservedResidue(reservationIdentity) {
+  if (reservationIdentity !== RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY) {
+    invalid(
+      `--reservation-identity must equal ${RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY}`
+    );
+  }
   const { tsImport } = await import('tsx/esm/api');
-  const { RELEASE_CANARY_RESERVED_RESIDUE } = await tsImport(
-    '../../shared/contracts/release-canary-residue-characterization-v1.contract.ts',
+  const { RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE } = await tsImport(
+    '../../shared/contracts/release-canary-residue-characterization-v2.contract.ts',
     import.meta.url
   );
-  return RELEASE_CANARY_RESERVED_RESIDUE;
+  return RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE;
 }
 
 function exactNumberField(row, key, label) {
@@ -779,7 +797,7 @@ export async function runCanaryResidueAssertion({
       if (result.exitCode !== CANARY_RESIDUE_EXIT_CODES.SUCCESS) errorOutput(result.reason);
       return result.exitCode;
     }
-    const reserved = await readReservedResidue();
+    const reserved = await readReservedResidue(options.reservationIdentity);
     const readExactRunRows =
       typeof queryExactRunRows === 'function'
         ? queryExactRunRows
@@ -811,6 +829,7 @@ export async function runCanaryResidueAssertion({
           canaryRunId: options.expectedCanaryRunId,
           githubRunId: options.githubRunId,
           githubRunAttempt: options.githubRunAttempt,
+          reservationIdentity: options.reservationIdentity,
           transition: options.terminalStatus,
           residue: emittedResidue,
         });
@@ -858,6 +877,7 @@ export async function runCanaryResidueAssertion({
       policy: caps,
       now: now(),
     });
+    result = { ...result, reservationIdentity: options.reservationIdentity };
   } catch (error) {
     result = invalidSummary(error, options?.expectedSha ?? null, caps);
   }

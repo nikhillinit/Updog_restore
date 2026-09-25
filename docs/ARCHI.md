@@ -721,6 +721,16 @@ review, `#1287` target naming, `#1299` activation flip.
    registered; proven-absence retry rechecks the guard. This source change is
    not deployment or enablement proof.
 
+9. **Release canary residue contract v2 (F_1.16.0):**
+   `shared/contracts/release-canary-residue-characterization-v2.contract.ts`
+   owns the `release-canary-http-workflow-v2` identity and the 44/5/5 HTTP
+   reservation. It also owns the strict HTTP fund-proof sidecar, the pure
+   composer, and the shared `evidence` shape nested in certification and the
+   manifest. The v1 contract is byte-frozen (40/4/2) and still reserves
+   service-only runs. Release proof composes both runs through the composer.
+   `fund-lifecycle-db.test.ts` and `release-canary-lifecycle.test.ts` run only
+   under `vitest.config.testcontainers.ts`.
+
 **Fixed-template actuals publication and correction** (F_1.13.0 local
 candidate). One configured pilot fund uses the existing LP imports router for
 draft history, restore, preview, publication, and explicit restatement.

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { RELEASE_CANARY_RESERVED_RESIDUE } from '@shared/contracts/release-canary-residue-characterization-v1.contract';
 import {
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
+  RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  releaseCanaryResidueCharacterizationV2ArtifactName,
+} from '@shared/contracts/release-canary-residue-characterization-v2.contract';
+import {
   ReleaseEvidenceManifestV1Schema,
   parseReleaseEvidenceManifest,
   scanForSecretShapedContent,
@@ -21,12 +26,41 @@ const POLICY_CONFIG_PAYLOAD_SHA256 = '2'.repeat(64);
 const POLICY_MEASUREMENT_PAYLOAD_SHA256 = '3'.repeat(64);
 const CANARY_RESULT_PAYLOAD_SHA256 = '4'.repeat(64);
 const UUID = '123e4567-e89b-12d3-a456-426614174000';
+const DATABASE_CANARY_RUN_ID = UUID;
 
-const reservedResidue = () => ({ ...RELEASE_CANARY_RESERVED_RESIDUE });
+const reservedResidue = () => ({ ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE });
 const tripledCaps = () =>
   Object.fromEntries(
-    Object.entries(RELEASE_CANARY_RESERVED_RESIDUE).map(([key, value]) => [key, value * 3])
+    Object.entries(RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE).map(([key, value]) => [
+      key,
+      value * 3,
+    ])
   );
+
+const characterizationEvidence = () => ({
+  reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
+  baselineResidue: { ...RELEASE_CANARY_RESERVED_RESIDUE },
+  deltaResidue: {
+    portfolioCompany: 0,
+    fund: 0,
+    fundConfig: 0,
+    fundEvent: 1,
+    notification: 0,
+    grant: 0,
+    calculation: 0,
+    mutationReceipt: 3,
+    scenario: 0,
+    reporting: 0,
+    total: 4,
+  },
+  finalResidue: reservedResidue(),
+  workflowRunId: RUN_ID,
+  workflowRunAttempt: ATTEMPT,
+  databaseCanaryRunId: DATABASE_CANARY_RUN_ID,
+  serviceCharacterizationPayloadSha256: 'a'.repeat(64),
+  httpFundProofPayloadSha256: 'b'.repeat(64),
+  bindingSha256: 'c'.repeat(64),
+});
 
 const vercelIdentity = (sourceSha: string) => ({
   projectId: 'prj_updog',
@@ -166,6 +200,7 @@ function validSuccessManifest() {
       },
     },
     policy: {
+      reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
       reservedPerRun: reservedResidue(),
       stagedMeasuredResidue: reservedResidue(),
       configuredCaps: tripledCaps(),
@@ -173,10 +208,15 @@ function validSuccessManifest() {
       ttlHours: 24,
       characterizationEvidence: {
         artifactId: '41',
-        artifactName: `release-canary-residue-characterization-v1-${RUN_ID}-${ATTEMPT}-${SOURCE_SHA}`,
+        artifactName: releaseCanaryResidueCharacterizationV2ArtifactName(
+          RUN_ID,
+          ATTEMPT,
+          SOURCE_SHA
+        ),
         artifactArchiveSha256: '0'.repeat(64),
         fileSha256: CHAR_FILE_SHA256,
         sourceSha: SOURCE_SHA,
+        evidence: characterizationEvidence(),
       },
       ratification: null,
     },
@@ -205,6 +245,7 @@ function validSuccessManifest() {
       verifiedAt: '2026-08-19T10:20:00.000Z',
     },
     canary: {
+      reservationIdentity: RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
       execution: {
         fundId: 1,
         canaryRunId: UUID,
@@ -296,6 +337,16 @@ const rejects = (manifest: unknown): void => {
 };
 
 describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
+  it('validates the current HTTP-v2 manifest shape', () => {
+    const manifest = validSuccessManifest() as ReturnType<typeof validSuccessManifest> & {
+      policy: Record<string, unknown>;
+      canary: Record<string, unknown>;
+    };
+    manifest.policy.reservationIdentity = RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY;
+    manifest.canary.reservationIdentity = RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY;
+    expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
+  });
+
   it('accepts a fully successful infrastructure-only manifest', () => {
     const manifest = validSuccessManifest();
     expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
@@ -453,7 +504,7 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(withMutation((m) => void (m.schema!.audit.sourceSha = PRECURSOR_SHA)));
   });
 
-  it('rejects policy caps that are not exactly 3x reserved with total 120', () => {
+  it('rejects policy caps that are not exactly 3x reserved with total 132', () => {
     rejects(
       withMutation((m) => {
         m.policy.configuredCaps['reporting'] = 99;
@@ -477,6 +528,32 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
   });
 
+  it('rejects HTTP-v2 identity, vector, and characterization mismatches', () => {
+    rejects(
+      withMutation((m) => {
+        delete (m.policy as Record<string, unknown>).reservationIdentity;
+      })
+    );
+    rejects(
+      withMutation((m) => {
+        m.policy.reservedPerRun = { ...RELEASE_CANARY_RESERVED_RESIDUE };
+      })
+    );
+    rejects(
+      withMutation((m) => {
+        (
+          m.policy.characterizationEvidence!.evidence as Record<string, unknown>
+        ).reservationIdentity = 'release-canary-v1';
+      })
+    );
+    rejects(
+      withMutation((m) => {
+        m.policy.characterizationEvidence!.evidence.finalResidue.scenario += 1;
+        m.policy.characterizationEvidence!.evidence.finalResidue.total += 1;
+      })
+    );
+  });
+
   it('rejects characterization evidence for another SHA or attempt', () => {
     rejects(
       withMutation((m) => void (m.policy.characterizationEvidence!.sourceSha = PRECURSOR_SHA))
@@ -484,7 +561,8 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(
       withMutation(
         (m) =>
-          void (m.policy.characterizationEvidence!.artifactName = `release-canary-residue-characterization-v1-${RUN_ID}-2-${SOURCE_SHA}`)
+          void (m.policy.characterizationEvidence!.artifactName =
+            releaseCanaryResidueCharacterizationV2ArtifactName(RUN_ID, 2, SOURCE_SHA))
       )
     );
   });
