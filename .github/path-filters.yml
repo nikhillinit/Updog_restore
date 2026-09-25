@@ -368,6 +368,10 @@ schema_tests:
   - 'server/routes/internal-analysis.ts'
   - 'scripts/audit-prod-operator-seam.mjs'
   - 'scripts/reconcile-prod-schema.mjs'
+  # F_1.17.0 PR 1 C3 row-scoped reallocation transaction proof
+  - 'tests/integration/reallocation.pg.test.ts'
+  - 'server/routes/reallocation.ts'
+  - 'server/services/allocation-write-service.ts'
   # WP-L3 (task 16.3) internal-economics policy/envelope/run substrate
   - 'tests/integration/internal-economics/economics-schema.pg.test.ts'
   - 'tests/integration/internal-economics/economics-linkage-schema.pg.test.ts'

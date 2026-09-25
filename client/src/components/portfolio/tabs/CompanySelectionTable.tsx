@@ -52,6 +52,12 @@ export function CompanySelectionTable({
         ...spreadIfDefined('cap', company.allocationCapCents ?? undefined),
       };
       onSelectionChange([...selectedCompanies, newSelection]);
+      // Drop any raw text left from an earlier selection of this company.
+      setEditingValues((prev) => {
+        const next = { ...prev };
+        delete next[company.id];
+        return next;
+      });
     } else {
       // Remove company from selection
       onSelectionChange(selectedCompanies.filter((c) => c.id !== company.id));
@@ -68,10 +74,14 @@ export function CompanySelectionTable({
     // Update editing value
     setEditingValues((prev) => ({ ...prev, [companyId]: value }));
 
-    // Parse and validate
+    // Parse and validate. An invalid value still notifies the parent so any
+    // preview built from the previous amount is discarded.
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue < 0) {
-      return; // Don't update if invalid
+      onSelectionChange(
+        selectedCompanies.map((c) => (c.id === companyId ? { ...c, invalidInput: true } : c))
+      );
+      return;
     }
 
     // Convert to cents
@@ -79,7 +89,9 @@ export function CompanySelectionTable({
 
     // Update selected company
     onSelectionChange(
-      selectedCompanies.map((c) => (c.id === companyId ? { ...c, newAllocation: cents } : c))
+      selectedCompanies.map((c) =>
+        c.id === companyId ? { ...c, newAllocation: cents, invalidInput: false } : c
+      )
     );
   };
 

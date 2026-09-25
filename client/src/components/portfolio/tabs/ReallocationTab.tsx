@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { usePortfolioCompanies } from '@/hooks/use-fund-data';
 import { useFundContext } from '@/contexts/FundContext';
 import { useReallocationPreview } from '@/hooks/useReallocationPreview';
 import { useReallocationCommit } from '@/hooks/useReallocationCommit';
+import { useLatestAllocations } from './hooks/useLatestAllocations';
 import { CompanySelectionTable } from './CompanySelectionTable';
 import { DeltaSummary } from './DeltaSummary';
 import { TotalsSummary } from './TotalsSummary';
@@ -19,29 +21,112 @@ import type {
 } from '@/types/reallocation';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+interface StoredPreview {
+  data: ReallocationPreviewResponse;
+  generation: number;
+  fingerprint: string;
+  proposedAllocations: ProposedAllocation[];
+}
+
+export function createReallocationFingerprint(
+  fundId: number,
+  proposedAllocations: ProposedAllocation[]
+): string {
+  return JSON.stringify({
+    fundId,
+    proposedAllocations: [...proposedAllocations]
+      .sort((a, b) => a.company_id - b.company_id)
+      .map((allocation) => ({
+        company_id: allocation.company_id,
+        planned_reserves_cents: allocation.planned_reserves_cents,
+        ...(allocation.allocation_cap_cents === undefined
+          ? {}
+          : { allocation_cap_cents: allocation.allocation_cap_cents }),
+        expected_version: allocation.expected_version,
+      })),
+  });
+}
+
 export function ReallocationTab() {
   const { toast } = useToast();
   const { fundId } = useFundContext();
-  const currentVersion = 1; // TODO: Get from API
+  const queryClient = useQueryClient();
+  const previewGenerationRef = useRef(0);
 
   // State
   const [selectedCompanies, setSelectedCompanies] = useState<SelectedCompany[]>([]);
-  const [previewData, setPreviewData] = useState<ReallocationPreviewResponse | null>(null);
+  const [previewData, setPreviewData] = useState<StoredPreview | null>(null);
   const [commitReason, setCommitReason] = useState('');
 
   // Data fetching
   const { portfolioCompanies, isLoading: isLoadingCompanies } = usePortfolioCompanies(
     fundId || undefined
   );
+  const { data: latestAllocations, isLoading: isLoadingLatestAllocations } = useLatestAllocations();
+
+  const allocationVersions = new Map(
+    (latestAllocations?.companies ?? []).map((company) => [
+      company.company_id,
+      company.allocation_version,
+    ])
+  );
+  const hasInvalidAmount = selectedCompanies.some((company) => company.invalidInput === true);
+  // This tab has no cap editor, so it never sends allocation_cap_cents: the
+  // server's COALESCE keeps whatever cap is stored, including a concurrent
+  // change made after selection.
+  const proposedAllocations =
+    selectedCompanies.length > 0 &&
+    !hasInvalidAmount &&
+    selectedCompanies.every((company) => (allocationVersions.get(company.id) ?? 0) > 0)
+      ? selectedCompanies.map((company) => ({
+          company_id: company.id,
+          planned_reserves_cents: company.newAllocation,
+          expected_version: allocationVersions.get(company.id)!,
+        }))
+      : null;
+  const currentFingerprint = proposedAllocations
+    ? createReallocationFingerprint(fundId || 0, proposedAllocations)
+    : null;
+  const currentFingerprintRef = useRef<string | null>(null);
+  currentFingerprintRef.current = currentFingerprint;
 
   // Mutations
   const previewMutation = useReallocationPreview(fundId || 0);
   const commitMutation = useReallocationCommit(fundId || 0);
+  const mutationsRef = useRef({ previewMutation, commitMutation });
+  mutationsRef.current = { previewMutation, commitMutation };
 
-  // Reset preview when selection changes
+  // A fund switch drops the whole draft: company IDs are fund-scoped, so
+  // selections from the previous fund could never be previewed or deselected.
+  // Resetting the mutation observers detaches any in-flight request of the
+  // previous fund so its isPending state cannot disable this fund's controls.
   useEffect(() => {
+    previewGenerationRef.current += 1;
+    setSelectedCompanies([]);
     setPreviewData(null);
-  }, [selectedCompanies]);
+    setCommitReason('');
+    mutationsRef.current.previewMutation.reset();
+    mutationsRef.current.commitMutation.reset();
+  }, [fundId]);
+
+  const handleSelectionChange = (selected: SelectedCompany[]) => {
+    previewGenerationRef.current += 1;
+    setSelectedCompanies(selected);
+    setPreviewData(null);
+  };
+
+  const handleVersionConflict = () => {
+    previewGenerationRef.current += 1;
+    setPreviewData(null);
+    if (fundId) {
+      void queryClient.invalidateQueries({ queryKey: ['allocations', 'latest', fundId] });
+    }
+    toast({
+      title: 'Allocations changed',
+      description: 'Refresh applied. Preview again before committing.',
+      variant: 'destructive',
+    });
+  };
 
   // Handle preview
   const handlePreview = () => {
@@ -54,26 +139,50 @@ export function ReallocationTab() {
       return;
     }
 
-    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map((company) => ({
-      company_id: company.id,
-      planned_reserves_cents: company.newAllocation,
-      ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
-    }));
+    if (!proposedAllocations) {
+      toast({
+        title: 'Allocation versions unavailable',
+        description: 'Refresh allocation data before previewing changes.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const generation = ++previewGenerationRef.current;
+    const fingerprint = createReallocationFingerprint(fundId || 0, proposedAllocations);
+    const frozenProposedAllocations = proposedAllocations.map((allocation) => ({ ...allocation }));
 
     previewMutation.mutate(
       {
-        current_version: currentVersion,
-        proposed_allocations: proposedAllocations,
+        proposed_allocations: frozenProposedAllocations,
       },
       {
         onSuccess: (data) => {
-          setPreviewData(data);
+          if (
+            generation !== previewGenerationRef.current ||
+            fingerprint !== currentFingerprintRef.current
+          ) {
+            return;
+          }
+          setPreviewData({
+            data,
+            generation,
+            fingerprint,
+            proposedAllocations: frozenProposedAllocations,
+          });
           toast({
             title: 'Preview generated',
             description: 'Review the changes before committing',
           });
         },
         onError: (error) => {
+          if (generation !== previewGenerationRef.current) {
+            return;
+          }
+          if (error.status === 409) {
+            handleVersionConflict();
+            return;
+          }
           toast({
             title: 'Preview failed',
             description: error.message,
@@ -95,7 +204,19 @@ export function ReallocationTab() {
       return;
     }
 
-    const blockingErrors = getBlockingErrors(previewData);
+    if (
+      previewData.generation !== previewGenerationRef.current ||
+      previewData.fingerprint !== currentFingerprint
+    ) {
+      toast({
+        title: 'Preview required',
+        description: 'Preview current allocation changes before committing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const blockingErrors = getBlockingErrors(previewData.data);
     if (blockingErrors.length > 0) {
       toast({
         title: 'Cannot commit',
@@ -114,20 +235,19 @@ export function ReallocationTab() {
       return;
     }
 
-    const proposedAllocations: ProposedAllocation[] = selectedCompanies.map((company) => ({
-      company_id: company.id,
-      planned_reserves_cents: company.newAllocation,
-      ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
-    }));
-
+    // Any edit, reset, fund switch, or conflict bumps the generation; a commit
+    // response that arrives after that belongs to a draft the user no longer has.
+    const generation = previewData.generation;
     commitMutation.mutate(
       {
-        current_version: currentVersion,
-        proposed_allocations: proposedAllocations,
+        proposed_allocations: previewData.proposedAllocations,
         reason: commitReason,
       },
       {
         onSuccess: (data) => {
+          if (generation !== previewGenerationRef.current) {
+            return;
+          }
           toast({
             title: 'Reallocation committed',
             description: `Changes saved successfully at ${data.timestamp}`,
@@ -136,13 +256,11 @@ export function ReallocationTab() {
           resetForm();
         },
         onError: (error) => {
+          if (generation !== previewGenerationRef.current) {
+            return;
+          }
           if (error.status === 409) {
-            toast({
-              title: 'Version conflict',
-              description:
-                'The allocation has been modified by another user. Please refresh and try again.',
-              variant: 'destructive',
-            });
+            handleVersionConflict();
           } else {
             toast({
               title: 'Commit failed',
@@ -157,6 +275,7 @@ export function ReallocationTab() {
 
   // Reset form
   const resetForm = () => {
+    previewGenerationRef.current += 1;
     setSelectedCompanies([]);
     setPreviewData(null);
     setCommitReason('');
@@ -197,8 +316,17 @@ export function ReallocationTab() {
     );
   }
 
-  const canCommitChanges = canCommit(previewData, commitReason);
+  const hasFreshPreview =
+    previewData !== null &&
+    previewData.generation === previewGenerationRef.current &&
+    previewData.fingerprint === currentFingerprint;
+  const canCommitChanges = hasFreshPreview && canCommit(previewData.data, commitReason);
   const hasPreview = previewData !== null;
+  const versionsUnavailable =
+    selectedCompanies.length > 0 &&
+    !hasInvalidAmount &&
+    proposedAllocations === null &&
+    !isLoadingLatestAllocations;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -213,10 +341,21 @@ export function ReallocationTab() {
           </CardHeader>
           <CardContent className="space-y-4">
             <CompanySelectionTable
+              key={fundId}
               companies={portfolioCompanies}
               selectedCompanies={selectedCompanies}
-              onSelectionChange={setSelectedCompanies}
+              onSelectionChange={handleSelectionChange}
             />
+
+            {(isLoadingLatestAllocations || versionsUnavailable || hasInvalidAmount) && (
+              <p className="text-sm text-charcoal-600" data-testid="allocation-version-note">
+                {hasInvalidAmount
+                  ? 'Enter a valid amount for every selected company before previewing.'
+                  : isLoadingLatestAllocations
+                    ? 'Loading allocation versions...'
+                    : 'Allocation version unavailable; refresh allocation data before previewing.'}
+              </p>
+            )}
 
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="text-sm text-charcoal-600">
@@ -224,7 +363,12 @@ export function ReallocationTab() {
               </div>
               <Button
                 onClick={handlePreview}
-                disabled={selectedCompanies.length === 0 || previewMutation.isPending}
+                disabled={
+                  selectedCompanies.length === 0 ||
+                  proposedAllocations === null ||
+                  previewMutation.isPending ||
+                  isLoadingLatestAllocations
+                }
               >
                 {previewMutation.isPending ? (
                   <>
@@ -259,17 +403,17 @@ export function ReallocationTab() {
                   <h3 className="text-sm font-semibold text-charcoal-700 mb-2">
                     Changes by Company
                   </h3>
-                  <DeltaSummary deltas={previewData.deltas} />
+                  <DeltaSummary deltas={previewData.data.deltas} />
                 </div>
 
                 {/* Totals */}
                 <div>
-                  <TotalsSummary totals={previewData.totals} />
+                  <TotalsSummary totals={previewData.data.totals} />
                 </div>
 
                 {/* Warnings */}
                 <div>
-                  <WarningsPanel warnings={previewData.warnings} />
+                  <WarningsPanel warnings={previewData.data.warnings} />
                 </div>
 
                 {/* Commit Reason */}

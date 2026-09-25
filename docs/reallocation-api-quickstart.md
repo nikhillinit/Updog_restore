@@ -5,10 +5,12 @@ last_updated: 2026-01-19
 
 # Reallocation API Quick Start
 
-> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live in the canonical Drizzle schema (`shared/schema`), provisioned locally via `npm run db:push`. The `psql -f server/migrations/...` commands below are historical and reference files that now exist only in git history.
+> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live
+> in the canonical Drizzle schema (`shared/schema`), provisioned locally via
+> `npm run db:push`. The `psql -f server/migrations/...` commands below are
+> historical and reference files that now exist only in git history.
 
-**Phase:** 1b
-**Date:** 2025-10-07
+**Phase:** 1b **Date:** 2025-10-07
 
 ## 5-Minute Quick Start
 
@@ -20,15 +22,19 @@ psql -d updog -f server/migrations/20251007_fund_allocation_phase1b.up.sql
 
 ### 2. Test with curl
 
+Read each company's `allocation_version` from
+`GET /api/funds/:fundId/allocations/latest` before building either request.
+There is no fund-wide version; use the matching value as each row's
+`expected_version`.
+
 ```bash
 # Preview reallocation
 curl -X POST http://localhost:5000/api/funds/1/reallocation/preview \
   -H "Content-Type: application/json" \
   -d '{
-    "current_version": 1,
     "proposed_allocations": [
-      {"company_id": 1, "planned_reserves_cents": 150000000},
-      {"company_id": 2, "planned_reserves_cents": 100000000}
+      {"company_id": 1, "planned_reserves_cents": 150000000, "expected_version": 1},
+      {"company_id": 2, "planned_reserves_cents": 100000000, "expected_version": 3}
     ]
   }'
 
@@ -36,13 +42,11 @@ curl -X POST http://localhost:5000/api/funds/1/reallocation/preview \
 curl -X POST http://localhost:5000/api/funds/1/reallocation/commit \
   -H "Content-Type: application/json" \
   -d '{
-    "current_version": 1,
     "proposed_allocations": [
-      {"company_id": 1, "planned_reserves_cents": 150000000},
-      {"company_id": 2, "planned_reserves_cents": 100000000}
+      {"company_id": 1, "planned_reserves_cents": 150000000, "expected_version": 1},
+      {"company_id": 2, "planned_reserves_cents": 100000000, "expected_version": 3}
     ],
-    "reason": "Q4 rebalancing",
-    "user_id": 1
+    "reason": "Q4 rebalancing"
   }'
 ```
 
@@ -59,17 +63,26 @@ npm test tests/unit/reallocation-api.test.ts
 ```typescript
 import { dollarsToCents } from '@/lib/units';
 
-async function rebalancePortfolio(fundId: number, allocations: Map<number, number>) {
+async function rebalancePortfolio(
+  fundId: number,
+  allocations: Map<number, number>
+) {
   // Step 1: Fetch current state
-  const { version } = await fetchFundAllocations(fundId);
+  const { companies } = await fetchFundAllocations(fundId);
+  const proposed = Array.from(allocations.entries()).map(([id, amount]) => {
+    const company = companies.find((entry) => entry.company_id === id);
+    if (!company) throw new Error(`Company ${id} not found`);
+    return {
+      company_id: id,
+      planned_reserves_cents: dollarsToCents(amount),
+      expected_version: company.allocation_version,
+    };
+  });
+  const frozen = proposed.map((allocation) => ({ ...allocation }));
 
   // Step 2: Preview changes
   const preview = await previewReallocation(fundId, {
-    current_version: version,
-    proposed_allocations: Array.from(allocations.entries()).map(([id, amount]) => ({
-      company_id: id,
-      planned_reserves_cents: dollarsToCents(amount),
-    })),
+    proposed_allocations: frozen,
   });
 
   // Step 3: Check for errors
@@ -87,19 +100,16 @@ async function rebalancePortfolio(fundId: number, allocations: Map<number, numbe
   // Step 5: Commit changes
   try {
     const result = await commitReallocation(fundId, {
-      current_version: version,
-      proposed_allocations: Array.from(allocations.entries()).map(([id, amount]) => ({
-        company_id: id,
-        planned_reserves_cents: dollarsToCents(amount),
-      })),
+      proposed_allocations: frozen,
       reason: 'User-initiated rebalancing',
     });
 
     console.log('Reallocation committed:', result);
   } catch (error) {
     if (error.status === 409) {
-      // Version conflict - retry with latest version
-      return rebalancePortfolio(fundId, allocations);
+      // Refetch latest allocations and require a fresh preview; do not retry automatically.
+      await fetchFundAllocations(fundId);
+      throw new Error('Allocations changed; preview again');
     }
     throw error;
   }
@@ -109,33 +119,35 @@ async function rebalancePortfolio(fundId: number, allocations: Map<number, numbe
 ### Pattern 2: Handling Version Conflicts
 
 ```typescript
-async function commitWithRetry(
+async function commitAfterFreshPreview(
   fundId: number,
-  allocations: Array<{ company_id: number; planned_reserves_cents: number }>,
-  maxRetries = 3
+  allocations: Array<{ company_id: number; planned_reserves_cents: number }>
 ) {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const { version } = await fetchFundAllocations(fundId);
+  const { companies } = await fetchFundAllocations(fundId);
+  const proposed = allocations.map((allocation) => {
+    const company = companies.find(
+      (entry) => entry.company_id === allocation.company_id
+    );
+    if (!company) throw new Error(`Company ${allocation.company_id} not found`);
+    return { ...allocation, expected_version: company.allocation_version };
+  });
+  const preview = await previewReallocation(fundId, {
+    proposed_allocations: proposed,
+  });
+  if (!preview.validation.is_valid) throw new Error('Validation failed');
 
-      const result = await commitReallocation(fundId, {
-        current_version: version,
-        proposed_allocations: allocations,
-        reason: `Reallocation attempt ${attempt + 1}`,
-      });
-
-      return result;
-    } catch (error) {
-      if (error.status === 409 && attempt < maxRetries - 1) {
-        // Version conflict - wait and retry
-        await new Promise((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
-        continue;
-      }
-      throw error;
+  try {
+    return await commitReallocation(fundId, {
+      proposed_allocations: proposed,
+      reason: 'Reallocation after fresh preview',
+    });
+  } catch (error) {
+    if (error.status === 409) {
+      await fetchFundAllocations(fundId);
+      throw new Error('Allocations changed; preview again');
     }
+    throw error;
   }
-
-  throw new Error('Max retries exceeded');
 }
 ```
 
@@ -147,29 +159,36 @@ async function rebalanceMultipleCompanies(
   changes: Map<number, number>
 ) {
   // Fetch current allocations
-  const { version, companies } = await fetchFundAllocations(fundId);
+  const { companies } = await fetchFundAllocations(fundId);
 
   // Build proposed allocations (only changed companies)
-  const proposed = Array.from(changes.entries()).map(([companyId, newAmount]) => ({
-    company_id: companyId,
-    planned_reserves_cents: dollarsToCents(newAmount),
-  }));
+  const proposed = Array.from(changes.entries()).map(
+    ([companyId, newAmount]) => {
+      const company = companies.find((entry) => entry.company_id === companyId);
+      if (!company) throw new Error(`Company ${companyId} not found`);
+      return {
+        company_id: companyId,
+        planned_reserves_cents: dollarsToCents(newAmount),
+        expected_version: company.allocation_version,
+      };
+    }
+  );
 
   // Preview first
   const preview = await previewReallocation(fundId, {
-    current_version: version,
     proposed_allocations: proposed,
   });
 
   // Check for blocking errors
   const blockingErrors = preview.warnings.filter((w) => w.severity === 'error');
   if (blockingErrors.length > 0) {
-    throw new Error(`Cannot commit: ${blockingErrors.map((e) => e.message).join(', ')}`);
+    throw new Error(
+      `Cannot commit: ${blockingErrors.map((e) => e.message).join(', ')}`
+    );
   }
 
   // Commit
   return await commitReallocation(fundId, {
-    current_version: version,
     proposed_allocations: proposed,
     reason: 'Batch rebalancing',
   });
@@ -185,22 +204,23 @@ async function incrementAllocation(
   additionalAmount: number
 ) {
   // Fetch current allocation
-  const { version, companies } = await fetchFundAllocations(fundId);
-  const company = companies.find((c) => c.id === companyId);
+  const { companies } = await fetchFundAllocations(fundId);
+  const company = companies.find((c) => c.company_id === companyId);
 
   if (!company) {
     throw new Error(`Company ${companyId} not found`);
   }
 
-  const newAmount = company.planned_reserves_cents + dollarsToCents(additionalAmount);
+  const newAmount =
+    company.planned_reserves_cents + dollarsToCents(additionalAmount);
 
   // Commit
   return await commitReallocation(fundId, {
-    current_version: version,
     proposed_allocations: [
       {
         company_id: companyId,
         planned_reserves_cents: newAmount,
+        expected_version: company.allocation_version,
       },
     ],
     reason: `Incremental allocation: +$${additionalAmount.toLocaleString()}`,
@@ -216,11 +236,11 @@ async function incrementAllocation(
 export async function previewReallocation(
   fundId: number,
   request: {
-    current_version: number;
     proposed_allocations: Array<{
       company_id: number;
       planned_reserves_cents: number;
       allocation_cap_cents?: number;
+      expected_version: number;
     }>;
   }
 ) {
@@ -241,14 +261,13 @@ export async function previewReallocation(
 export async function commitReallocation(
   fundId: number,
   request: {
-    current_version: number;
     proposed_allocations: Array<{
       company_id: number;
       planned_reserves_cents: number;
       allocation_cap_cents?: number;
+      expected_version: number;
     }>;
     reason?: string;
-    user_id?: number;
   }
 ) {
   const response = await fetch(`/api/funds/${fundId}/reallocation/commit`, {
@@ -268,7 +287,7 @@ export async function commitReallocation(
 }
 
 export async function fetchFundAllocations(fundId: number) {
-  const response = await fetch(`/api/funds/${fundId}/allocations`);
+  const response = await fetch(`/api/funds/${fundId}/allocations/latest`);
   if (!response.ok) {
     throw new Error('Failed to fetch allocations');
   }
@@ -282,7 +301,11 @@ export async function fetchFundAllocations(fundId: number) {
 // client/src/hooks/useReallocation.ts
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { previewReallocation, commitReallocation, fetchFundAllocations } from '@/api/reallocation';
+import {
+  previewReallocation,
+  commitReallocation,
+  fetchFundAllocations,
+} from '@/api/reallocation';
 
 export function useReallocation(fundId: number) {
   const queryClient = useQueryClient();
@@ -296,19 +319,12 @@ export function useReallocation(fundId: number) {
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: (proposed: any) =>
-      previewReallocation(fundId, {
-        current_version: allocations.version,
-        proposed_allocations: proposed,
-      }),
+      previewReallocation(fundId, { proposed_allocations: proposed }),
   });
 
   // Commit mutation
   const commitMutation = useMutation({
-    mutationFn: (request: any) =>
-      commitReallocation(fundId, {
-        current_version: allocations.version,
-        ...request,
-      }),
+    mutationFn: (request: any) => commitReallocation(fundId, request),
     onSuccess: () => {
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ['fund-allocations', fundId] });
@@ -336,9 +352,12 @@ describe('Reallocation Workflow', () => {
   it('should preview and commit reallocation', async () => {
     // Preview
     const preview = await previewReallocation(1, {
-      current_version: 1,
       proposed_allocations: [
-        { company_id: 1, planned_reserves_cents: dollarsToCents(1_500_000) },
+        {
+          company_id: 1,
+          planned_reserves_cents: dollarsToCents(1_500_000),
+          expected_version: 1,
+        },
       ],
     });
 
@@ -346,32 +365,41 @@ describe('Reallocation Workflow', () => {
 
     // Commit
     const result = await commitReallocation(1, {
-      current_version: 1,
       proposed_allocations: [
-        { company_id: 1, planned_reserves_cents: dollarsToCents(1_500_000) },
+        {
+          company_id: 1,
+          planned_reserves_cents: dollarsToCents(1_500_000),
+          expected_version: 1,
+        },
       ],
       reason: 'Test reallocation',
     });
 
     expect(result.success).toBe(true);
-    expect(result.new_version).toBe(2);
+    expect(result.new_versions).toEqual([{ company_id: 1, new_version: 2 }]);
   });
 
   it('should handle version conflicts gracefully', async () => {
     // First commit
     await commitReallocation(1, {
-      current_version: 1,
       proposed_allocations: [
-        { company_id: 1, planned_reserves_cents: dollarsToCents(1_500_000) },
+        {
+          company_id: 1,
+          planned_reserves_cents: dollarsToCents(1_500_000),
+          expected_version: 1,
+        },
       ],
     });
 
     // Second commit with stale version - should fail
     await expect(
       commitReallocation(1, {
-        current_version: 1, // Stale version
         proposed_allocations: [
-          { company_id: 1, planned_reserves_cents: dollarsToCents(2_000_000) },
+          {
+            company_id: 1,
+            planned_reserves_cents: dollarsToCents(2_000_000),
+            expected_version: 1, // Stale version
+          },
         ],
       })
     ).rejects.toThrow('Version conflict');
@@ -386,10 +414,21 @@ describe('Reallocation Workflow', () => {
 **Cause:** Multiple users editing simultaneously or stale client state
 
 **Solution:**
+
 ```typescript
-// Always fetch latest version before commit
-const { version } = await fetchFundAllocations(fundId);
-await commitReallocation(fundId, { current_version: version, ... });
+// Always fetch latest per-company versions and preview before commit
+const { companies } = await fetchFundAllocations(fundId);
+const proposed = changes.map((change) => ({
+  ...change,
+  expected_version: companies.find(
+    (company) => company.company_id === change.company_id
+  ).allocation_version,
+}));
+await previewReallocation(fundId, { proposed_allocations: proposed });
+await commitReallocation(fundId, {
+  proposed_allocations: proposed,
+  reason: 'Retry after refresh',
+});
 ```
 
 ### Issue: "Cap exceeded" error
@@ -397,6 +436,7 @@ await commitReallocation(fundId, { current_version: version, ... });
 **Cause:** Proposed allocation exceeds `allocation_cap_cents`
 
 **Solution:**
+
 ```typescript
 // Option 1: Reduce allocation
 planned_reserves_cents = Math.min(planned_reserves_cents, allocation_cap_cents);
@@ -410,9 +450,13 @@ allocation_cap_cents = planned_reserves_cents * 1.2; // 20% buffer
 **Cause:** Single company > 30% of total reserves
 
 **Solution:**
+
 ```typescript
 // Calculate current concentration
-const totalReserves = companies.reduce((sum, c) => sum + c.planned_reserves_cents, 0);
+const totalReserves = companies.reduce(
+  (sum, c) => sum + c.planned_reserves_cents,
+  0
+);
 const maxAllocation = totalReserves * 0.3; // 30% limit
 
 // Apply cap

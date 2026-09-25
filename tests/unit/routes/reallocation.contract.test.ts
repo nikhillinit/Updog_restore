@@ -110,12 +110,126 @@ describe('reallocation route contracts', () => {
     expect(dbState.query).not.toHaveBeenCalled();
   });
 
+  it.each(['preview', 'commit'] as const)(
+    'POST %s rejects the legacy scalar version body before DB access',
+    async (endpoint) => {
+      const response = await request(makeApp())
+        .post(`/api/funds/1/reallocation/${endpoint}`)
+        .send({
+          current_version: 1,
+          proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1 }],
+        });
+
+      expect(response.status).toBe(400);
+      expect(dbState.query).not.toHaveBeenCalled();
+      expect(dbState.transaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['preview', 'commit'] as const)(
+    'POST %s rejects duplicate company IDs before DB access',
+    async (endpoint) => {
+      const response = await request(makeApp())
+        .post(`/api/funds/1/reallocation/${endpoint}`)
+        .send({
+          proposed_allocations: [
+            { company_id: 11, planned_reserves_cents: 1, expected_version: 1 },
+            { company_id: 11, planned_reserves_cents: 2, expected_version: 1 },
+          ],
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ error: 'Invalid request body' });
+      expect(JSON.stringify(response.body)).toContain('Duplicate company IDs');
+      expect(dbState.query).not.toHaveBeenCalled();
+      expect(dbState.transaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it('POST preview accepts canonical per-company versions and returns the preview shape', async () => {
+    dbState.query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            company_id: 11,
+            company_name: 'Alpha',
+            planned_reserves_cents: 100,
+            allocation_cap_cents: null,
+            allocation_version: 3,
+            status: 'active',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ size: '10' }] });
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/reallocation/preview')
+      .send({
+        proposed_allocations: [
+          { company_id: 11, planned_reserves_cents: 125, expected_version: 3 },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      deltas: expect.any(Array),
+      totals: expect.any(Object),
+      warnings: expect.any(Array),
+      validation: expect.any(Object),
+    });
+  });
+
+  it('POST preview reports only sorted stale proposed companies', async () => {
+    dbState.query.mockResolvedValueOnce({
+      rows: [
+        {
+          company_id: 11,
+          company_name: 'Beta',
+          planned_reserves_cents: 100,
+          allocation_cap_cents: null,
+          allocation_version: 2,
+          status: 'active',
+        },
+        {
+          company_id: 5,
+          company_name: 'Alpha',
+          planned_reserves_cents: 100,
+          allocation_cap_cents: null,
+          allocation_version: 4,
+          status: 'active',
+        },
+      ],
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/reallocation/preview')
+      .send({
+        proposed_allocations: [
+          { company_id: 11, planned_reserves_cents: 125, expected_version: 1 },
+          { company_id: 5, planned_reserves_cents: 125, expected_version: 3 },
+          { company_id: 99, planned_reserves_cents: 125, expected_version: 1 },
+        ],
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({
+      error: 'Version conflict',
+      details: {
+        current_versions: [
+          { company_id: 5, current_version: 4 },
+          { company_id: 11, current_version: 2 },
+        ],
+      },
+    });
+    expect(response.body.current_versions).toBeUndefined();
+    expect(dbState.query).toHaveBeenCalledTimes(1);
+  });
+
   it('denies restricted principals before reallocation mutation', async () => {
     const response = await request(makeApp('lp'))
       .post('/api/funds/1/reallocation/commit')
       .send({
-        current_version: 1,
-        proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1 }],
+        proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1, expected_version: 1 }],
       });
 
     expect(response.status).toBe(403);
@@ -126,21 +240,26 @@ describe('reallocation route contracts', () => {
     'allows %s to commit reallocation with verified actor',
     async (role) => {
       dbState.transaction.mockResolvedValueOnce({
-        new_version: 2,
+        new_versions: [{ company_id: 11, new_version: 2 }],
         updated_count: 1,
-        audit_id: 'audit-1',
+        audit_ids: [{ company_id: 11, audit_id: 'audit-1' }],
       });
 
       const response = await request(makeApp(role))
         .post('/api/funds/1/reallocation/commit')
         .send({
-          current_version: 1,
-          proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1 }],
+          proposed_allocations: [
+            { company_id: 11, planned_reserves_cents: 1, expected_version: 1 },
+          ],
           user_id: 999,
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toMatchObject({ success: true, audit_id: 'audit-1' });
+      expect(response.body).toMatchObject({
+        success: true,
+        new_versions: [{ company_id: 11, new_version: 2 }],
+        audit_ids: [{ company_id: 11, audit_id: 'audit-1' }],
+      });
       expect(dbState.transaction).toHaveBeenCalledTimes(1);
     }
   );

@@ -38,20 +38,47 @@ const ProposedAllocationSchema = z.object({
   company_id: z.number().int().positive(),
   planned_reserves_cents: z.number().int().nonnegative(),
   allocation_cap_cents: z.number().int().nonnegative().optional(),
+  expected_version: z.number().int().positive(),
 });
 
 /**
- * Request body for preview endpoint
+ * Shared request body for preview and commit endpoints
  */
-const ReallocationPreviewRequestSchema = z.object({
-  current_version: z.number().int().positive(),
-  proposed_allocations: z.array(ProposedAllocationSchema).min(1),
+const ReallocationRequestBaseSchema = z.object({
+  proposed_allocations: z
+    .array(ProposedAllocationSchema)
+    .min(1)
+    .refine(
+      (allocations) => {
+        const seen = new Set<number>();
+        return allocations.every((allocation) => {
+          if (seen.has(allocation.company_id)) return false;
+          seen.add(allocation.company_id);
+          return true;
+        });
+      },
+      (allocations) => {
+        const seen = new Set<number>();
+        const duplicates = new Set<number>();
+        for (const allocation of allocations) {
+          if (seen.has(allocation.company_id)) duplicates.add(allocation.company_id);
+          seen.add(allocation.company_id);
+        }
+        return {
+          message: `Duplicate company IDs in allocation update payload: ${[...duplicates].join(
+            ', '
+          )}`,
+        };
+      }
+    ),
 });
+
+const ReallocationPreviewRequestSchema = ReallocationRequestBaseSchema;
 
 /**
  * Request body for commit endpoint (same as preview)
  */
-const ReallocationCommitRequestSchema = ReallocationPreviewRequestSchema.extend({
+const ReallocationCommitRequestSchema = ReallocationRequestBaseSchema.extend({
   reason: z.string().optional(),
   user_id: z.number().int().positive().optional(),
 });
@@ -107,10 +134,40 @@ interface ReallocationPreviewResponse {
 
 interface ReallocationCommitResponse {
   success: boolean;
-  new_version: number;
   updated_count: number;
-  audit_id: string;
+  new_versions: Array<{ company_id: number; new_version: number }>;
+  audit_ids: Array<{ company_id: number; audit_id: string }>;
   timestamp: string;
+}
+
+interface ReallocationRouteError extends Error {
+  statusCode: number;
+  code: 'VERSION_CONFLICT' | 'VALIDATION_FAILED';
+  details?: {
+    current_versions: Array<{ company_id: number; current_version: number }>;
+  };
+}
+
+function createReallocationRouteError(
+  statusCode: number,
+  code: ReallocationRouteError['code'],
+  message: string,
+  details?: ReallocationRouteError['details']
+): ReallocationRouteError {
+  const error = new Error(message) as ReallocationRouteError;
+  error.statusCode = statusCode;
+  error.code = code;
+  if (details) error.details = details;
+  return error;
+}
+
+function isReallocationRouteError(error: unknown): error is ReallocationRouteError {
+  return (
+    error instanceof Error &&
+    typeof (error as Partial<ReallocationRouteError>).statusCode === 'number' &&
+    ((error as Partial<ReallocationRouteError>).code === 'VERSION_CONFLICT' ||
+      (error as Partial<ReallocationRouteError>).code === 'VALIDATION_FAILED')
+  );
 }
 
 // ============================================================================
@@ -120,9 +177,11 @@ interface ReallocationCommitResponse {
 /**
  * Fetch current allocations for a fund
  */
-async function fetchCurrentAllocations(fundId: number): Promise<CompanyAllocation[]> {
-  const result = await query<CompanyAllocation>(
-    `SELECT
+async function fetchCurrentAllocations(
+  fundId: number,
+  client?: PoolClient
+): Promise<CompanyAllocation[]> {
+  const sql = `SELECT
        id as company_id,
        name as company_name,
        planned_reserves_cents,
@@ -131,10 +190,18 @@ async function fetchCurrentAllocations(fundId: number): Promise<CompanyAllocatio
        status
      FROM portfoliocompanies
      WHERE fund_id = $1
-     ORDER BY id`,
-    [fundId]
-  );
-  return result.rows;
+     ORDER BY id`;
+  const result = client
+    ? await client.query<CompanyAllocation>(sql, [fundId])
+    : await query<CompanyAllocation>(sql, [fundId]);
+  // bigint columns arrive as strings from pg; coerce once so delta math and
+  // audit JSON carry numbers.
+  return result.rows.map((row) => ({
+    ...row,
+    planned_reserves_cents: Number(row.planned_reserves_cents),
+    allocation_cap_cents:
+      row.allocation_cap_cents === null ? null : Number(row.allocation_cap_cents),
+  }));
 }
 
 /**
@@ -256,32 +323,12 @@ function detectWarnings(
 }
 
 /**
- * Verify version consistency across all companies in a fund
- */
-async function verifyVersionConsistency(
-  fundId: number,
-  expectedVersion: number
-): Promise<{ consistent: boolean; actualVersions: number[] }> {
-  const result = await query<{ allocation_version: number }>(
-    `SELECT DISTINCT allocation_version
-     FROM portfoliocompanies
-     WHERE fund_id = $1`,
-    [fundId]
-  );
-
-  const actualVersions = result.rows.map(
-    (r: { allocation_version: number }) => r.allocation_version
-  );
-  const consistent = actualVersions.length === 1 && actualVersions[0] === expectedVersion;
-
-  return { consistent, actualVersions };
-}
-
-/**
  * Get fund size for validation
  */
-async function getFundSize(fundId: number): Promise<number> {
-  const result = await query<{ size: string }>(`SELECT size FROM funds WHERE id = $1`, [fundId]);
+async function getFundSize(fundId: number, client?: PoolClient): Promise<number> {
+  const result = client
+    ? await client.query<{ size: string }>(`SELECT size FROM funds WHERE id = $1`, [fundId])
+    : await query<{ size: string }>(`SELECT size FROM funds WHERE id = $1`, [fundId]);
 
   const fundRow = result.rows[0];
   if (!fundRow) {
@@ -303,8 +350,7 @@ async function getFundSize(fundId: number): Promise<number> {
  * Returns deltas, warnings, and validation results.
  *
  * @param fundId - Fund identifier
- * @body current_version - Expected current version (for optimistic locking)
- * @body proposed_allocations - Array of {company_id, planned_reserves_cents, allocation_cap_cents?}
+ * @body proposed_allocations - Array of {company_id, planned_reserves_cents, allocation_cap_cents?, expected_version}
  *
  * @returns ReallocationPreviewResponse with deltas, warnings, and validation
  */
@@ -328,7 +374,7 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
       });
     }
 
-    const { current_version, proposed_allocations } = parseResult.data;
+    const { proposed_allocations } = parseResult.data;
 
     // Fetch current allocations
     const currentAllocations = await fetchCurrentAllocations(fundId);
@@ -336,13 +382,27 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
       return res.status(404).json({ error: 'Fund has no portfolio companies' });
     }
 
-    // Verify version consistency
-    const { consistent, actualVersions } = await verifyVersionConsistency(fundId, current_version);
-    if (!consistent) {
+    const currentByCompanyId = new Map(
+      currentAllocations.map((allocation) => [allocation.company_id, allocation])
+    );
+    const currentVersions = proposed_allocations
+      .filter((proposal) => {
+        const current = currentByCompanyId.get(proposal.company_id);
+        return current !== undefined && current.allocation_version !== proposal.expected_version;
+      })
+      .map((proposal) => {
+        const current = currentByCompanyId.get(proposal.company_id)!;
+        return {
+          company_id: proposal.company_id,
+          current_version: current.allocation_version,
+        };
+      })
+      .sort((a, b) => a.company_id - b.company_id);
+    if (currentVersions.length > 0) {
       return res.status(409).json({
         error: 'Version conflict',
-        message: `Expected version ${current_version}, but found ${actualVersions.join(', ')}`,
-        current_versions: actualVersions,
+        message: 'One or more allocation versions are stale',
+        details: { current_versions: currentVersions },
       });
     }
 
@@ -404,8 +464,7 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
  * Creates audit log entry and increments allocation_version.
  *
  * @param fundId - Fund identifier
- * @body current_version - Expected current version (for optimistic locking)
- * @body proposed_allocations - Array of {company_id, planned_reserves_cents, allocation_cap_cents?}
+ * @body proposed_allocations - Array of {company_id, planned_reserves_cents, allocation_cap_cents?, expected_version}
  * @body reason - Optional reason for reallocation
  * @body user_id - Legacy input ignored; audit actor comes from verified credentials
  *
@@ -434,7 +493,7 @@ router['post'](
         });
       }
 
-      const { current_version, proposed_allocations, reason } = parseResult.data;
+      const { proposed_allocations, reason } = parseResult.data;
       const actorId = getUserId(req);
       if (!actorId) {
         return res.status(401).json({
@@ -445,47 +504,47 @@ router['post'](
 
       // Execute transaction
       const result = await transaction(async (client: PoolClient) => {
-        // Step 1: Verify version and lock rows
-        const versionCheck = await client.query<{ allocation_version: number }>(
-          `SELECT allocation_version
+        // Step 1: Lock only proposed rows in deterministic order.
+        const proposedCompanyIds = proposed_allocations
+          .map((proposal) => proposal.company_id)
+          .sort((a, b) => a - b);
+        const lockedRows = await client.query<{
+          id: number;
+          allocation_version: number;
+          planned_reserves_cents: number;
+          allocation_cap_cents: number | null;
+        }>(
+          `SELECT id, allocation_version, planned_reserves_cents, allocation_cap_cents
            FROM portfoliocompanies
-           WHERE fund_id = $1
+           WHERE fund_id = $1 AND id = ANY($2::int[])
+           ORDER BY id
            FOR UPDATE`,
-          [fundId]
+          [fundId, proposedCompanyIds]
         );
 
-        if (versionCheck.rows.length === 0) {
-          throw new Error('Fund has no portfolio companies');
-        }
-
-        const actualVersions = [
-          ...new Set(
-            versionCheck.rows.map((r: { allocation_version: number }) => r.allocation_version)
-          ),
-        ];
-        if (actualVersions.length !== 1 || actualVersions[0] !== current_version) {
-          throw new Error(
-            `Version conflict: expected ${current_version}, found ${actualVersions.join(', ')}`
+        const proposedByCompanyId = new Map(
+          proposed_allocations.map((proposal) => [proposal.company_id, proposal])
+        );
+        const currentVersions = lockedRows.rows
+          .filter(
+            (row) => row.allocation_version !== proposedByCompanyId.get(row.id)!.expected_version
+          )
+          .map((row) => ({
+            company_id: row.id,
+            current_version: row.allocation_version,
+          }));
+        if (currentVersions.length > 0) {
+          throw createReallocationRouteError(
+            409,
+            'VERSION_CONFLICT',
+            'One or more allocation versions are stale',
+            { current_versions: currentVersions }
           );
         }
 
-        // Step 2: Fetch current allocations for audit
-        const currentResult = await client.query<CompanyAllocation>(
-          `SELECT
-             id as company_id,
-             name as company_name,
-             planned_reserves_cents,
-             allocation_cap_cents,
-             allocation_version,
-             status
-           FROM portfoliocompanies
-           WHERE fund_id = $1
-           ORDER BY id`,
-          [fundId]
-        );
-
-        const currentAllocations = currentResult.rows;
-        const fundSize = await getFundSize(fundId);
+        // Step 2: Fetch current allocations and fund size for validation/audit.
+        const currentAllocations = await fetchCurrentAllocations(fundId, client);
+        const fundSize = await getFundSize(fundId, client);
 
         // Step 3: Calculate deltas and validate
         const deltas = calculateDeltas(currentAllocations, proposed_allocations);
@@ -498,116 +557,107 @@ router['post'](
 
         // Step 4: Block commit if validation errors exist
         if (errors.length > 0) {
-          throw new Error(`Validation failed: ${errors.join('; ')}`);
+          throw createReallocationRouteError(
+            400,
+            'VALIDATION_FAILED',
+            `Validation failed: ${errors.join('; ')}`
+          );
         }
 
-        // Step 5: Build batch update query using CASE statements
-        if (proposed_allocations.length === 0) {
-          throw new Error('No allocations to update');
-        }
-
-        // Build parameter array and CASE statements
-        const companyIds = proposed_allocations.map((p) => p.company_id);
-        const params: (number | null)[] = [fundId]; // $1
-
-        // Build CASE WHEN for planned_reserves_cents
-        const plannedCases = proposed_allocations
-          .map((prop, _idx) => {
-            params.push(prop.company_id); // company_id
-            params.push(prop.planned_reserves_cents); // planned_reserves_cents
-            return `WHEN $${params.length - 1} THEN $${params.length}::BIGINT`;
-          })
-          .join(' ');
-
-        // Build CASE WHEN for allocation_cap_cents (only if provided)
-        const hasCapUpdates = proposed_allocations.some(
-          (p) => p.allocation_cap_cents !== undefined
+        // Step 5: Update and audit each proposed row in ascending company order.
+        const currentByCompanyId = new Map(
+          currentAllocations.map((allocation) => [allocation.company_id, allocation])
         );
-        let capCases = '';
-        if (hasCapUpdates) {
-          capCases = proposed_allocations
-            .map((prop) => {
-              if (prop.allocation_cap_cents !== undefined) {
-                const companyIdIdx = params.indexOf(prop.company_id);
-                params.push(prop.allocation_cap_cents);
-                return `WHEN $${companyIdIdx} THEN $${params.length}::BIGINT`;
-              }
-              return '';
-            })
-            .filter(Boolean)
-            .join(' ');
-        }
-
-        // Add company IDs to params
-        const companyIdPlaceholders = companyIds
-          .map((id) => {
-            params.push(id);
-            return `$${params.length}`;
-          })
-          .join(',');
-
-        // Construct UPDATE query
-        const updateQuery = `
-          UPDATE portfoliocompanies
-          SET
-            planned_reserves_cents = CASE id ${plannedCases} ELSE planned_reserves_cents END,
-            ${hasCapUpdates ? `allocation_cap_cents = CASE id ${capCases} ELSE allocation_cap_cents END,` : ''}
-            allocation_version = allocation_version + 1,
-            last_allocation_at = NOW()
-          WHERE fund_id = $1 AND id IN (${companyIdPlaceholders})
-        `;
-
-        // Execute batch update
-        const updateResult = await client.query(updateQuery, params);
-
-        // Step 6: Insert audit log
-        const newVersion = current_version + 1;
-        const changesJson = deltas.map((d) => ({
-          company_id: d.company_id,
-          company_name: d.company_name,
-          from_cents: d.from_cents,
-          to_cents: d.to_cents,
-          delta_cents: d.delta_cents,
-        }));
-
-        const auditResult = await client.query<{ id: string }>(
-          `INSERT INTO reallocation_audit (
-             fund_id,
-             user_id,
-             baseline_version,
-             new_version,
-             changes_json,
-             reason
-           ) VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id`,
-          [
-            fundId,
-            actorId,
-            current_version,
-            newVersion,
-            JSON.stringify(changesJson),
-            reason ?? null,
-          ]
+        const orderedProposals = [...proposed_allocations].sort(
+          (a, b) => a.company_id - b.company_id
         );
+        const newVersions: Array<{ company_id: number; new_version: number }> = [];
+        const auditIds: Array<{ company_id: number; audit_id: string }> = [];
 
-        const auditRow = auditResult.rows[0];
-        if (!auditRow) {
-          throw new Error('Failed to create audit record');
+        for (const proposal of orderedProposals) {
+          const current = currentByCompanyId.get(proposal.company_id);
+          if (!current) {
+            throw new Error(`Company ${proposal.company_id} vanished after validation`);
+          }
+
+          const updateResult = await client.query<{ allocation_version: number }>(
+            `UPDATE portfoliocompanies
+             SET planned_reserves_cents = $1,
+                 allocation_cap_cents = COALESCE($2, allocation_cap_cents),
+                 allocation_version = allocation_version + 1,
+                 last_allocation_at = NOW()
+             WHERE fund_id = $3 AND id = $4
+             RETURNING allocation_version`,
+            [
+              proposal.planned_reserves_cents,
+              proposal.allocation_cap_cents ?? null,
+              fundId,
+              proposal.company_id,
+            ]
+          );
+          const updatedRow = updateResult.rows[0];
+          if (!updatedRow) {
+            throw new Error(`Failed to update company ${proposal.company_id}`);
+          }
+
+          const delta = deltas.find((item) => item.company_id === proposal.company_id)!;
+          const changesJson = {
+            company_id: delta.company_id,
+            company_name: delta.company_name,
+            from_cents: delta.from_cents,
+            to_cents: delta.to_cents,
+            delta_cents: delta.delta_cents,
+            ...(proposal.allocation_cap_cents !== undefined
+              ? {
+                  cap_from_cents: current.allocation_cap_cents,
+                  cap_to_cents: proposal.allocation_cap_cents,
+                }
+              : {}),
+          };
+          const auditResult = await client.query<{ id: string }>(
+            `INSERT INTO reallocation_audit (
+               fund_id,
+               user_id,
+               baseline_version,
+               new_version,
+               changes_json,
+               reason
+             ) VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id`,
+            [
+              fundId,
+              actorId,
+              proposal.expected_version,
+              updatedRow.allocation_version,
+              JSON.stringify(changesJson),
+              reason ?? null,
+            ]
+          );
+          const auditRow = auditResult.rows[0];
+          if (!auditRow) {
+            throw new Error('Failed to create audit record');
+          }
+
+          newVersions.push({
+            company_id: proposal.company_id,
+            new_version: updatedRow.allocation_version,
+          });
+          auditIds.push({ company_id: proposal.company_id, audit_id: auditRow.id });
         }
 
         return {
-          new_version: newVersion,
-          updated_count: updateResult.rowCount ?? 0,
-          audit_id: auditRow.id,
+          new_versions: newVersions,
+          updated_count: newVersions.length,
+          audit_ids: auditIds,
         };
       });
 
       // Build response
       const response: ReallocationCommitResponse = {
         success: true,
-        new_version: result.new_version,
         updated_count: result.updated_count,
-        audit_id: result.audit_id,
+        new_versions: result.new_versions,
+        audit_ids: result.audit_ids,
         timestamp: new Date().toISOString(),
       };
 
@@ -615,19 +665,11 @@ router['post'](
     } catch (error) {
       routeLog.error('[Reallocation Commit] Error:', error);
 
-      // Check for version conflict
-      if (error instanceof Error && error.message.includes('Version conflict')) {
-        return res.status(409).json({
-          error: 'Version conflict',
+      if (isReallocationRouteError(error)) {
+        return res.status(error.statusCode).json({
+          error: error.code === 'VERSION_CONFLICT' ? 'Version conflict' : 'Validation failed',
           message: error.message,
-        });
-      }
-
-      // Check for validation errors
-      if (error instanceof Error && error.message.includes('Validation failed')) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          message: error.message,
+          ...(error.details ? { details: error.details } : {}),
         });
       }
 

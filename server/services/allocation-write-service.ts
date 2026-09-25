@@ -223,7 +223,8 @@ export async function applyAllocationUpdates(
   const conflicts: AllocationWriteConflict[] = [];
   const nextVersions: number[] = [];
 
-  for (const update of updates) {
+  const orderedUpdates = [...updates].sort((a, b) => a.company_id - b.company_id);
+  for (const update of orderedUpdates) {
     const { conflict, nextVersion } = await updateCompanyAllocation(client, fundId, update);
     if (conflict) {
       conflicts.push(conflict);

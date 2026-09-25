@@ -731,6 +731,23 @@ review, `#1287` target naming, `#1299` activation flip.
    `fund-lifecycle-db.test.ts` and `release-canary-lifecycle.test.ts` run only
    under `vitest.config.testcontainers.ts`.
 
+10. **Row-scoped reallocation locking (F_1.17.0 PR 1):** allocation version is
+    per company row, never fund-wide.
+    `POST /api/funds/:fundId/reallocation/ {preview,commit}` take
+    `expected_version` per proposed company, refuse duplicate company IDs before
+    any query, and commit locks only the proposed rows with
+    `ORDER BY id FOR UPDATE`, compares each locked row, then runs one
+    fixed-placeholder `UPDATE` (cap through `COALESCE`) and one
+    `reallocation_audit` row per company. `applyAllocationUpdates` locks in
+    ascending company order while its `fund_events` payload keeps caller order,
+    so the two writers cannot form a lock cycle. The reallocation tab never
+    sends a cap (it has no cap editor), freezes the previewed rows for commit,
+    and fences every mutation callback by a generation counter plus a
+    fund-and-input fingerprint. `dual-forecast.ts` returns generic messages on
+    4xx/5xx calculation failures; the raw error stays in the route log.
+    Transaction proof: `tests/integration/reallocation.pg.test.ts`
+    (Testcontainers).
+
 **Fixed-template actuals publication and correction** (F_1.13.0 local
 candidate). One configured pilot fund uses the existing LP imports router for
 draft history, restore, preview, publication, and explicit restatement.

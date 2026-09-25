@@ -24,6 +24,23 @@ and this project adheres to
 
 ### Changed (2026-09-25)
 
+- Repair reallocation optimistic locking and the dual-forecast error envelope
+  (F_1.17.0 PR 1, C3 and C8). Reallocation preview and commit now take a
+  per-company `expected_version` read from `/allocations/latest`, reject
+  duplicate company IDs with 400, lock only the proposed rows in ascending
+  company order, update and audit each proposed row individually (one
+  `reallocation_audit` row per company), preserve omitted caps, and return
+  `new_versions` and `audit_ids`; a stale row returns 409 with sorted
+  `details.current_versions`. The scalar `current_version` contract is removed;
+  client and API cut over in one deployment. The shared allocation writer locks
+  in sorted company order so overlapping writers cannot deadlock. The
+  reallocation tab pins each selected company's version, freezes the previewed
+  payload, fences late responses by generation and fingerprint, resets on fund
+  switch, and refetches on conflict. Dual-forecast error responses keep their
+  stable codes but no longer echo calculation messages or details. A new
+  Testcontainers suite proves rollback, lock order, cap targeting, and exact
+  audit rows. The three changed route rows demote in the surface-contract matrix
+  until the sanctioned non-fresh reseed and scoped owner reapproval.
 - Move release canary residue evidence to the HTTP workflow reservation
   (F_1.16.0). A new strict `release-canary-http-workflow-v2` contract reserves
   44/5/5 per run, and the frozen v1 service characterization (40/4/2) stays

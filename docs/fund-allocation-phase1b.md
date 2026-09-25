@@ -5,15 +5,19 @@ last_updated: 2026-01-19
 
 # Fund Allocation Management - Phase 1b: Reallocation Preview/Commit API
 
-> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live in the canonical Drizzle schema (`shared/schema`), provisioned locally via `npm run db:push`. The `psql -f server/migrations/...` commands below are historical and reference files that now exist only in git history.
+> **RETIRED (PR-2b-3):** `server/migrations/` is retired. These schemas now live
+> in the canonical Drizzle schema (`shared/schema`), provisioned locally via
+> `npm run db:push`. The `psql -f server/migrations/...` commands below are
+> historical and reference files that now exist only in git history.
 
-**Status:** ✅ Complete
-**Date:** 2025-10-07
-**Phase:** 1b (Reallocation API)
+**Status:** ✅ Complete **Date:** 2025-10-07 **Phase:** 1b (Reallocation API)
 
 ## Overview
 
-Phase 1b implements the reallocation preview and commit API endpoints for Fund Allocation Management. These endpoints enable users to preview allocation changes with comprehensive validation and warnings, then commit changes atomically with full audit trail support.
+Phase 1b implements the reallocation preview and commit API endpoints for Fund
+Allocation Management. These endpoints enable users to preview allocation
+changes with comprehensive validation and warnings, then commit changes
+atomically with full audit trail support.
 
 ## Architecture
 
@@ -70,6 +74,7 @@ CREATE TABLE reallocation_audit (
 ```
 
 **Indexes:**
+
 - `idx_reallocation_audit_fund` - Fund-based queries (most common)
 - `idx_reallocation_audit_user` - User-based audit queries
 - `idx_reallocation_audit_versions` - Version-based queries
@@ -81,17 +86,18 @@ CREATE TABLE reallocation_audit (
 
 **POST** `/api/funds/:fundId/reallocation/preview`
 
-Preview reallocation changes without writing to database. Returns deltas, warnings, and validation results.
+Preview reallocation changes without writing to database. Returns deltas,
+warnings, and validation results.
 
 #### Request Body
 
 ```typescript
 {
-  current_version: number;          // Expected current version (optimistic locking)
   proposed_allocations: Array<{
-    company_id: number;             // Company identifier
+    company_id: number; // Company identifier
     planned_reserves_cents: number; // New allocation (in cents)
-    allocation_cap_cents?: number;  // Optional allocation cap override
+    allocation_cap_cents?: number; // Optional allocation cap override
+    expected_version: number; // This company's allocation_version
   }>;
 }
 ```
@@ -134,32 +140,35 @@ Preview reallocation changes without writing to database. Returns deltas, warnin
 curl -X POST http://localhost:5000/api/funds/1/reallocation/preview \
   -H "Content-Type: application/json" \
   -d '{
-    "current_version": 1,
     "proposed_allocations": [
-      {"company_id": 1, "planned_reserves_cents": 150000000},
-      {"company_id": 2, "planned_reserves_cents": 100000000}
+      {"company_id": 1, "planned_reserves_cents": 150000000, "expected_version": 1},
+      {"company_id": 2, "planned_reserves_cents": 100000000, "expected_version": 3}
     ]
   }'
 ```
+
+Read each company's `allocation_version` from
+`GET /api/funds/:fundId/allocations/latest` before building the request. There
+is no fund-wide version.
 
 ### 2. Commit Endpoint
 
 **POST** `/api/funds/:fundId/reallocation/commit`
 
-Commit reallocation changes to database with transaction safety and audit logging.
+Commit reallocation changes to database with transaction safety and audit
+logging.
 
 #### Request Body
 
 ```typescript
 {
-  current_version: number;          // Expected current version (optimistic locking)
   proposed_allocations: Array<{
     company_id: number;             // Company identifier
     planned_reserves_cents: number; // New allocation (in cents)
     allocation_cap_cents?: number;  // Optional allocation cap override
+    expected_version: number;        // This company's allocation_version
   }>;
   reason?: string;                  // Optional human-readable reason
-  user_id?: number;                 // Optional user ID for audit trail
 }
 ```
 
@@ -168,10 +177,10 @@ Commit reallocation changes to database with transaction safety and audit loggin
 ```typescript
 {
   success: boolean;
-  new_version: number;              // New allocation version
-  updated_count: number;            // Number of companies updated
-  audit_id: string;                 // UUID of audit log entry
-  timestamp: string;                // ISO 8601 timestamp
+  updated_count: number; // Number of companies updated
+  new_versions: Array<{ company_id: number; new_version: number }>;
+  audit_ids: Array<{ company_id: number; audit_id: string }>;
+  timestamp: string; // ISO 8601 timestamp
 }
 ```
 
@@ -181,15 +190,19 @@ Commit reallocation changes to database with transaction safety and audit loggin
 curl -X POST http://localhost:5000/api/funds/1/reallocation/commit \
   -H "Content-Type: application/json" \
   -d '{
-    "current_version": 1,
     "proposed_allocations": [
-      {"company_id": 1, "planned_reserves_cents": 150000000},
-      {"company_id": 2, "planned_reserves_cents": 100000000}
+      {"company_id": 1, "planned_reserves_cents": 150000000, "expected_version": 1},
+      {"company_id": 2, "planned_reserves_cents": 100000000, "expected_version": 3}
     ],
-    "reason": "Q4 2024 rebalancing based on performance metrics",
-    "user_id": 1
+    "reason": "Q4 2024 rebalancing based on performance metrics"
   }'
 ```
+
+Commit locks only the proposed rows in ascending `company_id` order and leaves
+unproposed rows untouched. Omitted caps preserve the stored cap. Each updated
+row increments its own version once and produces one audit row containing only
+that company's delta. The returned `new_versions` and `audit_ids` arrays are
+sorted by `company_id`.
 
 ## Warning Detection
 
@@ -240,50 +253,51 @@ curl -X POST http://localhost:5000/api/funds/1/reallocation/commit \
 
 ## Optimistic Locking
 
-All endpoints use version-based optimistic locking to prevent concurrent modification conflicts.
+All endpoints use version-based optimistic locking to prevent concurrent
+modification conflicts.
 
 ### Version Flow
 
 ```
 Initial State:
-  - allocation_version = 1
+  - Each company has its own allocation_version
 
-User A Preview (version 1):
+User A Preview (expected_version per selected company):
   ✓ Read allocations (no lock)
 
-User B Preview (version 1):
+User B Preview (expected_version per selected company):
   ✓ Read allocations (no lock)
 
-User A Commit (version 1):
-  ✓ Lock rows
-  ✓ Verify version = 1
-  ✓ Update allocations
-  ✓ Increment version to 2
+User A Commit (rows [A, B]):
+  ✓ Lock proposed rows in ascending company_id order
+  ✓ Verify each expected_version
+  ✓ Update only proposed allocations
+  ✓ Increment each updated row's version once
   ✓ Release lock
 
-User B Commit (version 1):
-  ✗ Lock rows
-  ✗ Verify version = 1 (fails, actual = 2)
-  ✗ Return 409 Version Conflict
+User B Commit (rows [B, C]):
+  ✗ Lock proposed rows in ascending company_id order
+  ✗ Verify stale rows (only mismatched companies are reported)
+  ✗ Return 409 with details.current_versions sorted by company_id
 ```
 
 ### Handling Version Conflicts
 
 When a 409 conflict occurs, the client should:
 
-1. **Fetch latest state** - Get current allocations with new version
-2. **Re-preview** - Show user updated deltas with current data
-3. **Retry commit** - Use new version number
+1. **Fetch latest state** - Refetch `/allocations/latest`
+2. **Re-preview** - Show user updated deltas with current per-company versions
+3. **Require a fresh commit** - Send the exact frozen rows from that preview; do
+   not retry automatically
 
 ```typescript
 try {
-  await commitReallocation(fundId, version, allocations);
+  await commitReallocation(fundId, { proposed_allocations: frozenAllocations });
 } catch (error) {
   if (error.status === 409) {
-    // Version conflict - fetch latest and retry
-    const latest = await fetchAllocations(fundId);
-    await previewReallocation(fundId, latest.version, allocations);
-    // User reviews and retries commit
+    // Refetch latest, clear stale preview, and require a fresh preview.
+    await fetchFundAllocations(fundId);
+    // User reviews the new preview and retries commit.
   }
 }
 ```
@@ -295,22 +309,28 @@ The commit endpoint uses PostgreSQL transactions to ensure atomicity:
 ```sql
 BEGIN;
 
--- 1. Lock rows and verify version
-SELECT allocation_version FROM portfoliocompanies
-WHERE fund_id = $1 FOR UPDATE;
+-- 1. Lock proposed rows in ascending company_id order
+SELECT id, allocation_version, planned_reserves_cents, allocation_cap_cents
+FROM portfoliocompanies
+WHERE fund_id = $1 AND id = ANY($2::int[])
+ORDER BY id
+FOR UPDATE;
 
--- 2. Update allocations (batch)
-UPDATE portfoliocompanies SET ...;
+-- 2. Compare each locked row with its expected_version; abort on any stale row
 
--- 3. Insert audit log
+-- 3. Update each proposed allocation and increment that row's version
+UPDATE portfoliocompanies SET ... WHERE fund_id = $1 AND id = $2;
+
+-- 4. Insert one company-scoped audit row per proposed allocation
 INSERT INTO reallocation_audit (...) VALUES (...);
 
 COMMIT;
 ```
 
 **Guarantees:**
+
 - All updates succeed or all fail (no partial updates)
-- Version consistency across all companies
+- Row-scoped optimistic locking; unproposed rows remain untouched
 - Audit log matches actual changes
 - Rollback on any error (validation, constraint, etc.)
 
@@ -330,7 +350,7 @@ COMMIT;
 
 ### Optimization Techniques
 
-1. **Batch Updates** - Single UPDATE with CASE statements
+1. **Fixed-placeholder updates** - One update per proposed company
 2. **Selective Locking** - Only lock affected rows
 3. **Indexed Queries** - Use `idx_portfoliocompanies_cursor`
 4. **JSONB Storage** - Efficient audit log storage
@@ -388,11 +408,13 @@ psql -d updog -f server/migrations/20251007_fund_allocation_phase1b.down.sql
 ### 400 Bad Request
 
 **Causes:**
+
 - Invalid request body schema
 - Negative allocation amounts
 - Missing required fields
 
 **Response:**
+
 ```json
 {
   "error": "Invalid request body",
@@ -403,10 +425,12 @@ psql -d updog -f server/migrations/20251007_fund_allocation_phase1b.down.sql
 ### 404 Not Found
 
 **Causes:**
+
 - Fund ID does not exist
 - Fund has no portfolio companies
 
 **Response:**
+
 ```json
 {
   "error": "Fund has no portfolio companies"
@@ -416,26 +440,32 @@ psql -d updog -f server/migrations/20251007_fund_allocation_phase1b.down.sql
 ### 409 Version Conflict
 
 **Causes:**
+
 - Concurrent modification by another user
 - Stale version number
 
 **Response:**
+
 ```json
 {
   "error": "Version conflict",
-  "message": "Expected version 1, but found 2",
-  "current_versions": [2]
+  "message": "Allocation versions changed; preview again",
+  "details": {
+    "current_versions": [{ "company_id": 1, "current_version": 2 }]
+  }
 }
 ```
 
 ### 500 Internal Server Error
 
 **Causes:**
+
 - Database connection failure
 - Transaction rollback
 - Unexpected runtime error
 
 **Response:**
+
 ```json
 {
   "error": "Internal server error",
@@ -488,8 +518,12 @@ All operations log to structured JSON:
 
 ## References
 
-- Phase 1a migration: `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
-- Phase 1b migration: `server/migrations/20251007_fund_allocation_phase1b.up.sql` (retired in PR-2b-3; see git history / canonical journal under `migrations/`)
+- Phase 1a migration:
+  `server/migrations/20251007_fund_allocation_phase1a.up.sql` (retired in
+  PR-2b-3; see git history / canonical journal under `migrations/`)
+- Phase 1b migration:
+  `server/migrations/20251007_fund_allocation_phase1b.up.sql` (retired in
+  PR-2b-3; see git history / canonical journal under `migrations/`)
 - [Reallocation Route](../server/routes/reallocation.ts)
 - [Unit Tests](../tests/unit/reallocation-api.test.ts)
 - [Units Library](../client/src/lib/units.ts)
