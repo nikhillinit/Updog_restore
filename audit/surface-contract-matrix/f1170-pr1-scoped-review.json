@@ -209,27 +209,8 @@
       },
       "exposure_attestations": {
         "local-process|create_server": {
-          "test_coverage": "confirmed",
-          "test_evidence": [
-            {
-              "row": "api:POST:/api/funds/:fundId/reallocation/preview",
-              "deployment": "local-process",
-              "runtime": "create_server",
-              "layer": "unit",
-              "assertion_confirmed": true,
-              "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:878 registerRoutes assembly reaches the preview handler (400 on non-canonical fundId) and, at :969, denies a cross-fund scoped token with 403 FUND_ACCESS_DENIED using the per-row expected_version body; no database write.",
-              "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
-            },
-            {
-              "row": "api:POST:/api/funds/:fundId/reallocation/preview",
-              "deployment": "local-process",
-              "runtime": "create_server",
-              "layer": "unit",
-              "assertion_confirmed": true,
-              "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:58 router-level contract: legacy scalar current_version body (:114) and duplicate company_id (:130) fail 400 before any query; stale per-row versions return 409 with sorted details.current_versions (:182); canonical body returns the preview shape.",
-              "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
-            }
-          ],
+          "test_coverage": "none-reviewed",
+          "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): preview is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts); no test drives preview through createServer. tests/unit/server/route-surface-inventory.test.ts:878 mounts registerRoutes on a bare express app without the createServer middleware stack, and the cross-fund 403 at :955 runs on makeApp.",
           "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6"
         },
         "vercel-api|make_app": {
