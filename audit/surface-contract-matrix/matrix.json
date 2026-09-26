@@ -686,10 +686,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "644f6c90711c4a0c66a28cc6557f78cba4e2e475d3051b654a4043d20da27cb6",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -7552,10 +7560,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -7808,10 +7824,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -8064,10 +8088,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -8320,10 +8352,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -8527,10 +8567,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "96b08903c7450dea52877d3ddb2e025329a5c1d11dc1201f6e8d8011a8ceb799",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -47809,15 +47857,33 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:GET:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: list (and /api/dashboard-summary/:fundId) responses omit createIdempotencyKey and createRequestHash (storage selects public columns only).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -48113,15 +48179,33 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:GET:/api/portfolio-companies/:id",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: detail response omits createIdempotencyKey and createRequestHash (storage selects public columns only).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -57166,10 +57250,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -64635,10 +64727,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "1072a26961c05ebc9a6a5156d35235566bf1fb64a3ca16425f0a244fd09643be",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -64919,10 +65019,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "96530ef1f96a86c70a8cf82641489395add752953fc8d7ccc5e32423fedb350a",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -65219,15 +65327,33 @@
             "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/deals/opportunities",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:204 makeApp with a signed admin JWT against migrated PostgreSQL: a lost acknowledgment replays 200 with Idempotency-Replay and the identical body from the immutable deal_pipeline_commands receipt, one deal, one activity, one receipt; a changed payload under the same key returns 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a lock-timed-out create returns 409 REQUEST_IN_PROGRESS with Retry-After and rolls back with no receipt, then the same key creates once (:406); a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one mutation (:434); receipt UPDATE is rejected (:485).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -65508,10 +65634,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "e0f7375c6793fae88d80016cb4c39415b7b460253a2a3f07a2de6987569ab7f2",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -65792,10 +65926,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "a6a889c96db15bb8d733c5e265dcffaa1ed19087d63250c6eec815ea5892c980",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -66092,15 +66234,33 @@
             "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/deals/opportunities/import",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:222 makeApp against migrated PostgreSQL: an import with one overflowing row stores and replays sanitized failedRows ({ index, message: 'Insert failed', code: '22003' }) with no SQL or parameter text, commits the good row once, and a same-key retry replays the identical summary; changed rows under the same key return 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -66353,10 +66513,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -98966,15 +99134,33 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:250 makeApp against migrated PostgreSQL: company create stores key and server request hash on the row (client-supplied receipt fields stripped), replays 200 with the current public row after an edit, and adds no mutationReceipt rows (release-canary residue +0); a changed payload returns 409 (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one row (:463); key without hash fails the CHECK (:485).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -102887,10 +103073,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -115629,6 +115823,101 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
       "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): commit is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts: partner/admin write role, verified actor, fund scope before the transaction); no test drives commit through createServer; mount parity for the reallocation router is covered by tests/unit/server/route-surface-inventory.test.ts on the preview path only."
+    },
+    "api:GET:/api/deals/:id/diligence|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/:id/diligence|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/pipeline|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/pipeline|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/portfolio-companies|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/portfolio-companies/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PATCH:/api/portfolio-companies/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PATCH:/api/portfolio-companies/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import/preview|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import/preview|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/portfolio-companies|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PUT:/api/deals/opportunities/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PUT:/api/deals/opportunities/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
     }
   },
   "g1_closure": {
@@ -115914,6 +116203,47 @@
         "api:POST:/api/portfolio/strategies",
         "api:PUT:/api/portfolio/strategies/:id"
       ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "kg": {
+      "snapshot_id": "snapshot:97221c7409143a20f92c64b6c40b0f6d48b6105781f3574f92e56b2234d84431",
+      "counts": {
+        "APIEndpoint": 413,
+        "ClientRoute": 44,
+        "WorkerJob": 7
+      }
+    },
+    "scheduler_registrations": [
+      {
+        "id": "varianceAlertAutomationService",
+        "site": "server/routes.ts:60"
+      },
+      {
+        "id": "artifactRetentionService",
+        "site": "server/routes.ts:62"
+      },
+      {
+        "id": "internalAnalysisCheckpointService",
+        "site": "server/routes.ts:64"
+      }
+    ],
+    "discovery": {
+      "listener_candidates": 13,
+      "dormant_candidates": 29,
+      "bullmq_constructors": 16
+    },
+    "requirement_match_counts": {
+      "current-forecast-commands": 7,
+      "fee-catch-up-ui": 1,
+      "subannual-flow-fee": 3,
+      "cashless-gp-lp-class": 2,
+      "wave-h": 1,
+      "wp-l4": 0,
+      "kpi-manager": 7,
+      "pages-v2": 8,
+      "docker-only": 60
     }
   }
 }
