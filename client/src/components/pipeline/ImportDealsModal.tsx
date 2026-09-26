@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 import { apiRequest } from '@/lib/queryClient';
 import { parseMoney, parseIntSafe } from '@/utils/parse-helpers';
 import {
@@ -125,6 +126,7 @@ function parseCSV(text: string): Record<string, unknown>[] {
 export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [phase, setPhase] = useState<Phase>('upload');
@@ -156,13 +158,16 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   const importMutation = useMutation({
     mutationFn: async (mode: 'skip_duplicates' | 'import_all') => {
       // Filter to only valid rows for import (server does its own validation too)
+      const payload = { rows: parsedRows, fundId, mode };
       return apiRequest<{ success: boolean; data: ImportResult }>(
         'POST',
         '/api/deals/opportunities/import',
-        { rows: parsedRows, fundId, mode }
+        payload,
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) } }
       );
     },
     onSuccess: (result) => {
+      idempotencyKey.reset();
       setImportResult(result.data);
       setPhase('done');
       queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });

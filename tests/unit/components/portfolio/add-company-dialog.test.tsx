@@ -104,14 +104,19 @@ describe('AddCompanyDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /create company/i }));
 
     await waitFor(() =>
-      expect(mockApiRequest).toHaveBeenCalledWith('POST', '/api/portfolio-companies', {
-        fundId: 1,
-        name: 'Northwind AI',
-        sector: 'AI / ML',
-        stage: 'Seed',
-        currentStage: 'Seed',
-        investmentAmount: '1500000',
-      })
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        'POST',
+        '/api/portfolio-companies',
+        {
+          fundId: 1,
+          name: 'Northwind AI',
+          sector: 'AI / ML',
+          stage: 'Seed',
+          currentStage: 'Seed',
+          investmentAmount: '1500000',
+        },
+        { headers: { 'Idempotency-Key': expect.any(String) } }
+      )
     );
   });
 
@@ -149,5 +154,34 @@ describe('AddCompanyDialog', () => {
         variant: 'destructive',
       })
     );
+  });
+
+  it('uses one idempotency key for retries and rotates it after success', async () => {
+    mockApiRequest
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValue({ id: 1 });
+    renderWithQuery(<AddCompanyDialog fundId={1} open={true} onOpenChange={mockOpenChange} />);
+
+    await fillRequiredCompanyFields();
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(1));
+    const firstCall = mockApiRequest.mock.calls[0] as unknown[];
+    expect(firstCall[3]).toEqual({
+      headers: { 'Idempotency-Key': expect.stringMatching(/^[0-9a-f-]{36}$/) },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+    const secondCall = mockApiRequest.mock.calls[1] as unknown[];
+    expect((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']).toBe(
+      (firstCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
+    const thirdCall = mockApiRequest.mock.calls[2] as unknown[];
+    expect(
+      (thirdCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    ).not.toBe((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']);
   });
 });

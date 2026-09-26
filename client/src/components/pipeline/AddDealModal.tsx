@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import {
   COMPANY_SECTORS,
@@ -90,6 +91,7 @@ const ADD_DEAL_SERVER_ERROR = 'Deal could not be created. Review the deal detail
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<FormInput, unknown, FormValues>({
@@ -131,7 +133,8 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       return apiRequest<{ success: boolean; data: unknown }>(
         'POST',
         '/api/deals/opportunities',
-        payload
+        payload,
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) } }
       );
     },
     onSuccess: (_result, variables) => {
@@ -142,6 +145,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
       form.reset();
+      idempotencyKey.reset();
       setServerError(null);
       onOpenChange(false);
     },

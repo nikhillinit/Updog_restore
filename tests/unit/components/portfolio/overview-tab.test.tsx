@@ -253,14 +253,19 @@ describe('OverviewTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /create company/i }));
 
     await waitFor(() =>
-      expect(mockApiRequest).toHaveBeenCalledWith('POST', '/api/portfolio-companies', {
-        fundId: 1,
-        name: 'Northwind AI',
-        sector: 'AI / ML',
-        stage: 'Seed',
-        currentStage: 'Seed',
-        investmentAmount: '1500000',
-      })
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        'POST',
+        '/api/portfolio-companies',
+        {
+          fundId: 1,
+          name: 'Northwind AI',
+          sector: 'AI / ML',
+          stage: 'Seed',
+          currentStage: 'Seed',
+          investmentAmount: '1500000',
+        },
+        { headers: { 'Idempotency-Key': expect.any(String) } }
+      )
     );
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({

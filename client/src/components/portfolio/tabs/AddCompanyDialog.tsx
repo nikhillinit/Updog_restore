@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 import { apiRequest } from '@/lib/queryClient';
 import { invalidatePortfolioData } from '@/lib/invalidate-portfolio-data';
 import {
@@ -75,6 +76,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   const [serverError, setServerError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const idempotencyKey = useIdempotencyKey();
 
   useEffect(() => {
     if (!open) {
@@ -85,16 +87,21 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   }, [open]);
 
   const createCompanyMutation = useMutation({
-    mutationFn: async (values: AddCompanyForm) =>
-      apiRequest('POST', '/api/portfolio-companies', {
+    mutationFn: async (values: AddCompanyForm) => {
+      const payload = {
         fundId,
         name: values.name,
         sector: values.sector,
         stage: values.stage,
         currentStage: values.stage,
         investmentAmount: String(parseMoney(values.investmentAmount)),
-      }),
+      };
+      return apiRequest('POST', '/api/portfolio-companies', payload, {
+        headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) },
+      });
+    },
     onSuccess: (_result, values) => {
+      idempotencyKey.reset();
       invalidatePortfolioData(queryClient, fundId);
       toast({
         title: 'Company added',

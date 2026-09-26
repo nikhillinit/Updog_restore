@@ -84,6 +84,8 @@ const mockState = vi.hoisted(() => {
     select: vi.fn(() => makeQuery(next(state.selectResults))),
     insert: vi.fn((table: unknown) => makeInsertMutation(table)),
     update: vi.fn((table: unknown) => makeUpdateMutation(table)),
+    // Savepoint passthrough: nested inserts run on the same mock handle.
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db)),
   };
 
   return { db, state };
@@ -122,6 +124,7 @@ function resetDbMock() {
   mockState.db.select.mockClear();
   mockState.db.insert.mockClear();
   mockState.db.update.mockClear();
+  mockState.db.transaction.mockClear();
 }
 
 function resetRedisMock() {

@@ -21,6 +21,7 @@ const mockState = vi.hoisted(() => {
     updateReturningResults: [] as unknown[][],
     insertValues: [] as unknown[],
     updateSets: [] as unknown[],
+    insertErrors: [] as unknown[],
   };
 
   function next(queue: unknown[][]): unknown[] {
@@ -45,6 +46,8 @@ const mockState = vi.hoisted(() => {
 
   function makeInsertMutation(table: unknown): MutationChain {
     const result: unknown[] = [];
+    const error = state.insertErrors.shift();
+    const completion = error ? Promise.reject(error) : Promise.resolve(result);
     const mutation = {
       values: vi.fn((payload: unknown) => {
         state.insertValues.push({ table, payload });
@@ -53,7 +56,7 @@ const mockState = vi.hoisted(() => {
       set: vi.fn(() => mutation),
       where: vi.fn(() => mutation),
       returning: vi.fn(() => Promise.resolve(next(state.insertReturningResults))),
-      then: thenFor(result),
+      then: (onfulfilled, onrejected) => completion.then(onfulfilled, onrejected),
     } as MutationChain;
 
     return mutation;
@@ -79,6 +82,8 @@ const mockState = vi.hoisted(() => {
     select: vi.fn(() => makeQuery(next(state.selectResults))),
     insert: vi.fn((table: unknown) => makeInsertMutation(table)),
     update: vi.fn((table: unknown) => makeUpdateMutation(table)),
+    // Savepoint passthrough: nested inserts run on the same mock handle.
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db)),
   };
 
   return { db, state };
@@ -101,9 +106,11 @@ function resetDbMock() {
   mockState.state.updateReturningResults = [];
   mockState.state.insertValues = [];
   mockState.state.updateSets = [];
+  mockState.state.insertErrors = [];
   mockState.db.select.mockClear();
   mockState.db.insert.mockClear();
   mockState.db.update.mockClear();
+  mockState.db.transaction.mockClear();
 }
 
 function importRow(companyName: string): ImportDealRowInput {
@@ -174,6 +181,26 @@ describe('deal pipeline service', () => {
       status: 'lead',
       priority: 'medium',
     });
+  });
+
+  it('rolls back only failed rows so later rows still import', async () => {
+    mockState.state.insertErrors.push(new Error('deal_size overflow'));
+
+    const result = await confirmImport({
+      rows: [importRow('Too Large'), importRow('Good Deal')],
+      fundId: 1,
+      mode: 'import_all',
+    });
+
+    expect(result).toEqual({
+      imported: 1,
+      skipped: 0,
+      failed: 1,
+      failedRows: [{ index: 0, message: 'deal_size overflow' }],
+      total: 2,
+    });
+    expect(mockState.state.insertValues).toHaveLength(2);
+    expect(mockState.db.transaction).toHaveBeenCalledTimes(2);
   });
 
   it('bulk-updates status idempotently and reports missing deals', async () => {
