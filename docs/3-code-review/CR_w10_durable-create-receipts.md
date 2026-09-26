@@ -175,3 +175,21 @@ Each new test fails against `dd29e7d8` and passes on the fix. Gates:
 `npm run check`, `npm run lint`, full `npm test` 16803 passed. The change is
 client-only; no server, migration, or matrix-pinned file changed. Verdict
 pending re-review.
+
+## Round 5: PR #1585 review at `d0b83e3af`
+
+1. **P2: a fund change could drop the only copy of a pending key** - fixed.
+   `useIdempotencyKey` held one in-memory command. When a `sessionStorage` write
+   failed, memory was the only copy, and a scope change replaced it; the retry
+   then sent the original fund and payload with a new key. The hook now keeps
+   one pending command per scope and drops an entry only on `reset` (settlement
+   or discard). Lookups read memory first, then an entry left in
+   `sessionStorage` by an earlier page life; only a storage hit marks the scope
+   as restored. Regressions: a hook test keeps fund 1's key across a switch to
+   fund 2 and back with storage writes failing; an `AddCompanyDialog` test
+   switches funds while the first request is pending, loses the response, and
+   retries with the original key.
+
+Both new tests fail against `d0b83e3af` and pass on the fix. Gates:
+`npm run check`, `npm run lint`, full `npm test` 16805 passed. Client-only
+change. Verdict pending re-review.
