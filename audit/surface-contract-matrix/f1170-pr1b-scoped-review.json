@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
   "review_id": "f1170-pr1b-durable-create-receipts-scoped-review-2026-09-26",
-  "snapshot_id": "snapshot:c13e74c5068e73e8d46e45808a92952c4e9d8852ee59befbc7f0615b69e122b4",
+  "snapshot_id": "snapshot:21c2890d6a4fae6ee85ac5f7a3cac50e6e3326fb4ee1f2bc974301bc10f6d165",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "652b470bac312c9f110e9c3967ec79ad63dfaad933b19fa0d94ac2cd3129dd3b",
+    "audit/surface-contract-matrix/boot-proofs.json": "424859790fb5babac442061c4d5c155dada43ff3686aa04463b8cb181802b27e",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
@@ -211,12 +211,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -239,12 +239,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -267,12 +267,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -295,12 +295,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -339,7 +339,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -351,8 +351,8 @@
               "runtime": "make_app",
               "layer": "integration",
               "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:271 makeApp against migrated PostgreSQL: list (and /api/dashboard-summary/:fundId) responses omit createIdempotencyKey and createRequestHash (storage selects public columns only).",
-              "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: list (and /api/dashboard-summary/:fundId) responses omit createIdempotencyKey and createRequestHash (storage selects public columns only).",
+              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
         }
@@ -377,7 +377,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -389,8 +389,8 @@
               "runtime": "make_app",
               "layer": "integration",
               "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:271 makeApp against migrated PostgreSQL: detail response omits createIdempotencyKey and createRequestHash (storage selects public columns only).",
-              "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: detail response omits createIdempotencyKey and createRequestHash (storage selects public columns only).",
+              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
         }
@@ -415,12 +415,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -475,7 +475,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -487,8 +487,8 @@
               "runtime": "make_app",
               "layer": "integration",
               "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:190 makeApp with a signed admin JWT against migrated PostgreSQL: a lost acknowledgment replays 200 with Idempotency-Replay and the identical body from the immutable deal_pipeline_commands receipt, one deal, one activity, one receipt; changed payload or another actor under the same key returns 409 IDEMPOTENCY_KEY_REUSE (:297); retry by a non-write role returns 403 then replays (:329); a lock-timed-out create returns 409 REQUEST_IN_PROGRESS with Retry-After and rolls back with no receipt, then the same key creates once (:341); a 129-character key returns 400 (:358); a SHARE-mode barrier race yields one mutation (:369); receipt UPDATE is rejected (:420).",
-              "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:204 makeApp with a signed admin JWT against migrated PostgreSQL: a lost acknowledgment replays 200 with Idempotency-Replay and the identical body from the immutable deal_pipeline_commands receipt, one deal, one activity, one receipt; a changed payload under the same key returns 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a lock-timed-out create returns 409 REQUEST_IN_PROGRESS with Retry-After and rolls back with no receipt, then the same key creates once (:406); a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one mutation (:434); receipt UPDATE is rejected (:485).",
+              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
         }
@@ -545,7 +545,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -557,8 +557,8 @@
               "runtime": "make_app",
               "layer": "integration",
               "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:208 makeApp against migrated PostgreSQL: an import with one overflowing row stores and replays sanitized failedRows ({ index, message: 'Insert failed', code: '22003' }) with no SQL or parameter text, commits the good row once, and a same-key retry replays the identical summary; changed rows under the same key return 409 IDEMPOTENCY_KEY_REUSE (:297).",
-              "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:222 makeApp against migrated PostgreSQL: an import with one overflowing row stores and replays sanitized failedRows ({ index, message: 'Insert failed', code: '22003' }) with no SQL or parameter text, commits the good row once, and a same-key retry replays the identical summary; changed rows under the same key return 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original.",
+              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
         }
@@ -583,12 +583,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -611,7 +611,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -623,8 +623,8 @@
               "runtime": "make_app",
               "layer": "integration",
               "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:236 makeApp against migrated PostgreSQL: company create stores key and server request hash on the row (client-supplied receipt fields stripped), replays 200 with the current public row after an edit, and adds no mutationReceipt rows (release-canary residue +0); changed payload returns 409 (:297); a 129-character key returns 400 (:358); a SHARE-mode barrier race yields one row (:398); key without hash fails the CHECK (:420).",
-              "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:250 makeApp against migrated PostgreSQL: company create stores key and server request hash on the row (client-supplied receipt fields stripped), replays 200 with the current public row after an edit, and adds no mutationReceipt rows (release-canary residue +0); a changed payload returns 409 (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one row (:463); key without hash fails the CHECK (:485).",
+              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
         }
@@ -649,12 +649,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-          "evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     }
@@ -728,11 +728,11 @@
         "candidate_path": "Dockerfile.railway",
         "disposition": "non-product-tooling",
         "decision_status": "approved",
-        "decision_evidence": "F_1.17.0 PR 1b (source c6917bb0783f6190cfb2bd3d42e455c8f1328d50); Dockerfile.railway unchanged (same listener fingerprint as the F_1.17.0 PR 1 approval); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, excluded from production topology (ADR-080); historical G1 closure unchanged",
+        "decision_evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5); Dockerfile.railway unchanged (same listener fingerprint as the F_1.17.0 PR 1 approval); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, excluded from production topology (ADR-080); historical G1 closure unchanged",
         "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4"
       }
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "owner-attestation:f1170-pr1b:2026-09-26:commit=c6917bb0783f6190cfb2bd3d42e455c8f1328d50"
+  "evidence_ref": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5"
 }

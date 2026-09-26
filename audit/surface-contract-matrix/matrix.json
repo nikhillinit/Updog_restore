@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "c6917bb0783f6190cfb2bd3d42e455c8f1328d50",
-    "snapshot_id": "snapshot:c13e74c5068e73e8d46e45808a92952c4e9d8852ee59befbc7f0615b69e122b4"
+    "git_head": "6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+    "snapshot_id": "snapshot:21c2890d6a4fae6ee85ac5f7a3cac50e6e3326fb4ee1f2bc974301bc10f6d165"
   },
   "rows": [
     {
@@ -2230,9 +2230,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:172",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:185",
             "assertion_confirmed": false,
-            "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2799,9 +2799,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:172",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:185",
             "assertion_confirmed": false,
-            "test_file_sha256": "f36e1d7bb972da8e8f2acd33c9c266aa18a79ca6f5e11d64ca3f8ea8131cd5a1"
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
           },
           {
             "row": "api:GET:/api-docs.json",
