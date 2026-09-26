@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddCompanyDialog } from '@/components/portfolio/tabs/AddCompanyDialog';
+import { ApiError } from '@/lib/queryClient';
 
 const { mockApiRequest, mockToast, mockOpenChange, mockInvalidatePortfolioData } = vi.hoisted(
   () => ({
@@ -25,6 +26,15 @@ vi.mock('@/lib/queryClient', async (importOriginal) => {
 vi.mock('@/lib/invalidate-portfolio-data', () => ({
   invalidatePortfolioData: (...args: unknown[]) => mockInvalidatePortfolioData(...args),
 }));
+
+const mockAuth = vi.hoisted(() => vi.fn(() => ({ data: null as { user: { id: string } } | null })));
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  useAuthSession: () => mockAuth(),
+}));
+const keyOf = (call: number) =>
+  ((mockApiRequest.mock.calls[call] as unknown[])[3] as { headers: Record<string, string> })
+    .headers['Idempotency-Key'];
 
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
@@ -55,6 +65,11 @@ async function fillRequiredCompanyFields() {
 }
 
 describe('AddCompanyDialog', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    mockAuth.mockReturnValue({ data: null });
+  });
+
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeAll(() => {
@@ -132,9 +147,9 @@ describe('AddCompanyDialog', () => {
     );
   });
 
-  it('maps raw server failures to safe dialog and toast copy', async () => {
+  it('maps a definite server rejection to safe dialog and toast copy', async () => {
     mockApiRequest.mockRejectedValue(
-      new Error('Database operation failed: relation "portfoliocompanies" does not exist')
+      new ApiError(422, 'Database operation failed: relation "portfoliocompanies" does not exist')
     );
     renderWithQuery(<AddCompanyDialog fundId={1} open={true} onOpenChange={mockOpenChange} />);
 
@@ -156,32 +171,40 @@ describe('AddCompanyDialog', () => {
     );
   });
 
-  it('uses one idempotency key for retries and rotates it after success', async () => {
+  it('freezes an unknown outcome, persists its key, and retries with it until success', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
     mockApiRequest
-      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockRejectedValueOnce(new ApiError(502, 'bad gateway'))
       .mockResolvedValue({ id: 1 });
     renderWithQuery(<AddCompanyDialog fundId={1} open={true} onOpenChange={mockOpenChange} />);
 
     await fillRequiredCompanyFields();
     await userEvent.click(screen.getByRole('button', { name: /create company/i }));
-    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(1));
-    const firstCall = mockApiRequest.mock.calls[0] as unknown[];
-    expect(firstCall[3]).toEqual({
-      headers: { 'Idempotency-Key': expect.stringMatching(/^[0-9a-f-]{36}$/) },
-    });
 
-    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
-    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
-    const secondCall = mockApiRequest.mock.calls[1] as unknown[];
-    expect((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']).toBe(
-      (firstCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
-    );
-
-    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
-    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
-    const thirdCall = mockApiRequest.mock.calls[2] as unknown[];
+    expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
     expect(
-      (thirdCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
-    ).not.toBe((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']);
+      JSON.parse(sessionStorage.getItem('pending-create:v1:1:company_create') ?? '{}')
+    ).toMatchObject({ actorId: '7', key: keyOf(0) });
+
+    await userEvent.click(screen.getByRole('button', { name: /retry create/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+    expect(keyOf(1)).toBe(keyOf(0));
+    await waitFor(() =>
+      expect(sessionStorage.getItem('pending-create:v1:1:company_create')).toBeNull()
+    );
+  });
+
+  it('settles an uncertain create as already recorded on key reuse', async () => {
+    mockApiRequest
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(new ApiError(409, 'reuse', 'IDEMPOTENCY_KEY_REUSE'));
+    renderWithQuery(<AddCompanyDialog fundId={1} open={true} onOpenChange={mockOpenChange} />);
+
+    await fillRequiredCompanyFields();
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /retry create/i }));
+
+    expect(await screen.findByText(/already recorded/i)).toBeInTheDocument();
+    expect(keyOf(1)).toBe(keyOf(0));
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
@@ -21,8 +21,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
-import { apiRequest } from '@/lib/queryClient';
+import { isUnknownCreateOutcome, useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { useAuthSession } from '@/lib/auth-session';
+import { sha256Hash } from '@/lib/hash';
 import { invalidatePortfolioData } from '@/lib/invalidate-portfolio-data';
 import {
   COMPANY_SECTORS,
@@ -35,6 +37,10 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 
 const ADD_COMPANY_SERVER_ERROR =
   'Company could not be created. Review the company details and try again.';
+const COMPANY_UNCERTAIN_MESSAGE =
+  'Creation status is uncertain. The request may already be recorded. Retry with the same details or discard this attempt after refreshing the list.';
+const COMPANY_ALREADY_RECORDED_MESSAGE =
+  'This company was already recorded. You can start a new intent.';
 
 const addCompanySchema = z.object({
   name: z.string().trim().min(1, 'Company name is required'),
@@ -74,17 +80,35 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   const [form, setForm] = useState<AddCompanyForm>(DEFAULT_FORM);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<AddCompanyField, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const [canDiscard, setCanDiscard] = useState(false);
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const idempotencyKey = useIdempotencyKey();
+  const { data: authSession } = useAuthSession();
+  const idempotencyKey = useIdempotencyKey({
+    fundId,
+    operation: 'company_create',
+    actorId: authSession?.user.id,
+  });
+
+  const refreshCompanyList = useCallback(async () => {
+    invalidatePortfolioData(queryClient, fundId);
+    await queryClient.refetchQueries({ queryKey: ['portfolio-companies'] });
+  }, [fundId, queryClient]);
 
   useEffect(() => {
-    if (!open) {
+    if (idempotencyKey.restored) void refreshCompanyList();
+  }, [idempotencyKey.restored, refreshCompanyList]);
+
+  useEffect(() => {
+    if (!open && !uncertain) {
       setForm(DEFAULT_FORM);
       setFieldErrors({});
       setServerError(null);
+      setAlreadyRecorded(false);
     }
-  }, [open]);
+  }, [open, uncertain]);
 
   const createCompanyMutation = useMutation({
     mutationFn: async (values: AddCompanyForm) => {
@@ -96,13 +120,17 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         currentStage: values.stage,
         investmentAmount: String(parseMoney(values.investmentAmount)),
       };
+      const fingerprint = await sha256Hash(payload);
       return apiRequest('POST', '/api/portfolio-companies', payload, {
-        headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) },
+        headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) },
       });
     },
     onSuccess: (_result, values) => {
       idempotencyKey.reset();
-      invalidatePortfolioData(queryClient, fundId);
+      void refreshCompanyList();
+      setUncertain(false);
+      setCanDiscard(false);
+      setAlreadyRecorded(false);
       toast({
         title: 'Company added',
         description: `"${values.name}" now appears in the Companies tab.`,
@@ -110,6 +138,28 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       onOpenChange(false);
     },
     onError: (error: unknown) => {
+      if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
+      ) {
+        idempotencyKey.reset();
+        setUncertain(false);
+        setCanDiscard(false);
+        setAlreadyRecorded(true);
+        setForm(DEFAULT_FORM);
+        setFieldErrors({});
+        void refreshCompanyList();
+        return;
+      }
+
+      if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertain(true);
+        setAlreadyRecorded(false);
+        void refreshCompanyList().then(() => setCanDiscard(true));
+        return;
+      }
+
       console.error('[AddCompanyDialog] create failed', error);
       setServerError(ADD_COMPANY_SERVER_ERROR);
       toast({
@@ -121,6 +171,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   });
 
   const handleFieldChange = (field: AddCompanyField, value: string) => {
+    if (uncertain) return;
     setForm((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
     setServerError(null);
@@ -146,6 +197,16 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
     createCompanyMutation.mutate(parsed.data);
   };
 
+  const discardAttempt = () => {
+    idempotencyKey.reset();
+    setUncertain(false);
+    setCanDiscard(false);
+    setServerError(null);
+    setAlreadyRecorded(false);
+    setForm(DEFAULT_FORM);
+    setFieldErrors({});
+  };
+
   return (
     <Dialog
       open={open}
@@ -165,75 +226,104 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="portfolio-company-name">Company name</Label>
-            <Input
-              id="portfolio-company-name"
-              value={form.name}
-              onChange={(event) => handleFieldChange('name', event.target.value)}
-              placeholder="Northwind AI"
-            />
-            {fieldErrors.name ? <p className="text-sm text-error">{fieldErrors.name}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="portfolio-company-sector">Sector</Label>
-            <Select
-              value={form.sector}
-              onValueChange={(value) => handleFieldChange('sector', value)}
-            >
-              <SelectTrigger id="portfolio-company-sector">
-                <SelectValue placeholder="Select sector" />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPANY_SECTORS.map((sector) => (
-                  <SelectItem key={sector} value={sector}>
-                    {sector}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fieldErrors.sector ? <p className="text-sm text-error">{fieldErrors.sector}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="portfolio-company-stage">Stage</Label>
-            <Select value={form.stage} onValueChange={(value) => handleFieldChange('stage', value)}>
-              <SelectTrigger id="portfolio-company-stage">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPANY_STAGES.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {stage}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fieldErrors.stage ? <p className="text-sm text-error">{fieldErrors.stage}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="portfolio-company-investment-amount">Initial investment ($)</Label>
-            <Input
-              id="portfolio-company-investment-amount"
-              type="text"
-              inputMode="decimal"
-              value={form.investmentAmount}
-              onChange={(event) => handleFieldChange('investmentAmount', event.target.value)}
-              placeholder="1,500,000"
-            />
-            {fieldErrors.investmentAmount ? (
-              <p className="text-sm text-error">{fieldErrors.investmentAmount}</p>
-            ) : null}
-          </div>
-
-          {serverError ? (
+          {(idempotencyKey.restored || uncertain || alreadyRecorded) && (
+            <div aria-live="polite" className="space-y-2">
+              {idempotencyKey.restored && (
+                <Alert>
+                  <AlertDescription>
+                    An earlier attempt may already be recorded. Review the list or retry with the
+                    same details.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {uncertain && (
+                <Alert variant="destructive">
+                  <AlertCircle aria-hidden="true" className="h-4 w-4" />
+                  <AlertDescription>{COMPANY_UNCERTAIN_MESSAGE}</AlertDescription>
+                </Alert>
+              )}
+              {alreadyRecorded && (
+                <Alert>
+                  <AlertDescription>{COMPANY_ALREADY_RECORDED_MESSAGE}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+          {serverError && !uncertain && !alreadyRecorded ? (
             <Alert variant="destructive">
               <AlertCircle aria-hidden="true" className="h-4 w-4" />
               <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           ) : null}
+          <fieldset disabled={createCompanyMutation.isPending || uncertain}>
+            <div className="space-y-2">
+              <Label htmlFor="portfolio-company-name">Company name</Label>
+              <Input
+                id="portfolio-company-name"
+                value={form.name}
+                onChange={(event) => handleFieldChange('name', event.target.value)}
+                placeholder="Northwind AI"
+              />
+              {fieldErrors.name ? <p className="text-sm text-error">{fieldErrors.name}</p> : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="portfolio-company-sector">Sector</Label>
+              <Select
+                value={form.sector}
+                onValueChange={(value) => handleFieldChange('sector', value)}
+              >
+                <SelectTrigger id="portfolio-company-sector">
+                  <SelectValue placeholder="Select sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPANY_SECTORS.map((sector) => (
+                    <SelectItem key={sector} value={sector}>
+                      {sector}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.sector ? (
+                <p className="text-sm text-error">{fieldErrors.sector}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="portfolio-company-stage">Stage</Label>
+              <Select
+                value={form.stage}
+                onValueChange={(value) => handleFieldChange('stage', value)}
+              >
+                <SelectTrigger id="portfolio-company-stage">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPANY_STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.stage ? <p className="text-sm text-error">{fieldErrors.stage}</p> : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="portfolio-company-investment-amount">Initial investment ($)</Label>
+              <Input
+                id="portfolio-company-investment-amount"
+                type="text"
+                inputMode="decimal"
+                value={form.investmentAmount}
+                onChange={(event) => handleFieldChange('investmentAmount', event.target.value)}
+                placeholder="1,500,000"
+              />
+              {fieldErrors.investmentAmount ? (
+                <p className="text-sm text-error">{fieldErrors.investmentAmount}</p>
+              ) : null}
+            </div>
+          </fieldset>
 
           <DialogFooter>
             <Button
@@ -250,10 +340,17 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Creating...
                 </>
+              ) : uncertain ? (
+                'Retry create'
               ) : (
                 'Create Company'
               )}
             </Button>
+            {uncertain && canDiscard && (
+              <Button type="button" variant="outline" onClick={discardAttempt}>
+                Discard attempt
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

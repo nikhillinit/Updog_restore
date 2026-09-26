@@ -20,6 +20,7 @@ import { FundConstructionKpiHeader } from '@/components/wizard/FundConstructionK
 import { useFundContext } from '@/contexts/FundContext';
 import { resolveDashboardView } from '@/lib/fund-routes';
 import { bindFundWorkspaceActor, unbindFundWorkspaceActor } from '@/stores/fundStore';
+import { clearPendingCreateCommands } from '@/hooks/useIdempotencyKey';
 
 const MOBILE_NAVIGATION_DISABLED_REASON = 'Complete fund setup to access this route.';
 
@@ -195,6 +196,7 @@ export function AppLayout({
   const finishLocalLogout = () => {
     setBoundActor(null);
     unbindFundWorkspaceActor();
+    clearPendingCreateCommands();
     queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
     queryClient.removeQueries({
       predicate: (query) => query.queryKey[0] !== AUTH_SESSION_QUERY_KEY[0],
