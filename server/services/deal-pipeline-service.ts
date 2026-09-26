@@ -9,7 +9,7 @@ import {
   pipelineStages,
   scoringModels,
 } from '@shared/schema';
-import { runIdempotentCommand } from '../lib/idempotent-command';
+import { retryableCommandErrorCode, runIdempotentCommand } from '../lib/idempotent-command';
 import { createRouteLogger } from '../lib/route-logger.js';
 
 const serviceLog = createRouteLogger('deal-pipeline-service');
@@ -739,6 +739,9 @@ export async function confirmImport(input: ConfirmImportInput) {
       });
       imported++;
     } catch (error) {
+      // A transient lock or serialization failure fails the whole command so
+      // the client retries the same key; recording it would replay forever.
+      if (retryableCommandErrorCode(error) !== null) throw error;
       serviceLog.error('Deal import row failed', error);
       failed.push({
         index,
