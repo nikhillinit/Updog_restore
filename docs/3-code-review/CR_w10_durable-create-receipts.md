@@ -151,3 +151,27 @@ Each new test fails against `e9c89ee5d` and passes on the fix. Gates:
 363/363, internal-economics V2 429/429, Testcontainers
 `pipeline-create-commands` and `deal-import-savepoints` 15/15, `matrix:check`
 fresh. Verdict pending re-review.
+
+## Round 4: PR #1585 review at `dd29e7d8`
+
+The re-review confirmed the three round-3 fixes and requested changes for one
+race.
+
+1. **P2: the key slot was read after hashing** - fixed. Each dialog built the
+   payload from the submitted fund, then awaited the SHA-256 fingerprint before
+   `keyFor`, which read the hook's current scope. A fund change during hashing
+   (browser Back between portfolio fund URLs keeps the dialog mounted) sent the
+   request to fund A and stored its key under fund B; after a lost response the
+   retry minted a new key and bypassed the receipt. `keyFor` and `reset` now
+   accept an explicit scope. Each dialog captures its fund and actor scope at
+   submit and carries it in the mutation variables, so key creation, retry,
+   settlement cleanup, and the list refresh all use the submitted scope. The
+   `restored` flag still describes only the hook's own scope. Regressions: a
+   hook test keys and resets a bound scope without touching the hook scope; each
+   dialog test holds the first digest open, switches the fund, and asserts the
+   key lands in, and retries from, the submitted fund's slot.
+
+Each new test fails against `dd29e7d8` and passes on the fix. Gates:
+`npm run check`, `npm run lint`, full `npm test` 16803 passed. The change is
+client-only; no server, migration, or matrix-pinned file changed. Verdict
+pending re-review.
