@@ -10,14 +10,7 @@ import {
 } from '@shared/schema';
 
 export type DealStatus =
-  | 'lead'
-  | 'qualified'
-  | 'pitch'
-  | 'dd'
-  | 'committee'
-  | 'term_sheet'
-  | 'closed'
-  | 'passed';
+  'lead' | 'qualified' | 'pitch' | 'dd' | 'committee' | 'term_sheet' | 'closed' | 'passed';
 
 export type DealPriority = 'high' | 'medium' | 'low';
 export type DealSortBy = 'updatedAt' | 'companyName' | 'dealSize' | 'createdAt';
@@ -82,7 +75,10 @@ export interface CreateDiligenceItemInput {
 
 // Import rows carry no fundId of their own -- the confirmed import's single
 // authoritative fundId is applied to every row.
-export interface ImportDealRowInput extends Omit<CreateDealInput, 'fundId' | 'status' | 'priority'> {
+export interface ImportDealRowInput extends Omit<
+  CreateDealInput,
+  'fundId' | 'status' | 'priority'
+> {
   status?: DealStatus | undefined;
   priority?: DealPriority | undefined;
 }
@@ -184,7 +180,10 @@ function dealNameCondition(companyNames: string[]): SQL<unknown> {
   )})`;
 }
 
-async function findDealById(id: number, authoritativeFundId?: number): Promise<DealRow | undefined> {
+async function findDealById(
+  id: number,
+  authoritativeFundId?: number
+): Promise<DealRow | undefined> {
   const conditions = [eq(dealOpportunities.id, id)];
   if (authoritativeFundId !== undefined) {
     conditions.push(eq(dealOpportunities.fundId, authoritativeFundId));
@@ -352,9 +351,7 @@ export async function updateDeal(id: number, authoritativeFundId: number, data: 
   const [updated] = await db
     .update(dealOpportunities)
     .set(toDealUpdateValues(data))
-    .where(
-      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
-    )
+    .where(and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId)))
     .returning();
 
   return updated;
@@ -373,9 +370,7 @@ export async function archiveDeal(id: number, authoritativeFundId: number) {
       status: 'passed',
       updatedAt: new Date(),
     })
-    .where(
-      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
-    )
+    .where(and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId)))
     .returning();
 
   if (!archived) {
@@ -411,9 +406,7 @@ export async function changeDealStage(
       status: input.status,
       updatedAt: new Date(),
     })
-    .where(
-      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
-    )
+    .where(and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId)))
     .returning();
 
   if (!updated) {
@@ -645,7 +638,11 @@ export async function confirmImport(input: ConfirmImportInput) {
         status: row.status ?? 'lead',
         priority: row.priority ?? 'medium',
       };
-      await db.insert(dealOpportunities).values(toDealInsertValues(createInput));
+      // Savepoint under the request transaction: a failed row must not abort
+      // the rows around it (the final COMMIT would silently roll them back).
+      await db.transaction(async (tx) => {
+        await tx.insert(dealOpportunities).values(toDealInsertValues(createInput));
+      });
       imported++;
     } catch (error) {
       failed.push({
@@ -676,10 +673,7 @@ export async function bulkUpdateStatus(input: BulkStatusInput) {
     })
     .from(dealOpportunities)
     .where(
-      and(
-        inArray(dealOpportunities.id, input.dealIds),
-        eq(dealOpportunities.fundId, input.fundId)
-      )
+      and(inArray(dealOpportunities.id, input.dealIds), eq(dealOpportunities.fundId, input.fundId))
     );
 
   const existingMap = new Map(existing.map((deal) => [deal.id, deal]));
@@ -699,9 +693,7 @@ export async function bulkUpdateStatus(input: BulkStatusInput) {
       await db
         .update(dealOpportunities)
         .set({ status: input.status, updatedAt: new Date() })
-        .where(
-          and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId))
-        );
+        .where(and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId)));
 
       await db.insert(pipelineActivities).values({
         opportunityId: dealId,
@@ -736,10 +728,7 @@ export async function bulkArchive(input: BulkArchiveInput) {
     })
     .from(dealOpportunities)
     .where(
-      and(
-        inArray(dealOpportunities.id, input.dealIds),
-        eq(dealOpportunities.fundId, input.fundId)
-      )
+      and(inArray(dealOpportunities.id, input.dealIds), eq(dealOpportunities.fundId, input.fundId))
     );
 
   const existingMap = new Map(existing.map((deal) => [deal.id, deal]));
@@ -759,9 +748,7 @@ export async function bulkArchive(input: BulkArchiveInput) {
       await db
         .update(dealOpportunities)
         .set({ status: 'passed', updatedAt: new Date() })
-        .where(
-          and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId))
-        );
+        .where(and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId)));
 
       await db.insert(pipelineActivities).values({
         opportunityId: dealId,

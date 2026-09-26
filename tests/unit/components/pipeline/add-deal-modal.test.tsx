@@ -107,7 +107,8 @@ describe('AddDealModal', () => {
           stage: 'Seed',
           dealSize: 1500000,
           valuation: 10000000,
-        })
+        }),
+        { headers: { 'Idempotency-Key': expect.any(String) } }
       )
     );
   });
@@ -132,5 +133,36 @@ describe('AddDealModal', () => {
         variant: 'destructive',
       })
     );
+  });
+
+  it('uses one idempotency key for retries and rotates it after success', async () => {
+    mockApiRequest.mockRejectedValueOnce(new Error('temporary failure')).mockResolvedValue({
+      success: true,
+      data: { id: 1 },
+    });
+    renderWithQuery(<AddDealModal open={true} onOpenChange={mockOpenChange} fundId={1} />);
+
+    await fillRequiredDealFields();
+    await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(1));
+    const firstCall = mockApiRequest.mock.calls[0] as unknown[];
+    expect(firstCall[3]).toEqual({
+      headers: { 'Idempotency-Key': expect.stringMatching(/^[0-9a-f-]{36}$/) },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+    const secondCall = mockApiRequest.mock.calls[1] as unknown[];
+    expect((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']).toBe(
+      (firstCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    );
+
+    await fillRequiredDealFields();
+    await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
+    const thirdCall = mockApiRequest.mock.calls[2] as unknown[];
+    expect(
+      (thirdCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    ).not.toBe((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']);
   });
 });
