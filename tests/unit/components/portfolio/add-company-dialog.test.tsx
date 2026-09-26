@@ -40,6 +40,25 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+// Pass-through unless a test queues a digest to hold the hashing window open.
+const mockSha256Hash = vi.hoisted(() => vi.fn<(payload: unknown) => Promise<string> | undefined>());
+
+vi.mock('@/lib/hash', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/hash')>();
+  return {
+    ...actual,
+    sha256Hash: (payload: unknown) => mockSha256Hash(payload) ?? actual.sha256Hash(payload),
+  };
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 function renderWithQuery(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -101,6 +120,7 @@ describe('AddCompanyDialog', () => {
 
   beforeEach(() => {
     mockApiRequest.mockReset();
+    mockSha256Hash.mockReset();
     mockToast.mockReset();
     mockOpenChange.mockReset();
     mockInvalidatePortfolioData.mockReset();
@@ -225,6 +245,44 @@ describe('AddCompanyDialog', () => {
     );
     expect(sessionStorage.getItem('pending-create:v1:2:company_create')).toBeNull();
     expect(mockInvalidatePortfolioData).toHaveBeenLastCalledWith(expect.anything(), 1);
+  });
+
+  it('keys a create under its submitted fund when the fund changes while hashing', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    const firstDigest = deferred<string>();
+    mockSha256Hash
+      .mockImplementationOnce(() => firstDigest.promise)
+      .mockResolvedValueOnce('digest-a');
+    mockApiRequest
+      .mockRejectedValueOnce(new ApiError(502, 'bad gateway'))
+      .mockResolvedValue({ id: 1 });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const view = (fundId: number) => (
+      <QueryClientProvider client={queryClient}>
+        <AddCompanyDialog fundId={fundId} open={true} onOpenChange={mockOpenChange} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(view(1));
+
+    await fillRequiredCompanyFields();
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    await waitFor(() => expect(mockSha256Hash).toHaveBeenCalledTimes(1));
+    rerender(view(2));
+    firstDigest.resolve('digest-a');
+
+    expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
+    expect((mockApiRequest.mock.calls[0] as unknown[])[2]).toMatchObject({ fundId: 1 });
+    expect(
+      JSON.parse(sessionStorage.getItem('pending-create:v1:1:company_create') ?? '{}')
+    ).toMatchObject({ key: keyOf(0) });
+    expect(sessionStorage.getItem('pending-create:v1:2:company_create')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: /retry create/i }));
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+    expect(keyOf(1)).toBe(keyOf(0));
+    expect((mockApiRequest.mock.calls[1] as unknown[])[2]).toMatchObject({ fundId: 1 });
   });
 
   it('settles an uncertain create as already recorded on key reuse', async () => {

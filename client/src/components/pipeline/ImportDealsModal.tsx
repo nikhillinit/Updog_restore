@@ -19,7 +19,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { isUnknownCreateOutcome, useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import {
+  isUnknownCreateOutcome,
+  useIdempotencyKey,
+  type IdempotencyKeyScope,
+} from '@/hooks/useIdempotencyKey';
 import { ApiError, apiRequest } from '@/lib/queryClient';
 import { useAuthSession } from '@/lib/auth-session';
 import { sha256Hash } from '@/lib/hash';
@@ -131,7 +135,10 @@ function parseCSV(text: string): Record<string, unknown>[] {
 }
 
 type ImportMode = 'skip_duplicates' | 'import_all';
-type ImportVariables = { mode: ImportMode; fundId: number | undefined };
+// The fund and actor are captured at submit and travel with the command, so a
+// scope change while the fingerprint hashes cannot move it to another key slot.
+type DealImportScope = IdempotencyKeyScope & { fundId: number | undefined };
+type ImportVariables = { mode: ImportMode; scope: DealImportScope };
 
 export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModalProps) {
   const { toast } = useToast();
@@ -141,12 +148,12 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   // An uncertain command stays bound to the fund it was sent to until it
   // settles, even if the page fund changes while the dialog is closed.
   const [uncertainFundId, setUncertainFundId] = useState<number | undefined>(undefined);
-  const commandFundId = uncertain ? uncertainFundId : fundId;
-  const idempotencyKey = useIdempotencyKey({
-    fundId: commandFundId,
+  const commandScope: DealImportScope = {
+    fundId: uncertain ? uncertainFundId : fundId,
     operation: 'deal_import',
     actorId: authSession?.user.id,
-  });
+  };
+  const idempotencyKey = useIdempotencyKey(commandScope);
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [phase, setPhase] = useState<Phase>('upload');
@@ -190,19 +197,19 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   });
 
   const importMutation = useMutation({
-    mutationFn: async ({ mode, fundId: targetFundId }: ImportVariables) => {
+    mutationFn: async ({ mode, scope }: ImportVariables) => {
       // Filter to only valid rows for import (server does its own validation too)
-      const payload = { rows: parsedRows, fundId: targetFundId, mode };
+      const payload = { rows: parsedRows, fundId: scope.fundId, mode };
       const fingerprint = await sha256Hash(payload);
       return apiRequest<{ success: boolean; data: ImportResult }>(
         'POST',
         '/api/deals/opportunities/import',
         payload,
-        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint, scope) } }
       );
     },
-    onSuccess: (result) => {
-      idempotencyKey.reset();
+    onSuccess: (result, variables) => {
+      idempotencyKey.reset(variables.scope);
       setUncertain(false);
       setCanDiscard(false);
       setAlreadyRecorded(false);
@@ -216,7 +223,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
         error.status === 409 &&
         error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
       ) {
-        idempotencyKey.reset();
+        idempotencyKey.reset(variables.scope);
         setUncertain(false);
         setCanDiscard(false);
         setAlreadyRecorded(true);
@@ -225,7 +232,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
-        setUncertainFundId(variables.fundId);
+        setUncertainFundId(variables.scope.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
         void invalidateDealLists().then(() => setCanDiscard(true));
@@ -314,7 +321,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
 
   const startImport = (mode: ImportMode) => {
     setLastImportMode(mode);
-    importMutation.mutate({ mode, fundId: commandFundId });
+    importMutation.mutate({ mode, scope: commandScope });
   };
 
   const discardAttempt = () => {

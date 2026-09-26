@@ -89,6 +89,25 @@ describe('useIdempotencyKey', () => {
     expect(result.current.keyFor('digest-a')).toBe(key);
   });
 
+  it('keys and resets a bound scope without touching the hook scope', () => {
+    const otherFund = 'pending-create:v1:2:deal_create';
+    sessionStorage.setItem(
+      otherFund,
+      JSON.stringify({ actorId: '7', key: 'other', fingerprint: 'digest-x', createdAt: 1 })
+    );
+    const { result } = renderHook(() => useIdempotencyKey({ ...scope(), fundId: 2 }));
+    expect(result.current.restored).toBe(true);
+
+    const key = result.current.keyFor('digest-a', scope());
+    expect(stored()).toMatchObject({ key, fingerprint: 'digest-a' });
+    expect(result.current.keyFor('digest-a', scope())).toBe(key);
+
+    act(() => result.current.reset(scope()));
+    expect(sessionStorage.getItem(ENTRY)).toBeNull();
+    expect(JSON.parse(sessionStorage.getItem(otherFund) ?? 'null')).toMatchObject({ key: 'other' });
+    expect(result.current.restored).toBe(true);
+  });
+
   it('clears its own entry on reset and every pending-create entry on logout', () => {
     const { result } = renderHook(() => useIdempotencyKey(scope()));
     const key = result.current.keyFor('digest-a');

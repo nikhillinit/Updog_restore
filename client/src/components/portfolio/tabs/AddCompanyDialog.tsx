@@ -21,7 +21,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { isUnknownCreateOutcome, useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import {
+  isUnknownCreateOutcome,
+  useIdempotencyKey,
+  type IdempotencyKeyScope,
+} from '@/hooks/useIdempotencyKey';
 import { ApiError, apiRequest } from '@/lib/queryClient';
 import { useAuthSession } from '@/lib/auth-session';
 import { sha256Hash } from '@/lib/hash';
@@ -76,7 +80,10 @@ interface AddCompanyDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type CreateCompanyVariables = { values: AddCompanyForm; fundId: number };
+// The fund and actor are captured at submit and travel with the command, so a
+// scope change while the fingerprint hashes cannot move it to another key slot.
+type CompanyCreateScope = IdempotencyKeyScope & { fundId: number };
+type CreateCompanyVariables = { values: AddCompanyForm; scope: CompanyCreateScope };
 
 export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialogProps) {
   const [form, setForm] = useState<AddCompanyForm>(DEFAULT_FORM);
@@ -86,26 +93,29 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   // An uncertain command stays bound to the fund it was sent to until it
   // settles, even if the page fund changes while the dialog is closed.
   const [uncertainFundId, setUncertainFundId] = useState(fundId);
-  const commandFundId = uncertain ? uncertainFundId : fundId;
   const [canDiscard, setCanDiscard] = useState(false);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: authSession } = useAuthSession();
-  const idempotencyKey = useIdempotencyKey({
-    fundId: commandFundId,
+  const commandScope: CompanyCreateScope = {
+    fundId: uncertain ? uncertainFundId : fundId,
     operation: 'company_create',
     actorId: authSession?.user.id,
-  });
+  };
+  const idempotencyKey = useIdempotencyKey(commandScope);
 
-  const refreshCompanyList = useCallback(async () => {
-    invalidatePortfolioData(queryClient, commandFundId);
-    await queryClient.refetchQueries({ queryKey: ['portfolio-companies'] });
-  }, [commandFundId, queryClient]);
+  const refreshCompanyList = useCallback(
+    async (targetFundId: number) => {
+      invalidatePortfolioData(queryClient, targetFundId);
+      await queryClient.refetchQueries({ queryKey: ['portfolio-companies'] });
+    },
+    [queryClient]
+  );
 
   useEffect(() => {
-    if (idempotencyKey.restored) void refreshCompanyList();
-  }, [idempotencyKey.restored, refreshCompanyList]);
+    if (idempotencyKey.restored) void refreshCompanyList(commandScope.fundId);
+  }, [idempotencyKey.restored, refreshCompanyList, commandScope.fundId]);
 
   useEffect(() => {
     if (!open && !uncertain) {
@@ -117,9 +127,9 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   }, [open, uncertain]);
 
   const createCompanyMutation = useMutation({
-    mutationFn: async ({ values, fundId: targetFundId }: CreateCompanyVariables) => {
+    mutationFn: async ({ values, scope }: CreateCompanyVariables) => {
       const payload = {
-        fundId: targetFundId,
+        fundId: scope.fundId,
         name: values.name,
         sector: values.sector,
         stage: values.stage,
@@ -128,12 +138,12 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       };
       const fingerprint = await sha256Hash(payload);
       return apiRequest('POST', '/api/portfolio-companies', payload, {
-        headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) },
+        headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint, scope) },
       });
     },
-    onSuccess: (_result, { values }) => {
-      idempotencyKey.reset();
-      void refreshCompanyList();
+    onSuccess: (_result, { values, scope }) => {
+      idempotencyKey.reset(scope);
+      void refreshCompanyList(scope.fundId);
       setUncertain(false);
       setCanDiscard(false);
       setAlreadyRecorded(false);
@@ -149,21 +159,21 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         error.status === 409 &&
         error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
       ) {
-        idempotencyKey.reset();
+        idempotencyKey.reset(variables.scope);
         setUncertain(false);
         setCanDiscard(false);
         setAlreadyRecorded(true);
         setForm(DEFAULT_FORM);
         setFieldErrors({});
-        void refreshCompanyList();
+        void refreshCompanyList(variables.scope.fundId);
         return;
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
-        setUncertainFundId(variables.fundId);
+        setUncertainFundId(variables.scope.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
-        void refreshCompanyList().then(() => setCanDiscard(true));
+        void refreshCompanyList(variables.scope.fundId).then(() => setCanDiscard(true));
         return;
       }
 
@@ -201,7 +211,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       return;
     }
 
-    createCompanyMutation.mutate({ values: parsed.data, fundId: commandFundId });
+    createCompanyMutation.mutate({ values: parsed.data, scope: commandScope });
   };
 
   const discardAttempt = () => {

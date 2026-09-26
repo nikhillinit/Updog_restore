@@ -77,11 +77,12 @@ export interface IdempotencyKeyHandle {
    * Returns the key for the current logical operation. The same payload
    * retried after a failure reuses the key so server-side dedup and stale
    * recovery engage; a changed payload mints a fresh key (a new logical
-   * operation, never a spurious request-hash 409).
+   * operation, never a spurious request-hash 409). Pass the scope captured
+   * before any await: the hook's scope can change while a payload hashes.
    */
-  keyFor: (payload: unknown) => string;
-  /** Call on success so the next logical operation mints a fresh key. */
-  reset: () => void;
+  keyFor: (payload: unknown, scope?: IdempotencyKeyScope) => string;
+  /** Call on settlement, with the command's scope, so the next operation mints a fresh key. */
+  reset: (scope?: IdempotencyKeyScope) => void;
   /** True when a valid scoped command was restored from sessionStorage. */
   restored: boolean;
 }
@@ -142,10 +143,12 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
   const handle = useRef<IdempotencyKeyHandle | null>(null);
   if (handle.current === null) {
     handle.current = {
-      keyFor: (payload) => {
+      keyFor: (payload, boundScope) => {
         const serializedPayload = JSON.stringify(payload) ?? '';
-        const currentScope = scopeRef.current;
+        const currentScope = boundScope ?? scopeRef.current;
         const key = scopeKey(currentScope);
+        // `restored` describes the hook's own scope, never a bound one.
+        const ownScope = key === scopeKey(scopeRef.current);
 
         if (key && currentScope?.actorId) {
           const fingerprint = typeof payload === 'string' ? payload : serializedPayload;
@@ -154,7 +157,7 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
             state.current = restoredEntry
               ? { ...restoredEntry, scopeKey: key, actorId: currentScope.actorId }
               : null;
-            setRestored(restoredEntry !== null);
+            if (ownScope) setRestored(restoredEntry !== null);
           }
 
           if (state.current?.fingerprint === fingerprint) return state.current.key;
@@ -167,7 +170,7 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
           } satisfies PendingCreate;
           state.current = { ...next, scopeKey: key, actorId: currentScope.actorId };
           writePendingCreate(key, next);
-          setRestored(false);
+          if (ownScope) setRestored(false);
           return next.key;
         }
 
@@ -185,10 +188,10 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
         }
         return state.current.key;
       },
-      reset: () => {
-        const key = scopeKey(scopeRef.current);
-        state.current = null;
-        setRestored(false);
+      reset: (boundScope) => {
+        const key = scopeKey(boundScope ?? scopeRef.current);
+        if (state.current?.scopeKey === key) state.current = null;
+        if (key === scopeKey(scopeRef.current)) setRestored(false);
         if (key) {
           try {
             getSessionStorage()?.removeItem(key);

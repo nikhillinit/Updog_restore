@@ -36,7 +36,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { isUnknownCreateOutcome, useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import {
+  isUnknownCreateOutcome,
+  useIdempotencyKey,
+  type IdempotencyKeyScope,
+} from '@/hooks/useIdempotencyKey';
 import { apiRequest, ApiError } from '@/lib/queryClient';
 import { useAuthSession } from '@/lib/auth-session';
 import { sha256Hash } from '@/lib/hash';
@@ -93,7 +97,10 @@ const DEAL_UNCERTAIN_MESSAGE =
   'Creation status is uncertain. The request may already be recorded. Retry with the same details or discard this attempt after refreshing the list.';
 const DEAL_ALREADY_RECORDED_MESSAGE = 'This deal was already recorded. You can start a new intent.';
 
-type CreateDealVariables = { data: FormValues; fundId: number | undefined };
+// The fund and actor are captured at submit and travel with the command, so a
+// scope change while the fingerprint hashes cannot move it to another key slot.
+type DealCreateScope = IdempotencyKeyScope & { fundId: number | undefined };
+type CreateDealVariables = { data: FormValues; scope: DealCreateScope };
 
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
@@ -103,12 +110,12 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   // An uncertain command stays bound to the fund it was sent to until it
   // settles, even if the page fund changes while the dialog is closed.
   const [uncertainFundId, setUncertainFundId] = useState<number | undefined>(undefined);
-  const commandFundId = uncertain ? uncertainFundId : fundId;
-  const idempotencyKey = useIdempotencyKey({
-    fundId: commandFundId,
+  const commandScope: DealCreateScope = {
+    fundId: uncertain ? uncertainFundId : fundId,
     operation: 'deal_create',
     actorId: authSession?.user.id,
-  });
+  };
+  const idempotencyKey = useIdempotencyKey(commandScope);
   const [serverError, setServerError] = useState<string | null>(null);
   const [canDiscard, setCanDiscard] = useState(false);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
@@ -149,11 +156,11 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   });
 
   const createDealMutation = useMutation({
-    mutationFn: async ({ data, fundId: targetFundId }: CreateDealVariables) => {
+    mutationFn: async ({ data, scope }: CreateDealVariables) => {
       setServerError(null);
       const payload = {
         ...data,
-        fundId: targetFundId,
+        fundId: scope.fundId,
         dealSize: parseMoney(data.dealSize),
         valuation: parseMoney(data.valuation),
         foundedYear: parseIntSafe(data.foundedYear),
@@ -165,7 +172,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         'POST',
         '/api/deals/opportunities',
         payload,
-        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint, scope) } }
       );
     },
     onSuccess: (_result, variables) => {
@@ -175,7 +182,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       });
       void invalidateDealLists();
       form.reset();
-      idempotencyKey.reset();
+      idempotencyKey.reset(variables.scope);
       setServerError(null);
       setUncertain(false);
       setCanDiscard(false);
@@ -188,7 +195,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         error.status === 409 &&
         error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
       ) {
-        idempotencyKey.reset();
+        idempotencyKey.reset(variables.scope);
         setUncertain(false);
         setCanDiscard(false);
         setAlreadyRecorded(true);
@@ -198,7 +205,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
-        setUncertainFundId(variables.fundId);
+        setUncertainFundId(variables.scope.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
         void invalidateDealLists().then(() => setCanDiscard(true));
@@ -230,7 +237,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   });
 
   const onSubmit = (data: FormValues) => {
-    createDealMutation.mutate({ data, fundId: commandFundId });
+    createDealMutation.mutate({ data, scope: commandScope });
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
