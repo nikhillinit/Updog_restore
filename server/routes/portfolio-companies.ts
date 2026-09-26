@@ -8,9 +8,12 @@ import { PortfolioCompanyUpdateRequest } from '@shared/schemas/portfolio-route';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
+import { actorSubjectFromRequest } from '../lib/auth/creator-identity';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
-import { idempotency, requireIdempotencyKey } from '../middleware/idempotency';
+import { IdempotentCommandError, sendIdempotentCommandLockError } from '../lib/idempotent-command';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
+import { idempotencyKeyHeader, requireIdempotencyKey } from '../middleware/idempotency';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import {
   PortfolioCompanyUpdateIdempotencyReuseError,
@@ -19,7 +22,7 @@ import {
   updatePortfolioCompanyMetadata,
 } from '../services/portfolio-company-update-service';
 import { portfolioTimeMachineReadService } from '../services/portfolio-time-machine-read';
-import { storage } from '../storage';
+import { createPortfolioCompanyWithReceipt, storage } from '../storage';
 
 const router = Router();
 
@@ -31,7 +34,6 @@ const portfolioCompaniesLimiter = rateLimit({
 });
 
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
-const idempotent = idempotency();
 
 function actorId(req: Request): number {
   return toNumber(req.user?.id ?? req.user?.sub, 'actorId', { integer: true, min: 1 });
@@ -291,7 +293,6 @@ router.post(
   portfolioCompaniesLimiter,
   requireTeamWrite,
   requireIdempotencyKey,
-  idempotent,
   async (req: Request, res: Response) => {
     try {
       const bodyFundId = (req.body as { fundId?: unknown } | undefined)?.fundId;
@@ -344,12 +345,38 @@ router.post(
         return;
       }
 
-      const company = await storage.createPortfolioCompany(result.data);
-      return res.status(201).json(company);
+      const parsedKey = parseInternalEconomicsIdempotencyKey(idempotencyKeyHeader(req));
+      if (parsedKey.kind !== 'valid') {
+        return res.status(400).json({
+          error: 'INVALID_IDEMPOTENCY_KEY',
+          message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+        });
+      }
+
+      // Memory mode is not a durability target; keep its store so reads see the row.
+      if (storage.kind === 'memory') {
+        return res.status(201).json(await storage.createPortfolioCompany(result.data));
+      }
+
+      const companyInput = {
+        ...result.data,
+        fundId: result.data['fundId'],
+      };
+      const resultWithReceipt = await createPortfolioCompanyWithReceipt(
+        companyInput,
+        parsedKey.value,
+        actorSubjectFromRequest(req)
+      );
+      if (resultWithReceipt.replayed) res.setHeader('Idempotency-Replay', 'true');
+      return res.status(resultWithReceipt.replayed ? 200 : 201).json(resultWithReceipt.row);
     } catch (error) {
+      if (error instanceof IdempotentCommandError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      if (sendIdempotentCommandLockError(res, error, 'Retry the same command')) return;
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create portfolio company',
+        message: 'Failed to create portfolio company',
       };
       return res.status(500).json(apiError);
     }

@@ -22,6 +22,7 @@ let app: ReturnType<(typeof import('../../server/app'))['makeApp']>;
 let startedTestContainers = false;
 const originalEnvironment = { ...process.env };
 const FUND_ID = 229_097_001;
+let actorId = 0;
 
 function row(companyName: string, dealSize: number) {
   return { companyName, sector: 'AI / ML', stage: 'Seed', sourceType: 'Referral', dealSize };
@@ -47,6 +48,12 @@ describe('deal import savepoints under the request transaction', () => {
       VALUES ($1, 'Import savepoint fund', 10000000, '0.0200', '0.2000', 2026)`,
       [FUND_ID]
     );
+    // The import receipt's created_by references users(id).
+    const user = await observer.query<{ id: number }>(
+      `INSERT INTO users (username, password, role, is_active)
+       VALUES ('import-savepoint-admin', 'x', 'admin', true) RETURNING id`
+    );
+    actorId = user.rows[0]!.id;
     Object.assign(process.env, {
       DATABASE_URL: url.toString(),
       _EXPLICIT_DATABASE_URL: '1',
@@ -80,7 +87,7 @@ describe('deal import savepoints under the request transaction', () => {
 
   it('commits the good rows and reports the failing row when one insert fails', async () => {
     const token = jwtModule.signToken({
-      sub: '7',
+      sub: String(actorId),
       email: 'import@example.com',
       role: 'admin',
       orgId: 'import-org',

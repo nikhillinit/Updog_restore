@@ -22,6 +22,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-09-26)
+
+- Durable create receipts for deal create, deal import confirm, and
+  portfolio-company create (F_1.17.0 PR 1b, C2). A committed create whose
+  acknowledgment is lost now replays from PostgreSQL instead of the Redis
+  middleware cache: deal create and import write an immutable
+  `deal_pipeline_commands` receipt last under an advisory transaction lock, and
+  company create stores its key and request hash on the company row and replays
+  the current row. Replays return 200 with `Idempotency-Replay: true`; a changed
+  payload or another actor under the same key returns
+  `409 IDEMPOTENCY_KEY_REUSE`; a key over 128 characters returns 400; a same-key
+  request that waits past the 2 s lock timeout returns `409 REQUEST_IN_PROGRESS`
+  with `Retry-After`. Import row failures and the deal-create 500 no longer echo
+  database error text. Additive migration 0061 (manifest 38) needs an
+  owner-authorized production schema apply before any release serving this code.
+  The three dialogs keep one per-tab `sessionStorage` entry per fund and
+  operation (SHA-256 fingerprint, no payload), freeze on an uncertain outcome,
+  retry with the same key, and clear on logout. 18 surface-contract matrix rows
+  demote until scoped owner reapproval.
+
 ### Changed (2026-09-25)
 
 - Repair reallocation optimistic locking and the dual-forecast error envelope

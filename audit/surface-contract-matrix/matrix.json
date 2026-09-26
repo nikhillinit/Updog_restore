@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "a8f100afe58083dd279bb696bea2d1c7256942bf",
-    "snapshot_id": "snapshot:b520cc9100fe7b51c8856b3dfc6bb2dc70e40c94cfac7c24d4cd0ebe7d52b58c"
+    "git_head": "6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+    "snapshot_id": "snapshot:21c2890d6a4fae6ee85ac5f7a3cac50e6e3326fb4ee1f2bc974301bc10f6d165"
   },
   "rows": [
     {
@@ -446,7 +446,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:374 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:386 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -457,12 +457,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:374",
+              "site": "server/routes/deal-pipeline.ts:386",
               "role": "guard",
               "effective_mount_order": 124
             },
             {
-              "site": "server/routes/deal-pipeline.ts:374",
+              "site": "server/routes/deal-pipeline.ts:386",
               "role": "handler",
               "effective_mount_order": 124
             }
@@ -481,21 +481,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -512,7 +512,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:374 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:386 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -523,12 +523,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:374",
+              "site": "server/routes/deal-pipeline.ts:386",
               "role": "guard",
               "effective_mount_order": 124
             },
             {
-              "site": "server/routes/deal-pipeline.ts:374",
+              "site": "server/routes/deal-pipeline.ts:386",
               "role": "handler",
               "effective_mount_order": 124
             }
@@ -547,21 +547,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -581,7 +581,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:374"
+        "server/routes/deal-pipeline.ts:386"
       ],
       "source_mapping": {
         "kg_node": "api:DELETE:/api/deals/opportunities/:id",
@@ -614,21 +614,21 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -658,9 +658,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:DELETE:/api/deals/opportunities/:id",
@@ -676,9 +676,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -687,14 +687,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "644f6c90711c4a0c66a28cc6557f78cba4e2e475d3051b654a4043d20da27cb6",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -2202,6 +2202,15 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
+            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:74",
+            "assertion_confirmed": false,
+            "test_file_sha256": "e98ffe2087484e2092382ff8781ecbcf3ffbeab11906084ca57593ba8ace0764"
+          },
+          {
+            "row": "api:GET:/api-docs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
             "assertion_evidence": "tests/integration/dual-surface-mount-parity.test.ts:46",
             "assertion_confirmed": false,
             "test_file_sha256": "8137889226e9df7e0d6b72628e917cb956c3de72228f6786bd11c357e3213620"
@@ -2223,6 +2232,15 @@
             "assertion_evidence": "tests/integration/fund-scope-acceptance-matrix.test.ts:26",
             "assertion_confirmed": false,
             "test_file_sha256": "4a47076ba46320d7fd18e5acabcb4f36d20200f5565be1fce2c5bf0f7422e9a7"
+          },
+          {
+            "row": "api:GET:/api-docs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:185",
+            "assertion_confirmed": false,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2753,6 +2771,15 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
+            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:74",
+            "assertion_confirmed": false,
+            "test_file_sha256": "e98ffe2087484e2092382ff8781ecbcf3ffbeab11906084ca57593ba8ace0764"
+          },
+          {
+            "row": "api:GET:/api-docs.json",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
             "assertion_evidence": "tests/integration/dual-surface-mount-parity.test.ts:46",
             "assertion_confirmed": false,
             "test_file_sha256": "8137889226e9df7e0d6b72628e917cb956c3de72228f6786bd11c357e3213620"
@@ -2774,6 +2801,15 @@
             "assertion_evidence": "tests/integration/fund-scope-acceptance-matrix.test.ts:26",
             "assertion_confirmed": false,
             "test_file_sha256": "4a47076ba46320d7fd18e5acabcb4f36d20200f5565be1fce2c5bf0f7422e9a7"
+          },
+          {
+            "row": "api:GET:/api-docs.json",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:185",
+            "assertion_confirmed": false,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
           },
           {
             "row": "api:GET:/api-docs.json",
@@ -7312,7 +7348,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:580 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:592 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/diligence",
@@ -7323,7 +7359,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:580",
+              "site": "server/routes/deal-pipeline.ts:592",
               "role": "handler",
               "effective_mount_order": 129
             }
@@ -7333,8 +7369,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 596,
-              "evidence": "server/routes/deal-pipeline.ts:596 enforces provided fund scope"
+              "line": 608,
+              "evidence": "server/routes/deal-pipeline.ts:608 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7359,7 +7395,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:580 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:592 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/diligence",
@@ -7370,7 +7406,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:580",
+              "site": "server/routes/deal-pipeline.ts:592",
               "role": "handler",
               "effective_mount_order": 129
             }
@@ -7380,8 +7416,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 596,
-              "evidence": "server/routes/deal-pipeline.ts:596 enforces provided fund scope"
+              "line": 608,
+              "evidence": "server/routes/deal-pipeline.ts:608 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7409,7 +7445,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:580"
+        "server/routes/deal-pipeline.ts:592"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/deals/:id/diligence",
@@ -7442,8 +7478,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 596,
-          "evidence": "server/routes/deal-pipeline.ts:596 enforces provided fund scope"
+          "line": 608,
+          "evidence": "server/routes/deal-pipeline.ts:608 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -7460,7 +7496,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:596, server/routes/deal-pipeline.ts:596 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:608, server/routes/deal-pipeline.ts:608 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -7468,7 +7504,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:596, server/routes/deal-pipeline.ts:596 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:608, server/routes/deal-pipeline.ts:608 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -7476,7 +7512,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:596, server/routes/deal-pipeline.ts:596 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:608, server/routes/deal-pipeline.ts:608 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -7496,9 +7532,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:GET:/api/deals/:id/diligence",
@@ -7514,9 +7550,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -7525,14 +7561,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "31fe716ce2b9b5744c038fe8b1c30152baf955686a70e6bab976bb8a478a50fc",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -7576,7 +7612,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:200 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:212 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities",
@@ -7587,7 +7623,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:200",
+              "site": "server/routes/deal-pipeline.ts:212",
               "role": "handler",
               "effective_mount_order": 121
             }
@@ -7597,8 +7633,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 219,
-              "evidence": "server/routes/deal-pipeline.ts:219 enforces provided fund scope"
+              "line": 231,
+              "evidence": "server/routes/deal-pipeline.ts:231 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7623,7 +7659,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:200 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:212 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities",
@@ -7634,7 +7670,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:200",
+              "site": "server/routes/deal-pipeline.ts:212",
               "role": "handler",
               "effective_mount_order": 121
             }
@@ -7644,8 +7680,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 219,
-              "evidence": "server/routes/deal-pipeline.ts:219 enforces provided fund scope"
+              "line": 231,
+              "evidence": "server/routes/deal-pipeline.ts:231 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7673,7 +7709,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:200"
+        "server/routes/deal-pipeline.ts:212"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/deals/opportunities",
@@ -7706,8 +7742,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 219,
-          "evidence": "server/routes/deal-pipeline.ts:219 enforces provided fund scope"
+          "line": 231,
+          "evidence": "server/routes/deal-pipeline.ts:231 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -7724,7 +7760,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:219, server/routes/deal-pipeline.ts:219 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:231, server/routes/deal-pipeline.ts:231 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -7732,7 +7768,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:219, server/routes/deal-pipeline.ts:219 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:231, server/routes/deal-pipeline.ts:231 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -7740,7 +7776,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:219, server/routes/deal-pipeline.ts:219 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:231, server/routes/deal-pipeline.ts:231 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -7760,9 +7796,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:GET:/api/deals/opportunities",
@@ -7778,9 +7814,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -7789,14 +7825,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "1bf7edb20b905f789a7445bb3ffc1f06ecca9d10d0c045f65dcba6b076914a9b",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -7840,7 +7876,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:271 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:283 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -7851,7 +7887,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:271",
+              "site": "server/routes/deal-pipeline.ts:283",
               "role": "handler",
               "effective_mount_order": 122
             }
@@ -7861,8 +7897,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 287,
-              "evidence": "server/routes/deal-pipeline.ts:287 enforces provided fund scope"
+              "line": 299,
+              "evidence": "server/routes/deal-pipeline.ts:299 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7887,7 +7923,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:271 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:283 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -7898,7 +7934,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:271",
+              "site": "server/routes/deal-pipeline.ts:283",
               "role": "handler",
               "effective_mount_order": 122
             }
@@ -7908,8 +7944,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 287,
-              "evidence": "server/routes/deal-pipeline.ts:287 enforces provided fund scope"
+              "line": 299,
+              "evidence": "server/routes/deal-pipeline.ts:299 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -7937,7 +7973,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:271"
+        "server/routes/deal-pipeline.ts:283"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/deals/opportunities/:id",
@@ -7970,8 +8006,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 287,
-          "evidence": "server/routes/deal-pipeline.ts:287 enforces provided fund scope"
+          "line": 299,
+          "evidence": "server/routes/deal-pipeline.ts:299 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -7988,7 +8024,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:287, server/routes/deal-pipeline.ts:287 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:299, server/routes/deal-pipeline.ts:299 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -7996,7 +8032,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:287, server/routes/deal-pipeline.ts:287 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:299, server/routes/deal-pipeline.ts:299 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -8004,7 +8040,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:287, server/routes/deal-pipeline.ts:287 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:299, server/routes/deal-pipeline.ts:299 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -8024,9 +8060,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:GET:/api/deals/opportunities/:id",
@@ -8042,9 +8078,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -8053,14 +8089,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "fa36727ea2e53443c106948ccb21a403c1def32c91de4a8b590d9e6dda2963df",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -8104,7 +8140,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:465 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:477 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/pipeline",
@@ -8115,7 +8151,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:465",
+              "site": "server/routes/deal-pipeline.ts:477",
               "role": "handler",
               "effective_mount_order": 126
             }
@@ -8125,8 +8161,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 483,
-              "evidence": "server/routes/deal-pipeline.ts:483 enforces provided fund scope"
+              "line": 495,
+              "evidence": "server/routes/deal-pipeline.ts:495 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -8151,7 +8187,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:465 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:477 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/pipeline",
@@ -8162,7 +8198,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:465",
+              "site": "server/routes/deal-pipeline.ts:477",
               "role": "handler",
               "effective_mount_order": 126
             }
@@ -8172,8 +8208,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 483,
-              "evidence": "server/routes/deal-pipeline.ts:483 enforces provided fund scope"
+              "line": 495,
+              "evidence": "server/routes/deal-pipeline.ts:495 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -8201,7 +8237,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:465"
+        "server/routes/deal-pipeline.ts:477"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/deals/pipeline",
@@ -8234,8 +8270,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 483,
-          "evidence": "server/routes/deal-pipeline.ts:483 enforces provided fund scope"
+          "line": 495,
+          "evidence": "server/routes/deal-pipeline.ts:495 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -8252,7 +8288,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:483, server/routes/deal-pipeline.ts:483 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:495, server/routes/deal-pipeline.ts:495 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -8260,7 +8296,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:483, server/routes/deal-pipeline.ts:483 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:495, server/routes/deal-pipeline.ts:495 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -8268,7 +8304,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:483, server/routes/deal-pipeline.ts:483 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:495, server/routes/deal-pipeline.ts:495 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -8288,9 +8324,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:GET:/api/deals/pipeline",
@@ -8306,9 +8342,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -8317,14 +8353,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "203ca15d806ef346386ef172a07bf129eef0a9d94a5a8371e54b93409bdaed2a",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -8368,7 +8404,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:505 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:517 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/stages",
@@ -8379,7 +8415,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:505",
+              "site": "server/routes/deal-pipeline.ts:517",
               "role": "handler",
               "effective_mount_order": 127
             }
@@ -8408,7 +8444,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:505 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:517 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/stages",
@@ -8419,7 +8455,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:505",
+              "site": "server/routes/deal-pipeline.ts:517",
               "role": "handler",
               "effective_mount_order": 127
             }
@@ -8451,7 +8487,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:505"
+        "server/routes/deal-pipeline.ts:517"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/deals/stages",
@@ -8503,9 +8539,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:GET:/api/deals/stages",
@@ -8521,9 +8557,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -8532,14 +8568,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "96b08903c7450dea52877d3ddb2e025329a5c1d11dc1201f6e8d8011a8ceb799",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -47566,7 +47602,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/portfolio-companies.ts:88 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:90 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies",
@@ -47577,22 +47613,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "guard",
               "effective_mount_order": 314
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "handler",
               "effective_mount_order": 314
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "guard",
               "effective_mount_order": 325
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "handler",
               "effective_mount_order": 325
             }
@@ -47602,8 +47638,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 115,
-              "evidence": "server/routes/portfolio-companies.ts:115 enforces provided fund scope"
+              "line": 117,
+              "evidence": "server/routes/portfolio-companies.ts:117 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -47628,7 +47664,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/portfolio-companies.ts:88 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:90 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies",
@@ -47639,22 +47675,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "guard",
               "effective_mount_order": 314
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "handler",
               "effective_mount_order": 314
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "guard",
               "effective_mount_order": 325
             },
             {
-              "site": "server/routes/portfolio-companies.ts:88",
+              "site": "server/routes/portfolio-companies.ts:90",
               "role": "handler",
               "effective_mount_order": 325
             }
@@ -47664,8 +47700,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 115,
-              "evidence": "server/routes/portfolio-companies.ts:115 enforces provided fund scope"
+              "line": 117,
+              "evidence": "server/routes/portfolio-companies.ts:117 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -47693,7 +47729,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-companies.ts:88"
+        "server/routes/portfolio-companies.ts:90"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/portfolio-companies",
@@ -47726,8 +47762,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/portfolio-companies.ts",
-          "line": 115,
-          "evidence": "server/routes/portfolio-companies.ts:115 enforces provided fund scope"
+          "line": 117,
+          "evidence": "server/routes/portfolio-companies.ts:117 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -47744,7 +47780,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:115, server/routes/portfolio-companies.ts:115 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:117, server/routes/portfolio-companies.ts:117 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -47752,7 +47788,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:115, server/routes/portfolio-companies.ts:115 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:117, server/routes/portfolio-companies.ts:117 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -47760,7 +47796,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:115, server/routes/portfolio-companies.ts:115 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:117, server/routes/portfolio-companies.ts:117 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -47780,9 +47816,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:GET:/api/portfolio-companies",
@@ -47807,9 +47843,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:GET:/api/portfolio-companies",
@@ -47821,20 +47857,30 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:GET:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: list (and /api/dashboard-summary/:fundId) responses omit createIdempotencyKey and createRequestHash (storage selects public columns only).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "82cbdfd3cefab280242cecb105b79b0e9a89bd5d280b34dffabf707c5bbeeaa2",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=6f39b4ed046eed71a81732b03997347d7643820f8fc3da260849568b7d740ad4",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -47878,7 +47924,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/portfolio-companies.ts:220 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:222 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies/:id",
@@ -47889,22 +47935,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "guard",
               "effective_mount_order": 316
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "handler",
               "effective_mount_order": 316
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "guard",
               "effective_mount_order": 327
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "handler",
               "effective_mount_order": 327
             }
@@ -47914,8 +47960,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 255,
-              "evidence": "server/routes/portfolio-companies.ts:255 enforces provided fund scope"
+              "line": 257,
+              "evidence": "server/routes/portfolio-companies.ts:257 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -47940,7 +47986,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/portfolio-companies.ts:220 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:222 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies/:id",
@@ -47951,22 +47997,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "guard",
               "effective_mount_order": 316
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "handler",
               "effective_mount_order": 316
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "guard",
               "effective_mount_order": 327
             },
             {
-              "site": "server/routes/portfolio-companies.ts:220",
+              "site": "server/routes/portfolio-companies.ts:222",
               "role": "handler",
               "effective_mount_order": 327
             }
@@ -47976,8 +48022,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 255,
-              "evidence": "server/routes/portfolio-companies.ts:255 enforces provided fund scope"
+              "line": 257,
+              "evidence": "server/routes/portfolio-companies.ts:257 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -48005,7 +48051,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-companies.ts:220"
+        "server/routes/portfolio-companies.ts:222"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/portfolio-companies/:id",
@@ -48038,8 +48084,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/portfolio-companies.ts",
-          "line": 255,
-          "evidence": "server/routes/portfolio-companies.ts:255 enforces provided fund scope"
+          "line": 257,
+          "evidence": "server/routes/portfolio-companies.ts:257 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -48056,7 +48102,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:255, server/routes/portfolio-companies.ts:255 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:257, server/routes/portfolio-companies.ts:257 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -48064,7 +48110,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:255, server/routes/portfolio-companies.ts:255 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:257, server/routes/portfolio-companies.ts:257 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -48072,7 +48118,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:255, server/routes/portfolio-companies.ts:255 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:257, server/routes/portfolio-companies.ts:257 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -48092,9 +48138,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:GET:/api/portfolio-companies/:id",
@@ -48119,9 +48165,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:GET:/api/portfolio-companies/:id",
@@ -48133,20 +48179,30 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:GET:/api/portfolio-companies/:id",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:285 makeApp against migrated PostgreSQL: detail response omits createIdempotencyKey and createRequestHash (storage selects public columns only).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "57010421f697f877d020f89dedb24765532a418ada0a11b9cf4b1a48c8ed3729",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=6f39b4ed046eed71a81732b03997347d7643820f8fc3da260849568b7d740ad4",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -56934,7 +56990,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/portfolio-companies.ts:150 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:152 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies/:id",
@@ -56945,22 +57001,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "guard",
               "effective_mount_order": 315
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "handler",
               "effective_mount_order": 315
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "guard",
               "effective_mount_order": 326
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "handler",
               "effective_mount_order": 326
             }
@@ -56970,8 +57026,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 166,
-              "evidence": "server/routes/portfolio-companies.ts:166 enforces provided fund scope"
+              "line": 168,
+              "evidence": "server/routes/portfolio-companies.ts:168 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -56996,7 +57052,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/portfolio-companies.ts:150 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:152 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies/:id",
@@ -57007,22 +57063,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "guard",
               "effective_mount_order": 315
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "handler",
               "effective_mount_order": 315
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "guard",
               "effective_mount_order": 326
             },
             {
-              "site": "server/routes/portfolio-companies.ts:150",
+              "site": "server/routes/portfolio-companies.ts:152",
               "role": "handler",
               "effective_mount_order": 326
             }
@@ -57032,8 +57088,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 166,
-              "evidence": "server/routes/portfolio-companies.ts:166 enforces provided fund scope"
+              "line": 168,
+              "evidence": "server/routes/portfolio-companies.ts:168 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -57061,7 +57117,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-companies.ts:150"
+        "server/routes/portfolio-companies.ts:152"
       ],
       "source_mapping": {
         "kg_node": "api:PATCH:/api/portfolio-companies/:id",
@@ -57094,8 +57150,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/portfolio-companies.ts",
-          "line": 166,
-          "evidence": "server/routes/portfolio-companies.ts:166 enforces provided fund scope"
+          "line": 168,
+          "evidence": "server/routes/portfolio-companies.ts:168 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -57112,7 +57168,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:166, server/routes/portfolio-companies.ts:166 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:168, server/routes/portfolio-companies.ts:168 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -57120,7 +57176,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:166, server/routes/portfolio-companies.ts:166 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:168, server/routes/portfolio-companies.ts:168 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -57128,7 +57184,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:166, server/routes/portfolio-companies.ts:166 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:168, server/routes/portfolio-companies.ts:168 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -57148,9 +57204,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:PATCH:/api/portfolio-companies/:id",
@@ -57175,9 +57231,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:PATCH:/api/portfolio-companies/:id",
@@ -57195,14 +57251,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "e1dd82b7d497f788e6f09c40366db7232d7c3f6f9d2db2f01ba57d0160da9a51",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=6f39b4ed046eed71a81732b03997347d7643820f8fc3da260849568b7d740ad4",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -64431,7 +64487,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:525 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:537 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/diligence",
@@ -64442,12 +64498,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:525",
+              "site": "server/routes/deal-pipeline.ts:537",
               "role": "guard",
               "effective_mount_order": 128
             },
             {
-              "site": "server/routes/deal-pipeline.ts:525",
+              "site": "server/routes/deal-pipeline.ts:537",
               "role": "handler",
               "effective_mount_order": 128
             }
@@ -64466,21 +64522,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -64497,7 +64553,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:525 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:537 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/diligence",
@@ -64508,12 +64564,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:525",
+              "site": "server/routes/deal-pipeline.ts:537",
               "role": "guard",
               "effective_mount_order": 128
             },
             {
-              "site": "server/routes/deal-pipeline.ts:525",
+              "site": "server/routes/deal-pipeline.ts:537",
               "role": "handler",
               "effective_mount_order": 128
             }
@@ -64532,21 +64588,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -64566,7 +64622,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:525"
+        "server/routes/deal-pipeline.ts:537"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/:id/diligence",
@@ -64599,21 +64655,21 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -64643,9 +64699,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/:id/diligence",
@@ -64661,9 +64717,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -64672,14 +64728,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "1072a26961c05ebc9a6a5156d35235566bf1fb64a3ca16425f0a244fd09643be",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -64723,7 +64779,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:417 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:429 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/stage",
@@ -64734,12 +64790,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:417",
+              "site": "server/routes/deal-pipeline.ts:429",
               "role": "guard",
               "effective_mount_order": 125
             },
             {
-              "site": "server/routes/deal-pipeline.ts:417",
+              "site": "server/routes/deal-pipeline.ts:429",
               "role": "handler",
               "effective_mount_order": 125
             }
@@ -64758,21 +64814,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -64789,7 +64845,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:417 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:429 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/:id/stage",
@@ -64800,12 +64856,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:417",
+              "site": "server/routes/deal-pipeline.ts:429",
               "role": "guard",
               "effective_mount_order": 125
             },
             {
-              "site": "server/routes/deal-pipeline.ts:417",
+              "site": "server/routes/deal-pipeline.ts:429",
               "role": "handler",
               "effective_mount_order": 125
             }
@@ -64824,21 +64880,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -64858,7 +64914,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:417"
+        "server/routes/deal-pipeline.ts:429"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/:id/stage",
@@ -64891,21 +64947,21 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -64935,9 +64991,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/:id/stage",
@@ -64953,9 +65009,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -64964,14 +65020,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "96530ef1f96a86c70a8cf82641489395add752953fc8d7ccc5e32423fedb350a",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -65015,7 +65071,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:153 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:160 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities",
@@ -65026,12 +65082,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:153",
+              "site": "server/routes/deal-pipeline.ts:160",
               "role": "guard",
               "effective_mount_order": 120
             },
             {
-              "site": "server/routes/deal-pipeline.ts:153",
+              "site": "server/routes/deal-pipeline.ts:160",
               "role": "handler",
               "effective_mount_order": 120
             }
@@ -65041,8 +65097,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 169,
-              "evidence": "server/routes/deal-pipeline.ts:169 enforces provided fund scope"
+              "line": 175,
+              "evidence": "server/routes/deal-pipeline.ts:175 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -65057,21 +65113,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65088,7 +65144,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:153 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:160 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities",
@@ -65099,12 +65155,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:153",
+              "site": "server/routes/deal-pipeline.ts:160",
               "role": "guard",
               "effective_mount_order": 120
             },
             {
-              "site": "server/routes/deal-pipeline.ts:153",
+              "site": "server/routes/deal-pipeline.ts:160",
               "role": "handler",
               "effective_mount_order": 120
             }
@@ -65114,8 +65170,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 169,
-              "evidence": "server/routes/deal-pipeline.ts:169 enforces provided fund scope"
+              "line": 175,
+              "evidence": "server/routes/deal-pipeline.ts:175 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -65130,21 +65186,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65164,7 +65220,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:153"
+        "server/routes/deal-pipeline.ts:160"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/opportunities",
@@ -65197,28 +65253,28 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 169,
-          "evidence": "server/routes/deal-pipeline.ts:169 enforces provided fund scope"
+          "line": 175,
+          "evidence": "server/routes/deal-pipeline.ts:175 enforces provided fund scope"
         },
         {
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -65248,9 +65304,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/opportunities",
@@ -65266,25 +65322,35 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/deals/opportunities",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:204 makeApp with a signed admin JWT against migrated PostgreSQL: a lost acknowledgment replays 200 with Idempotency-Replay and the identical body from the immutable deal_pipeline_commands receipt, one deal, one activity, one receipt; a changed payload under the same key returns 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a lock-timed-out create returns 409 REQUEST_IN_PROGRESS with Retry-After and rolls back with no receipt, then the same key creates once (:406); a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one mutation (:434); receipt UPDATE is rejected (:485).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "7468b5675efb70b904f1ebd06ff89c5befac0bf05f66aacdfc10b9d0aa56b206",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -65328,7 +65394,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:760 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:785 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/bulk/archive",
@@ -65339,12 +65405,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:760",
+              "site": "server/routes/deal-pipeline.ts:785",
               "role": "guard",
               "effective_mount_order": 133
             },
             {
-              "site": "server/routes/deal-pipeline.ts:760",
+              "site": "server/routes/deal-pipeline.ts:785",
               "role": "handler",
               "effective_mount_order": 133
             }
@@ -65363,21 +65429,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65394,7 +65460,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:760 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:785 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/bulk/archive",
@@ -65405,12 +65471,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:760",
+              "site": "server/routes/deal-pipeline.ts:785",
               "role": "guard",
               "effective_mount_order": 133
             },
             {
-              "site": "server/routes/deal-pipeline.ts:760",
+              "site": "server/routes/deal-pipeline.ts:785",
               "role": "handler",
               "effective_mount_order": 133
             }
@@ -65429,21 +65495,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65463,7 +65529,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:760"
+        "server/routes/deal-pipeline.ts:785"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/opportunities/bulk/archive",
@@ -65496,21 +65562,21 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -65540,9 +65606,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/opportunities/bulk/archive",
@@ -65558,9 +65624,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -65569,14 +65635,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "e0f7375c6793fae88d80016cb4c39415b7b460253a2a3f07a2de6987569ab7f2",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -65620,7 +65686,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:721 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:746 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/bulk/status",
@@ -65631,12 +65697,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:721",
+              "site": "server/routes/deal-pipeline.ts:746",
               "role": "guard",
               "effective_mount_order": 132
             },
             {
-              "site": "server/routes/deal-pipeline.ts:721",
+              "site": "server/routes/deal-pipeline.ts:746",
               "role": "handler",
               "effective_mount_order": 132
             }
@@ -65655,21 +65721,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65686,7 +65752,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:721 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:746 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/bulk/status",
@@ -65697,12 +65763,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:721",
+              "site": "server/routes/deal-pipeline.ts:746",
               "role": "guard",
               "effective_mount_order": 132
             },
             {
-              "site": "server/routes/deal-pipeline.ts:721",
+              "site": "server/routes/deal-pipeline.ts:746",
               "role": "handler",
               "effective_mount_order": 132
             }
@@ -65721,21 +65787,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65755,7 +65821,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:721"
+        "server/routes/deal-pipeline.ts:746"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/opportunities/bulk/status",
@@ -65788,21 +65854,21 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -65832,9 +65898,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/opportunities/bulk/status",
@@ -65850,9 +65916,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -65861,14 +65927,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "a6a889c96db15bb8d733c5e265dcffaa1ed19087d63250c6eec815ea5892c980",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -65912,7 +65978,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:677 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:689 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/import",
@@ -65923,12 +65989,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:677",
+              "site": "server/routes/deal-pipeline.ts:689",
               "role": "guard",
               "effective_mount_order": 131
             },
             {
-              "site": "server/routes/deal-pipeline.ts:677",
+              "site": "server/routes/deal-pipeline.ts:689",
               "role": "handler",
               "effective_mount_order": 131
             }
@@ -65938,8 +66004,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 693,
-              "evidence": "server/routes/deal-pipeline.ts:693 enforces provided fund scope"
+              "line": 704,
+              "evidence": "server/routes/deal-pipeline.ts:704 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -65954,21 +66020,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -65985,7 +66051,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:677 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:689 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/import",
@@ -65996,12 +66062,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:677",
+              "site": "server/routes/deal-pipeline.ts:689",
               "role": "guard",
               "effective_mount_order": 131
             },
             {
-              "site": "server/routes/deal-pipeline.ts:677",
+              "site": "server/routes/deal-pipeline.ts:689",
               "role": "handler",
               "effective_mount_order": 131
             }
@@ -66011,8 +66077,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 693,
-              "evidence": "server/routes/deal-pipeline.ts:693 enforces provided fund scope"
+              "line": 704,
+              "evidence": "server/routes/deal-pipeline.ts:704 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -66027,21 +66093,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -66061,7 +66127,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:677"
+        "server/routes/deal-pipeline.ts:689"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/opportunities/import",
@@ -66094,29 +66160,29 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 693,
-          "evidence": "server/routes/deal-pipeline.ts:693 enforces provided fund scope"
+          "line": 704,
+          "evidence": "server/routes/deal-pipeline.ts:704 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -66145,9 +66211,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/opportunities/import",
@@ -66163,25 +66229,35 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/deals/opportunities/import",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:222 makeApp against migrated PostgreSQL: an import with one overflowing row stores and replays sanitized failedRows ({ index, message: 'Insert failed', code: '22003' }) with no SQL or parameter text, commits the good row once, and a same-key retry replays the identical summary; changed rows under the same key return 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "8c37cbd91999fb90d83e551e41b0fd25609147fdba976ed179ee01624db2d1f2",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -66225,7 +66301,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:623 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:635 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/import/preview",
@@ -66236,7 +66312,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:623",
+              "site": "server/routes/deal-pipeline.ts:635",
               "role": "handler",
               "effective_mount_order": 130
             }
@@ -66246,8 +66322,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 634,
-              "evidence": "server/routes/deal-pipeline.ts:634 enforces provided fund scope"
+              "line": 646,
+              "evidence": "server/routes/deal-pipeline.ts:646 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -66272,7 +66348,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:623 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:635 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/import/preview",
@@ -66283,7 +66359,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:623",
+              "site": "server/routes/deal-pipeline.ts:635",
               "role": "handler",
               "effective_mount_order": 130
             }
@@ -66293,8 +66369,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 634,
-              "evidence": "server/routes/deal-pipeline.ts:634 enforces provided fund scope"
+              "line": 646,
+              "evidence": "server/routes/deal-pipeline.ts:646 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -66322,7 +66398,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:623"
+        "server/routes/deal-pipeline.ts:635"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/deals/opportunities/import/preview",
@@ -66355,8 +66431,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 634,
-          "evidence": "server/routes/deal-pipeline.ts:634 enforces provided fund scope"
+          "line": 646,
+          "evidence": "server/routes/deal-pipeline.ts:646 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -66373,7 +66449,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:634, server/routes/deal-pipeline.ts:634 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/deal-pipeline.ts:646, server/routes/deal-pipeline.ts:646 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -66381,7 +66457,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:634, server/routes/deal-pipeline.ts:634 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/deal-pipeline.ts:646, server/routes/deal-pipeline.ts:646 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -66389,7 +66465,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:634, server/routes/deal-pipeline.ts:634 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/deal-pipeline.ts:646, server/routes/deal-pipeline.ts:646 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -66409,9 +66485,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:POST:/api/deals/opportunities/import/preview",
@@ -66427,9 +66503,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -66438,14 +66514,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "e2dd5a715e9d56d1f707c3b2fcec8bbac72a04a387b71c63cf5e402cae55e2bf",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -98803,7 +98879,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/portfolio-companies.ts:289 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:291 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies",
@@ -98814,22 +98890,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "guard",
               "effective_mount_order": 317
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "handler",
               "effective_mount_order": 317
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "guard",
               "effective_mount_order": 328
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "handler",
               "effective_mount_order": 328
             }
@@ -98839,8 +98915,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 343,
-              "evidence": "server/routes/portfolio-companies.ts:343 enforces provided fund scope"
+              "line": 344,
+              "evidence": "server/routes/portfolio-companies.ts:344 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -98865,7 +98941,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/portfolio-companies.ts:289 runtime registration",
+          "mount_evidence": "server/routes/portfolio-companies.ts:291 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/portfolio-companies",
@@ -98876,22 +98952,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "guard",
               "effective_mount_order": 317
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "handler",
               "effective_mount_order": 317
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "guard",
               "effective_mount_order": 328
             },
             {
-              "site": "server/routes/portfolio-companies.ts:289",
+              "site": "server/routes/portfolio-companies.ts:291",
               "role": "handler",
               "effective_mount_order": 328
             }
@@ -98901,8 +98977,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/portfolio-companies.ts",
-              "line": 343,
-              "evidence": "server/routes/portfolio-companies.ts:343 enforces provided fund scope"
+              "line": 344,
+              "evidence": "server/routes/portfolio-companies.ts:344 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -98930,7 +99006,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-companies.ts:289"
+        "server/routes/portfolio-companies.ts:291"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio-companies",
@@ -98963,8 +99039,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/portfolio-companies.ts",
-          "line": 343,
-          "evidence": "server/routes/portfolio-companies.ts:343 enforces provided fund scope"
+          "line": 344,
+          "evidence": "server/routes/portfolio-companies.ts:344 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -98981,7 +99057,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:343, server/routes/portfolio-companies.ts:343 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/portfolio-companies.ts:344, server/routes/portfolio-companies.ts:344 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -98989,7 +99065,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:343, server/routes/portfolio-companies.ts:343 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/portfolio-companies.ts:344, server/routes/portfolio-companies.ts:344 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -98997,7 +99073,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:343, server/routes/portfolio-companies.ts:343 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/portfolio-companies.ts:344, server/routes/portfolio-companies.ts:344 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -99017,9 +99093,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:POST:/api/portfolio-companies",
@@ -99044,9 +99120,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:57",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "5b06fd3788ae5ba165524f2211a0ab9331a8908823c1d5baaf0a7d4347486c2c"
+            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
           },
           {
             "row": "api:POST:/api/portfolio-companies",
@@ -99058,20 +99134,30 @@
             "test_file_sha256": "e04f80e7d5c2b358d792c02380931401399a2d67b712c5d59116401a368c87df"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:250 makeApp against migrated PostgreSQL: company create stores key and server request hash on the row (client-supplied receipt fields stripped), replays 200 with the current public row after an edit, and adds no mutationReceipt rows (release-canary residue +0); a changed payload returns 409 (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one row (:463); key without hash fails the CHECK (:485).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "2c5d7aa3d0f5c128e7d0a1916fa690ddc55f5f72690a842e11b553b2d2df6444",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=6f39b4ed046eed71a81732b03997347d7643820f8fc3da260849568b7d740ad4",
+        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -102726,7 +102812,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/deal-pipeline.ts:313 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:325 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -102737,12 +102823,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:313",
+              "site": "server/routes/deal-pipeline.ts:325",
               "role": "guard",
               "effective_mount_order": 123
             },
             {
-              "site": "server/routes/deal-pipeline.ts:313",
+              "site": "server/routes/deal-pipeline.ts:325",
               "role": "handler",
               "effective_mount_order": 123
             }
@@ -102752,8 +102838,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 339,
-              "evidence": "server/routes/deal-pipeline.ts:339 enforces provided fund scope"
+              "line": 351,
+              "evidence": "server/routes/deal-pipeline.ts:351 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -102768,21 +102854,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -102799,7 +102885,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/deal-pipeline.ts:313 runtime registration",
+          "mount_evidence": "server/routes/deal-pipeline.ts:325 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/deals/opportunities/:id",
@@ -102810,12 +102896,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/deal-pipeline.ts:313",
+              "site": "server/routes/deal-pipeline.ts:325",
               "role": "guard",
               "effective_mount_order": 123
             },
             {
-              "site": "server/routes/deal-pipeline.ts:313",
+              "site": "server/routes/deal-pipeline.ts:325",
               "role": "handler",
               "effective_mount_order": 123
             }
@@ -102825,8 +102911,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 339,
-              "evidence": "server/routes/deal-pipeline.ts:339 enforces provided fund scope"
+              "line": 351,
+              "evidence": "server/routes/deal-pipeline.ts:351 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -102841,21 +102927,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "analyst",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/deal-pipeline.ts",
-              "line": 48,
+              "line": 55,
               "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
             }
           ],
@@ -102875,7 +102961,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/deal-pipeline.ts:313"
+        "server/routes/deal-pipeline.ts:325"
       ],
       "source_mapping": {
         "kg_node": "api:PUT:/api/deals/opportunities/:id",
@@ -102908,28 +102994,28 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 339,
-          "evidence": "server/routes/deal-pipeline.ts:339 enforces provided fund scope"
+          "line": 351,
+          "evidence": "server/routes/deal-pipeline.ts:351 enforces provided fund scope"
         },
         {
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "analyst",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/deal-pipeline.ts",
-          "line": 48,
+          "line": 55,
           "evidence": "const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);"
         },
         {
@@ -102959,9 +103045,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           },
           {
             "row": "api:PUT:/api/deals/opportunities/:id",
@@ -102977,9 +103063,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:114",
+            "assertion_evidence": "tests/unit/routes/deal-pipeline.contract.test.ts:118",
             "assertion_confirmed": false,
-            "test_file_sha256": "178864efdedca9e4de689f899ed526d840bdfcb8538e6c0cb522776731d237f4"
+            "test_file_sha256": "fd9106fa6fb9a8e6be29a60eee8107fb69bc6977f89adaed60c64417e1bbfd88"
           }
         ],
         "manual": []
@@ -102988,14 +103074,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged",
-      "contract_fingerprint": "ec552d3c8ecdcceb8053c5c038934169a39721e416473af97641b3b18dc7dfea",
+      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -114808,46 +114894,6 @@
       "contract_fingerprint": "53d89e1b4567108f5bd1ff5f7c12e9a23304a2099a59fb3d466751ceaf00c6f7",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
-    "api:GET:/api/deals/:id/diligence|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "31fe716ce2b9b5744c038fe8b1c30152baf955686a70e6bab976bb8a478a50fc",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/:id/diligence|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "31fe716ce2b9b5744c038fe8b1c30152baf955686a70e6bab976bb8a478a50fc",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/opportunities|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "1bf7edb20b905f789a7445bb3ffc1f06ecca9d10d0c045f65dcba6b076914a9b",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/opportunities|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "1bf7edb20b905f789a7445bb3ffc1f06ecca9d10d0c045f65dcba6b076914a9b",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/opportunities/:id|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "fa36727ea2e53443c106948ccb21a403c1def32c91de4a8b590d9e6dda2963df",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/opportunities/:id|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "fa36727ea2e53443c106948ccb21a403c1def32c91de4a8b590d9e6dda2963df",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/pipeline|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "203ca15d806ef346386ef172a07bf129eef0a9d94a5a8371e54b93409bdaed2a",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/deals/pipeline|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "203ca15d806ef346386ef172a07bf129eef0a9d94a5a8371e54b93409bdaed2a",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
     "api:GET:/api/funds/:fundId/metric-runs/:metricRunId|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "cc94726848e9d7f5dbd9082c5787eeaec49f6ca6574d1a8558d0af172b8f53f8",
@@ -115318,26 +115364,6 @@
       "contract_fingerprint": "d52d21fdcbae8c15e59b17c1dc2ddaead71503e7679e47b13c1d7c5ee1e697eb",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
-    "api:GET:/api/portfolio-companies|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "82cbdfd3cefab280242cecb105b79b0e9a89bd5d280b34dffabf707c5bbeeaa2",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/portfolio-companies|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "82cbdfd3cefab280242cecb105b79b0e9a89bd5d280b34dffabf707c5bbeeaa2",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/portfolio-companies/:id|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "57010421f697f877d020f89dedb24765532a418ada0a11b9cf4b1a48c8ed3729",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:GET:/api/portfolio-companies/:id|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "57010421f697f877d020f89dedb24765532a418ada0a11b9cf4b1a48c8ed3729",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
     "api:PATCH:/api/funds/:fundId/decisions/:decisionId|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "a938270b5133546c57df7c41af0f8136be13e0cd5205eee98001b68919d89f91",
@@ -115368,16 +115394,6 @@
       "contract_fingerprint": "e3948d033b09dafde48dc421f6409aa1c4c4eeb0dc276390bba9dc0c37b0ea5c",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
-    "api:PATCH:/api/portfolio-companies/:id|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "e1dd82b7d497f788e6f09c40366db7232d7c3f6f9d2db2f01ba57d0160da9a51",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:PATCH:/api/portfolio-companies/:id|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "e1dd82b7d497f788e6f09c40366db7232d7c3f6f9d2db2f01ba57d0160da9a51",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
     "api:POST:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "914b88e386ed37590e6a32f38fdef9994cf04e6339ff005f0364d250b50967d1",
@@ -115406,36 +115422,6 @@
     "api:POST:/api/admin/funds/:fundId/current-forecast/references|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "154efe9bfeccd3a71ffd7502cd0d4dbb88f00a76255f6857f47a91209d2eb8a3",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "7468b5675efb70b904f1ebd06ff89c5befac0bf05f66aacdfc10b9d0aa56b206",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "7468b5675efb70b904f1ebd06ff89c5befac0bf05f66aacdfc10b9d0aa56b206",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities/import|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "8c37cbd91999fb90d83e551e41b0fd25609147fdba976ed179ee01624db2d1f2",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities/import|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "8c37cbd91999fb90d83e551e41b0fd25609147fdba976ed179ee01624db2d1f2",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities/import/preview|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "e2dd5a715e9d56d1f707c3b2fcec8bbac72a04a387b71c63cf5e402cae55e2bf",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/deals/opportunities/import/preview|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "e2dd5a715e9d56d1f707c3b2fcec8bbac72a04a387b71c63cf5e402cae55e2bf",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
     "api:POST:/api/funds|local-process|create_server": {
@@ -115798,16 +115784,6 @@
       "contract_fingerprint": "2b803edaf38a201fa10cb3d5b0c840b4b42ce0b56a1cedb137a338e6a5d99b97",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
-    "api:POST:/api/portfolio-companies|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "2c5d7aa3d0f5c128e7d0a1916fa690ddc55f5f72690a842e11b553b2d2df6444",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:POST:/api/portfolio-companies|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "2c5d7aa3d0f5c128e7d0a1916fa690ddc55f5f72690a842e11b553b2d2df6444",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
     "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "36fa13218fc714ede83b48585f094e44c1eeaca0e50f7ecd8491312e7fefc47f",
@@ -115816,16 +115792,6 @@
     "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "36fa13218fc714ede83b48585f094e44c1eeaca0e50f7ecd8491312e7fefc47f",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:PUT:/api/deals/opportunities/:id|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ec552d3c8ecdcceb8053c5c038934169a39721e416473af97641b3b18dc7dfea",
-      "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
-    },
-    "api:PUT:/api/deals/opportunities/:id|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ec552d3c8ecdcceb8053c5c038934169a39721e416473af97641b3b18dc7dfea",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
     },
     "api:PUT:/api/funds/:id/draft|local-process|create_server": {
@@ -115857,6 +115823,101 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
       "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): commit is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts: partner/admin write role, verified actor, fund scope before the transaction); no test drives commit through createServer; mount parity for the reallocation router is covered by tests/unit/server/route-surface-inventory.test.ts on the preview path only."
+    },
+    "api:GET:/api/deals/:id/diligence|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/:id/diligence|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/opportunities/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/pipeline|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/deals/pipeline|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/portfolio-companies|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:GET:/api/portfolio-companies/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PATCH:/api/portfolio-companies/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PATCH:/api/portfolio-companies/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import/preview|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/deals/opportunities/import/preview|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+    },
+    "api:POST:/api/portfolio-companies|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PUT:/api/deals/opportunities/:id|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+    },
+    "api:PUT:/api/deals/opportunities/:id|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
+      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
     }
   },
   "g1_closure": {
@@ -116147,7 +116208,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:06508bd3742bbd4f53384645d7dc3bec722c16b9ef2246a52de2ade676d26573",
+      "snapshot_id": "snapshot:97221c7409143a20f92c64b6c40b0f6d48b6105781f3574f92e56b2234d84431",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,

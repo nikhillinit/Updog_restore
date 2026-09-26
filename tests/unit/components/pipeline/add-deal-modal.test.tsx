@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddDealModal } from '@/components/pipeline/AddDealModal';
+import { ApiError } from '@/lib/queryClient';
 
 const { mockApiRequest, mockToast, mockOpenChange } = vi.hoisted(() => ({
   mockApiRequest: vi.fn(),
@@ -18,6 +19,15 @@ vi.mock('@/lib/queryClient', async (importOriginal) => {
     apiRequest: (...args: unknown[]) => mockApiRequest(...args),
   };
 });
+
+const mockAuth = vi.hoisted(() => vi.fn(() => ({ data: null as { user: { id: string } } | null })));
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  useAuthSession: () => mockAuth(),
+}));
+const keyOf = (call: number) =>
+  ((mockApiRequest.mock.calls[call] as unknown[])[3] as { headers: Record<string, string> })
+    .headers['Idempotency-Key'];
 
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
@@ -47,6 +57,11 @@ async function fillRequiredDealFields() {
 }
 
 describe('AddDealModal', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    mockAuth.mockReturnValue({ data: null });
+  });
+
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeAll(() => {
@@ -113,9 +128,12 @@ describe('AddDealModal', () => {
     );
   });
 
-  it('maps raw server failures to safe dialog and toast copy', async () => {
+  it('maps a definite server rejection to safe dialog and toast copy', async () => {
     mockApiRequest.mockRejectedValue(
-      new Error('Database operation failed: SQLSTATE 23505 duplicate key value violates constraint')
+      new ApiError(
+        422,
+        'Database operation failed: SQLSTATE 23505 duplicate key value violates constraint'
+      )
     );
     renderWithQuery(<AddDealModal open={true} onOpenChange={mockOpenChange} fundId={1} />);
 
@@ -135,34 +153,48 @@ describe('AddDealModal', () => {
     );
   });
 
-  it('uses one idempotency key for retries and rotates it after success', async () => {
-    mockApiRequest.mockRejectedValueOnce(new Error('temporary failure')).mockResolvedValue({
-      success: true,
-      data: { id: 1 },
-    });
+  it('freezes an unknown outcome, persists its key, and retries with it until success', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue({ success: true, data: { id: 1 } });
     renderWithQuery(<AddDealModal open={true} onOpenChange={mockOpenChange} fundId={1} />);
 
     await fillRequiredDealFields();
     await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
-    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(1));
-    const firstCall = mockApiRequest.mock.calls[0] as unknown[];
-    expect(firstCall[3]).toEqual({
-      headers: { 'Idempotency-Key': expect.stringMatching(/^[0-9a-f-]{36}$/) },
-    });
 
-    await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
+    expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/company name/i)).toBeDisabled();
+    expect(keyOf(0)).toMatch(/^[0-9a-f-]{36}$/);
+    expect(
+      JSON.parse(sessionStorage.getItem('pending-create:v1:1:deal_create') ?? '{}')
+    ).toMatchObject({ actorId: '7', key: keyOf(0) });
+
+    await userEvent.click(screen.getByRole('button', { name: /retry create/i }));
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
-    const secondCall = mockApiRequest.mock.calls[1] as unknown[];
-    expect((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']).toBe(
-      (firstCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
+    expect(keyOf(1)).toBe(keyOf(0));
+    await waitFor(() =>
+      expect(sessionStorage.getItem('pending-create:v1:1:deal_create')).toBeNull()
     );
 
     await fillRequiredDealFields();
     await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
-    const thirdCall = mockApiRequest.mock.calls[2] as unknown[];
-    expect(
-      (thirdCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']
-    ).not.toBe((secondCall[3] as { headers: Record<string, string> }).headers['Idempotency-Key']);
+    expect(keyOf(2)).not.toBe(keyOf(1));
+  });
+
+  it('settles an uncertain create as already recorded on key reuse', async () => {
+    mockApiRequest
+      .mockRejectedValueOnce(new ApiError(503, 'unavailable'))
+      .mockRejectedValueOnce(new ApiError(409, 'reuse', 'IDEMPOTENCY_KEY_REUSE'));
+    renderWithQuery(<AddDealModal open={true} onOpenChange={mockOpenChange} fundId={1} />);
+
+    await fillRequiredDealFields();
+    await userEvent.click(screen.getByRole('button', { name: /add deal/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /retry create/i }));
+
+    expect(await screen.findByText(/already recorded/i)).toBeInTheDocument();
+    expect(keyOf(1)).toBe(keyOf(0));
+    expect(screen.getByLabelText(/company name/i)).not.toBeDisabled();
   });
 });

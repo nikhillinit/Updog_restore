@@ -5,7 +5,7 @@
  * required and optional fields validated via Zod schema.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
@@ -36,8 +36,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
+import { isUnknownCreateOutcome, useIdempotencyKey } from '@/hooks/useIdempotencyKey';
 import { apiRequest, ApiError } from '@/lib/queryClient';
+import { useAuthSession } from '@/lib/auth-session';
+import { sha256Hash } from '@/lib/hash';
 import {
   COMPANY_SECTORS,
   COMPANY_STAGES,
@@ -87,12 +89,34 @@ type FormValues = z.infer<typeof formSchema>;
 type FormInput = z.input<typeof formSchema>;
 
 const ADD_DEAL_SERVER_ERROR = 'Deal could not be created. Review the deal details and try again.';
+const DEAL_UNCERTAIN_MESSAGE =
+  'Creation status is uncertain. The request may already be recorded. Retry with the same details or discard this attempt after refreshing the list.';
+const DEAL_ALREADY_RECORDED_MESSAGE = 'This deal was already recorded. You can start a new intent.';
 
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const idempotencyKey = useIdempotencyKey();
+  const { data: authSession } = useAuthSession();
+  const idempotencyKey = useIdempotencyKey({
+    fundId,
+    operation: 'deal_create',
+    actorId: authSession?.user.id,
+  });
   const [serverError, setServerError] = useState<string | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const [canDiscard, setCanDiscard] = useState(false);
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
+
+  const invalidateDealLists = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] }),
+    ]);
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (idempotencyKey.restored) void invalidateDealLists();
+  }, [idempotencyKey.restored, invalidateDealLists]);
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
@@ -130,11 +154,12 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         employeeCount: parseIntSafe(data.employeeCount),
         revenue: parseMoney(data.revenue),
       };
+      const fingerprint = await sha256Hash(payload);
       return apiRequest<{ success: boolean; data: unknown }>(
         'POST',
         '/api/deals/opportunities',
         payload,
-        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) } }
       );
     },
     onSuccess: (_result, variables) => {
@@ -142,14 +167,37 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         title: 'Deal created',
         description: `"${variables.companyName}" has been added to your pipeline.`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
+      void invalidateDealLists();
       form.reset();
       idempotencyKey.reset();
       setServerError(null);
+      setUncertain(false);
+      setCanDiscard(false);
+      setAlreadyRecorded(false);
       onOpenChange(false);
     },
     onError: (error: Error) => {
+      if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
+      ) {
+        idempotencyKey.reset();
+        setUncertain(false);
+        setCanDiscard(false);
+        setAlreadyRecorded(true);
+        form.reset();
+        void invalidateDealLists();
+        return;
+      }
+
+      if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertain(true);
+        setAlreadyRecorded(false);
+        void invalidateDealLists().then(() => setCanDiscard(true));
+        return;
+      }
+
       if (error instanceof ApiError && error.issues) {
         const fieldErrors = error.fieldErrors;
         let mappedAny = false;
@@ -180,11 +228,21 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && createDealMutation.isPending) return;
-    if (!nextOpen) {
+    if (!nextOpen && !uncertain) {
       setServerError(null);
+      setAlreadyRecorded(false);
       form.reset();
     }
     onOpenChange(nextOpen);
+  };
+
+  const discardAttempt = () => {
+    idempotencyKey.reset();
+    setUncertain(false);
+    setCanDiscard(false);
+    setServerError(null);
+    setAlreadyRecorded(false);
+    form.reset();
   };
 
   return (
@@ -199,258 +257,164 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {serverError && (
+            {(idempotencyKey.restored || uncertain || alreadyRecorded) && (
+              <div aria-live="polite" className="space-y-2">
+                {idempotencyKey.restored && (
+                  <Alert>
+                    <AlertDescription>
+                      An earlier attempt may already be recorded. Review the list or retry with the
+                      same details.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {uncertain && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{DEAL_UNCERTAIN_MESSAGE}</AlertDescription>
+                  </Alert>
+                )}
+                {alreadyRecorded && (
+                  <Alert>
+                    <AlertDescription>{DEAL_ALREADY_RECORDED_MESSAGE}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+            {serverError && !uncertain && !alreadyRecorded && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
-            {/* Company Information */}
-            <div className="space-y-4">
-              <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
-                Company Information
-              </h4>
+            <fieldset disabled={createDealMutation.isPending || uncertain} className="space-y-4">
+              {/* Company Information */}
+              <div className="space-y-4">
+                <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
+                  Company Information
+                </h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="companyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Company Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Acme Inc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sector"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="pipeline-deal-sector" className="font-poppins">
-                        Sector *
-                      </FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="companyName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Company Name *</FormLabel>
                         <FormControl>
-                          <SelectTrigger id="pipeline-deal-sector">
-                            <SelectValue placeholder="Select sector" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., Acme Inc." {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {COMPANY_SECTORS.map((sector) => (
-                            <SelectItem key={sector} value={sector}>
-                              {sector}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="stage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel htmlFor="pipeline-deal-stage" className="font-poppins">
-                        Stage *
-                      </FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                  <FormField
+                    control={form.control}
+                    name="sector"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel htmlFor="pipeline-deal-sector" className="font-poppins">
+                          Sector *
+                        </FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger id="pipeline-deal-sector">
+                              <SelectValue placeholder="Select sector" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {COMPANY_SECTORS.map((sector) => (
+                              <SelectItem key={sector} value={sector}>
+                                {sector}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="stage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel htmlFor="pipeline-deal-stage" className="font-poppins">
+                          Stage *
+                        </FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger id="pipeline-deal-stage">
+                              <SelectValue placeholder="Select stage" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {COMPANY_STAGES.map((stage) => (
+                              <SelectItem key={stage} value={stage}>
+                                {stage}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Website</FormLabel>
                         <FormControl>
-                          <SelectTrigger id="pipeline-deal-stage">
-                            <SelectValue placeholder="Select stage" />
-                          </SelectTrigger>
+                          <Input placeholder="https://example.com" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {COMPANY_STAGES.map((stage) => (
-                            <SelectItem key={stage} value={stage}>
-                              {stage}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="website"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Website</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="foundedYear"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Founded Year</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="2020" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="employeeCount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Employee Count</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="25" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-poppins">Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Brief description of the company and opportunity..."
-                        className="min-h-[80px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Deal Details */}
-            <div className="space-y-4 pt-2">
-              <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
-                Deal Details
-              </h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Status *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? 'lead'}>
+                  <FormField
+                    control={form.control}
+                    name="foundedYear"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Founded Year</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
+                          <Input type="number" placeholder="2020" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="lead">Lead</SelectItem>
-                          <SelectItem value="qualified">Qualified</SelectItem>
-                          <SelectItem value="pitch">Pitch</SelectItem>
-                          <SelectItem value="dd">Due Diligence</SelectItem>
-                          <SelectItem value="committee">Committee</SelectItem>
-                          <SelectItem value="term_sheet">Term Sheet</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                          <SelectItem value="passed">Passed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Priority *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? 'medium'}>
+                  <FormField
+                    control={form.control}
+                    name="employeeCount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Employee Count</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select priority" />
-                          </SelectTrigger>
+                          <Input type="number" placeholder="25" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
-                  name="sourceType"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-poppins">Source *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select source" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Referral">Referral</SelectItem>
-                          <SelectItem value="Cold outreach">Cold Outreach</SelectItem>
-                          <SelectItem value="Inbound">Inbound</SelectItem>
-                          <SelectItem value="Event">Event</SelectItem>
-                          <SelectItem value="Network">Network</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="dealSize"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Deal Size ($)</FormLabel>
+                      <FormLabel className="font-poppins">Description</FormLabel>
                       <FormControl>
-                        <Input type="text" inputMode="decimal" placeholder="1,000,000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="valuation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Valuation ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="10,000,000"
+                        <Textarea
+                          placeholder="Brief description of the company and opportunity..."
+                          className="min-h-[80px]"
                           {...field}
                         />
                       </FormControl>
@@ -458,15 +422,157 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Deal Details */}
+              <div className="space-y-4 pt-2">
+                <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
+                  Deal Details
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Status *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? 'lead'}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="lead">Lead</SelectItem>
+                            <SelectItem value="qualified">Qualified</SelectItem>
+                            <SelectItem value="pitch">Pitch</SelectItem>
+                            <SelectItem value="dd">Due Diligence</SelectItem>
+                            <SelectItem value="committee">Committee</SelectItem>
+                            <SelectItem value="term_sheet">Term Sheet</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="passed">Passed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Priority *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? 'medium'}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sourceType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Source *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Referral">Referral</SelectItem>
+                            <SelectItem value="Cold outreach">Cold Outreach</SelectItem>
+                            <SelectItem value="Inbound">Inbound</SelectItem>
+                            <SelectItem value="Event">Event</SelectItem>
+                            <SelectItem value="Network">Network</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="dealSize"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Deal Size ($)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="1,000,000"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="valuation"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Valuation ($)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="10,000,000"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="revenue"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Revenue ($)</FormLabel>
+                        <FormControl>
+                          <Input type="text" inputMode="decimal" placeholder="500,000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
-                  name="revenue"
+                  name="sourceNotes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-poppins">Revenue ($)</FormLabel>
+                      <FormLabel className="font-poppins">Source Notes</FormLabel>
                       <FormControl>
-                        <Input type="text" inputMode="decimal" placeholder="500,000" {...field} />
+                        <Textarea
+                          placeholder="How did you hear about this deal?"
+                          className="min-h-[60px]"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -474,89 +580,71 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="sourceNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-poppins">Source Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="How did you hear about this deal?"
-                        className="min-h-[60px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+              {/* Contact Information */}
+              <div className="space-y-4 pt-2">
+                <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
+                  Contact Information
+                </h4>
 
-            {/* Contact Information */}
-            <div className="space-y-4 pt-2">
-              <h4 className="font-inter font-semibold text-sm text-pov-charcoal border-b border-pov-beige pb-2">
-                Contact Information
-              </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contactName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Contact Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="contactName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Contact Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Contact Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="john@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="contactEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Contact Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="john@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="contactPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Contact Phone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+1 (555) 123-4567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="contactPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Contact Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1 (555) 123-4567" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="nextAction"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-poppins">Next Action</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Schedule initial call" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="nextAction"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-poppins">Next Action</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Schedule initial call" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
+            </fieldset>
 
             <DialogFooter className="pt-4">
               <Button
@@ -578,10 +666,17 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
                   </>
+                ) : uncertain ? (
+                  'Retry create'
                 ) : (
                   'Add Deal'
                 )}
               </Button>
+              {uncertain && canDiscard && (
+                <Button type="button" variant="outline" onClick={discardAttempt}>
+                  Discard attempt
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </Form>

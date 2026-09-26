@@ -184,7 +184,12 @@ describe('deal pipeline service', () => {
   });
 
   it('rolls back only failed rows so later rows still import', async () => {
-    mockState.state.insertErrors.push(new Error('deal_size overflow'));
+    // Drizzle wraps the driver error; its message embeds SQL and bound params.
+    mockState.state.insertErrors.push(
+      Object.assign(new Error('Failed query: insert ... params: secret@example.com'), {
+        cause: { code: '22003' },
+      })
+    );
 
     const result = await confirmImport({
       rows: [importRow('Too Large'), importRow('Good Deal')],
@@ -196,11 +201,12 @@ describe('deal pipeline service', () => {
       imported: 1,
       skipped: 0,
       failed: 1,
-      failedRows: [{ index: 0, message: 'deal_size overflow' }],
+      failedRows: [{ index: 0, message: 'Insert failed', code: '22003' }],
       total: 2,
     });
     expect(mockState.state.insertValues).toHaveLength(2);
     expect(mockState.db.transaction).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(result)).not.toContain('secret@example.com');
   });
 
   it('bulk-updates status idempotently and reports missing deals', async () => {

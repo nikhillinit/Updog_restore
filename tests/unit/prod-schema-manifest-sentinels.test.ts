@@ -189,6 +189,7 @@ describe('prod-schema manifest sentinels', () => {
       '35-capital-plan-override.json',
       '36-task-update-commands.json',
       '37-fund-workflow-commands.json',
+      '38-durable-create-receipts.json',
     ]);
   });
 
