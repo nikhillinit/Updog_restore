@@ -61,9 +61,18 @@ CREATE TABLE IF NOT EXISTS "deal_pipeline_commands" (
     UNIQUE ("fund_id", "operation", "idempotency_key")
 );
 --> statement-breakpoint
-DROP TRIGGER IF EXISTS "deal_pipeline_commands_forbid_update_trigger"
-  ON "deal_pipeline_commands";
---> statement-breakpoint
-CREATE TRIGGER "deal_pipeline_commands_forbid_update_trigger"
-  BEFORE UPDATE ON "deal_pipeline_commands"
-  FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update();
+-- Guarded create (0060 precedent), not DROP TRIGGER: keeps the migration additive-safe.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgrelid = 'public.deal_pipeline_commands'::regclass
+      AND tgname = 'deal_pipeline_commands_forbid_update_trigger'
+      AND NOT tgisinternal
+  ) THEN
+    CREATE TRIGGER "deal_pipeline_commands_forbid_update_trigger"
+      BEFORE UPDATE ON "deal_pipeline_commands"
+      FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update();
+  END IF;
+END $$;
