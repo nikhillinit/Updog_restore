@@ -97,7 +97,8 @@ paths = [
   '''^audit/surface-contract-matrix/pr1557-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/pr1558-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/pr1558-owner-review\.json$''',
-  '''^audit/surface-contract-matrix/f1170-pr1-scoped-review\.json$'''
+  '''^audit/surface-contract-matrix/f1170-pr1-scoped-review\.json$''',
+  '''^audit/surface-contract-matrix/f1170-pr1b-scoped-review\.json$'''
 ]
 
 [[allowlists]]
