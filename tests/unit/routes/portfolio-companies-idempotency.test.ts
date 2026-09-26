@@ -17,12 +17,13 @@ vi.mock('express-rate-limit', () => ({
 }));
 
 const storageMock = vi.hoisted(() => ({
-  createPortfolioCompany: vi.fn(),
   getPortfolioCompany: vi.fn(),
 }));
+const createWithReceipt = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../server/storage', () => ({
   storage: storageMock,
+  createPortfolioCompanyWithReceipt: createWithReceipt,
 }));
 
 vi.mock('../../../server/services/portfolio-time-machine-read', () => ({
@@ -98,11 +99,11 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
-    expect(storageMock.createPortfolioCompany).not.toHaveBeenCalled();
+    expect(createWithReceipt).not.toHaveBeenCalled();
   });
 
   it('accepts POST /portfolio-companies with idempotency-key header', async () => {
-    storageMock.createPortfolioCompany.mockResolvedValueOnce({ id: 99, ...validBody });
+    createWithReceipt.mockResolvedValueOnce({ row: { id: 99, ...validBody }, replayed: false });
 
     const res = await request(makeApp())
       .post('/portfolio-companies')
@@ -110,10 +111,11 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
       .send(validBody);
 
     expect(res.status).toBe(201);
+    expect(res.headers['idempotency-replay']).toBeUndefined();
   });
 
   it('accepts x-idempotency-key header variant', async () => {
-    storageMock.createPortfolioCompany.mockResolvedValueOnce({ id: 100, ...validBody });
+    createWithReceipt.mockResolvedValueOnce({ row: { id: 100, ...validBody }, replayed: false });
 
     const res = await request(makeApp())
       .post('/portfolio-companies')
@@ -121,10 +123,52 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
       .send(validBody);
 
     expect(res.status).toBe(201);
+    expect(res.headers['idempotency-replay']).toBeUndefined();
+  });
+
+  it('passes each accepted header variant to the durable create as the key', async () => {
+    createWithReceipt.mockResolvedValue({ row: { id: 102, ...validBody }, replayed: false });
+
+    for (const header of ['idempotency-key', 'x-idempotency-key', 'idempotent-key']) {
+      await request(makeApp())
+        .post('/portfolio-companies')
+        .set(header, `${header}-102`)
+        .send(validBody);
+    }
+
+    expect(createWithReceipt.mock.calls.map((call) => call[1])).toEqual([
+      'idempotency-key-102',
+      'x-idempotency-key-102',
+      'idempotent-key-102',
+    ]);
+  });
+
+  it('replays an existing create with 200 and Idempotency-Replay', async () => {
+    createWithReceipt.mockResolvedValueOnce({ row: { id: 103, ...validBody }, replayed: true });
+
+    const res = await request(makeApp())
+      .post('/portfolio-companies')
+      .set('idempotency-key', 'replayed-key-103')
+      .send(validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['idempotency-replay']).toBe('true');
+    expect(res.body).toMatchObject({ id: 103 });
+  });
+
+  it('rejects a key longer than 128 characters before the durable create', async () => {
+    const res = await request(makeApp())
+      .post('/portfolio-companies')
+      .set('idempotency-key', 'k'.repeat(129))
+      .send(validBody);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+    expect(createWithReceipt).not.toHaveBeenCalled();
   });
 
   it('accepts idempotent-key header variant', async () => {
-    storageMock.createPortfolioCompany.mockResolvedValueOnce({ id: 101, ...validBody });
+    createWithReceipt.mockResolvedValueOnce({ row: { id: 101, ...validBody }, replayed: false });
 
     const res = await request(makeApp())
       .post('/portfolio-companies')
@@ -132,5 +176,6 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
       .send(validBody);
 
     expect(res.status).toBe(201);
+    expect(res.headers['idempotency-replay']).toBeUndefined();
   });
 });

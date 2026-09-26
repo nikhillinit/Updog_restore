@@ -374,6 +374,8 @@ schema_tests:
   - 'server/services/allocation-write-service.ts'
   # F_1.17.0 hotfix: deal import per-row savepoints under the request transaction
   - 'tests/integration/deal-import-savepoints.pg.test.ts'
+  # F_1.17.0 PR 1b: durable create receipts
+  - 'tests/integration/pipeline-create-commands.pg.test.ts'
   - 'server/services/deal-pipeline-service.ts'
   - 'server/routes/deal-pipeline.ts'
   # WP-L3 (task 16.3) internal-economics policy/envelope/run substrate

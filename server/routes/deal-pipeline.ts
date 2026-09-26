@@ -19,7 +19,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
-import { toNumber } from '@shared/number';
 import { firstString } from '../lib/request-values';
 import { IdempotentCommandError, sendIdempotentCommandLockError } from '../lib/idempotent-command';
 import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
@@ -28,6 +27,7 @@ import {
   idempotencyKeyHeader,
   requireIdempotencyKey,
 } from '../middleware/idempotency';
+import { creatorUserIdFromRequest } from '../lib/auth/creator-identity';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope, getVerifiedFundScope } from '../lib/auth/provided-fund-scope';
 import * as dealPipelineService from '../services/deal-pipeline-service';
@@ -52,10 +52,6 @@ const routeLog = createRouteLogger('deal-pipeline');
 
 const router = Router();
 const idempotent = idempotency();
-
-function actorId(req: Request): number {
-  return toNumber(req.user?.id ?? req.user?.sub, 'actorId', { integer: true, min: 1 });
-}
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
 
 type DealWriteScope = {
@@ -191,7 +187,7 @@ router['post'](
       const result = await dealPipelineService.createDealWithReceipt(
         data,
         parsedKey.value,
-        actorId(req)
+        creatorUserIdFromRequest(req) ?? null
       );
       if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
 
@@ -721,7 +717,7 @@ router['post'](
       const result = await dealPipelineService.confirmImportWithReceipt(
         { rows, fundId, mode },
         parsedKey.value,
-        actorId(req)
+        creatorUserIdFromRequest(req) ?? null
       );
       if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
 

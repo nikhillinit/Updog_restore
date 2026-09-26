@@ -84,6 +84,8 @@ const mockState = vi.hoisted(() => {
     select: vi.fn(() => makeQuery(next(state.selectResults))),
     insert: vi.fn((table: unknown) => makeInsertMutation(table)),
     update: vi.fn((table: unknown) => makeUpdateMutation(table)),
+    // Advisory transaction lock taken by the durable create/import receipts.
+    execute: vi.fn(async () => ({ rows: [] })),
     // Savepoint passthrough: nested inserts run on the same mock handle.
     transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db)),
   };
@@ -125,6 +127,7 @@ function resetDbMock() {
   mockState.db.insert.mockClear();
   mockState.db.update.mockClear();
   mockState.db.transaction.mockClear();
+  mockState.db.execute.mockClear();
 }
 
 function resetRedisMock() {
@@ -231,6 +234,44 @@ async function expectIdempotentReplay({
   expect(second.headers['idempotency-replay']).toBe('true');
   expect(mockState.state.insertValues).toHaveLength(expectedInsertCount);
   expect(mockState.state.updateSets).toHaveLength(expectedUpdateCount);
+}
+
+// Create and import confirm are database-backed: the replay comes from the
+// deal_pipeline_commands receipt, not the Redis middleware cache.
+async function expectReceiptReplay({
+  key,
+  act,
+  expectedInsertCount,
+}: {
+  key: string;
+  act: () => request.Test;
+  expectedInsertCount: number;
+}) {
+  const first = await act().set('Idempotency-Key', key);
+
+  expect(first.status).toBeGreaterThanOrEqual(200);
+  expect(first.status).toBeLessThan(300);
+  expect(first.headers['idempotency-replay']).toBeUndefined();
+  expect(mockState.db.execute).toHaveBeenCalledTimes(1);
+  expect(mockState.state.insertValues).toHaveLength(expectedInsertCount);
+
+  const receipt = mockState.state.insertValues.at(-1) as {
+    payload: { idempotencyKey: string; requestHash: string; responseBody: unknown };
+  };
+  expect(receipt.payload.idempotencyKey).toBe(key);
+  const stored = {
+    responseBody: receipt.payload.responseBody,
+    requestHash: receipt.payload.requestHash,
+  };
+  // Inside the lock the receipt now exists; the helper then reloads it to replay.
+  mockState.state.selectResults.push([stored], [stored]);
+
+  const second = await act().set('Idempotency-Key', key);
+
+  expect(second.status).toBe(200);
+  expect(second.body).toEqual(first.body);
+  expect(second.headers['idempotency-replay']).toBe('true');
+  expect(mockState.state.insertValues).toHaveLength(expectedInsertCount);
 }
 
 describe('deal pipeline route contracts', () => {
@@ -594,31 +635,53 @@ describe('deal pipeline route contracts', () => {
     }
   );
 
-  it('replays create without duplicate deal or activity inserts', async () => {
-    await expectIdempotentReplay({
+  it('replays create from its durable receipt without duplicate deal or activity inserts', async () => {
+    mockState.state.insertReturningResults.push([dealRow({ id: 201 })]);
+    await expectReceiptReplay({
       key: 'deal-create-once',
-      arrange: () => {
-        mockState.state.insertReturningResults.push([dealRow({ id: 201 })]);
-      },
       act: () => request(makeApp()).post('/api/deals/opportunities').send(validDealPayload()),
-      expectedInsertCount: 2,
-      expectedUpdateCount: 0,
+      // deal, activity, receipt
+      expectedInsertCount: 3,
     });
   });
 
-  it('replays import without duplicate row inserts', async () => {
-    await expectIdempotentReplay({
+  it('replays import from its durable receipt without duplicate row inserts', async () => {
+    await expectReceiptReplay({
       key: 'deal-import-once',
-      arrange: () => {
-        mockState.state.selectResults.push([]);
-      },
       act: () =>
         request(makeApp())
           .post('/api/deals/opportunities/import')
           .send({ fundId: 1, rows: [validDealPayload({ companyName: 'Import Co' })] }),
-      expectedInsertCount: 1,
-      expectedUpdateCount: 0,
+      // row, receipt
+      expectedInsertCount: 2,
     });
+  });
+
+  it('rejects an idempotency key longer than 128 characters before any database work', async () => {
+    const res = await request(makeApp())
+      .post('/api/deals/opportunities')
+      .set('Idempotency-Key', 'k'.repeat(129))
+      .send(validDealPayload());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+    expect(mockState.db.execute).not.toHaveBeenCalled();
+    expect(mockState.state.insertValues).toHaveLength(0);
+  });
+
+  it('maps a lock timeout to 409 REQUEST_IN_PROGRESS with Retry-After', async () => {
+    mockState.db.execute.mockRejectedValueOnce(
+      Object.assign(new Error('canceling statement due to lock timeout'), { code: '55P03' })
+    );
+    const res = await request(makeApp())
+      .post('/api/deals/opportunities')
+      .set('Idempotency-Key', 'deal-create-locked')
+      .send(validDealPayload());
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('REQUEST_IN_PROGRESS');
+    expect(res.headers['retry-after']).toBe('2');
+    expect(mockState.state.insertValues).toHaveLength(0);
   });
 
   it('replays stage change without duplicate update or activity insert', async () => {

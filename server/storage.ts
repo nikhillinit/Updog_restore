@@ -70,7 +70,7 @@ type PortfolioCompanyCreateInput = Omit<
 export async function createPortfolioCompanyWithReceipt(
   input: PortfolioCompanyCreateInput,
   idempotencyKey: string,
-  actorId: number
+  actorId: number | null
 ): Promise<{ row: PortfolioCompany; replayed: boolean }> {
   return runIdempotentCommand<PortfolioCompany>({
     db,

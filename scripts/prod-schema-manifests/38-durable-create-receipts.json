@@ -31,6 +31,7 @@
         {
           "name": "portfoliocompanies_create_receipt_pair_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK (((create_idempotency_key IS NULL) = (create_request_hash IS NULL)))",
             "orderedFragments": [
               "CHECK",
               "create_idempotency_key IS NULL",
@@ -42,6 +43,7 @@
         {
           "name": "portfoliocompanies_create_request_hash_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK (((create_request_hash IS NULL) OR ((create_request_hash)::text ~ '^[0-9a-f]{64}$'::text)))",
             "orderedFragments": [
               "CHECK",
               "create_request_hash IS NULL",
@@ -57,10 +59,15 @@
         {
           "name": "portfoliocompanies_fund_create_idempotency_unique",
           "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX portfoliocompanies_fund_create_idempotency_unique ON public.portfoliocompanies USING btree (fund_id, create_idempotency_key) WHERE (create_idempotency_key IS NOT NULL)",
             "orderedFragments": [
               "CREATE UNIQUE INDEX",
-              "(fund_id, create_idempotency_key)",
-              "WHERE (create_idempotency_key IS NOT NULL)"
+              "ON public.portfoliocompanies",
+              "USING btree",
+              "fund_id",
+              "create_idempotency_key",
+              "WHERE",
+              "create_idempotency_key IS NOT NULL"
             ],
             "stringLiterals": []
           }
@@ -86,8 +93,16 @@
             "cycleOption": "NO"
           }
         },
-        { "name": "fund_id", "type": "integer", "nullable": false },
-        { "name": "operation", "type": "text", "nullable": false },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "operation",
+          "type": "text",
+          "nullable": false
+        },
         {
           "name": "idempotency_key",
           "type": "varchar",
@@ -100,8 +115,16 @@
           "nullable": false,
           "expectedCharacterMaximumLength": 64
         },
-        { "name": "response_body", "type": "jsonb", "nullable": false },
-        { "name": "created_by", "type": "integer", "nullable": true },
+        {
+          "name": "response_body",
+          "type": "jsonb",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
         {
           "name": "created_at",
           "type": "timestamptz",
@@ -143,6 +166,7 @@
         {
           "name": "deal_pipeline_commands_key_nonempty_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK ((length((idempotency_key)::text) > 0))",
             "orderedFragments": ["CHECK", "length", "> 0"],
             "stringLiterals": []
           }
@@ -150,6 +174,7 @@
         {
           "name": "deal_pipeline_commands_operation_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK ((operation = ANY (ARRAY['deal_create'::text, 'deal_import'::text])))",
             "orderedFragments": ["CHECK", "deal_create", "deal_import"],
             "stringLiterals": ["deal_create", "deal_import"]
           }
@@ -165,6 +190,7 @@
         {
           "name": "deal_pipeline_commands_request_hash_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK (((request_hash)::text ~ '^[0-9a-f]{64}$'::text))",
             "orderedFragments": [
               "CHECK",
               "request_hash",
@@ -177,6 +203,7 @@
         {
           "name": "deal_pipeline_commands_response_object_check",
           "expectedDefinition": {
+            "exactDefinition": "CHECK ((jsonb_typeof(response_body) = 'object'::text))",
             "orderedFragments": [
               "CHECK",
               "jsonb_typeof(response_body)",
@@ -205,6 +232,7 @@
         {
           "name": "deal_pipeline_commands_scope_unique",
           "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX deal_pipeline_commands_scope_unique ON public.deal_pipeline_commands USING btree (fund_id, operation, idempotency_key)",
             "orderedFragments": [
               "CREATE UNIQUE INDEX",
               "(fund_id, operation, idempotency_key)"

@@ -8,6 +8,7 @@ import { PortfolioCompanyUpdateRequest } from '@shared/schemas/portfolio-route';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
+import { creatorUserIdFromRequest } from '../lib/auth/creator-identity';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { IdempotentCommandError, sendIdempotentCommandLockError } from '../lib/idempotent-command';
@@ -359,7 +360,8 @@ router.post(
       const resultWithReceipt = await createPortfolioCompanyWithReceipt(
         companyInput,
         parsedKey.value,
-        actorId(req)
+        // Nullable like task create: JWT subs are not guaranteed numeric.
+        creatorUserIdFromRequest(req) ?? null
       );
       if (resultWithReceipt.replayed) res.setHeader('Idempotency-Replay', 'true');
       return res.status(resultWithReceipt.replayed ? 200 : 201).json(resultWithReceipt.row);

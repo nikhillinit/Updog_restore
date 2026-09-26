@@ -264,7 +264,7 @@ export async function createDeal(data: CreateDealInput) {
 export async function createDealWithReceipt(
   data: CreateDealInput,
   idempotencyKey: string,
-  actorId: number
+  actorId: number | null
 ): Promise<{ row: DealCommandResponse; replayed: boolean }> {
   const operation = 'deal_create' as const;
   const contractVersion = DEAL_CREATE_CONTRACT_VERSION;
@@ -758,7 +758,7 @@ export async function confirmImport(input: ConfirmImportInput) {
 export async function confirmImportWithReceipt(
   input: ConfirmImportInput,
   idempotencyKey: string,
-  actorId: number
+  actorId: number | null
 ): Promise<{ row: DealCommandResponse; replayed: boolean }> {
   const operation = 'deal_import' as const;
   const contractVersion = DEAL_IMPORT_CONTRACT_VERSION;
