@@ -47,7 +47,8 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "proposed"
+    "decision_status": "approved",
+    "decision_evidence": "F_1.17.0 PR 1 source a8f100afe58083dd279bb696bea2d1c7256942bf; Dockerfile.railway unchanged since the PR1558 re-approval (same listener fingerprint); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, inventory-gated and excluded from production topology (ADR-080); historical G1 closure unchanged"
   },
   {
     "candidate_path": "Dockerfile.simple",

@@ -14606,10 +14606,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
       "contract_fingerprint": "80ed67a2e812a11a9aad576f2e49f67368b350bd35b22b2bc32a01a21c774d97",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/dual-forecast.ts=a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "analytics",
         "personas": [
@@ -86114,15 +86122,33 @@
             "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/commit",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:225 makeApp assembly with a signed admin JWT against a migrated PostgreSQL database: partial commit updates only proposed rows and preserves untouched mixed versions (:317); stale per-row version returns 409 with sorted details.current_versions and leaves values, versions, and audit rows unchanged (:333); forced audit-insert failure rolls back every row update with zero audit rows (:352); reversed request order locks in ascending company-ID order behind a deterministic blocker and returns 409 without 40P01 (:369); concurrent reversed commits yield one 200 and one 409 (:402); route versus applyAllocationUpdates overlap yields one winner and one 409 with caller-ordered fund_events payload (:423); cap updates land on their own company including id equal to fund id, omitted caps are preserved, and audit_ids identify exactly one reallocation_audit row per proposed company with truthful versions and numeric deltas (:493).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
       "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -86368,15 +86394,42 @@
             "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:293 makeApp assembly with a signed JWT against a migrated PostgreSQL database returns 200 with numeric totals for matching expected_version rows and 409 details.current_versions for a stale row; no write.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:955 makeApp assembly returns 403 FUND_ACCESS_DENIED for a cross-fund scoped token with the per-row body.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
       "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -115794,6 +115847,16 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "31e854e74a6efe62afb15ae454c4a0d00788e62f8f6e9921f5ff64e4adb14e2c",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
+    },
+    "api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6",
+      "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): preview is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts); no test drives preview through createServer. tests/unit/server/route-surface-inventory.test.ts:878 mounts registerRoutes on a bare express app without the createServer middleware stack, and the cross-fund 403 at :955 runs on makeApp."
+    },
+    "api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
+      "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): commit is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts: partner/admin write role, verified actor, fund scope before the transaction); no test drives commit through createServer; mount parity for the reallocation router is covered by tests/unit/server/route-surface-inventory.test.ts on the preview path only."
     }
   },
   "g1_closure": {
@@ -116079,6 +116142,47 @@
         "api:POST:/api/portfolio/strategies",
         "api:PUT:/api/portfolio/strategies/:id"
       ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "kg": {
+      "snapshot_id": "snapshot:06508bd3742bbd4f53384645d7dc3bec722c16b9ef2246a52de2ade676d26573",
+      "counts": {
+        "APIEndpoint": 413,
+        "ClientRoute": 44,
+        "WorkerJob": 7
+      }
+    },
+    "scheduler_registrations": [
+      {
+        "id": "varianceAlertAutomationService",
+        "site": "server/routes.ts:60"
+      },
+      {
+        "id": "artifactRetentionService",
+        "site": "server/routes.ts:62"
+      },
+      {
+        "id": "internalAnalysisCheckpointService",
+        "site": "server/routes.ts:64"
+      }
+    ],
+    "discovery": {
+      "listener_candidates": 13,
+      "dormant_candidates": 29,
+      "bullmq_constructors": 16
+    },
+    "requirement_match_counts": {
+      "current-forecast-commands": 7,
+      "fee-catch-up-ui": 1,
+      "subannual-flow-fee": 3,
+      "cashless-gp-lp-class": 2,
+      "wave-h": 1,
+      "wp-l4": 0,
+      "kpi-manager": 7,
+      "pages-v2": 8,
+      "docker-only": 60
     }
   }
 }
