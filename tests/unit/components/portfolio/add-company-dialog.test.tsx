@@ -53,10 +53,12 @@ vi.mock('@/lib/hash', async (importOriginal) => {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function renderWithQuery(ui: React.ReactElement) {
@@ -283,6 +285,42 @@ describe('AddCompanyDialog', () => {
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
     expect(keyOf(1)).toBe(keyOf(0));
     expect((mockApiRequest.mock.calls[1] as unknown[])[2]).toMatchObject({ fundId: 1 });
+  });
+
+  it('retries with the in-memory key after a fund change when storage writes fail', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    try {
+      mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+      const firstRequest = deferred<never>();
+      mockApiRequest
+        .mockImplementationOnce(() => firstRequest.promise)
+        .mockResolvedValue({ id: 1 });
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const view = (fundId: number) => (
+        <QueryClientProvider client={queryClient}>
+          <AddCompanyDialog fundId={fundId} open={true} onOpenChange={mockOpenChange} />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(view(1));
+
+      await fillRequiredCompanyFields();
+      await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+      await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(1));
+      rerender(view(2));
+      firstRequest.reject(new TypeError('Failed to fetch'));
+
+      expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /retry create/i }));
+      await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+      expect(keyOf(1)).toBe(keyOf(0));
+      expect((mockApiRequest.mock.calls[1] as unknown[])[2]).toMatchObject({ fundId: 1 });
+    } finally {
+      setItem.mockRestore();
+    }
   });
 
   it('settles an uncertain create as already recorded on key reuse', async () => {

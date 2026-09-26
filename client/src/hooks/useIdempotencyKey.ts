@@ -5,7 +5,6 @@ import { ApiError } from '@/lib/queryClient';
 interface IdempotencyKeyState {
   key: string;
   fingerprint: string;
-  scopeKey: string | null;
   actorId: string | null;
 }
 
@@ -116,8 +115,31 @@ export function clearPendingCreateCommands(): void {
   }
 }
 
+// Memory first (this tab's own command, possibly never persisted), then an
+// entry left in sessionStorage by an earlier page life.
+function pendingFor(
+  commands: Map<string | null, IdempotencyKeyState>,
+  key: string,
+  actorId: string
+): { entry: IdempotencyKeyState | null; fromStorage: boolean } {
+  const memory = commands.get(key);
+  if (memory?.actorId === actorId) return { entry: memory, fromStorage: false };
+
+  const stored = readPendingCreate(key, actorId);
+  if (!stored) {
+    commands.delete(key);
+    return { entry: null, fromStorage: false };
+  }
+  const entry = { key: stored.key, fingerprint: stored.fingerprint, actorId };
+  commands.set(key, entry);
+  return { entry, fromStorage: true };
+}
+
 export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHandle {
-  const state = useRef<IdempotencyKeyState | null>(null);
+  // One pending command per scope (null = unscoped), kept until settlement or
+  // discard. Memory is the only copy when a sessionStorage write fails, so a
+  // scope change must never evict another scope's key.
+  const commands = useRef(new Map<string | null, IdempotencyKeyState>());
   const scopeRef = useRef<IdempotencyKeyScope | undefined>(scope);
   scopeRef.current = scope;
   const [restored, setRestored] = useState(false);
@@ -127,17 +149,11 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
   useEffect(() => {
     const currentScope = scopeRef.current;
     const key = scopeKey(currentScope);
-    if (!key || !currentScope?.actorId) {
-      setRestored(false);
-      return;
-    }
-    if (state.current?.scopeKey === key && state.current.actorId === currentScope.actorId) return;
-
-    const restoredEntry = readPendingCreate(key, currentScope.actorId);
-    state.current = restoredEntry
-      ? { ...restoredEntry, scopeKey: key, actorId: currentScope.actorId }
-      : null;
-    setRestored(restoredEntry !== null);
+    setRestored(
+      key !== null &&
+        !!currentScope?.actorId &&
+        pendingFor(commands.current, key, currentScope.actorId).fromStorage
+    );
   }, [scope?.actorId, scope?.fundId, scope?.operation]);
 
   const handle = useRef<IdempotencyKeyHandle | null>(null);
@@ -152,15 +168,9 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
 
         if (key && currentScope?.actorId) {
           const fingerprint = typeof payload === 'string' ? payload : serializedPayload;
-          if (state.current?.scopeKey !== key || state.current.actorId !== currentScope.actorId) {
-            const restoredEntry = readPendingCreate(key, currentScope.actorId);
-            state.current = restoredEntry
-              ? { ...restoredEntry, scopeKey: key, actorId: currentScope.actorId }
-              : null;
-            if (ownScope) setRestored(restoredEntry !== null);
-          }
-
-          if (state.current?.fingerprint === fingerprint) return state.current.key;
+          const { entry, fromStorage } = pendingFor(commands.current, key, currentScope.actorId);
+          if (fromStorage && ownScope) setRestored(true);
+          if (entry?.fingerprint === fingerprint) return entry.key;
 
           const next = {
             actorId: currentScope.actorId,
@@ -168,29 +178,21 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
             fingerprint,
             createdAt: Date.now(),
           } satisfies PendingCreate;
-          state.current = { ...next, scopeKey: key, actorId: currentScope.actorId };
+          commands.current.set(key, next);
           writePendingCreate(key, next);
           if (ownScope) setRestored(false);
           return next.key;
         }
 
-        if (
-          state.current === null ||
-          state.current.scopeKey !== null ||
-          state.current.fingerprint !== serializedPayload
-        ) {
-          state.current = {
-            key: crypto.randomUUID(),
-            fingerprint: serializedPayload,
-            scopeKey: null,
-            actorId: null,
-          };
-        }
-        return state.current.key;
+        const unscoped = commands.current.get(null);
+        if (unscoped?.fingerprint === serializedPayload) return unscoped.key;
+        const next = { key: crypto.randomUUID(), fingerprint: serializedPayload, actorId: null };
+        commands.current.set(null, next);
+        return next.key;
       },
       reset: (boundScope) => {
         const key = scopeKey(boundScope ?? scopeRef.current);
-        if (state.current?.scopeKey === key) state.current = null;
+        commands.current.delete(key);
         if (key === scopeKey(scopeRef.current)) setRestored(false);
         if (key) {
           try {

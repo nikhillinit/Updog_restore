@@ -89,6 +89,27 @@ describe('useIdempotencyKey', () => {
     expect(result.current.keyFor('digest-a')).toBe(key);
   });
 
+  it('keeps each scope pending key in memory across scope changes when storage writes fail', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    const { result, rerender } = renderHook(
+      ({ fundId }) => useIdempotencyKey({ ...scope(), fundId }),
+      { initialProps: { fundId: 1 } }
+    );
+
+    const key = result.current.keyFor('digest-a');
+    rerender({ fundId: 2 });
+    expect(result.current.keyFor('digest-a', scope())).toBe(key);
+    expect(result.current.keyFor('digest-a')).not.toBe(key);
+    rerender({ fundId: 1 });
+    expect(result.current.keyFor('digest-a')).toBe(key);
+    expect(sessionStorage.length).toBe(0);
+
+    act(() => result.current.reset());
+    expect(result.current.keyFor('digest-a')).not.toBe(key);
+  });
+
   it('keys and resets a bound scope without touching the hook scope', () => {
     const otherFund = 'pending-create:v1:2:deal_create';
     sessionStorage.setItem(
