@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import type { Response } from 'express';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   IdempotentCommandError,
   replayIdempotentCommandIfPresent,
+  retryableCommandErrorCode,
   runIdempotentCommand,
+  sendIdempotentCommandLockError,
 } from '../../../server/lib/idempotent-command';
 
 interface StoredRow {
@@ -241,5 +244,34 @@ describe('runIdempotentCommand', () => {
       code: 'IDEMPOTENCY_REQUEST_MISMATCH',
     });
     expect(store.rows).toHaveLength(0);
+  });
+});
+
+describe('retryable command errors', () => {
+  const wrapped = (code: string) =>
+    new Error('Failed query', { cause: Object.assign(new Error('pg'), { code }) });
+
+  it('finds lock, deadlock, and serialization codes anywhere in the cause chain', () => {
+    expect(retryableCommandErrorCode(wrapped('55P03'))).toBe('55P03');
+    expect(retryableCommandErrorCode(wrapped('40P01'))).toBe('40P01');
+    expect(retryableCommandErrorCode(wrapped('40001'))).toBe('40001');
+    expect(retryableCommandErrorCode(wrapped('22003'))).toBeNull();
+    expect(retryableCommandErrorCode(new Error('plain'))).toBeNull();
+  });
+
+  it('maps a deadlock to 503 COMMAND_RETRY_REQUIRED with Retry-After', () => {
+    const res = { setHeader: vi.fn(), type: vi.fn(), status: vi.fn(), json: vi.fn() };
+    res.type.mockReturnValue(res);
+    res.status.mockReturnValue(res);
+
+    expect(sendIdempotentCommandLockError(res as unknown as Response, wrapped('40P01'))).toBe(true);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'COMMAND_RETRY_REQUIRED' })
+    );
+    expect(sendIdempotentCommandLockError(res as unknown as Response, wrapped('22003'))).toBe(
+      false
+    );
   });
 });
