@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { readCurrentVersions } from '@/lib/reallocation-utils';
 import type {
   ReallocationPreviewRequest,
   ReallocationPreviewResponse,
@@ -16,19 +17,23 @@ export function useReallocationPreview(fundId: number) {
   return useMutation<ReallocationPreviewResponse, ReallocationError, ReallocationPreviewRequest>({
     mutationFn: async (request: ReallocationPreviewRequest) => {
       try {
-        return apiRequest<ReallocationPreviewResponse>(
+        return await apiRequest<ReallocationPreviewResponse>(
           'POST',
           `/api/funds/${fundId}/reallocation/preview`,
           request
         );
       } catch (error: unknown) {
-        // Transform error to match ReallocationError type
         const err = error as { status?: number; message?: string; errors?: string[] };
-        throw {
+        const reallocationError: ReallocationError = {
           status: err.status || 500,
           message: err.message || 'Preview failed',
           errors: err.errors || [],
-        } as ReallocationError;
+        };
+        if (error instanceof ApiError) {
+          const currentVersions = readCurrentVersions(error.details);
+          if (currentVersions) reallocationError.currentVersions = currentVersions;
+        }
+        throw reallocationError;
       }
     },
   });

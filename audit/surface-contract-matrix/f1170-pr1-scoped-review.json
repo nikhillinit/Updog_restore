@@ -1,0 +1,357 @@
+{
+  "schema_version": "1.0.0",
+  "review_id": "f1170-pr1-reallocation-forecast-scoped-review-2026-09-25",
+  "snapshot_id": "snapshot:b520cc9100fe7b51c8856b3dfc6bb2dc70e40c94cfac7c24d4cd0ebe7d52b58c",
+  "source_fingerprints": {
+    ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
+    ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
+    "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
+    "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
+    "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
+    "audit/surface-contract-matrix/boot-proofs.json": "d3f7c9af8c48593429ea1424375c54c115fb8f45c171f07b5fb942bb67aea7f5",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
+    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
+    "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
+    "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
+    "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "c86a881d617a3e52b795cd024c53c92f4e70d93a962c6a2c8deaab02f2e623d6",
+    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
+    "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
+    "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
+    "client/src/app/app-router.tsx": "edefaccac0c7b3f11c27829470c6a904fee40954f7c9821e3ce111e28b2a815d",
+    "client/src/main.tsx": "2be1496402b1cb8550e760c0703a1e01893e713fcc50e6401b0c731204435071",
+    "client/src/pages/v2/cash.tsx": "af0441819b330da326f652d90e48d64bf0e865ff822873f08212c126e094dd78",
+    "client/src/pages/v2/company.tsx": "9308f0355f0ef5949b86acf25b52ece84bef06a73768250cb18fa9c345c2efe4",
+    "client/src/pages/v2/exits.tsx": "dc8f8aacb8e250a4924e7167f7b97261690c28312a2cc2906bc47b9e50384b82",
+    "client/src/pages/v2/insights.tsx": "c939aa5f6b9974b4ee6f5b3c6dde7715f44eb409b90de1cfb6799249180ae67f",
+    "client/src/pages/v2/partners.tsx": "c6595a2e192d1cf952cc5b1cc2b8a476d3224a43fd027d56ade8eb3d3884a5e2",
+    "client/src/pages/v2/portfolio.tsx": "442e18560a3ad25c8c461ef37cf748b05d494c7f2f302f170852957240b8d4c2",
+    "client/src/pages/v2/scenarios.tsx": "f783378ab9ef3b1783eca2ff30087788ddeca81ea558433098c7f6ad7063c187",
+    "client/src/pages/v2/today.tsx": "fb08a56d3bce71348145f524507d6ab1e9df84adefae7ac5e8feb2ecb8393116",
+    "Dockerfile": "a2d0e99cc95c7983e1eabed42af6f2b122ecb83341d65835b1f6de715240cdff",
+    "Dockerfile.railway": "76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b",
+    "Dockerfile.simple": "bfcbd376504c160cac0e5200b46db48579d65e857eba61a558fdc196919c34b7",
+    "Dockerfile.worker": "97dde98f194d12f1a9b523a90e395ab214946ba9ca6ca2f6dc674c3e10c15463",
+    "ml-service/app.py": "99f3c1b080d81b27297c2ab752ca3e8be25f37af5c1cd3b07d52712bde2a7739",
+    "ml-service/docker-compose.yml": "7b295e745eaf0e6a20924c1b50dd2f4eda3ad4bc2830b7db499e526a8821a600",
+    "ml-service/Dockerfile": "8ca23536edbf6d40989a24e2b7a1a192928674bc2ea02f2e759550b9d374d7df",
+    "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
+    "ml-service/test_app.py": "764c311665c4d24c79db1589374dbebb54b4c7055bc8e6c82b152bd1f3c4443b",
+    "package-lock.json": "589e59ffb18ce4ac2b6eae117f4159993685daedc370aa909343a8eb0ea6f844",
+    "package.json": "f7dcaed3d62b7c846717627e72a545e4fde67e21f5ccbffe76bf0024877220f2",
+    "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
+    "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
+    "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
+    "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
+    "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
+    "server/app.ts": "5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+    "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
+    "server/lib/auth/jwt.ts": "914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+    "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+    "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+    "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+    "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
+    "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
+    "server/queues/report-generation-queue.ts": "9c3792bb56f3849227c9f4cd33c7e5196abfdddd371b95833d48602d06a3947e",
+    "server/queues/simulation-queue.ts": "96e698444491fa4ab7118dccb17477a0c01ad4eeace6497789136d9b8ca8b980",
+    "server/route-policy/api-route-policy-registry.ts": "c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd",
+    "server/routes.ts": "a0d63d861318a77af77c14dc97183d7960a1ee41afb4358f5a13d3f69a2ac407",
+    "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
+    "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
+    "server/routes/admin/circuit-admin.ts": "5b88cb992610388ea3bee4676d9c65b74a62e8aab65a7f2880980e88f5d54429",
+    "server/routes/admin/engine.ts": "b5874846963439d288492513ceca4f2540024e33574a2817b525dc691d815058",
+    "server/routes/ai.ts": "cc0dee1c08a1fee2d7df9e1b25dde6d57f8e5987f7e7a1e7e07e38ef30664fbf",
+    "server/routes/allocation-scenarios.ts": "5f40d27dfb0ae8002c7574e0e465e7845003d9aeb9994165ea5da224f0b6e588",
+    "server/routes/allocations.ts": "01d03288bb12cfda198f98518e9015027f43cceaae9b61d2ce3fed5f2b32dc65",
+    "server/routes/auth.ts": "4f38036fc9cf2c689f4490c816dea79f66625876c07e48524b2161b377c88605",
+    "server/routes/backtesting.ts": "152df9e7bff73572cd44a1a477890074e5908a34ee0c8f14754e20d82e468e78",
+    "server/routes/cache.ts": "66904f669bd02f17f72074357044d65346693e8f7e5af64fcc2df3bef248787d",
+    "server/routes/calculations.ts": "0759a94ad7bb8cbeb229c54415176a417514a24ec1325f6aa2922e6153d0c8ca",
+    "server/routes/capital-allocation.ts": "35fed0d9c79391a0aa97eaa4fc5c442a98c0279198960c2fc14685f879df193f",
+    "server/routes/cash-flow-events.ts": "839157bba7ff8b0096ea2a96449ce36e85ec69ee74cf46bb41435bc1a35d9dbe",
+    "server/routes/cashflow.ts": "a838a81886716def7a5bded8615b84e4263978ec16bb5785c669008e10a57810",
+    "server/routes/cohort-analysis.ts": "57e40f569ed602eade24ae876923d59f06778a1d09689420295f0776907d3a59",
+    "server/routes/construction-reconciliation.ts": "c9ce98b027b478d95493ca557831ce455e1eb6849560fd7f391b3e08faeebc0f",
+    "server/routes/current-forecast.ts": "152f6dd9610ff61f675fede1286495bfdc03007a27e3e78447916dc7de698ca1",
+    "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
+    "server/routes/deal-pipeline.ts": "311c9292ec92884415a485e5aa2b0507b0833cbe5d241daa4b2635b537bde382",
+    "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
+    "server/routes/dual-forecast.ts": "a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
+    "server/routes/engine-summaries.ts": "b17db5ceada8e2ad8b7ecfe3768b193d9badcbce398cc2c857f1aa48780221cb",
+    "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
+    "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
+    "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
+    "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
+    "server/routes/fund-config.ts": "6e7dd239d8f2bacf6ae892282ea8134fa9b9294351e4b1678e61ab99e55f36ab",
+    "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
+    "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
+    "server/routes/fund-moic.ts": "2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba",
+    "server/routes/fund-scenario-sets.ts": "de4d651ce5ecfedcb86d7c5dfb8cbd8b9f67fa6b8973fb1ba5741698d3f07d35",
+    "server/routes/funds.ts": "e744fdd40cb49fcbb560c236f6ca4b0773c1e49b3a8195ff9a1f59fb905c4dbb",
+    "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
+    "server/routes/health.ts": "9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
+    "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
+    "server/routes/internal-economics.ts": "47372521fcf9c7bde371d66b8bf340ef40afe127879bbb0cd3f963a513e03dc8",
+    "server/routes/investment-ledger.ts": "68b56315d15faf54501540805dc855d6d01606a8e5dad2f8860aaac60a2bbe12",
+    "server/routes/investments.ts": "fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
+    "server/routes/kpi-observations.ts": "331f41c54cff66e8ac5f0805457466be9783f8b0e1a4a994d4714449450a9ef4",
+    "server/routes/liquidity.ts": "927c3c877fae7a895f8f14df7d501b0ba30a0ee1695837c419dc89339a65d775",
+    "server/routes/lp-api.schemas.ts": "e565fb68e8c4ce7316ddfe28b8d81a563b7a1b0d49da52d2d5d8a3e573ee0e41",
+    "server/routes/lp-api.ts": "d3abbc80d40774cd003f8d18185245d50e0c62e0cfb9d27671be65f4ecbc188c",
+    "server/routes/lp-capital-calls.ts": "5e66b6301140578f12261f2a6ff453d0fd23c325229fcf72755340f28e032d20",
+    "server/routes/lp-distributions.ts": "971d01da3bc543dd90c0b1b7f5484c10de2a7eb63d7406a9f3c1b738e614538b",
+    "server/routes/lp-documents.ts": "ed28997918c2599c63830ad25dc3668c958207841863e4452c88ca2d3152d839",
+    "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
+    "server/routes/lp-notifications.ts": "c88697c962a315edaa515f68ba44240d1334cf1e550aa63f220eb721cb848420",
+    "server/routes/lp-reporting/imports.ts": "ef9b4f419b3ad4a9c3e5796598a2f61f16f7390afd13fc1f4fda5b39a7aef9b2",
+    "server/routes/lp-reporting/metric-runs.ts": "c63c104b5aa4e214965455fe06a4b4d234f01444728698abdc780cd08be8da00",
+    "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
+    "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
+    "server/routes/metrics-rum-v2.ts": "43dd2e8316170cd54827f4205f4b797235d5d7b11c8a25bd6d2ca1e21ffb1e8c",
+    "server/routes/metrics-rum.guard.ts": "6b25c6e3b6baa551750dcb1691cbe731b15aed292d99d92883703dd50111a98b",
+    "server/routes/metrics-rum.ts": "c00b18bf4726972719fd24c37fe863d9624688eac62cfe0ec50b53399ad03743",
+    "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
+    "server/routes/monte-carlo.ts": "1298a814d0aa443ddbd1e0d6e85fb705d22ffa3ff7e65e13e41a7ac8a0d46a3f",
+    "server/routes/mount-common-routes.ts": "ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb",
+    "server/routes/operating-object-decisions.ts": "b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
+    "server/routes/operating-object-tasks.ts": "8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
+    "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
+    "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
+    "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",
+    "server/routes/performance-metrics.ts": "262cf4d5e8d27d5377915735a234e48c6ef7b621564ea89f8aed621318c67f69",
+    "server/routes/planning-fmv-overrides.ts": "9e77f4b580947d45bf60a0f5be2f28e11ec94563d8d94dabd59350405e77117d",
+    "server/routes/portfolio-companies.ts": "6f39b4ed046eed71a81732b03997347d7643820f8fc3da260849568b7d740ad4",
+    "server/routes/portfolio-intelligence.ts": "cf347e7d5f1c095e2b7a570954e8375327851fbb93ae07cc423b2047d1fd4b53",
+    "server/routes/portfolio-optimization.ts": "b74e2e018452309cdad43349067191c1d83b6ba4becadac69ed6c9b3f44cb07b",
+    "server/routes/portfolio-overview.ts": "ab7b5fc47c98f99d037cada18ecc7345189b320418e48b7b9939d09339bce34c",
+    "server/routes/portfolio/lots.ts": "db0eaca1dc888e5d5664d2b3f904f1390909ca35361d88ad4437f57a2930602c",
+    "server/routes/public/csp-report.ts": "713bfc382b8917dc9a5b98b1bb320cc628ef82f8a010412e01c6f66e631ba1f6",
+    "server/routes/readiness.ts": "7a5868f7e91cfd1f7b7cf7c11e723c14f678c619b2f386542e197668454e93ca",
+    "server/routes/reallocation.ts": "712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
+    "server/routes/scenario-analysis.ts": "a63649f5b2ae090e69d6440646a70895b2795d0cf5a89d50ca1d6f182a112209",
+    "server/routes/sensitivity.ts": "0acf39656dedb669afcbbce73f3eef7842efce2e685db749b7f4c9ae2206a2e4",
+    "server/routes/shares.ts": "d1359e2b8b06ceec542167e1cd7b800eff087556b654efeff4a6e925f16f9dd2",
+    "server/routes/simulations-guarded.example.ts": "8d9d6a70248266b63d476f8552e1f90966bd831558a328f84d13c9b28e9ff4cd",
+    "server/routes/sse-events.ts": "4a10d46d27bf98d8348494b2bb3c66c0583dd74928a6dc8429f53479b81c0f84",
+    "server/routes/timeline.ts": "7882afcb9cfb2a02a463461c7a408c3dbc573816c68da044ba46b033be10bc55",
+    "server/routes/v1/reserve-approvals.ts": "69a855a4b27a04287ece4e88f6245fc8ee3af026cf8c9339ab9457f0c5470b62",
+    "server/routes/v1/reserves.ts": "8e916ae785b1edb3fe47626a853e3c241a312d583e3ff407219934bd3a7286e2",
+    "server/routes/variance.ts": "d68444da544104fd7a37adf4b246a84634db782868ae7d06fe6c30f758cddfe4",
+    "server/routes/variance/response-adapters.ts": "44e52dda21c7b440a5553f6eb619b4d1c71975e3dc33f8fe52ba3e21add8fe26",
+    "server/server.ts": "27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+    "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
+    "server/websocket.ts": "2ed29caee85bd6ac49ab9eefab8fb04fe0da5b20796d2a213fa4c6845b14acca",
+    "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
+    "server/websocket/index.ts": "55338106c058f7703090bf9a14eaa23226fa60966a9e969b5a9e72c944328956",
+    "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
+    "server/workers/capital-call-status-worker.ts": "79e18217fd3c676b8ac86ce0815bcc4b50ba33bfb9b6ebbe8bed8d8f264a88a7",
+    "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
+    "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
+    "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
+    "shared/routes/api-route-manifest.ts": "c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0",
+    "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
+    "shared/routes/app-route-definitions.ts": "b9a58c423aec1c3848ada861b3df4c395f8589c6ff4eed13ae9a302bc5855b1d",
+    "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
+    "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
+    "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
+    "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
+    "workers/cohort-worker.ts": "8cbd7f1e4852b2fd4f5c4d92a4eece06c69340547eea8e89ca2f3f404e0dfb0e",
+    "workers/dlq.ts": "d69b5c08fc509a71da7e5df9435c0d88d871619888a099bda1424a2c0be3f054",
+    "workers/fund-scenario-calc-handler.ts": "7464f632bafb7ef6798020b770c33f593892b6d4ec8572a011b08fd6453487da",
+    "workers/fund-scenario-calc-worker-harness.ts": "db610521a474e5e8c7747fff47e0f19d55197a1224911e47225c7cae7e1ddf7a",
+    "workers/fund-scenario-calc-worker.ts": "1f243d772de22953a4f62db9372f9347f97986b0b04d981a26082ef57830e8ad",
+    "workers/health-server.ts": "881023342c4eb7f7dd1b12b15f04da1eafef8887ccc3b3c7b1d20fcd85d16f1b",
+    "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
+    "workers/pacing-worker.ts": "a8ea047baf42baff18adf306533839b9ae8330bb882266d90fb53af9617eff26",
+    "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
+    "workers/reserve-worker.ts": "b54741aded0b8583ae3cc4398826cafd45dd7d0891dbbef9baee27499b2d38fd",
+    "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
+    "package.json#scripts": "443e65ac8301991bcd79dbcaffeac88a0d2e1ef8606e5d8092eaa56e0250b21c",
+    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "862dc89343ae59f9c80b20e4fb51bc091cc5054d7288c8e0f52881e156202c89",
+    "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
+    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "d6e82d5bb28b74d2667d80107ccd479406a28a4b76e9f0c57b0f75e97540538f",
+    "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
+    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
+  },
+  "rows": {
+    "api:GET:/api/funds/:fundId/dual-forecast": {
+      "row_id": "api:GET:/api/funds/:fundId/dual-forecast",
+      "contract_fingerprint": "80ed67a2e812a11a9aad576f2e49f67368b350bd35b22b2bc32a01a21c774d97",
+      "source_fingerprints": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/dual-forecast.ts=a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved"
+      }
+    },
+    "api:POST:/api/funds/:fundId/reallocation/preview": {
+      "row_id": "api:POST:/api/funds/:fundId/reallocation/preview",
+      "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6",
+      "source_fingerprints": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved"
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): preview is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts); no test drives preview through createServer. tests/unit/server/route-surface-inventory.test.ts:878 mounts registerRoutes on a bare express app without the createServer middleware stack, and the cross-fund 403 at :955 runs on makeApp.",
+          "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6"
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "confirmed",
+          "test_evidence": [
+            {
+              "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+              "deployment": "vercel-api",
+              "runtime": "make_app",
+              "layer": "integration",
+              "assertion_confirmed": true,
+              "assertion_evidence": "tests/integration/reallocation.pg.test.ts:293 makeApp assembly with a signed JWT against a migrated PostgreSQL database returns 200 with numeric totals for matching expected_version rows and 409 details.current_versions for a stale row; no write.",
+              "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+            },
+            {
+              "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+              "deployment": "vercel-api",
+              "runtime": "make_app",
+              "layer": "unit",
+              "assertion_confirmed": true,
+              "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:955 makeApp assembly returns 403 FUND_ACCESS_DENIED for a cross-fund scoped token with the per-row body.",
+              "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
+            }
+          ],
+          "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6"
+        }
+      }
+    },
+    "api:POST:/api/funds/:fundId/reallocation/commit": {
+      "row_id": "api:POST:/api/funds/:fundId/reallocation/commit",
+      "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
+      "source_fingerprints": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved"
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): commit is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts: partner/admin write role, verified actor, fund scope before the transaction); no test drives commit through createServer; mount parity for the reallocation router is covered by tests/unit/server/route-surface-inventory.test.ts on the preview path only.",
+          "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f"
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "confirmed",
+          "test_evidence": [
+            {
+              "row": "api:POST:/api/funds/:fundId/reallocation/commit",
+              "deployment": "vercel-api",
+              "runtime": "make_app",
+              "layer": "integration",
+              "assertion_confirmed": true,
+              "assertion_evidence": "tests/integration/reallocation.pg.test.ts:225 makeApp assembly with a signed admin JWT against a migrated PostgreSQL database: partial commit updates only proposed rows and preserves untouched mixed versions (:317); stale per-row version returns 409 with sorted details.current_versions and leaves values, versions, and audit rows unchanged (:333); forced audit-insert failure rolls back every row update with zero audit rows (:352); reversed request order locks in ascending company-ID order behind a deterministic blocker and returns 409 without 40P01 (:369); concurrent reversed commits yield one 200 and one 409 (:402); route versus applyAllocationUpdates overlap yields one winner and one 409 with caller-ordered fund_events payload (:423); cap updates land on their own company including id equal to fund id, omitted caps are preserved, and audit_ids identify exactly one reallocation_audit row per proposed company with truthful versions and numeric deltas (:493).",
+              "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+            }
+          ],
+          "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f"
+        }
+      }
+    }
+  },
+  "persona_mappings": {
+    "admin": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "partner": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "analyst": {
+      "persona": "analyst",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "lp": {
+      "persona": "lp",
+      "decided": true,
+      "evidence": "server/middleware/requireLPAccess.ts role guard"
+    },
+    "operator": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "viewer": {
+      "persona": "analyst",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "service": {
+      "persona": "service",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "flag_read": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "flag_admin": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "reserve_admin": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "lpId": {
+      "persona": "lp",
+      "decided": true,
+      "evidence": "lpId identity boundary"
+    },
+    "public": {
+      "persona": "public",
+      "decided": true,
+      "evidence": "signed public identity boundary"
+    }
+  },
+  "off_row_dispositions": {
+    "listeners": {
+      "legacy-dockerfile-railway": {
+        "listener_id": "legacy-dockerfile-railway",
+        "candidate_path": "Dockerfile.railway",
+        "disposition": "non-product-tooling",
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 1 source a8f100afe58083dd279bb696bea2d1c7256942bf; Dockerfile.railway unchanged since the PR1558 re-approval (same listener fingerprint); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, inventory-gated and excluded from production topology (ADR-080); historical G1 closure unchanged",
+        "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4"
+      }
+    }
+  },
+  "approver_id": "nikhillinit",
+  "evidence_ref": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf"
+}

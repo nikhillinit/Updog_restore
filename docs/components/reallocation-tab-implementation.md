@@ -101,13 +101,16 @@ October 7, 2025
 - No database modifications
 - Shows deltas, totals, and warnings
 - Validates input before allowing commit
+- Freezes the exact proposed rows and expected versions for the commit
 
 **Step 2: Commit**
 
 - Transactional database update
-- Requires reason (audit trail)
+- Accepts an optional reason for the audit trail
 - Handles version conflicts (409 errors)
 - Automatic UI refresh on success
+- Sends the frozen preview payload; edits, reset, fund switches, and 409s
+  require a fresh preview
 
 ### 2. Validation System
 
@@ -170,11 +173,11 @@ October 7, 2025
 ```typescript
 POST /api/funds/:fundId/reallocation/preview
 Request: {
-  current_version: number;
   proposed_allocations: Array<{
     company_id: number;
     planned_reserves_cents: number;
     allocation_cap_cents?: number;
+    expected_version: number; // This company's allocation_version from GET /allocations/latest
   }>;
 }
 Response: {
@@ -210,22 +213,34 @@ Response: {
 ```typescript
 POST /api/funds/:fundId/reallocation/commit
 Request: {
-  current_version: number;
-  proposed_allocations: Array<...>;
-  reason: string;  // Required for audit trail
+  proposed_allocations: Array<{
+    company_id: number;
+    planned_reserves_cents: number;
+    allocation_cap_cents?: number;
+    expected_version: number;
+  }>;
+  reason?: string;  // Optional audit reason
 }
 Response: {
   success: boolean;
-  message: string;
+  updated_count: number;
+  new_versions: Array<{ company_id: number; new_version: number }>;
+  audit_ids: Array<{ company_id: number; audit_id: string }>;
   timestamp: string;
-  new_version: number;
-  audit_log_id?: string;
 }
 ```
 
+Each proposed row carries its company's `allocation_version`; there is no
+fund-wide version. Duplicate `company_id` values return 400. A stale proposed
+row returns 409 with sorted `details.current_versions` entries for mismatched
+companies only. Commit locks proposed rows in ascending company order, updates
+only those rows, preserves an omitted cap, increments each row's version once,
+and writes one audit row per company containing only that company's delta.
+
 ### Error Handling
 
-- **409 Conflict**: Version mismatch - shows specific error message
+- **409 Conflict**: Version mismatch - refetches latest allocations, clears the
+  preview, and requires a fresh preview
 - **400 Bad Request**: Validation errors - extracted and displayed
 - **500 Server Error**: Generic error handling with user-friendly messages
 - All errors transformed to `ReallocationError` type for consistency

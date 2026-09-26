@@ -208,6 +208,28 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
+## Reallocation route 500 envelopes still echo the raw error message
+
+- **What:** `server/routes/reallocation.ts` preview and commit return
+  `message: error.message` on the generic 500 path, so a database or driver
+  message can reach the wire. F_1.17.0 PR 1 fixed the same class on
+  `dual-forecast.ts` (C8) but its scope was that route only.
+- **Why it is not urgent:** `apiRequest` replaces every 5xx body with the
+  generic client message, so no user sees it today; the leak is only visible to
+  direct API callers and logs of the response body.
+- **Acceptance:** Generic 500 `message` on both reallocation endpoints, raw
+  error kept in `routeLog.error`, one contract test per endpoint asserting
+  hostile SQL/table text is absent from the body.
+- **Related:** `tests/unit/reallocation-api.test.ts` is an env-gated quarantine
+  (`ENABLE_REALLOCATION_TESTS=true`) that still encodes the retired scalar
+  `current_version` contract and the fund-wide all-equal expectation. The active
+  gates are `tests/unit/routes/reallocation.contract.test.ts` and
+  `tests/integration/reallocation.pg.test.ts`; deleting or rewriting the
+  quarantined file is an owner decision.
+- **Effort:** S.
+
+---
+
 ## QA closure PR C: client reliability (C1 to C10)
 
 - **What:** The client half of the September 2026 QA closure. PR A (#1535,

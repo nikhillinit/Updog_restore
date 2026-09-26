@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
+    "decision_evidence": "F_1.17.0 PR 1 source a8f100afe58083dd279bb696bea2d1c7256942bf; Dockerfile.railway unchanged since the PR1558 re-approval (same listener fingerprint); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, inventory-gated and excluded from production topology (ADR-080); historical G1 closure unchanged"
   },
   {
     "candidate_path": "Dockerfile.simple",

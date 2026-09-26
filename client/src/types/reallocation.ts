@@ -11,13 +11,13 @@ export interface ProposedAllocation {
   company_id: number;
   planned_reserves_cents: number;
   allocation_cap_cents?: number;
+  expected_version: number;
 }
 
 /**
  * Preview request payload
  */
 export interface ReallocationPreviewRequest {
-  current_version: number;
   proposed_allocations: ProposedAllocation[];
 }
 
@@ -45,11 +45,7 @@ export interface ReallocationDelta {
  * Warning types for validation
  */
 export type WarningType =
-  | 'cap_exceeded'
-  | 'negative_delta'
-  | 'high_concentration'
-  | 'unrealistic_moic'
-  | 'invalid_company';
+  'cap_exceeded' | 'negative_delta' | 'high_concentration' | 'unrealistic_moic' | 'invalid_company';
 
 /**
  * Warning severity levels
@@ -100,10 +96,10 @@ export interface ReallocationPreviewResponse {
  */
 export interface ReallocationCommitResponse {
   success: boolean;
-  message: string;
+  updated_count: number;
+  new_versions: Array<{ company_id: number; new_version: number }>;
+  audit_ids: Array<{ company_id: number; audit_id: string }>;
   timestamp: string;
-  new_version: number;
-  audit_log_id?: string;
 }
 
 /**
@@ -115,6 +111,7 @@ export interface SelectedCompany {
   currentAllocation: number; // in cents
   newAllocation: number; // in cents
   cap?: number; // in cents
+  invalidInput?: boolean; // raw amount field is blank or not a number
 }
 
 /**
@@ -124,4 +121,5 @@ export interface ReallocationError {
   status: number;
   message: string;
   errors?: string[];
+  currentVersions?: Array<{ company_id: number; current_version: number }>;
 }

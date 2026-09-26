@@ -62,7 +62,10 @@ router['get'](
         const statusCode = error.code === 'INSUFFICIENT_DATA' ? 404 : 500;
         return res.status(statusCode).json({
           error: error.code,
-          message: error.message,
+          message:
+            error.code === 'INSUFFICIENT_DATA'
+              ? 'Forecast data is unavailable for this fund'
+              : 'Dual forecast is temporarily unavailable',
           component: error.component,
           timestamp: error.timestamp,
         });
@@ -70,8 +73,7 @@ router['get'](
 
       return res.status(500).json({
         error: 'INTERNAL_ERROR',
-        message: 'Failed to calculate dual forecast',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Dual forecast is temporarily unavailable',
       });
     }
   }

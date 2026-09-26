@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { readCurrentVersions } from '@/lib/reallocation-utils';
 import { invalidatePortfolioData } from '@/lib/invalidate-portfolio-data';
 import type {
   ReallocationCommitRequest,
@@ -19,26 +20,30 @@ export function useReallocationCommit(fundId: number) {
   return useMutation<ReallocationCommitResponse, ReallocationError, ReallocationCommitRequest>({
     mutationFn: async (request: ReallocationCommitRequest) => {
       try {
-        return apiRequest<ReallocationCommitResponse>(
+        const response = await apiRequest<ReallocationCommitResponse>(
           'POST',
           `/api/funds/${fundId}/reallocation/commit`,
           request
         );
+        // Invalidate here, not in a hook-level onSuccess: this closure holds the
+        // fund the request was sent to even if the tab switched funds meanwhile.
+        void queryClient.invalidateQueries({ queryKey: ['/api/allocations'] });
+        void queryClient.invalidateQueries({ queryKey: [`/api/funds/${fundId}`] });
+        invalidatePortfolioData(queryClient, fundId);
+        return response;
       } catch (error: unknown) {
-        // Transform error to match ReallocationError type
         const err = error as { status?: number; message?: string; errors?: string[] };
-        throw {
+        const reallocationError: ReallocationError = {
           status: err.status || 500,
           message: err.message || 'Commit failed',
           errors: err.errors || [],
-        } as ReallocationError;
+        };
+        if (error instanceof ApiError) {
+          const currentVersions = readCurrentVersions(error.details);
+          if (currentVersions) reallocationError.currentVersions = currentVersions;
+        }
+        throw reallocationError;
       }
-    },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/allocations'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/funds/${fundId}`] });
-      invalidatePortfolioData(queryClient, fundId);
     },
   });
 }

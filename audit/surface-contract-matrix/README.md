@@ -218,6 +218,84 @@ SEED_REGENERATION
 )
 ```
 
+## Sanctioned non-fresh maintenance sequence (closed phase, changed route sources)
+
+Use this sequence only after an atomic green source commit when only already-
+inventoried route sources changed. Require the same clean tracked worktree and
+`COMMITTED_SOURCE_SHA` binding as the fresh chain. Keep dependency installation,
+knowledge-graph rebuild, boot proof, two-seed byte comparison, and fresh-chain
+classification controls. Omit only `approve-matrix.mjs --fresh`.
+
+Never run `approve-matrix.mjs init-review`: it refuses a closed matrix with
+demoted rows. Never pass `--close-g1`: it rejects an already-closed phase. Do
+not run `validate-matrix.mjs` between reseed and reapproval. Reseeding
+deliberately demotes every approved row whose defining-source hashes changed;
+preserving approval state is not a success criterion.
+
+Use the existing `SEED_REGENERATION` supervisor and its `run_seed_command`,
+`verify_seed_source`, `copy_seed_snapshot`, and `compare_seed_snapshot` helpers
+above. Inside `run_seed_regeneration()`, run this exact command sequence, with
+the same signal cleanup and snapshot setup. This sequence uses `npm ci`, not
+`npm install`: npm 12 rewrites `package-lock.json` metadata on install, which
+dirties the tracked tree and fails the second `verify_seed_source`.
+
+```sh
+test -z "$(git status --short --untracked-files=no)" &&
+export COMMITTED_SOURCE_SHA="$(git rev-parse HEAD)"
+
+verify_seed_source || return $?
+run_seed_command npm ci || return $?
+run_seed_command npm ls || return $?
+verify_seed_source || return $?
+run_seed_command npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" || return $?
+run_seed_command npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs || return $?
+
+SEED_SNAPSHOT="$(mktemp -d)" || return 1
+run_seed_command npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs || return $?
+copy_seed_snapshot || return $?
+run_seed_command npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs || return $?
+compare_seed_snapshot || return $?
+run_seed_command npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs || return $?
+cleanup_seed_snapshot
+trap - EXIT HUP INT TERM
+return 0
+```
+
+An independent reviewer then writes a scoped review file under the review root,
+listing only rows demoted by this source change. Each listed row must set
+`reviewed_fields.decision_status = approved` and include updated evidence. Use
+the shape of `pr1557-scoped-review.json` and `pr1558-scoped-review.json`; the
+closed-repair regression cases are in
+`tests/unit/audit/surface-contract-matrix-approve.test.ts`. The reviewer must
+not use the full `g1-review.json` manifest for this repair.
+
+After the scoped review is complete, run the dry run and then the owner-
+authorized mutation. Both validate the ignored knowledge graph against the exact
+`HEAD`. If `HEAD` moved after the reseed (a committed reseed or any later
+commit) and no inventoried source changed since, first rebuild only the graph
+with
+`npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$(git rev-parse HEAD)"`;
+it changes no tracked file. If an inventoried source changed, rerun the full
+sequence above.
+
+```sh
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file <scoped file> --approver <id> --evidence <ref> --dry-run
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file <scoped file> --approver <id> --evidence <ref>
+npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
+```
+
+The approval tool must refuse if any row outside the scoped file is unresolved;
+stop and investigate rather than widening the review. Final validation must
+prove that no rows remain demoted or unresolved and that `g1_closure` is
+byte-identical and still `closed`. Expected governed changes are
+`source-inventory.json`, `matrix.json`, `MATRIX.md`, and the scoped review file.
+Serialize matrix ownership across concurrent PRs: start only from main after the
+predecessor's matrix state has merged; if main gains a matrix change, rebase and
+rerun from reseed.
+
+Reviewer identity, approval, merge, and release remain owner-governed.
+
 Release proof rebuilds the ignored route projection in strict `release` mode at
 the exact candidate SHA immediately before matrix validation. Strict mode
 rejects dirty projection inputs, SHA drift, source-inspection failures, and

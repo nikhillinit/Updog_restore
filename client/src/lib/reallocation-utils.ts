@@ -5,11 +5,36 @@
  */
 
 import { formatCents } from './units';
+import { isRecord } from '@shared/utils/type-guards';
 import type {
   ReallocationPreviewResponse,
   ReallocationWarning,
   ReallocationDelta,
+  ReallocationError,
 } from '@/types/reallocation';
+
+/**
+ * Read the row-scoped 409 payload (`details.current_versions`) into the typed
+ * hook error field. Returns undefined for any other shape.
+ */
+export function readCurrentVersions(
+  details: unknown
+): ReallocationError['currentVersions'] | undefined {
+  if (!isRecord(details) || !Array.isArray(details['current_versions'])) return undefined;
+
+  if (
+    !details['current_versions'].every(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry['company_id'] === 'number' &&
+        typeof entry['current_version'] === 'number'
+    )
+  ) {
+    return undefined;
+  }
+
+  return details['current_versions'] as ReallocationError['currentVersions'];
+}
 
 /**
  * Check if preview response has blocking errors
@@ -22,9 +47,7 @@ import type {
  * @param previewData - Preview response from API
  * @returns True if there are blocking errors
  */
-export function hasBlockingErrors(
-  previewData: ReallocationPreviewResponse | null
-): boolean {
+export function hasBlockingErrors(previewData: ReallocationPreviewResponse | null): boolean {
   if (!previewData) return false;
 
   // Check validation errors
@@ -33,9 +56,7 @@ export function hasBlockingErrors(
   }
 
   // Check for error-severity warnings
-  const hasErrorWarnings = previewData.warnings.some(
-    (warning) => warning.severity === 'error'
-  );
+  const hasErrorWarnings = previewData.warnings.some((warning) => warning.severity === 'error');
 
   return hasErrorWarnings;
 }
@@ -46,9 +67,7 @@ export function hasBlockingErrors(
  * @param previewData - Preview response from API
  * @returns Array of error messages
  */
-export function getBlockingErrors(
-  previewData: ReallocationPreviewResponse | null
-): string[] {
+export function getBlockingErrors(previewData: ReallocationPreviewResponse | null): string[] {
   if (!previewData) return [];
 
   const errors: string[] = [];
@@ -105,9 +124,7 @@ export function getDeltaColorClass(deltaCents: number): string {
  * @param status - Delta status
  * @returns Icon character
  */
-export function getDeltaIcon(
-  status: 'increased' | 'decreased' | 'unchanged'
-): string {
+export function getDeltaIcon(status: 'increased' | 'decreased' | 'unchanged'): string {
   switch (status) {
     case 'increased':
       return '↑';
@@ -157,12 +174,8 @@ export function getWarningBadgeVariant(
  * @param deltas - Array of deltas
  * @returns Sorted array
  */
-export function sortDeltasByMagnitude(
-  deltas: ReallocationDelta[]
-): ReallocationDelta[] {
-  return [...deltas].sort(
-    (a, b) => Math.abs(b.delta_cents) - Math.abs(a.delta_cents)
-  );
+export function sortDeltasByMagnitude(deltas: ReallocationDelta[]): ReallocationDelta[] {
+  return [...deltas].sort((a, b) => Math.abs(b.delta_cents) - Math.abs(a.delta_cents));
 }
 
 /**
@@ -207,9 +220,7 @@ export function canCommit(
   if (hasBlockingErrors(previewData)) return false;
 
   // Ensure there are actual changes
-  const hasChanges = previewData.deltas.some(
-    (delta) => delta.status !== 'unchanged'
-  );
+  const hasChanges = previewData.deltas.some((delta) => delta.status !== 'unchanged');
 
   return hasChanges;
 }

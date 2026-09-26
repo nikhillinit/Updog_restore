@@ -117,6 +117,7 @@ portfolio-modern.tsx (Page)
 ## State Management
 
 ### URL State (React Router)
+
 ```typescript
 // URL Query Parameter
 ?tab=overview      → OverviewTab
@@ -131,24 +132,28 @@ const activeTab = searchParams.get('tab') || 'overview';
 ### Component State
 
 #### OverviewTab
+
 ```typescript
 const [searchTerm, setSearchTerm] = useState('');
 const [filterStatus, setFilterStatus] = useState('all');
 const [filterSector, setFilterSector] = useState('all');
 
 // Derived state
-const filteredCompanies = useMemo(() =>
-  portfolioCompanies.filter(company =>
-    matchesSearch && matchesStatus && matchesSector
-  ),
+const filteredCompanies = useMemo(
+  () =>
+    portfolioCompanies.filter(
+      (company) => matchesSearch && matchesStatus && matchesSector
+    ),
   [searchTerm, filterStatus, filterSector]
 );
 ```
 
 #### AllocationsTab
+
 ```typescript
 const { data, isLoading, error, refetch } = useLatestAllocations();
-const [selectedCompany, setSelectedCompany] = useState<AllocationCompany | null>(null);
+const [selectedCompany, setSelectedCompany] =
+  useState<AllocationCompany | null>(null);
 const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 const [searchQuery, setSearchQuery] = useState('');
 const [sectorFilter, setSectorFilter] = useState<string>('all');
@@ -160,9 +165,13 @@ const [sortConfig, setSortConfig] = useState<{
 ```
 
 #### ReallocationTab
+
 ```typescript
-const [selectedCompanies, setSelectedCompanies] = useState<SelectedCompany[]>([]);
-const [previewData, setPreviewData] = useState<ReallocationPreviewResponse | null>(null);
+const [selectedCompanies, setSelectedCompanies] = useState<SelectedCompany[]>(
+  []
+);
+const [previewData, setPreviewData] =
+  useState<ReallocationPreviewResponse | null>(null);
 const [commitReason, setCommitReason] = useState('');
 
 const { portfolioCompanies, isLoading } = usePortfolioCompanies(fundId);
@@ -173,6 +182,7 @@ const commitMutation = useReallocationCommit(fundId);
 ## API Endpoints
 
 ### Allocations Tab
+
 ```
 GET /api/funds/:fundId/allocations/latest
 ├── Response: {
@@ -194,11 +204,13 @@ PATCH /api/funds/:fundId/allocations/:companyId
 ```
 
 ### Reallocation Tab
+
 ```
 POST /api/funds/:fundId/reallocation/preview
 ├── Request: {
-│   current_version: number,
-│   proposed_allocations: ProposedAllocation[]
+│   proposed_allocations: Array<ProposedAllocation & {
+│     expected_version: number
+│   }>
 │ }
 ├── Response: {
 │   deltas: AllocationDelta[],
@@ -210,22 +222,35 @@ POST /api/funds/:fundId/reallocation/preview
 
 POST /api/funds/:fundId/reallocation/commit
 ├── Request: {
-│   current_version: number,
-│   proposed_allocations: ProposedAllocation[],
-│   reason: string
+│   proposed_allocations: Array<ProposedAllocation & {
+│     expected_version: number
+│   }>,
+│   reason?: string
 │ }
 ├── Response: {
 │   success: boolean,
-│   message: string,
-│   timestamp: string,
-│   new_version: number
+│   updated_count: number,
+│   new_versions: Array<{ company_id: number, new_version: number }>,
+│   audit_ids: Array<{ company_id: number, audit_id: string }>,
+│   timestamp: string
 │ }
 └── Hook: useReallocationCommit(fundId)
 ```
 
+`expected_version` comes from that company's `allocation_version` in
+`GET /api/funds/:fundId/allocations/latest`; no fund-wide version exists.
+Preview freezes the exact rows, and commit sends that frozen payload. Any
+allocation edit, reset, fund switch, or 409 clears the preview; a 409 also
+refetches latest allocations and requires a fresh preview. Duplicate company IDs
+return 400. Commit locks and updates only proposed rows in ascending
+`company_id` order, preserves omitted caps, increments each version once, and
+returns sorted version and audit-id arrays with one company-scoped audit row per
+proposal.
+
 ## Styling System
 
 ### Typography Scale
+
 ```
 Headings (Inter):
   - h1: font-inter font-bold text-2xl (Portfolio Tabs)
@@ -243,6 +268,7 @@ Numeric Values (Roboto Mono):
 ```
 
 ### Color Usage Matrix
+
 ```
 ┌──────────────────┬──────────────┬─────────────────┐
 │ Element          │ Color        │ Hex             │
@@ -259,6 +285,7 @@ Numeric Values (Roboto Mono):
 ```
 
 ### Responsive Breakpoints
+
 ```css
 /* Mobile First */
 sm: 640px   → grid-cols-1
@@ -270,6 +297,7 @@ xl: 1280px  → max-w-7xl container
 ## Event Flow
 
 ### Tab Navigation
+
 ```
 User clicks "Allocations" tab
     ↓
@@ -291,6 +319,7 @@ Data renders in table
 ```
 
 ### Allocation Edit
+
 ```
 User clicks "Edit" button
     ↓
@@ -311,6 +340,7 @@ Table updates with new data
 ```
 
 ### Reallocation Preview & Commit
+
 ```
 User selects companies
     ↓
@@ -320,7 +350,7 @@ User clicks "Preview Changes"
     ↓
 previewMutation.mutate(request)
     ↓
-POST /api/reallocation/preview
+POST /api/funds/:fundId/reallocation/preview
     ↓
 setPreviewData(response)
     ↓
@@ -332,7 +362,7 @@ User clicks "Commit Changes"
     ↓
 commitMutation.mutate(request)
     ↓
-POST /api/reallocation/commit
+POST /api/funds/:fundId/reallocation/commit
     ↓
 Success: resetForm() + toast
     ↓
@@ -342,6 +372,7 @@ Allocations updated (new version)
 ## Error Handling
 
 ### Allocations Tab
+
 ```typescript
 // Loading State
 if (isLoading) return <Skeleton />;
@@ -362,13 +393,14 @@ if (companies.length === 0) return (
 ```
 
 ### Reallocation Tab
+
 ```typescript
 // Version Conflict (409)
 if (error.status === 409) {
   toast({
     title: 'Version conflict',
     description: 'Data was modified by another user. Please refresh.',
-    variant: 'destructive'
+    variant: 'destructive',
   });
 }
 
@@ -383,17 +415,17 @@ if (blockingErrors.length > 0) {
 ## Performance Optimizations
 
 ### Current
+
 - Small component sizes (< 15KB each)
 - Minimal re-renders
 - Memoized filtered data
 - Conditional rendering
 
 ### Future
+
 ```typescript
 // Lazy loading tabs
-const AllocationsTab = React.lazy(() =>
-  import('./tabs/AllocationsTab')
-);
+const AllocationsTab = React.lazy(() => import('./tabs/AllocationsTab'));
 
 // Memoized components
 const MemoizedOverviewTab = React.memo(OverviewTab);
@@ -405,6 +437,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 ## Testing Strategy
 
 ### Unit Tests
+
 ```typescript
 // PortfolioTabs.test.tsx
 describe('PortfolioTabs', () => {
@@ -424,6 +457,7 @@ describe('OverviewTab', () => {
 ```
 
 ### Integration Tests
+
 ```typescript
 // portfolio-integration.test.tsx
 describe('Portfolio Integration', () => {
@@ -434,6 +468,7 @@ describe('Portfolio Integration', () => {
 ```
 
 ### E2E Tests (Playwright)
+
 ```typescript
 // portfolio.spec.ts
 test('portfolio tab navigation', async ({ page }) => {
@@ -446,6 +481,7 @@ test('portfolio tab navigation', async ({ page }) => {
 ## Accessibility
 
 ### Keyboard Navigation
+
 ```
 Tab       → Move to next tab trigger
 Shift+Tab → Move to previous tab trigger
@@ -456,26 +492,26 @@ Arrow ←   → Previous tab (optional enhancement)
 ```
 
 ### ARIA Attributes
+
 ```html
 <TabsList role="tablist">
   <TabsTrigger
     role="tab"
     aria-selected="true"
     aria-controls="overview-panel"
-    id="overview-tab">
+    id="overview-tab"
+  >
     Overview
   </TabsTrigger>
 </TabsList>
 
-<TabsContent
-  role="tabpanel"
-  aria-labelledby="overview-tab"
-  id="overview-panel">
+<TabsContent role="tabpanel" aria-labelledby="overview-tab" id="overview-panel">
   <OverviewTab />
 </TabsContent>
 ```
 
 ### Screen Reader Support
+
 - Tab changes announce: "Overview tab, selected"
 - Table headers: `<th scope="col">`
 - Form labels: `<label htmlFor="...">`
@@ -484,6 +520,7 @@ Arrow ←   → Previous tab (optional enhancement)
 ## Security Considerations
 
 ### Input Validation
+
 ```typescript
 // Allocation amounts
 const validateAllocation = (value: number) => {
@@ -502,6 +539,7 @@ const validateReason = (reason: string) => {
 ```
 
 ### API Security
+
 - All endpoints require authentication
 - CORS configured for allowed origins
 - Rate limiting on mutations
@@ -511,6 +549,7 @@ const validateReason = (reason: string) => {
 ## Future Enhancements
 
 ### Phase 1c Final
+
 - [ ] AI-powered allocation recommendations
 - [ ] Interactive charts (Recharts/Nivo)
 - [ ] Scenario comparison view
@@ -518,6 +557,7 @@ const validateReason = (reason: string) => {
 - [ ] Advanced filtering (saved filters)
 
 ### Phase 2
+
 - [ ] Multi-fund comparison
 - [ ] Benchmark overlays
 - [ ] Custom metric builder
@@ -527,6 +567,7 @@ const validateReason = (reason: string) => {
 ## Monitoring & Analytics
 
 ### Performance Metrics
+
 ```typescript
 // Track tab switching performance
 useEffect(() => {
@@ -535,31 +576,33 @@ useEffect(() => {
     const duration = performance.now() - startTime;
     analytics.track('TabRenderTime', {
       tab: activeTab,
-      duration
+      duration,
     });
   };
 }, [activeTab]);
 ```
 
 ### User Analytics
+
 ```typescript
 // Track tab usage
 analytics.track('PortfolioTabView', {
   tab: activeTab,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 });
 
 // Track allocation edits
 analytics.track('AllocationEdited', {
   companyId,
   oldValue,
-  newValue
+  newValue,
 });
 ```
 
 ## Conclusion
 
 This architecture provides:
+
 - ✅ Clean separation of concerns
 - ✅ Type-safe data flow
 - ✅ Excellent UX with URL state
@@ -568,4 +611,5 @@ This architecture provides:
 - ✅ Accessibility support
 - ✅ Extensible for future features
 
-The tab-based structure allows each feature to evolve independently while maintaining a cohesive user experience.
+The tab-based structure allows each feature to evolve independently while
+maintaining a cohesive user experience.

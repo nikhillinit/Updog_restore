@@ -64,6 +64,14 @@ function dualForecastPayload() {
   };
 }
 
+function expectHostileTextAbsent(body: unknown, hostileText: string) {
+  const serialized = JSON.stringify(body);
+  expect(serialized).not.toContain('fund_metrics');
+  expect(serialized).not.toContain('SELECT * FROM fund_metrics');
+  expect(serialized).not.toContain('$1');
+  expect(serialized).not.toContain(hostileText);
+}
+
 describe('dual forecast route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -193,10 +201,11 @@ describe('dual forecast route', () => {
 
     expect(response.body).toEqual({
       error: 'HELD_REFERENCE_MISSING',
-      message: 'current-forecast reference 41 not found for fund 12',
+      message: 'Dual forecast is temporarily unavailable',
       component: 'aggregator',
       timestamp: '2026-07-22T00:00:00.000Z',
     });
+    expect(JSON.stringify(response.body)).not.toContain('current-forecast reference 41');
   });
 
   it('maps missing fund errors to 404', async () => {
@@ -211,8 +220,65 @@ describe('dual forecast route', () => {
 
     expect(response.body).toMatchObject({
       error: 'INSUFFICIENT_DATA',
-      message: 'Fund 99 not found',
+      message: 'Forecast data is unavailable for this fund',
       component: 'aggregator',
     });
+    expect(JSON.stringify(response.body)).not.toContain('Fund 99 not found');
+  });
+
+  it('redacts hostile metrics error details while preserving the stable 500 envelope', async () => {
+    const hostileMessage =
+      'relation "fund_metrics" does not exist: SELECT * FROM fund_metrics WHERE fund_id = $1';
+    getDualForecastMock.mockRejectedValue({
+      code: 'HELD_REFERENCE_MISSING',
+      message: hostileMessage,
+      component: 'aggregator',
+      timestamp: '2026-07-22T00:00:00.000Z',
+    });
+
+    const response = await request(makeApp()).get('/api/funds/12/dual-forecast').expect(500);
+
+    expect(response.body).toEqual({
+      error: 'HELD_REFERENCE_MISSING',
+      message: 'Dual forecast is temporarily unavailable',
+      component: 'aggregator',
+      timestamp: '2026-07-22T00:00:00.000Z',
+    });
+    expectHostileTextAbsent(response.body, hostileMessage);
+  });
+
+  it('redacts hostile insufficient-data details while preserving the stable 404 envelope', async () => {
+    const hostileMessage =
+      'relation "fund_metrics" does not exist: SELECT * FROM fund_metrics WHERE fund_id = $1';
+    getDualForecastMock.mockRejectedValue({
+      code: 'INSUFFICIENT_DATA',
+      message: hostileMessage,
+      component: 'aggregator',
+      timestamp: '2026-04-01T00:00:00.000Z',
+    });
+
+    const response = await request(makeApp()).get('/api/funds/99/dual-forecast').expect(404);
+
+    expect(response.body).toEqual({
+      error: 'INSUFFICIENT_DATA',
+      message: 'Forecast data is unavailable for this fund',
+      component: 'aggregator',
+      timestamp: '2026-04-01T00:00:00.000Z',
+    });
+    expectHostileTextAbsent(response.body, hostileMessage);
+  });
+
+  it('redacts hostile unexpected errors and omits details from the 500 envelope', async () => {
+    const hostileMessage =
+      'relation "fund_metrics" does not exist: SELECT * FROM fund_metrics WHERE fund_id = $1';
+    getDualForecastMock.mockRejectedValue(new Error(hostileMessage));
+
+    const response = await request(makeApp()).get('/api/funds/12/dual-forecast').expect(500);
+
+    expect(response.body).toEqual({
+      error: 'INTERNAL_ERROR',
+      message: 'Dual forecast is temporarily unavailable',
+    });
+    expectHostileTextAbsent(response.body, hostileMessage);
   });
 });

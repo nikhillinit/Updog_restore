@@ -960,8 +960,7 @@ describe('route surface inventory', () => {
       .post('/api/funds/2/reallocation/preview')
       .set('Authorization', await scopedAuthorizationHeader([1]))
       .send({
-        current_version: 1,
-        proposed_allocations: [{ company_id: 1, planned_reserves_cents: 0 }],
+        proposed_allocations: [{ company_id: 1, planned_reserves_cents: 0, expected_version: 1 }],
       });
     expect(crossFund.status).toBe(403);
     expect(crossFund.body).toMatchObject({ code: 'FUND_ACCESS_DENIED' });

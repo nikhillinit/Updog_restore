@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "8aed7784ed1a954fedfd3474c6dbf9c0724a53fb",
-    "snapshot_id": "snapshot:51112591c46c5f2d3ddb4a67921ba69637fa03cfb72dbdec98f5be4b7eb4bba1"
+    "git_head": "a8f100afe58083dd279bb696bea2d1c7256942bf",
+    "snapshot_id": "snapshot:b520cc9100fe7b51c8856b3dfc6bb2dc70e40c94cfac7c24d4cd0ebe7d52b58c"
   },
   "rows": [
     {
@@ -2211,9 +2211,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1038",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1113",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2223,6 +2223,15 @@
             "assertion_evidence": "tests/integration/fund-scope-acceptance-matrix.test.ts:26",
             "assertion_confirmed": false,
             "test_file_sha256": "4a47076ba46320d7fd18e5acabcb4f36d20200f5565be1fce2c5bf0f7422e9a7"
+          },
+          {
+            "row": "api:GET:/api-docs",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:268",
+            "assertion_confirmed": false,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2564,7 +2573,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:451",
             "assertion_confirmed": false,
-            "test_file_sha256": "a61c4716a3848a7be2fe9a1b389ec293fd08041b1a34aad2a2069313bb391fd6"
+            "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
           }
         ],
         "manual": []
@@ -2753,9 +2762,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1038",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1113",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api-docs.json",
@@ -2765,6 +2774,15 @@
             "assertion_evidence": "tests/integration/fund-scope-acceptance-matrix.test.ts:26",
             "assertion_confirmed": false,
             "test_file_sha256": "4a47076ba46320d7fd18e5acabcb4f36d20200f5565be1fce2c5bf0f7422e9a7"
+          },
+          {
+            "row": "api:GET:/api-docs.json",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:268",
+            "assertion_confirmed": false,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
           },
           {
             "row": "api:GET:/api-docs.json",
@@ -3106,7 +3124,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:451",
             "assertion_confirmed": false,
-            "test_file_sha256": "a61c4716a3848a7be2fe9a1b389ec293fd08041b1a34aad2a2069313bb391fd6"
+            "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
           }
         ],
         "manual": []
@@ -10631,18 +10649,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds",
@@ -10721,18 +10739,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds",
@@ -14571,7 +14589,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/dual-forecast-route.test.ts:33",
             "assertion_confirmed": false,
-            "test_file_sha256": "0c77211340a24b9d91d95562105f2f456fe6e69d36ef16c916bb5226f791e270"
+            "test_file_sha256": "d505184bc7c36fefcfd75c33f5e43fe84a0e37a942b0d0b4856bdbbb0f213913"
           },
           {
             "row": "api:GET:/api/funds/:fundId/dual-forecast",
@@ -14580,7 +14598,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/dual-forecast-route.test.ts:33",
             "assertion_confirmed": false,
-            "test_file_sha256": "0c77211340a24b9d91d95562105f2f456fe6e69d36ef16c916bb5226f791e270"
+            "test_file_sha256": "d505184bc7c36fefcfd75c33f5e43fe84a0e37a942b0d0b4856bdbbb0f213913"
           }
         ],
         "manual": []
@@ -14589,14 +14607,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
       "contract_fingerprint": "80ed67a2e812a11a9aad576f2e49f67368b350bd35b22b2bc32a01a21c774d97",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/dual-forecast.ts=a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289",
+        "server/routes/dual-forecast.ts=a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -29325,18 +29343,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -29415,18 +29433,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -30278,18 +30296,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30377,18 +30395,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30710,18 +30728,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -30809,18 +30827,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -31142,18 +31160,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31241,18 +31259,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31574,18 +31592,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -31673,18 +31691,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -32006,18 +32024,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -32105,18 +32123,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -33074,18 +33092,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -33173,18 +33191,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -67528,18 +67546,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds",
@@ -67618,18 +67636,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds",
@@ -85870,7 +85888,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/reallocation.ts:414 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:473 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/commit",
@@ -85881,12 +85899,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:414",
+              "site": "server/routes/reallocation.ts:473",
               "role": "guard",
               "effective_mount_order": 46
             },
             {
-              "site": "server/routes/reallocation.ts:414",
+              "site": "server/routes/reallocation.ts:473",
               "role": "handler",
               "effective_mount_order": 46
             }
@@ -85896,8 +85914,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 424,
-              "evidence": "server/routes/reallocation.ts:424 enforces provided fund scope"
+              "line": 483,
+              "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -85936,7 +85954,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/reallocation.ts:414 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:473 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/commit",
@@ -85947,12 +85965,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:414",
+              "site": "server/routes/reallocation.ts:473",
               "role": "guard",
               "effective_mount_order": 46
             },
             {
-              "site": "server/routes/reallocation.ts:414",
+              "site": "server/routes/reallocation.ts:473",
               "role": "handler",
               "effective_mount_order": 46
             }
@@ -85962,8 +85980,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 424,
-              "evidence": "server/routes/reallocation.ts:424 enforces provided fund scope"
+              "line": 483,
+              "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86005,7 +86023,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/reallocation.ts:414"
+        "server/routes/reallocation.ts:473"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reallocation/commit",
@@ -86051,8 +86069,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/reallocation.ts",
-          "line": 424,
-          "evidence": "server/routes/reallocation.ts:424 enforces provided fund scope"
+          "line": 483,
+          "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -86083,7 +86101,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
             "assertion_confirmed": false,
-            "test_file_sha256": "cdc7c4d89ff0590be75465de79cfc61ebfe3c0edcf1331f1b571e0d75c2b7259"
+            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reallocation/commit",
@@ -86101,23 +86119,33 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
             "assertion_confirmed": false,
-            "test_file_sha256": "cdc7c4d89ff0590be75465de79cfc61ebfe3c0edcf1331f1b571e0d75c2b7259"
+            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/commit",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:225 makeApp assembly with a signed admin JWT against a migrated PostgreSQL database: partial commit updates only proposed rows and preserves untouched mixed versions (:317); stale per-row version returns 409 with sorted details.current_versions and leaves values, versions, and audit rows unchanged (:333); forced audit-insert failure rolls back every row update with zero audit rows (:352); reversed request order locks in ascending company-ID order behind a deterministic blocker and returns 409 without 40P01 (:369); concurrent reversed commits yield one 200 and one 409 (:402); route versus applyAllocationUpdates overlap yields one winner and one 409 with caller-ordered fund_events payload (:423); cap updates land on their own company including id equal to fund id, omitted caps are preserved, and audit_ids identify exactly one reallocation_audit row per proposed company with truthful versions and numeric deltas (:493).",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
-      "contract_fingerprint": "ff8739a13378c73ab71e30ff6c7478a5ad1f8d550f2f93c67dac05484ae290b3",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
+      "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/reallocation.ts=418f6b97bd7dd202a7a64718ef38a5a68ffae898f055842e3cba6f7300c6f340",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -86159,7 +86187,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/reallocation.ts:311 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:357 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/preview",
@@ -86170,7 +86198,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:311",
+              "site": "server/routes/reallocation.ts:357",
               "role": "handler",
               "effective_mount_order": 45
             }
@@ -86180,8 +86208,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 318,
-              "evidence": "server/routes/reallocation.ts:318 enforces provided fund scope"
+              "line": 364,
+              "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86206,7 +86234,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/reallocation.ts:311 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:357 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/preview",
@@ -86217,7 +86245,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:311",
+              "site": "server/routes/reallocation.ts:357",
               "role": "handler",
               "effective_mount_order": 45
             }
@@ -86227,8 +86255,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 318,
-              "evidence": "server/routes/reallocation.ts:318 enforces provided fund scope"
+              "line": 364,
+              "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86256,7 +86284,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/reallocation.ts:311"
+        "server/routes/reallocation.ts:357"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reallocation/preview",
@@ -86289,8 +86317,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/reallocation.ts",
-          "line": 318,
-          "evidence": "server/routes/reallocation.ts:318 enforces provided fund scope"
+          "line": 364,
+          "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -86307,7 +86335,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/reallocation.ts:318, server/routes/reallocation.ts:318 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -86315,7 +86343,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/reallocation.ts:318, server/routes/reallocation.ts:318 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -86323,7 +86351,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/reallocation.ts:318, server/routes/reallocation.ts:318 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -86345,7 +86373,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
             "assertion_confirmed": false,
-            "test_file_sha256": "cdc7c4d89ff0590be75465de79cfc61ebfe3c0edcf1331f1b571e0d75c2b7259"
+            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reallocation/preview",
@@ -86363,23 +86391,42 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
             "assertion_confirmed": false,
-            "test_file_sha256": "cdc7c4d89ff0590be75465de79cfc61ebfe3c0edcf1331f1b571e0d75c2b7259"
+            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
           }
         ],
-        "manual": []
+        "manual": [
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/reallocation.pg.test.ts:293 makeApp assembly with a signed JWT against a migrated PostgreSQL database returns 200 with numeric totals for matching expected_version rows and 409 details.current_versions for a stale row; no write.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2"
+          },
+          {
+            "row": "api:POST:/api/funds/:fundId/reallocation/preview",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/route-surface-inventory.test.ts:955 makeApp assembly returns 403 FUND_ACCESS_DENIED for a cross-fund scoped token with the per-row body.",
+            "assertion_confirmed": true,
+            "test_file_sha256": "6ed11c8de07b895cab3f9e2c3bacb6b360d103a6bb847fb579e39c2d243021d9"
+          }
+        ]
       },
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "source:511e292f34c10003aff9cfabaac0e79f91ce8ab6;candidate-tar-sha256:46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420;review-artifact:PROPOSED_G1_REVIEW_BASIS_511e292f.md",
-      "contract_fingerprint": "596e1db2f64ecaa9623c56a8ba006b241393bf3098e5c01857a4172101afb694",
+      "decision_evidence": "owner-attestation:f1170-pr1:2026-09-25:commit=a8f100afe58083dd279bb696bea2d1c7256942bf",
+      "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6",
       "approved_source_hashes": [
         "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/reallocation.ts=418f6b97bd7dd202a7a64718ef38a5a68ffae898f055842e3cba6f7300c6f340",
+        "server/routes/reallocation.ts=712ec4dc521d5f6715ac0ec8e499e848592572e7226e6c77294c3c3b30e8980f",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -91318,18 +91365,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -91417,18 +91464,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -91784,18 +91831,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -91883,18 +91930,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -93935,18 +93982,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/calculate",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -94025,18 +94072,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:62",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:63",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/calculate",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:141",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:158",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -94391,18 +94438,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/finalize",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -94490,18 +94537,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:POST:/api/funds/finalize",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -103230,18 +103277,18 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
@@ -103329,18 +103376,18 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:66",
+            "assertion_evidence": "tests/integration/fund-draft-round-trip.test.ts:67",
             "assertion_confirmed": false,
-            "test_file_sha256": "2b94782b7195e5da720723809d3aa2fcc9c67753af4cf2649377742dc5854cdb"
+            "test_file_sha256": "eb915ee3d0c73201d31f82d6cc5354fc618fab577109fc06f52dc2673bee2866"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:137",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:154",
             "assertion_confirmed": false,
-            "test_file_sha256": "ff93c925882ff46c22dce0764f6b906d0e742bf0a07c8481e6d7fccf93d1a774"
+            "test_file_sha256": "f2171d5d16414a86a5dc4434fb0a926a306da3308c58626fa9080e806e666f57"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
@@ -104253,9 +104300,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/",
@@ -104353,9 +104400,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/admin/ui-catalog",
@@ -104453,9 +104500,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/analytics-legacy",
@@ -106053,9 +106100,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/login",
@@ -106157,9 +106204,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/lp",
@@ -107814,9 +107861,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/planning-legacy",
@@ -107914,9 +107961,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/portal/:rest*",
@@ -108515,9 +108562,9 @@
             "deployment": "vercel-web",
             "runtime": "client_router",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:80",
+            "assertion_evidence": "tests/unit/app/auth-session-gate.test.tsx:94",
             "assertion_confirmed": false,
-            "test_file_sha256": "807d705978e5c1c53eb9ce653547e332bbe8d5ceb87a79038fa38df542cadd8e"
+            "test_file_sha256": "b7fdc06765f79099f680398ca85ac073222db60c6dd96c2bb2fa92ff7eb31c36"
           },
           {
             "row": "client:/shared/:shareId",
@@ -110894,9 +110941,9 @@
             "deployment": "local-process",
             "runtime": "worker_process",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:279",
+            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:283",
             "assertion_confirmed": false,
-            "test_file_sha256": "3ea37091c41db9b59b03359b32ebc9f7fa6e3602795dccae404865ab40cf741e"
+            "test_file_sha256": "cb9471d209d059eb54ddf8ea59bf1f39c7d7eab93c6ce77b38b3471bc0d18f23"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -110939,9 +110986,9 @@
             "deployment": "railway-worker-fund-scenario-calc",
             "runtime": "worker_process",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:279",
+            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:283",
             "assertion_confirmed": false,
-            "test_file_sha256": "3ea37091c41db9b59b03359b32ebc9f7fa6e3602795dccae404865ab40cf741e"
+            "test_file_sha256": "cb9471d209d059eb54ddf8ea59bf1f39c7d7eab93c6ce77b38b3471bc0d18f23"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -110984,9 +111031,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:279",
+            "assertion_evidence": "tests/integration/release-canary-lifecycle.test.ts:283",
             "assertion_confirmed": false,
-            "test_file_sha256": "3ea37091c41db9b59b03359b32ebc9f7fa6e3602795dccae404865ab40cf741e"
+            "test_file_sha256": "cb9471d209d059eb54ddf8ea59bf1f39c7d7eab93c6ce77b38b3471bc0d18f23"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -114511,26 +114558,6 @@
       "contract_fingerprint": "7fabcf3e57449846a8506568a68b05cb6243ecbb5eaf720a331d79f41262dfcc",
       "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/funds/:fundId/portfolio/lots|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
     },
-    "api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ff8739a13378c73ab71e30ff6c7478a5ad1f8d550f2f93c67dac05484ae290b3",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/funds/:fundId/reallocation/commit|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ff8739a13378c73ab71e30ff6c7478a5ad1f8d550f2f93c67dac05484ae290b3",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/funds/:fundId/reallocation/commit|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "596e1db2f64ecaa9623c56a8ba006b241393bf3098e5c01857a4172101afb694",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
-    "api:POST:/api/funds/:fundId/reallocation/preview|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "596e1db2f64ecaa9623c56a8ba006b241393bf3098e5c01857a4172101afb694",
-      "evidence": "Scoped agent matrix revalidation by /root/matrix_review at committed source a82e3daf1b8f2e74b4d839223d07fbe1bbf141a8; /Users/nikhil/.codex/task-evidence/f1-roadmap-implementation-20260908/resume-20260909/task302-findings.json#sha256=3c6ae8ae3fcedda9635a64b6dbbcd034a6f897e123c32dfb0c2f0dfa31a9514f. This records reviewed source and inventory evidence only. Historical owner decisions and G1 closure remain historical; this is not owner, release, deployment, or production approval. No exposure-specific test assertion is confirmed by this matrix review for api:POST:/api/funds/:fundId/reallocation/preview|vercel-api|make_app. Historical none-reviewed disposition retained; source fingerprint refreshed after reviewed delta. Derived tests and local build/boot evidence remain separate."
-    },
     "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "32b309d3d08a8f431bd647a51ffa84548e229a1f55ddfbca829f30c16f07e8e8",
@@ -115820,6 +115847,16 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "31e854e74a6efe62afb15ae454c4a0d00788e62f8f6e9921f5ff64e4adb14e2c",
       "evidence": "PR1558 source 8aed7784ed1a954fedfd3474c6dbf9c0724a53fb; agent source-review bundle sha256 0f5f973fe3f4edd935b294d53a3530588ca82a83b1f777c81bf2c6a61ccacae1; unresolved exposure coverage remains none-reviewed; historical G1 closure unchanged"
+    },
+    "api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "bcb80e4c6ac277bbf926383675540873568c205d30fe061035feb6ad47af51c6",
+      "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): preview is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts); no test drives preview through createServer. tests/unit/server/route-surface-inventory.test.ts:878 mounts registerRoutes on a bare express app without the createServer middleware stack, and the cross-fund 403 at :955 runs on makeApp."
+    },
+    "api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f30f6d9c41c82740a69c526120feba18dc528272a14f0dd0f96ae5cf5ce4479f",
+      "evidence": "F_1.17.0 PR 1 (source a8f100afe58083dd279bb696bea2d1c7256942bf): commit is proven through the makeApp assembly (Testcontainers) and at the router contract layer (tests/unit/routes/reallocation.contract.test.ts: partner/admin write role, verified actor, fund scope before the transaction); no test drives commit through createServer; mount parity for the reallocation router is covered by tests/unit/server/route-surface-inventory.test.ts on the preview path only."
     }
   },
   "g1_closure": {
@@ -116110,7 +116147,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:57c4ad5985c6b13bb5e93f283421f756da484f1d9afcbba2da3b05c494632286",
+      "snapshot_id": "snapshot:06508bd3742bbd4f53384645d7dc3bec722c16b9ef2246a52de2ade676d26573",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,
