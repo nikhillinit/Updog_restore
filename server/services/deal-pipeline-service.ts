@@ -128,6 +128,8 @@ export interface BulkArchiveInput {
 type DealRow = typeof dealOpportunities.$inferSelect;
 type DiligenceItemRow = typeof dueDiligenceItems.$inferSelect;
 type DealCommandResponse = Record<string, unknown>;
+/** `subject` binds the request hash; `userId` is the nullable users.id FK. */
+export type DealCommandActor = { subject: string | null; userId: number | null };
 
 function postgresErrorCode(error: unknown): string {
   let cause = error;
@@ -264,7 +266,7 @@ export async function createDeal(data: CreateDealInput) {
 export async function createDealWithReceipt(
   data: CreateDealInput,
   idempotencyKey: string,
-  actorId: number | null
+  actor: DealCommandActor
 ): Promise<{ row: DealCommandResponse; replayed: boolean }> {
   const operation = 'deal_create' as const;
   const contractVersion = DEAL_CREATE_CONTRACT_VERSION;
@@ -291,7 +293,7 @@ export async function createDealWithReceipt(
     fundId: data.fundId,
     idempotencyKey,
     contractVersion,
-    request: { operation, actorId, fundId: data.fundId, body: data, contractVersion },
+    request: { operation, actor: actor.subject, fundId: data.fundId, body: data, contractVersion },
     loadExisting,
     insert: async (requestHash) => {
       await db.execute(
@@ -318,7 +320,7 @@ export async function createDealWithReceipt(
         idempotencyKey,
         requestHash,
         responseBody: response,
-        createdBy: actorId,
+        createdBy: actor.userId,
       });
       return response;
     },
@@ -758,7 +760,7 @@ export async function confirmImport(input: ConfirmImportInput) {
 export async function confirmImportWithReceipt(
   input: ConfirmImportInput,
   idempotencyKey: string,
-  actorId: number | null
+  actor: DealCommandActor
 ): Promise<{ row: DealCommandResponse; replayed: boolean }> {
   const operation = 'deal_import' as const;
   const contractVersion = DEAL_IMPORT_CONTRACT_VERSION;
@@ -785,7 +787,13 @@ export async function confirmImportWithReceipt(
     fundId: input.fundId,
     idempotencyKey,
     contractVersion,
-    request: { operation, actorId, fundId: input.fundId, body: input, contractVersion },
+    request: {
+      operation,
+      actor: actor.subject,
+      fundId: input.fundId,
+      body: input,
+      contractVersion,
+    },
     loadExisting,
     insert: async (requestHash) => {
       await db.execute(
@@ -810,7 +818,7 @@ export async function confirmImportWithReceipt(
         idempotencyKey,
         requestHash,
         responseBody: response,
-        createdBy: actorId,
+        createdBy: actor.userId,
       });
       return response;
     },

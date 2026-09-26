@@ -137,10 +137,10 @@ function resetRedisMock() {
   redisState.redis.del.mockClear();
 }
 
-function makeUser(fundIds: number[] = [1], role = 'analyst'): Express.User {
+function makeUser(fundIds: number[] = [1], role = 'analyst', userId = 'test-user'): Express.User {
   return {
-    id: 'test-user',
-    sub: 'test-user',
+    id: userId,
+    sub: userId,
     email: 'test@example.com',
     role,
     roles: [role],
@@ -150,12 +150,12 @@ function makeUser(fundIds: number[] = [1], role = 'analyst'): Express.User {
   };
 }
 
-function makeApp(fundIds: number[] = [1], role = 'analyst') {
+function makeApp(fundIds: number[] = [1], role = 'analyst', userId = 'test-user') {
   const app = express();
   app.use(requestId());
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    req.user = makeUser(fundIds, role);
+    req.user = makeUser(fundIds, role, userId);
     next();
   });
   app.use('/api/deals', dealPipelineRouter);
@@ -655,6 +655,33 @@ describe('deal pipeline route contracts', () => {
       // row, receipt
       expectedInsertCount: 2,
     });
+  });
+
+  it('keeps non-numeric actors distinct in the receipt hash', async () => {
+    mockState.state.insertReturningResults.push([dealRow({ id: 204 })]);
+    const first = await request(makeApp())
+      .post('/api/deals/opportunities')
+      .set('Idempotency-Key', 'deal-subject-key')
+      .send(validDealPayload());
+    expect(first.status).toBe(201);
+    const receipt = mockState.state.insertValues.at(-1) as {
+      payload: { requestHash: string; responseBody: unknown; createdBy: unknown };
+    };
+    // A non-numeric subject has no users.id, but still binds the hash.
+    expect(receipt.payload.createdBy).toBeNull();
+    const stored = {
+      responseBody: receipt.payload.responseBody,
+      requestHash: receipt.payload.requestHash,
+    };
+    mockState.state.selectResults.push([stored], [stored]);
+
+    const other = await request(makeApp([1], 'analyst', 'other-subject'))
+      .post('/api/deals/opportunities')
+      .set('Idempotency-Key', 'deal-subject-key')
+      .send(validDealPayload());
+
+    expect(other.status).toBe(409);
+    expect(other.body.error).toBe('IDEMPOTENCY_KEY_REUSE');
   });
 
   it('rejects an idempotency key longer than 128 characters before any database work', async () => {

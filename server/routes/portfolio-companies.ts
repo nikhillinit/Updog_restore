@@ -8,7 +8,7 @@ import { PortfolioCompanyUpdateRequest } from '@shared/schemas/portfolio-route';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
-import { creatorUserIdFromRequest } from '../lib/auth/creator-identity';
+import { actorSubjectFromRequest } from '../lib/auth/creator-identity';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { IdempotentCommandError, sendIdempotentCommandLockError } from '../lib/idempotent-command';
@@ -353,6 +353,11 @@ router.post(
         });
       }
 
+      // Memory mode is not a durability target; keep its store so reads see the row.
+      if (storage.kind === 'memory') {
+        return res.status(201).json(await storage.createPortfolioCompany(result.data));
+      }
+
       const companyInput = {
         ...result.data,
         fundId: result.data['fundId'],
@@ -360,8 +365,7 @@ router.post(
       const resultWithReceipt = await createPortfolioCompanyWithReceipt(
         companyInput,
         parsedKey.value,
-        // Nullable like task create: JWT subs are not guaranteed numeric.
-        creatorUserIdFromRequest(req) ?? null
+        actorSubjectFromRequest(req)
       );
       if (resultWithReceipt.replayed) res.setHeader('Idempotency-Replay', 'true');
       return res.status(resultWithReceipt.replayed ? 200 : 201).json(resultWithReceipt.row);

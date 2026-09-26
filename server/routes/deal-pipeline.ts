@@ -27,7 +27,7 @@ import {
   idempotencyKeyHeader,
   requireIdempotencyKey,
 } from '../middleware/idempotency';
-import { creatorUserIdFromRequest } from '../lib/auth/creator-identity';
+import { actorSubjectFromRequest, creatorUserIdFromRequest } from '../lib/auth/creator-identity';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope, getVerifiedFundScope } from '../lib/auth/provided-fund-scope';
 import * as dealPipelineService from '../services/deal-pipeline-service';
@@ -184,11 +184,10 @@ router['post'](
         });
       }
 
-      const result = await dealPipelineService.createDealWithReceipt(
-        data,
-        parsedKey.value,
-        creatorUserIdFromRequest(req) ?? null
-      );
+      const result = await dealPipelineService.createDealWithReceipt(data, parsedKey.value, {
+        subject: actorSubjectFromRequest(req),
+        userId: creatorUserIdFromRequest(req) ?? null,
+      });
       if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
 
       return res.status(result.replayed ? 200 : 201).json(result.row);
@@ -717,7 +716,7 @@ router['post'](
       const result = await dealPipelineService.confirmImportWithReceipt(
         { rows, fundId, mode },
         parsedKey.value,
-        creatorUserIdFromRequest(req) ?? null
+        { subject: actorSubjectFromRequest(req), userId: creatorUserIdFromRequest(req) ?? null }
       );
       if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
 

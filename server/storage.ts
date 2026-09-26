@@ -70,7 +70,7 @@ type PortfolioCompanyCreateInput = Omit<
 export async function createPortfolioCompanyWithReceipt(
   input: PortfolioCompanyCreateInput,
   idempotencyKey: string,
-  actorId: number | null
+  actorSubject: string | null
 ): Promise<{ row: PortfolioCompany; replayed: boolean }> {
   return runIdempotentCommand<PortfolioCompany>({
     db,
@@ -79,7 +79,7 @@ export async function createPortfolioCompanyWithReceipt(
     contractVersion: PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION,
     request: {
       operation: 'company_create',
-      actorId,
+      actor: actorSubject,
       fundId: input.fundId,
       body: input,
       contractVersion: PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION,

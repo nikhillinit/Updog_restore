@@ -17,7 +17,9 @@ vi.mock('express-rate-limit', () => ({
 }));
 
 const storageMock = vi.hoisted(() => ({
+  kind: 'database' as 'database' | 'memory',
   getPortfolioCompany: vi.fn(),
+  createPortfolioCompany: vi.fn(),
 }));
 const createWithReceipt = vi.hoisted(() => vi.fn());
 
@@ -92,6 +94,7 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
     clearIdempotencyCache();
     vi.clearAllMocks();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    storageMock.kind = 'database';
   });
 
   it('rejects POST /portfolio-companies without an idempotency-key header', async () => {
@@ -141,6 +144,20 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
       'x-idempotency-key-102',
       'idempotent-key-102',
     ]);
+  });
+
+  it('keeps the memory store create path in memory mode', async () => {
+    storageMock.kind = 'memory';
+    storageMock.createPortfolioCompany.mockResolvedValueOnce({ id: 104, ...validBody });
+
+    const res = await request(makeApp())
+      .post('/portfolio-companies')
+      .set('idempotency-key', 'memory-key-104')
+      .send(validBody);
+
+    expect(res.status).toBe(201);
+    expect(storageMock.createPortfolioCompany).toHaveBeenCalledTimes(1);
+    expect(createWithReceipt).not.toHaveBeenCalled();
   });
 
   it('replays an existing create with 200 and Idempotency-Replay', async () => {
