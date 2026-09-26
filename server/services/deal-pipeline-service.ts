@@ -2,12 +2,19 @@ import { and, asc, desc, eq, inArray, lt, or, sql, type SQL } from 'drizzle-orm'
 
 import { db } from '../db';
 import {
+  dealPipelineCommands,
   dealOpportunities,
   dueDiligenceItems,
   pipelineActivities,
   pipelineStages,
   scoringModels,
 } from '@shared/schema';
+import { runIdempotentCommand } from '../lib/idempotent-command';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const serviceLog = createRouteLogger('deal-pipeline-service');
+const DEAL_CREATE_CONTRACT_VERSION = 'deal-pipeline-create-v1';
+const DEAL_IMPORT_CONTRACT_VERSION = 'deal-pipeline-import-v1';
 
 export type DealStatus =
   'lead' | 'qualified' | 'pitch' | 'dd' | 'committee' | 'term_sheet' | 'closed' | 'passed';
@@ -120,6 +127,27 @@ export interface BulkArchiveInput {
 
 type DealRow = typeof dealOpportunities.$inferSelect;
 type DiligenceItemRow = typeof dueDiligenceItems.$inferSelect;
+type DealCommandResponse = Record<string, unknown>;
+
+function postgresErrorCode(error: unknown): string {
+  let cause = error;
+  while (cause && typeof cause === 'object') {
+    if ('code' in cause && cause.code != null) return String(cause.code);
+    cause = 'cause' in cause ? cause.cause : undefined;
+  }
+  return 'UNKNOWN';
+}
+
+// Same scope as the receipt's unique key, so any two requests that could
+// collide on (fund_id, operation, idempotency_key) serialize on one lock.
+function commandLockKey(
+  contractVersion: string,
+  fundId: number,
+  operation: 'deal_create' | 'deal_import',
+  idempotencyKey: string
+): string {
+  return [contractVersion, fundId, operation, idempotencyKey].join(':');
+}
 
 function toDealInsertValues(data: CreateDealInput) {
   return {
@@ -231,6 +259,70 @@ export async function createDeal(data: CreateDealInput) {
   });
 
   return deal;
+}
+
+export async function createDealWithReceipt(
+  data: CreateDealInput,
+  idempotencyKey: string,
+  actorId: number
+): Promise<{ row: DealCommandResponse; replayed: boolean }> {
+  const operation = 'deal_create' as const;
+  const contractVersion = DEAL_CREATE_CONTRACT_VERSION;
+  const loadExisting = async () => {
+    const [existing] = await db
+      .select({
+        responseBody: dealPipelineCommands.responseBody,
+        requestHash: dealPipelineCommands.requestHash,
+      })
+      .from(dealPipelineCommands)
+      .where(
+        and(
+          eq(dealPipelineCommands.fundId, data.fundId),
+          eq(dealPipelineCommands.operation, operation),
+          eq(dealPipelineCommands.idempotencyKey, idempotencyKey)
+        )
+      )
+      .limit(1);
+    return existing ? { row: existing.responseBody, requestHash: existing.requestHash } : null;
+  };
+
+  return runIdempotentCommand<DealCommandResponse>({
+    db,
+    fundId: data.fundId,
+    idempotencyKey,
+    contractVersion,
+    request: { operation, actorId, fundId: data.fundId, body: data, contractVersion },
+    loadExisting,
+    insert: async (requestHash) => {
+      await db.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${commandLockKey(
+          contractVersion,
+          data.fundId,
+          operation,
+          idempotencyKey
+        )}))`
+      );
+      if (await loadExisting()) return null;
+
+      const deal = await createDeal(data);
+      if (!deal) throw new Error('Failed to create deal');
+      const response = {
+        success: true,
+        data: deal,
+        message: 'Deal created successfully',
+      } satisfies DealCommandResponse;
+
+      await db.insert(dealPipelineCommands).values({
+        fundId: data.fundId,
+        operation,
+        idempotencyKey,
+        requestHash,
+        responseBody: response,
+        createdBy: actorId,
+      });
+      return response;
+    },
+  });
 }
 
 export async function listDeals(input: ListDealsInput) {
@@ -624,7 +716,7 @@ export async function confirmImport(input: ConfirmImportInput) {
 
   let imported = 0;
   const skipped = skipSet.size;
-  const failed: Array<{ index: number; message: string }> = [];
+  const failed: Array<{ index: number; message: 'Insert failed'; code: string }> = [];
 
   for (let index = 0; index < input.rows.length; index++) {
     if (skipSet.has(index)) continue;
@@ -645,9 +737,11 @@ export async function confirmImport(input: ConfirmImportInput) {
       });
       imported++;
     } catch (error) {
+      serviceLog.error('Deal import row failed', error);
       failed.push({
         index,
-        message: error instanceof Error ? error.message : 'Insert failed',
+        message: 'Insert failed',
+        code: postgresErrorCode(error),
       });
     }
   }
@@ -659,6 +753,68 @@ export async function confirmImport(input: ConfirmImportInput) {
     failedRows: failed,
     total: input.rows.length,
   };
+}
+
+export async function confirmImportWithReceipt(
+  input: ConfirmImportInput,
+  idempotencyKey: string,
+  actorId: number
+): Promise<{ row: DealCommandResponse; replayed: boolean }> {
+  const operation = 'deal_import' as const;
+  const contractVersion = DEAL_IMPORT_CONTRACT_VERSION;
+  const loadExisting = async () => {
+    const [existing] = await db
+      .select({
+        responseBody: dealPipelineCommands.responseBody,
+        requestHash: dealPipelineCommands.requestHash,
+      })
+      .from(dealPipelineCommands)
+      .where(
+        and(
+          eq(dealPipelineCommands.fundId, input.fundId),
+          eq(dealPipelineCommands.operation, operation),
+          eq(dealPipelineCommands.idempotencyKey, idempotencyKey)
+        )
+      )
+      .limit(1);
+    return existing ? { row: existing.responseBody, requestHash: existing.requestHash } : null;
+  };
+
+  return runIdempotentCommand<DealCommandResponse>({
+    db,
+    fundId: input.fundId,
+    idempotencyKey,
+    contractVersion,
+    request: { operation, actorId, fundId: input.fundId, body: input, contractVersion },
+    loadExisting,
+    insert: async (requestHash) => {
+      await db.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${commandLockKey(
+          contractVersion,
+          input.fundId,
+          operation,
+          idempotencyKey
+        )}))`
+      );
+      if (await loadExisting()) return null;
+
+      const data = await confirmImport(input);
+      const response = {
+        success: data.failed === 0,
+        data,
+      } satisfies DealCommandResponse;
+
+      await db.insert(dealPipelineCommands).values({
+        fundId: input.fundId,
+        operation,
+        idempotencyKey,
+        requestHash,
+        responseBody: response,
+        createdBy: actorId,
+      });
+      return response;
+    },
+  });
 }
 
 export async function bulkUpdateStatus(input: BulkStatusInput) {

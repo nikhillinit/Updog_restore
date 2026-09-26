@@ -3,15 +3,14 @@ import { NotFoundError } from '../errors';
 import { storage } from '../storage';
 import { TimeTravelAnalyticsService } from './time-travel-analytics';
 import { isRecord } from '@shared/utils/type-guards';
+import type { PortfolioCompany } from '@shared/schema';
 
-type StoredPortfolioCompany = Awaited<ReturnType<typeof storage.getPortfolioCompanies>>[number];
+type StoredPortfolioCompany = PortfolioCompany;
 
 export type PortfolioCompaniesMode = 'live' | 'historical';
 export type PortfolioCompaniesSource = 'live' | 'snapshot';
 export type PortfolioCompaniesEmptyReason =
-  | 'no_snapshot'
-  | 'unsupported_snapshot'
-  | 'no_companies_at_date';
+  'no_snapshot' | 'unsupported_snapshot' | 'no_companies_at_date';
 
 export interface PortfolioCompaniesMeta {
   mode: PortfolioCompaniesMode;

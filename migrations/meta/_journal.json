@@ -435,6 +435,13 @@
       "when": 1790035200000,
       "tag": "0060_fund_workflow_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790380800000,
+      "tag": "0061_durable_create_receipts",
+      "breakpoints": true
     }
   ]
 }

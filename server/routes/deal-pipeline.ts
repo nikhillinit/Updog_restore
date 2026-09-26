@@ -19,8 +19,15 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { toNumber } from '@shared/number';
 import { firstString } from '../lib/request-values';
-import { idempotency, requireIdempotencyKey } from '../middleware/idempotency';
+import { IdempotentCommandError, sendIdempotentCommandLockError } from '../lib/idempotent-command';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
+import {
+  idempotency,
+  idempotencyKeyHeader,
+  requireIdempotencyKey,
+} from '../middleware/idempotency';
 import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope, getVerifiedFundScope } from '../lib/auth/provided-fund-scope';
 import * as dealPipelineService from '../services/deal-pipeline-service';
@@ -45,6 +52,10 @@ const routeLog = createRouteLogger('deal-pipeline');
 
 const router = Router();
 const idempotent = idempotency();
+
+function actorId(req: Request): number {
+  return toNumber(req.user?.id ?? req.user?.sub, 'actorId', { integer: true, min: 1 });
+}
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
 
 type DealWriteScope = {
@@ -154,7 +165,6 @@ router['post'](
   '/opportunities',
   requireTeamWrite,
   requireIdempotencyKey,
-  idempotent,
   async (req: Request, res: Response) => {
     const validation = CreateDealSchema.safeParse(req.body);
     if (!validation.success) {
@@ -170,24 +180,31 @@ router['post'](
         return;
       }
 
-      const deal = await dealPipelineService.createDeal(data);
-      if (!deal) {
-        return res.status(500).json({
-          error: 'internal_error',
-          message: 'Failed to create deal - no result returned',
+      const parsedKey = parseInternalEconomicsIdempotencyKey(idempotencyKeyHeader(req));
+      if (parsedKey.kind !== 'valid') {
+        return res.status(400).json({
+          error: 'INVALID_IDEMPOTENCY_KEY',
+          message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
         });
       }
 
-      return res.status(201).json({
-        success: true,
-        data: deal,
-        message: 'Deal created successfully',
-      });
+      const result = await dealPipelineService.createDealWithReceipt(
+        data,
+        parsedKey.value,
+        actorId(req)
+      );
+      if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
+
+      return res.status(result.replayed ? 200 : 201).json(result.row);
     } catch (error) {
       routeLog.error('Deal creation error:', error);
+      if (error instanceof IdempotentCommandError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      if (sendIdempotentCommandLockError(res, error, 'Retry the same command')) return;
       return res.status(500).json({
         error: 'internal_error',
-        message: error instanceof Error ? error.message : 'Failed to create deal',
+        message: 'Failed to create deal',
       });
     }
   }
@@ -678,7 +695,6 @@ router['post'](
   '/opportunities/import',
   requireTeamWrite,
   requireIdempotencyKey,
-  idempotent,
   async (req: Request, res: Response) => {
     const validation = ImportConfirmSchema.safeParse(req.body);
     if (!validation.success) {
@@ -694,14 +710,28 @@ router['post'](
         return;
       }
 
-      const data = await dealPipelineService.confirmImport({ rows, fundId, mode });
+      const parsedKey = parseInternalEconomicsIdempotencyKey(idempotencyKeyHeader(req));
+      if (parsedKey.kind !== 'valid') {
+        return res.status(400).json({
+          error: 'INVALID_IDEMPOTENCY_KEY',
+          message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+        });
+      }
 
-      return res.json({
-        success: data.failed === 0,
-        data,
-      });
+      const result = await dealPipelineService.confirmImportWithReceipt(
+        { rows, fundId, mode },
+        parsedKey.value,
+        actorId(req)
+      );
+      if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
+
+      return res.status(200).json(result.row);
     } catch (error) {
       routeLog.error('Import error:', error);
+      if (error instanceof IdempotentCommandError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      if (sendIdempotentCommandLockError(res, error, 'Retry the same command')) return;
       return res.status(500).json({
         error: 'internal_error',
         message: 'Failed to import deals',

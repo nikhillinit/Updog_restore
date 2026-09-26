@@ -23,6 +23,7 @@ import {
 } from '@shared/schema';
 import { db } from './db';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { IdempotentCommandError, runIdempotentCommand } from './lib/idempotent-command';
 import {
   getProfessionalDemoRuntimeConfigurationError,
   getStorageConfigurationError,
@@ -30,6 +31,98 @@ import {
 } from './storage-runtime-policy';
 import { buildSeedUsers } from './lib/seed-users';
 import { productionFundPredicate } from './lib/canary-exclusion';
+
+const portfolioCompanyPublicColumns = {
+  id: portfolioCompanies.id,
+  fundId: portfolioCompanies.fundId,
+  rowVersion: portfolioCompanies.rowVersion,
+  name: portfolioCompanies.name,
+  sector: portfolioCompanies.sector,
+  stage: portfolioCompanies.stage,
+  currentStage: portfolioCompanies.currentStage,
+  investmentAmount: portfolioCompanies.investmentAmount,
+  investmentDate: portfolioCompanies.investmentDate,
+  currentValuation: portfolioCompanies.currentValuation,
+  foundedYear: portfolioCompanies.foundedYear,
+  status: portfolioCompanies.status,
+  description: portfolioCompanies.description,
+  dealTags: portfolioCompanies.dealTags,
+  createdAt: portfolioCompanies.createdAt,
+  deployedReservesCents: portfolioCompanies.deployedReservesCents,
+  plannedReservesCents: portfolioCompanies.plannedReservesCents,
+  exitMoicBps: portfolioCompanies.exitMoicBps,
+  exitProbability: portfolioCompanies.exitProbability,
+  ownershipCurrentPct: portfolioCompanies.ownershipCurrentPct,
+  allocationCapCents: portfolioCompanies.allocationCapCents,
+  allocationReason: portfolioCompanies.allocationReason,
+  allocationIteration: portfolioCompanies.allocationIteration,
+  lastAllocationAt: portfolioCompanies.lastAllocationAt,
+  allocationVersion: portfolioCompanies.allocationVersion,
+  updatedAt: portfolioCompanies.updatedAt,
+} as const;
+
+const PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION = 'portfolio-company-create-v1';
+type PortfolioCompanyCreateInput = Omit<
+  InsertPortfolioCompany,
+  'createIdempotencyKey' | 'createRequestHash'
+> & { fundId: number };
+
+export async function createPortfolioCompanyWithReceipt(
+  input: PortfolioCompanyCreateInput,
+  idempotencyKey: string,
+  actorId: number
+): Promise<{ row: PortfolioCompany; replayed: boolean }> {
+  return runIdempotentCommand<PortfolioCompany>({
+    db,
+    fundId: input.fundId,
+    idempotencyKey,
+    contractVersion: PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION,
+    request: {
+      operation: 'company_create',
+      actorId,
+      fundId: input.fundId,
+      body: input,
+      contractVersion: PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION,
+    },
+    loadExisting: async () => {
+      const [existing] = await db
+        .select({
+          ...portfolioCompanyPublicColumns,
+          createRequestHash: portfolioCompanies.createRequestHash,
+        })
+        .from(portfolioCompanies)
+        .where(
+          and(
+            eq(portfolioCompanies.fundId, input.fundId),
+            eq(portfolioCompanies.createIdempotencyKey, idempotencyKey)
+          )
+        )
+        .limit(1);
+      if (!existing) return null;
+      if (existing.createRequestHash === null) {
+        throw new IdempotentCommandError(
+          500,
+          'COMPANY_IDEMPOTENCY_CORRUPT',
+          'Company idempotency row is missing its request hash.'
+        );
+      }
+      const { createRequestHash, ...row } = existing;
+      return { row, requestHash: createRequestHash };
+    },
+    insert: async (requestHash) => {
+      const [company] = await db
+        .insert(portfolioCompanies)
+        .values({
+          ...input,
+          createIdempotencyKey: idempotencyKey,
+          createRequestHash: requestHash,
+        })
+        .onConflictDoNothing()
+        .returning(portfolioCompanyPublicColumns);
+      return company ?? null;
+    },
+  });
+}
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -672,16 +765,16 @@ export class DatabaseStorage implements IStorage {
   async getPortfolioCompanies(fundId?: number): Promise<PortfolioCompany[]> {
     if (fundId) {
       return await db
-        .select()
+        .select(portfolioCompanyPublicColumns)
         .from(portfolioCompanies)
         .where(eq(portfolioCompanies.fundId, fundId));
     }
-    return await db.select().from(portfolioCompanies);
+    return await db.select(portfolioCompanyPublicColumns).from(portfolioCompanies);
   }
 
   async getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined> {
     const [company] = await db
-      .select()
+      .select(portfolioCompanyPublicColumns)
       .from(portfolioCompanies)
       .where(eq(portfolioCompanies.id, id));
     return company || undefined;
