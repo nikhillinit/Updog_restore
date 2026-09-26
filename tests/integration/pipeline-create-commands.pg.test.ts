@@ -24,7 +24,7 @@ const FUND_ID = 229_171_001;
 const RECEIPT_COLUMNS = ['createIdempotencyKey', 'createRequestHash'];
 let writer = '';
 let otherWriter = '';
-let viewer = '';
+let revokedWriter = '';
 
 function token(sub: number, role: string): string {
   return jwtModule.signToken({
@@ -91,6 +91,20 @@ const mutationReceiptCount = () =>
           + (SELECT count(*) FROM fund_scenario_calculation_commands WHERE fund_id = $1) AS n`,
     [FUND_ID]
   );
+// Every durable effect a create can have in this fund.
+const fundState = async () => ({
+  deals: await count('SELECT count(*) AS n FROM deal_opportunities WHERE fund_id = $1', [FUND_ID]),
+  activities: await count(
+    `SELECT count(*) AS n FROM pipeline_activities a
+       JOIN deal_opportunities d ON d.id = a.opportunity_id WHERE d.fund_id = $1`,
+    [FUND_ID]
+  ),
+  companies: await count('SELECT count(*) AS n FROM portfoliocompanies WHERE fund_id = $1', [
+    FUND_ID,
+  ]),
+  receipts: await mutationReceiptCount(),
+});
+
 const companyCount = (name: string) =>
   count('SELECT count(*) AS n FROM portfoliocompanies WHERE fund_id = $1 AND name = $2', [
     FUND_ID,
@@ -147,11 +161,10 @@ describe('durable create receipts under the request transaction', () => {
     );
     const users = await observer.query<{ id: number }>(
       `INSERT INTO users (username, password, role, is_active)
-       VALUES ('pr1b-writer', 'x', 'admin', true), ('pr1b-other', 'x', 'admin', true),
-              ('pr1b-viewer', 'x', 'viewer', true)
+       VALUES ('pr1b-writer', 'x', 'admin', true), ('pr1b-other', 'x', 'admin', true)
        RETURNING id`
     );
-    const [writerId, otherId, viewerId] = users.rows.map((row) => row.id);
+    const [writerId, otherId] = users.rows.map((row) => row.id);
     Object.assign(process.env, {
       DATABASE_URL: url.toString(),
       _EXPLICIT_DATABASE_URL: '1',
@@ -172,8 +185,9 @@ describe('durable create receipts under the request transaction', () => {
     app = (await import('../../server/app')).makeApp();
     writer = token(writerId!, 'admin');
     otherWriter = token(otherId!, 'admin');
-    // 'viewer' aliases to analyst (a write role); 'service' is outside TEAM_WRITE_ROLES.
-    viewer = token(viewerId!, 'service');
+    // Same subject with its write grant revoked: 'viewer' aliases to analyst (a
+    // write role), so 'service', which is outside TEAM_WRITE_ROLES, is used.
+    revokedWriter = token(writerId!, 'service');
   }, 180_000);
 
   afterAll(async () => {
@@ -326,17 +340,68 @@ describe('durable create receipts under the request transaction', () => {
     expect(await dealCount('Reuse Imp Two')).toBe(0);
   });
 
-  it('keeps one creation when a retry is rejected for lost write access', async () => {
-    const first = await post('/api/deals/opportunities', 'deal-access', deal('Access Co'));
-    const denied = await post('/api/deals/opportunities', 'deal-access', deal('Access Co'), viewer);
-    const restored = await post('/api/deals/opportunities', 'deal-access', deal('Access Co'));
+  // Denied requests on every durable replay path: exact safe body, no replay
+  // header, zero mutation, and the authorized retry still replays the original.
+  const guardedEndpoints = [
+    {
+      name: 'deal create',
+      path: '/api/deals/opportunities',
+      body: () => deal('Guarded Deal Co'),
+      secret: 'Guarded Deal Co',
+    },
+    {
+      name: 'deal import',
+      path: '/api/deals/opportunities/import',
+      body: () => ({
+        fundId: FUND_ID,
+        mode: 'import_all',
+        rows: [importRow('Guarded Import Co', 1)],
+      }),
+      secret: 'Guarded Import Co',
+    },
+    {
+      name: 'company create',
+      path: '/api/portfolio-companies',
+      body: () => company('Guarded Company Co'),
+      secret: 'Guarded Company Co',
+    },
+  ];
 
-    expect(first.status).toBe(201);
-    expect(denied.status).toBe(403);
-    expect(restored.status).toBe(200);
-    expect(restored.body).toEqual(first.body);
-    expect(await dealCount('Access Co')).toBe(1);
-  });
+  it.each(guardedEndpoints)(
+    'denies another actor and a revoked same subject on $name without leak or mutation',
+    async ({ name, path, body, secret }) => {
+      const key = `guarded-${name.replace(' ', '-')}`;
+      const first = await post(path, key, body());
+      expect([200, 201]).toContain(first.status);
+      const before = await fundState();
+
+      const otherActor = await post(path, key, body(), otherWriter);
+      expect(otherActor.status).toBe(409);
+      expect(otherActor.body).toEqual({
+        error: 'IDEMPOTENCY_KEY_REUSE',
+        message: 'Idempotency-Key was already used for a different request.',
+      });
+      expect(otherActor.headers['idempotency-replay']).toBeUndefined();
+      expect(JSON.stringify(otherActor.body)).not.toContain(secret);
+      expect(await fundState()).toEqual(before);
+
+      const revoked = await post(path, key, body(), revokedWriter);
+      expect(revoked.status).toBe(403);
+      expect(revoked.body).toEqual({
+        error: 'Forbidden',
+        code: 'WRITE_ROLE_REQUIRED',
+        message: 'A write role is required for this operation',
+      });
+      expect(revoked.headers['idempotency-replay']).toBeUndefined();
+      expect(await fundState()).toEqual(before);
+
+      const restored = await post(path, key, body());
+      expect(restored.status).toBe(200);
+      expect(restored.headers['idempotency-replay']).toBe('true');
+      expect(restored.body).toEqual(first.body);
+      expect(await fundState()).toEqual(before);
+    }
+  );
 
   it('rolls back a lock-timed-out create and lets the same key create once', async () => {
     const blocked = await withBarrier(
