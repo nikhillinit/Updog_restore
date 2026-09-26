@@ -378,6 +378,8 @@ schema_tests:
   - 'tests/integration/pipeline-create-commands.pg.test.ts'
   - 'server/services/deal-pipeline-service.ts'
   - 'server/routes/deal-pipeline.ts'
+  - 'server/routes/portfolio-companies.ts'
+  - 'server/storage.ts'
   # WP-L3 (task 16.3) internal-economics policy/envelope/run substrate
   - 'tests/integration/internal-economics/economics-schema.pg.test.ts'
   - 'tests/integration/internal-economics/economics-linkage-schema.pg.test.ts'
