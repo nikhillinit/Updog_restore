@@ -40,7 +40,12 @@ and this project adheres to
   The three dialogs keep one per-tab `sessionStorage` entry per fund and
   operation (SHA-256 fingerprint, no payload), freeze on an uncertain outcome,
   retry with the same key, and clear on logout. 18 surface-contract matrix rows
-  demote until scoped owner reapproval.
+  demote until scoped owner reapproval. PR review fixes: an uncertain create
+  keeps its original fund, payload, and key through a fund switch; an import row
+  that hits a lock timeout, deadlock, or serialization failure fails the whole
+  command (`409 REQUEST_IN_PROGRESS`, no receipt) instead of recording a
+  permanent failure; and a restored import whose rows all preview as duplicates
+  can still replay its receipt.
 
 ### Changed (2026-09-25)
 

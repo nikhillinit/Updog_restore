@@ -107,3 +107,47 @@ receipt suite 12/12; `prod-schema-clone`, G3, canary 40/4/2 and 44/5/5 green;
 
 **APPROVED.** Hosted exact-head CI, owner matrix reapproval, and the production
 schema apply remain separate gates.
+
+## Round 3: PR #1585 review at `e9c89ee5d`
+
+A PR review requested changes with three reproduced findings. All three were
+confirmed at the cited lines and fixed in two commits. No matrix-pinned source
+or test changed (`server/routes/deal-pipeline.ts`,
+`server/routes/portfolio-companies.ts`, and
+`tests/integration/pipeline-create-commands.pg.test.ts` are untouched), so the
+owner-attested reapproval stands.
+
+1. **P1: retry after a fund switch created under the new fund** - fixed. An
+   uncertain create stays open after the dialog closes; the payload and the
+   per-fund key slot both read the current page fund, so a retry after a fund
+   switch sent the old form to the new fund with a fresh key. The same defect
+   existed in all three dialogs, not only `AddDealModal`. Each dialog now passes
+   the fund in the mutation variables and pins it when the outcome becomes
+   uncertain; the key hook, settlement `reset()`, and list refresh use the
+   pinned fund until the command settles. Regressions: one fund-switch test per
+   dialog asserts the retry reuses the key, sends the original `fundId`, clears
+   the original slot, and never writes the new fund's slot.
+2. **P2: import recorded transient lock failures permanently** - fixed.
+   `confirmImport` caught every row error, including `55P03`, then saved a
+   completed receipt that replayed the failure forever. The row catch now
+   rethrows `55P03`, `40P01`, and `40001` (`retryableCommandErrorCode`, the code
+   list shared with `sendIdempotentCommandLockError`); the request transaction
+   rolls back and the route returns `409 REQUEST_IN_PROGRESS` with no receipt.
+   Regression: `deal-import-savepoints.pg.test.ts` holds a `SHARE` lock under a
+   500 ms `lock_timeout`, asserts 409 and zero receipts, then imports on retry
+   with the same key. The service's bulk status and archive paths also catch
+   per-row errors but write no receipt, so they are out of scope here.
+3. **P2: a reloaded import could not replay its receipt** - fixed. After a
+   committed import lost its response, re-uploading the same file previews every
+   row as a duplicate and the confirm button was hidden at `toImport === 0`. The
+   button now also shows for an uncertain or restored command, labelled "Retry
+   import". Regression: an import test unmounts after an uncertain confirm,
+   re-renders, re-uploads a duplicate-only preview, and asserts the replay
+   reuses the stored key. Known ceiling: a different zero-row file after a
+   restore mints a fresh key and imports nothing.
+
+Each new test fails against `e9c89ee5d` and passes on the fix. Gates:
+`npm run check`, `npm run lint`, full `npm test` 16797 passed, `phoenix:truth`
+363/363, internal-economics V2 429/429, Testcontainers
+`pipeline-create-commands` and `deal-import-savepoints` 15/15, `matrix:check`
+fresh. Verdict pending re-review.
