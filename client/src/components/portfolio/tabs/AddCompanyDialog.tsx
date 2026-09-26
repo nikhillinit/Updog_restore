@@ -76,26 +76,32 @@ interface AddCompanyDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type CreateCompanyVariables = { values: AddCompanyForm; fundId: number };
+
 export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialogProps) {
   const [form, setForm] = useState<AddCompanyForm>(DEFAULT_FORM);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<AddCompanyField, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  // An uncertain command stays bound to the fund it was sent to until it
+  // settles, even if the page fund changes while the dialog is closed.
+  const [uncertainFundId, setUncertainFundId] = useState(fundId);
+  const commandFundId = uncertain ? uncertainFundId : fundId;
   const [canDiscard, setCanDiscard] = useState(false);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: authSession } = useAuthSession();
   const idempotencyKey = useIdempotencyKey({
-    fundId,
+    fundId: commandFundId,
     operation: 'company_create',
     actorId: authSession?.user.id,
   });
 
   const refreshCompanyList = useCallback(async () => {
-    invalidatePortfolioData(queryClient, fundId);
+    invalidatePortfolioData(queryClient, commandFundId);
     await queryClient.refetchQueries({ queryKey: ['portfolio-companies'] });
-  }, [fundId, queryClient]);
+  }, [commandFundId, queryClient]);
 
   useEffect(() => {
     if (idempotencyKey.restored) void refreshCompanyList();
@@ -111,9 +117,9 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
   }, [open, uncertain]);
 
   const createCompanyMutation = useMutation({
-    mutationFn: async (values: AddCompanyForm) => {
+    mutationFn: async ({ values, fundId: targetFundId }: CreateCompanyVariables) => {
       const payload = {
-        fundId,
+        fundId: targetFundId,
         name: values.name,
         sector: values.sector,
         stage: values.stage,
@@ -125,7 +131,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint) },
       });
     },
-    onSuccess: (_result, values) => {
+    onSuccess: (_result, { values }) => {
       idempotencyKey.reset();
       void refreshCompanyList();
       setUncertain(false);
@@ -137,7 +143,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       });
       onOpenChange(false);
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, variables) => {
       if (
         error instanceof ApiError &&
         error.status === 409 &&
@@ -154,6 +160,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertainFundId(variables.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
         void refreshCompanyList().then(() => setCanDiscard(true));
@@ -194,7 +201,7 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
       return;
     }
 
-    createCompanyMutation.mutate(parsed.data);
+    createCompanyMutation.mutate({ values: parsed.data, fundId: commandFundId });
   };
 
   const discardAttempt = () => {

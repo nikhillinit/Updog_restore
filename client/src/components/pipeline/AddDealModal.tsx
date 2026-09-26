@@ -93,17 +93,23 @@ const DEAL_UNCERTAIN_MESSAGE =
   'Creation status is uncertain. The request may already be recorded. Retry with the same details or discard this attempt after refreshing the list.';
 const DEAL_ALREADY_RECORDED_MESSAGE = 'This deal was already recorded. You can start a new intent.';
 
+type CreateDealVariables = { data: FormValues; fundId: number | undefined };
+
 export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: authSession } = useAuthSession();
+  const [uncertain, setUncertain] = useState(false);
+  // An uncertain command stays bound to the fund it was sent to until it
+  // settles, even if the page fund changes while the dialog is closed.
+  const [uncertainFundId, setUncertainFundId] = useState<number | undefined>(undefined);
+  const commandFundId = uncertain ? uncertainFundId : fundId;
   const idempotencyKey = useIdempotencyKey({
-    fundId,
+    fundId: commandFundId,
     operation: 'deal_create',
     actorId: authSession?.user.id,
   });
   const [serverError, setServerError] = useState<string | null>(null);
-  const [uncertain, setUncertain] = useState(false);
   const [canDiscard, setCanDiscard] = useState(false);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
 
@@ -143,11 +149,11 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   });
 
   const createDealMutation = useMutation({
-    mutationFn: async (data: FormValues) => {
+    mutationFn: async ({ data, fundId: targetFundId }: CreateDealVariables) => {
       setServerError(null);
       const payload = {
         ...data,
-        fundId,
+        fundId: targetFundId,
         dealSize: parseMoney(data.dealSize),
         valuation: parseMoney(data.valuation),
         foundedYear: parseIntSafe(data.foundedYear),
@@ -165,7 +171,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
     onSuccess: (_result, variables) => {
       toast({
         title: 'Deal created',
-        description: `"${variables.companyName}" has been added to your pipeline.`,
+        description: `"${variables.data.companyName}" has been added to your pipeline.`,
       });
       void invalidateDealLists();
       form.reset();
@@ -176,7 +182,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       setAlreadyRecorded(false);
       onOpenChange(false);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       if (
         error instanceof ApiError &&
         error.status === 409 &&
@@ -192,6 +198,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertainFundId(variables.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
         void invalidateDealLists().then(() => setCanDiscard(true));
@@ -223,7 +230,7 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
   });
 
   const onSubmit = (data: FormValues) => {
-    createDealMutation.mutate(data);
+    createDealMutation.mutate({ data, fundId: commandFundId });
   };
 
   const handleOpenChange = (nextOpen: boolean) => {

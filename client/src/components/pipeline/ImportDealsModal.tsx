@@ -130,12 +130,20 @@ function parseCSV(text: string): Record<string, unknown>[] {
   });
 }
 
+type ImportMode = 'skip_duplicates' | 'import_all';
+type ImportVariables = { mode: ImportMode; fundId: number | undefined };
+
 export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: authSession } = useAuthSession();
+  const [uncertain, setUncertain] = useState(false);
+  // An uncertain command stays bound to the fund it was sent to until it
+  // settles, even if the page fund changes while the dialog is closed.
+  const [uncertainFundId, setUncertainFundId] = useState<number | undefined>(undefined);
+  const commandFundId = uncertain ? uncertainFundId : fundId;
   const idempotencyKey = useIdempotencyKey({
-    fundId,
+    fundId: commandFundId,
     operation: 'deal_import',
     actorId: authSession?.user.id,
   });
@@ -145,12 +153,9 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [uncertain, setUncertain] = useState(false);
   const [canDiscard, setCanDiscard] = useState(false);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
-  const [lastImportMode, setLastImportMode] = useState<'skip_duplicates' | 'import_all'>(
-    'skip_duplicates'
-  );
+  const [lastImportMode, setLastImportMode] = useState<ImportMode>('skip_duplicates');
 
   const invalidateDealLists = useCallback(async () => {
     await Promise.all([
@@ -185,9 +190,9 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   });
 
   const importMutation = useMutation({
-    mutationFn: async (mode: 'skip_duplicates' | 'import_all') => {
+    mutationFn: async ({ mode, fundId: targetFundId }: ImportVariables) => {
       // Filter to only valid rows for import (server does its own validation too)
-      const payload = { rows: parsedRows, fundId, mode };
+      const payload = { rows: parsedRows, fundId: targetFundId, mode };
       const fingerprint = await sha256Hash(payload);
       return apiRequest<{ success: boolean; data: ImportResult }>(
         'POST',
@@ -205,7 +210,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
       setPhase('done');
       void invalidateDealLists();
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       if (
         error instanceof ApiError &&
         error.status === 409 &&
@@ -220,6 +225,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
       }
 
       if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertainFundId(variables.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
         void invalidateDealLists().then(() => setCanDiscard(true));
@@ -306,9 +312,9 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
     onOpenChange(false);
   };
 
-  const startImport = (mode: 'skip_duplicates' | 'import_all') => {
+  const startImport = (mode: ImportMode) => {
     setLastImportMode(mode);
-    importMutation.mutate(mode);
+    importMutation.mutate({ mode, fundId: commandFundId });
   };
 
   const discardAttempt = () => {
@@ -634,7 +640,12 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
               >
                 Back
               </Button>
-              {preview.toImport > 0 && (
+              {/* A committed import whose response was lost previews every row as a
+                  duplicate; the same command must still replay its receipt.
+                  ponytail: a different zero-row file after restore mints a fresh key
+                  and imports nothing; bind the restored command to its file if that
+                  ever confuses users. */}
+              {(preview.toImport > 0 || uncertain || idempotencyKey.restored) && (
                 <Button
                   type="button"
                   onClick={() => startImport(uncertain ? lastImportMode : 'skip_duplicates')}
@@ -646,7 +657,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Importing...
                     </>
-                  ) : uncertain ? (
+                  ) : uncertain || preview.toImport === 0 ? (
                     'Retry import'
                   ) : (
                     `Import ${preview.toImport} deal${preview.toImport !== 1 ? 's' : ''}`

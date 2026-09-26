@@ -194,6 +194,39 @@ describe('AddCompanyDialog', () => {
     );
   });
 
+  it('retries an uncertain create under its original fund and key after the page fund changes', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest
+      .mockRejectedValueOnce(new ApiError(502, 'bad gateway'))
+      .mockResolvedValue({ id: 1 });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const view = (fundId: number, open: boolean) => (
+      <QueryClientProvider client={queryClient}>
+        <AddCompanyDialog fundId={fundId} open={open} onOpenChange={mockOpenChange} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(view(1, true));
+
+    await fillRequiredCompanyFields();
+    await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+    expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
+
+    rerender(view(2, false));
+    rerender(view(2, true));
+    await userEvent.click(await screen.findByRole('button', { name: /retry create/i }));
+
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(2));
+    expect(keyOf(1)).toBe(keyOf(0));
+    expect((mockApiRequest.mock.calls[1] as unknown[])[2]).toMatchObject({ fundId: 1 });
+    await waitFor(() =>
+      expect(sessionStorage.getItem('pending-create:v1:1:company_create')).toBeNull()
+    );
+    expect(sessionStorage.getItem('pending-create:v1:2:company_create')).toBeNull();
+    expect(mockInvalidatePortfolioData).toHaveBeenLastCalledWith(expect.anything(), 1);
+  });
+
   it('settles an uncertain create as already recorded on key reuse', async () => {
     mockApiRequest
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))

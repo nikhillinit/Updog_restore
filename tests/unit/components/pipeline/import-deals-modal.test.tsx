@@ -24,6 +24,46 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+const mockAuth = vi.hoisted(() => vi.fn(() => ({ data: null as { user: { id: string } } | null })));
+
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  useAuthSession: () => mockAuth(),
+}));
+
+const keyOf = (call: number) =>
+  ((mockApiRequest.mock.calls[call] as unknown[])[3] as { headers: Record<string, string> })
+    .headers['Idempotency-Key'];
+
+const CSV = 'companyName,sector,stage,sourceType\nNorthwind AI,AI / ML,Seed,Referral';
+
+async function uploadCsv() {
+  const file = new File([CSV], 'deals.csv', { type: 'text/csv' });
+  Object.defineProperty(file, 'text', { value: async () => CSV });
+  await userEvent.upload(document.getElementById('csv-upload')!, file);
+}
+
+function previewOf(toImport: number, duplicates: number) {
+  return {
+    success: true,
+    data: {
+      total: 1,
+      valid: 1,
+      invalid: 0,
+      duplicates,
+      toImport,
+      invalidRows: [],
+      duplicateRows:
+        duplicates > 0 ? [{ index: 0, existingId: 9, companyName: 'Northwind AI' }] : [],
+    },
+  };
+}
+
+const IMPORTED_ONE = {
+  success: true,
+  data: { imported: 1, skipped: 0, failed: 0, failedRows: [], total: 1 },
+};
+
 function renderWithQuery(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -37,6 +77,8 @@ function renderWithQuery(ui: React.ReactElement) {
 
 describe('ImportDealsModal', () => {
   beforeEach(() => {
+    sessionStorage.clear();
+    mockAuth.mockReturnValue({ data: null });
     mockApiRequest.mockReset();
     mockToast.mockReset();
     mockOpenChange.mockReset();
@@ -111,5 +153,65 @@ describe('ImportDealsModal', () => {
         .headers['Idempotency-Key'];
     expect(key(2)).toBe(key(1));
     expect(await screen.findByText(/already recorded/i)).toBeInTheDocument();
+  });
+
+  it('retries an uncertain import under its original fund and key after the page fund changes', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest
+      .mockResolvedValueOnce(previewOf(1, 0))
+      .mockRejectedValueOnce(new ApiError(503, 'unavailable'))
+      .mockResolvedValueOnce(IMPORTED_ONE);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const view = (fundId: number, open: boolean) => (
+      <QueryClientProvider client={queryClient}>
+        <ImportDealsModal open={open} onOpenChange={mockOpenChange} fundId={fundId} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(view(1, true));
+
+    await uploadCsv();
+    await userEvent.click(await screen.findByRole('button', { name: /import 1 deal/i }));
+    expect(await screen.findByText(/import status is uncertain/i)).toBeInTheDocument();
+
+    rerender(view(2, false));
+    rerender(view(2, true));
+    await userEvent.click(await screen.findByRole('button', { name: /retry import/i }));
+
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
+    expect(keyOf(2)).toBe(keyOf(1));
+    expect((mockApiRequest.mock.calls[2] as unknown[])[2]).toMatchObject({ fundId: 1 });
+    await waitFor(() =>
+      expect(sessionStorage.getItem('pending-create:v1:1:deal_import')).toBeNull()
+    );
+    expect(sessionStorage.getItem('pending-create:v1:2:deal_import')).toBeNull();
+  });
+
+  it('replays a restored import when every re-uploaded row previews as a duplicate', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest
+      .mockResolvedValueOnce(previewOf(1, 0))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(previewOf(0, 1))
+      .mockResolvedValueOnce(IMPORTED_ONE);
+
+    const firstTab = renderWithQuery(
+      <ImportDealsModal open={true} onOpenChange={mockOpenChange} fundId={1} />
+    );
+    await uploadCsv();
+    await userEvent.click(await screen.findByRole('button', { name: /import 1 deal/i }));
+    expect(await screen.findByText(/import status is uncertain/i)).toBeInTheDocument();
+    // The committed import lost its response; a reload keeps only the stored key.
+    firstTab.unmount();
+
+    renderWithQuery(<ImportDealsModal open={true} onOpenChange={mockOpenChange} fundId={1} />);
+    expect(await screen.findByText(/earlier attempt may already be recorded/i)).toBeInTheDocument();
+    await uploadCsv();
+    await userEvent.click(await screen.findByRole('button', { name: /retry import/i }));
+
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(4));
+    expect(keyOf(3)).toBe(keyOf(1));
+    expect(await screen.findByText(/1 deal imported/i)).toBeInTheDocument();
   });
 });
