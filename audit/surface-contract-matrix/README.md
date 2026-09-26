@@ -270,7 +270,13 @@ closed-repair regression cases are in
 not use the full `g1-review.json` manifest for this repair.
 
 After the scoped review is complete, run the dry run and then the owner-
-authorized mutation:
+authorized mutation. Both validate the ignored knowledge graph against the exact
+`HEAD`. If `HEAD` moved after the reseed (a committed reseed or any later
+commit) and no inventoried source changed since, first rebuild only the graph
+with
+`npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$(git rev-parse HEAD)"`;
+it changes no tracked file. If an inventoried source changed, rerun the full
+sequence above.
 
 ```sh
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file <scoped file> --approver <id> --evidence <ref> --dry-run
