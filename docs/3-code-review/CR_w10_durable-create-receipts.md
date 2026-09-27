@@ -193,3 +193,35 @@ pending re-review.
 Both new tests fail against `d0b83e3af` and pass on the fix. Gates:
 `npm run check`, `npm run lint`, full `npm test` 16805 passed. Client-only
 change. Verdict pending re-review.
+
+## Round 6: PR #1585 review at `c802b890`
+
+1. **P2: discard was enabled after a failed reconciliation read** - fixed.
+   `invalidateQueries` resolves even when the refetch fails, so "Discard
+   attempt" appeared without a successful read and discard then dropped the
+   recovery key. `fundListRefreshedSince` now gates discard in all three
+   dialogs: at least one list on screen for the submitted fund must exist and
+   every such list must have refetched successfully after the outcome became
+   uncertain. Otherwise retry is the only action. Regressions: each dialog test
+   fails the first list refetch (no discard), retries, succeeds on the second
+   refetch, and shows discard.
+2. **P2: memory-mode company create lost deduplication** - fixed. The PR had
+   removed the route's idempotency middleware, and the memory branch wrote
+   straight to the memory store. `createPortfolioCompanyWithReceipt` now serves
+   both modes; in memory mode it keeps a process-local receipt per fund and key,
+   reserved before the first await, with the same replay and
+   `IDEMPOTENCY_KEY_REUSE` rules. The route's memory branch is removed.
+   Regression: `portfolio-companies-memory-idempotency.test.ts` runs the real
+   router on `MemStorage`. Because the route file is matrix-pinned, the
+   sanctioned non-fresh reseed ran at `0cf59c019` (exactly the 4
+   `portfolio-companies` rows plus the legacy `Dockerfile.railway` listener
+   demoted, runtime exclusions restored to base bytes), the scoped review was
+   regenerated for those rows, and the owner-attested reapproval
+   (`owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c019...`) closed the
+   phase again with 495 approved and `g1_closure` byte-identical to base.
+
+Each new test fails against `c802b890` and passes on the fix. Gates:
+`npm run check`, `npm run lint`, full `npm test` (16808 passed after moving the
+ignored knowledge-graph output aside), Testcontainers `pipeline-create-commands`
+and `deal-import-savepoints` 15/15, matrix dry run and validate, `matrix:check`
+fresh. Verdict pending re-review.

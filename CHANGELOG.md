@@ -47,7 +47,9 @@ and this project adheres to
   timeout, deadlock, or serialization failure fails the whole command
   (`409 REQUEST_IN_PROGRESS`, no receipt) instead of recording a permanent
   failure; and a restored import whose rows all preview as duplicates can still
-  replay its receipt.
+  replay its receipt. Discard is offered only after the submitted fund's list
+  refetches successfully, and memory-mode company create keeps its per-key
+  replay.
 
 ### Changed (2026-09-25)
 
