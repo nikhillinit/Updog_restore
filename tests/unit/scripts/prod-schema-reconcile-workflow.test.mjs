@@ -551,7 +551,7 @@ describe('prod-schema-reconcile workflow', () => {
       .flatMap((job) => job.steps ?? [])
       .find((candidate) => candidate.id === 'upload_evidence');
     const uploadPaths = upload.with.path.trim().split(/\s+/);
-    for (const entry of inventories['apply-actuals-draft-0056']) {
+    for (const entry of Object.values(inventories).flat()) {
       expect(uploadPaths).toContain(entry.endsWith('.txt') ? 'reports/*.txt' : `reports/${entry}`);
     }
     for (const [layoutMode, entries] of Object.entries(inventories)) {

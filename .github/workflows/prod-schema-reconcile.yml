@@ -1040,6 +1040,7 @@ jobs:
             reports/*.txt
             reports/lock-time-apply-vector.json
             reports/schema-reconcile-receipt.json
+            reports/current-forecast-migration-result.json
             reports/actuals-draft-before.json
             reports/actuals-draft-after.json
             reports/actuals-draft-preflight-result.json
