@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-09-09
+last_updated: 2026-09-27
 ---
 
 # Canonical Production-Action Procedure
@@ -45,6 +45,13 @@ F_1.13.0 is a local candidate. Source admission still requires current-head
 `CI Gate Status`; local tests, this procedure, and a receipt do not grant
 dispatch authority. Preserve existing 0050–0055 modes and receipts.
 
+ADR-103 route note (2026-09-27): 0056 and 0057 DDL reach production only through
+the linear mode `apply-journaled-0050-0061` (see "Linear journaled schema route
+0050-0061" below). The actuals recovery prerequisites in this section attach to
+actuals data actions and pilot enablement, not to empty-table DDL applied
+through that mode. The standalone `apply-actuals-draft-0056` and
+`apply-actuals-restatement-0057` modes stay blocked.
+
 1. Prove the complete through-0055 ledger and catalog. If legacy recovery is
    needed, use its separately admitted procedure and authentic history; never
    synthesize journal rows or run a later source tree through an older boundary.
@@ -53,21 +60,23 @@ dispatch authority. Preserve existing 0050–0055 modes and receipts.
    rollback, predecessor history, and immutable catalog wiring. The new
    `apply-actuals-draft-0056` schema mode has its own dry-run/result contract;
    generic missing-DDL and all-SKIP checks are not its admission test.
-3. Before any production apply, satisfy every canonical prerequisite below. Both
-   actuals preflights collect authenticated protected-source/CI, exact
-   owner-dispatch, and Neon/database identity observations. Their reports
-   distinguish failed checks, missing live evidence, undefined owner criteria,
-   and missing collector engineering. Immediately before either bounded apply,
-   `actuals-migration-preapply.ts` compares the exact mode/source/run/target
-   binding and freshly revalidates source, dispatch authority, then target
-   identity, stopping on the first refusal. Prior report JSON supplies no
-   authority. Read-only recovery reference/artifact-byte collection and
-   immediate pre-apply revalidation exist. Qualifying backup/PITR, restore,
-   custody, isolation/containment/residue producer proofs and final runtime
-   admission remain incomplete. The owner-defined requirements below do not
-   supply exact evidence bindings or live proof. Production apply remains
-   blocked. Report JSON, a connection URL, an environment flag, local rehearsal,
-   or a schema receipt cannot grant runtime admission.
+3. Before any production apply through a standalone 0056 or 0057 mode, satisfy
+   every canonical prerequisite below. Both actuals preflights collect
+   authenticated protected-source/CI, exact owner-dispatch, and Neon/database
+   identity observations. Their reports distinguish failed checks, missing live
+   evidence, undefined owner criteria, and missing collector engineering.
+   Immediately before either bounded apply, `actuals-migration-preapply.ts`
+   compares the exact mode/source/run/target binding and freshly revalidates
+   source, dispatch authority, then target identity, stopping on the first
+   refusal. Prior report JSON supplies no authority. Read-only recovery
+   reference/artifact-byte collection and immediate pre-apply revalidation
+   exist. Qualifying backup/PITR, restore, custody,
+   isolation/containment/residue producer proofs and final runtime admission
+   remain incomplete. The owner-defined requirements below do not supply exact
+   evidence bindings or live proof. Production apply through the standalone 0056
+   and 0057 modes, and every actuals data action, remains blocked. Report JSON,
+   a connection URL, an environment flag, local rehearsal, or a schema receipt
+   cannot grant runtime admission.
 4. A draft-feature application artifact requires admitted 0056 first. Keep
    `ACTUALS_PILOT_PUBLISH_ENABLED=false`; bind API, worker, database, queue, and
    configuration identities to the exact admitted release. Verify save, history,
@@ -92,15 +101,16 @@ dispatch authority. Preserve existing 0050–0055 modes and receipts.
 
 ### Actuals recovery evidence requirements
 
-For a high-risk production actuals data or schema change, a successful isolated
-restore must have completed during the preceding **72 hours**. The exact
-`actuals-isolated-restore-proof` workflow run produces the evidence, stored in
-**GitHub Actions**, protected from modification, and retained for the defined
-period. The repository owner is accountable for custody; repository
-administrators hold administrative custody. The production workflow
-independently retrieves the artifact by ID and verifies its digest and bindings.
-That separately recorded verification must confirm identity and integrity before
-production use.
+For a high-risk production actuals data or schema change, other than empty-table
+0056 and 0057 DDL applied through the ADR-103 linear mode
+`apply-journaled-0050-0061`, a successful isolated restore must have completed
+during the preceding **72 hours**. The exact `actuals-isolated-restore-proof`
+workflow run produces the evidence, stored in **GitHub Actions**, protected from
+modification, and retained for the defined period. The repository owner is
+accountable for custody; repository administrators hold administrative custody.
+The production workflow independently retrieves the artifact by ID and verifies
+its digest and bindings. That separately recorded verification must confirm
+identity and integrity before production use.
 
 The retention duration and exact execution, artifact, restore, and verification
 bindings remain unresolved. Bind those identifiers and observations before
@@ -148,7 +158,8 @@ conditions in this order:
 3. Intended provider scope and an existing target identity when one exists.
 4. Required machine-checkable prerequisites.
 5. Immediately before an apply, revalidated live source, target, and applicable
-   restore reference or digest through restore-reference revalidation.
+   restore reference or digest through restore-reference revalidation. The
+   ADR-103 route exception below applies to this step.
 
 For target creation, validate intended scope before creation; validate exact
 returned target ID immediately afterward; then allow no dependent mutation,
@@ -161,6 +172,15 @@ side-effect channels are mandatory. Missing, malformed, stale, mismatched, or
 unresolved evidence means zero mutation dispatch. This procedure makes no claim
 that these prerequisites are presently proven.
 
+ADR-103 route exception: for `prod-schema-reconcile.yml` mode
+`apply-journaled-0050-0061` only, the owner's confirmation of a Neon restore
+branch created immediately before dispatch satisfies step 5 for the restore
+reference. For that mode, the ADR-103 accepted risk replaces the backup/PITR,
+restore-freshness, custody-role, and isolation evidence in the previous
+paragraph. The workflow does not verify the branch, and the owner withholds
+dispatch when it is absent. Every other step and condition applies. The
+governing policy records this amendment under ADR-103.
+
 ## Current blockers
 
 Do not dispatch while any applicable blocker remains UNKNOWN, including:
@@ -168,7 +188,8 @@ Do not dispatch while any applicable blocker remains UNKNOWN, including:
 - provider target scope/identity, source freshness, validator ordering, smoke,
   canary, residue, and containment evidence; or
 - backup/PITR, restore freshness, custody-role, and preview/restore-isolation
-  proof for a production schema/data action.
+  proof for a production schema/data action, except as the ADR-103 route
+  exception above states for `apply-journaled-0050-0061`.
 
 Retained entrypoints are not an authority or coverage claim. Any retained
 entrypoint whose current targeted order proof or action evidence is absent,
@@ -188,6 +209,181 @@ authenticated routes for separate `enter-shadow`, `activate`, `kill`, and
 wrapper owns action-time source, release-manifest, provider, direct-database,
 deployed API, protected-session, replay, conflict-probe, and post-state fences.
 No workflow authorizes another dispatch.
+
+## Linear journaled schema route 0050-0061 (ADR-103)
+
+This route becomes canonical only after source admission of F_1.18.0 together
+with the ADR-103 policy amendment. `prod-schema-reconcile.yml` mode
+`apply-journaled-0050-0061` validates the exact production migration ledger. It
+then applies every unapplied journaled migration from the validated tail through
+`0061_durable_create_receipts`, in journal order, in one transaction. The runner
+is `scripts/run-journaled-0050-0061-migrations.mjs`.
+`current-forecast-neon-rehearsal.yml` mode `journaled-0050-0061` runs the same
+runner against an isolated Neon branch. The route is valid only while the
+repository ends at journal idx 62 and manifest 38. The runner refuses before any
+database connection when the repository holds anything past idx 62 or manifest
+38; the next range needs a successor route. Each step below is a separate owner
+action. Merge, this procedure, and a receipt authorize none of them.
+
+### Owner sequence
+
+1. Before starting, confirm that the eleven canary cap variables and the TTL are
+   set in the GitHub `Production` environment and the Vercel `Production`
+   environment. `baseline-policy-preflight` in `release-production.yml` requires
+   them. Release is blocked without them, and the receipt helps only until the
+   next migration lands, so the apply-to-release window must be short.
+2. Merge with `CI Gate Status` green.
+3. Freeze: no merge that touches `migrations/` or
+   `scripts/prod-schema-manifests/` until the release dispatch completes. A
+   merge during the freeze makes the tail guard refuse the route (before
+   mutation) or makes the release audit fail (after apply). It also moves `main`
+   away from the rehearsed SHA.
+4. Dispatch the rehearsal mode `journaled-0050-0061` at the `main` HEAD SHA.
+   Record that SHA and the apply duration. Delete the rehearsal branch (the
+   project has a low branch limit).
+5. Derive the target fingerprint with the recipe below. Set it as the
+   `production-schema` environment secret
+   `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`.
+6. Pick a quiet window and stop the Railway worker. The apply holds ACCESS
+   EXCLUSIVE locks on several app tables until commit, and a long app
+   transaction can trip its 5 s `lock_timeout`.
+7. Create a Neon restore branch of the production branch immediately before
+   dispatch. Record its creation time and identifier privately, outside the
+   repository.
+8. Dispatch `apply-journaled-0050-0061` at the rehearsed SHA. If `main` has
+   moved, stop and re-rehearse.
+9. Act on the outcome. The `Read back journaled ledger` line decides the branch
+   (see "Readback outcomes"). The committed marker line is diagnostic only.
+   - **Success**: record the artifact ID, digest, and receipt SHA-256 from the
+     step summary. Restart the worker.
+   - **Failed; the readback reports `ready 0/12` or `refused-before-connect`**:
+     nothing changed. Restart the worker. For a lock timeout
+     (`failed-sqlstate 55P03` in the apply output), dispatch again fresh through
+     steps 7-8, with a new restore branch first. A GitHub re-run is attempt 2
+     and is refused. For any other refusal, stop and revise the plan.
+   - **Failed; the readback reports `complete 12/12`**: the transaction
+     committed and the catalog is clean. Restart the worker. Obtain the receipt
+     with a fresh dispatch through steps 7-8. The runner classifies the ledger
+     complete, performs no mutation, and emits an `applied: false` receipt.
+   - **Failed; the readback reports `refused-ledger-or-catalog`**: unknown
+     state. Stop. Treat it as an incident. Do not dispatch the apply mode again.
+     Choose between a forward fix and a restore from the restore branch, which
+     discards every write since its creation time.
+   - **Failed before the apply step started** (the apply step shows as skipped,
+     so no readback runs): nothing changed. Fix the refused gate or stop.
+   - **The readback reports `failed-no-state` or `failed-sqlstate`, or prints no
+     line after an apply step that started**: no state was read. Run the
+     synchronized ledger query below and act on its result.
+10. Read back every Vercel environment that points at the production database:
+    `ACTUALS_PILOT_FUND_ID` is absent, and `ACTUALS_PILOT_PUBLISH_ENABLED` is
+    absent or false.
+11. Dispatch `release-production.yml` with the recorded values as schema apply
+    identity. Lift the freeze after the release completes.
+
+### Target fingerprint recipe
+
+The apply compares the target with the `production-schema` environment secret
+`PRODUCTION_SCHEMA_TARGET_FINGERPRINT` before it takes the lock. A missing or
+different value refuses with `refused-target`. The owner derives the value
+locally from values read in the provider console, never from workflow output:
+
+- `directHost`: the hostname of the direct (non-pooler) endpoint in the
+  production `DATABASE_URL` that the workflow uses.
+- `port`: the port in that URL. Leave it empty when the URL has none; the
+  serializer then uses `5432`.
+- `database`: the database name in that URL (`current_database()`).
+- `user`: the role that URL authenticates as (`current_user`).
+
+From a checkout of the rehearsed SHA, run `computeTargetFingerprint`, which the
+runner exports. Read the values into the shell so they stay out of shell
+history:
+
+```bash
+read -r FP_HOST; read -r FP_PORT; read -r FP_DATABASE; read -r FP_USER
+export FP_HOST FP_PORT FP_DATABASE FP_USER
+node --input-type=module -e "import { computeTargetFingerprint } from './scripts/run-journaled-0050-0061-migrations.mjs'; console.log(computeTargetFingerprint({ directHost: process.env.FP_HOST, port: process.env.FP_PORT, database: process.env.FP_DATABASE, user: process.env.FP_USER }))"
+```
+
+Store only the output, and only as the secret. Do not write the inputs or the
+output to the repository, an issue, a pull request, or a log. The rehearsal
+computes its own branch fingerprint with the same function and never reads this
+secret.
+
+### Readback outcomes
+
+The workflow step `Read back journaled ledger` runs directly after
+`Apply additive-safe reconciliation`. It has `if: always()` scoped to this mode
+and to an apply step that started (it runs after apply success, failure, or
+cancellation), and `continue-on-error: true`. It runs the runner read-only (no
+`--apply`, no fingerprint, no result file, no mutation) with the same
+`DATABASE_URL`. It is a reporting step: a readback failure never fails the job
+and never blocks the receipt. When the apply step did not start (an earlier step
+refused), the runner never ran, nothing changed, and the readback does not run.
+A missing or failed readback after an apply step that started sends the owner to
+the synchronized ledger query.
+
+The runner prints one fixed success line,
+`journaled-0050-0061: ledger readback <state> <n>/12`:
+
+- `ready 0/12`: the production pre-dispatch count. Nothing changed.
+- `complete 12/12`: the transaction committed and the catalog is clean, because
+  read-only mode validates the catalog of a complete ledger.
+
+Every failure line has the form
+`journaled-0050-0061: <category>[ <SQLSTATE>]: <text>`
+(`formatJournaledRangeFailure` in the runner). The categories are:
+
+- `refused-before-connect`: tail guard, pin drift, argument error, manifest
+  load, or direct-URL refusal. The runner made no connection. Nothing changed.
+- `refused-target`: apply only. The expected fingerprint is missing or
+  different. The runner refused before the lock. The read-only readback never
+  prints it.
+- `refused-ledger-or-catalog`: after the ledger read, the classifier, a catalog
+  validator, the ADR-074 baseline check, or the audit refused. In the readback
+  this means unknown state and is an incident.
+- `failed-sqlstate`: a PostgreSQL error after connection, with its SQLSTATE (for
+  example `55P03` for a lock timeout or `23514` for a CHECK violation).
+- `failed-no-state`: every other error after connection, including advisory-lock
+  contention, an identity-read failure, and a lost connection. No ledger or
+  catalog state was read to a conclusion.
+
+Treat a readback that this list does not name as an incident. The apply prints
+`journaled-0050-0061: migration transaction committed` after `migrate()`
+returns. That line is diagnostic only: a connection lost while awaiting `COMMIT`
+can leave the transaction committed with no line printed. Branch on the
+readback, never on this line.
+
+### Synchronized ledger query
+
+Use this query for owner sequence step 9 when the readback reports
+`failed-no-state` or `failed-sqlstate`, or prints no line. It is a read-only
+variant of the owner-approved ledger query. It takes a session advisory lock and
+writes no data. Run all three statements in one session through the direct
+(non-pooler) endpoint, because a transaction pooler does not keep a session lock
+on one server connection. The lock key is `RECONCILE_LOCK_ID` in
+`scripts/reconcile-prod-schema.mjs` (`20260628` when this section was written;
+re-read it at the dispatched SHA).
+
+```sql
+SELECT pg_try_advisory_lock(20260628);
+-- Repeat until the result is true, waiting between attempts.
+SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at;
+SELECT pg_advisory_unlock(20260628);
+```
+
+While `pg_try_advisory_lock` returns false, another session holds the lock, and
+that holder may still commit. Wait and retry. Do not read the ledger without the
+lock. While the owner holds the lock, a queued workflow run refuses before
+mutation. A lock not granted within 10 minutes (the apply's
+`transaction_timeout`) is an incident. Read the rows as follows:
+
+- The unchanged 14 rows, ending at `0049_kpi_observations`: nothing changed.
+  Continue as for `ready 0/12`.
+- 26 rows, the last with `created_at` `1790380800000` (the journal `when` of
+  `0061_durable_create_receipts`) and the SQL hash that the runner pins for
+  0061: handle as `complete 12/12`. The fresh dispatch re-validates the catalog
+  before it emits a receipt.
+- Anything else: an incident.
 
 ## Immutable certification and action-time eligibility
 

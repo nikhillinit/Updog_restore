@@ -201,23 +201,63 @@ export const BaselineFragmentPayloadSchema = z
     }
   });
 
+const SchemaMigrationSchema = z.enum(['0053', '0050-0055', '0050-0061']);
+const SchemaApplyModeSchema = z.enum([
+  'apply',
+  'apply-current-forecast-0050-0055',
+  'apply-journaled-0050-0061',
+]);
+const CurrentForecastMigrationRangeSchema = z.tuple([
+  z.literal('0050_g3_portfolio_and_calculation_schema'),
+  z.literal('0051_g3_canary_schema'),
+  z.literal('0052_g3_capital_call_notification_outbox'),
+  z.literal('0053_g3_release_gate_hardening'),
+  z.literal('0054_operating_decisions_spine'),
+  z.literal('0055_current_forecast_recompute_commands'),
+]);
+const JournaledMigrationRangeSchema = z.tuple([
+  z.literal('0050_g3_portfolio_and_calculation_schema'),
+  z.literal('0051_g3_canary_schema'),
+  z.literal('0052_g3_capital_call_notification_outbox'),
+  z.literal('0053_g3_release_gate_hardening'),
+  z.literal('0054_operating_decisions_spine'),
+  z.literal('0055_current_forecast_recompute_commands'),
+  z.literal('0056_actuals_draft_revisions'),
+  z.literal('0057_actuals_restatement_commands'),
+  z.literal('0058_capital_plan_override'),
+  z.literal('0059_task_update_commands'),
+  z.literal('0060_fund_workflow_commands'),
+  z.literal('0061_durable_create_receipts'),
+]);
+
+// The only admitted migration/range/mode combinations; everything else is rejected.
+const SCHEMA_MIGRATION_BINDINGS: Readonly<
+  Record<
+    z.infer<typeof SchemaMigrationSchema>,
+    {
+      range: z.ZodTypeAny | null;
+      modes: readonly (z.infer<typeof SchemaApplyModeSchema> | undefined)[];
+    }
+  >
+> = {
+  '0053': { range: null, modes: [undefined, 'apply'] },
+  '0050-0055': {
+    range: CurrentForecastMigrationRangeSchema,
+    modes: ['apply-current-forecast-0050-0055'],
+  },
+  '0050-0061': { range: JournaledMigrationRangeSchema, modes: ['apply-journaled-0050-0061'] },
+};
+
 export const SchemaFragmentPayloadSchema = z
   .object({
-    migration: z.enum(['0053', '0050-0055']),
+    migration: SchemaMigrationSchema,
     migrationRange: z
-      .tuple([
-        z.literal('0050_g3_portfolio_and_calculation_schema'),
-        z.literal('0051_g3_canary_schema'),
-        z.literal('0052_g3_capital_call_notification_outbox'),
-        z.literal('0053_g3_release_gate_hardening'),
-        z.literal('0054_operating_decisions_spine'),
-        z.literal('0055_current_forecast_recompute_commands'),
-      ])
+      .union([CurrentForecastMigrationRangeSchema, JournaledMigrationRangeSchema])
       .optional(),
     precursorSha: SourceShaSchema,
     apply: z
       .object({
-        mode: z.enum(['apply', 'apply-current-forecast-0050-0055']).optional(),
+        mode: SchemaApplyModeSchema.optional(),
         runId: PositiveDecimalIdSchema,
         runAttempt: z.literal(1),
         workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
@@ -249,26 +289,23 @@ export const SchemaFragmentPayloadSchema = z
         message: 'apply.sourceSha must equal precursorSha',
       });
     }
-    const currentForecast = payload.migration === '0050-0055';
-    if (currentForecast !== (payload.migrationRange !== undefined)) {
+    const binding = SCHEMA_MIGRATION_BINDINGS[payload.migration];
+    const rangeBound =
+      binding.range === null
+        ? payload.migrationRange === undefined
+        : binding.range.safeParse(payload.migrationRange).success;
+    if (!rangeBound) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['migrationRange'],
-        message: 'migrationRange must be present exactly for migration 0050-0055',
+        message: `migrationRange must be exactly the range bound to migration ${payload.migration}`,
       });
     }
-    if (currentForecast !== (payload.apply.mode === 'apply-current-forecast-0050-0055')) {
+    if (!binding.modes.includes(payload.apply.mode)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['apply', 'mode'],
-        message: 'apply.mode must bind the Current Forecast migration range',
-      });
-    }
-    if (!currentForecast && payload.apply.mode !== undefined && payload.apply.mode !== 'apply') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['apply', 'mode'],
-        message: 'legacy 0053 schema evidence may only use apply mode',
+        message: `apply.mode must be a mode bound to migration ${payload.migration}`,
       });
     }
     const applyMode = payload.apply.mode ?? 'apply';

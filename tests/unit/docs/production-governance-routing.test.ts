@@ -199,6 +199,42 @@ describe('production governance documentation routing', () => {
     expect(await repositoryFileExists('scripts/rollback-verify.sh')).toBe(true);
   });
 
+  it('admits the ADR-103 linear journaled route with its owner procedure', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const decisions = await readRepositoryFile('DECISIONS.md');
+    const canonicalGuide = await readRepositoryFile(canonicalGuidePath);
+    const flatGuide = flattenWhitespace(canonicalGuide);
+    const reconcileScript = await readRepositoryFile('scripts/reconcile-prod-schema.mjs');
+    const runner = await readRepositoryFile('scripts/run-journaled-0050-0061-migrations.mjs');
+
+    expect(flatPolicy).toContain(
+      'Routes admitted together under ADR-103 are `prod-schema-reconcile.yml` mode `apply-journaled-0050-0061`'
+    );
+    expect(flatPolicy).toContain('mode `journaled-0050-0061` for isolated branch rehearsal');
+    expect(flatPolicy).toContain(
+      'The owner, as sole dispatch issuer, withholds dispatch when it is absent.'
+    );
+    expect(decisions).toContain('## ADR-103: Linear Journaled Schema Apply Route 0050-0061');
+
+    expect(flatGuide).toContain('### Synchronized ledger query');
+    const lockId = /export const RECONCILE_LOCK_ID = (\d+);/.exec(reconcileScript)?.[1];
+    expect(lockId).toBeDefined();
+    expect(canonicalGuide).toContain('`RECONCILE_LOCK_ID`');
+    expect(canonicalGuide).toContain(`SELECT pg_try_advisory_lock(${lockId});`);
+    expect(canonicalGuide).toContain(
+      'SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at;'
+    );
+    expect(canonicalGuide).toContain(`SELECT pg_advisory_unlock(${lockId});`);
+
+    expect(flatGuide).toContain('### Target fingerprint recipe');
+    expect(runner).toContain('export function computeTargetFingerprint(');
+    expect(canonicalGuide).toContain(
+      "import { computeTargetFingerprint } from './scripts/run-journaled-0050-0061-migrations.mjs'"
+    );
+    expect(canonicalGuide).toContain('`PRODUCTION_SCHEMA_TARGET_FINGERPRINT`');
+    expect(flatGuide).toContain('never from workflow output');
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(

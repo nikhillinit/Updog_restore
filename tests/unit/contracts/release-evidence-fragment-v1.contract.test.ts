@@ -20,6 +20,23 @@ const PRECURSOR_SHA = 'b'.repeat(40);
 const BASELINE_MAIN_SHA = 'c'.repeat(40);
 const CONTEXT_SHA256 = '6'.repeat(64);
 const UUID = '123e4567-e89b-12d3-a456-426614174000';
+const CURRENT_FORECAST_RANGE = [
+  '0050_g3_portfolio_and_calculation_schema',
+  '0051_g3_canary_schema',
+  '0052_g3_capital_call_notification_outbox',
+  '0053_g3_release_gate_hardening',
+  '0054_operating_decisions_spine',
+  '0055_current_forecast_recompute_commands',
+] as const;
+const JOURNALED_RANGE = [
+  ...CURRENT_FORECAST_RANGE,
+  '0056_actuals_draft_revisions',
+  '0057_actuals_restatement_commands',
+  '0058_capital_plan_override',
+  '0059_task_update_commands',
+  '0060_fund_workflow_commands',
+  '0061_durable_create_receipts',
+] as const;
 
 const reservedResidue = () => ({ ...RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE });
 const tripledCaps = () =>
@@ -332,6 +349,52 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
     payload.apply.artifactName = `prod-schema-reconcile-111-1-apply-current-forecast-0050-0055-${PRECURSOR_SHA}`;
     expect(ReleaseEvidenceFragmentV1Schema.safeParse(fragment('schema', payload)).success).toBe(
       true
+    );
+  });
+
+  it('admits exactly the bound migration, range, and apply mode combinations', () => {
+    const ranges: Record<string, readonly string[] | undefined> = {
+      absent: undefined,
+      six: CURRENT_FORECAST_RANGE,
+      twelve: JOURNALED_RANGE,
+    };
+    const modes = [
+      undefined,
+      'apply',
+      'apply-current-forecast-0050-0055',
+      'apply-journaled-0050-0061',
+    ] as const;
+    const accepted: string[] = [];
+    let combinations = 0;
+    for (const migration of ['0053', '0050-0055', '0050-0061']) {
+      for (const [rangeName, range] of Object.entries(ranges)) {
+        for (const mode of modes) {
+          combinations += 1;
+          const base = schemaPayload();
+          const payload = {
+            ...base,
+            migration,
+            ...(range === undefined ? {} : { migrationRange: [...range] }),
+            apply: {
+              ...base.apply,
+              ...(mode === undefined ? {} : { mode }),
+              artifactName: `prod-schema-reconcile-111-1-${mode ?? 'apply'}-${PRECURSOR_SHA}`,
+            },
+          };
+          if (ReleaseEvidenceFragmentV1Schema.safeParse(fragment('schema', payload)).success) {
+            accepted.push(`${migration}|${rangeName}|${mode ?? 'undefined'}`);
+          }
+        }
+      }
+    }
+    expect(combinations).toBe(36);
+    expect(accepted.sort()).toEqual(
+      [
+        '0053|absent|undefined',
+        '0053|absent|apply',
+        '0050-0055|six|apply-current-forecast-0050-0055',
+        '0050-0061|twelve|apply-journaled-0050-0061',
+      ].sort()
     );
   });
 

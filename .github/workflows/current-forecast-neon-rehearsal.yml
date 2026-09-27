@@ -11,7 +11,13 @@ on:
         description: Bounded migration capability; 0056 and 0057 require separate authoritative prerequisite sources
         required: true
         type: choice
-        options: [current-forecast-0050-0055, actuals-draft-0056, actuals-restatement-0057]
+        options:
+          [
+            current-forecast-0050-0055,
+            actuals-draft-0056,
+            actuals-restatement-0057,
+            journaled-0050-0061,
+          ]
         default: current-forecast-0050-0055
       expected_parent_migration_tail:
         description: Expected parent Drizzle tail

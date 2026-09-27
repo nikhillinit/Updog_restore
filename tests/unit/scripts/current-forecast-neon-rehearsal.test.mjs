@@ -1,10 +1,12 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import {
   directHostFingerprint,
   rehearseCurrentForecastNeon,
   validateRehearsalInput,
 } from '../../../scripts/release/rehearse-current-forecast-neon.mjs';
+import { computeTargetFingerprint } from '../../../scripts/run-journaled-0050-0061-migrations.mjs';
+import { JOURNALED_RANGE_MIGRATION_RANGE } from '../../../shared/contracts/schema-reconcile-receipt-v1.contract.ts';
 
 const input = {
   expectedSha: 'a'.repeat(40),
@@ -570,5 +572,200 @@ describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
           .mockResolvedValueOnce('0054_current_forecast_snapshots'),
       })
     ).rejects.toThrow('Rehearsal migration tail mismatch');
+  });
+});
+
+describe('journaled 0050-0061 rehearsal', { retry: 0 }, () => {
+  const runner = 'scripts/run-journaled-0050-0061-migrations.mjs';
+  const childUri = 'postgres://app_owner:child-secret@ep-child.us.neon.tech/updog';
+  const targetFingerprint = computeTargetFingerprint({
+    directHost: 'ep-child.us.neon.tech',
+    port: '',
+    database: 'updog',
+    user: 'app_owner',
+  });
+  const parentCounts = {
+    '0049_kpi_observations': 0,
+    '0053_g3_release_gate_hardening': 4,
+    '0055_current_forecast_recompute_commands': 6,
+  };
+
+  function applyResult(parentTail, backfillEligibleBefore, backfillEligibleAfter) {
+    const appliedTargetCount = parentCounts[parentTail];
+    return {
+      preState: { state: 'ready', appliedTargetCount, lastAppliedTag: parentTail },
+      postState: 'complete',
+      applied: true,
+      baselineKind: 'adr074-reconciled',
+      migrationRange: [...JOURNALED_RANGE_MIGRATION_RANGE],
+      backfillEligibleBefore,
+      backfillEligibleAfter,
+    };
+  }
+
+  /** @param {Record<string, any> | undefined} result */
+  function resultWritingRunner(result) {
+    return vi.fn(async (_command, _args, env) => {
+      void _command;
+      void _args;
+      if (env.JOURNALED_0050_0061_MIGRATION_RESULT_PATH && result) {
+        await writeFile(env.JOURNALED_0050_0061_MIGRATION_RESULT_PATH, JSON.stringify(result));
+      }
+    });
+  }
+
+  function runJournaled(parentTail, commandRunner) {
+    return run({
+      input: { ...input, mode: 'journaled-0050-0061', expectedParentMigrationTail: parentTail },
+      commandRunner,
+      tailReader: vi
+        .fn()
+        .mockResolvedValueOnce(parentTail)
+        .mockResolvedValueOnce('0061_durable_create_receipts'),
+    });
+  }
+
+  it('admits parent tails 0049, 0053, and 0055 and refuses 0056 before provider calls', async () => {
+    for (const tail of Object.keys(parentCounts)) {
+      expect(
+        validateRehearsalInput({
+          ...input,
+          mode: 'journaled-0050-0061',
+          expectedParentMigrationTail: tail,
+        })
+      ).toMatchObject({ mode: 'journaled-0050-0061', expectedParentMigrationTail: tail });
+    }
+    const fetchImpl = vi.fn();
+    await expect(
+      run({
+        input: {
+          ...input,
+          mode: 'journaled-0050-0061',
+          expectedParentMigrationTail: '0056_actuals_draft_revisions',
+        },
+        fetchImpl,
+      })
+    ).rejects.toThrow('expectedParentMigrationTail is invalid');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['0049_kpi_observations', 3, 0],
+    ['0053_g3_release_gate_hardening', null, null],
+    ['0055_current_forecast_recompute_commands', null, null],
+  ])(
+    'applies with the runner fingerprint, reads back, and reports counts from %s',
+    async (parentTail, before, after) => {
+      const commandRunner = resultWritingRunner(applyResult(parentTail, before, after));
+      const result = await runJournaled(parentTail, commandRunner);
+
+      expect(commandRunner.mock.calls).toEqual([
+        [
+          'node',
+          [runner, '--apply', '--yes'],
+          {
+            DATABASE_URL: childUri,
+            EXPECTED_TARGET_FINGERPRINT: targetFingerprint,
+            JOURNALED_0050_0061_MIGRATION_RESULT_PATH: expect.any(String),
+          },
+        ],
+        ['node', [runner], { DATABASE_URL: childUri }],
+      ]);
+      expect(targetFingerprint).toMatch(/^[a-f0-9]{64}$/);
+      await expect(
+        readFile(commandRunner.mock.calls[0][2].JOURNALED_0050_0061_MIGRATION_RESULT_PATH)
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(result).toMatchObject({
+        candidateSha: input.expectedSha,
+        beforeMigrationTail: parentTail,
+        afterMigrationTail: '0061_durable_create_receipts',
+        backfillEligibleBefore: before,
+        backfillEligibleAfter: after,
+        sourceSha: input.expectedSha,
+      });
+      expect(Number.isInteger(result.applyDurationMs)).toBe(true);
+      expect(result.applyDurationMs).toBeGreaterThanOrEqual(0);
+      expect(JSON.stringify(result)).not.toMatch(
+        new RegExp(`postgres:|secret|app_owner|ep-child\\.us\\.neon\\.tech|${targetFingerprint}`)
+      );
+    }
+  );
+
+  it.each([
+    [
+      '0049 replay leaving an eligible row',
+      '0049_kpi_observations',
+      3,
+      1,
+      /backfill left eligible rows/,
+    ],
+    ['0049 replay without an after-count', '0049_kpi_observations', 3, null, /result is invalid/],
+    ['0053 parent with counts', '0053_g3_release_gate_hardening', 0, 0, /result is invalid/],
+    [
+      '0055 parent with counts',
+      '0055_current_forecast_recompute_commands',
+      0,
+      0,
+      /result is invalid/,
+    ],
+  ])('refuses %s', async (_label, parentTail, before, after, message) => {
+    await expect(
+      runJournaled(parentTail, resultWritingRunner(applyResult(parentTail, before, after)))
+    ).rejects.toThrow(message);
+  });
+
+  it('refuses a missing apply result and sanitizes an apply failure without a readback', async () => {
+    await expect(
+      runJournaled('0049_kpi_observations', resultWritingRunner(undefined))
+    ).rejects.toThrow('Rehearsal apply result is invalid');
+    const commandRunner = vi.fn(async () => {
+      throw new Error(childUri);
+    });
+    await expect(runJournaled('0049_kpi_observations', commandRunner)).rejects.toThrow(
+      /^Rehearsal command failed$/
+    );
+    expect(commandRunner).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a final tail other than 0061', async () => {
+    await expect(
+      run({
+        input: { ...input, mode: 'journaled-0050-0061' },
+        commandRunner: resultWritingRunner(applyResult('0049_kpi_observations', 3, 0)),
+        tailReader: vi
+          .fn()
+          .mockResolvedValueOnce('0049_kpi_observations')
+          .mockResolvedValueOnce('0055_current_forecast_recompute_commands'),
+      })
+    ).rejects.toThrow('Rehearsal migration tail mismatch');
+  });
+
+  it('leaves the existing modes, their output keys, and the workflow runner unchanged', async () => {
+    const result = await run();
+    expect(Object.keys(result)).toEqual([
+      'githubRunId',
+      'githubRunAttempt',
+      'candidateSha',
+      'projectId',
+      'parentBranchId',
+      'rehearsalBranchId',
+      'databaseName',
+      'directHostFingerprint',
+      'beforeMigrationTail',
+      'afterMigrationTail',
+      'completedAt',
+    ]);
+    expect(() =>
+      validateRehearsalInput({
+        ...input,
+        expectedParentMigrationTail: '0055_current_forecast_recompute_commands',
+      })
+    ).toThrow();
+    const workflow = await readFile(
+      '.github/workflows/current-forecast-neon-rehearsal.yml',
+      'utf8'
+    );
+    expect(workflow).toContain('journaled-0050-0061,');
+    expect(workflow).toContain('run: node scripts/release/rehearse-current-forecast-neon.mjs');
   });
 });

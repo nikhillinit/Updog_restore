@@ -215,6 +215,7 @@ describe('production schema dispatch block', () => {
       'apply',
       'apply-catchup-0050-0053',
       'apply-current-forecast-0050-0055',
+      'apply-journaled-0050-0061',
       'apply-actuals-draft-0056',
       'apply-actuals-restatement-0057',
     ]);
@@ -230,6 +231,9 @@ describe('production schema dispatch block', () => {
     expect(applyStep?.run).toContain(
       'node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes'
     );
+    expect(applyStep?.run).toContain(
+      'node scripts/run-journaled-0050-0061-migrations.mjs --apply --yes'
+    );
     const applyGates = [
       'Require first apply attempt',
       'Verify artifact retention before apply',
@@ -240,6 +244,53 @@ describe('production schema dispatch block', () => {
     for (const gateName of applyGates) {
       const gate = steps.find((step) => step.name === gateName);
       expect(gate?.if, gateName).toContain("startsWith(inputs.mode, 'apply')");
+    }
+  });
+
+  it('maps the journaled apply branch to its pinned result path and target fingerprint', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
+    );
+    const apply = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps ?? [])
+      .find((step) => step.name === 'Apply additive-safe reconciliation');
+    const temporary = await mkdtemp(path.join(os.tmpdir(), 'journaled-apply-'));
+    try {
+      await mkdir(path.join(temporary, 'bin'));
+      await mkdir(path.join(temporary, 'reports'));
+      await writeFile(
+        path.join(temporary, 'bin/node'),
+        `#!/bin/sh
+printf '%s\\n' "$@" > node-args.txt
+printf '%s\\n' "$EXPECTED_TARGET_FINGERPRINT" > target-fingerprint.txt
+printf '%s\\n' "$JOURNALED_0050_0061_MIGRATION_RESULT_PATH" > result-path.txt
+`,
+        { mode: 0o700 }
+      );
+      const result = spawnSync('bash', ['-c', apply.run], {
+        cwd: temporary,
+        env: {
+          PATH: `${path.join(temporary, 'bin')}:${process.env['PATH']}`,
+          MODE: 'apply-journaled-0050-0061',
+          PRODUCTION_SCHEMA_TARGET_FINGERPRINT: 'expected-target-fingerprint',
+          TZ: 'UTC',
+        },
+        encoding: 'utf8',
+        timeout: 10_000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(await readFile(path.join(temporary, 'node-args.txt'), 'utf8')).toBe(
+        'scripts/run-journaled-0050-0061-migrations.mjs\n--apply\n--yes\n'
+      );
+      expect(await readFile(path.join(temporary, 'target-fingerprint.txt'), 'utf8')).toBe(
+        'expected-target-fingerprint\n'
+      );
+      expect(await readFile(path.join(temporary, 'result-path.txt'), 'utf8')).toBe(
+        'reports/journaled-0050-0061-migration-result.json\n'
+      );
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
     }
   });
 

@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-21
+last_updated: 2026-09-27
 ---
 
 # Solo Internal Change and Production Policy
@@ -108,6 +108,20 @@ for isolated branch rehearsal, `prod-schema-reconcile.yml` mode
 `current-forecast-production-action.yml` for separately dispatched
 `enter-shadow`, `activate`, `kill`, `resume`, or read-only `readback`. Evidence
 never supplies dispatch authority.
+
+Routes admitted together under ADR-103 are `prod-schema-reconcile.yml` mode
+`apply-journaled-0050-0061` for production schema work and
+`current-forecast-neon-rehearsal.yml` mode `journaled-0050-0061` for isolated
+branch rehearsal. For this route, the restore reference is a Neon restore branch
+that the owner creates and confirms immediately before dispatch. The workflow
+does not verify it. The owner, as sole dispatch issuer, withholds dispatch when
+it is absent. This paragraph is an explicit amendment for this route only. The
+owner's confirmation alone satisfies the machine-checkable prerequisite floor
+above for the restore reference, and the requirement below that a restore
+reference is revalidated immediately before apply. The ADR-103 accepted risk
+replaces, for this route, the managed backup/PITR, isolated-restore freshness,
+custody-role, and preview/restore-isolation evidence floor below. Every other
+floor applies unchanged.
 
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or

@@ -73,6 +73,7 @@ on:
           - apply
           - apply-catchup-0050-0053
           - apply-current-forecast-0050-0055
+          - apply-journaled-0050-0061
           - apply-actuals-draft-0056
           - apply-actuals-restatement-0057
         default: audit
@@ -119,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$MODE" in
-            audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055|apply-actuals-draft-0056|apply-actuals-restatement-0057) ;;
+            audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055|apply-journaled-0050-0061|apply-actuals-draft-0056|apply-actuals-restatement-0057) ;;
             *)
               echo "Unsupported mode: $MODE"
               exit 1
@@ -320,6 +321,7 @@ jobs:
           const expectedNames = [
             `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`,
             `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-current-forecast-0050-0055-${process.env.SCHEMA_PRECURSOR_SHA}`,
+            `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-journaled-0050-0061-${process.env.SCHEMA_PRECURSOR_SHA}`,
             `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-actuals-draft-0056-${process.env.SCHEMA_PRECURSOR_SHA}`,
           ];
           const valid =
@@ -351,6 +353,14 @@ jobs:
             'pre-apply-audit.txt' \
             'schema-reconcile-receipt.json' \
             | LC_ALL=C sort > "$EVIDENCE_DIR/expected-entries.txt"
+          printf '%s\n' \
+            'apply.txt' \
+            'journaled-0050-0061-migration-result.json' \
+            'lock-time-apply-vector.json' \
+            'post-apply-audit.txt' \
+            'pre-apply-audit.txt' \
+            'schema-reconcile-receipt.json' \
+            | LC_ALL=C sort > "$EVIDENCE_DIR/journaled-expected-entries.txt"
           grep -v '^current-forecast-migration-result.json$' \
             "$EVIDENCE_DIR/expected-entries.txt" > "$EVIDENCE_DIR/legacy-expected-entries.txt"
           printf '%s\n' \
@@ -367,6 +377,7 @@ jobs:
             'schema-reconcile-receipt.json' \
             | LC_ALL=C sort > "$EVIDENCE_DIR/actuals-draft-expected-entries.txt"
           if ! diff -u "$EVIDENCE_DIR/expected-entries.txt" "$EVIDENCE_DIR/entries.txt" \
+            && ! diff -u "$EVIDENCE_DIR/journaled-expected-entries.txt" "$EVIDENCE_DIR/entries.txt" \
             && ! diff -u "$EVIDENCE_DIR/legacy-expected-entries.txt" "$EVIDENCE_DIR/entries.txt" \
             && ! diff -u "$EVIDENCE_DIR/actuals-draft-expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
             echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
@@ -399,6 +410,7 @@ jobs:
             ActualsDraftMigrationResultV1Schema,
             SchemaReconcileActualsDraftReceiptV1Schema,
             SchemaReconcileCurrentForecastReceiptV1Schema,
+            SchemaReconcileJournaledRangeReceiptV1Schema,
             SchemaReconcileReceiptV1Schema,
           } from './shared/contracts/schema-reconcile-receipt-v1.contract';
 
@@ -410,6 +422,8 @@ jobs:
           }
           const receipt = raw.mode === 'apply-actuals-draft-0056'
             ? SchemaReconcileActualsDraftReceiptV1Schema.parse(raw)
+            : raw.mode === 'apply-journaled-0050-0061'
+              ? SchemaReconcileJournaledRangeReceiptV1Schema.parse(raw)
             : raw.mode === 'apply-current-forecast-0050-0055'
               ? SchemaReconcileCurrentForecastReceiptV1Schema.parse(raw)
               : SchemaReconcileReceiptV1Schema.parse(raw);
@@ -468,6 +482,10 @@ jobs:
             if (receipt.postState !== 'complete' || receipt.migrationRange.length !== 6) {
               throw new Error('Receipt does not prove complete Current Forecast migration range');
             }
+          } else if (receipt.mode === 'apply-journaled-0050-0061') {
+            if (receipt.postState !== 'complete' || receipt.migrationRange.length !== 12) {
+              throw new Error('Receipt does not prove complete journaled migration range');
+            }
           } else if (
             receipt.manifest !== '30-g3-release-gate-hardening'
             || receipt.migration !== '0053'
@@ -486,6 +504,8 @@ jobs:
           ];
           if (receipt.mode === 'apply-current-forecast-0050-0055') {
             expectedEntries.push('current-forecast-migration-result.json');
+          } else if (receipt.mode === 'apply-journaled-0050-0061') {
+            expectedEntries.push('journaled-0050-0061-migration-result.json');
           } else if (receipt.mode === 'apply-actuals-draft-0056') {
             expectedEntries.push(
               'actuals-draft-after.json', 'actuals-draft-before.json',
@@ -583,14 +603,18 @@ jobs:
           const artifact = JSON.parse(
             fs.readFileSync(`${process.env.RUNNER_TEMP}/historical-apply-artifact.json`, 'utf8')
           );
-          const currentForecast = receipt.mode === 'apply-current-forecast-0050-0055';
-          const applyMode = currentForecast ? receipt.mode : 'apply';
+          const modeToMigration = {
+            'apply-current-forecast-0050-0055': '0050-0055',
+            'apply-journaled-0050-0061': '0050-0061',
+          };
+          const migration = modeToMigration[receipt.mode];
+          const mappedMode = migration !== undefined;
           const payload = {
-            migration: currentForecast ? '0050-0055' : '0053',
-            ...(currentForecast ? { migrationRange: receipt.migrationRange } : {}),
+            migration: migration ?? '0053',
+            ...(mappedMode ? { migrationRange: receipt.migrationRange } : {}),
             precursorSha: process.env.SCHEMA_PRECURSOR_SHA,
             apply: {
-              ...(currentForecast ? { mode: applyMode } : {}),
+              ...(mappedMode ? { mode: receipt.mode } : {}),
               runId: process.env.SCHEMA_APPLY_RUN_ID,
               runAttempt: 1,
               workflowPath: '.github/workflows/prod-schema-reconcile.yml',
@@ -711,7 +735,7 @@ jobs:
           reports/actuals-restatement-before.json reports/actuals-restatement-preflight-result.json
 
       - name: Require additive-safe apply decision
-        if: ${{ startsWith(inputs.mode, 'apply') && inputs.mode != 'apply-actuals-draft-0056' && inputs.mode != 'apply-actuals-restatement-0057' }}
+        if: ${{ startsWith(inputs.mode, 'apply') && inputs.mode != 'apply-journaled-0050-0061' && inputs.mode != 'apply-actuals-draft-0056' && inputs.mode != 'apply-actuals-restatement-0057' }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -799,6 +823,7 @@ jobs:
           ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
           PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
           ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
+          PRODUCTION_SCHEMA_TARGET_FINGERPRINT: ${{ secrets.PRODUCTION_SCHEMA_TARGET_FINGERPRINT }}
         run: |
           set +e
           if [ "$MODE" = "apply-catchup-0050-0053" ]; then
@@ -807,6 +832,11 @@ jobs:
           elif [ "$MODE" = "apply-current-forecast-0050-0055" ]; then
             CURRENT_FORECAST_MIGRATION_RESULT_PATH=reports/current-forecast-migration-result.json \
               node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes > reports/apply.raw 2>&1
+            STATUS=$?
+          elif [ "$MODE" = "apply-journaled-0050-0061" ]; then
+            EXPECTED_TARGET_FINGERPRINT="$PRODUCTION_SCHEMA_TARGET_FINGERPRINT" \
+              JOURNALED_0050_0061_MIGRATION_RESULT_PATH=reports/journaled-0050-0061-migration-result.json \
+              node scripts/run-journaled-0050-0061-migrations.mjs --apply --yes > reports/apply.raw 2>&1
             STATUS=$?
           elif [ "$MODE" = "apply-actuals-draft-0056" ]; then
             npx tsx scripts/release/actuals-migration-preapply.ts "$MODE" \
@@ -841,6 +871,14 @@ jobs:
           rm reports/apply.raw
           exit "$STATUS"
 
+      - name: Read back journaled ledger
+        if: ${{ always() && inputs.mode == 'apply-journaled-0050-0061' && steps.apply.outcome != 'skipped' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: node scripts/run-journaled-0050-0061-migrations.mjs
+
       - name: Validate lock-time apply vector
         if: ${{ startsWith(inputs.mode, 'apply') && steps.apply.outcome == 'success' }}
         env:
@@ -868,6 +906,10 @@ jobs:
           } else if (process.env.MODE === 'apply-actuals-draft-0056') {
             const result = JSON.parse(fs.readFileSync('reports/actuals-draft-migration-result.json', 'utf8'));
             if (result.postState !== 'complete') throw new Error('0056 post-state is not complete');
+            vector = result;
+          } else if (process.env.MODE === 'apply-journaled-0050-0061') {
+            const result = JSON.parse(fs.readFileSync('reports/journaled-0050-0061-migration-result.json', 'utf8'));
+            if (result.postState !== 'complete') throw new Error('0050-0061 post-state is not complete');
             vector = result;
           } else if (process.env.MODE === 'apply-current-forecast-0050-0055') {
             vector = JSON.parse(fs.readFileSync('reports/current-forecast-migration-result.json', 'utf8'));
@@ -1012,6 +1054,8 @@ jobs:
             test -s reports/actuals-draft-migration-result.json
           elif [ "$SCHEMA_RECONCILE_MODE" = "apply-current-forecast-0050-0055" ]; then
             test -s reports/current-forecast-migration-result.json
+          elif [ "$SCHEMA_RECONCILE_MODE" = "apply-journaled-0050-0061" ]; then
+            test -s reports/journaled-0050-0061-migration-result.json
           elif [ "$SCHEMA_RECONCILE_MODE" = "apply-catchup-0050-0053" ]; then
             if ! grep -Eq '^g3-(portfolio-and-calculation|canary|capital-call-notification-outbox|release-gate-hardening): APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
               echo "Catch-up receipt requires at least one APPLY-MISSING-DDL predecision."
@@ -1039,6 +1083,7 @@ jobs:
           path: |
             reports/*.txt
             reports/lock-time-apply-vector.json
+            reports/journaled-0050-0061-migration-result.json
             reports/schema-reconcile-receipt.json
             reports/current-forecast-migration-result.json
             reports/actuals-draft-before.json

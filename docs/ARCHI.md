@@ -416,7 +416,15 @@ production target. The shared actuals preflight collects authenticated
 protected-source/CI, exact owner-dispatch, and Neon/database identity evidence.
 Its report separates failed checks, missing live evidence, undefined owner
 criteria, and missing engineering. Recovery, custody, migration isolation, and
-final runtime admission remain incomplete, so production application is blocked.
+final runtime admission remain incomplete, so production application through the
+standalone 0056 and 0057 modes is blocked.
+
+Update, September 27, 2026 (F_1.18.0, ADR-103): journal idx 51-62 (0050-0061)
+reach production only through the linear `prod-schema-reconcile.yml` mode
+`apply-journaled-0050-0061`, as a separate owner action. The route refuses
+before any database connection when the repository holds anything past journal
+idx 62 or manifest 38, so a later migration needs a successor route. The source
+change is not proof of application to any provider database.
 
 Re-read journal entries and all worktrees before allocating another migration.
 Tracked duplicate/rollback SQL outside the journal does not define its tail.

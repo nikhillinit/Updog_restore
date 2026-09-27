@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { ReconcileError, loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
@@ -5,6 +7,7 @@ import {
   assertApplyPolicyForManifests,
   validateSqlApplyPolicy,
 } from '../../scripts/prod-schema-apply-policy.mjs';
+import { JOURNALED_0050_0061_TARGETS } from '../../scripts/run-journaled-0050-0061-migrations.mjs';
 
 const policyManifest = {
   name: 'policy-fixture',
@@ -409,4 +412,49 @@ describe('prod schema apply policy', () => {
       ).not.toThrow();
     }
   );
+
+  // F_1.18.0: the journaled 0050-0061 route skips the generic pre-apply gate,
+  // so assertApplyPolicyForManifests never runs on it. This pins the exact
+  // violation set it would have seen. Identity is manifest:file:kind plus a
+  // statement digest; sorted arrays keep duplicate hits from one statement.
+  it('admits exactly the documented violations across journaled migrations 0050-0061', async () => {
+    const manifests = await loadManifests();
+    const actual = JOURNALED_0050_0061_TARGETS.flatMap(({ tag }) => {
+      const sqlFile = `migrations/${tag}.sql`;
+      // Use the owning manifest's applyPolicy, as the generic gate would:
+      // 0053 and 0058 each report one violation under an empty policy.
+      const owners = manifests.filter((manifest) => manifest.sqlFiles?.includes(sqlFile));
+      expect(owners, sqlFile).toHaveLength(1);
+      const sql = fs.readFileSync(new URL(`../../${sqlFile}`, import.meta.url), 'utf8');
+      return validateSqlApplyPolicy({ manifest: owners[0], sqlFile, sql }).map((violation) => {
+        const digest = createHash('sha256').update(violation.statement).digest('hex');
+        return `${violation.manifest}:${violation.file}:${violation.kind}:${digest.slice(0, 12)}`;
+      });
+    });
+
+    // Dispositions match the humanReconciledManifests entries for
+    // operating-decisions-spine and task-update-commands in the M9 test above.
+    const spine = 'operating-decisions-spine:migrations/0054_operating_decisions_spine.sql';
+    // 7341a354e545 is 0054's DO-block preflight: one drop-table pattern hit
+    // plus six DROP tokens (four DROP TABLE IF EXISTS pg_temp.__*_expected_checks
+    // and two ON COMMIT DROP clauses on those temp tables).
+    const preflight = `${spine}:unknown-drop:7341a354e545`;
+    const expected = [
+      `${spine}:drop-table:7341a354e545`,
+      preflight,
+      preflight,
+      preflight,
+      preflight,
+      preflight,
+      preflight,
+      // DROP TRIGGER IF EXISTS "decision_evidence_links_forbid_update_trigger" replay.
+      `${spine}:unknown-drop:23a07b901183`,
+      // DROP TRIGGER IF EXISTS "operating_decisions_enforce_lifecycle_trigger" replay.
+      `${spine}:unknown-drop:8ad601d0b075`,
+      // 0059 DROP TRIGGER IF EXISTS on its own new task_update_commands table.
+      'task-update-commands:migrations/0059_task_update_commands.sql:unknown-drop:81ec633b955a',
+    ];
+
+    expect(actual.sort()).toEqual(expected.sort());
+  });
 });

@@ -180,6 +180,126 @@ export type SchemaReconcileCurrentForecastReceiptV1 = z.infer<
   typeof SchemaReconcileCurrentForecastReceiptV1Schema
 >;
 
+export const JOURNALED_RANGE_MIGRATION_RANGE = [
+  '0050_g3_portfolio_and_calculation_schema',
+  '0051_g3_canary_schema',
+  '0052_g3_capital_call_notification_outbox',
+  '0053_g3_release_gate_hardening',
+  '0054_operating_decisions_spine',
+  '0055_current_forecast_recompute_commands',
+  '0056_actuals_draft_revisions',
+  '0057_actuals_restatement_commands',
+  '0058_capital_plan_override',
+  '0059_task_update_commands',
+  '0060_fund_workflow_commands',
+  '0061_durable_create_receipts',
+] as const;
+
+const JournaledRangeMigrationResultObjectSchema = z
+  .object({
+    preState: z
+      .object({
+        state: z.enum(['ready', 'complete']),
+        appliedTargetCount: z.number().int().min(0).max(12),
+        lastAppliedTag: z.string().min(1),
+      })
+      .strict(),
+    postState: z.literal('complete'),
+    applied: z.boolean(),
+    baselineKind: z.enum(['canonical', 'adr074-reconciled']),
+    migrationRange: z.tuple([
+      z.literal('0050_g3_portfolio_and_calculation_schema'),
+      z.literal('0051_g3_canary_schema'),
+      z.literal('0052_g3_capital_call_notification_outbox'),
+      z.literal('0053_g3_release_gate_hardening'),
+      z.literal('0054_operating_decisions_spine'),
+      z.literal('0055_current_forecast_recompute_commands'),
+      z.literal('0056_actuals_draft_revisions'),
+      z.literal('0057_actuals_restatement_commands'),
+      z.literal('0058_capital_plan_override'),
+      z.literal('0059_task_update_commands'),
+      z.literal('0060_fund_workflow_commands'),
+      z.literal('0061_durable_create_receipts'),
+    ]),
+    backfillEligibleBefore: z.number().int().min(0).nullable(),
+    backfillEligibleAfter: z.number().int().min(0).nullable(),
+  })
+  .strict();
+
+function validateJournaledRangeMigrationResult(
+  result: z.infer<typeof JournaledRangeMigrationResultObjectSchema>,
+  ctx: z.RefinementCtx
+) {
+  const expectedLastTag = ['0049_kpi_observations', ...JOURNALED_RANGE_MIGRATION_RANGE][
+    result.preState.appliedTargetCount
+  ];
+  if (result.preState.lastAppliedTag !== expectedLastTag) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['preState', 'lastAppliedTag'],
+      message: 'Last applied tag must match applied target count',
+    });
+  }
+  if (result.preState.state === 'complete' && result.preState.appliedTargetCount !== 12) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['preState'],
+      message: 'Complete pre-state requires all twelve target migrations',
+    });
+  }
+  if (result.preState.state === 'ready' && result.preState.appliedTargetCount === 12) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['preState'],
+      message: 'Ready pre-state cannot include all target migrations',
+    });
+  }
+  if (result.applied !== (result.preState.state === 'ready')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['applied'],
+      message: 'Applied flag must match pre-state',
+    });
+  }
+  if (result.preState.appliedTargetCount >= 4) {
+    if (result.backfillEligibleBefore !== null || result.backfillEligibleAfter !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['backfillEligibleBefore'],
+        message: 'Backfill counts must be null when 0053 is already ledgered',
+      });
+    }
+  } else if (result.backfillEligibleAfter === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['backfillEligibleAfter'],
+      message: 'Backfill after-count is required when 0053 is applied',
+    });
+  }
+}
+
+export const JournaledRangeMigrationResultV1Schema =
+  JournaledRangeMigrationResultObjectSchema.superRefine(validateJournaledRangeMigrationResult);
+export type JournaledRangeMigrationResultV1 = z.infer<typeof JournaledRangeMigrationResultV1Schema>;
+
+export const SchemaReconcileJournaledRangeReceiptV1Schema =
+  JournaledRangeMigrationResultObjectSchema.extend({
+    repository: GitHubRepositorySchema,
+    workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
+    runId: PositiveDecimalIdSchema,
+    runAttempt: z.literal(1),
+    mode: z.literal('apply-journaled-0050-0061'),
+    sourceSha: SourceShaSchema,
+    buildTimeMs: z.number().int().min(0).max(900_000),
+    result: z.literal('applied_and_clean'),
+  })
+    .strict()
+    .superRefine(validateJournaledRangeMigrationResult);
+
+export type SchemaReconcileJournaledRangeReceiptV1 = z.infer<
+  typeof SchemaReconcileJournaledRangeReceiptV1Schema
+>;
+
 const ActualsDraftMigrationResultObjectSchema = z
   .object({
     migration: z

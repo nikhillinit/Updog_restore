@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { appendFile } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import process from 'node:process';
 import pg from 'pg';
 import { assertActualsDraftProductionPrerequisites } from './actuals-draft-prerequisites.mjs';
@@ -13,6 +15,9 @@ const NEON_ID = /^[a-z0-9-]{1,60}$/;
 const DATABASE = /^[A-Za-z0-9_-]{1,63}$/;
 const OPERATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPECTED_TAILS = new Set(['0049_kpi_observations', '0053_g3_release_gate_hardening']);
+const JOURNALED_MODE = 'journaled-0050-0061';
+const JOURNALED_TAILS = new Set([...EXPECTED_TAILS, '0055_current_forecast_recompute_commands']);
+const JOURNALED_RUNNER = 'scripts/run-journaled-0050-0061-migrations.mjs';
 const READY_ENDPOINT_STATES = new Set(['active', 'idle']);
 
 function required(value, label, pattern) {
@@ -23,7 +28,12 @@ function required(value, label, pattern) {
 export function validateRehearsalInput(input) {
   const mode = input.mode ?? 'current-forecast-0050-0055';
   if (
-    !['current-forecast-0050-0055', 'actuals-draft-0056', 'actuals-restatement-0057'].includes(mode)
+    ![
+      'current-forecast-0050-0055',
+      'actuals-draft-0056',
+      'actuals-restatement-0057',
+      JOURNALED_MODE,
+    ].includes(mode)
   ) {
     throw new Error('Rehearsal mode is invalid');
   }
@@ -32,7 +42,9 @@ export function validateRehearsalInput(input) {
       ? input.expectedParentMigrationTail === '0056_actuals_draft_revisions'
       : mode === 'actuals-draft-0056'
         ? input.expectedParentMigrationTail === '0055_current_forecast_recompute_commands'
-        : EXPECTED_TAILS.has(input.expectedParentMigrationTail);
+        : (mode === JOURNALED_MODE ? JOURNALED_TAILS : EXPECTED_TAILS).has(
+            input.expectedParentMigrationTail
+          );
   return {
     ...(input.mode === undefined ? {} : { mode }),
     expectedSha: required(input.expectedSha, 'expectedSha', SHA),
@@ -186,6 +198,7 @@ async function readMigrationTail(connectionString) {
       ['1786059600000', '0053_g3_release_gate_hardening'],
       ['1788235843534', '0055_current_forecast_recompute_commands'],
       ['1788825600000', '0056_actuals_draft_revisions'],
+      ['1790380800000', '0061_durable_create_receipts'],
     ]);
     return byWhen.get(String(ledger.rows[0]?.created_at)) ?? 'unknown';
   } finally {
@@ -202,6 +215,77 @@ function runCommand(command, args, env) {
       code === 0 ? resolve(undefined) : reject(new Error(`${command} failed`))
     );
   });
+}
+
+/**
+ * Applies 0050-0061 with the runner's own target fingerprint, then reads the ledger back.
+ * @param {{
+ *   connectionString: string;
+ *   databaseName: string;
+ *   roleName: string;
+ *   sourceSha: string;
+ *   commandRunner: (command: string, args: string[], env: Record<string, string>) => Promise<void>;
+ * }} options
+ */
+async function rehearseJournaledRange({
+  connectionString,
+  databaseName,
+  roleName,
+  sourceSha,
+  commandRunner,
+}) {
+  // Loaded here so the other modes, and modules importing this file, keep their module graph.
+  const { computeTargetFingerprint } = await import('../run-journaled-0050-0061-migrations.mjs');
+  const { tsImport } = await import('tsx/esm/api');
+  const { JournaledRangeMigrationResultV1Schema } = await tsImport(
+    '../../shared/contracts/schema-reconcile-receipt-v1.contract.ts',
+    import.meta.url
+  );
+  const endpoint = parseConnectionUri(connectionString);
+  const expectedTargetFingerprint = computeTargetFingerprint({
+    directHost: endpoint.hostname,
+    port: endpoint.port,
+    database: databaseName,
+    user: roleName,
+  });
+  const directory = await mkdtemp(path.join(tmpdir(), 'journaled-0050-0061-'));
+  const resultPath = path.join(directory, 'result.json');
+  try {
+    let applyDurationMs;
+    try {
+      const startedAt = performance.now();
+      await commandRunner('node', [JOURNALED_RUNNER, '--apply', '--yes'], {
+        DATABASE_URL: connectionString,
+        EXPECTED_TARGET_FINGERPRINT: expectedTargetFingerprint,
+        JOURNALED_0050_0061_MIGRATION_RESULT_PATH: resultPath,
+      });
+      applyDurationMs = Math.round(performance.now() - startedAt);
+      // Read-only readback; without the result path it cannot overwrite the apply result.
+      await commandRunner('node', [JOURNALED_RUNNER], { DATABASE_URL: connectionString });
+    } catch {
+      throw new Error('Rehearsal command failed');
+    }
+    let result;
+    try {
+      result = JournaledRangeMigrationResultV1Schema.parse(
+        JSON.parse(await readFile(resultPath, 'utf8'))
+      );
+    } catch {
+      throw new Error('Rehearsal apply result is invalid');
+    }
+    // The schema already requires null counts when 0053 was ledgered before the apply.
+    if (result.preState.appliedTargetCount < 4 && result.backfillEligibleAfter !== 0) {
+      throw new Error('Rehearsal 0053 backfill left eligible rows');
+    }
+    return {
+      backfillEligibleBefore: result.backfillEligibleBefore,
+      backfillEligibleAfter: result.backfillEligibleAfter,
+      sourceSha,
+      applyDurationMs,
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -388,36 +472,48 @@ export async function rehearseCurrentForecastNeon({
     identity: 'Created Neon',
   });
   const fingerprint = directHostFingerprint(rehearsalUri.uri);
+  const journaled = value.mode === JOURNALED_MODE;
 
-  try {
-    await commandRunner(
-      'node',
-      ['scripts/run-current-forecast-journaled-migrations.mjs', '--apply', '--yes'],
-      {
-        DATABASE_URL: rehearsalUri.uri,
-      }
-    );
-    await commandRunner('node', ['scripts/run-current-forecast-journaled-migrations.mjs'], {
-      DATABASE_URL: rehearsalUri.uri,
+  let journaledOutput = {};
+  if (journaled) {
+    journaledOutput = await rehearseJournaledRange({
+      connectionString: rehearsalUri.uri,
+      databaseName: value.databaseName,
+      roleName: childRoleName,
+      sourceSha: value.expectedSha,
+      commandRunner,
     });
-    await commandRunner(
-      'npx',
-      [
-        'vitest',
-        'run',
-        'tests/integration/current-forecast-journaled-migration-recovery.test.ts',
-        'tests/integration/current-forecast-manual-recompute.pg.test.ts',
-        'tests/integration/current-forecast-reference.pg.test.ts',
-        '--config',
-        'vitest.config.testcontainers.ts',
-        '--configLoader',
-        'native',
-        '--retry=0',
-      ],
-      { TEST_DATABASE_URL: rehearsalUri.uri }
-    );
-  } catch {
-    throw new Error('Rehearsal command failed');
+  } else {
+    try {
+      await commandRunner(
+        'node',
+        ['scripts/run-current-forecast-journaled-migrations.mjs', '--apply', '--yes'],
+        {
+          DATABASE_URL: rehearsalUri.uri,
+        }
+      );
+      await commandRunner('node', ['scripts/run-current-forecast-journaled-migrations.mjs'], {
+        DATABASE_URL: rehearsalUri.uri,
+      });
+      await commandRunner(
+        'npx',
+        [
+          'vitest',
+          'run',
+          'tests/integration/current-forecast-journaled-migration-recovery.test.ts',
+          'tests/integration/current-forecast-manual-recompute.pg.test.ts',
+          'tests/integration/current-forecast-reference.pg.test.ts',
+          '--config',
+          'vitest.config.testcontainers.ts',
+          '--configLoader',
+          'native',
+          '--retry=0',
+        ],
+        { TEST_DATABASE_URL: rehearsalUri.uri }
+      );
+    } catch {
+      throw new Error('Rehearsal command failed');
+    }
   }
   let afterMigrationTail;
   try {
@@ -425,7 +521,10 @@ export async function rehearseCurrentForecastNeon({
   } catch {
     throw new Error('Rehearsal migration tail read failed');
   }
-  if (afterMigrationTail !== '0055_current_forecast_recompute_commands') {
+  if (
+    afterMigrationTail !==
+    (journaled ? '0061_durable_create_receipts' : '0055_current_forecast_recompute_commands')
+  ) {
     throw new Error('Rehearsal migration tail mismatch');
   }
   return {
@@ -440,6 +539,7 @@ export async function rehearseCurrentForecastNeon({
     beforeMigrationTail: value.expectedParentMigrationTail,
     afterMigrationTail,
     completedAt: new Date().toISOString(),
+    ...journaledOutput,
   };
 }
 

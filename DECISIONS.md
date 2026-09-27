@@ -12546,3 +12546,149 @@ Owner-ratified on 2026-09-16:
   `audit/surface-contract-matrix/*.json` for a recorded reason before calling
   something unowned, and run `git log -S<name>` before calling anything a recent
   orphan.
+
+## ADR-103: Linear Journaled Schema Apply Route 0050-0061
+
+**Date:** 2026-09-27
+
+**Status:** Proposed; owner decisions recorded 2026-09-26; source admission
+pending
+
+**Tags:** #production-schema #drizzle #migration-ledger #recovery #governance
+
+### Context
+
+Production has no usable route to the schema that `main` requires. The
+production `drizzle_migrations` ledger holds the 14-row ADR-074 reconciled
+baseline and ends at `0049_kpi_observations`. The 0050-0053 objects exist
+because run 32196991205 (`apply-catchup-0050-0053`) applied them through
+manifests, but those migrations have no ledger rows. Every 0054-0061 object is
+absent. The earlier journaled modes cannot close the gap:
+
+- `apply-current-forecast-0050-0055` (ADR-098) reads every manifest. Its
+  pre-apply gate fails on the `REFUSE-FOR-HUMAN` decision that unapplied
+  manifest 33 produces. Its post-apply gate requires manifests 33-38 to report
+  `SKIP`, which a 0050-0055 apply cannot satisfy.
+- `apply-actuals-draft-0056` and `apply-actuals-restatement-0057` refuse every
+  apply that lacks a disposable test-container capability. Their production
+  prerequisite functions throw unconditionally.
+- 0058-0061 have no apply mode.
+
+Release is blocked by the same gap, because the release schema audit requires
+every manifest to report `SKIP`.
+
+### Decision
+
+Owner decisions, 2026-09-26:
+
+1. **Linear range.** One mode, `apply-journaled-0050-0061` in
+   `prod-schema-reconcile.yml`, applies every unapplied journaled migration from
+   the validated ledger tail through `0061_durable_create_receipts`. It applies
+   them in journal order, in one Drizzle transaction, and includes the 0056 and
+   0057 DDL. The ledger stays linear. The existing modes stay unchanged. The
+   rehearsal mode `journaled-0050-0061` in `current-forecast-neon-rehearsal.yml`
+   runs the same runner, `scripts/run-journaled-0050-0061-migrations.mjs`,
+   against an isolated Neon branch.
+2. **ADR-098 recovery posture.** The mode has real apply capability. Exact
+   source, first attempt, retention, pinned SQL and manifest identities, a
+   target fingerprint, exact ledger and catalog checks, the reconcile advisory
+   lock, and lock, statement, and transaction timeouts guard it. The owner
+   creates a Neon restore branch immediately before dispatch as a runbook step.
+   The workflow does not verify that branch.
+3. **Production ledger read.** The owner approved one read-only production
+   ledger query. It completed on 2026-09-26.
+
+The route follows the ADR-098 pattern: one action-specific mode of the
+production schema workflow, one matching isolated rehearsal, and separate owner
+dispatch for each action. The release audit contract does not change. A release
+still requires every manifest to report `SKIP`.
+
+**DDL-only bound on 0056 and 0057.** The admission covers DDL only. Both
+migrations create empty tables plus parent constraints. `ACTUALS_PILOT_FUND_ID`
+stays unset, and `ACTUALS_PILOT_PUBLISH_ENABLED` stays false. Actuals data
+actions and pilot enablement keep every existing prerequisite, including the
+72-hour isolated-restore requirement in `docs/workflows/PRODUCTION_SCRIPTS.md`.
+Configuration and an owner readback of every Vercel environment that points at
+the production database enforce this bound. No code or workflow gate enforces
+it.
+
+**One data mutation.** Eleven of the twelve migrations are DDL only. 0053
+contains one `UPDATE`. It fills
+`fund_scenario_calculation_runs.queued_event_recorded_at` from the earliest
+matching `calculation_queued` event, and only where the column is NULL. The
+production ledger ends at 0049, so Drizzle replays 0053 and this statement runs
+again. It never overwrites a value, and it derives the same value on every run.
+ADR-098 already admitted this replay for the 0050-0055 mode. The runner counts
+the eligible rows under the lock before and after the apply, and the result and
+the receipt carry both counts. In production the counts are recorded evidence,
+not a gate: a nonzero after-count can only come from rows written concurrently.
+The rehearsal requires an after-count of zero when it replays 0053, because a
+rehearsal branch has no concurrent writer.
+
+**Tail guard and merge freeze.** The route is valid only while the repository
+ends at journal idx 62 and manifest 38. Before any database connection, the
+runner requires exactly 63 journal entries (idx 0-62) and exactly 38 manifests
+(orders 1-38). Otherwise it refuses. The owner freezes every merge that touches
+`migrations/` or `scripts/prod-schema-manifests/` from the route's merge until
+the release dispatch completes. A future migration 0062 or manifest 39 makes the
+route refuse before it connects. This is the intended fail-closed result; the
+next range needs a successor route with its own ADR.
+
+**Supersession.** For production use, this route supersedes the three earlier
+journaled modes: `apply-current-forecast-0050-0055`, `apply-actuals-draft-0056`,
+and `apply-actuals-restatement-0057`. They stay in the workflow unchanged. Their
+receipts stay valid as historical records for their exact SHA.
+
+### Alternatives
+
+- **Repair the 0050-0055 mode and add more fixed-tail modes:** rejected. Every
+  fixed-tail route fails when a later manifest merges. The 0050-0055 mode became
+  undispatchable two days after its admission, when manifest 33 merged.
+- **Apply 0056 and 0057 only through the actuals recovery program:** rejected
+  for empty-table DDL by owner decision 1. The program still governs actuals
+  data actions and pilot enablement.
+- **A machine-verified restore gate in the workflow:** declined by owner
+  decision 2.
+
+### Accepted risks
+
+- **Recovery.** The governing policy requires managed backup/PITR,
+  isolated-restore freshness, custody-role, and restore-isolation evidence, and
+  a restore reference revalidated immediately before apply. For this route, the
+  owner's confirmation of a Neon restore branch created immediately before
+  dispatch replaces that evidence floor. The workflow does not verify the
+  branch. ADR-074 is the precedent: its restore point or branch reference also
+  sits outside the workflow. The bound is one transaction, additive objects, one
+  idempotent NULL-only backfill, and a short provider history window that makes
+  the restore branch the recovery point. A restore from that branch returns the
+  whole database to the branch creation time and discards every later write. The
+  policy amendment in the same pull request records this route-specific
+  substitute.
+- **Validation after commit.** Drizzle commits before the runner re-reads the
+  ledger and re-audits manifests 1-38. A failure after commit cannot roll back.
+  The always-run ledger readback step selects the recovery branch. The owner
+  sequence in `docs/workflows/PRODUCTION_SCRIPTS.md` lists each outcome.
+
+### Open items
+
+- **Pilot-configuration machine gate.** No gate in `release-production.yml`
+  refuses a release while `ACTUALS_PILOT_FUND_ID` is set or
+  `ACTUALS_PILOT_PUBLISH_ENABLED` is true. The owner readback is the only
+  control.
+- **Rehearsal identifier exposure.** The rehearsal dispatch inputs and step
+  summary carry Neon project and branch identifiers in a public repository. This
+  exposure predates this route and is outside its scope.
+- **0053 gap rows.** The promoted production code writes `calculation_queued`
+  events without setting `queued_event_recorded_at`. Runs created between the
+  apply and the release therefore stay NULL. After release,
+  `recordReserveCalculationQueuedEventOnce` treats NULL as "no event recorded
+  yet" and may append a second queued event when such a run is reused. Displayed
+  status is not affected. This is accepted residue. No second backfill is
+  planned.
+
+### Consequences
+
+Merge admits source only. The rehearsal, the fingerprint secret, the restore
+branch, the production apply, and the release dispatch each stay a separate
+repository-owner action. One successful apply run produces a receipt that audit
+mode accepts as historical schema proof for the whole 0050-0061 chain.

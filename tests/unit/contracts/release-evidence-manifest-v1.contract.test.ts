@@ -492,6 +492,33 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
   });
 
+  it('accepts a journaled 0050-0061 schema section', () => {
+    const manifest = withMutation((m) => {
+      Object.assign(m.schema!, {
+        migration: '0050-0061',
+        migrationRange: [
+          '0050_g3_portfolio_and_calculation_schema',
+          '0051_g3_canary_schema',
+          '0052_g3_capital_call_notification_outbox',
+          '0053_g3_release_gate_hardening',
+          '0054_operating_decisions_spine',
+          '0055_current_forecast_recompute_commands',
+          '0056_actuals_draft_revisions',
+          '0057_actuals_restatement_commands',
+          '0058_capital_plan_override',
+          '0059_task_update_commands',
+          '0060_fund_workflow_commands',
+          '0061_durable_create_receipts',
+        ],
+      });
+      Object.assign(m.schema!.apply, {
+        mode: 'apply-journaled-0050-0061',
+        artifactName: `prod-schema-reconcile-111-1-apply-journaled-0050-0061-${PRECURSOR_SHA}`,
+      });
+    });
+    expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
+  });
+
   it('rejects schema lineage off the historical apply template or wrong audit binding', () => {
     rejects(withMutation((m) => void (m.schema!.apply.sourceSha = SOURCE_SHA)));
     rejects(

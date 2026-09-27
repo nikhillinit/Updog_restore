@@ -175,6 +175,7 @@ schema:
   - 'scripts/prod-schema-patches/**'
   - 'scripts/prod-schema-apply-policy.mjs'
   - 'scripts/reconcile-prod-schema.mjs'
+  - 'scripts/run-journaled-0050-0061-migrations.mjs'
   - 'scripts/db-push.mjs'
   - 'scripts/db-push-core.mjs'
   - 'drizzle.config.ts'
@@ -350,8 +351,10 @@ schema_tests:
   - 'tests/integration/lp-reporting-actuals-pilot-publish.pg.test.ts'
   - 'tests/integration/actuals-draft-journaled-migration.pg.test.ts'
   - 'tests/integration/actuals-restatement-journaled-migration.pg.test.ts'
+  - 'tests/integration/journaled-0050-0061-migration.pg.test.ts'
   - 'scripts/run-actuals-draft-journaled-migration.mjs'
   - 'scripts/run-actuals-restatement-journaled-migration.mjs'
+  - 'scripts/run-journaled-0050-0061-migrations.mjs'
   - 'tests/integration/actuals-draft-revisions.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # F_1.12.0 financial-facts terminal-head proof

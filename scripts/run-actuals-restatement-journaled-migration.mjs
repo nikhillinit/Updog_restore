@@ -238,7 +238,7 @@ export function assertActualsRestatementMigrationSafeCatalog({ state, audits, ma
   }
 }
 
-async function assertExactRestatementCatalog(client, state, manifest) {
+export async function assertExactRestatementCatalog(client, state, manifest) {
   const complete = state.state === 'complete';
   for (const table of manifest.expectedTables.filter((item) => !item.sharedTable)) {
     await assertExactActualsTableCatalog(client, state, table, {
