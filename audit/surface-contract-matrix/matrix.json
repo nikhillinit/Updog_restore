@@ -47890,10 +47890,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c0190536e77afab4bec99b2c631091f6890",
       "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -48222,10 +48230,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c0190536e77afab4bec99b2c631091f6890",
       "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -57288,10 +57304,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c0190536e77afab4bec99b2c631091f6890",
       "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -99197,10 +99221,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
+      "decision_status": "approved",
+      "decision_evidence": "owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c0190536e77afab4bec99b2c631091f6890",
       "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
+        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -115907,22 +115939,22 @@
     "api:GET:/api/portfolio-companies|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+      "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
     },
     "api:GET:/api/portfolio-companies/:id|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+      "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
     },
     "api:PATCH:/api/portfolio-companies/:id|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+      "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
     },
     "api:PATCH:/api/portfolio-companies/:id|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+      "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
     },
     "api:POST:/api/deals/opportunities|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -115947,7 +115979,7 @@
     "api:POST:/api/portfolio-companies|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-      "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+      "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; memory-mode create replay, IDEMPOTENCY_KEY_REUSE, and single-row creation on the real router and MemStorage in tests/unit/routes/portfolio-companies-memory-idempotency.test.ts; prior coverage was none-reviewed."
     },
     "api:PUT:/api/deals/opportunities/:id|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -116243,6 +116275,47 @@
         "api:POST:/api/portfolio/strategies",
         "api:PUT:/api/portfolio/strategies/:id"
       ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "kg": {
+      "snapshot_id": "snapshot:80050d62a89f5c6e615eadea3d208e772cc9b0c2c08f4e7eb8be41fa7f71eda0",
+      "counts": {
+        "APIEndpoint": 413,
+        "ClientRoute": 44,
+        "WorkerJob": 7
+      }
+    },
+    "scheduler_registrations": [
+      {
+        "id": "varianceAlertAutomationService",
+        "site": "server/routes.ts:60"
+      },
+      {
+        "id": "artifactRetentionService",
+        "site": "server/routes.ts:62"
+      },
+      {
+        "id": "internalAnalysisCheckpointService",
+        "site": "server/routes.ts:64"
+      }
+    ],
+    "discovery": {
+      "listener_candidates": 13,
+      "dormant_candidates": 29,
+      "bullmq_constructors": 16
+    },
+    "requirement_match_counts": {
+      "current-forecast-commands": 7,
+      "fee-catch-up-ui": 1,
+      "subannual-flow-fee": 3,
+      "cashless-gp-lp-class": 2,
+      "wave-h": 1,
+      "wp-l4": 0,
+      "kpi-manager": 7,
+      "pages-v2": 8,
+      "docker-only": 60
     }
   }
 }
