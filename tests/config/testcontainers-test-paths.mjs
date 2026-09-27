@@ -49,4 +49,5 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/current-forecast-reference.pg.test.ts',
   'tests/integration/reallocation.pg.test.ts',
   'tests/integration/deal-import-savepoints.pg.test.ts',
+  'tests/integration/pipeline-create-commands.pg.test.ts',
 ]);

@@ -27,6 +27,9 @@ const ACTUALS_RESTATEMENT_PREVIEW_PATH =
   /^\/api\/funds\/[^/?#]+\/imports\/actuals\/restatements\/dry-run\/?$/i;
 const ACTUALS_RESTATEMENT_PUBLISH_PATH =
   /^\/api\/funds\/[^/?#]+\/imports\/actuals\/restatements\/publish\/?$/i;
+const DEAL_CREATE_PATH = /^\/api\/deals\/opportunities\/?$/i;
+const DEAL_IMPORT_PATH = /^\/api\/deals\/opportunities\/import\/?$/i;
+const PORTFOLIO_COMPANY_CREATE_PATH = /^\/api\/portfolio-companies\/?$/i;
 
 export function isFundWorkflowCommandRoute(method: string, path: string): boolean {
   const pathname = path.split(/[?#]/, 1)[0] ?? '';
@@ -58,6 +61,9 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
       ACTUALS_PUBLISH_PATH.test(pathname) ||
       ACTUALS_DRAFT_SAVE_PATH.test(pathname) ||
       ACTUALS_RESTATEMENT_PREVIEW_PATH.test(pathname) ||
-      ACTUALS_RESTATEMENT_PUBLISH_PATH.test(pathname))
+      ACTUALS_RESTATEMENT_PUBLISH_PATH.test(pathname) ||
+      DEAL_CREATE_PATH.test(pathname) ||
+      DEAL_IMPORT_PATH.test(pathname) ||
+      PORTFOLIO_COMPANY_CREATE_PATH.test(pathname))
   );
 }

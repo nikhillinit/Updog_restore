@@ -31,6 +31,7 @@ export const PURGE_RESIDUE_GROUP_TABLES = Object.freeze({
     { table: 'fund_workflow_commands', scope: 'fund_id' },
     { table: 'portfolio_company_update_receipts', scope: 'fund_id' },
     { table: 'fund_scenario_calculation_commands', scope: 'fund_id' },
+    { table: 'deal_pipeline_commands', scope: 'fund_id' },
   ],
   scenario: [
     { table: 'fund_scenario_sets', scope: 'fund_id' },

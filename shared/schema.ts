@@ -463,6 +463,45 @@ export const dealOpportunities = pgTable('deal_opportunities', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const dealPipelineCommands = pgTable(
+  'deal_pipeline_commands',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    operation: text('operation').notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    responseBody: jsonb('response_body').notNull().$type<Record<string, unknown>>(),
+    createdBy: integer('created_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    operationCheck: check(
+      'deal_pipeline_commands_operation_check',
+      sql`${table.operation} IN ('deal_create', 'deal_import')`
+    ),
+    keyNonemptyCheck: check(
+      'deal_pipeline_commands_key_nonempty_check',
+      sql`length(${table.idempotencyKey}) > 0`
+    ),
+    requestHashCheck: check(
+      'deal_pipeline_commands_request_hash_check',
+      sql`${table.requestHash} ~ '^[0-9a-f]{64}$'`
+    ),
+    responseObjectCheck: check(
+      'deal_pipeline_commands_response_object_check',
+      sql`jsonb_typeof(${table.responseBody}) = 'object'`
+    ),
+    scopeUnique: unique('deal_pipeline_commands_scope_unique').on(
+      table.fundId,
+      table.operation,
+      table.idempotencyKey
+    ),
+  })
+);
+
 export const pipelineStages = pgTable('pipeline_stages', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -561,6 +600,8 @@ export const insertFundSchema = createInsertSchema(funds).omit({
 export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({
   id: true,
   createdAt: true,
+  createIdempotencyKey: true,
+  createRequestHash: true,
 });
 
 export const insertInvestmentSchema = createInsertSchema(investments).omit({
@@ -666,7 +707,11 @@ export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
 export type InsertFund = typeof funds.$inferInsert;
-export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
+export type PortfolioCompanyRow = typeof portfolioCompanies.$inferSelect;
+export type PortfolioCompany = Omit<
+  PortfolioCompanyRow,
+  'createIdempotencyKey' | 'createRequestHash'
+>;
 export type InsertPortfolioCompany = typeof portfolioCompanies.$inferInsert;
 export type Investment = typeof investments.$inferSelect;
 export type InsertInvestment = typeof investments.$inferInsert;

@@ -5,8 +5,8 @@
  * Phase 2: Confirm import with skip_duplicates or import_all mode
  */
 
-import { useState, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import Papa from 'papaparse';
 import {
   Dialog,
@@ -19,8 +19,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useIdempotencyKey } from '@/hooks/useIdempotencyKey';
-import { apiRequest } from '@/lib/queryClient';
+import {
+  fundListRefreshedSince,
+  isUnknownCreateOutcome,
+  useIdempotencyKey,
+  type IdempotencyKeyScope,
+} from '@/hooks/useIdempotencyKey';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { useAuthSession } from '@/lib/auth-session';
+import { sha256Hash } from '@/lib/hash';
 import { parseMoney, parseIntSafe } from '@/utils/parse-helpers';
 import {
   Upload,
@@ -84,6 +91,11 @@ interface ImportResult {
 
 type Phase = 'upload' | 'preview' | 'done';
 
+const IMPORT_UNCERTAIN_MESSAGE =
+  'Import status is uncertain. Some deals may already be recorded. Retry with the same file and mode or discard this attempt after refreshing the list.';
+const IMPORT_ALREADY_RECORDED_MESSAGE =
+  'This import was already recorded. You can start a new intent.';
+
 function parseCSV(text: string): Record<string, unknown>[] {
   const result = Papa.parse<Record<string, string>>(text, {
     header: true,
@@ -123,16 +135,46 @@ function parseCSV(text: string): Record<string, unknown>[] {
   });
 }
 
+type ImportMode = 'skip_duplicates' | 'import_all';
+// The fund and actor are captured at submit and travel with the command, so a
+// scope change while the fingerprint hashes cannot move it to another key slot.
+type DealImportScope = IdempotencyKeyScope & { fundId: number | undefined };
+type ImportVariables = { mode: ImportMode; scope: DealImportScope };
+
 export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const idempotencyKey = useIdempotencyKey();
+  const { data: authSession } = useAuthSession();
+  const [uncertain, setUncertain] = useState(false);
+  // An uncertain command stays bound to the fund it was sent to until it
+  // settles, even if the page fund changes while the dialog is closed.
+  const [uncertainFundId, setUncertainFundId] = useState<number | undefined>(undefined);
+  const commandScope: DealImportScope = {
+    fundId: uncertain ? uncertainFundId : fundId,
+    operation: 'deal_import',
+    actorId: authSession?.user.id,
+  };
+  const idempotencyKey = useIdempotencyKey(commandScope);
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [phase, setPhase] = useState<Phase>('upload');
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [canDiscard, setCanDiscard] = useState(false);
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
+  const [lastImportMode, setLastImportMode] = useState<ImportMode>('skip_duplicates');
+
+  const invalidateDealLists = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] }),
+    ]);
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (idempotencyKey.restored) void invalidateDealLists();
+  }, [idempotencyKey.restored, invalidateDealLists]);
 
   const previewMutation = useMutation({
     mutationFn: async (rows: Record<string, unknown>[]) => {
@@ -156,24 +198,57 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   });
 
   const importMutation = useMutation({
-    mutationFn: async (mode: 'skip_duplicates' | 'import_all') => {
+    mutationFn: async ({ mode, scope }: ImportVariables) => {
       // Filter to only valid rows for import (server does its own validation too)
-      const payload = { rows: parsedRows, fundId, mode };
+      const payload = { rows: parsedRows, fundId: scope.fundId, mode };
+      const fingerprint = await sha256Hash(payload);
       return apiRequest<{ success: boolean; data: ImportResult }>(
         'POST',
         '/api/deals/opportunities/import',
         payload,
-        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(payload) } }
+        { headers: { 'Idempotency-Key': idempotencyKey.keyFor(fingerprint, scope) } }
       );
     },
-    onSuccess: (result) => {
-      idempotencyKey.reset();
+    onSuccess: (result, variables) => {
+      idempotencyKey.reset(variables.scope);
+      setUncertain(false);
+      setCanDiscard(false);
+      setAlreadyRecorded(false);
       setImportResult(result.data);
       setPhase('done');
-      queryClient.invalidateQueries({ queryKey: ['/api/deals/opportunities'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/deals/pipeline'] });
+      void invalidateDealLists();
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
+      if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.errorCode === 'IDEMPOTENCY_KEY_REUSE'
+      ) {
+        idempotencyKey.reset(variables.scope);
+        setUncertain(false);
+        setCanDiscard(false);
+        setAlreadyRecorded(true);
+        void invalidateDealLists();
+        return;
+      }
+
+      if (uncertain || isUnknownCreateOutcome(error)) {
+        setUncertainFundId(variables.scope.fundId);
+        setUncertain(true);
+        setAlreadyRecorded(false);
+        setCanDiscard(false);
+        const since = Date.now();
+        const submittedFundId = variables.scope.fundId;
+        // The pipeline list key ends with its fund.
+        const isSubmittedFundList = (key: QueryKey) =>
+          key[0] === '/api/deals/opportunities' &&
+          (key[key.length - 1] ?? undefined) === submittedFundId;
+        void invalidateDealLists().then(() =>
+          setCanDiscard(fundListRefreshedSince(queryClient, isSubmittedFundList, since))
+        );
+        return;
+      }
+
       toast({
         title: 'Import failed',
         description: error.message,
@@ -183,6 +258,7 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
   });
 
   const handleFileChange = (selectedFile: File) => {
+    if (uncertain) return;
     if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
       toast({
         title: 'Invalid file type',
@@ -239,13 +315,36 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
 
   const handleClose = () => {
     if (previewMutation.isPending || importMutation.isPending) return;
+    if (uncertain) {
+      onOpenChange(false);
+      return;
+    }
     setFile(null);
     setPreview(null);
     setParsedRows([]);
     setImportResult(null);
     setPhase('upload');
     setIsDragging(false);
+    setAlreadyRecorded(false);
     onOpenChange(false);
+  };
+
+  const startImport = (mode: ImportMode) => {
+    setLastImportMode(mode);
+    importMutation.mutate({ mode, scope: commandScope });
+  };
+
+  const discardAttempt = () => {
+    idempotencyKey.reset();
+    setUncertain(false);
+    setCanDiscard(false);
+    setAlreadyRecorded(false);
+    setFile(null);
+    setPreview(null);
+    setParsedRows([]);
+    setImportResult(null);
+    setPhase('upload');
+    setIsDragging(false);
   };
 
   const downloadTemplate = () => {
@@ -313,191 +412,222 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Template Download */}
-          {phase === 'upload' && (
-            <>
-              <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg border border-beige-200">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-success" />
-                  <span className="font-poppins text-sm text-charcoal-600">
-                    Download template CSV
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadTemplate}
-                  className="border-pov-beige"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Download
-                </Button>
-              </div>
+        {(idempotencyKey.restored || uncertain || alreadyRecorded) && (
+          <div aria-live="polite" className="space-y-2">
+            {idempotencyKey.restored && (
+              <Alert>
+                <AlertDescription>
+                  An earlier attempt may already be recorded. Re-upload the same file to retry it.
+                </AlertDescription>
+              </Alert>
+            )}
+            {uncertain && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{IMPORT_UNCERTAIN_MESSAGE}</AlertDescription>
+              </Alert>
+            )}
+            {alreadyRecorded && (
+              <Alert>
+                <AlertDescription>{IMPORT_ALREADY_RECORDED_MESSAGE}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
 
-              {/* Drop Zone */}
-              {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      document.getElementById('csv-upload')?.click();
-                    }
-                  }}
-                  aria-label="Drop CSV file here or press Enter to select file"
-                  className={cn(
-                    'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
-                    isDragging
-                      ? 'border-pov-charcoal bg-pov-charcoal/5'
-                      : 'border-pov-beige hover:border-pov-charcoal/50'
-                  )}
-                >
-                  <Upload className="h-10 w-10 text-charcoal-400 mx-auto mb-3" />
-                  <p className="font-inter font-medium text-pov-charcoal mb-1">
-                    Drop your CSV file here
-                  </p>
-                  <p className="font-poppins text-sm text-charcoal-500 mb-3">or click to browse</p>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
-                    className="hidden"
-                    id="csv-upload"
-                  />
+        <fieldset disabled={isPending || uncertain} className="min-w-0 space-y-4 border-0 p-0">
+          <div className="space-y-4">
+            {/* Template Download */}
+            {phase === 'upload' && (
+              <>
+                <div className="flex items-center justify-between p-3 bg-pov-gray rounded-lg border border-beige-200">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-success" />
+                    <span className="font-poppins text-sm text-charcoal-600">
+                      Download template CSV
+                    </span>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => document.getElementById('csv-upload')?.click()}
+                    size="sm"
+                    onClick={downloadTemplate}
                     className="border-pov-beige"
                   >
-                    Select File
+                    <Download className="h-4 w-4 mr-1" />
+                    Download
                   </Button>
                 </div>
-              ) : (
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileSpreadsheet className="h-5 w-5 text-success" />
-                      <span className="font-poppins font-medium text-sm">{file.name}</span>
-                      <span className="font-poppins text-xs text-charcoal-400">
-                        ({(file.size / 1024).toFixed(1)} KB)
-                      </span>
+
+                {/* Drop Zone */}
+                {!file ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        document.getElementById('csv-upload')?.click();
+                      }
+                    }}
+                    aria-label="Drop CSV file here or press Enter to select file"
+                    className={cn(
+                      'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
+                      isDragging
+                        ? 'border-pov-charcoal bg-pov-charcoal/5'
+                        : 'border-pov-beige hover:border-pov-charcoal/50'
+                    )}
+                  >
+                    <Upload className="h-10 w-10 text-charcoal-400 mx-auto mb-3" />
+                    <p className="font-inter font-medium text-pov-charcoal mb-1">
+                      Drop your CSV file here
+                    </p>
+                    <p className="font-poppins text-sm text-charcoal-500 mb-3">
+                      or click to browse
+                    </p>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
+                      className="hidden"
+                      id="csv-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('csv-upload')?.click()}
+                      className="border-pov-beige"
+                    >
+                      Select File
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet className="h-5 w-5 text-success" />
+                        <span className="font-poppins font-medium text-sm">{file.name}</span>
+                        <span className="font-poppins text-xs text-charcoal-400">
+                          ({(file.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      {previewMutation.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin text-pov-charcoal" />
+                      )}
                     </div>
-                    {previewMutation.isPending && (
-                      <Loader2 className="h-4 w-4 animate-spin text-pov-charcoal" />
+                  </div>
+                )}
+
+                <div className="text-xs text-charcoal-500 font-poppins space-y-1">
+                  <p>Required columns: companyName, sector, stage, sourceType</p>
+                  <p>
+                    Stage values: Pre-seed, Seed, Series A, Series B, Series C, Growth, Late Stage
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Preview Phase */}
+            {phase === 'preview' && preview && (
+              <div className="space-y-3">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-3 bg-pov-gray rounded-lg text-center">
+                    <p className="font-inter font-bold text-lg text-pov-charcoal">
+                      {preview.total}
+                    </p>
+                    <p className="font-poppins text-xs text-charcoal-500">Total rows</p>
+                  </div>
+                  <div className="p-3 bg-success/10 rounded-lg text-center">
+                    <p className="font-inter font-bold text-lg text-success-dark">
+                      {preview.toImport}
+                    </p>
+                    <p className="font-poppins text-xs text-success">Ready to import</p>
+                  </div>
+                  <div className="p-3 bg-warning/10 rounded-lg text-center">
+                    <p className="font-inter font-bold text-lg text-warning-dark">
+                      {preview.duplicates}
+                    </p>
+                    <p className="font-poppins text-xs text-warning">Duplicates</p>
+                  </div>
+                </div>
+
+                {/* Invalid Rows */}
+                {preview.invalid > 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {preview.invalid} row{preview.invalid > 1 ? 's' : ''} have validation errors
+                      and will be skipped.
+                      {preview.invalidRows.slice(0, 3).map((r) => (
+                        <div key={r.index} className="text-xs mt-1">
+                          Row {r.index + 2}: {r.errors.join('; ')}
+                        </div>
+                      ))}
+                      {preview.invalidRows.length > 3 && (
+                        <div className="text-xs mt-1">
+                          ...and {preview.invalidRows.length - 3} more
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Duplicate Warning */}
+                {preview.duplicates > 0 && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {preview.duplicates} deal{preview.duplicates > 1 ? 's' : ''} already exist:{' '}
+                      {preview.duplicateRows
+                        .slice(0, 5)
+                        .map((d) => d.companyName)
+                        .join(', ')}
+                      {preview.duplicateRows.length > 5 &&
+                        ` ...and ${preview.duplicateRows.length - 5} more`}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {preview.toImport === 0 && preview.duplicates === 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No valid rows to import. Fix the CSV and try again.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {/* Done Phase */}
+            {phase === 'done' && importResult && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-4 bg-success/10 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <div>
+                    <p className="font-inter font-semibold text-success-dark">
+                      {importResult.imported} deal{importResult.imported !== 1 ? 's' : ''} imported
+                    </p>
+                    {importResult.skipped > 0 && (
+                      <p className="font-poppins text-xs text-success">
+                        {importResult.skipped} duplicates skipped
+                      </p>
+                    )}
+                    {importResult.failed > 0 && (
+                      <p className="font-poppins text-xs text-error">
+                        {importResult.failed} failed
+                      </p>
                     )}
                   </div>
                 </div>
-              )}
-
-              <div className="text-xs text-charcoal-500 font-poppins space-y-1">
-                <p>Required columns: companyName, sector, stage, sourceType</p>
-                <p>
-                  Stage values: Pre-seed, Seed, Series A, Series B, Series C, Growth, Late Stage
-                </p>
               </div>
-            </>
-          )}
-
-          {/* Preview Phase */}
-          {phase === 'preview' && preview && (
-            <div className="space-y-3">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-3 bg-pov-gray rounded-lg text-center">
-                  <p className="font-inter font-bold text-lg text-pov-charcoal">{preview.total}</p>
-                  <p className="font-poppins text-xs text-charcoal-500">Total rows</p>
-                </div>
-                <div className="p-3 bg-success/10 rounded-lg text-center">
-                  <p className="font-inter font-bold text-lg text-success-dark">
-                    {preview.toImport}
-                  </p>
-                  <p className="font-poppins text-xs text-success">Ready to import</p>
-                </div>
-                <div className="p-3 bg-warning/10 rounded-lg text-center">
-                  <p className="font-inter font-bold text-lg text-warning-dark">
-                    {preview.duplicates}
-                  </p>
-                  <p className="font-poppins text-xs text-warning">Duplicates</p>
-                </div>
-              </div>
-
-              {/* Invalid Rows */}
-              {preview.invalid > 0 && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {preview.invalid} row{preview.invalid > 1 ? 's' : ''} have validation errors and
-                    will be skipped.
-                    {preview.invalidRows.slice(0, 3).map((r) => (
-                      <div key={r.index} className="text-xs mt-1">
-                        Row {r.index + 2}: {r.errors.join('; ')}
-                      </div>
-                    ))}
-                    {preview.invalidRows.length > 3 && (
-                      <div className="text-xs mt-1">
-                        ...and {preview.invalidRows.length - 3} more
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Duplicate Warning */}
-              {preview.duplicates > 0 && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    {preview.duplicates} deal{preview.duplicates > 1 ? 's' : ''} already exist:{' '}
-                    {preview.duplicateRows
-                      .slice(0, 5)
-                      .map((d) => d.companyName)
-                      .join(', ')}
-                    {preview.duplicateRows.length > 5 &&
-                      ` ...and ${preview.duplicateRows.length - 5} more`}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {preview.toImport === 0 && preview.duplicates === 0 && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    No valid rows to import. Fix the CSV and try again.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
-
-          {/* Done Phase */}
-          {phase === 'done' && importResult && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 p-4 bg-success/10 rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-success" />
-                <div>
-                  <p className="font-inter font-semibold text-success-dark">
-                    {importResult.imported} deal{importResult.imported !== 1 ? 's' : ''} imported
-                  </p>
-                  {importResult.skipped > 0 && (
-                    <p className="font-poppins text-xs text-success">
-                      {importResult.skipped} duplicates skipped
-                    </p>
-                  )}
-                  {importResult.failed > 0 && (
-                    <p className="font-poppins text-xs text-error">{importResult.failed} failed</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </fieldset>
 
         <DialogFooter>
           {phase === 'upload' && (
@@ -522,15 +652,20 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                   setParsedRows([]);
                   setPhase('upload');
                 }}
-                disabled={isPending}
+                disabled={isPending || uncertain}
                 className="border-pov-beige"
               >
                 Back
               </Button>
-              {preview.toImport > 0 && (
+              {/* A committed import whose response was lost previews every row as a
+                  duplicate; the same command must still replay its receipt.
+                  ponytail: a different zero-row file after restore mints a fresh key
+                  and imports nothing; bind the restored command to its file if that
+                  ever confuses users. */}
+              {(preview.toImport > 0 || uncertain || idempotencyKey.restored) && (
                 <Button
                   type="button"
-                  onClick={() => importMutation.mutate('skip_duplicates')}
+                  onClick={() => startImport(uncertain ? lastImportMode : 'skip_duplicates')}
                   disabled={isPending}
                   className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white"
                 >
@@ -539,6 +674,8 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Importing...
                     </>
+                  ) : uncertain || preview.toImport === 0 ? (
+                    'Retry import'
                   ) : (
                     `Import ${preview.toImport} deal${preview.toImport !== 1 ? 's' : ''}`
                   )}
@@ -554,6 +691,11 @@ export function ImportDealsModal({ open, onOpenChange, fundId }: ImportDealsModa
               className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white"
             >
               Done
+            </Button>
+          )}
+          {uncertain && canDiscard && (
+            <Button type="button" variant="outline" onClick={discardAttempt}>
+              Discard attempt
             </Button>
           )}
         </DialogFooter>

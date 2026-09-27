@@ -207,6 +207,10 @@ const CURRENT_FORECAST_RECOMPUTE_COMMAND_MANIFEST_TABLES = [
 ] as const;
 const TASK_UPDATE_COMMAND_MANIFEST_TABLES = ['task_update_commands'] as const;
 const FUND_WORKFLOW_COMMAND_MANIFEST_TABLES = ['fundconfigs', 'fund_workflow_commands'] as const;
+const DURABLE_CREATE_RECEIPT_MANIFEST_TABLES = [
+  'portfoliocompanies',
+  'deal_pipeline_commands',
+] as const;
 const ACTUALS_MANIFEST_TABLES = [
   'actuals_draft_revisions',
   'actuals_restatement_commands',
@@ -250,6 +254,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'capital-plan-override',
   'task-update-commands',
   'fund-workflow-commands',
+  'durable-create-receipts',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -904,6 +909,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...CURRENT_FORECAST_RECOMPUTE_COMMAND_MANIFEST_TABLES,
         ...TASK_UPDATE_COMMAND_MANIFEST_TABLES,
         ...FUND_WORKFLOW_COMMAND_MANIFEST_TABLES,
+        ...DURABLE_CREATE_RECEIPT_MANIFEST_TABLES,
         ...ACTUALS_MANIFEST_TABLES,
         'fund_scenario_variants',
       ])

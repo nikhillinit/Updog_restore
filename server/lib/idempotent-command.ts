@@ -1,4 +1,6 @@
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
+import type { Response } from 'express';
+import { sendApiError } from './apiError';
 
 export class IdempotentCommandError extends Error {
   constructor(
@@ -10,6 +12,35 @@ export class IdempotentCommandError extends Error {
     super(message);
     this.name = 'IdempotentCommandError';
   }
+}
+
+/** Lock timeout, deadlock, or serialization failure anywhere in the cause chain. */
+export function retryableCommandErrorCode(error: unknown): '55P03' | '40P01' | '40001' | null {
+  let cause = error;
+  while (cause && typeof cause === 'object') {
+    if ('code' in cause) {
+      const code = String(cause.code);
+      if (code === '55P03' || code === '40P01' || code === '40001') return code;
+    }
+    cause = 'cause' in cause ? cause.cause : undefined;
+  }
+  return null;
+}
+
+export function sendIdempotentCommandLockError(
+  res: Response,
+  error: unknown,
+  message = 'Retry the same fund command'
+): boolean {
+  const code = retryableCommandErrorCode(error);
+  if (code === null) return false;
+  const locked = code === '55P03';
+  res.setHeader('Retry-After', '2');
+  sendApiError(res, locked ? 409 : 503, {
+    error: message,
+    code: locked ? 'REQUEST_IN_PROGRESS' : 'COMMAND_RETRY_REQUIRED',
+  });
+  return true;
 }
 
 export interface IdempotentCommandReplayOptions<TRow> {

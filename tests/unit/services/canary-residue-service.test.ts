@@ -122,6 +122,7 @@ describe('canary residue group descriptor', () => {
         'portfolio_company_update_receipts',
         'fund_scenario_calculation_commands',
         'fund_workflow_commands',
+        'deal_pipeline_commands',
         'fund_scenario_sets',
         'fund_scenario_variants',
         'fund_scenario_set_events',

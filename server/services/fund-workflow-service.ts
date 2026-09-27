@@ -13,6 +13,7 @@ import {
 } from '@shared/contracts/fund-workflow-v1.contract';
 import { strongETag } from '../lib/http-preconditions';
 import { sendApiError } from '../lib/apiError';
+import { sendIdempotentCommandLockError } from '../lib/idempotent-command';
 import { CanaryResiduePreflightError, checkCanaryWorkflowResidue } from './canary-residue-service';
 
 export class FundWorkflowError extends Error {
@@ -256,18 +257,5 @@ export function sendFundWorkflowError(res: Response, error: unknown): boolean {
     });
     return true;
   }
-  let cause = error;
-  while (cause && typeof cause === 'object') {
-    if ('code' in cause && ['55P03', '40P01', '40001'].includes(String(cause.code))) {
-      const locked = cause.code === '55P03';
-      res.setHeader('Retry-After', '2');
-      sendApiError(res, locked ? 409 : 503, {
-        error: 'Retry the same fund command',
-        code: locked ? 'REQUEST_IN_PROGRESS' : 'COMMAND_RETRY_REQUIRED',
-      });
-      return true;
-    }
-    cause = 'cause' in cause ? cause.cause : undefined;
-  }
-  return false;
+  return sendIdempotentCommandLockError(res, error);
 }

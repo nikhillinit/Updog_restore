@@ -53,6 +53,13 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/imports/actuals/dry-run'],
     ['POST', '/api/funds/1/imports/actuals/dry-run/'],
     ['POST', '/api/FUNDS/1/IMPORTS/ACTUALS/PUBLISH/?mode=queue#receipt'],
+    // F_1.17.0 PR 1b: durable create receipts replace the Redis replay window.
+    ['POST', '/api/deals/opportunities'],
+    ['POST', '/api/DEALS/OPPORTUNITIES/?source=modal#receipt'],
+    ['POST', '/api/deals/opportunities/import'],
+    ['POST', '/api/deals/opportunities/import/'],
+    ['POST', '/api/portfolio-companies'],
+    ['POST', '/api/PORTFOLIO-COMPANIES/?source=dialog'],
   ])('matches %s %s', (method, path) => {
     expect(isDatabaseBackedIdempotencyRoute(method, path)).toBe(true);
   });
@@ -66,6 +73,10 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/publish//'],
     ['GET', '/api/funds/1/tasks/2'],
     ['PUT', '/api/funds/1/tasks/2'],
+    ['POST', '/api/deals/opportunities/import/preview'],
+    ['POST', '/api/deals/opportunities/bulk/status'],
+    ['PUT', '/api/deals/opportunities/1'],
+    ['POST', '/api/portfolio-companies/1'],
     ['patch', '/api/funds/1/tasks/2'],
     ['PATCH', '/api/funds/1/tasks'],
     ['PATCH', '/api/funds/1/tasks/2/evidence-links'],

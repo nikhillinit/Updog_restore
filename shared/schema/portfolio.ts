@@ -20,6 +20,7 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
 
 // Import funds for FK references
@@ -62,9 +63,22 @@ export const portfolioCompanies = pgTable(
     lastAllocationAt: timestamp('last_allocation_at', { withTimezone: true }),
     allocationVersion: integer('allocation_version').default(1).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    createIdempotencyKey: varchar('create_idempotency_key', { length: 128 }),
+    createRequestHash: varchar('create_request_hash', { length: 64 }),
   },
   (table) => ({
     idFundUnique: unique('portfoliocompanies_id_fund_unique').on(table.id, table.fundId),
+    createIdempotencyUnique: uniqueIndex('portfoliocompanies_fund_create_idempotency_unique')
+      .on(table.fundId, table.createIdempotencyKey)
+      .where(sql`${table.createIdempotencyKey} IS NOT NULL`),
+    createReceiptPairCheck: check(
+      'portfoliocompanies_create_receipt_pair_check',
+      sql`(${table.createIdempotencyKey} IS NULL) = (${table.createRequestHash} IS NULL)`
+    ),
+    createRequestHashCheck: check(
+      'portfoliocompanies_create_request_hash_check',
+      sql`${table.createRequestHash} IS NULL OR ${table.createRequestHash} ~ '^[0-9a-f]{64}$'`
+    ),
     exitProbabilityCheck: check(
       'portfoliocompanies_exit_probability_check',
       sql`${table.exitProbability} IS NULL OR (${table.exitProbability} >= 0 AND ${table.exitProbability} <= 1)`
@@ -202,7 +216,11 @@ export const investmentLotsRelations = relations(investmentLots, ({ one }) => ({
 // TYPES
 // ============================================================================
 
-export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
+export type PortfolioCompanyRow = typeof portfolioCompanies.$inferSelect;
+export type PortfolioCompany = Omit<
+  PortfolioCompanyRow,
+  'createIdempotencyKey' | 'createRequestHash'
+>;
 export type NewPortfolioCompany = typeof portfolioCompanies.$inferInsert;
 export type Investment = typeof investments.$inferSelect;
 export type NewInvestment = typeof investments.$inferInsert;

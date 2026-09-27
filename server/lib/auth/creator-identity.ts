@@ -2,11 +2,7 @@ import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { getUserFundGrants } from './credentials';
-import {
-  getConfiguredJwtAlgorithm,
-  signBrowserSessionToken,
-  signToken,
-} from './jwt';
+import { getConfiguredJwtAlgorithm, signBrowserSessionToken, signToken } from './jwt';
 import { setBrowserSessionCookies } from './csrf';
 
 function numericIdentity(value: unknown): number | undefined {
@@ -28,6 +24,17 @@ export function creatorUserIdFromRequest(req: Request): number | undefined {
     numericIdentity(req.user?.sub) ??
     numericIdentity(req.context?.userId)
   );
+}
+
+/**
+ * Stable verified subject for idempotency request hashes. Unlike
+ * creatorUserIdFromRequest it keeps non-numeric subjects distinct, so two
+ * actors never share one receipt identity.
+ */
+export function actorSubjectFromRequest(req: Request): string | null {
+  const subject =
+    req.authCredential?.claims.sub ?? req.user?.sub ?? req.user?.id ?? req.context?.userId;
+  return subject === undefined || subject === null || subject === '' ? null : String(subject);
 }
 
 function claimsRenewedForFund(
