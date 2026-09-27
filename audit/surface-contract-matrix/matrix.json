@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "6663fcf32586dbffc8836d4ebeb04d387b089ca5",
-    "snapshot_id": "snapshot:21c2890d6a4fae6ee85ac5f7a3cac50e6e3326fb4ee1f2bc974301bc10f6d165"
+    "git_head": "0cf59c0190536e77afab4bec99b2c631091f6890",
+    "snapshot_id": "snapshot:86aafe9c2eb2c24bbdebe68b0b2f02e12adeb6f03aa4e67b736c9b7b3ba6a37d"
   },
   "rows": [
     {
@@ -2202,9 +2202,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:74",
+            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:77",
             "assertion_confirmed": false,
-            "test_file_sha256": "e98ffe2087484e2092382ff8781ecbcf3ffbeab11906084ca57593ba8ace0764"
+            "test_file_sha256": "d98fcedc8a060d763b5bfcd3b96cbb7ba01f3bbacd65ed482730116930ff015c"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2771,9 +2771,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:74",
+            "assertion_evidence": "tests/integration/deal-import-savepoints.pg.test.ts:77",
             "assertion_confirmed": false,
-            "test_file_sha256": "e98ffe2087484e2092382ff8781ecbcf3ffbeab11906084ca57593ba8ace0764"
+            "test_file_sha256": "d98fcedc8a060d763b5bfcd3b96cbb7ba01f3bbacd65ed482730116930ff015c"
           },
           {
             "row": "api:GET:/api-docs.json",
@@ -47818,7 +47818,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:GET:/api/portfolio-companies",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:GET:/api/portfolio-companies",
@@ -47845,7 +47854,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:GET:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:GET:/api/portfolio-companies",
@@ -47872,18 +47890,10 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "approved",
+      "decision_status": "proposed",
       "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-      "approved_source_hashes": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
+      "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -48140,7 +48150,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:GET:/api/portfolio-companies/:id",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:GET:/api/portfolio-companies/:id",
@@ -48167,7 +48186,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:GET:/api/portfolio-companies/:id",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:GET:/api/portfolio-companies/:id",
@@ -48194,18 +48222,10 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "approved",
+      "decision_status": "proposed",
       "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-      "approved_source_hashes": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
+      "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -57206,7 +57226,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:PATCH:/api/portfolio-companies/:id",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:PATCH:/api/portfolio-companies/:id",
@@ -57233,7 +57262,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:PATCH:/api/portfolio-companies/:id",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:PATCH:/api/portfolio-companies/:id",
@@ -57250,18 +57288,10 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "approved",
+      "decision_status": "proposed",
       "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-      "approved_source_hashes": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
+      "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -99095,7 +99125,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:POST:/api/portfolio-companies",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:POST:/api/portfolio-companies",
@@ -99122,7 +99161,16 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/portfolio-companies-idempotency.test.ts:60",
             "assertion_confirmed": false,
-            "test_file_sha256": "3c732cdd14824f6579c674559c7a243ce9e51f635c450888aef4feedfe70a158"
+            "test_file_sha256": "f72077f7d6b716dad1e4eabb4ab80e35c6d15d2b51cbe0fdee015d947a63d493"
+          },
+          {
+            "row": "api:POST:/api/portfolio-companies",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/portfolio-companies-memory-idempotency.test.ts:15",
+            "assertion_confirmed": false,
+            "test_file_sha256": "31196f1027fdce7d78a422a2ad71f480d371fe0707eda74099b72187fab8bc33"
           },
           {
             "row": "api:POST:/api/portfolio-companies",
@@ -99149,18 +99197,10 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "approved",
+      "decision_status": "proposed",
       "decision_evidence": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5",
       "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-      "approved_source_hashes": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
+      "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "gp-team",
         "personas": [
@@ -116203,47 +116243,6 @@
         "api:POST:/api/portfolio/strategies",
         "api:PUT:/api/portfolio/strategies/:id"
       ]
-    }
-  },
-  "validation": {
-    "passed": true,
-    "kg": {
-      "snapshot_id": "snapshot:97221c7409143a20f92c64b6c40b0f6d48b6105781f3574f92e56b2234d84431",
-      "counts": {
-        "APIEndpoint": 413,
-        "ClientRoute": 44,
-        "WorkerJob": 7
-      }
-    },
-    "scheduler_registrations": [
-      {
-        "id": "varianceAlertAutomationService",
-        "site": "server/routes.ts:60"
-      },
-      {
-        "id": "artifactRetentionService",
-        "site": "server/routes.ts:62"
-      },
-      {
-        "id": "internalAnalysisCheckpointService",
-        "site": "server/routes.ts:64"
-      }
-    ],
-    "discovery": {
-      "listener_candidates": 13,
-      "dormant_candidates": 29,
-      "bullmq_constructors": 16
-    },
-    "requirement_match_counts": {
-      "current-forecast-commands": 7,
-      "fee-catch-up-ui": 1,
-      "subannual-flow-fee": 3,
-      "cashless-gp-lp-class": 2,
-      "wave-h": 1,
-      "wp-l4": 0,
-      "kpi-manager": 7,
-      "pages-v2": 8,
-      "docker-only": 60
     }
   }
 }
