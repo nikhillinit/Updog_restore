@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0.0",
-  "review_id": "f1170-pr1b-durable-create-receipts-scoped-review-2026-09-26",
-  "snapshot_id": "snapshot:21c2890d6a4fae6ee85ac5f7a3cac50e6e3326fb4ee1f2bc974301bc10f6d165",
+  "review_id": "f1170-pr1b-round6-memory-company-create-scoped-review-2026-09-26",
+  "snapshot_id": "snapshot:86aafe9c2eb2c24bbdebe68b0b2f02e12adeb6f03aa4e67b736c9b7b3ba6a37d",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "424859790fb5babac442061c4d5c155dada43ff3686aa04463b8cb181802b27e",
+    "audit/surface-contract-matrix/boot-proofs.json": "bb45b7a72a4809d1ed9bf4d0d6269b4991b39028f0e531d1531b8feab7d447e1",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
@@ -121,7 +121,7 @@
     "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",
     "server/routes/performance-metrics.ts": "262cf4d5e8d27d5377915735a234e48c6ef7b621564ea89f8aed621318c67f69",
     "server/routes/planning-fmv-overrides.ts": "9e77f4b580947d45bf60a0f5be2f28e11ec94563d8d94dabd59350405e77117d",
-    "server/routes/portfolio-companies.ts": "369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+    "server/routes/portfolio-companies.ts": "9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
     "server/routes/portfolio-intelligence.ts": "cf347e7d5f1c095e2b7a570954e8375327851fbb93ae07cc423b2047d1fd4b53",
     "server/routes/portfolio-optimization.ts": "b74e2e018452309cdad43349067191c1d83b6ba4becadac69ed6c9b3f44cb07b",
     "server/routes/portfolio-overview.ts": "ab7b5fc47c98f99d037cada18ecc7345189b320418e48b7b9939d09339bce34c",
@@ -176,150 +176,6 @@
     "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
   },
   "rows": {
-    "api:DELETE:/api/deals/opportunities/:id": {
-      "row_id": "api:DELETE:/api/deals/opportunities/:id",
-      "contract_fingerprint": "644f6c90711c4a0c66a28cc6557f78cba4e2e475d3051b654a4043d20da27cb6",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:GET:/api/deals/:id/diligence": {
-      "row_id": "api:GET:/api/deals/:id/diligence",
-      "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5f37e5b92f9b3f70671ab833598ee8e714abfc69d198623e4dfcb78d038c4a59",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
-        }
-      }
-    },
-    "api:GET:/api/deals/opportunities": {
-      "row_id": "api:GET:/api/deals/opportunities",
-      "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "21f89470c0b21df6cdc3138ecb9bd17fe203bb3a6bedfdd64642f016d4efedfb",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
-        }
-      }
-    },
-    "api:GET:/api/deals/opportunities/:id": {
-      "row_id": "api:GET:/api/deals/opportunities/:id",
-      "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a9cdce6506ec38ff5144e4f99cbeeb9b0553b757c27c4b85891a519b58080c0",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
-        }
-      }
-    },
-    "api:GET:/api/deals/pipeline": {
-      "row_id": "api:GET:/api/deals/pipeline",
-      "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "853ed7cca3a016bc4ae75a43828390d3399bbf8fd4ec9fcba72b8d0eef2d3e3a",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
-        }
-      }
-    },
-    "api:GET:/api/deals/stages": {
-      "row_id": "api:GET:/api/deals/stages",
-      "contract_fingerprint": "96b08903c7450dea52877d3ddb2e025329a5c1d11dc1201f6e8d8011a8ceb799",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
     "api:GET:/api/portfolio-companies": {
       "row_id": "api:GET:/api/portfolio-companies",
       "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
@@ -328,7 +184,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -339,7 +195,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "67ff64e375085b4c0b22037bd6bc02ff4ce57c8cc27d79af59511d41f7ec68a3",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -366,7 +222,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -377,7 +233,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "fe9241c4ea17ae6d02de10a2e4a4762a2f585e9920bc1cab6b840efaf485af02",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -404,7 +260,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -415,180 +271,12 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "151cfcba5551eeb55a6b7fae8244eb307f397d036e34b7da833d7dd8c8ae4386",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
-        }
-      }
-    },
-    "api:POST:/api/deals/:id/diligence": {
-      "row_id": "api:POST:/api/deals/:id/diligence",
-      "contract_fingerprint": "1072a26961c05ebc9a6a5156d35235566bf1fb64a3ca16425f0a244fd09643be",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:POST:/api/deals/:id/stage": {
-      "row_id": "api:POST:/api/deals/:id/stage",
-      "contract_fingerprint": "96530ef1f96a86c70a8cf82641489395add752953fc8d7ccc5e32423fedb350a",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:POST:/api/deals/opportunities": {
-      "row_id": "api:POST:/api/deals/opportunities",
-      "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "confirmed",
-          "contract_fingerprint": "069c89234e559a1d8a1bae5d15f2e3a446e705cbd065cbf3303d140ef144749c",
-          "test_evidence": [
-            {
-              "row": "api:POST:/api/deals/opportunities",
-              "deployment": "vercel-api",
-              "runtime": "make_app",
-              "layer": "integration",
-              "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:204 makeApp with a signed admin JWT against migrated PostgreSQL: a lost acknowledgment replays 200 with Idempotency-Replay and the identical body from the immutable deal_pipeline_commands receipt, one deal, one activity, one receipt; a changed payload under the same key returns 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original; a lock-timed-out create returns 409 REQUEST_IN_PROGRESS with Retry-After and rolls back with no receipt, then the same key creates once (:406); a 129-character key returns 400 (:423); a SHARE-mode barrier race yields one mutation (:434); receipt UPDATE is rejected (:485).",
-              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
-            }
-          ]
-        }
-      }
-    },
-    "api:POST:/api/deals/opportunities/bulk/archive": {
-      "row_id": "api:POST:/api/deals/opportunities/bulk/archive",
-      "contract_fingerprint": "e0f7375c6793fae88d80016cb4c39415b7b460253a2a3f07a2de6987569ab7f2",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:POST:/api/deals/opportunities/bulk/status": {
-      "row_id": "api:POST:/api/deals/opportunities/bulk/status",
-      "contract_fingerprint": "a6a889c96db15bb8d733c5e265dcffaa1ed19087d63250c6eec815ea5892c980",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      }
-    },
-    "api:POST:/api/deals/opportunities/import": {
-      "row_id": "api:POST:/api/deals/opportunities/import",
-      "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "confirmed",
-          "contract_fingerprint": "f03ee051b14a893a69d47fe9a60def08850800dad763b00d65bd82f006addf22",
-          "test_evidence": [
-            {
-              "row": "api:POST:/api/deals/opportunities/import",
-              "deployment": "vercel-api",
-              "runtime": "make_app",
-              "layer": "integration",
-              "assertion_confirmed": true,
-              "assertion_evidence": "tests/integration/pipeline-create-commands.pg.test.ts:222 makeApp against migrated PostgreSQL: an import with one overflowing row stores and replays sanitized failedRows ({ index, message: 'Insert failed', code: '22003' }) with no SQL or parameter text, commits the good row once, and a same-key retry replays the identical summary; changed rows under the same key return 409 IDEMPOTENCY_KEY_REUSE (:311); (:371) another actor's same-key same-body request returns the exact IDEMPOTENCY_KEY_REUSE body and the same subject with its write grant revoked returns the exact WRITE_ROLE_REQUIRED body, neither with a replay header or the original payload, with deal, activity, company, and receipt counts unchanged, and the authorized retry replays the original.",
-              "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
-            }
-          ]
-        }
-      }
-    },
-    "api:POST:/api/deals/opportunities/import/preview": {
-      "row_id": "api:POST:/api/deals/opportunities/import/preview",
-      "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3a7e3d935129b9483af19db2a21a4caaa3b5cb8da85c59e91c0ef36e5e799008",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     },
@@ -600,7 +288,7 @@
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/portfolio-companies.ts=369feff1f0c7492f72241f36051cbef079e0fd1aa0116f6e471a6a41d1f5d4a1",
+        "server/routes/portfolio-companies.ts=9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
         "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -611,7 +299,7 @@
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
           "contract_fingerprint": "4e0d6933f525ca348c3febc95a400bf73079883dd05ec0978d1991527313aad7",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
+          "evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890): route source changed only by removing the memory-mode branch of POST /api/portfolio-companies; memory mode now takes the process-local receipt in createPortfolioCompanyWithReceipt (server/storage.ts), and this handler is otherwise unchanged from the round-5 approval; no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; memory-mode create replay, IDEMPOTENCY_KEY_REUSE, and single-row creation on the real router and MemStorage in tests/unit/routes/portfolio-companies-memory-idempotency.test.ts; prior coverage was none-reviewed."
         },
         "vercel-api|make_app": {
           "test_coverage": "confirmed",
@@ -627,34 +315,6 @@
               "test_file_sha256": "faf403920abe76e80b286f268249b98d872261d7ba1a65f68c9e70b158bc27f3"
             }
           ]
-        }
-      }
-    },
-    "api:PUT:/api/deals/opportunities/:id": {
-      "row_id": "api:PUT:/api/deals/opportunities/:id",
-      "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-      "source_fingerprints": [
-        "server/app.ts=5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
-        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
-        "server/server.ts=27eadf737b45553b34a69ddfa9e80a5f147a2566cec956d75767e9db48a6185c",
-        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
-      ],
-      "reviewed_fields": {
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); no test drives this row through createServer; router-level contracts in tests/unit/routes/deal-pipeline.contract.test.ts and tests/unit/routes/portfolio-companies-idempotency.test.ts; prior coverage was none-reviewed."
-        },
-        "vercel-api|make_app": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4bf82b73c0bdd3c07189c30b1927116cb16ffc9dfa620d7f62ea3215861b5df4",
-          "evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5): route source changed for durable create receipts (database-backed create/import/company create, shared key header, lock mapping, generic 500s); behavior unchanged for this row; router contract tests remain the evidence; prior coverage was none-reviewed."
         }
       }
     }
@@ -728,11 +388,11 @@
         "candidate_path": "Dockerfile.railway",
         "disposition": "non-product-tooling",
         "decision_status": "approved",
-        "decision_evidence": "F_1.17.0 PR 1b (source 6663fcf32586dbffc8836d4ebeb04d387b089ca5); Dockerfile.railway unchanged (same listener fingerprint as the F_1.17.0 PR 1 approval); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, excluded from production topology (ADR-080); historical G1 closure unchanged",
+        "decision_evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890); Dockerfile.railway unchanged (same listener fingerprint as the F_1.17.0 PR 1 approval); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, excluded from production topology (ADR-080); historical G1 closure unchanged",
         "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4"
       }
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "owner-attestation:f1170-pr1b:2026-09-26:commit=6663fcf32586dbffc8836d4ebeb04d387b089ca5"
+  "evidence_ref": "owner-attestation:f1170-pr1b-r6:2026-09-26:commit=0cf59c0190536e77afab4bec99b2c631091f6890"
 }
