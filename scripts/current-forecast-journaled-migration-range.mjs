@@ -413,8 +413,8 @@ export function assertCurrentForecastRawMigrationSafeCatalog({
   }
 }
 
-export async function createCurrentForecastMigrationFolder({ migrationsDir }) {
-  const entries = await loadCurrentForecastMigrationRange({ migrationsDir });
+export async function createCurrentForecastMigrationFolder({ migrationsDir, entries }) {
+  const migrationEntries = entries ?? (await loadCurrentForecastMigrationRange({ migrationsDir }));
   const sourceJournal = JSON.parse(
     await readFile(path.join(migrationsDir, 'meta', '_journal.json'), 'utf8')
   );
@@ -428,7 +428,7 @@ export async function createCurrentForecastMigrationFolder({ migrationsDir }) {
         {
           version: sourceJournal.version,
           dialect: sourceJournal.dialect,
-          entries: entries.map(({ hash, ...entry }) => {
+          entries: migrationEntries.map(({ hash, ...entry }) => {
             void hash;
             return entry;
           }),
@@ -438,7 +438,7 @@ export async function createCurrentForecastMigrationFolder({ migrationsDir }) {
       )}\n`
     );
     await Promise.all(
-      CURRENT_FORECAST_MIGRATION_TAGS.map((tag) =>
+      migrationEntries.map(({ tag }) =>
         copyFile(path.join(migrationsDir, `${tag}.sql`), path.join(directory, `${tag}.sql`))
       )
     );

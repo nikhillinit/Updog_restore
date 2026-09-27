@@ -90,35 +90,7 @@ export async function runCurrentForecastJournaledMigrationRecovery({
       targetEntries,
     });
     if (preState.baselineKind === 'adr074-reconciled') {
-      const baselineManifests = allManifests.filter(({ order }) => order >= 1 && order <= 26);
-      if (
-        baselineManifests.length !== 26 ||
-        baselineManifests.some(({ order }, index) => order !== index + 1)
-      ) {
-        throw new CurrentForecastMigrationError('ADR-074 baseline catalog requires manifests 1-26');
-      }
-      const { audits } = await auditTargetManifests(client, baselineManifests);
-      if (
-        !Array.isArray(audits) ||
-        audits.length !== 26 ||
-        audits.some(
-          (audit, index) =>
-            audit.manifest !== baselineManifests[index].name ||
-            audit.action !== 'SKIP' ||
-            !Array.isArray(audit.objects) ||
-            audit.objects.some(
-              (object) =>
-                object.action !== 'SKIP' ||
-                !Array.isArray(object.deltas) ||
-                object.deltas.length !== 0
-            )
-        )
-      ) {
-        throw new CurrentForecastMigrationError(
-          'Unsafe ADR-074 baseline catalog; every manifest must be SKIP without object deltas'
-        );
-      }
-      writeSummary({ stdout, label: 'baseline', state: preState, audits });
+      await assertAdr074BaselineCatalog({ client, allManifests, preState, stdout });
     }
     const preAudit = await auditTargetManifests(client, manifests);
     assertCurrentForecastRawMigrationSafeCatalog({
@@ -211,6 +183,36 @@ export async function readCurrentForecastSentinelCatalog(client) {
     });
   }
   return catalog;
+}
+
+export async function assertAdr074BaselineCatalog({ client, allManifests, preState, stdout }) {
+  const baselineManifests = allManifests.filter(({ order }) => order >= 1 && order <= 26);
+  if (
+    baselineManifests.length !== 26 ||
+    baselineManifests.some(({ order }, index) => order !== index + 1)
+  ) {
+    throw new CurrentForecastMigrationError('ADR-074 baseline catalog requires manifests 1-26');
+  }
+  const { audits } = await auditTargetManifests(client, baselineManifests);
+  if (
+    !Array.isArray(audits) ||
+    audits.length !== 26 ||
+    audits.some(
+      (audit, index) =>
+        audit.manifest !== baselineManifests[index].name ||
+        audit.action !== 'SKIP' ||
+        !Array.isArray(audit.objects) ||
+        audit.objects.some(
+          (object) =>
+            object.action !== 'SKIP' || !Array.isArray(object.deltas) || object.deltas.length !== 0
+        )
+    )
+  ) {
+    throw new CurrentForecastMigrationError(
+      'Unsafe ADR-074 baseline catalog; every manifest must be SKIP without object deltas'
+    );
+  }
+  writeSummary({ stdout, label: 'baseline', state: preState, audits });
 }
 
 function auditTargetManifests(client, manifests) {
