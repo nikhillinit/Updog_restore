@@ -67,11 +67,20 @@ type PortfolioCompanyCreateInput = Omit<
   'createIdempotencyKey' | 'createRequestHash'
 > & { fundId: number };
 
+// ponytail: process-local receipts; memory mode is single-process and never durable.
+const memoryCompanyCreates = new Map<
+  string,
+  Promise<{ row: PortfolioCompany; requestHash: string }>
+>();
+
 export async function createPortfolioCompanyWithReceipt(
   input: PortfolioCompanyCreateInput,
   idempotencyKey: string,
   actorSubject: string | null
 ): Promise<{ row: PortfolioCompany; replayed: boolean }> {
+  // Memory mode writes to the memory store (reads must see the row) but keeps
+  // the same key replay and reuse rules as the database receipt.
+  const memoryReceiptKey = storage.kind === 'memory' ? `${input.fundId}:${idempotencyKey}` : null;
   return runIdempotentCommand<PortfolioCompany>({
     db,
     fundId: input.fundId,
@@ -85,6 +94,10 @@ export async function createPortfolioCompanyWithReceipt(
       contractVersion: PORTFOLIO_COMPANY_CREATE_CONTRACT_VERSION,
     },
     loadExisting: async () => {
+      if (memoryReceiptKey !== null) {
+        const created = memoryCompanyCreates.get(memoryReceiptKey);
+        return created ? await created : null;
+      }
       const [existing] = await db
         .select({
           ...portfolioCompanyPublicColumns,
@@ -110,6 +123,18 @@ export async function createPortfolioCompanyWithReceipt(
       return { row, requestHash: createRequestHash };
     },
     insert: async (requestHash) => {
+      if (memoryReceiptKey !== null) {
+        if (memoryCompanyCreates.has(memoryReceiptKey)) return null;
+        // Reserve the key before the first await so a concurrent retry replays.
+        const created = storage.createPortfolioCompany(input).then((row) => ({ row, requestHash }));
+        memoryCompanyCreates.set(memoryReceiptKey, created);
+        try {
+          return (await created).row;
+        } catch (error) {
+          memoryCompanyCreates.delete(memoryReceiptKey);
+          throw error;
+        }
+      }
       const [company] = await db
         .insert(portfolioCompanies)
         .values({

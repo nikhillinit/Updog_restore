@@ -93,6 +93,7 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
   beforeEach(() => {
     clearIdempotencyCache();
     vi.clearAllMocks();
+    createWithReceipt.mockReset();
     fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
     storageMock.kind = 'database';
   });
@@ -146,9 +147,9 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
     ]);
   });
 
-  it('keeps the memory store create path in memory mode', async () => {
+  it('routes memory mode through the receipt path too', async () => {
     storageMock.kind = 'memory';
-    storageMock.createPortfolioCompany.mockResolvedValueOnce({ id: 104, ...validBody });
+    createWithReceipt.mockResolvedValueOnce({ row: { id: 104, ...validBody }, replayed: false });
 
     const res = await request(makeApp())
       .post('/portfolio-companies')
@@ -156,8 +157,8 @@ describe('portfolio-companies POST idempotency guard (A6)', () => {
       .send(validBody);
 
     expect(res.status).toBe(201);
-    expect(storageMock.createPortfolioCompany).toHaveBeenCalledTimes(1);
-    expect(createWithReceipt).not.toHaveBeenCalled();
+    expect(createWithReceipt).toHaveBeenCalledTimes(1);
+    expect(storageMock.createPortfolioCompany).not.toHaveBeenCalled();
   });
 
   it('replays an existing create with 200 and Idempotency-Replay', async () => {

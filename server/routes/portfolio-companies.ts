@@ -353,11 +353,6 @@ router.post(
         });
       }
 
-      // Memory mode is not a durability target; keep its store so reads see the row.
-      if (storage.kind === 'memory') {
-        return res.status(201).json(await storage.createPortfolioCompany(result.data));
-      }
-
       const companyInput = {
         ...result.data,
         fundId: result.data['fundId'],
