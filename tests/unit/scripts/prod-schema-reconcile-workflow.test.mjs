@@ -521,6 +521,7 @@ describe('prod-schema-reconcile workflow', () => {
     const inventories = {
       apply: base,
       'apply-current-forecast-0050-0055': [...base, 'current-forecast-migration-result.json'],
+      'apply-journaled-0050-0061': [...base, 'journaled-0050-0061-migration-result.json'],
       'apply-actuals-draft-0056': [
         ...base,
         'actuals-draft-before.json',
@@ -765,7 +766,7 @@ describe('prod-schema-reconcile workflow', () => {
     expect(validateMode).toBeDefined();
     expect(steps.indexOf(validateMode)).toBe(0);
     expect(validateMode?.run).toContain(
-      'audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055'
+      'audit|apply|apply-catchup-0050-0053|apply-current-forecast-0050-0055|apply-journaled-0050-0061'
     );
     expect(validateMode?.run).toMatch(/exit 1/);
 
@@ -782,12 +783,37 @@ describe('prod-schema-reconcile workflow', () => {
     expect(applyStep?.run).toContain(
       'node scripts/run-current-forecast-journaled-migrations.mjs --apply --yes'
     );
+    expect(applyStep?.run).toContain(
+      'node scripts/run-journaled-0050-0061-migrations.mjs --apply --yes'
+    );
+
+    const applyIndex = steps.indexOf(applyStep);
+    const readback = steps.find((step) => step.name === 'Read back journaled ledger');
+    expect(readback?.if).toBe(
+      "${{ always() && inputs.mode == 'apply-journaled-0050-0061' && steps.apply.outcome != 'skipped' }}"
+    );
+    expect(steps.indexOf(readback)).toBe(applyIndex + 1);
+    expect(readback?.['continue-on-error']).toBe(true);
+    expect(readback?.['timeout-minutes']).toBe(5);
+    expect(readback?.env).toEqual({ DATABASE_URL: '${{ secrets.PRODUCTION_DATABASE_URL }}' });
+    expect(readback?.run).toBe('node scripts/run-journaled-0050-0061-migrations.mjs');
+
+    const decisionGate = steps.find((step) => step.name === 'Require additive-safe apply decision');
+    expect(decisionGate?.if).toContain("inputs.mode != 'apply-journaled-0050-0061'");
+    const upload = steps.find((step) => step.name === 'Upload redacted reconciliation reports');
+    expect(upload?.with?.path).toContain('reports/journaled-0050-0061-migration-result.json');
 
     const serialized = JSON.stringify(workflow);
     expect(serialized).toContain('SchemaReconcileCurrentForecastReceiptV1Schema');
     expect(serialized).toContain('apply-current-forecast-0050-0055');
+    expect(serialized).toContain('apply-journaled-0050-0061');
     expect(serialized).toContain('current-forecast-migration-result.json');
-    expect(serialized).toContain("migration: currentForecast ? '0050-0055' : '0053'");
+    expect(serialized).toContain("'apply-journaled-0050-0061': '0050-0061'");
+    expect(serialized).toContain("migration: migration ?? '0053'");
+    expect(serialized).toContain('SchemaReconcileJournaledRangeReceiptV1Schema');
+    expect(serialized).toContain("receipt.mode === 'apply-journaled-0050-0061'");
+    expect(serialized).toContain('receipt.migrationRange.length !== 12');
+    expect(serialized).toContain('journaled-0050-0061-migration-result.json');
 
     const historicalArtifactStep = steps.find(
       (step) => step.name === 'Verify and download historical schema apply artifact by exact ID'

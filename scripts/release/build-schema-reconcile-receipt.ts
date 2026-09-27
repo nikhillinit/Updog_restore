@@ -11,6 +11,9 @@ import {
   SchemaReconcileActualsDraftReceiptV1Schema,
   SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES,
   CURRENT_FORECAST_MIGRATION_RANGE,
+  JournaledRangeMigrationResultV1Schema,
+  type SchemaReconcileJournaledRangeReceiptV1,
+  SchemaReconcileJournaledRangeReceiptV1Schema,
   SchemaReconcileCurrentForecastReceiptV1Schema,
   SchemaReconcileCatchupReceiptV1Schema,
   SchemaReconcileReceiptV1Schema,
@@ -60,6 +63,32 @@ export function buildSchemaReconcileCurrentForecastReceipt(input: {
     preState: input.preState,
     postState: 'complete',
     applied: input.applied,
+    buildTimeMs: input.completedAtMs - input.startedAtMs,
+    result: 'applied_and_clean',
+  });
+}
+
+export function buildSchemaReconcileJournaledRangeReceipt(input: {
+  repository: string;
+  runId: string;
+  runAttempt: 1;
+  sourceSha: string;
+  result: unknown;
+  startedAtMs: number;
+  completedAtMs: number;
+}): SchemaReconcileJournaledRangeReceiptV1 {
+  assertTimestamp('startedAtMs', input.startedAtMs);
+  assertTimestamp('completedAtMs', input.completedAtMs);
+  if (input.completedAtMs < input.startedAtMs)
+    throw new Error('completedAtMs must not precede startedAtMs');
+  return SchemaReconcileJournaledRangeReceiptV1Schema.parse({
+    ...JournaledRangeMigrationResultV1Schema.parse(input.result),
+    repository: input.repository,
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+    runId: input.runId,
+    runAttempt: input.runAttempt,
+    mode: 'apply-journaled-0050-0061',
+    sourceSha: input.sourceSha,
     buildTimeMs: input.completedAtMs - input.startedAtMs,
     result: 'applied_and_clean',
   });
@@ -271,6 +300,7 @@ export async function writeSchemaReconcileReceipt(
     | SchemaReconcileCurrentForecastReceiptV1
     | SchemaReconcileActualsDraftReceiptV1
     | SchemaReconcileActualsRestatementReceiptV1
+    | SchemaReconcileJournaledRangeReceiptV1
 ): Promise<void> {
   const directory = path.dirname(outputPath);
   await mkdir(directory, { recursive: true });
@@ -304,8 +334,22 @@ async function main(): Promise<void> {
     | SchemaReconcileCatchupReceiptV1
     | SchemaReconcileCurrentForecastReceiptV1
     | SchemaReconcileActualsDraftReceiptV1
-    | SchemaReconcileActualsRestatementReceiptV1;
-  if (mode === 'apply-actuals-restatement-0057') {
+    | SchemaReconcileActualsRestatementReceiptV1
+    | SchemaReconcileJournaledRangeReceiptV1;
+  if (mode === 'apply-journaled-0050-0061') {
+    const result: unknown = JSON.parse(
+      await readFile('reports/journaled-0050-0061-migration-result.json', 'utf8')
+    );
+    receipt = buildSchemaReconcileJournaledRangeReceipt({
+      repository: requiredEnvironment('GITHUB_REPOSITORY'),
+      runId: requiredEnvironment('GITHUB_RUN_ID'),
+      runAttempt: requiredPositiveIntegerEnvironment('GITHUB_RUN_ATTEMPT') as 1,
+      sourceSha: requiredEnvironment('SCHEMA_RECONCILE_SOURCE_SHA'),
+      result,
+      startedAtMs,
+      completedAtMs,
+    });
+  } else if (mode === 'apply-actuals-restatement-0057') {
     const result: unknown = JSON.parse(
       await readFile('reports/actuals-restatement-migration-result.json', 'utf8')
     );

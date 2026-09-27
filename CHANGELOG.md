@@ -22,6 +22,29 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-09-27)
+
+- Linear journaled schema apply route for migrations 0050-0061 (F_1.18.0,
+  ADR-103). Phase 1 (already committed) adds
+  `scripts/run-journaled-0050-0061-migrations.mjs`. Before any connection it
+  requires the repository to end at journal idx 62 and manifest 38 and checks
+  pinned SQL and manifest hashes. It then checks a target fingerprint before the
+  lock, classifies the ledger as an exact prefix of the baseline plus the twelve
+  targets, validates the catalog per target, and applies the remaining
+  migrations in one Drizzle transaction. The receipt and release evidence
+  fragment contracts admit the new result, receipt, and `0050-0061` range with
+  an explicit mode-to-range binding. `prod-schema-reconcile.yml` gains mode
+  `apply-journaled-0050-0061` with an always-run, read-only ledger readback
+  step, and audit mode accepts its receipt as historical schema proof.
+  `current-forecast-neon-rehearsal.yml` gains rehearsal mode
+  `journaled-0050-0061`. ADR-103 records the owner decisions, the DDL-only bound
+  on 0056 and 0057, and the accepted recovery risk. The governing policy
+  amendment admits the route and names the floors it replaces for this route
+  only. `docs/workflows/PRODUCTION_SCRIPTS.md` adds the owner sequence, the
+  fingerprint recipe, and the synchronized ledger query. The rehearsal, the
+  fingerprint secret, the restore branch, the production apply, and the release
+  dispatch stay owner-only actions; none is performed.
+
 ### Changed (2026-09-26)
 
 - Durable create receipts for deal create, deal import confirm, and

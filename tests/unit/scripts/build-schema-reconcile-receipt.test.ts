@@ -9,6 +9,7 @@ import {
   buildSchemaReconcileActualsRestatementReceipt,
   buildSchemaReconcileCatchupReceipt,
   buildSchemaReconcileCurrentForecastReceipt,
+  buildSchemaReconcileJournaledRangeReceipt,
   buildSchemaReconcileReceipt,
   targetsFromLockTimeVector,
   writeSchemaReconcileReceipt,
@@ -16,6 +17,8 @@ import {
 import {
   ActualsDraftMigrationResultV1Schema,
   ActualsRestatementMigrationResultV1Schema,
+  JOURNALED_RANGE_MIGRATION_RANGE,
+  SchemaReconcileJournaledRangeReceiptV1Schema,
 } from '../../../shared/contracts/schema-reconcile-receipt-v1.contract';
 
 const input = {
@@ -93,6 +96,54 @@ describe('build-schema-reconcile-receipt Current Forecast mode', () => {
     expect(receipt.mode).toBe('apply-current-forecast-0050-0055');
     expect(receipt.migrationRange).toHaveLength(6);
     expect(receipt.postState).toBe('complete');
+  });
+});
+
+describe('build-schema-reconcile-receipt journaled 0050-0061 mode', () => {
+  const result = {
+    preState: {
+      state: 'ready',
+      appliedTargetCount: 0,
+      lastAppliedTag: '0049_kpi_observations',
+    },
+    postState: 'complete',
+    applied: true,
+    baselineKind: 'canonical',
+    migrationRange: JOURNALED_RANGE_MIGRATION_RANGE,
+    backfillEligibleBefore: null,
+    backfillEligibleAfter: 0,
+  } as const;
+  const input = {
+    repository: 'press-on/updog',
+    runId: '123',
+    runAttempt: 1 as const,
+    sourceSha: 'a'.repeat(40),
+    result,
+    startedAtMs: 100,
+    completedAtMs: 150,
+  };
+
+  it('builds a parseable runner-shaped receipt', () => {
+    const receipt = buildSchemaReconcileJournaledRangeReceipt(input);
+    expect(SchemaReconcileJournaledRangeReceiptV1Schema.parse(receipt)).toEqual(receipt);
+    expect(receipt.mode).toBe('apply-journaled-0050-0061');
+    expect(receipt.migrationRange).toHaveLength(12);
+    expect(receipt.postState).toBe('complete');
+  });
+
+  it('rejects unknown result keys', () => {
+    expect(() =>
+      buildSchemaReconcileJournaledRangeReceipt({
+        ...input,
+        result: { ...result, targetFingerprint: 'b'.repeat(64) },
+      })
+    ).toThrow();
+  });
+
+  it('rejects a completed timestamp before the start timestamp', () => {
+    expect(() =>
+      buildSchemaReconcileJournaledRangeReceipt({ ...input, completedAtMs: 99 })
+    ).toThrow(/completedAtMs/);
   });
 });
 
