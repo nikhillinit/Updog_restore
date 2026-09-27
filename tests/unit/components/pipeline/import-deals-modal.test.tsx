@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
@@ -272,5 +272,45 @@ describe('ImportDealsModal', () => {
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalledTimes(3));
     expect(keyOf(2)).toBe(keyOf(1));
     expect((mockApiRequest.mock.calls[2] as unknown[])[2]).toMatchObject({ fundId: 1 });
+  });
+
+  it('offers discard only after the submitted fund list refetches successfully', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest
+      .mockResolvedValueOnce(previewOf(1, 0))
+      .mockRejectedValue(new TypeError('Response lost'));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const listKey = ['/api/deals/opportunities', undefined, undefined, undefined, undefined, 1];
+    const listRead = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('List unavailable'))
+      .mockResolvedValue({ data: [] });
+    const list = new QueryObserver(queryClient, {
+      queryKey: listKey,
+      queryFn: listRead,
+      initialData: { data: [] },
+      staleTime: Infinity,
+    });
+    const unsubscribe = list.subscribe(() => undefined);
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <ImportDealsModal open={true} onOpenChange={mockOpenChange} fundId={1} />
+        </QueryClientProvider>
+      );
+      await uploadCsv();
+      await userEvent.click(await screen.findByRole('button', { name: /import 1 deal/i }));
+      expect(await screen.findByText(/import status is uncertain/i)).toBeInTheDocument();
+      await waitFor(() => expect(queryClient.getQueryState(listKey)?.status).toBe('error'));
+      expect(screen.queryByRole('button', { name: /discard attempt/i })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /retry import/i }));
+      expect(await screen.findByRole('button', { name: /discard attempt/i })).toBeInTheDocument();
+      expect(listRead).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+    }
   });
 });

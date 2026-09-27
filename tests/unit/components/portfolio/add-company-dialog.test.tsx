@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
@@ -320,6 +320,44 @@ describe('AddCompanyDialog', () => {
       expect((mockApiRequest.mock.calls[1] as unknown[])[2]).toMatchObject({ fundId: 1 });
     } finally {
       setItem.mockRestore();
+    }
+  });
+
+  it('offers discard only after the submitted fund list refetches successfully', async () => {
+    mockAuth.mockReturnValue({ data: { user: { id: '7' } } });
+    mockApiRequest.mockRejectedValue(new ApiError(502, 'bad gateway'));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const listKey = ['portfolio-companies', 1, null];
+    const listRead = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('List unavailable'))
+      .mockResolvedValue({ data: [] });
+    const list = new QueryObserver(queryClient, {
+      queryKey: listKey,
+      queryFn: listRead,
+      initialData: { data: [] },
+      staleTime: Infinity,
+    });
+    const unsubscribe = list.subscribe(() => undefined);
+    try {
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AddCompanyDialog fundId={1} open={true} onOpenChange={mockOpenChange} />
+        </QueryClientProvider>
+      );
+      await fillRequiredCompanyFields();
+      await userEvent.click(screen.getByRole('button', { name: /create company/i }));
+      expect(await screen.findByText(/creation status is uncertain/i)).toBeInTheDocument();
+      await waitFor(() => expect(queryClient.getQueryState(listKey)?.status).toBe('error'));
+      expect(screen.queryByRole('button', { name: /discard attempt/i })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /retry create/i }));
+      expect(await screen.findByRole('button', { name: /discard attempt/i })).toBeInTheDocument();
+      expect(listRead).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
     }
   });
 

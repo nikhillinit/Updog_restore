@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
   Dialog,
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
+  fundListRefreshedSince,
   isUnknownCreateOutcome,
   useIdempotencyKey,
   type IdempotencyKeyScope,
@@ -173,7 +174,14 @@ export function AddCompanyDialog({ fundId, open, onOpenChange }: AddCompanyDialo
         setUncertainFundId(variables.scope.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
-        void refreshCompanyList(variables.scope.fundId).then(() => setCanDiscard(true));
+        setCanDiscard(false);
+        const since = Date.now();
+        const submittedFundId = variables.scope.fundId;
+        const isSubmittedFundList = (key: QueryKey) =>
+          key[0] === 'portfolio-companies' && key[1] === submittedFundId;
+        void refreshCompanyList(submittedFundId).then(() =>
+          setCanDiscard(fundListRefreshedSince(queryClient, isSubmittedFundList, since))
+        );
         return;
       }
 

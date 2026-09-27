@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
   Dialog,
@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import {
+  fundListRefreshedSince,
   isUnknownCreateOutcome,
   useIdempotencyKey,
   type IdempotencyKeyScope,
@@ -208,7 +209,16 @@ export function AddDealModal({ open, onOpenChange, fundId }: AddDealModalProps) 
         setUncertainFundId(variables.scope.fundId);
         setUncertain(true);
         setAlreadyRecorded(false);
-        void invalidateDealLists().then(() => setCanDiscard(true));
+        setCanDiscard(false);
+        const since = Date.now();
+        const submittedFundId = variables.scope.fundId;
+        // The pipeline list key ends with its fund.
+        const isSubmittedFundList = (key: QueryKey) =>
+          key[0] === '/api/deals/opportunities' &&
+          (key[key.length - 1] ?? undefined) === submittedFundId;
+        void invalidateDealLists().then(() =>
+          setCanDiscard(fundListRefreshedSince(queryClient, isSubmittedFundList, since))
+        );
         return;
       }
 

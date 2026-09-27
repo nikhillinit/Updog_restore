@@ -1,3 +1,4 @@
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { ApiError } from '@/lib/queryClient';
@@ -98,6 +99,25 @@ export function isUnknownCreateOutcome(error: unknown): boolean {
     (error.status === 409 &&
       (error.errorCode === 'IDEMPOTENCY_RACE_UNRESOLVED' ||
         error.errorCode === 'REQUEST_IN_PROGRESS'))
+  );
+}
+
+/**
+ * Discard drops the recovery key, so it is offered only once every list on
+ * screen for the submitted fund has refetched successfully since `since`. No
+ * such list, or a failed refetch, keeps the command recoverable by retry.
+ */
+export function fundListRefreshedSince(
+  queryClient: QueryClient,
+  isFundList: (queryKey: QueryKey) => boolean,
+  since: number
+): boolean {
+  const lists = queryClient
+    .getQueryCache()
+    .findAll({ type: 'active', predicate: (query) => isFundList(query.queryKey) });
+  return (
+    lists.length > 0 &&
+    lists.every((query) => query.state.status === 'success' && query.state.dataUpdatedAt >= since)
   );
 }
 
