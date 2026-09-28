@@ -50,6 +50,7 @@ jobs:
       docs_links: ${{ steps.filter.outputs.docs_links }}
       dependency: ${{ steps.filter.outputs.dependency }}
       schema: ${{ steps.filter.outputs.schema }}
+      batch_b: ${{ steps.filter.outputs.batch_b }}
       pr_security: ${{ steps.filter.outputs.pr_security }}
       security_tests: ${{ steps.filter.outputs.security_tests }}
       test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
@@ -106,13 +107,17 @@ jobs:
           REF_NAME: ${{ github.ref }}
           RUN_FULL_SUITE: ${{ github.event.inputs.run_full_suite }}
           SCHEMA_CHANGED: ${{ steps.filter.outputs.schema }}
+          BATCH_B_CHANGED: ${{ steps.filter.outputs.batch_b }}
         run: |
           set -euo pipefail
-          # Ordinary heavy pull requests run integration and validate-core;
-          # main, run_full_suite, and schema changes keep all three groups.
+          # Ordinary heavy pull requests add Batch B only for matching paths;
+          # main, run_full_suite, and schema changes run all four groups.
           if [[ "$REF_NAME" == "refs/heads/main" || "$RUN_FULL_SUITE" == "true" || "$SCHEMA_CHANGED" == "true" ]]; then
             echo 'full_suite=true' >> "$GITHUB_OUTPUT"
-            echo 'test_full_groups=["integration","e2e","validate-core"]' >> "$GITHUB_OUTPUT"
+            echo 'test_full_groups=["integration","e2e","validate-core","batch-b"]' >> "$GITHUB_OUTPUT"
+          elif [[ "$BATCH_B_CHANGED" == "true" ]]; then
+            echo 'full_suite=false' >> "$GITHUB_OUTPUT"
+            echo 'test_full_groups=["integration","validate-core","batch-b"]' >> "$GITHUB_OUTPUT"
           else
             echo 'full_suite=false' >> "$GITHUB_OUTPUT"
             echo 'test_full_groups=["integration","validate-core"]' >> "$GITHUB_OUTPUT"
@@ -367,7 +372,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Install Playwright
-        if: matrix.group == 'e2e'
+        if: matrix.group == 'e2e' || matrix.group == 'batch-b'
         run: npx playwright install --with-deps chromium
 
       - name: Run tests
@@ -390,6 +395,9 @@ jobs:
                 npm run test:smoke
               fi
               ;;
+            batch-b)
+              npm run test:e2e:batch-b
+              ;;
             validate-core)
               npm run validate:core
               ;;
@@ -399,6 +407,18 @@ jobs:
           NODE_ENV: test
           REDIS_URL: redis://localhost:6379
           TZ: UTC
+          BATCH_B_RUNTIME: built
+
+      - name: Upload Batch B failure artifacts
+        if: failure() && matrix.group == 'batch-b'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: batch-b-failure-${{ github.run_id }}
+          path: |
+            test-results/batch-b
+            test-results/batch-b-results.json
+          if-no-files-found: warn
+          retention-days: 7
 
   build:
     name: Build Production

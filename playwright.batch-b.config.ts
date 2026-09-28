@@ -1,12 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
 
-const baseURL = 'http://localhost:5187';
+const runtime = process.env.BATCH_B_RUNTIME === 'built' ? 'built' : 'dev';
+const baseURL = runtime === 'built' ? 'http://localhost:5188' : 'http://localhost:5187';
 process.env.BATCH_B_RUNTIME_FILE = path.resolve('.cache/batch-b-runtime.json');
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: 'fund-workspace-real-backend.spec.ts',
+  testMatch: ['fund-workspace-real-backend.spec.ts', 'fund-workspace-recovery.spec.ts'],
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
@@ -23,10 +24,16 @@ export default defineConfig({
   },
   webServer: {
     command: 'node --import tsx tests/e2e/support/batch-b-server.ts',
-    url: `${baseURL}/readyz`,
+    url: runtime === 'built' ? `${baseURL}/api/health/ready` : `${baseURL}/readyz`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    timeout: runtime === 'built' ? 600_000 : 180_000,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
-    env: { TZ: 'UTC', BATCH_B_RUNTIME_FILE: process.env.BATCH_B_RUNTIME_FILE },
+    env: {
+      TZ: 'UTC',
+      BATCH_B_RUNTIME_FILE: process.env.BATCH_B_RUNTIME_FILE,
+      ...(process.env.BATCH_B_RUNTIME !== undefined
+        ? { BATCH_B_RUNTIME: process.env.BATCH_B_RUNTIME }
+        : {}),
+    },
   },
 });

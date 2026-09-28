@@ -532,6 +532,27 @@ decimal-string-laundering, financial-placeholders), `npm run phoenix:truth`
 reserve/fee/cohort/MOIC engine suites), `npm run policy:verify` (route-policy
 registry), `npm run validate:core`.
 
+### Batch B: real-backend fund workspace journey (F_1.19.0)
+
+`npm run test:e2e:batch-b` (`playwright.batch-b.config.ts`) runs
+`tests/e2e/fund-workspace-real-backend.spec.ts` and
+`tests/e2e/fund-workspace-recovery.spec.ts` against a harness
+(`tests/e2e/support/batch-b-server.ts`) that owns a pgvector Postgres 16
+testcontainer and two partner users. Two runtimes:
+
+| Runtime | Selected by                      | Serves                                                                                                                                                                                                       | Proves                                                                                                                           |
+| ------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| dev     | `BATCH_B_RUNTIME` unset or `dev` | `server/main.ts` (Docker `registerRoutes` surface) on 5087 and the Vite dev client on 5187                                                                                                                   | Local iteration only                                                                                                             |
+| built   | `BATCH_B_RUNTIME=built`          | The `vercel.json` build command's output: `dist/public` plus the `api/` functions in Vercel's routing order (static files, other `api/` function files by path, then the three rewrites), one origin on 5188 | The `makeApp` route and middleware surface and the built Preact client ("built-artifact local acceptance", not deployment proof) |
+
+Built mode does not prove the Neon driver (the `neon-lane` job owns that),
+Vercel static-tier headers (no CSP on static responses), a shared rate-limit
+store, or production cookie attributes. It exits nonzero on any `vercel.json`
+rewrite or dynamic `api/` function shape it does not mirror. CI runs the built
+runtime in the `batch-b` leg of `test-full` (`ci-unified.yml`) on pull requests
+matching the `batch_b` path filter and on every heavy `main`, `run_full_suite`,
+or schema run; a red case fails `CI Gate Status`.
+
 ## 7. Knowledge Graph (`audit/knowledge-graph/`)
 
 A content-addressed code index (AST/JSON extractors, not embeddings),

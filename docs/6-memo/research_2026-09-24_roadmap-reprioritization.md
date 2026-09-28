@@ -134,6 +134,14 @@ themselves are unchanged.
 | Maintenance           | Dependabot triage (#1565, #1556 first; #1446 ESLint 10 is a major migration); #1373; #1375 to #1379 stay deferred                                                                                                                                                                                                                                                                                                                                                                                                                                             | Agent triages; owner merges                                                          | Outside any frozen candidate                                                                        |
 | Deferred              | Fee and economics (F_1.3.0), waterfall (F_1.4.0), cookie sessions, evidence drawer consolidation, substrate T14 and the reserve assembler                                                                                                                                                                                                                                                                                                                                                                                                                     | Unchanged                                                                            | Unchanged                                                                                           |
 
+> **Amendment, September 28, 2026 (item 3):** the acceptance "both runtimes
+> green on the exact candidate" is superseded by decision D-B of
+> `docs/1-plans/F_1.19.0_fund-workspace-journey-qualification.plan.md`: the
+> built runtime green in CI on the pull request head and on the resulting `main`
+> run, the dev runtime green locally, and a failing Batch B case failing
+> `CI Gate Status`. That plan is the only active acceptance definition for
+> item 3.
+
 - **Rationale**: the release evidence contract rejects the HTTP canary vector
   today, so PR3a is a repository-provable release blocker and goes first. Items
   2 to 6 move already-built work to users, with schema mutation and release

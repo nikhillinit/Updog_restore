@@ -12,6 +12,8 @@ const execFileAsync = promisify(execFile);
 interface WorkflowStep {
   id?: string;
   name?: string;
+  if?: string;
+  env?: Record<string, string>;
   run?: string;
 }
 
@@ -109,27 +111,59 @@ describe('CI Unified pull request full test lanes', () => {
     expect(workflow.jobs?.changes?.outputs?.test_full_groups).toBe(
       '${{ steps.groups.outputs.test_full_groups }}'
     );
+    expect(workflow.jobs?.changes?.outputs?.batch_b).toBe('${{ steps.filter.outputs.batch_b }}');
   });
 
-  it('selects the ordinary pull request lanes and all three full-suite lanes', async () => {
+  it('selects the ordinary pull request lanes and all four full-suite lanes', async () => {
     const workflow = await readCiUnifiedWorkflow();
     const groups = workflow.jobs?.changes?.steps?.find((step) => step.id === 'groups');
 
     expect(groups).toBeDefined();
     expect(groups?.run).toContain('full_suite=true');
     expect(groups?.run).toContain('["integration","validate-core"]');
-    expect(groups?.run).toContain('["integration","e2e","validate-core"]');
+    expect(groups?.run).toContain('["integration","validate-core","batch-b"]');
+    expect(groups?.run).toContain('["integration","e2e","validate-core","batch-b"]');
+    expect(groups?.env?.BATCH_B_CHANGED).toBe('${{ steps.filter.outputs.batch_b }}');
   });
 
   it.each([
-    ['refs/heads/main', '', 'false', 'true', '["integration","e2e","validate-core"]'],
-    ['refs/pull/1/merge', 'true', 'false', 'true', '["integration","e2e","validate-core"]'],
-    ['refs/pull/1/merge', '', 'true', 'true', '["integration","e2e","validate-core"]'],
-    ['refs/pull/1/merge', '', 'false', 'false', '["integration","validate-core"]'],
-    ['refs/pull/1/merge', '', '', 'false', '["integration","validate-core"]'],
+    [
+      'refs/heads/main',
+      '',
+      'false',
+      'false',
+      'true',
+      '["integration","e2e","validate-core","batch-b"]',
+    ],
+    [
+      'refs/pull/1/merge',
+      'true',
+      'false',
+      '',
+      'true',
+      '["integration","e2e","validate-core","batch-b"]',
+    ],
+    [
+      'refs/pull/1/merge',
+      '',
+      'true',
+      'true',
+      'true',
+      '["integration","e2e","validate-core","batch-b"]',
+    ],
+    [
+      'refs/pull/1/merge',
+      '',
+      'false',
+      'true',
+      'false',
+      '["integration","validate-core","batch-b"]',
+    ],
+    ['refs/pull/1/merge', '', 'false', 'false', 'false', '["integration","validate-core"]'],
+    ['refs/pull/1/merge', '', '', '', 'false', '["integration","validate-core"]'],
   ] as const)(
-    'selects groups for ref=%s run_full_suite=%s schema=%s',
-    async (ref, runFullSuite, schema, expectedFullSuite, expectedGroups) => {
+    'selects groups for ref=%s run_full_suite=%s schema=%s batch_b=%s',
+    async (ref, runFullSuite, schema, batchB, expectedFullSuite, expectedGroups) => {
       const workflow = await readCiUnifiedWorkflow();
       const run = workflow.jobs?.changes?.steps?.find((step) => step.id === 'groups')?.run;
       if (!run) throw new Error('Select full test groups step not found');
@@ -143,6 +177,7 @@ describe('CI Unified pull request full test lanes', () => {
             REF_NAME: ref,
             RUN_FULL_SUITE: runFullSuite,
             SCHEMA_CHANGED: schema,
+            BATCH_B_CHANGED: batchB,
           },
         });
         const output = await fs.readFile(outputPath, 'utf-8');
@@ -165,6 +200,34 @@ describe('CI Unified pull request full test lanes', () => {
     expect(runTests).not.toHaveProperty('continue-on-error');
     expect(runTests?.run).not.toMatch(/\|\|\s*true/);
     expect(runTests?.run?.trimStart().startsWith('if ')).toBe(false);
+  });
+
+  it('installs Chromium for both the e2e and batch-b full test groups', async () => {
+    const workflow = await readCiUnifiedWorkflow();
+    const installPlaywright = workflow.jobs?.['test-full']?.steps?.find(
+      (step) => step.name === 'Install Playwright'
+    );
+
+    expect(installPlaywright?.if).toBe("matrix.group == 'e2e' || matrix.group == 'batch-b'");
+  });
+
+  it('runs the batch-b branch against the built runtime', async () => {
+    const workflow = await readCiUnifiedWorkflow();
+    const runTests = workflow.jobs?.['test-full']?.steps?.find((step) => step.name === 'Run tests');
+    const batchBBranch = runTests?.run?.match(/batch-b\)\s*([\s\S]*?);;/)?.[1];
+
+    expect(batchBBranch?.trim()).toBe('npm run test:e2e:batch-b');
+    expect(runTests?.env?.BATCH_B_RUNTIME).toBe('built');
+  });
+
+  it('does not suppress failures in any full test step', async () => {
+    const workflow = await readCiUnifiedWorkflow();
+    const steps = workflow.jobs?.['test-full']?.steps ?? [];
+
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      expect(step).not.toHaveProperty('continue-on-error');
+    }
   });
 
   it('requires the full lanes when the pull request gate expects them', async () => {
