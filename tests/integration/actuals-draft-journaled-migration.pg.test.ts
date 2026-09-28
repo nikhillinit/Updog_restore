@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createDisposableActualsDraftMigrationTestContext,
@@ -8,7 +8,7 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 
 const databases: string[] = [];
 const quiet = { write: () => true };
-let admin: Pool;
+let admin: Client;
 let localTestContext: Awaited<ReturnType<typeof createDisposableActualsDraftMigrationTestContext>>;
 
 async function databaseAt(tag = '0055_current_forecast_recompute_commands') {
@@ -21,13 +21,25 @@ async function databaseAt(tag = '0055_current_forecast_recompute_commands') {
   return url.toString();
 }
 
-async function snapshot(pool: Pool) {
+async function withClient<T>(connectionString: string, callback: (client: Client) => Promise<T>) {
+  const client = new Client({ connectionString });
+  try {
+    await client.connect();
+    return await callback(client);
+  } finally {
+    await client.end();
+  }
+}
+
+async function snapshot(client: Client) {
   return {
     ledger: (
-      await pool.query('SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at')
+      await client.query(
+        'SELECT hash, created_at FROM public.drizzle_migrations ORDER BY created_at'
+      )
     ).rows,
     catalog: (
-      await pool.query(`SELECT c.relname, c.relkind, a.attname, a.attnum
+      await client.query(`SELECT c.relname, c.relkind, a.attname, a.attnum
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
       WHERE n.nspname = 'public' ORDER BY c.relname, a.attnum`)
@@ -38,10 +50,10 @@ async function snapshot(pool: Pool) {
 describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => {
   beforeAll(async () => {
     localTestContext = await createDisposableActualsDraftMigrationTestContext();
-    admin = new Pool({
+    admin = new Client({
       connectionString: localTestContext.connectionString,
-      max: 1,
     });
+    await admin.connect();
   }, 120_000);
 
   afterAll(async () => {
@@ -57,11 +69,26 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
     }
   }, 120_000);
 
+  it('closes the connection before propagating an operation failure', async () => {
+    const failure = new Error('operation failed');
+    let connectionClosed = false;
+
+    await expect(
+      withClient(localTestContext.connectionString, async (client) => {
+        client.once('end', () => {
+          connectionClosed = true;
+        });
+        throw failure;
+      })
+    ).rejects.toBe(failure);
+
+    expect(connectionClosed).toBe(true);
+  });
+
   it('refuses missing, copied, or wrong-target apply capabilities without changing database state', async () => {
     const connectionString = await databaseAt();
-    const pool = new Pool({ connectionString, max: 1 });
-    try {
-      const before = await snapshot(pool);
+    await withClient(connectionString, async (client) => {
+      const before = await snapshot(client);
       const wrongTarget = new URL(connectionString);
       wrongTarget.port = String(Number(wrongTarget.port) + 1);
       const cases = [
@@ -77,32 +104,29 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
           runActualsDraftJournaledMigration({ ...input, apply: true, stdout: quiet })
         ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
       }
-      expect(await snapshot(pool)).toEqual(before);
-    } finally {
-      await pool.end();
-    }
+      expect(await snapshot(client)).toEqual(before);
+    });
   }, 180_000);
 
   it.each(['canonical', 'adr074-reconciled'])(
     'dry-runs, applies and replays %s history without synthetic ledger rows',
     async (kind) => {
       const connectionString = await databaseAt();
-      const pool = new Pool({ connectionString, max: 1 });
-      try {
+      await withClient(connectionString, async (client) => {
         if (kind === 'adr074-reconciled') {
-          await pool.query(
+          await client.query(
             'DELETE FROM public.drizzle_migrations WHERE created_at > $1 AND created_at < $2',
             [1775356800000, 1785368400000]
           );
         }
-        const before = await snapshot(pool);
+        const before = await snapshot(client);
         expect(
           await runActualsDraftJournaledMigration({ connectionString, apply: false, stdout: quiet })
         ).toMatchObject({
           preState: { baselineKind: kind, state: 'ready' },
           applied: false,
         });
-        expect(await snapshot(pool)).toEqual(before);
+        expect(await snapshot(client)).toEqual(before);
         expect(
           await runActualsDraftJournaledMigration({
             connectionString,
@@ -114,7 +138,7 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
           postState: 'complete',
           applied: true,
         });
-        const after = await snapshot(pool);
+        const after = await snapshot(client);
         expect(after.ledger.slice(0, -1)).toEqual(before.ledger);
         expect(
           await runActualsDraftJournaledMigration({
@@ -128,10 +152,8 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
           postState: 'complete',
           applied: false,
         });
-        expect(await snapshot(pool)).toEqual(after);
-      } finally {
-        await pool.end();
-      }
+        expect(await snapshot(client)).toEqual(after);
+      });
     },
     180_000
   );
@@ -150,10 +172,9 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
     'refuses %s without changing database state',
     async (_label, mutation) => {
       const connectionString = await databaseAt();
-      const pool = new Pool({ connectionString, max: 1 });
-      try {
-        await pool.query(mutation);
-        const before = await snapshot(pool);
+      await withClient(connectionString, async (client) => {
+        await client.query(mutation);
+        const before = await snapshot(client);
         await expect(
           runActualsDraftJournaledMigration({
             connectionString,
@@ -162,10 +183,8 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
             stdout: quiet,
           })
         ).rejects.toThrow();
-        expect(await snapshot(pool)).toEqual(before);
-      } finally {
-        await pool.end();
-      }
+        expect(await snapshot(client)).toEqual(before);
+      });
     },
     180_000
   );
@@ -184,10 +203,9 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
     'refuses completed history with %s immutability wiring',
     async (_label, mutation) => {
       const connectionString = await databaseAt('0056_actuals_draft_revisions');
-      const pool = new Pool({ connectionString, max: 1 });
-      try {
-        await pool.query(mutation);
-        const before = await snapshot(pool);
+      await withClient(connectionString, async (client) => {
+        await client.query(mutation);
+        const before = await snapshot(client);
         await expect(
           runActualsDraftJournaledMigration({
             connectionString,
@@ -196,23 +214,20 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
             stdout: quiet,
           })
         ).rejects.toThrow();
-        expect(await snapshot(pool)).toEqual(before);
-      } finally {
-        await pool.end();
-      }
+        expect(await snapshot(client)).toEqual(before);
+      });
     },
     180_000
   );
 
   it('rolls back earlier DDL and preserves the ledger when later DDL fails', async () => {
     const connectionString = await databaseAt();
-    const pool = new Pool({ connectionString, max: 1 });
-    try {
-      await pool.query(`CREATE FUNCTION refuse_test_trigger() RETURNS event_trigger LANGUAGE plpgsql
+    await withClient(connectionString, async (client) => {
+      await client.query(`CREATE FUNCTION refuse_test_trigger() RETURNS event_trigger LANGUAGE plpgsql
         AS $$ BEGIN RAISE EXCEPTION 'injected trigger DDL failure'; END; $$;
         CREATE EVENT TRIGGER refuse_test_trigger ON ddl_command_start WHEN TAG IN ('CREATE TRIGGER')
         EXECUTE FUNCTION refuse_test_trigger()`);
-      const before = await snapshot(pool);
+      const before = await snapshot(client);
       await expect(
         runActualsDraftJournaledMigration({
           connectionString,
@@ -223,9 +238,7 @@ describe('actuals draft 0056 bounded PostgreSQL migration', { retry: 0 }, () => 
       ).rejects.toMatchObject({
         cause: expect.objectContaining({ message: 'injected trigger DDL failure' }),
       });
-      expect(await snapshot(pool)).toEqual(before);
-    } finally {
-      await pool.end();
-    }
+      expect(await snapshot(client)).toEqual(before);
+    });
   }, 180_000);
 });

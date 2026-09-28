@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/sidebar';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, apiRequest } from '@/lib/queryClient';
+import { ApiError, apiRequest, clearIdentityScopedQueries } from '@/lib/queryClient';
 import { AUTH_SESSION_QUERY_KEY, type AuthSession } from '@/lib/auth-session';
 import {
   getActiveNavigationId,
@@ -179,6 +179,9 @@ export function AppLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [boundActor, setBoundActor] = useState<{ id: string; role: string | null } | null>(null);
+  // Recorded before the async bind, so an actor change while a bind is pending still
+  // clears the previous actor's cached queries.
+  const lastActorId = useRef<string | null>(null);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
   const isWorkspaceView = resolveDashboardView(location, search)?.view === 'workspace';
@@ -186,13 +189,17 @@ export function AppLayout({
   useEffect(() => {
     let cancelled = false;
     setBoundActor(null);
+    if (lastActorId.current !== null && lastActorId.current !== session.user.id) {
+      clearIdentityScopedQueries(queryClient);
+    }
+    lastActorId.current = session.user.id;
     void bindFundWorkspaceActor(session.user.id, session.user.role).then(() => {
       if (!cancelled) setBoundActor({ id: session.user.id, role: session.user.role });
     });
     return () => {
       cancelled = true;
     };
-  }, [session.user.id, session.user.role]);
+  }, [queryClient, session.user.id, session.user.role]);
   const finishLocalLogout = () => {
     setBoundActor(null);
     unbindFundWorkspaceActor();

@@ -1,14 +1,15 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 
-import { expect, request, test, type Page, type Response, type TestInfo } from '@playwright/test';
+import { expect, request, test, type Page } from '@playwright/test';
 import { Pool } from 'pg';
-
-type Runtime = {
-  databaseUrl: string;
-  username: string;
-  password: string;
-  userId: number;
-};
+import {
+  attachScreenshot,
+  countFundsByName,
+  createDraftThroughStepOne,
+  loadRuntime,
+  openWorkspace,
+  publishCurrentFund,
+} from './support/batch-b-journey';
 
 type MutationSummary = {
   method: string;
@@ -17,12 +18,6 @@ type MutationSummary = {
   csrf: boolean;
   idempotency: boolean;
   optimisticLock: boolean;
-};
-
-type FundBasics = {
-  name: string;
-  capital: string;
-  asOfDate: string;
 };
 
 const FIRST_FUND = {
@@ -36,103 +31,6 @@ const SECOND_FUND = {
   capital: '4.1',
   asOfDate: '2026-07-31',
 };
-
-function runtimePath(): string {
-  const path = process.env['BATCH_B_RUNTIME_FILE'];
-  if (!path) throw new Error('BATCH_B_RUNTIME_FILE must point to the real-backend runtime JSON');
-  return path;
-}
-
-async function loadRuntime(): Promise<Runtime> {
-  const value = JSON.parse(await readFile(runtimePath(), 'utf8')) as Partial<Runtime>;
-  if (
-    typeof value.databaseUrl !== 'string' ||
-    typeof value.username !== 'string' ||
-    typeof value.password !== 'string' ||
-    typeof value.userId !== 'number'
-  ) {
-    throw new Error('BATCH_B_RUNTIME_FILE is missing databaseUrl, username, password, or userId');
-  }
-  return value as Runtime;
-}
-
-function responseFundId(responseBody: unknown): number {
-  const id = (responseBody as { data?: { id?: unknown } })?.data?.id;
-  if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-    throw new Error(
-      `Create response did not contain a valid fund ID: ${JSON.stringify(responseBody)}`
-    );
-  }
-  return id;
-}
-
-async function attachScreenshot(page: Page, testInfo: TestInfo, name: string) {
-  const path = testInfo.outputPath(name);
-  await page.screenshot({ path, fullPage: true });
-  await testInfo.attach(name, {
-    path,
-    contentType: 'image/png',
-  });
-}
-
-async function openWorkspace(page: Page) {
-  const workspaceLink = page
-    .getByRole('link', { name: /^(Dashboard|Open fund workspace)$/i })
-    .first();
-  await expect(workspaceLink).toBeVisible();
-  await workspaceLink.click();
-  await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/);
-  await expect(page.getByTestId('fund-workspace')).toBeVisible();
-}
-
-async function fillBasics(page: Page, fund: FundBasics) {
-  await page.getByTestId('fund-name').fill(fund.name);
-  await page.getByLabel('Capital Committed ($M)').fill(fund.capital);
-  await page.getByTestId('model-inputs-as-of-date').fill(fund.asOfDate);
-}
-
-async function createDraftThroughStepOne(page: Page, fund: FundBasics) {
-  await fillBasics(page, fund);
-  const createResponsePromise = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/funds' && response.request().method() === 'POST'
-  );
-  const draftResponsePromise = page.waitForResponse(
-    (response) =>
-      /\/api\/funds\/\d+\/draft$/.test(new URL(response.url()).pathname) &&
-      response.request().method() === 'PUT'
-  );
-
-  await page.getByTestId('next-step').click();
-  const [createResponse, draftResponse] = await Promise.all([
-    createResponsePromise,
-    draftResponsePromise,
-  ]);
-  expect(createResponse.status()).toBe(201);
-  expect(draftResponse.ok()).toBe(true);
-  await expect(page).toHaveURL(/\/fund-setup\?step=2$/);
-  await expect(page.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
-
-  return responseFundId(await createResponse.json());
-}
-
-async function publishCurrentFund(page: Page): Promise<Response> {
-  for (const step of [2, 3, 4, 5] as const) {
-    await expect(page).toHaveURL(new RegExp(`/fund-setup\\?step=${step}$`));
-    await page.getByTestId('next-step').click();
-  }
-  await expect(page).toHaveURL(/\/fund-setup\?step=6$/);
-  await page.getByTestId('finish-setup').click();
-  await expect(page).toHaveURL(/\/fund-setup\?step=7$/);
-
-  const finalizeResponsePromise = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/funds/finalize' &&
-      response.request().method() === 'POST'
-  );
-  await page.getByRole('button', { name: 'Create, Publish, and View Results' }).click();
-  return finalizeResponsePromise;
-}
 
 test.describe.configure({ mode: 'serial' });
 
@@ -556,7 +454,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
       fundSize: 4_100_000,
       modelInputsAsOfDate: replayedAsOfDate,
     });
-    expect((await pool.query('SELECT count(*)::int AS count FROM funds')).rows[0].count).toBe(2);
+    expect(await countFundsByName(pool, [FIRST_FUND.name, SECOND_FUND.name])).toBe(2);
     const fundMutations = mutations.filter((mutation) => mutation.path.startsWith('/api/funds'));
     expect(fundMutations.every((mutation) => mutation.csrf && mutation.idempotency)).toBe(true);
     expect(
