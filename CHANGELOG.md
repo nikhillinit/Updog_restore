@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Removed (2026-09-28)
+
+- Deleted the never-routed `client/src/pages/analytics.tsx` with its only
+  dependents: `reserve-allocation-chart.tsx`, `pacing-timeline-chart.tsx`,
+  `nivo-allocation-pie.tsx`, and `client/src/hooks/use-engine-data.ts`. The hook
+  called `/api/reserves/:fundId` and `/api/pacing/summary`, which only the
+  Docker `registerRoutes` surface mounts; on Vercel `makeApp` both return 404.
+  The page's dormant-candidate entry left `dormant-candidates.json` and
+  `MATRIX.md` was re-rendered; the `orphans.json` record (resolution `pruned`)
+  stays as the historical disposition.
+
 ### Security (2026-09-27)
 
 - Credential renewal after a fund create or finalize now preserves the login
