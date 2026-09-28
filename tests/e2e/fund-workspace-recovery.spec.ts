@@ -381,6 +381,15 @@ test('C3: a lost finalize response recovers the persisted command and replays it
   runtime,
   pool,
 }) => {
+  // The dev client never gates on the session (AppRouter enforceAuth defaults to
+  // import.meta.env.PROD, client/src/app/app-router.tsx:197), so after a reload no actor is
+  // bound before the store persists its defaults over the envelope. Recovery after a
+  // reload is a production-client behavior; only the built runtime can prove it.
+  // SKIP: dev runtime only; CI runs the built runtime (F_1.19.0 D-B).
+  test.skip(
+    process.env['BATCH_B_RUNTIME'] !== 'built',
+    'C3 reload recovery needs the built client (production auth gate)'
+  );
   await signIn(page, runtime.username, runtime.password);
   const fund = await startDraft(page, 'C3');
   await readyToPublish(page);
@@ -543,6 +552,13 @@ test('C6: reconnect rebinds a cross-tab actor change and invalidates the old fun
   runtime,
   pool,
 }) => {
+  // The reconnect trigger is AppRouter's session observer, which exists only when
+  // enforceAuth is on (import.meta.env.PROD, client/src/app/app-router.tsx:197-200).
+  // SKIP: dev runtime only; CI runs the built runtime (F_1.19.0 D-B).
+  test.skip(
+    process.env['BATCH_B_RUNTIME'] !== 'built',
+    'C6 needs the built client (production session observer)'
+  );
   // The page fixture is still about:blank. This same clock covers page two.
   await context.clock.install();
   const cachedFunds = page.waitForResponse((response) =>
@@ -561,6 +577,14 @@ test('C6: reconnect rebinds a cross-tab actor change and invalidates the old fun
     gapRequests.push(`${req.method()} ${new URL(req.url()).pathname}`);
   };
   page.on('request', countGapRequest);
+  // Count GET /api/funds from the reconnect on. The gap check proves none was sent before
+  // the switch, and the list is only dropped when the bind effect sees B, so any such
+  // request follows the rebind. The fix may refetch an active funds query at once, before
+  // the workspace opens, so a listener attached after the rebind would miss it.
+  const afterRebind: Request[] = [];
+  const countFundsRequest = (req: Request) => {
+    if (isRequest(req, 'GET', '/api/funds')) afterRebind.push(req);
+  };
   const other = await context.newPage();
   try {
     await other.goto('/dashboard');
@@ -578,6 +602,7 @@ test('C6: reconnect rebinds a cross-tab actor change and invalidates the old fun
       []
     );
     page.off('request', countGapRequest);
+    page.on('request', countFundsRequest);
 
     const rebound = page.waitForResponse((response) =>
       isRequest(response.request(), 'GET', '/api/auth/session')
@@ -591,22 +616,22 @@ test('C6: reconnect rebinds a cross-tab actor change and invalidates the old fun
     expect((await session.json()).user.id).toBe(String(runtime.bUserId));
     await assertActorWithoutPending(page, runtime.bUserId);
 
-    // Only a request STARTED after the rebind counts; not an earlier response
-    // arriving late. No reload or direct API fetch may mask the stale list.
-    const afterRebind = new Set<Request>();
-    page.on('request', (req) => {
-      if (isRequest(req, 'GET', '/api/funds')) afterRebind.add(req);
-    });
-    const [fundsResponse] = await Promise.all([
-      page.waitForResponse((response) => afterRebind.has(response.request()), { timeout: 10_000 }),
-      openWorkspace(page),
-    ]);
-    // Intentionally red on unmodified main: the cached list prevents this GET.
-    expect(fundsResponse.status()).toBe(200);
+    // No reload or direct API fetch may mask the stale list.
+    await openWorkspace(page);
+    // Red on unmodified main: the list cached under A is never refetched.
+    await expect
+      .poll(() => afterRebind.length, {
+        message: 'C6: a GET /api/funds must follow the cross-tab rebind',
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(0);
+    const fundsResponse = await afterRebind[0]!.response();
+    expect(fundsResponse?.status()).toBe(200);
     await assertActorWithoutPending(page, runtime.bUserId);
     expect(await countPublishedConfigs(pool, fund.id)).toBe(0);
   } finally {
     page.off('request', countGapRequest);
+    page.off('request', countFundsRequest);
     await other.close();
   }
 });

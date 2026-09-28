@@ -258,38 +258,69 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
-## Stabilize-and-qualify PR2, PR3a and PR3b
+## Stabilize-and-qualify PR3b (PR2 and PR3a delivered)
 
-- **PR2, fund workspace journey qualification:** Add a built runtime to the
-  Batch B harness that runs the Vercel build command
-  (`npm run build:web && node scripts/build-vercel-api.mjs`), serves the built
-  client, and hosts `makeApp()` from `_app.generated.mjs` at the root of a Node
-  listener. Add browser cases for a lost finalize response (`route.fetch()`,
-  database check, then `route.abort()`), a stale-ETag 412 from two sessions, and
-  a double submit during an in-flight finalize. Acceptance: both runtimes green
-  on the exact candidate, and a deliberately failing case fails
-  `CI Gate Status`.
-- **PR2 update, decision D-E fixed by F_1.19.1:** credential renewal now keeps
-  the presented `jti` and `exp` (ADR-104), so logout revokes every renewed
-  token. Write case C5b as a normal test with no `test.fail()` annotation and
-  add no open D-E entry. After A's out-of-band response is released, assert that
-  the browser session cookie equals the token from A's response, that
-  `GET /api/auth/session` returns 401 with no user body, and that B can sign in
-  again and the session then reports B. If C5b uses the API-level fallback, its
-  final assertion is already the 401. See section 4 of
-  `docs/1-plans/F_1.19.1_renewal-preserves-login-session.plan.md`.
-- **PR3a, canary residue contract v2:** The release canary drives
-  `POST /api/funds`, `PUT /api/funds/:id/draft` and `POST /api/funds/finalize`
-  (`tests/smoke/release-canaries.spec.ts`). #1558 already reserves that HTTP
-  vector (44 total, 5 fund events, 5 receipts) in
-  `server/services/canary-residue-service.ts`, but the policy-measurement schema
-  in `shared/contracts/release-evidence-fragment-v1.contract.ts` requires
-  measured residue to equal the frozen v1 vector and rejects it. Add a versioned
-  characterization and make the evidence fragment and manifest builders accept
-  it. This is a release blocker.
+- **PR2, fund workspace journey qualification: delivered by F_1.19.0.** Batch B
+  has a built runtime (`BATCH_B_RUNTIME=built`) that runs the Vercel build and
+  serves `dist/public` and the `api/` functions in Vercel's routing order. The
+  `batch-b` leg of `test-full` runs it on pull requests that touch the workspace
+  journey (`batch_b` path filter) and on every heavy `main`, `run_full_suite`,
+  or schema run, so a failing case fails `CI Gate Status`.
+  `tests/e2e/fund-workspace-recovery.spec.ts` covers C1-C6; C5b is a normal test
+  after F_1.19.1 (ADR-104).
+- **PR3a, canary residue contract v2: delivered by F_1.16.0 (#1580).**
 - **PR3b, receipt uniqueness:** Waits on owner decision D11 (canonical-baseline
   reuse or global uniqueness for current-forecast receipts written by the
   checkpoint and shadow paths).
 - **Context:** Queue items 1 and 3 of the September 24, 2026 refresh. PR1
   (#1570) and D13 (#1571) landed.
-- **Effort:** PR2 M, PR3a M, PR3b S after D11.
+- **Effort:** PR3b S after D11.
+
+---
+
+## Workspace: stale-tab command under another actor's cookie
+
+- **What:** Until a tab notices another tab's actor switch (case C6 and the
+  F_1.19.0 bind-effect fix), a request it initiates carries B's cookie with A's
+  UI state, for example a "Check publication status" replay of A's pending
+  finalize. Receipts are unique on `(actor_user_id, operation, idempotency_key)`
+  (`shared/schema/fund.ts:494-497`), so the server treats that request as a new
+  command for B, not a replay of A's, and a second publish is possible.
+- **Owner decision (2026-09-28):** a pending command belongs to its originating
+  actor and fund. An identity change must refuse it or ask for reconfirmation,
+  never reissue it as the new actor's command.
+- **When:** after the release that carries F_1.19.0.
+- **Effort:** S to M (a client fence; a server check would touch the pinned
+  `server/routes/fund-config.ts`).
+
+---
+
+## Release: allowlist-only candidates carry no `test-full` evidence
+
+- **What:** A `main` push that changed only files on the three-file `auto_docs`
+  allowlist (`.github/path-filters.yml`, `scripts/ci/classify-change-paths.mjs`)
+  skips every `test-full` leg, Batch B included, so its `CI Gate Status` passes
+  without Batch B, and release dispatch reads only that gate. This is existing
+  behavior for all `test-full` legs; F_1.19.0 does not change it.
+- **Until a later plan closes it:** before dispatching an allowlist-only
+  candidate, the owner confirms that the newest ancestor `main` run with a
+  `test-full` leg has a green `Test batch-b` leg and that
+  `git diff --stat <ancestor> <candidate>` shows only allowlisted files;
+  otherwise the owner dispatches `ci-unified.yml` with `run_full_suite` on the
+  candidate. `release-proof.yml` and the gate are contract-pinned and unchanged.
+- **Effort:** S.
+
+---
+
+## Auth: credential renewal re-mints the CSRF token for the same session
+
+- **What:** A successful create or finalize renews the credential with the same
+  `jti` (ADR-104) but writes a new `updog.csrf` value. A mutation whose
+  `X-CSRF-Token` header was read before the renewal and whose cookies are
+  attached after it fails with 403 `csrf_validation_failed`. Case C4 hit this
+  only because Playwright attaches cookies when a held request is released; a
+  real double click sends both requests at click time.
+- **Activation condition:** a production 403 `csrf_validation_failed` that
+  follows a create or finalize from the same session. Then keep the existing
+  CSRF value when the renewed `jti` is unchanged.
+- **Effort:** S.

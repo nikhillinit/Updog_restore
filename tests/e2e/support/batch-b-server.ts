@@ -54,8 +54,9 @@ async function stop(code: number) {
 process.on('SIGTERM', () => void stop(0));
 process.on('SIGINT', () => void stop(0));
 process.on('uncaughtException', (error) => {
-  // Built mode runs the app's own pool in this process; stopping the container ends it (57P01).
-  if (stopping && (error as { code?: string }).code === '57P01') return;
+  // Built mode runs the app's own pool in this process; stopping the container ends its
+  // connections (57P01, "Connection terminated unexpectedly"). Nothing matters once stopping.
+  if (stopping) return;
   console.error(error);
   void stop(1);
 });
