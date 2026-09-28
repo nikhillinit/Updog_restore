@@ -13,10 +13,14 @@ import { Link } from 'wouter';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LegacyReserveMultiplierNote } from '@/components/fund-results/LegacyReserveMultiplierNote';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
-import type { PublishedVersionSummary } from '@shared/contracts/fund-results-comparison-v1.contract';
+import type {
+  MetricDelta,
+  PublishedVersionSummary,
+} from '@shared/contracts/fund-results-comparison-v1.contract';
 import { getLifecycleDiagnostic } from './evidence';
 import { FactTile } from './result-section-cards';
 import {
@@ -279,9 +283,21 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                 </div>
               ))}
             </div>
+            {comparisonState.comparison.metricDeltas.some(isReserveMetricShown) && (
+              <LegacyReserveMultiplierNote />
+            )}
           </>
         )}
     </div>
+  );
+}
+
+// Reserve ratio and confidence come from RESERVE snapshots, including a previous
+// version's while the current one is pending, so the Q28 note follows them.
+function isReserveMetricShown(delta: MetricDelta): boolean {
+  return (
+    (delta.metric === 'reserveRatio' || delta.metric === 'avgConfidence') &&
+    (delta.currentValue != null || delta.previousValue != null)
   );
 }
 

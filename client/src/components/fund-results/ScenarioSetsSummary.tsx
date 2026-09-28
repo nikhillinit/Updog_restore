@@ -15,6 +15,7 @@ import {
   scenarioEvidenceFromSet,
   type ScenarioEvidenceSourceV1,
 } from '@/components/results/scenario-evidence';
+import { LegacyReserveMultiplierNote } from './LegacyReserveMultiplierNote';
 import type {
   ScenariosSectionPayloadV1,
   ScenarioSetVariantResultSummaryV1,
@@ -174,6 +175,7 @@ function ReserveScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) {
           {reserveVariant.reserveSummary.warningCount}
         </p>
       </div>
+      <LegacyReserveMultiplierNote className="col-span-2" />
     </div>
   );
 }

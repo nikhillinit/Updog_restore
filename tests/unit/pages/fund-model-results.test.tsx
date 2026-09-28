@@ -232,6 +232,12 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     // Check that payload data from the server appears (not fabricated)
     expect(screen.getByText(/Follow-on/)).toBeInTheDocument();
+    // Q28: the reserve section discloses the legacy fixed multipliers.
+    const reserveHeader = screen.getByText(/Reserve allocation — awaiting current actuals/)
+      .parentElement as HTMLElement;
+    expect(within(reserveHeader).getByTestId('legacy-reserve-multiplier-note')).toHaveTextContent(
+      '2.0x for any other round'
+    );
   });
 
   it('renders pacing section payload when status is available', async () => {
@@ -1068,6 +1074,61 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(
       within(comparisonCard).getByText(/Previous value is zero, so percentage drift is unstable\./i)
     ).toBeInTheDocument();
+  });
+
+  it('keeps the Q28 note on previous-version reserve metrics while current results are pending', async () => {
+    // Published v2 is still calculating; only v1's reserve ratio and confidence remain on screen.
+    const comparison = resultsComparisonResponse();
+    const pendingReserveMetric = {
+      currentValue: null,
+      absoluteDelta: null,
+      percentageDelta: null,
+      driftCapable: false,
+      driftReason: 'missing_current',
+    };
+    comparison.metricDeltas = comparison.metricDeltas.map((delta) =>
+      delta.metric === 'reserveRatio' || delta.metric === 'avgConfidence'
+        ? { ...delta, ...pendingReserveMetric }
+        : delta
+    );
+    const results = readyResponse();
+    mockFundPageFetches({
+      comparison,
+      results: {
+        ...results,
+        sections: {
+          ...results.sections,
+          reserve: { status: 'pending', reason: 'Calculations are still in progress' },
+          scorecard: {
+            status: 'pending',
+            reason: 'Calculations have not produced results yet',
+            reasonCode: 'CALCULATION_PENDING',
+          },
+        },
+      },
+    });
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    expect(within(comparisonCard).getByText('Previous 35.0%')).toBeInTheDocument();
+    const notes = screen.getAllByTestId('legacy-reserve-multiplier-note');
+    expect(notes).toHaveLength(1);
+    expect(comparisonCard).toContainElement(notes[0]!);
+  });
+
+  it('omits the Q28 note from the comparison when no reserve metric is shown', async () => {
+    const comparison = resultsComparisonResponse();
+    comparison.metricDeltas = comparison.metricDeltas.filter(
+      (delta) => delta.metric === 'fundSize'
+    );
+    mockFundPageFetches({ comparison });
+    await renderPage('/fund-model-results/123');
+
+    const comparisonCard = await screen.findByTestId('publish-comparison-card');
+    expect(within(comparisonCard).getByText('Fund Size')).toBeInTheDocument();
+    expect(
+      within(comparisonCard).queryByTestId('legacy-reserve-multiplier-note')
+    ).not.toBeInTheDocument();
   });
 
   it('renders a comparison fallback when no previous published version exists', async () => {
