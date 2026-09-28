@@ -1,9 +1,12 @@
 import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
+import { getConfig } from '../../config';
 import { getUserFundGrants } from './credentials';
-import { getConfiguredJwtAlgorithm, signBrowserSessionToken, signToken } from './jwt';
+import { getConfiguredJwtAlgorithm } from './jwt';
 import { setBrowserSessionCookies } from './csrf';
+
+const MAX_RENEWED_EXP = 8_640_000_000_000;
 
 function numericIdentity(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
@@ -52,14 +55,31 @@ function claimsRenewedForFund(
   };
 }
 
+function signRenewedSessionToken(
+  claims: Record<string, unknown>,
+  jti: string,
+  exp: number
+): string {
+  const cfg = getConfig();
+  return jwt.sign({ ...claims, jti, exp }, cfg.JWT_SECRET!, {
+    algorithm: 'HS256',
+    issuer: cfg.JWT_ISSUER,
+    audience: cfg.JWT_AUDIENCE,
+  });
+}
+
 export type CredentialRenewal =
   | { renewedAccessToken?: string; credentialRenewal?: never }
   | { renewedAccessToken?: never; credentialRenewal: 'reauth_required' };
 
 /**
- * Renew the credential that authenticated a newly-created fund. Renewal is
- * best-effort because creation has already committed; failures become an
- * explicit reauthentication marker rather than changing the 201 result.
+ * Renew the credential that authenticated a newly-created fund. Renewal
+ * refreshes fund grants inside the presented login session: the token keeps
+ * the presented jti and exp, so it never creates a new session identity or
+ * extends the session, and revoking that jti at logout revokes every renewal.
+ * Renewal is best-effort because creation has already committed; failures
+ * become an explicit reauthentication marker rather than changing the 201
+ * result.
  */
 export async function renewCreationCredential(
   req: Request,
@@ -85,19 +105,28 @@ export async function renewCreationCredential(
         ? []
         : [...(await getUserFundGrants(creatorUserId)), fundId];
     const claims = claimsRenewedForFund(credential.claims, fundIds);
+    const { jti, exp } = credential.claims;
+    if (
+      typeof jti !== 'string' ||
+      jti.length === 0 ||
+      jti.length > 64 ||
+      typeof exp !== 'number' ||
+      !Number.isSafeInteger(exp) ||
+      exp <= Math.floor(Date.now() / 1000) ||
+      exp > MAX_RENEWED_EXP
+    ) {
+      if (credential.source === 'bearer') res.setHeader('Cache-Control', 'no-store');
+      return { credentialRenewal: 'reauth_required' };
+    }
 
     if (credential.source === 'cookie') {
-      const token = signBrowserSessionToken(claims);
-      const decoded = jwt.decode(token);
-      if (!decoded || typeof decoded === 'string' || typeof decoded.jti !== 'string') {
-        throw new Error('Failed to create renewed browser session');
-      }
-      setBrowserSessionCookies(res, token, decoded.jti);
+      const token = signRenewedSessionToken(claims, jti, exp);
+      setBrowserSessionCookies(res, token, jti);
       return {};
     }
 
     res.setHeader('Cache-Control', 'no-store');
-    return { renewedAccessToken: signToken(claims) };
+    return { renewedAccessToken: signRenewedSessionToken(claims, jti, exp) };
   } catch {
     // Do not leave a partially written browser session behind if cookie
     // serialization failed after one of its headers was appended.

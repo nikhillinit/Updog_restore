@@ -12692,3 +12692,88 @@ Merge admits source only. The rehearsal, the fingerprint secret, the restore
 branch, the production apply, and the release dispatch each stay a separate
 repository-owner action. One successful apply run produces a receipt that audit
 mode accepts as historical schema proof for the whole 0050-0061 chain.
+
+## ADR-104: Credential Renewal Preserves the Login Session
+
+**Date:** 2026-09-27
+
+**Status:** Proposed; owner decisions D1-D4 recorded 2026-09-27; source
+admission pending
+
+**Tags:** #auth #session #revocation #security
+
+### Context
+
+A successful fund create (`server/routes/funds.ts`) or finalize
+(`server/routes/fund-config.ts`) renews the caller's credential through
+`renewCreationCredential` in `server/lib/auth/creator-identity.ts`, so the
+creator can use the new fund without signing in again. Token `fundIds` are the
+access authority, and renewal adds the new fund ID from the user's grants.
+Before this decision, renewal minted a token with a new `jti` and a new expiry.
+Logout revokes only the `jti` it receives (`server/routes/auth.ts`), so a
+renewed token survived the logout of the session it came from. A create or
+finalize response that reached the browser after user A logged out and user B
+signed in installed A's live session over B's (F_1.19.0 decision D-E). The
+browser applies `Set-Cookie` from any response it receives, so no client-side
+fence can stop the install.
+
+### Decision
+
+A login session is identified by the `jti` minted at sign-in. Credential renewal
+is a claims refresh inside that session:
+
+1. The renewed token keeps the presented `jti` and `exp`. Only its claims (fund
+   grants) and `iat` change. Renewal never creates a new session identity and
+   never extends the session (D1, D2).
+2. Renewal fails closed. It mints only when the presented `jti` is a non-empty
+   string of at most 64 characters (the `revoked_tokens.jti` column width) and
+   the presented `exp` is a safe integer later than the current time and within
+   the JavaScript `Date` range. The check runs after the grant lookup,
+   immediately before signing. Otherwise the response carries the existing
+   `credentialRenewal: 'reauth_required'` marker.
+3. Logout of any token in the session revokes that one `jti`, so every token of
+   the session fails `assertTokenUsable`. The revocation query and table are
+   unchanged.
+4. The signer is a module-private helper in `creator-identity.ts`, using the
+   same configuration source as `server/lib/auth/jwt.ts`. `jwt.ts`, the route
+   files, and `revocation.ts` stay byte-identical because they are source-hash
+   pinned in `audit/surface-contract-matrix/source-inventory.json`, and
+   restamping the recorded G1 review basis for a semantic change is not
+   acceptable. Tests verify renewed tokens through the real `requireAuth` and
+   `verifyAccessToken`, which catches drift between the two signing sites.
+
+The stale-tab replay of a pending finalize under another user's cookie is a
+separate client-fence problem and stays out of scope (D4).
+
+### Alternatives
+
+- **Per-user revoke-at-logout epoch** (a users column compared with token
+  `iat`): revokes every session of the user and needs a migration, which the
+  ADR-103 migration freeze blocks.
+- **Client-side renewal after the command fence:** the post-fence request still
+  carries A's cookie, so it narrows the race without closing it, and it adds
+  client work plus a new route or a side effect on `GET /api/auth/session`.
+- **Authorize from `user_fund_grants` on every request:** a wide change across
+  several auth modules plus a database read per request.
+- **Session-family revocation** (a family claim plus `family:<id>` revocation
+  rows): the same semantics as this decision with an extra claim, extra rows,
+  and a changed revocation query.
+
+### Accepted risks
+
+- A late response that lands after A logs out and B signs in still replaces B's
+  session and CSRF cookies with A's renewed pair. That token is revoked, so B's
+  next request returns 401 and B signs in again. There is no identity confusion.
+  The login flow already recovers: `GET /api/auth/csrf` clears an invalid
+  session cookie before sign-in.
+- Several renewed tokens can share one `jti` with different claims. The only
+  `jti` consumers are revocation and the CSRF binding (`session:<jti>`), and
+  neither relies on per-token uniqueness.
+
+### Consequences
+
+Creating or finalizing a fund no longer slides the 24-hour browser session or
+the bearer lifetime. An externally minted HS256 token without `jti` or `exp` now
+receives `reauth_required` instead of a renewed token. The wire contract,
+routes, schema, and client are unchanged, so rollback is a source revert. Plan:
+`docs/1-plans/F_1.19.1_renewal-preserves-login-session.plan.md`.
