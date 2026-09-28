@@ -63,6 +63,8 @@ describe('ScenarioSetsSummary', () => {
     const note = within(reserveCard).getByTestId('legacy-reserve-multiplier-note');
     expect(note).toHaveTextContent('Seed 1.5x, Series A 2.0x, Series B 2.5x');
     expect(note).toHaveTextContent('2.0x for any other round');
+    // Ranked reserve snapshots are not legacy output, so the copy is conditional.
+    expect(note).toHaveTextContent(/^When the legacy reserve engine sizes reserves/);
   });
 
   it('renders methodology scenario cards with economics summaries', () => {
