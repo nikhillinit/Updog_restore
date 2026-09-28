@@ -232,6 +232,12 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
     // Check that payload data from the server appears (not fabricated)
     expect(screen.getByText(/Follow-on/)).toBeInTheDocument();
+    // Q28: the reserve section discloses the legacy fixed multipliers.
+    const reserveHeader = screen.getByText(/Reserve allocation — awaiting current actuals/)
+      .parentElement as HTMLElement;
+    expect(within(reserveHeader).getByTestId('legacy-reserve-multiplier-note')).toHaveTextContent(
+      '2.0x for any other round'
+    );
   });
 
   it('renders pacing section payload when status is available', async () => {

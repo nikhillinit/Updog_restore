@@ -19,6 +19,8 @@ interface SectionRendererProps {
   evidenceTestId?: string;
   /** Plan 9 Wave 9B1 additive: small header affordance (e.g. Evidence link). */
   headerAction?: React.ReactNode;
+  /** Shown under the header when the section is available (e.g. a methodology disclosure). */
+  note?: React.ReactNode;
 }
 
 export function SectionRenderer({
@@ -28,6 +30,7 @@ export function SectionRenderer({
   evidenceLifecycle,
   evidenceTestId,
   headerAction,
+  note,
 }: SectionRendererProps) {
   const evidence = sectionEvidence(evidenceLifecycle, section);
 
@@ -44,6 +47,7 @@ export function SectionRenderer({
             <h2 className="text-lg font-medium text-charcoal">{title}</h2>
           )}
           {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
+          {note}
         </div>
         {section.legacyEvidence && (
           <p className="text-xs text-charcoal-400 mb-2">
