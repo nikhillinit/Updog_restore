@@ -59,6 +59,12 @@ describe('ScenarioSetsSummary', () => {
     expect(within(reserveCard).getByText('-$25,000')).toBeInTheDocument();
     expect(within(reserveCard).getByText('Warnings')).toBeInTheDocument();
     expect(within(reserveCard).getAllByText('1')).toHaveLength(2);
+    // Q28: legacy multiplier disclosure names the table and the 2.0x fallback.
+    const note = within(reserveCard).getByTestId('legacy-reserve-multiplier-note');
+    expect(note).toHaveTextContent('Seed 1.5x, Series A 2.0x, Series B 2.5x');
+    expect(note).toHaveTextContent('2.0x for any other round');
+    // Ranked reserve snapshots are not legacy output, so the copy is conditional.
+    expect(note).toHaveTextContent(/^When the legacy reserve engine sizes reserves/);
   });
 
   it('renders methodology scenario cards with economics summaries', () => {
@@ -71,6 +77,7 @@ describe('ScenarioSetsSummary', () => {
     expect(within(card).getByText('Best TVPI')).toBeInTheDocument();
     expect(within(card).getByText('2.30x')).toBeInTheDocument();
     expect(within(card).getByText('Hybrid waterfall')).toBeInTheDocument();
+    expect(screen.queryByTestId('legacy-reserve-multiplier-note')).not.toBeInTheDocument();
   });
 
   it('renders allocation and sector-profile scenario cards with economics summaries', () => {

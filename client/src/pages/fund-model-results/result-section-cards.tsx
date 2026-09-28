@@ -7,6 +7,7 @@
  * @module client/pages/fund-model-results/result-section-cards
  */
 
+import { LegacyReserveMultiplierNote } from '@/components/fund-results/LegacyReserveMultiplierNote';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type {
@@ -49,6 +50,9 @@ function OverviewCard({ payload }: { payload: ScorecardPayload }) {
           label="Last Calculated"
           value={new Date(payload.lastCalculatedAt.value).toLocaleDateString()}
         />
+      )}
+      {(payload.reserveRatio || payload.avgConfidence) && (
+        <LegacyReserveMultiplierNote className="col-span-2 md:col-span-3" />
       )}
     </div>
   );

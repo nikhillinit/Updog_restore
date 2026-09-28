@@ -56,6 +56,7 @@ import {
 } from './fund-model-results/scenario-evidence-drawer';
 import { SectionRenderer } from './fund-model-results/SectionRenderer';
 import { WorkspaceBasisIndicator, WorkspaceNav } from './fund-model-results/workspace-nav';
+import { LegacyReserveMultiplierNote } from '@/components/fund-results/LegacyReserveMultiplierNote';
 import { WorkspaceContextRail } from '@/components/fund-results/WorkspaceContextRail';
 import { FundWorkspaceProvider } from '@/contexts/FundWorkspaceContext';
 import { ErrorState, LatestErrorState, LoadingState } from './fund-model-results/states';
@@ -279,6 +280,7 @@ function FundModelResultsPage() {
               section={results.sections.reserve}
               evidenceLifecycle={evidenceLifecycle}
               evidenceTestId="evidence-header-reserve-allocation"
+              note={<LegacyReserveMultiplierNote />}
             />
 
             {/* Pacing section */}
