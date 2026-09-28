@@ -159,6 +159,37 @@ describe('AppLayout logout', () => {
     expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(nextSession);
   });
 
+  it('clears identity-scoped queries when the actor changes before the first bind resolves', async () => {
+    mocks.bindFundWorkspaceActor.mockReturnValueOnce(new Promise<void>(() => {}));
+    const nextSession: AuthSession = {
+      user: { id: '8', email: 'partner@example.com', role: 'viewer', fundIds: [] },
+    };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(AUTH_SESSION_QUERY_KEY, session);
+    client.setQueryData(['/api/funds'], [{ id: 1 }]);
+    const view = render(
+      <QueryClientProvider client={client}>
+        <AppLayout session={session}>
+          <div>Protected Content</div>
+        </AppLayout>
+      </QueryClientProvider>
+    );
+    expect(client.getQueryData(['/api/funds'])).toEqual([{ id: 1 }]);
+
+    client.setQueryData(AUTH_SESSION_QUERY_KEY, nextSession);
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <AppLayout session={nextSession}>
+          <div>Next actor workspace</div>
+        </AppLayout>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText('Next actor workspace');
+    expect(client.getQueryData(['/api/funds'])).toBeUndefined();
+    expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(nextSession);
+  });
+
   it('keeps descendants gated and ignores a superseded actor binding', async () => {
     let resolveNextBinding: (() => void) | undefined;
     const nextBinding = new Promise<void>((resolve) => {

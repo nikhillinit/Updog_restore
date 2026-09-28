@@ -179,7 +179,9 @@ export function AppLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [boundActor, setBoundActor] = useState<{ id: string; role: string | null } | null>(null);
-  const lastBoundActorId = useRef<string | null>(null);
+  // Recorded before the async bind, so an actor change while a bind is pending still
+  // clears the previous actor's cached queries.
+  const lastActorId = useRef<string | null>(null);
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
   const isWorkspaceView = resolveDashboardView(location, search)?.view === 'workspace';
@@ -187,14 +189,12 @@ export function AppLayout({
   useEffect(() => {
     let cancelled = false;
     setBoundActor(null);
-    if (lastBoundActorId.current !== null && lastBoundActorId.current !== session.user.id) {
+    if (lastActorId.current !== null && lastActorId.current !== session.user.id) {
       clearIdentityScopedQueries(queryClient);
     }
+    lastActorId.current = session.user.id;
     void bindFundWorkspaceActor(session.user.id, session.user.role).then(() => {
-      if (!cancelled) {
-        lastBoundActorId.current = session.user.id;
-        setBoundActor({ id: session.user.id, role: session.user.role });
-      }
+      if (!cancelled) setBoundActor({ id: session.user.id, role: session.user.role });
     });
     return () => {
       cancelled = true;

@@ -128,29 +128,17 @@ try {
     const { buildCommand, rewrites, outputDirectory } = JSON.parse(
       await readFile(path.resolve('vercel.json'), 'utf8')
     ) as { buildCommand: unknown; rewrites: unknown; outputDirectory: unknown };
-    const expectedRewrites = new Map([
-      ['/metrics/:path*', '/api/metrics/:path*'],
-      ['/api/:slug*', '/api/[...slug]'],
-      ['/:path*', '/index.html'],
-    ]);
-    if (!Array.isArray(rewrites)) {
-      throw new Error(`Unsupported vercel.json rewrites: ${JSON.stringify(rewrites)}`);
-    }
-    for (const entry of rewrites) {
-      if (
-        !entry ||
-        typeof entry !== 'object' ||
-        Object.keys(entry).length !== 2 ||
-        !expectedRewrites.has(entry.source) ||
-        expectedRewrites.get(entry.source) !== entry.destination
-      ) {
-        throw new Error(`Unsupported vercel.json rewrite: ${JSON.stringify(entry)}`);
-      }
-      expectedRewrites.delete(entry.source);
-    }
-    if (expectedRewrites.size > 0) {
+    // Vercel applies rewrites in order and the listener hard-codes this order, so any other
+    // shape or order (e.g. the catch-all first) must fail here rather than pass locally.
+    const expectedRewrites = [
+      { source: '/metrics/:path*', destination: '/api/metrics/:path*' },
+      { source: '/api/:slug*', destination: '/api/[...slug]' },
+      { source: '/:path*', destination: '/index.html' },
+    ];
+    if (JSON.stringify(rewrites) !== JSON.stringify(expectedRewrites)) {
       throw new Error(
-        `Unsupported vercel.json rewrites; missing entries: ${JSON.stringify([...expectedRewrites])}`
+        `Unsupported vercel.json rewrites ${JSON.stringify(rewrites)}; ` +
+          `the built listener mirrors exactly ${JSON.stringify(expectedRewrites)}`
       );
     }
     if (typeof buildCommand !== 'string' || !buildCommand.trim()) {
