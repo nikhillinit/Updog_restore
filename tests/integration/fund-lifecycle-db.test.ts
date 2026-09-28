@@ -6,6 +6,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool } from 'pg';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -370,6 +371,12 @@ describe('fund lifecycle DB proof', () => {
     const idempotencyKey = randomUUID();
     const body = finalizeFixture();
     const adminToken = authHeader(active);
+    const presentedClaims = jwt.decode(adminToken.replace(/^Bearer /, ''));
+    if (!presentedClaims || typeof presentedClaims === 'string') {
+      throw new Error('Expected admin bearer token to decode to JWT claims');
+    }
+    expect(presentedClaims.jti).toEqual(expect.any(String));
+    expect(presentedClaims.exp).toEqual(expect.any(Number));
 
     const first = await request(active.app)
       .post('/api/funds/finalize')
@@ -381,6 +388,11 @@ describe('fund lifecycle DB proof', () => {
     expect(first.headers['etag']).toMatch(/^"[0-9a-f]{16}"$/);
     const firstBody = first.body as FundFinalizeResponseV1;
     expect(firstBody.success).toBe(true);
+    expect(first.body.renewedAccessToken).toEqual(expect.any(String));
+    expect(jwt.decode(first.body.renewedAccessToken)).toMatchObject({
+      jti: presentedClaims.jti,
+      exp: presentedClaims.exp,
+    });
     expect(firstBody.data).toEqual(
       expect.objectContaining({
         fundId: expect.any(Number),
@@ -490,6 +502,11 @@ describe('fund lifecycle DB proof', () => {
 
     expect(replay.status, JSON.stringify(replay.body)).toBe(201);
     expect(replay.headers['idempotency-replay']).toBe('true');
+    expect(replay.body.renewedAccessToken).toEqual(expect.any(String));
+    expect(jwt.decode(replay.body.renewedAccessToken)).toMatchObject({
+      jti: presentedClaims.jti,
+      exp: presentedClaims.exp,
+    });
     expect(replay.body.data).toEqual(first.body.data);
     expect(replay.headers['etag']).toBe(first.headers['etag']);
     await expect(rowCounts(active, fundId)).resolves.toEqual(beforeReplay);

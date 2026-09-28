@@ -7,6 +7,11 @@ const { createFundWithInitialDraftMock } = vi.hoisted(() => ({
   createFundWithInitialDraftMock: vi.fn(),
 }));
 
+const revocationState = vi.hoisted(() => ({
+  revokedJtis: new Set<string>(),
+  calls: [] as Array<{ jti: string; userId: number; expiresAt?: Date; reason?: string }>,
+}));
+
 vi.mock('../../../server/services/fund-persistence-service', () => ({
   fundPersistenceService: {
     createFundWithInitialDraft: createFundWithInitialDraftMock,
@@ -15,10 +20,26 @@ vi.mock('../../../server/services/fund-persistence-service', () => ({
 
 vi.mock('../../../server/lib/auth/credentials', () => ({
   getUserFundGrants: vi.fn().mockResolvedValue([42]),
+  verifyCredentials: vi.fn(),
 }));
 
 vi.mock('../../../server/lib/auth/revocation.js', () => ({
-  assertTokenUsable: vi.fn().mockResolvedValue(undefined),
+  assertTokenUsable: async (claims: { jti?: string }) => {
+    if (claims.jti && revocationState.revokedJtis.has(claims.jti)) {
+      const error = new Error('Token has been revoked');
+      error.name = 'TokenRevokedError';
+      throw error;
+    }
+  },
+  revokeToken: async (input: {
+    jti: string;
+    userId: number;
+    expiresAt?: Date;
+    reason?: string;
+  }) => {
+    revocationState.revokedJtis.add(input.jti);
+    revocationState.calls.push(input);
+  },
 }));
 
 vi.mock('../../../server/lib/logger.js', () => ({
@@ -66,6 +87,7 @@ vi.mock('../../../server/lib/hash', () => ({ hashPayload: vi.fn(() => 'mock-hash
 vi.mock('../../../server/core/enhanced-fund-model', () => ({ EnhancedFundModel: vi.fn() }));
 
 import fundsRouter from '../../../server/routes/funds';
+import authRouter from '../../../server/routes/auth';
 import {
   requireWriteRole,
   requireAuth,
@@ -104,14 +126,16 @@ const createdFund = {
   createdAt: new Date('2026-01-15T00:00:00Z'),
 };
 
-function createApp() {
+function createApp(writeProbe = vi.fn()) {
   const app = express();
   app.use(express.json());
   app.use('/api', requireAuth(), requireCsrf);
+  app.use(authRouter);
   app.use('/api', fundsRouter);
   app.post('/api/funds/:fundId/write', requireWriteRole(PARTNER_WRITE_ROLES), async (req, res) => {
     const fundId = Number(req.params['fundId']);
     if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) return;
+    writeProbe();
     res.json({ ok: true, fundId });
   });
   return app;
@@ -130,6 +154,8 @@ function cookieAuth(token: string, csrfToken: string) {
 describe('fund creation credential renewal', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    revocationState.revokedJtis.clear();
+    revocationState.calls.length = 0;
     const workflow = await import('../../../server/services/fund-workflow-service');
     vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
       async (_command, execute) => ({
@@ -208,5 +234,126 @@ describe('fund creation credential renewal', () => {
       .post('/api/funds/42/write')
       .set('Authorization', `Bearer ${oldToken}`);
     expect(staleWrite.status).toBe(403);
+  });
+
+  it('revokes renewed cookie sessions through logout of the presented session', async () => {
+    const writeProbe = vi.fn();
+    const app = createApp(writeProbe);
+    const oldToken = signBrowserSessionToken({
+      sub: '12',
+      email: 'partner@example.com',
+      role: 'partner',
+      fundIds: [],
+    });
+    const oldClaims = verifyAccessToken(oldToken);
+    const oldCsrf = createSessionCsrfToken(String(oldClaims.jti));
+
+    const created = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .set(cookieAuth(oldToken, oldCsrf))
+      .send(payload);
+    expect(created.status).toBe(201);
+
+    const renewedSession = findSetCookie(created, SESSION_COOKIE_NAME);
+    const renewedCsrf = findSetCookie(created, CSRF_COOKIE_NAME);
+    const renewedWrite = await request(app)
+      .post('/api/funds/42/write')
+      .set(cookieAuth(renewedSession.value, oldCsrf));
+    expect(renewedWrite.status).toBe(200);
+    expect(writeProbe).toHaveBeenCalledTimes(1);
+
+    const logout = await request(app).post('/api/auth/logout').set(cookieAuth(oldToken, oldCsrf));
+    expect(logout.status).toBe(204);
+    expect(revocationState.calls).toEqual([
+      expect.objectContaining({ jti: oldClaims.jti, reason: 'logout' }),
+    ]);
+
+    const session = await request(app)
+      .get('/api/auth/session')
+      .set('Cookie', cookieHeader({ name: SESSION_COOKIE_NAME, value: renewedSession.value }));
+    expect(session.status).toBe(401);
+    expect(session.body).not.toHaveProperty('user');
+
+    const deniedWrite = await request(app)
+      .post('/api/funds/42/write')
+      .set(cookieAuth(renewedSession.value, renewedCsrf.value));
+    expect(deniedWrite.status).toBe(401);
+    expect(writeProbe).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes renewed bearer sessions through logout of the presented session', async () => {
+    const writeProbe = vi.fn();
+    const app = createApp(writeProbe);
+    const oldToken = signToken({
+      sub: '12',
+      email: 'partner@example.com',
+      role: 'partner',
+      fundIds: [],
+    });
+    const oldClaims = verifyAccessToken(oldToken);
+
+    const created = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send(payload);
+    expect(created.status).toBe(201);
+    const renewedToken = created.body.renewedAccessToken as string;
+
+    const renewedWrite = await request(app)
+      .post('/api/funds/42/write')
+      .set('Authorization', `Bearer ${renewedToken}`);
+    expect(renewedWrite.status).toBe(200);
+    expect(writeProbe).toHaveBeenCalledTimes(1);
+
+    const logout = await request(app)
+      .post('/api/auth/logout')
+      .set('Authorization', `Bearer ${oldToken}`);
+    expect(logout.status).toBe(204);
+    expect(revocationState.calls).toEqual([
+      expect.objectContaining({ jti: oldClaims.jti, reason: 'logout' }),
+    ]);
+
+    const session = await request(app)
+      .get('/api/auth/session')
+      .set('Authorization', `Bearer ${renewedToken}`);
+    expect(session.status).toBe(401);
+    expect(session.body).not.toHaveProperty('user');
+
+    const deniedWrite = await request(app)
+      .post('/api/funds/42/write')
+      .set('Authorization', `Bearer ${renewedToken}`);
+    expect(deniedWrite.status).toBe(401);
+    expect(writeProbe).toHaveBeenCalledTimes(1);
+  });
+
+  it('renews an idempotent replay with the presented session jti', async () => {
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    vi.mocked(workflow.executeFundWorkflowCommand).mockImplementationOnce(
+      async (_command, execute) => ({
+        ...(await execute(undefined)),
+        replayed: true,
+      })
+    );
+    const app = createApp();
+    const oldToken = signToken({
+      sub: '12',
+      email: 'partner@example.com',
+      role: 'partner',
+      fundIds: [],
+    });
+    const oldClaims = verifyAccessToken(oldToken);
+
+    const created = await request(app)
+      .post('/api/funds')
+      .set('Idempotency-Key', randomUUID())
+      .set('Authorization', `Bearer ${oldToken}`)
+      .send(payload);
+    expect(created.status).toBe(201);
+    expect(created.headers['idempotency-replay']).toBe('true');
+
+    const renewedClaims = verifyAccessToken(created.body.renewedAccessToken as string);
+    expect(renewedClaims.jti).toBe(oldClaims.jti);
   });
 });
