@@ -12,7 +12,7 @@
  * testcontainers remains the fallback used by existing PostgreSQL suites.
  */
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import * as schema from '@shared/schema';
@@ -40,8 +40,8 @@ import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-
 type KpiDatabase = NonNullable<Parameters<typeof loadKpiObservation>[2]>['database'];
 
 /** A real node-postgres drizzle handle, presented as the service's db type. */
-function kpiDb(pool: Pool): KpiDatabase {
-  return drizzle(pool, { schema }) as unknown as KpiDatabase;
+function kpiDb(client: Client): KpiDatabase {
+  return drizzle(client, { schema }) as unknown as KpiDatabase;
 }
 
 const MIGRATION_TAG = '0049_kpi_observations';
@@ -80,11 +80,27 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
     if (startedTestContainers) await cleanupTestContainers();
   });
 
+  it('closes the connection before propagating an operation failure', async () => {
+    const failure = new Error('operation failed');
+    let connectionClosed = false;
+
+    await expect(
+      withClient(async (client) => {
+        client.once('end', () => {
+          connectionClosed = true;
+        });
+        throw failure;
+      })
+    ).rejects.toBe(failure);
+
+    expect(connectionClosed).toBe(true);
+  });
+
   it('an accepted observation survives persistence and is re-readable', async () => {
-    const seeded = await withPool((pool) => seedBasis(pool, 'kpi-accept'));
+    const seeded = await withClient((client) => seedBasis(client, 'kpi-accept'));
 
     // Write through the real service, on its own connection.
-    const created = await withPool(async (pool) => {
+    const created = await withClient(async (client) => {
       return createKpiObservation(
         {
           fundId: seeded.fundId,
@@ -93,7 +109,7 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
           actorId: seeded.userId,
           idempotencyKey: uniqueLabel('idem'),
         },
-        { database: kpiDb(pool) }
+        { database: kpiDb(client) }
       );
     });
 
@@ -102,7 +118,7 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
     expect(created.observation.version).toBe(1);
 
     // Accept it, on a second connection.
-    const reviewed = await withPool(async (pool) => {
+    const reviewed = await withClient(async (client) => {
       return reviewKpiObservation(
         {
           fundId: seeded.fundId,
@@ -112,7 +128,7 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
           reviewComment: 'Matches the Q2 board deck',
           actorId: seeded.userId,
         },
-        { database: kpiDb(pool) }
+        { database: kpiDb(client) }
       );
     });
 
@@ -121,13 +137,11 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
     // THE POINT: re-read on a THIRD, fresh connection. Nothing in this block
     // shares state with the writers above, so a pass means the database really
     // holds the accepted row rather than a handler having echoed it back.
-    await withPool(async (pool) => {
-      const database = kpiDb(pool);
-      const row = await loadKpiObservation(
-        seeded.fundId,
-        created.observation.observationId,
-        { database }
-      );
+    await withClient(async (client) => {
+      const database = kpiDb(client);
+      const row = await loadKpiObservation(seeded.fundId, created.observation.observationId, {
+        database,
+      });
       expect(row).not.toBeNull();
 
       const persisted = toKpiObservationContract(row!);
@@ -150,7 +164,7 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
       });
 
       // Raw catalog read, bypassing the service's own mapping entirely.
-      const raw = await pool.query(
+      const raw = await client.query(
         `SELECT review_status, review_comment, version, value_amount::text AS value_amount,
                 reviewed_by, reviewed_at
            FROM kpi_observations WHERE id = $1 AND fund_id = $2`,
@@ -177,9 +191,9 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
   }, 120_000);
 
   it('a stale expected version loses the compare-and-set and leaves the row untouched', async () => {
-    const seeded = await withPool((pool) => seedBasis(pool, 'kpi-stale'));
+    const seeded = await withClient((client) => seedBasis(client, 'kpi-stale'));
 
-    const created = await withPool(async (pool) =>
+    const created = await withClient(async (client) =>
       createKpiObservation(
         {
           fundId: seeded.fundId,
@@ -188,12 +202,12 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
           actorId: seeded.userId,
           idempotencyKey: uniqueLabel('idem'),
         },
-        { database: kpiDb(pool) }
+        { database: kpiDb(client) }
       )
     );
 
     // First reviewer wins.
-    const won = await withPool(async (pool) =>
+    const won = await withClient(async (client) =>
       reviewKpiObservation(
         {
           fundId: seeded.fundId,
@@ -203,13 +217,13 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
           reviewComment: 'First in',
           actorId: seeded.userId,
         },
-        { database: kpiDb(pool) }
+        { database: kpiDb(client) }
       )
     );
     expect(won).not.toBeNull();
 
     // Second reviewer, still holding version 1, must lose.
-    const lost = await withPool(async (pool) =>
+    const lost = await withClient(async (client) =>
       reviewKpiObservation(
         {
           fundId: seeded.fundId,
@@ -219,13 +233,13 @@ describe.skipIf(skipIfNoDocker)('KPI observation persistence PostgreSQL proof', 
           reviewComment: 'Too late',
           actorId: seeded.userId,
         },
-        { database: kpiDb(pool) }
+        { database: kpiDb(client) }
       )
     );
     expect(lost).toBeNull();
 
-    await withPool(async (pool) => {
-      const raw = await pool.query(
+    await withClient(async (client) => {
+      const raw = await client.query(
         `SELECT review_status, review_comment, version FROM kpi_observations WHERE id = $1`,
         [created.observation.observationId]
       );
@@ -255,10 +269,10 @@ interface Basis {
   portfolioCompanyId: number;
 }
 
-async function seedBasis(pool: Pool, label: string): Promise<Basis> {
+async function seedBasis(client: Client, label: string): Promise<Basis> {
   const suffix = uniqueLabel(label);
   const fundId = await insertedId(
-    pool,
+    client,
     `
       INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
       VALUES ($1, 10000000, '0.0200', '0.2000', 2026)
@@ -267,12 +281,12 @@ async function seedBasis(pool: Pool, label: string): Promise<Basis> {
     [`KPI Observations ${suffix}`]
   );
   const userId = await insertedId(
-    pool,
+    client,
     `INSERT INTO users (username, password, role) VALUES ($1, 'x', 'admin') RETURNING id`,
     [`kpi-${suffix}`]
   );
   const portfolioCompanyId = await insertedId(
-    pool,
+    client,
     `
       INSERT INTO portfoliocompanies (
         fund_id, name, sector, stage, investment_amount, status
@@ -294,23 +308,23 @@ function databaseConnectionString(name: string): string {
   return url.toString();
 }
 
-async function withPool<T>(callback: (pool: Pool) => Promise<T>): Promise<T> {
-  const pool = new Pool({
+async function withClient<T>(callback: (client: Client) => Promise<T>): Promise<T> {
+  const client = new Client({
     connectionString,
-    max: 6,
     statement_timeout: 5_000,
     query_timeout: 7_000,
     application_name: 'kpi-observation-pg-proof',
   });
   try {
-    return await callback(pool);
+    await client.connect();
+    return await callback(client);
   } finally {
-    await pool.end();
+    await client.end();
   }
 }
 
-async function insertedId(pool: Pool, sql: string, values: unknown[]): Promise<number> {
-  const result = await pool.query(sql, values);
+async function insertedId(client: Client, sql: string, values: unknown[]): Promise<number> {
+  const result = await client.query(sql, values);
   const id = result.rows[0]?.id;
   if (typeof id !== 'number') throw new Error('Expected inserted id.');
   return id;
