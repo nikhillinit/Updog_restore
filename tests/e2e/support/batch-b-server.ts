@@ -162,6 +162,7 @@ try {
     const buildEnv = Object.fromEntries(
       Object.entries(process.env).filter(([key]) => !key.startsWith('VITE_'))
     );
+    buildEnv['NODE_ENV'] = 'production';
     buildEnv['VITE_API_BASE_URL'] = '';
     await new Promise<void>((resolve, reject) => {
       const child = spawn(buildCommand, { shell: true, stdio: 'inherit', env: buildEnv });
