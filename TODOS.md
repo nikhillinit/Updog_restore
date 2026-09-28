@@ -269,6 +269,15 @@ future session (or teammate) can pick them up without re-deriving the decision.
   a double submit during an in-flight finalize. Acceptance: both runtimes green
   on the exact candidate, and a deliberately failing case fails
   `CI Gate Status`.
+- **PR2 update, decision D-E fixed by F_1.19.1:** credential renewal now keeps
+  the presented `jti` and `exp` (ADR-104), so logout revokes every renewed
+  token. Write case C5b as a normal test with no `test.fail()` annotation and
+  add no open D-E entry. After A's out-of-band response is released, assert that
+  the browser session cookie equals the token from A's response, that
+  `GET /api/auth/session` returns 401 with no user body, and that B can sign in
+  again and the session then reports B. If C5b uses the API-level fallback, its
+  final assertion is already the 401. See section 4 of
+  `docs/1-plans/F_1.19.1_renewal-preserves-login-session.plan.md`.
 - **PR3a, canary residue contract v2:** The release canary drives
   `POST /api/funds`, `PUT /api/funds/:id/draft` and `POST /api/funds/finalize`
   (`tests/smoke/release-canaries.spec.ts`). #1558 already reserves that HTTP

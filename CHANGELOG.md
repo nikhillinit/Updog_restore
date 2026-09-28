@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security (2026-09-27)
+
+- Credential renewal after a fund create or finalize now preserves the login
+  session (F_1.19.1, ADR-104). The renewed token keeps the presented `jti` and
+  `exp` and changes only its fund grants, so logging out of the session revokes
+  every renewal. A late create or finalize response can no longer install a
+  logged-out session: the installed token is revoked and the next request
+  returns 401. Renewal no longer extends the session, and it returns
+  `credentialRenewal: 'reauth_required'` when the presented token lacks a valid
+  `jti` or `exp`.
+
 ### Added (2026-09-27)
 
 - Linear journaled schema apply route for migrations 0050-0061 (F_1.18.0,
