@@ -301,8 +301,8 @@ export async function enqueueReserveScenarioCalculation(input: {
     identity,
     correlationId: input.correlationId,
   });
-  await ensureReserveCalculationJob({ queue, context, actor: input.actor });
   await recordReserveCalculationQueuedEventOnce({ context, actor: input.actor });
+  await ensureReserveCalculationJob({ queue, context, actor: input.actor });
   return buildReserveCalculationQueuedResponse(context);
 }
 

@@ -401,6 +401,8 @@ schema_tests:
   - 'tests/integration/actuals-draft-journaled-migration.pg.test.ts'
   - 'tests/integration/actuals-restatement-journaled-migration.pg.test.ts'
   - 'tests/integration/journaled-0050-0061-migration.pg.test.ts'
+  - 'tests/integration/provision-prod-users.pg.test.ts'
+  - 'scripts/provision-prod-users.ts'
   - 'scripts/run-actuals-draft-journaled-migration.mjs'
   - 'scripts/run-actuals-restatement-journaled-migration.mjs'
   - 'scripts/run-journaled-0050-0061-migrations.mjs'

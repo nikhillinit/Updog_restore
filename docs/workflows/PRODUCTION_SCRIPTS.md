@@ -189,7 +189,9 @@ Do not dispatch while any applicable blocker remains UNKNOWN, including:
   canary, residue, and containment evidence; or
 - backup/PITR, restore freshness, custody-role, and preview/restore-isolation
   proof for a production schema/data action, except as the ADR-103 route
-  exception above states for `apply-journaled-0050-0061`.
+  exception above states for `apply-journaled-0050-0061` and the governing
+  policy states for `scripts/provision-prod-users.ts --apply` (see "Production
+  user provisioning" below).
 
 Retained entrypoints are not an authority or coverage claim. Any retained
 entrypoint whose current targeted order proof or action evidence is absent,
@@ -388,6 +390,83 @@ mutation. A lock not granted within 10 minutes (the apply's
   0061: handle as `complete 12/12`. The fresh dispatch re-validates the catalog
   before it emits a receipt.
 - Anything else: an incident.
+
+## Production user provisioning
+
+`scripts/provision-prod-users.ts` creates, updates, or deactivates login users
+and replaces their fund grants from an identity file. `--apply` against
+production is admitted by the governing policy as an owner-run route. The owner
+runs it locally, never from CI. Each run is a separate owner action.
+
+### Identity file
+
+A JSON array kept outside the repository and deleted after use. Each entry has
+`username`, `password` (at least 16 characters, never a dev seed password),
+`role`, and `fundIds`, plus optional `releaseCanaryPrincipal` and `active`.
+
+- Release canary principal: role `partner` and `releaseCanaryPrincipal: true`.
+  The file may hold at most one. The marker is set only at creation; a run that
+  would change it on an existing user refuses.
+- Canary reconciler: a dedicated non-human `admin` account, distinct from the
+  canary principal and from every human account.
+- Deactivation: `active: false` with a fresh password. `fundIds` replaces the
+  user's grants, so list every grant to keep; `[]` removes them all.
+- Issued sessions: a password, role, or grant change does not end sessions
+  already issued. They keep their old role and grants until they expire.
+  `active: false` is checked on every request, so it cuts off access at once.
+  Reactivating a user revives its unexpired sessions from before deactivation.
+
+### Owner sequence
+
+1. Check out the exact live `main` SHA with no tracked changes.
+2. Use the direct (non-pooler) production URL. Read it into the shell so it
+   stays out of shell history:
+
+   ```bash
+   read -rs DATABASE_URL; export DATABASE_URL
+   ```
+
+3. Dry run, and review every `[PLAN]` line (before and after for each user, with
+   the exact fund IDs in `grants=[...]`):
+
+   ```bash
+   NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" npx tsx scripts/provision-prod-users.ts --dry-run
+   ```
+
+   Record the `[PLAN] digest=` value. The digest binds the source SHA, the
+   identity file, the target, and the current rows of every user in the file.
+
+4. Derive the target fingerprint with the recipe above. For the same URL and
+   role it equals `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`.
+5. Create a Neon restore branch of the production branch immediately before
+   apply. Record its creation time and identifier privately, outside the
+   repository.
+6. Apply. Read the fingerprint into the shell like the URL, so it stays private:
+
+   ```bash
+   read -rs EXPECTED_TARGET_FINGERPRINT; export EXPECTED_TARGET_FINGERPRINT
+   NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" EXPECTED_SHA="<main SHA>" npx tsx scripts/provision-prod-users.ts --apply --expected-plan-digest=<digest>
+   ```
+
+   Apply fingerprints the driver's effective endpoint, so a `?host=` or `?port=`
+   override in the URL cannot redirect it. It locks the existing target rows,
+   waiting at most 5 s for a conflicting transaction, recomputes the digest in
+   the same transaction, re-checks the source just before the first write, and
+   writes every user in that one transaction. A user reviewed as absent is
+   inserted without overwrite, so a concurrent creation of the same username
+   fails the whole apply.
+
+7. Act on the outcome:
+   - `[DONE]` lines: success. Delete the identity file. Delete the restore
+     branch once the provisioned accounts are confirmed.
+   - `Plan digest mismatch`, `Target fingerprint missing or mismatched`, a
+     pooled-endpoint refusal, or a source refusal: nothing was written. Re-run
+     the dry run and review again.
+   - `COMMIT was not confirmed`: unknown state. The writes may have committed.
+     Run the dry run and compare each `[PLAN]` before-state with the intended
+     after-state before any retry.
+   - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
+     run to confirm the current state before retrying.
 
 ## Immutable certification and action-time eligibility
 

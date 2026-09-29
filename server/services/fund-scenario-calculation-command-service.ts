@@ -105,9 +105,13 @@ function inProgressError() {
 }
 
 function enqueueUncertainError() {
-  return createHttpError(500, 'Reserve calculation enqueue outcome is uncertain; retry with the same Idempotency-Key', {
-    code: 'reserve_calculation_enqueue_uncertain',
-  });
+  return createHttpError(
+    500,
+    'Reserve calculation enqueue outcome is uncertain; retry with the same Idempotency-Key',
+    {
+      code: 'reserve_calculation_enqueue_uncertain',
+    }
+  );
 }
 
 function parseStoredResponse(value: unknown): FundScenarioReserveCalculationQueuedV1 {
@@ -302,19 +306,25 @@ export async function executeReserveCalculationCommand(
     );
   }
 
-  async function runAsOwner(row: CommandRow, leaseToken: string): Promise<
-    FundScenarioReserveCalculationQueuedV1
-  > {
+  async function runAsOwner(
+    row: CommandRow,
+    leaseToken: string
+  ): Promise<FundScenarioReserveCalculationQueuedV1> {
     let current = row;
     try {
       const queue = getQueue();
       const context = await acquireRun({ identity, correlationId: mintUuid() });
-      current = await bindRunIdentity(current, leaseToken, context.run.id, context.run.correlationId);
+      current = await bindRunIdentity(
+        current,
+        leaseToken,
+        context.run.id,
+        context.run.correlationId
+      );
 
       let response: FundScenarioReserveCalculationQueuedV1;
       try {
-        await ensureJob({ queue, context, actor: input.actor });
         await recordQueuedEventOnce({ context, actor: input.actor });
+        await ensureJob({ queue, context, actor: input.actor });
         response = buildReserveCalculationQueuedResponse(context);
       } catch (error) {
         throw new QueueInteractionError(error);

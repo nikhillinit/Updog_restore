@@ -33,11 +33,17 @@ describe('production identity file validation', () => {
     expect(parseProdIdentityFile(JSON.stringify([identity]))).toEqual([identity]);
   });
 
+  it('accepts an optional boolean active flag and rejects a non-boolean one', () => {
+    const inactive = { ...validIdentity, active: false };
+    expect(parseProdIdentityFile(JSON.stringify([inactive]))).toEqual([inactive]);
+    expect(() =>
+      parseProdIdentityFile(JSON.stringify([{ ...validIdentity, active: 'false' }]))
+    ).toThrow();
+  });
+
   it('rejects a non-boolean canary principal marker', () => {
     expect(() =>
-      parseProdIdentityFile(
-        JSON.stringify({ ...validIdentity, releaseCanaryPrincipal: 'true' })
-      )
+      parseProdIdentityFile(JSON.stringify({ ...validIdentity, releaseCanaryPrincipal: 'true' }))
     ).toThrow();
   });
 

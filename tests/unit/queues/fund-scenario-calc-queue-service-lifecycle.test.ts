@@ -8,6 +8,10 @@ const queueState = vi.hoisted(() => ({
   }>,
 }));
 
+const eventState = vi.hoisted(() => ({
+  insert: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('bullmq', () => ({
   Queue: function QueueMock() {
     const queue = {
@@ -50,7 +54,7 @@ vi.mock('../../../server/services/fund-scenario-reserve-calculation-service.js',
 
 vi.mock('../../../server/services/fund-scenario-set-service.js', () => ({
   createHttpError: (_status: number, message: string) => new Error(message),
-  insertScenarioSetEvent: vi.fn().mockResolvedValue(undefined),
+  insertScenarioSetEvent: eventState.insert,
   normalizeActor: (actor: unknown) => actor,
 }));
 
@@ -92,7 +96,40 @@ const lineageIdentity = {
 describe('fund scenario producer lifecycle identity', () => {
   beforeEach(() => {
     vi.resetModules();
+    eventState.insert.mockReset().mockResolvedValue(undefined);
     queueState.instances.splice(0, queueState.instances.length);
+  });
+
+  it('commits the queued event before publishing the job', async () => {
+    let releaseQueuedEvent!: () => void;
+    eventState.insert.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseQueuedEvent = resolve;
+        })
+    );
+    const service = await import('../../../server/services/fund-scenario-calc-queue-service.js');
+
+    const enqueue = service.enqueueReserveScenarioCalculation(input);
+    await vi.waitFor(() => expect(eventState.insert).toHaveBeenCalledTimes(1));
+
+    const queue = queueState.instances[0];
+    expect(queue?.add).not.toHaveBeenCalled();
+
+    releaseQueuedEvent();
+    await enqueue;
+
+    expect(queue?.add).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not publish a job when the queued-event transaction fails', async () => {
+    const failure = new Error('queued event transaction failed');
+    eventState.insert.mockRejectedValueOnce(failure);
+    const service = await import('../../../server/services/fund-scenario-calc-queue-service.js');
+
+    await expect(service.enqueueReserveScenarioCalculation(input)).rejects.toBe(failure);
+
+    expect(queueState.instances[0]?.add).not.toHaveBeenCalled();
   });
 
   it('does not let a stale close handle close or unregister a replacement producer', async () => {
@@ -117,9 +154,8 @@ describe('fund scenario producer lifecycle identity', () => {
   });
 
   it('builds a deterministic job identity carrying fund, set, config, lineage, hash, and run id', async () => {
-    const runService = await import(
-      '../../../server/services/fund-scenario-calculation-run-service.js'
-    );
+    const runService =
+      await import('../../../server/services/fund-scenario-calculation-run-service.js');
     const service = await import('../../../server/services/fund-scenario-calc-queue-service.js');
     const runId = '33333333-3333-4333-8333-333333333333';
     vi.mocked(runService.acquireScenarioCalculationRunWithCreation).mockResolvedValueOnce({
@@ -153,9 +189,8 @@ describe('fund scenario producer lifecycle identity', () => {
   });
 
   it('uses fixed tokens for undated legacy lineage in the job identity', async () => {
-    const runService = await import(
-      '../../../server/services/fund-scenario-calculation-run-service.js'
-    );
+    const runService =
+      await import('../../../server/services/fund-scenario-calculation-run-service.js');
     const service = await import('../../../server/services/fund-scenario-calc-queue-service.js');
     const runId = '44444444-4444-4444-8444-444444444444';
     vi.mocked(runService.acquireScenarioCalculationRunWithCreation).mockResolvedValueOnce({
@@ -181,9 +216,8 @@ describe('fund scenario producer lifecycle identity', () => {
   });
 
   it('never lets a prior failed same-input BullMQ job satisfy a newer command identity', async () => {
-    const runService = await import(
-      '../../../server/services/fund-scenario-calculation-run-service.js'
-    );
+    const runService =
+      await import('../../../server/services/fund-scenario-calculation-run-service.js');
     const service = await import('../../../server/services/fund-scenario-calc-queue-service.js');
     const newerRunId = '55555555-5555-4555-8555-555555555555';
     vi.mocked(runService.acquireScenarioCalculationRunWithCreation).mockResolvedValueOnce({
