@@ -287,6 +287,50 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
     }
   }, 180_000);
 
+  it('fingerprints the effective endpoint, not a URL authority overridden by ?host=', async () => {
+    const connectionString = await databaseAt();
+    const real = new URL(connectionString);
+    const spoofed = new URL(connectionString);
+    spoofed.hostname = 'prod.example.invalid';
+    spoofed.port = '';
+    spoofed.searchParams.set('host', real.hostname);
+    spoofed.searchParams.set('port', real.port || '5432');
+    const pool = new Pool({ connectionString, max: 1 });
+    try {
+      const before = await snapshot(pool);
+      const progress = { stage: 'before-connect' as const };
+      let error: unknown;
+      try {
+        await runJournaledRangeMigration({
+          connectionString: spoofed.toString(),
+          apply: true,
+          // The URL authority's fingerprint: what a ?host= override would hide behind.
+          expectedTargetFingerprint: await expectedFingerprint(spoofed.toString(), pool),
+          stdout: quiet,
+          progress,
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeInstanceOf(JournaledRangeTargetError);
+      expect(formatJournaledRangeFailure(error, progress.stage)).toBe(
+        'journaled-0050-0061: refused-target: Target fingerprint missing or mismatched'
+      );
+      expect(await snapshot(pool)).toEqual(before);
+
+      await expect(
+        runJournaledRangeMigration({
+          connectionString: spoofed.toString(),
+          apply: true,
+          expectedTargetFingerprint: await expectedFingerprint(connectionString, pool),
+          stdout: quiet,
+        })
+      ).resolves.toMatchObject({ postState: 'complete', applied: true });
+    } finally {
+      await pool.end();
+    }
+  }, 180_000);
+
   it('rolls back all 0050-0057 work and reports SQLSTATE 23514 for invalid 0058 data', async () => {
     const { connectionString, pool } = await buildProductionShapedDatabase();
     try {

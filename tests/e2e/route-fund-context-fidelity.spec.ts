@@ -781,8 +781,9 @@ test.describe('route fund context fidelity', () => {
         timeout: 30_000,
       });
 
-      const headerText = await readHeaderText(page);
-      expectHeaderFacts(headerText);
+      await expect(async () => {
+        expectHeaderFacts(await readHeaderText(page));
+      }).toPass({ timeout: ROUTE_READY_TIMEOUT_MS });
 
       expect(apiTracker.observedFundRequests).not.toEqual(
         expect.arrayContaining([expect.stringMatching(/\/api\/funds?\/1(?:\/|\b)/)])

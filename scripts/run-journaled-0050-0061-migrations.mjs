@@ -556,14 +556,19 @@ export async function runJournaledRangeMigration({
     await client.connect();
     const databaseIdentity = await readDatabaseIdentity(client);
     if (apply) {
-      const endpoint = new URL(connectionString);
-      const targetFingerprint = computeTargetFingerprint({
-        directHost: endpoint.hostname,
-        port: endpoint.port,
-        database: databaseIdentity.database,
-        user: databaseIdentity.user,
-      });
+      // The driver's effective endpoint, not the URL authority: connection-string
+      // ?host= and ?port= override the authority.
+      const targetFingerprint =
+        typeof client.host === 'string' && client.host.length > 0
+          ? computeTargetFingerprint({
+              directHost: client.host,
+              port: client.port,
+              database: databaseIdentity.database,
+              user: databaseIdentity.user,
+            })
+          : null;
       if (
+        targetFingerprint === null ||
         typeof expectedTargetFingerprint !== 'string' ||
         expectedTargetFingerprint.length === 0 ||
         expectedTargetFingerprint !== targetFingerprint

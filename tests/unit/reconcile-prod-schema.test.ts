@@ -1234,6 +1234,9 @@ describe('reconcile-prod-schema runner helpers', () => {
         'postgres://u:p@ep-snowy-boat-ad1z3h07-pooler.us-east-1.aws.neon.tech/db'
       )
     ).toThrow(/pooled database URL/);
+    expect(() =>
+      assertDirectDatabaseUrl('postgres://u:p@ep-direct.neon.tech/db?host=ep-x-pooler.neon.tech')
+    ).toThrow(/pooled database URL/);
   });
 
   it('asserts the expected database identity before apply', () => {
