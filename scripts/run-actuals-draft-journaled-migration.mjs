@@ -20,6 +20,7 @@ import {
   ACTUALS_DRAFT_MIGRATION_IDENTITY,
   acquireAdvisoryLock,
   assertDirectDatabaseUrl,
+  computeTargetFingerprint,
   loadManifests,
   readDatabaseIdentity,
   ReconcileError,
@@ -458,17 +459,17 @@ export async function runActualsDraftJournaledMigration({
     locked = true;
     await setApplyTimeouts(client);
     const databaseIdentity = await readDatabaseIdentity(client);
-    const endpoint = new URL(connectionString);
-    const targetFingerprint = createHash('sha256')
-      .update(
-        JSON.stringify({
-          directHost: endpoint.hostname.toLowerCase(),
-          port: endpoint.port || '5432',
-          database: databaseIdentity.database,
-          user: databaseIdentity.user,
-        })
-      )
-      .digest('hex');
+    // The driver's effective endpoint, not the URL authority: connection-string
+    // ?host= and ?port= override the authority.
+    if (typeof client.host !== 'string' || client.host.length === 0) {
+      throw new ActualsDraftMigrationError('0056 target endpoint is unresolved');
+    }
+    const targetFingerprint = computeTargetFingerprint({
+      directHost: client.host,
+      port: client.port,
+      database: databaseIdentity.database,
+      user: databaseIdentity.user,
+    });
     const classify = (ledgerRows) =>
       classifyActualsDraftLedgerState({ ledgerRows, baselineEntries, targetEntries, draftEntry });
     const beforeLedger = await readMigrationLedger(client);

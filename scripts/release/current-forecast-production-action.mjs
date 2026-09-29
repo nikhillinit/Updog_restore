@@ -115,7 +115,9 @@ export function buildActionRequest({ action, fundId, expectedVersion, referenceI
 }
 
 export function databaseHostFingerprint(connectionString) {
-  const hostname = new URL(connectionString).hostname.toLowerCase();
+  // The driver's effective host, not the URL authority: connection-string ?host=
+  // overrides the authority. Constructing a Client does not connect.
+  const hostname = new pg.Client({ connectionString }).host.toLowerCase();
   if (hostname.includes('pooler')) throw new Error('Pooled production database URL refused');
   return `sha256:${createHash('sha256').update(hostname).digest('hex')}`;
 }

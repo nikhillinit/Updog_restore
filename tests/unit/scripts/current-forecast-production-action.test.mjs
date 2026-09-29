@@ -389,6 +389,19 @@ describe('Current Forecast production action mapping', { retry: 0 }, () => {
     );
   });
 
+  it('fingerprints the effective host, not a URL authority overridden by ?host=', () => {
+    // The value before the change: the protected fingerprint secret stays valid.
+    expect(FINGERPRINT).toBe(
+      'sha256:82f266da8e9967c5bdac02dd51ba61762ba469ebb926826789db57204876ef32'
+    );
+    expect(databaseHostFingerprint(`${DATABASE_URL}?host=ep-other.neon.tech`)).toBe(
+      databaseHostFingerprint('postgres://user:password@ep-other.neon.tech/production')
+    );
+    expect(() =>
+      databaseHostFingerprint(`${DATABASE_URL}?host=ep-direct-pooler.neon.tech`)
+    ).toThrow(/pooled/i);
+  });
+
   it('uses strict ReleaseEvidenceManifestV1Schema validation', async () => {
     await expect(
       parseReleaseEvidenceManifest({ schemaVersion: 'release-evidence-manifest-v1' })
@@ -397,6 +410,18 @@ describe('Current Forecast production action mapping', { retry: 0 }, () => {
 });
 
 describe('Current Forecast production action fences', { retry: 0 }, () => {
+  it('refuses a ?host= override of the fingerprinted host before any database or API call', async () => {
+    const harness = await createHarness('readback', {
+      databaseUrl: `${DATABASE_URL}?host=ep-other.neon.tech`,
+    });
+    await expect(harness.execute()).rejects.toThrow(
+      'Production database host fingerprint mismatch'
+    );
+    expect(harness.calls).not.toContain('api:version');
+    expect(harness.client.connect).not.toHaveBeenCalled();
+    expect(harness.getMutationCalls()).toBe(0);
+  });
+
   it('stops before I/O when protected database identity differs', async () => {
     const harness = await createHarness('kill', { protectedDatabaseName: 'other' });
     await expect(harness.execute()).rejects.toThrow(/protected identity/i);

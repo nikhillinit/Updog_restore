@@ -14,6 +14,7 @@ import {
   ACTUALS_DRAFT_MIGRATION_IDENTITY,
   acquireAdvisoryLock,
   assertDirectDatabaseUrl,
+  computeTargetFingerprint,
   G3_CATCHUP_TARGETS,
   loadManifests,
   readDatabaseIdentity,
@@ -290,18 +291,7 @@ export function createJournaledRangeMigrationFolder({ migrationsDir, entries }) 
   return createCurrentForecastMigrationFolder({ migrationsDir, entries });
 }
 
-export function computeTargetFingerprint({ directHost, port, database, user }) {
-  return createHash('sha256')
-    .update(
-      JSON.stringify({
-        directHost: directHost.toLowerCase(),
-        port: String(port || '5432'),
-        database,
-        user,
-      })
-    )
-    .digest('hex');
-}
+export { computeTargetFingerprint };
 
 export function deriveTargetStates(appliedTargetCount) {
   if (!Number.isInteger(appliedTargetCount) || appliedTargetCount < 0 || appliedTargetCount > 12) {

@@ -353,6 +353,22 @@ export function isPoolerUrl(connectionString) {
   }
 }
 
+// Callers pass the driver's effective endpoint (client.host, client.port), not the URL
+// authority. A URL without host or port query overrides serializes as before.
+export function computeTargetFingerprint({ directHost, port, database, user }) {
+  return crypto
+    .createHash('sha256')
+    .update(
+      JSON.stringify({
+        directHost: directHost.toLowerCase(),
+        port: String(port || '5432'),
+        database,
+        user,
+      })
+    )
+    .digest('hex');
+}
+
 export function assertDirectDatabaseUrl(connectionString) {
   if (!connectionString || connectionString === 'memory://') {
     throw new ReconcileError(

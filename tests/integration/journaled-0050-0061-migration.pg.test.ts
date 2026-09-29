@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { RECONCILE_LOCK_ID, readDatabaseIdentity } from '../../scripts/reconcile-prod-schema.mjs';
+import { rehearseCurrentForecastNeon } from '../../scripts/release/rehearse-current-forecast-neon.mjs';
 import {
   computeTargetFingerprint,
   formatJournaledRangeFailure,
   JournaledRangeTargetError,
   runJournaledRangeMigration,
+  runJournaledRangeMigrationCli,
 } from '../../scripts/run-journaled-0050-0061-migrations.mjs';
 import {
   cleanupTestContainers,
@@ -326,6 +328,131 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
           stdout: quiet,
         })
       ).resolves.toMatchObject({ postState: 'complete', applied: true });
+    } finally {
+      await pool.end();
+    }
+  }, 180_000);
+
+  it('rehearses against the effective endpoint of a provider URI whose ?host= overrides its authority', async () => {
+    const connectionString = await databaseAt();
+    const real = new URL(connectionString);
+    const databaseName = decodeURIComponent(real.pathname.slice(1));
+    const roleName = decodeURIComponent(real.username);
+    // Neon's child URI names ep-child.example.invalid; ?host= and ?port= reach the test container.
+    const childUri = new URL(connectionString);
+    childUri.hostname = 'ep-child.example.invalid';
+    childUri.port = '';
+    childUri.searchParams.set('host', real.hostname);
+    childUri.searchParams.set('port', real.port || '5432');
+    const endpoint = (id: string, branchId: string, host: string) => ({
+      id,
+      project_id: 'project-1',
+      branch_id: branchId,
+      type: 'read_write',
+      host,
+      current_state: 'active',
+      disabled: false,
+    });
+    const rehearse = (childEndpointHost: string) => {
+      const parent = endpoint('ep-parent', 'branch-1', 'ep-parent.example.invalid');
+      const child = endpoint('ep-child', 'branch-2', childEndpointHost);
+      const childBranch = {
+        id: 'branch-2',
+        project_id: 'project-1',
+        parent_id: 'branch-1',
+        current_state: 'ready',
+      };
+      const responses: Record<string, unknown>[] = [
+        { project: { id: 'project-1' } },
+        { branch: { id: 'branch-1', project_id: 'project-1' } },
+        { database: { branch_id: 'branch-1', name: databaseName, owner_name: roleName } },
+        { endpoints: [parent] },
+        { uri: `postgres://${roleName}:parent@ep-parent.example.invalid/${databaseName}` },
+        {
+          branch: childBranch,
+          endpoints: [child],
+          operations: [
+            {
+              id: 'a07f8772-1877-4da9-a939-3a3ae62d1d8d',
+              project_id: 'project-1',
+              branch_id: 'branch-2',
+              endpoint_id: 'ep-child',
+              status: 'finished',
+              failures_count: 0,
+            },
+          ],
+        },
+        { branch: childBranch },
+        { database: { branch_id: 'branch-2', name: databaseName, owner_name: roleName } },
+        { endpoints: [child] },
+        { uri: childUri.toString() },
+      ];
+      const commandRunner = vi.fn(
+        async (_command: string, args: string[], env: Record<string, string>) => {
+          const exitCode = await runJournaledRangeMigrationCli({
+            argv: args.slice(1),
+            env,
+            stdout: quiet,
+            stderr: quiet,
+          });
+          if (exitCode !== 0) throw new Error('journaled runner failed');
+        }
+      );
+      const run = rehearseCurrentForecastNeon({
+        input: {
+          mode: 'journaled-0050-0061',
+          expectedSha: 'a'.repeat(40),
+          projectId: 'project-1',
+          parentBranchId: 'branch-1',
+          databaseName,
+          expectedParentMigrationTail: '0049_kpi_observations',
+        },
+        apiKey: 'fixture-neon-token',
+        githubRunId: '12',
+        githubRunAttempt: 1,
+        fetchImpl: async () => {
+          const body = responses.shift();
+          return { ok: body !== undefined, json: async () => body ?? {} };
+        },
+        commandRunner,
+        tailReader: vi
+          .fn()
+          .mockResolvedValueOnce('0049_kpi_observations')
+          .mockImplementationOnce(async (uri: string) => {
+            const reader = new Pool({ connectionString: uri, max: 1 });
+            try {
+              const { rows } = await reader.query(
+                'SELECT created_at FROM public.drizzle_migrations ORDER BY created_at DESC LIMIT 1'
+              );
+              return String(rows[0]?.created_at) === '1790380800000'
+                ? '0061_durable_create_receipts'
+                : 'unknown';
+            } finally {
+              await reader.end();
+            }
+          }),
+        sleepImpl: async () => undefined,
+      });
+      return { run, commandRunner };
+    };
+    const pool = new Pool({ connectionString, max: 1 });
+    try {
+      const before = await snapshot(pool);
+      // Neon places the child endpoint at the URI authority; the driver would reach the container.
+      const refused = rehearse('ep-child.example.invalid');
+      await expect(refused.run).rejects.toThrow('Created Neon connection URI identity mismatch');
+      expect(refused.commandRunner).not.toHaveBeenCalled();
+      expect(await snapshot(pool)).toEqual(before);
+
+      // Neon places the child endpoint where the driver connects.
+      const applied = rehearse(real.hostname);
+      await expect(applied.run).resolves.toMatchObject({
+        beforeMigrationTail: '0049_kpi_observations',
+        afterMigrationTail: '0061_durable_create_receipts',
+      });
+      expect(applied.commandRunner.mock.calls[0]?.[2].EXPECTED_TARGET_FINGERPRINT).toBe(
+        await expectedFingerprint(connectionString, pool)
+      );
     } finally {
       await pool.end();
     }

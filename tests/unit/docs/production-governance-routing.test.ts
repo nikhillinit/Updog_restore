@@ -227,7 +227,9 @@ describe('production governance documentation routing', () => {
     expect(canonicalGuide).toContain(`SELECT pg_advisory_unlock(${lockId});`);
 
     expect(flatGuide).toContain('### Target fingerprint recipe');
-    expect(runner).toContain('export function computeTargetFingerprint(');
+    // Defined once for every route that fingerprints a target; the recipe imports it from the runner.
+    expect(reconcileScript).toContain('export function computeTargetFingerprint(');
+    expect(runner).toMatch(/^export \{ computeTargetFingerprint \};$/m);
     expect(canonicalGuide).toContain(
       "import { computeTargetFingerprint } from './scripts/run-journaled-0050-0061-migrations.mjs'"
     );
