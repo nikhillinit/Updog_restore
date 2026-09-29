@@ -435,12 +435,48 @@ describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
       },
       /operation identity mismatch/,
     ],
+    [
+      'project-level operation other than epc_sync',
+      {
+        id: operationId,
+        project_id: 'project-1',
+        action: 'suspend_compute',
+        status: 'finished',
+        failures_count: 0,
+      },
+      /operation identity mismatch/,
+    ],
+    [
+      'epc_sync from another project',
+      {
+        id: operationId,
+        project_id: 'project-2',
+        action: 'epc_sync',
+        status: 'finished',
+        failures_count: 0,
+      },
+      /operation identity mismatch/,
+    ],
   ])('rejects %s before child database access', async (_label, operation, message) => {
     const responses = happyResponses();
     responses[5].operations = [operation];
     const commandRunner = vi.fn();
     await expect(run({ fetchImpl: mockFetch(responses), commandRunner })).rejects.toThrow(message);
     expect(commandRunner).not.toHaveBeenCalled();
+  });
+
+  it('accepts the project-level epc_sync operation Neon pairs with every branch create', async () => {
+    const responses = happyResponses();
+    responses[5].operations.push({
+      id: 'b07f8772-1877-4da9-a939-3a3ae62d1d8d',
+      project_id: 'project-1',
+      action: 'epc_sync',
+      status: 'finished',
+      failures_count: 0,
+    });
+    const commandRunner = vi.fn(async () => undefined);
+    await run({ fetchImpl: mockFetch(responses), commandRunner });
+    expect(commandRunner).toHaveBeenCalled();
   });
 
   it('polls an unfinished operation and requires successful readiness', async () => {
