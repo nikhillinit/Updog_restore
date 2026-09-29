@@ -12777,3 +12777,71 @@ the bearer lifetime. An externally minted HS256 token without `jti` or `exp` now
 receives `reauth_required` instead of a renewed token. The wire contract,
 routes, schema, and client are unchanged, so rollback is a source revert. Plan:
 `docs/1-plans/F_1.19.1_renewal-preserves-login-session.plan.md`.
+
+## ADR-105: Owner-Run Governed Production User Provisioning
+
+**Date:** 2026-09-29
+
+**Status:** Proposed; owner approval recorded in the PR that adds this ADR
+
+**Tags:** #production-data #auth #release-canary #recovery #governance
+
+### Context
+
+`release-production.yml` staged smoke requires two credential pairs: a
+`partner`-role release canary principal (`is_release_canary_principal = true`)
+and a dedicated non-human admin reconciler. On 2026-09-29 no production user had
+the canary marker and no production user had the `partner` role. The only
+provisioning tool, `scripts/provision-prod-users.ts`, had refused every run
+except `--dry-run` since #1396 mechanically blocked production data mutation
+pending action-specific hardening. It also had no way to deactivate a login.
+
+### Decision
+
+1. **Owner-run route.** `scripts/provision-prod-users.ts --apply` is admitted
+   for production user provisioning. The owner runs it locally, never from CI.
+   Each run is a separate owner action.
+2. **Gates before the first write.** Exactly one of `--dry-run` or `--apply`.
+   Apply requires `EXPECTED_SHA` equal to HEAD and live `main` with a clean
+   tracked tree, checked at start and again immediately before the first write.
+   The driver's effective endpoint must not be a pooler, and its fingerprint
+   (the ADR-103 `computeTargetFingerprint` recipe over the effective host and
+   port, `current_database()`, and `current_user`) must equal
+   `EXPECTED_TARGET_FINGERPRINT`.
+3. **Reviewed plan as the optimistic lock.** `--dry-run` prints a digest over
+   the source SHA, the identity file, the target fingerprint, and the current
+   rows of every user in the file. Apply locks the existing rows `FOR UPDATE`,
+   recomputes the digest in the same transaction, and refuses on any drift. A
+   user reviewed as absent is inserted without `ON CONFLICT`, so a concurrent
+   creation fails the apply. A repeated apply of the same plan refuses.
+4. **One transaction.** All user and grant writes commit together. An
+   unacknowledged `COMMIT` is reported as unknown state, never as rollback.
+5. **Deactivation.** The identity file gains an optional `active` flag.
+   `active: false` disables the login, which `server/routes/auth.ts` already
+   enforces.
+6. **Recovery reference.** As for ADR-103, the owner creates and confirms a Neon
+   restore branch immediately before `--apply`. The owner's confirmation
+   replaces, for this route only, the managed backup/PITR, isolated-restore
+   freshness, custody-role, and preview/restore-isolation evidence floor.
+
+### Alternatives
+
+- **Manual SQL through the Neon console.** Rejected: it bypasses the #1396 block
+  with no source, target, or plan check.
+- **A GitHub workflow.** Rejected: the identity file carries plaintext passwords
+  and must stay outside the repository and CI.
+- **Unblock the script without gates.** Rejected: it would reopen the #1396 gap.
+
+### Accepted risks
+
+- The restore branch is owner-confirmed, not machine-verified, as for ADR-103.
+- A lost `COMMIT` acknowledgement leaves the outcome unknown until the owner
+  reads the rows back with `--dry-run`.
+
+### Consequences
+
+The other mechanically blocked production data scripts stay blocked. Merge
+authorizes no provisioning run. The governing policy and
+`docs/workflows/PRODUCTION_SCRIPTS.md` ("Production user provisioning") carry
+the owner sequence. Tests: `tests/integration/provision-prod-users.pg.test.ts`
+and `tests/unit/scripts/provision-prod-users.test.ts`.

@@ -43,9 +43,14 @@ export class ProvisioningInputError extends Error {
   override readonly name = 'ProvisioningInputError';
 }
 
+export class ProvisioningCommitUnknownError extends Error {
+  override readonly name = 'ProvisioningCommitUnknownError';
+}
+
 export type ProvisioningMode = 'dry-run' | 'apply';
 
 type Queryable = Pick<pg.Client, 'query'>;
+type ProvisioningClient = Pick<pg.Client, 'query' | 'host' | 'port'>;
 
 type CurrentUser = {
   id: number;
@@ -169,33 +174,34 @@ async function readCurrentUsers(
 async function writeIdentity(
   client: Queryable,
   identity: ProdIdentity,
-  passwordHash: string
+  passwordHash: string,
+  existing: CurrentUser | undefined
 ): Promise<void> {
-  const releaseCanaryPrincipal = identity.releaseCanaryPrincipal === true;
-  const { rows } = await client.query(
-    `INSERT INTO users
-       (username, password, role, is_active, is_release_canary_principal, password_updated_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, now(), now())
-     ON CONFLICT (username) DO UPDATE SET
-       password = EXCLUDED.password,
-       role = EXCLUDED.role,
-       is_active = EXCLUDED.is_active,
-       password_updated_at = now(),
-       updated_at = now()
-     WHERE users.is_release_canary_principal = EXCLUDED.is_release_canary_principal
-     RETURNING id`,
-    [
-      identity.username,
-      passwordHash,
-      identity.role,
-      identity.active !== false,
-      releaseCanaryPrincipal,
-    ]
-  );
+  const values = [identity.role, identity.active !== false, passwordHash];
+  // An existing user is updated by its locked id and never has its canary
+  // marker touched. A user reviewed as absent gets a plain INSERT, so a
+  // concurrent creation of the same username raises a unique violation and
+  // rolls the whole apply back instead of overwriting the new row.
+  const { rows } = existing
+    ? await client.query(
+        `UPDATE users SET role = $1, is_active = $2, password = $3,
+           password_updated_at = now(), updated_at = now()
+         WHERE id = $4
+         RETURNING id`,
+        [...values, existing.id]
+      )
+    : await client.query(
+        `INSERT INTO users
+           (role, is_active, password, username, is_release_canary_principal,
+            password_updated_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, now(), now())
+         RETURNING id`,
+        [...values, identity.username, identity.releaseCanaryPrincipal === true]
+      );
   const userId = rows[0]?.id;
   if (rows.length !== 1 || userId === undefined) {
-    throw new ProdIdentityValidationError(
-      `Refusing to change releaseCanaryPrincipal for existing username ${JSON.stringify(identity.username)}.`
+    throw new ProvisioningInputError(
+      `User write for username ${JSON.stringify(identity.username)} returned no row.`
     );
   }
   await client.query('DELETE FROM user_fund_grants WHERE user_id = $1', [userId]);
@@ -222,26 +228,35 @@ function describePlan(identity: ProdIdentity, current: CurrentUser | undefined):
 export async function runProvisioning({
   mode,
   client,
-  connectionString,
   identities,
   identityFileSha256,
   headSha,
   expectedTargetFingerprint,
   expectedPlanDigest,
+  revalidateSource,
   bcryptCost,
   log = console.log,
 }: {
   mode: ProvisioningMode;
-  client: Queryable;
-  connectionString: string;
+  client: ProvisioningClient;
   identities: readonly ProdIdentity[];
   identityFileSha256: string;
   headSha: string;
   expectedTargetFingerprint?: string;
   expectedPlanDigest?: string;
+  /** Apply only: re-checks the source fence immediately before the first write. */
+  revalidateSource?: () => void;
   bcryptCost: number;
   log?: (line: string) => void;
 }): Promise<string> {
+  // The driver's effective endpoint, not the URL authority: connection-string
+  // ?host= and ?port= override the authority.
+  if (isPoolerUrl(`postgres://${client.host}/`)) {
+    throw new ProvisioningInputError(
+      'Refusing pooled endpoint; use the direct (non-pooler) endpoint.'
+    );
+  }
+
   // Hash before BEGIN so the row locks stay short.
   const prepared =
     mode === 'apply'
@@ -256,10 +271,9 @@ export async function runProvisioning({
   await client.query(mode === 'apply' ? 'BEGIN' : 'BEGIN READ ONLY');
   try {
     const databaseIdentity = await readDatabaseIdentity(client);
-    const endpoint = new URL(connectionString);
     const targetFingerprint = computeTargetFingerprint({
-      directHost: endpoint.hostname,
-      port: endpoint.port,
+      directHost: client.host,
+      port: client.port,
       database: databaseIdentity.database,
       user: databaseIdentity.user,
     });
@@ -305,10 +319,19 @@ export async function runProvisioning({
           'since the dry run. Re-run --dry-run and review the new plan.'
       );
     }
+    revalidateSource?.();
     for (const { identity, passwordHash } of prepared) {
-      await writeIdentity(client, identity, passwordHash);
+      await writeIdentity(client, identity, passwordHash, currentByUsername.get(identity.username));
     }
-    await client.query('COMMIT');
+    try {
+      await client.query('COMMIT');
+    } catch {
+      // A lost acknowledgement can follow a successful COMMIT.
+      throw new ProvisioningCommitUnknownError(
+        'COMMIT was not confirmed, so the writes may or may not have committed. ' +
+          'Run --dry-run to read the current rows before any retry.'
+      );
+    }
     for (const identity of identities) {
       log(
         `[DONE] username=${JSON.stringify(identity.username)} role=${identity.role} ` +
@@ -336,11 +359,6 @@ async function provisionProdUsers(): Promise<void> {
   const connectionString = process.env['DATABASE_URL'];
   if (!connectionString) {
     throw new ProvisioningInputError('DATABASE_URL is required.');
-  }
-  if (isPoolerUrl(connectionString)) {
-    throw new ProvisioningInputError(
-      'Refusing pooled DATABASE_URL; use the direct (non-pooler) endpoint.'
-    );
   }
 
   const repoRoot = findRepoRoot(dirname(fileURLToPath(import.meta.url)));
@@ -381,12 +399,16 @@ async function provisionProdUsers(): Promise<void> {
     await runProvisioning({
       mode,
       client,
-      connectionString,
       identities,
       identityFileSha256: createHash('sha256').update(identityFileContents).digest('hex'),
       headSha: source.headSha,
       expectedTargetFingerprint: process.env['EXPECTED_TARGET_FINGERPRINT'],
       expectedPlanDigest,
+      revalidateSource: () =>
+        assertSourceIdentity({
+          expectedSha: process.env['EXPECTED_SHA'],
+          ...readSourceIdentity(repoRoot),
+        }),
       bcryptCost: getProdIdentityBcryptCost(process.env['NODE_ENV']),
     });
   } finally {
@@ -401,7 +423,11 @@ if (isDirectExecution) {
   provisionProdUsers()
     .then(() => process.exit(0))
     .catch((error: unknown) => {
-      if (error instanceof ProvisioningInputError || error instanceof ProdIdentityValidationError) {
+      if (
+        error instanceof ProvisioningInputError ||
+        error instanceof ProvisioningCommitUnknownError ||
+        error instanceof ProdIdentityValidationError
+      ) {
         console.error(`[FAIL] User provisioning failed: ${error.message}`);
       } else {
         console.error('[FAIL] User provisioning failed; database/driver details were suppressed.');

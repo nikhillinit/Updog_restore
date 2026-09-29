@@ -439,16 +439,24 @@ A JSON array kept outside the repository and deleted after use. Each entry has
    NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" EXPECTED_SHA="<main SHA>" npx tsx scripts/provision-prod-users.ts --apply --expected-plan-digest=<digest>
    ```
 
-   Apply locks the target rows, recomputes the digest in the same transaction,
-   and writes every user in that one transaction.
+   Apply fingerprints the driver's effective endpoint, so a `?host=` or `?port=`
+   override in the URL cannot redirect it. It locks the existing target rows,
+   recomputes the digest in the same transaction, re-checks the source just
+   before the first write, and writes every user in that one transaction. A user
+   reviewed as absent is inserted without overwrite, so a concurrent creation of
+   the same username fails the whole apply.
 
 7. Act on the outcome:
    - `[DONE]` lines: success. Delete the identity file. Delete the restore
      branch once the provisioned accounts are confirmed.
-   - `Plan digest mismatch`, `Target fingerprint missing or mismatched`, or a
-     source refusal: nothing was written. Re-run the dry run and review again.
-   - Any other failure: the transaction rolled back. Run the dry run to read the
-     current state before retrying.
+   - `Plan digest mismatch`, `Target fingerprint missing or mismatched`, a
+     pooled-endpoint refusal, or a source refusal: nothing was written. Re-run
+     the dry run and review again.
+   - `COMMIT was not confirmed`: unknown state. The writes may have committed.
+     Run the dry run and compare each `[PLAN]` before-state with the intended
+     after-state before any retry.
+   - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
+     run to confirm the current state before retrying.
 
 ## Immutable certification and action-time eligibility
 

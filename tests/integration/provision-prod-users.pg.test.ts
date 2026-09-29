@@ -108,6 +108,8 @@ async function snapshot(connectionString: string) {
   }));
 }
 
+type ProvisioningClient = Parameters<typeof runProvisioning>[0]['client'];
+
 function run(
   connectionString: string,
   options: {
@@ -115,12 +117,13 @@ function run(
     identities: ProdIdentity[];
     expectedTargetFingerprint?: string;
     expectedPlanDigest?: string;
-  }
+    revalidateSource?: () => void;
+  },
+  wrap: (client: Client) => ProvisioningClient = (client) => client
 ) {
   return withClient(connectionString, (client) =>
     runProvisioning({
-      client,
-      connectionString,
+      client: wrap(client),
       identityFileSha256: 'f'.repeat(64),
       headSha: 'a'.repeat(40),
       bcryptCost: 4,
@@ -281,5 +284,124 @@ describe.skipIf(skipIfNoDocker)('governed production user provisioning', { retry
       })
     ).rejects.toThrow(/Refusing to change releaseCanaryPrincipal/);
     expect(await snapshot(connectionString)).toEqual(before);
+  });
+
+  it('fingerprints the effective endpoint, not a URL authority overridden by ?host=', async () => {
+    const { connectionString, fundId } = await seededDatabase();
+    const identities = identitiesFor(fundId);
+    const digest = await run(connectionString, { mode: 'dry-run', identities });
+    const real = new URL(connectionString);
+    const spoofed = new URL(connectionString);
+    spoofed.hostname = 'prod.example.invalid';
+    spoofed.port = '';
+    spoofed.searchParams.set('host', real.hostname);
+    spoofed.searchParams.set('port', real.port);
+    // The fingerprint the URL authority would produce: what an override hides.
+    const authorityFingerprint = await withClient(connectionString, async (client) => {
+      const identity = await readDatabaseIdentity(client);
+      return computeTargetFingerprint({
+        directHost: spoofed.hostname,
+        port: '',
+        database: identity.database,
+        user: identity.user,
+      }) as string;
+    });
+    const before = await snapshot(connectionString);
+
+    await expect(
+      run(spoofed.toString(), {
+        mode: 'apply',
+        identities,
+        expectedTargetFingerprint: authorityFingerprint,
+        expectedPlanDigest: digest,
+      })
+    ).rejects.toThrow(/fingerprint/i);
+    expect(await snapshot(connectionString)).toEqual(before);
+  });
+
+  it('lets only one of two concurrent applies create users reviewed as absent', async () => {
+    const { connectionString, fundId, fingerprint } = await seededDatabase();
+    const identities = identitiesFor(fundId).filter(({ username }) => username !== 'partner');
+    const digest = await run(connectionString, { mode: 'dry-run', identities });
+    const apply = {
+      mode: 'apply' as const,
+      identities,
+      expectedTargetFingerprint: fingerprint,
+      expectedPlanDigest: digest,
+    };
+
+    const results = await Promise.allSettled([
+      run(connectionString, apply),
+      run(connectionString, apply),
+    ]);
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+    const created = await withClient(
+      connectionString,
+      async (client) =>
+        (
+          await client.query(
+            'SELECT username, count(*)::int AS n FROM users WHERE username = ANY($1::text[]) GROUP BY username ORDER BY username',
+            [identities.map(({ username }) => username)]
+          )
+        ).rows
+    );
+    expect(created).toEqual([
+      { username: 'release-canary', n: 1 },
+      { username: 'release-reconciler', n: 1 },
+    ]);
+  });
+
+  it('re-checks the source immediately before writing, with zero writes on failure', async () => {
+    const { connectionString, fundId, fingerprint } = await seededDatabase();
+    const identities = identitiesFor(fundId);
+    const digest = await run(connectionString, { mode: 'dry-run', identities });
+    const before = await snapshot(connectionString);
+
+    await expect(
+      run(connectionString, {
+        mode: 'apply',
+        identities,
+        expectedTargetFingerprint: fingerprint,
+        expectedPlanDigest: digest,
+        revalidateSource: () => {
+          throw new Error('Live origin main does not equal EXPECTED_SHA.');
+        },
+      })
+    ).rejects.toThrow(/origin main/);
+    expect(await snapshot(connectionString)).toEqual(before);
+  });
+
+  it('reports an unknown outcome when COMMIT is not acknowledged', async () => {
+    const { connectionString, fundId, fingerprint } = await seededDatabase();
+    const identities = identitiesFor(fundId);
+    const digest = await run(connectionString, { mode: 'dry-run', identities });
+
+    await expect(
+      run(
+        connectionString,
+        {
+          mode: 'apply',
+          identities,
+          expectedTargetFingerprint: fingerprint,
+          expectedPlanDigest: digest,
+        },
+        (client) =>
+          ({
+            host: client.host,
+            port: client.port,
+            query: async (text: string, values?: unknown[]) => {
+              const result = await client.query(text, values);
+              if (text === 'COMMIT') throw new Error('connection lost after COMMIT');
+              return result;
+            },
+          }) as unknown as ProvisioningClient
+      )
+    ).rejects.toThrow(/may or may not have committed/);
+    const canary = await withClient(
+      connectionString,
+      async (client) =>
+        (await client.query("SELECT 1 FROM users WHERE username = 'release-canary'")).rowCount
+    );
+    expect(canary).toBe(1);
   });
 });

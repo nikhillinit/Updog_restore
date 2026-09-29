@@ -239,10 +239,13 @@ describe('production governance documentation routing', () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
     const script = await readRepositoryFile('scripts/provision-prod-users.ts');
+    const decisions = await readRepositoryFile('DECISIONS.md');
 
     expect(flatPolicy).toContain(
-      'The owner-run route `scripts/provision-prod-users.ts --apply` is admitted for production user provisioning.'
+      'The owner-run route `scripts/provision-prod-users.ts --apply` is admitted for production user provisioning (ADR-105).'
     );
+    // The policy amends only together with its ADR entry in the same change.
+    expect(decisions).toContain('## ADR-105: Owner-Run Governed Production User Provisioning');
     expect(flatPolicy).toContain(
       'The owner, as sole dispatch issuer, withholds `--apply` when it is absent.'
     );
