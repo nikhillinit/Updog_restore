@@ -138,7 +138,12 @@ class FakeCommandStore {
         number,
       ];
       const row = this.row;
-      if (!row || row.id !== id || row.lease_token !== leaseToken || row.version !== expectedVersion) {
+      if (
+        !row ||
+        row.id !== id ||
+        row.lease_token !== leaseToken ||
+        row.version !== expectedVersion
+      ) {
         return { rows: [], rowCount: 0 };
       }
       row.run_id = runId;
@@ -155,7 +160,12 @@ class FakeCommandStore {
         number,
       ];
       const row = this.row;
-      if (!row || row.id !== id || row.lease_token !== leaseToken || row.version !== expectedVersion) {
+      if (
+        !row ||
+        row.id !== id ||
+        row.lease_token !== leaseToken ||
+        row.version !== expectedVersion
+      ) {
         return { rows: [], rowCount: 0 };
       }
       row.status = 'completed';
@@ -187,14 +197,16 @@ class FakeCommandStore {
   }
 }
 
-function buildHarness(overrides: {
-  store?: FakeCommandStore;
-  getQueue?: () => unknown;
-  resolveIdentity?: () => Promise<typeof IDENTITY>;
-  acquireRun?: () => Promise<typeof RUN_CONTEXT>;
-  ensureJob?: () => Promise<string>;
-  recordQueuedEventOnce?: () => Promise<boolean>;
-} = {}) {
+function buildHarness(
+  overrides: {
+    store?: FakeCommandStore;
+    getQueue?: () => unknown;
+    resolveIdentity?: () => Promise<typeof IDENTITY>;
+    acquireRun?: () => Promise<typeof RUN_CONTEXT>;
+    ensureJob?: () => Promise<string>;
+    recordQueuedEventOnce?: () => Promise<boolean>;
+  } = {}
+) {
   const store = overrides.store ?? new FakeCommandStore();
   const sleepCalls: number[] = [];
   const getQueue = vi.fn(overrides.getQueue ?? (() => ({ name: 'fund-scenario-calc' })));
@@ -228,7 +240,16 @@ function buildHarness(overrides: {
     },
   };
 
-  return { store, options, sleepCalls, getQueue, resolveIdentity, acquireRun, ensureJob, recordQueuedEventOnce };
+  return {
+    store,
+    options,
+    sleepCalls,
+    getQueue,
+    resolveIdentity,
+    acquireRun,
+    ensureJob,
+    recordQueuedEventOnce,
+  };
 }
 
 const BASE_INPUT = {
@@ -250,9 +271,20 @@ const EXPECTED_RESPONSE = {
 
 describe('executeReserveCalculationCommand', () => {
   it('claims a fresh key, queues once, and finalizes a completed receipt', async () => {
-    const harness = buildHarness();
+    let releaseQueuedEvent!: () => void;
+    const queuedEventPending = new Promise<boolean>((resolve) => {
+      releaseQueuedEvent = () => resolve(true);
+    });
+    const harness = buildHarness({
+      recordQueuedEventOnce: () => queuedEventPending,
+    });
 
-    const response = await executeReserveCalculationCommand(BASE_INPUT, harness.options);
+    const execution = executeReserveCalculationCommand(BASE_INPUT, harness.options);
+    await vi.waitFor(() => expect(harness.recordQueuedEventOnce).toHaveBeenCalledTimes(1));
+    expect(harness.ensureJob).not.toHaveBeenCalled();
+
+    releaseQueuedEvent();
+    const response = await execution;
 
     expect(response).toEqual(EXPECTED_RESPONSE);
     expect(harness.acquireRun).toHaveBeenCalledTimes(1);
@@ -290,10 +322,7 @@ describe('executeReserveCalculationCommand', () => {
 
     const conflictHarness = buildHarness({ store: harness.store });
     await expect(
-      executeReserveCalculationCommand(
-        { ...BASE_INPUT, request: {} },
-        conflictHarness.options
-      )
+      executeReserveCalculationCommand({ ...BASE_INPUT, request: {} }, conflictHarness.options)
     ).rejects.toMatchObject({ statusCode: 422, code: 'idempotency_key_reused' });
   });
 
@@ -368,9 +397,9 @@ describe('executeReserveCalculationCommand', () => {
         throw new Error('redis timeout with secret://credential');
       },
     });
-    await expect(executeReserveCalculationCommand(BASE_INPUT, failing.options)).rejects.toMatchObject(
-      { code: 'reserve_calculation_enqueue_uncertain' }
-    );
+    await expect(
+      executeReserveCalculationCommand(BASE_INPUT, failing.options)
+    ).rejects.toMatchObject({ code: 'reserve_calculation_enqueue_uncertain' });
     expect(failing.store.row).toMatchObject({
       status: 'failed',
       failure_code: 'QUEUE_ENQUEUE_UNCERTAIN',
@@ -405,10 +434,13 @@ describe('executeReserveCalculationCommand', () => {
   });
 
   it('stores QUEUE_UNAVAILABLE and rethrows the 503 contract when the queue is down', async () => {
-    const queueError = Object.assign(new Error('Fund scenario calculation queue is not available'), {
-      statusCode: 503,
-      code: 'scenario_calculation_queue_unavailable',
-    });
+    const queueError = Object.assign(
+      new Error('Fund scenario calculation queue is not available'),
+      {
+        statusCode: 503,
+        code: 'scenario_calculation_queue_unavailable',
+      }
+    );
     const harness = buildHarness({
       getQueue: () => {
         throw queueError;
@@ -427,18 +459,19 @@ describe('executeReserveCalculationCommand', () => {
     });
   });
 
-  it('stores QUEUE_ENQUEUE_UNCERTAIN when the queued-event write fails after enqueue', async () => {
+  it('does not publish a job when the queued-event transaction fails', async () => {
     const harness = buildHarness({
       recordQueuedEventOnce: async () => {
-        throw new Error('connection reset by peer at redis://user:pass@host');
+        throw new Error('connection reset by peer at postgres://user:pass@host');
       },
     });
 
-    await expect(executeReserveCalculationCommand(BASE_INPUT, harness.options)).rejects.toMatchObject(
-      { statusCode: 500, code: 'reserve_calculation_enqueue_uncertain' }
-    );
+    await expect(
+      executeReserveCalculationCommand(BASE_INPUT, harness.options)
+    ).rejects.toMatchObject({ statusCode: 500, code: 'reserve_calculation_enqueue_uncertain' });
+    expect(harness.ensureJob).not.toHaveBeenCalled();
     expect(harness.store.row?.failure_code).toBe('QUEUE_ENQUEUE_UNCERTAIN');
-    expect(JSON.stringify(harness.store.row)).not.toContain('redis://user:pass@host');
+    expect(JSON.stringify(harness.store.row)).not.toContain('postgres://user:pass@host');
   });
 
   it('stores COMMAND_FAILED for other owner-path failures and rethrows the original error', async () => {
@@ -467,9 +500,9 @@ describe('executeReserveCalculationCommand', () => {
       },
     });
 
-    await expect(executeReserveCalculationCommand(BASE_INPUT, harness.options)).rejects.toMatchObject(
-      { statusCode: 409, code: 'idempotency_request_in_progress' }
-    );
+    await expect(
+      executeReserveCalculationCommand(BASE_INPUT, harness.options)
+    ).rejects.toMatchObject({ statusCode: 409, code: 'idempotency_request_in_progress' });
     expect(harness.store.row?.status).not.toBe('completed');
   });
 
