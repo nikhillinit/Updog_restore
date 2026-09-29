@@ -12800,7 +12800,9 @@ pending action-specific hardening. It also had no way to deactivate a login.
 
 1. **Owner-run route.** `scripts/provision-prod-users.ts --apply` is admitted
    for production user provisioning. The owner runs it locally, never from CI.
-   Each run is a separate owner action.
+   Each run is a separate owner action. The governing policy's
+   production-dispatch issuer rule is amended to name this owner-run local
+   invocation as dispatch for this route.
 2. **Gates before the first write.** Exactly one of `--dry-run` or `--apply`.
    Apply requires `EXPECTED_SHA` equal to HEAD and live `main` with a clean
    tracked tree, checked at start and again immediately before the first write.
@@ -12810,10 +12812,12 @@ pending action-specific hardening. It also had no way to deactivate a login.
    `EXPECTED_TARGET_FINGERPRINT`.
 3. **Reviewed plan as the optimistic lock.** `--dry-run` prints a digest over
    the source SHA, the identity file, the target fingerprint, and the current
-   rows of every user in the file. Apply locks the existing rows `FOR UPDATE`,
-   recomputes the digest in the same transaction, and refuses on any drift. A
-   user reviewed as absent is inserted without `ON CONFLICT`, so a concurrent
-   creation fails the apply. A repeated apply of the same plan refuses.
+   rows of every user in the file, and a `[PLAN]` line per user with the exact
+   before and after fund IDs. Apply sets a transaction-local 5 s `lock_timeout`,
+   locks the existing rows `FOR UPDATE`, recomputes the digest in the same
+   transaction, and refuses on any drift. A user reviewed as absent is inserted
+   without `ON CONFLICT`, so a concurrent creation fails the apply. A repeated
+   apply of the same plan refuses.
 4. **One transaction.** All user and grant writes commit together. An
    unacknowledged `COMMIT` is reported as unknown state, never as rollback.
 5. **Deactivation.** The identity file gains an optional `active` flag.

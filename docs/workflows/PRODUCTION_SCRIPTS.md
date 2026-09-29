@@ -422,7 +422,8 @@ A JSON array kept outside the repository and deleted after use. Each entry has
    read -rs DATABASE_URL; export DATABASE_URL
    ```
 
-3. Dry run, and review every `[PLAN]` line (before and after for each user):
+3. Dry run, and review every `[PLAN]` line (before and after for each user, with
+   the exact fund IDs in `grants=[...]`):
 
    ```bash
    NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" npx tsx scripts/provision-prod-users.ts --dry-run
@@ -445,10 +446,11 @@ A JSON array kept outside the repository and deleted after use. Each entry has
 
    Apply fingerprints the driver's effective endpoint, so a `?host=` or `?port=`
    override in the URL cannot redirect it. It locks the existing target rows,
-   recomputes the digest in the same transaction, re-checks the source just
-   before the first write, and writes every user in that one transaction. A user
-   reviewed as absent is inserted without overwrite, so a concurrent creation of
-   the same username fails the whole apply.
+   waiting at most 5 s for a conflicting transaction, recomputes the digest in
+   the same transaction, re-checks the source just before the first write, and
+   writes every user in that one transaction. A user reviewed as absent is
+   inserted without overwrite, so a concurrent creation of the same username
+   fails the whole apply.
 
 7. Act on the outcome:
    - `[DONE]` lines: success. Delete the identity file. Delete the restore

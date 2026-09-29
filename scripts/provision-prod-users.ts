@@ -214,14 +214,19 @@ async function writeIdentity(
   }
 }
 
+// Exact IDs, not a count: replacing [1, 2] with [3, 4] must show in the review.
+function grants(fundIds: readonly number[]): string {
+  return `grants=[${[...fundIds].sort((a, b) => a - b).join(',')}]`;
+}
+
 function describePlan(identity: ProdIdentity, current: CurrentUser | undefined): string {
   const active = identity.active !== false;
   const before = current
-    ? `role=${current.role} active=${current.isActive} grants=${current.fundIds.length}`
+    ? `role=${current.role} active=${current.isActive} ${grants(current.fundIds)}`
     : 'absent';
   return (
     `[PLAN] username=${JSON.stringify(identity.username)} before: ${before}; ` +
-    `after: role=${identity.role} active=${active} grants=${identity.fundIds.length} ` +
+    `after: role=${identity.role} active=${active} ${grants(identity.fundIds)} ` +
     `releaseCanaryPrincipal=${identity.releaseCanaryPrincipal === true}`
   );
 }
@@ -271,6 +276,11 @@ export async function runProvisioning({
 
   await client.query(mode === 'apply' ? 'BEGIN' : 'BEGIN READ ONLY');
   try {
+    if (mode === 'apply') {
+      // Bounds every row-lock wait, so a conflicting transaction fails the
+      // apply instead of blocking it with earlier rows already locked.
+      await client.query("SET LOCAL lock_timeout = '5s'");
+    }
     const databaseIdentity = await readDatabaseIdentity(client);
     const targetFingerprint = computeTargetFingerprint({
       directHost: client.host,
@@ -336,7 +346,7 @@ export async function runProvisioning({
     for (const identity of identities) {
       log(
         `[DONE] username=${JSON.stringify(identity.username)} role=${identity.role} ` +
-          `active=${identity.active !== false} grants=${identity.fundIds.length} ` +
+          `active=${identity.active !== false} ${grants(identity.fundIds)} ` +
           `releaseCanaryPrincipal=${identity.releaseCanaryPrincipal === true}`
       );
     }

@@ -118,6 +118,7 @@ function run(
     expectedTargetFingerprint?: string;
     expectedPlanDigest?: string;
     revalidateSource?: () => void;
+    log?: (line: string) => void;
   },
   wrap: (client: Client) => ProvisioningClient = (client) => client
 ) {
@@ -207,6 +208,22 @@ describe.skipIf(skipIfNoDocker)('governed production user provisioning', { retry
     for (const [index, identity] of identities.entries()) {
       expect(await bcrypt.compare(identity.password, after[index].password)).toBe(true);
     }
+  });
+
+  it('prints the exact before and after fund IDs in the reviewed plan', async () => {
+    const { connectionString, fundId } = await seededDatabase();
+    const lines: string[] = [];
+    await run(connectionString, {
+      mode: 'dry-run',
+      identities: identitiesFor(fundId),
+      log: (line) => lines.push(line),
+    });
+    expect(lines[0]).toContain(
+      `before: role=admin active=true grants=[${fundId}]; after: role=admin active=false grants=[]`
+    );
+    expect(lines[1]).toContain(
+      `before: absent; after: role=partner active=true grants=[${fundId}]`
+    );
   });
 
   it('refuses a mismatched target fingerprint with zero writes', async () => {
@@ -368,6 +385,31 @@ describe.skipIf(skipIfNoDocker)('governed production user provisioning', { retry
         },
       })
     ).rejects.toThrow(/origin main/);
+    expect(await snapshot(connectionString)).toEqual(before);
+  });
+
+  it('fails a blocked row lock at the lock timeout, with zero writes', async () => {
+    const { connectionString, fundId, fingerprint } = await seededDatabase();
+    const identities = identitiesFor(fundId);
+    const digest = await run(connectionString, { mode: 'dry-run', identities });
+    const before = await snapshot(connectionString);
+
+    await withClient(connectionString, async (holder) => {
+      await holder.query('BEGIN');
+      await holder.query("SELECT 1 FROM users WHERE username = 'partner' FOR UPDATE");
+      try {
+        await expect(
+          run(connectionString, {
+            mode: 'apply',
+            identities,
+            expectedTargetFingerprint: fingerprint,
+            expectedPlanDigest: digest,
+          })
+        ).rejects.toMatchObject({ code: '55P03' });
+      } finally {
+        await holder.query('ROLLBACK');
+      }
+    });
     expect(await snapshot(connectionString)).toEqual(before);
   });
 

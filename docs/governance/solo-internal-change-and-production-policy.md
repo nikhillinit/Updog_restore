@@ -186,8 +186,10 @@ Precedence rules:
   amendment is ratified by owner approval recorded in its PR description, with
   its ADR following in the next governance PR.
 - Production-dispatch issuer: the sole issuer of action-scoped production
-  authority is the repository owner, via explicit dispatch of the named
-  workflow; no agent, plan, or artifact self-authorizes.
+  authority is the repository owner, via explicit dispatch of the named workflow
+  or, for an owner-run route this policy admits by name, via the owner's own
+  local invocation of that route (ADR-105); no agent, plan, or artifact
+  self-authorizes.
 - Provider coupling: merge to `main` may causally trigger provider deployment
   under current topology (ADR-075). That coupling is a topology fact, not an
   authorization; a merge that would mutate production is production-affecting
