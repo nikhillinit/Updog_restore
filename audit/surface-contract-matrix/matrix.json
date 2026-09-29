@@ -27041,9 +27041,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets",
@@ -27086,9 +27086,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets",
@@ -27335,9 +27335,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId",
@@ -27380,9 +27380,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId",
@@ -27629,9 +27629,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
@@ -27674,9 +27674,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status",
@@ -27923,9 +27923,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
@@ -27968,9 +27968,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/comparison",
@@ -28217,9 +28217,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
@@ -28262,9 +28262,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/:scenarioSetId/results",
@@ -28510,9 +28510,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/source-config",
@@ -28555,9 +28555,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:GET:/api/funds/:fundId/scenario-sets/source-config",
@@ -87693,9 +87693,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets",
@@ -87738,9 +87738,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets",
@@ -88060,9 +88060,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/archive",
@@ -88105,9 +88105,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/archive",
@@ -88427,9 +88427,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate",
@@ -88472,9 +88472,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate",
@@ -88794,9 +88794,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve",
@@ -88839,9 +88839,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve",
@@ -89161,9 +89161,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/reserve-optimization",
@@ -89206,9 +89206,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:234",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:269",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "api:POST:/api/funds/:fundId/scenario-sets/reserve-optimization",
@@ -111090,9 +111090,9 @@
             "deployment": "local-process",
             "runtime": "worker_process",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:588",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:623",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -111108,9 +111108,9 @@
             "deployment": "local-process",
             "runtime": "worker_process",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:99",
+            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:111",
             "assertion_confirmed": false,
-            "test_file_sha256": "58f1b93105a6d9f09eb6847320633a3792808ebbbfa95afc6f7c7f93b4daa3ca"
+            "test_file_sha256": "e587ade27759997d9404e1f7b262cd4bec3e5b9fc43d951e4d030f317e2503ba"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -111135,9 +111135,9 @@
             "deployment": "railway-worker-fund-scenario-calc",
             "runtime": "worker_process",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:588",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:623",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -111153,9 +111153,9 @@
             "deployment": "railway-worker-fund-scenario-calc",
             "runtime": "worker_process",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:99",
+            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:111",
             "assertion_confirmed": false,
-            "test_file_sha256": "58f1b93105a6d9f09eb6847320633a3792808ebbbfa95afc6f7c7f93b4daa3ca"
+            "test_file_sha256": "e587ade27759997d9404e1f7b262cd4bec3e5b9fc43d951e4d030f317e2503ba"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -111180,9 +111180,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:588",
+            "assertion_evidence": "tests/integration/fund-scenario-calculation-command.test.ts:623",
             "assertion_confirmed": false,
-            "test_file_sha256": "cfe34283854f1fe78988012fe5983da6e80ee40f0f902e4183d31903008938c2"
+            "test_file_sha256": "f1fa372ec8f0a5c0d2a222aba072b38a878b8c3e1d7664d5d853110651bd72bd"
           },
           {
             "row": "worker:fund-scenario-calc",
@@ -111198,9 +111198,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:99",
+            "assertion_evidence": "tests/unit/queues/fund-scenario-calc-queue-service-lifecycle.test.ts:111",
             "assertion_confirmed": false,
-            "test_file_sha256": "58f1b93105a6d9f09eb6847320633a3792808ebbbfa95afc6f7c7f93b4daa3ca"
+            "test_file_sha256": "e587ade27759997d9404e1f7b262cd4bec3e5b9fc43d951e4d030f317e2503ba"
           },
           {
             "row": "worker:fund-scenario-calc",
