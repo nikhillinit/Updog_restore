@@ -189,7 +189,9 @@ Do not dispatch while any applicable blocker remains UNKNOWN, including:
   canary, residue, and containment evidence; or
 - backup/PITR, restore freshness, custody-role, and preview/restore-isolation
   proof for a production schema/data action, except as the ADR-103 route
-  exception above states for `apply-journaled-0050-0061`.
+  exception above states for `apply-journaled-0050-0061` and the governing
+  policy states for `scripts/provision-prod-users.ts --apply` (see "Production
+  user provisioning" below).
 
 Retained entrypoints are not an authority or coverage claim. Any retained
 entrypoint whose current targeted order proof or action evidence is absent,
@@ -384,6 +386,69 @@ mutation. A lock not granted within 10 minutes (the apply's
   0061: handle as `complete 12/12`. The fresh dispatch re-validates the catalog
   before it emits a receipt.
 - Anything else: an incident.
+
+## Production user provisioning
+
+`scripts/provision-prod-users.ts` creates, updates, or deactivates login users
+and replaces their fund grants from an identity file. `--apply` against
+production is admitted by the governing policy as an owner-run route. The owner
+runs it locally, never from CI. Each run is a separate owner action.
+
+### Identity file
+
+A JSON array kept outside the repository and deleted after use. Each entry has
+`username`, `password` (at least 16 characters, never a dev seed password),
+`role`, and `fundIds`, plus optional `releaseCanaryPrincipal` and `active`.
+
+- Release canary principal: role `partner` and `releaseCanaryPrincipal: true`.
+  The file may hold at most one. The marker is set only at creation; a run that
+  would change it on an existing user refuses.
+- Canary reconciler: a dedicated non-human `admin` account, distinct from the
+  canary principal and from every human account.
+- Deactivation: `active: false` with a fresh password. `fundIds` replaces the
+  user's grants, so list every grant to keep; `[]` removes them all.
+
+### Owner sequence
+
+1. Check out the exact live `main` SHA with no tracked changes.
+2. Use the direct (non-pooler) production URL. Read it into the shell so it
+   stays out of shell history:
+
+   ```bash
+   read -rs DATABASE_URL; export DATABASE_URL
+   ```
+
+3. Dry run, and review every `[PLAN]` line (before and after for each user):
+
+   ```bash
+   NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" npx tsx scripts/provision-prod-users.ts --dry-run
+   ```
+
+   Record the `[PLAN] digest=` value. The digest binds the source SHA, the
+   identity file, the target, and the current rows of every user in the file.
+
+4. Derive the target fingerprint with the recipe above. For the same URL and
+   role it equals `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`.
+5. Create a Neon restore branch of the production branch immediately before
+   apply. Record its creation time and identifier privately, outside the
+   repository.
+6. Apply. Read the fingerprint into the shell like the URL, so it stays private:
+
+   ```bash
+   read -rs EXPECTED_TARGET_FINGERPRINT; export EXPECTED_TARGET_FINGERPRINT
+   NODE_ENV=production PROVISION_PROD=1 IDENTITY_FILE="<absolute path>" EXPECTED_SHA="<main SHA>" npx tsx scripts/provision-prod-users.ts --apply --expected-plan-digest=<digest>
+   ```
+
+   Apply locks the target rows, recomputes the digest in the same transaction,
+   and writes every user in that one transaction.
+
+7. Act on the outcome:
+   - `[DONE]` lines: success. Delete the identity file. Delete the restore
+     branch once the provisioned accounts are confirmed.
+   - `Plan digest mismatch`, `Target fingerprint missing or mismatched`, or a
+     source refusal: nothing was written. Re-run the dry run and review again.
+   - Any other failure: the transaction rolled back. Run the dry run to read the
+     current state before retrying.
 
 ## Immutable certification and action-time eligibility
 

@@ -235,6 +235,31 @@ describe('production governance documentation routing', () => {
     expect(flatGuide).toContain('never from workflow output');
   });
 
+  it('admits owner-run production user provisioning with its gates and procedure', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const script = await readRepositoryFile('scripts/provision-prod-users.ts');
+
+    expect(flatPolicy).toContain(
+      'The owner-run route `scripts/provision-prod-users.ts --apply` is admitted for production user provisioning.'
+    );
+    expect(flatPolicy).toContain(
+      'The owner, as sole dispatch issuer, withholds `--apply` when it is absent.'
+    );
+    expect(flatGuide).toContain('## Production user provisioning');
+    expect(flatGuide).toContain('--expected-plan-digest=<digest>');
+    expect(flatGuide).toContain('read -rs EXPECTED_TARGET_FINGERPRINT');
+    for (const gate of [
+      'export function parseProvisioningMode(',
+      'export function assertSourceIdentity(',
+      "throw new ProvisioningInputError('Target fingerprint missing or mismatched.')",
+      "'Plan digest mismatch: ",
+      'FOR UPDATE',
+    ]) {
+      expect(script).toContain(gate);
+    }
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(
