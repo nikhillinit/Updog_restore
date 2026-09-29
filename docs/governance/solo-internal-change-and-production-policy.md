@@ -123,6 +123,22 @@ replaces, for this route, the managed backup/PITR, isolated-restore freshness,
 custody-role, and preview/restore-isolation evidence floor below. Every other
 floor applies unchanged.
 
+The owner-run route `scripts/provision-prod-users.ts --apply` is admitted for
+production user provisioning (ADR-105). The owner runs it locally, never from
+CI, against the direct (non-pooler) endpoint. Before any write it refuses when
+the checkout HEAD, live `main`, and `EXPECTED_SHA` differ or tracked changes
+exist; when the target fingerprint differs from `EXPECTED_TARGET_FINGERPRINT`;
+or when the plan digest of the owner-reviewed `--dry-run` no longer matches the
+source, identity file, target, and locked target rows. For this route, the
+restore reference is a Neon restore branch that the owner creates and confirms
+immediately before `--apply`. The script does not verify it. The owner, as sole
+dispatch issuer, withholds `--apply` when it is absent. This paragraph is an
+explicit amendment for this route only, on the same terms as the ADR-103
+paragraph above: the owner's confirmation satisfies the restore-reference
+prerequisite and replaces, for this route, the managed backup/PITR,
+isolated-restore freshness, custody-role, and preview/restore-isolation evidence
+floor below. Every other floor applies unchanged.
+
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or
 preview/restore-isolation evidence yields zero dispatch. A restore reference or
@@ -170,8 +186,10 @@ Precedence rules:
   amendment is ratified by owner approval recorded in its PR description, with
   its ADR following in the next governance PR.
 - Production-dispatch issuer: the sole issuer of action-scoped production
-  authority is the repository owner, via explicit dispatch of the named
-  workflow; no agent, plan, or artifact self-authorizes.
+  authority is the repository owner, via explicit dispatch of the named workflow
+  or, for an owner-run route this policy admits by name, via the owner's own
+  local invocation of that route (ADR-105); no agent, plan, or artifact
+  self-authorizes.
 - Provider coupling: merge to `main` may causally trigger provider deployment
   under current topology (ADR-075). That coupling is a topology fact, not an
   authorization; a merge that would mutate production is production-affecting

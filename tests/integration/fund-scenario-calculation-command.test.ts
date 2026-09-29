@@ -140,13 +140,48 @@ async function seedCommandFixtures(pool: Pool): Promise<{
 
   const scenarioSets: Array<{ id: string; name: string; configId: number; reserveCents: number }> =
     [
-      { id: replayScenarioSetId, name: 'Command replay', configId: primaryConfigId, reserveCents: 1_100_000_00 },
-      { id: lineageScenarioSetId, name: 'Command lineage', configId: lineageConfigId, reserveCents: 1_200_000_00 },
-      { id: concurrencyScenarioSetId, name: 'Command concurrency', configId: primaryConfigId, reserveCents: 1_300_000_00 },
-      { id: sharedRunScenarioSetId, name: 'Command shared run', configId: primaryConfigId, reserveCents: 1_400_000_00 },
-      { id: uncertainScenarioSetId, name: 'Command enqueue uncertain', configId: primaryConfigId, reserveCents: 1_500_000_00 },
-      { id: outageScenarioSetId, name: 'Command queue outage', configId: primaryConfigId, reserveCents: 1_600_000_00 },
-      { id: staleLeaseScenarioSetId, name: 'Command stale lease', configId: primaryConfigId, reserveCents: 1_700_000_00 },
+      {
+        id: replayScenarioSetId,
+        name: 'Command replay',
+        configId: primaryConfigId,
+        reserveCents: 1_100_000_00,
+      },
+      {
+        id: lineageScenarioSetId,
+        name: 'Command lineage',
+        configId: lineageConfigId,
+        reserveCents: 1_200_000_00,
+      },
+      {
+        id: concurrencyScenarioSetId,
+        name: 'Command concurrency',
+        configId: primaryConfigId,
+        reserveCents: 1_300_000_00,
+      },
+      {
+        id: sharedRunScenarioSetId,
+        name: 'Command shared run',
+        configId: primaryConfigId,
+        reserveCents: 1_400_000_00,
+      },
+      {
+        id: uncertainScenarioSetId,
+        name: 'Command enqueue uncertain',
+        configId: primaryConfigId,
+        reserveCents: 1_500_000_00,
+      },
+      {
+        id: outageScenarioSetId,
+        name: 'Command queue outage',
+        configId: primaryConfigId,
+        reserveCents: 1_600_000_00,
+      },
+      {
+        id: staleLeaseScenarioSetId,
+        name: 'Command stale lease',
+        configId: primaryConfigId,
+        reserveCents: 1_700_000_00,
+      },
     ];
 
   for (const set of scenarioSets) {
@@ -582,31 +617,29 @@ describe('fund scenario reserve calculation command integration', () => {
       'recovers a post-enqueue receipt failure on retry with the same key',
       async (ctx) => {
         if (visibleLocalSkip(ctx)) return;
-        const commandService: CommandServiceModule = await import(
-          '../../server/services/fund-scenario-calculation-command-service'
-        );
-        const queueService: QueueServiceModule = await import(
-          '../../server/services/fund-scenario-calc-queue-service'
-        );
+        const commandService: CommandServiceModule =
+          await import('../../server/services/fund-scenario-calculation-command-service');
+        const queueService: QueueServiceModule =
+          await import('../../server/services/fund-scenario-calc-queue-service');
         const idempotencyKey = `cmd-int-uncertain-${randomUUID()}`;
         uncertainErrorMarker = `injected-enqueue-uncertain-${randomUUID()}`;
 
-        let recordCalls = 0;
-        const flakyRecordQueuedEventOnce: typeof queueService.recordReserveCalculationQueuedEventOnce =
-          async (params) => {
-            recordCalls += 1;
-            if (recordCalls === 1) {
-              throw new Error(uncertainErrorMarker!);
-            }
-            return queueService.recordReserveCalculationQueuedEventOnce(params);
-          };
+        let ensureCalls = 0;
+        const flakyEnsureJob: typeof queueService.ensureReserveCalculationJob = async (params) => {
+          const jobId = await queueService.ensureReserveCalculationJob(params);
+          ensureCalls += 1;
+          if (ensureCalls === 1) {
+            throw new Error(uncertainErrorMarker!);
+          }
+          return jobId;
+        };
 
         await expect(
           commandService.executeReserveCalculationCommand(
             directCommandInput(uncertainScenarioSetId, idempotencyKey),
             {
               receiptWaitTimeoutMs: 500,
-              deps: { recordQueuedEventOnce: flakyRecordQueuedEventOnce },
+              deps: { ensureJob: flakyEnsureJob },
             }
           )
         ).rejects.toMatchObject({
@@ -624,11 +657,18 @@ describe('fund scenario reserve calculation command integration', () => {
         });
         expect(JSON.stringify(failedReceipts[0])).not.toContain(uncertainErrorMarker);
 
+        const publishedRuns = await calculationRuns(uncertainScenarioSetId);
+        expect(publishedRuns).toHaveLength(1);
+        const publishedJobId = publishedRuns[0]?.job_id;
+        expect(publishedJobId).not.toBeNull();
+        expect(await jobsForScenarioSet(uncertainScenarioSetId)).toEqual([publishedJobId]);
+        expect(await queuedEventCount(uncertainScenarioSetId)).toBe(1);
+
         const retried = await commandService.executeReserveCalculationCommand(
           directCommandInput(uncertainScenarioSetId, idempotencyKey),
           {
             receiptWaitTimeoutMs: 500,
-            deps: { recordQueuedEventOnce: flakyRecordQueuedEventOnce },
+            deps: { ensureJob: flakyEnsureJob },
           }
         );
         expect(retried).toMatchObject({
@@ -659,12 +699,10 @@ describe('fund scenario reserve calculation command integration', () => {
       'records a deterministic queue outage as a failed QUEUE_UNAVAILABLE receipt with a released lease',
       async (ctx) => {
         if (visibleLocalSkip(ctx)) return;
-        const commandService: CommandServiceModule = await import(
-          '../../server/services/fund-scenario-calculation-command-service'
-        );
-        const scenarioSetService: ScenarioSetServiceModule = await import(
-          '../../server/services/fund-scenario-set-service'
-        );
+        const commandService: CommandServiceModule =
+          await import('../../server/services/fund-scenario-calculation-command-service');
+        const scenarioSetService: ScenarioSetServiceModule =
+          await import('../../server/services/fund-scenario-set-service');
         outageIdempotencyKey = `cmd-int-outage-${randomUUID()}`;
         outageErrorMarker = `injected-queue-outage-${randomUUID()}`;
 
@@ -739,9 +777,8 @@ describe('fund scenario reserve calculation command integration', () => {
       'reclaims the failed outage receipt on retry with the same key',
       async (ctx) => {
         if (visibleLocalSkip(ctx)) return;
-        const commandService: CommandServiceModule = await import(
-          '../../server/services/fund-scenario-calculation-command-service'
-        );
+        const commandService: CommandServiceModule =
+          await import('../../server/services/fund-scenario-calculation-command-service');
         expect(outageIdempotencyKey).not.toBeNull();
 
         const retried = await commandService.executeReserveCalculationCommand(
@@ -774,12 +811,10 @@ describe('fund scenario reserve calculation command integration', () => {
       async (ctx) => {
         if (visibleLocalSkip(ctx)) return;
         const active = activeRuntime();
-        const commandService: CommandServiceModule = await import(
-          '../../server/services/fund-scenario-calculation-command-service'
-        );
-        const queueService: QueueServiceModule = await import(
-          '../../server/services/fund-scenario-calc-queue-service'
-        );
+        const commandService: CommandServiceModule =
+          await import('../../server/services/fund-scenario-calculation-command-service');
+        const queueService: QueueServiceModule =
+          await import('../../server/services/fund-scenario-calc-queue-service');
         const idempotencyKey = `cmd-int-stale-lease-${randomUUID()}`;
         const foreignLeaseToken = randomUUID();
 

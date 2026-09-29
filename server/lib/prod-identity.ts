@@ -16,6 +16,8 @@ const prodIdentitySchema = z
         message: 'fundIds must not contain duplicates',
       }),
     releaseCanaryPrincipal: z.boolean().optional(),
+    // false deactivates the login; omitted keeps today's default of active.
+    active: z.boolean().optional(),
   })
   .strict()
   .superRefine((identity, context) => {
