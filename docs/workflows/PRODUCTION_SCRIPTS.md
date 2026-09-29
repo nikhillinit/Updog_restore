@@ -294,6 +294,10 @@ locally from values read in the provider console, never from workflow output:
 - `database`: the database name in that URL (`current_database()`).
 - `user`: the role that URL authenticates as (`current_user`).
 
+The runner fingerprints the endpoint the driver connects to. A `host` or `port`
+query parameter in the URL overrides the authority, so when one is present use
+its value instead.
+
 From a checkout of the rehearsed SHA, run `computeTargetFingerprint`, which the
 runner exports. Read the values into the shell so they stay out of shell
 history:

@@ -444,6 +444,31 @@ describe('journaled 0050-0061 pure contracts', () => {
       `journaled-0050-0061: ledger readback ${count === 12 ? 'complete' : 'ready'} ${count}/12\n`
     );
   });
+
+  it('fingerprints the client endpoint, not a URL authority overridden by ?host=', async () => {
+    const authorityFingerprint = computeTargetFingerprint({
+      directHost: 'prod.example.invalid',
+      port: '',
+      database: 'db',
+      user: 'operator',
+    });
+    for (const host of ['staging.example.invalid', undefined]) {
+      const client = { host, port: 6543, query: vi.fn(), connect: vi.fn(), end: vi.fn() };
+      await expect(
+        runJournaledRangeMigration({
+          connectionString:
+            'postgres://operator:password@prod.example.invalid/db?host=staging.example.invalid&port=6543',
+          apply: true,
+          expectedTargetFingerprint: authorityFingerprint,
+          stdout: { write: () => true },
+          clientFactory: () => client,
+        })
+      ).rejects.toBeInstanceOf(JournaledRangeTargetError);
+      expect(client.query).not.toHaveBeenCalled();
+      expect(client.end).toHaveBeenCalledOnce();
+    }
+    expect(reconciliation.acquire).not.toHaveBeenCalled();
+  });
 });
 
 describe('journaled 0050-0061 failure and CLI contracts', () => {

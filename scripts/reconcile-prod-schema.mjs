@@ -344,8 +344,10 @@ export function assertApplyConfirmation({
 
 export function isPoolerUrl(connectionString) {
   try {
-    const url = new URL(connectionString);
-    return /(?:^|-|[.])pooler(?:-|[.]|$)/i.test(url.hostname);
+    // The driver's effective host, not the URL authority: connection-string
+    // ?host= overrides the authority. Constructing a Client does not connect.
+    const { host } = new Client({ connectionString });
+    return /(?:^|-|[.])pooler(?:-|[.]|$)/i.test(host);
   } catch {
     return false;
   }
