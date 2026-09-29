@@ -407,6 +407,10 @@ A JSON array kept outside the repository and deleted after use. Each entry has
   canary principal and from every human account.
 - Deactivation: `active: false` with a fresh password. `fundIds` replaces the
   user's grants, so list every grant to keep; `[]` removes them all.
+- Issued sessions: a password, role, or grant change does not end sessions
+  already issued. They keep their old role and grants until they expire.
+  `active: false` is checked on every request, so it cuts off access at once.
+  Reactivating a user revives its unexpired sessions from before deactivation.
 
 ### Owner sequence
 

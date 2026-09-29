@@ -117,8 +117,9 @@ export function assertSourceIdentity({
 }
 
 function readSourceIdentity(repoRoot: string) {
+  // Bounded: the pre-write re-check runs while the target rows are locked.
   const git = (...args: string[]) =>
-    execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
+    execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8', timeout: 30_000 }).trim();
   return {
     headSha: git('rev-parse', 'HEAD'),
     liveMainSha: git('ls-remote', 'origin', 'refs/heads/main').split(/\s+/)[0] ?? '',
@@ -409,7 +410,8 @@ async function provisionProdUsers(): Promise<void> {
           expectedSha: process.env['EXPECTED_SHA'],
           ...readSourceIdentity(repoRoot),
         }),
-      bcryptCost: getProdIdentityBcryptCost(process.env['NODE_ENV']),
+      // Always the production cost: a missing NODE_ENV must not weaken the hash.
+      bcryptCost: getProdIdentityBcryptCost('production'),
     });
   } finally {
     await client.end();

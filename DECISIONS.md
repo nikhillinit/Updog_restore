@@ -12837,6 +12837,12 @@ pending action-specific hardening. It also had no way to deactivate a login.
 - The restore branch is owner-confirmed, not machine-verified, as for ADR-103.
 - A lost `COMMIT` acknowledgement leaves the outcome unknown until the owner
   reads the rows back with `--dry-run`.
+- Tokens carry the user's role and fund grants, and token verification checks
+  only the revocation list and `is_active`. A password, role, or grant change
+  therefore leaves already-issued sessions valid, with their old role and
+  grants, until they expire, and reactivation revives unexpired sessions from
+  before deactivation. Only `active: false` cuts off access at once. Ending
+  those sessions at the credential change is a separate auth change.
 
 ### Consequences
 
