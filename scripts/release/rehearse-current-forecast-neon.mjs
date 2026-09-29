@@ -60,11 +60,19 @@ export function validateRehearsalInput(input) {
 }
 
 export function directHostFingerprint(connectionString) {
-  const hostname = parseConnectionUri(connectionString).hostname.toLowerCase();
-  if (hostname.includes('-pooler.') || hostname.includes('pooler')) {
+  const { host } = effectiveEndpoint(connectionString);
+  if (host.includes('-pooler.') || host.includes('pooler')) {
     throw new Error('Pooled Neon connection is forbidden');
   }
-  return `sha256:${createHash('sha256').update(hostname).digest('hex')}`;
+  return `sha256:${createHash('sha256').update(host).digest('hex')}`;
+}
+
+// The driver's effective endpoint, not the URL authority: connection-string ?host=,
+// ?port=, and ?user= override the authority. Constructing a Client does not connect.
+function effectiveEndpoint(uri) {
+  parseConnectionUri(uri);
+  const { host, port, user, database } = new pg.Client({ connectionString: uri });
+  return { host: host.toLowerCase(), port, user, database };
 }
 
 function parseConnectionUri(uri) {
@@ -132,18 +140,17 @@ export function validateConnectionUri(
   uri,
   { databaseName, roleName, endpointHost, forbiddenHost, identity }
 ) {
-  const parsed = parseConnectionUri(uri);
-  const hostname = parsed.hostname.toLowerCase();
+  const { host, user, database } = effectiveEndpoint(uri);
   if (
-    decodeURIComponent(parsed.pathname.slice(1)) !== databaseName ||
-    decodeURIComponent(parsed.username) !== roleName ||
-    hostname !== endpointHost.toLowerCase() ||
-    (forbiddenHost && hostname === forbiddenHost.toLowerCase())
+    database !== databaseName ||
+    user !== roleName ||
+    host !== endpointHost.toLowerCase() ||
+    (forbiddenHost && host === forbiddenHost.toLowerCase())
   ) {
     throw new Error(`${identity} connection URI identity mismatch`);
   }
   directHostFingerprint(uri);
-  return hostname;
+  return host;
 }
 
 async function waitForOperations({
@@ -245,9 +252,9 @@ async function rehearseJournaledRange({
     '../../shared/contracts/schema-reconcile-receipt-v1.contract.ts',
     import.meta.url
   );
-  const endpoint = parseConnectionUri(connectionString);
+  const endpoint = effectiveEndpoint(connectionString);
   const expectedTargetFingerprint = computeTargetFingerprint({
-    directHost: endpoint.hostname,
+    directHost: endpoint.host,
     port: endpoint.port,
     database: databaseName,
     user: roleName,

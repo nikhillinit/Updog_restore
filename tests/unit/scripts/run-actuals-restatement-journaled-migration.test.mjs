@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import process from 'node:process';
-import { beforeAll, describe, expect, it } from 'vitest';
+import pg from 'pg';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   ACTUALS_RESTATEMENT_MIGRATION_IDENTITY,
@@ -11,6 +12,7 @@ import {
   classifyActualsRestatementLedgerState,
   loadActualsRestatementMigration,
   parseActualsRestatementMigrationArgs,
+  runActualsRestatementJournaledMigration,
   runActualsRestatementMigrationCli,
 } from '../../../scripts/run-actuals-restatement-journaled-migration.mjs';
 import {
@@ -19,6 +21,22 @@ import {
 } from '../../../scripts/current-forecast-journaled-migration-range.mjs';
 
 import { loadActualsDraftMigration } from '../../../scripts/run-actuals-draft-journaled-migration.mjs';
+
+const reconciliation = vi.hoisted(() => ({
+  acquire: vi.fn(),
+  release: vi.fn(),
+  timeouts: vi.fn(),
+  identity: vi.fn(),
+  fingerprint: vi.fn(),
+}));
+vi.mock('../../../scripts/reconcile-prod-schema.mjs', async (importOriginal) => ({
+  ...(await importOriginal()),
+  acquireAdvisoryLock: reconciliation.acquire,
+  releaseAdvisoryLock: reconciliation.release,
+  setApplyTimeouts: reconciliation.timeouts,
+  readDatabaseIdentity: reconciliation.identity,
+  computeTargetFingerprint: reconciliation.fingerprint,
+}));
 
 const migrationsDir = path.join(process.cwd(), 'migrations');
 const row = ({ when, hash }) => ({ created_at: String(when), hash });
@@ -151,5 +169,55 @@ describe('bounded actuals restatement migration admission', () => {
     });
     expect(result).toBe(1);
     expect(output.join('')).not.toMatch(/private-user|private-secret|example\.invalid/);
+  });
+});
+
+describe('0057 target endpoint', () => {
+  it('fingerprints the client endpoint, not a URL authority overridden by ?host=', async () => {
+    reconciliation.identity.mockResolvedValue({ database: 'db', user: 'operator' });
+    reconciliation.release.mockResolvedValue(undefined);
+    const connectionString =
+      'postgres://operator:password@prod.example.invalid/db?host=staging.example.invalid&port=6543';
+    const stop = new Error('ledger read');
+    // A real Client parses the connection string; only the I/O is stubbed.
+    const client = Object.assign(new pg.Client({ connectionString }), {
+      connect: vi.fn(),
+      end: vi.fn(),
+      query: vi.fn(async () => {
+        throw stop;
+      }),
+    });
+    await expect(
+      runActualsRestatementJournaledMigration({
+        connectionString,
+        apply: false,
+        stdout: { write: () => true },
+        clientFactory: () => client,
+      })
+    ).rejects.toBe(stop);
+    expect(reconciliation.fingerprint).toHaveBeenCalledExactlyOnceWith({
+      directHost: 'staging.example.invalid',
+      port: 6543,
+      database: 'db',
+      user: 'operator',
+    });
+
+    const hostless = {
+      host: undefined,
+      port: 6543,
+      connect: vi.fn(),
+      end: vi.fn(),
+      query: vi.fn(),
+    };
+    await expect(
+      runActualsRestatementJournaledMigration({
+        connectionString,
+        apply: false,
+        stdout: { write: () => true },
+        clientFactory: () => hostless,
+      })
+    ).rejects.toThrow('0057 target endpoint is unresolved');
+    expect(hostless.query).not.toHaveBeenCalled();
+    expect(hostless.end).toHaveBeenCalledOnce();
   });
 });

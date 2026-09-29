@@ -23,15 +23,20 @@ const mocks = vi.hoisted(() => ({
   draft: vi.fn(),
   restatement: vi.fn(),
 }));
-vi.mock('pg', () => ({
-  default: {
-    Client: class {
-      connect = mocks.connect;
-      end = mocks.end;
-      query = mocks.query;
+// The real Client parses the connection string, so host and port match what the scripts check.
+vi.mock('pg', async (importOriginal) => {
+  const { default: pg } = await importOriginal<{ default: typeof import('pg') }>();
+  return {
+    default: {
+      ...pg,
+      Client: class extends pg.Client {
+        override connect = mocks.connect;
+        override end = mocks.end;
+        override query = mocks.query;
+      },
     },
-  },
-}));
+  };
+});
 vi.mock('../../../scripts/run-actuals-draft-journaled-migration.mjs', async (original) => ({
   ...(await original<
     typeof import('../../../scripts/run-actuals-draft-journaled-migration.mjs')
@@ -486,6 +491,30 @@ describe('authenticated available actuals migration verifiers', () => {
     const report = await collectActualsMigrationPreflight(input, credentials);
     expect(report.observations[2]?.status).toBe('failed');
     expect(mocks.restatement).not.toHaveBeenCalled();
+  });
+
+  it('checks the effective endpoint, not a URL authority overridden by ?host=', async () => {
+    installTransport();
+    const spoofed = await collectActualsMigrationPreflight(
+      { ...input, databaseUrl: `${input.databaseUrl}?host=ep-other.neon.tech` },
+      credentials
+    );
+    expect(spoofed.observations[2]).toMatchObject({
+      status: 'failed',
+      code: 'PROVIDER_DATABASE_IDENTITY_MISMATCH',
+    });
+    expect(mocks.connect).not.toHaveBeenCalled();
+    expect(mocks.restatement).not.toHaveBeenCalled();
+
+    const redirected = await collectActualsMigrationPreflight(
+      {
+        ...input,
+        databaseUrl: `${input.databaseUrl.replace('ep-target', 'ep-other')}?host=ep-target.neon.tech`,
+      },
+      credentials
+    );
+    expect(redirected.observations[2]?.status).toBe('verified');
+    expect(redirected.binding.targetFingerprint).toBe(targetFingerprint);
   });
 
   it('classifies database connection unavailability without leaking native error text', async () => {

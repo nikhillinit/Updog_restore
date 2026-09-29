@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { computeTargetFingerprint } from '../../scripts/reconcile-prod-schema.mjs';
 import {
   ACTUALS_RESTATEMENT_MIGRATION_IDENTITY,
   createDisposableActualsRestatementMigrationTestContext,
@@ -144,6 +145,45 @@ describe('actuals restatement 0057 bounded PostgreSQL migration', { retry: 0 }, 
           runActualsRestatementJournaledMigration({ ...input, apply: true, stdout: quiet })
         ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
       }
+      expect(await snapshot(pool)).toEqual(before);
+    } finally {
+      await pool.end();
+    }
+  }, 180_000);
+
+  it('reports the effective endpoint and refuses apply when ?host= overrides the URL authority', async () => {
+    const connectionString = await databaseAt();
+    const real = new URL(connectionString);
+    // The URL authority names prod.example.invalid; ?host= and ?port= reach the test container.
+    const spoofed = new URL(connectionString);
+    spoofed.hostname = 'prod.example.invalid';
+    spoofed.port = '';
+    spoofed.searchParams.set('host', real.hostname);
+    spoofed.searchParams.set('port', real.port || '5432');
+    const pool = new Pool({ connectionString, max: 1 });
+    try {
+      const { database, user } = (
+        await pool.query<{ database: string; user: string }>(
+          'SELECT current_database() AS database, current_user AS "user"'
+        )
+      ).rows[0]!;
+      const before = await snapshot(pool);
+      const result = await runActualsRestatementJournaledMigration({
+        connectionString: spoofed.toString(),
+        apply: false,
+        stdout: quiet,
+      });
+      expect(result.targetFingerprint).toBe(
+        computeTargetFingerprint({ directHost: real.hostname, port: real.port, database, user })
+      );
+      await expect(
+        runActualsRestatementJournaledMigration({
+          connectionString: spoofed.toString(),
+          apply: true,
+          localTestCapability: localTestContext.capability,
+          stdout: quiet,
+        })
+      ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
       expect(await snapshot(pool)).toEqual(before);
     } finally {
       await pool.end();

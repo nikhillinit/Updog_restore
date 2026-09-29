@@ -403,9 +403,13 @@ schema_tests:
   - 'tests/integration/journaled-0050-0061-migration.pg.test.ts'
   - 'tests/integration/provision-prod-users.pg.test.ts'
   - 'scripts/provision-prod-users.ts'
+  - 'tests/integration/current-forecast-production-action.pg.test.ts'
   - 'scripts/run-actuals-draft-journaled-migration.mjs'
   - 'scripts/run-actuals-restatement-journaled-migration.mjs'
   - 'scripts/run-journaled-0050-0061-migrations.mjs'
+  - 'scripts/release/actuals-migration-preflight.ts'
+  - 'scripts/release/current-forecast-production-action.mjs'
+  - 'scripts/release/rehearse-current-forecast-neon.mjs'
   - 'tests/integration/actuals-draft-revisions.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # F_1.12.0 financial-facts terminal-head proof

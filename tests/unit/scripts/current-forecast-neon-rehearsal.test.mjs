@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   directHostFingerprint,
   rehearseCurrentForecastNeon,
+  validateConnectionUri,
   validateRehearsalInput,
 } from '../../../scripts/release/rehearse-current-forecast-neon.mjs';
 import { computeTargetFingerprint } from '../../../scripts/run-journaled-0050-0061-migrations.mjs';
@@ -255,6 +256,46 @@ describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
     expect(() => directHostFingerprint('not-a-uri-with-secret')).toThrow(
       'Neon connection URI is invalid'
     );
+  });
+
+  it('fingerprints and validates the effective endpoint, not a URL authority overridden by ?host=', () => {
+    const childUri = 'postgres://app_owner:child-secret@ep-child.us.neon.tech/updog';
+    // The value before the change for a URI without overrides.
+    expect(directHostFingerprint(childUri)).toBe(
+      'sha256:7e756c48b37e5a2f0d0423628e581d4680e0db6d48fd2a5431ea126e2bfa3fd2'
+    );
+    const identity = {
+      databaseName: 'updog',
+      roleName: 'app_owner',
+      endpointHost: 'ep-child.us.neon.tech',
+      identity: 'Created Neon',
+    };
+    for (const override of ['host=elsewhere.invalid', 'user=other_role']) {
+      expect(() => validateConnectionUri(`${childUri}?${override}`, identity)).toThrow(
+        'Created Neon connection URI identity mismatch'
+      );
+    }
+    expect(
+      validateConnectionUri(
+        'postgres://app_owner:child-secret@elsewhere.invalid/updog?host=ep-child.us.neon.tech',
+        identity
+      )
+    ).toBe('ep-child.us.neon.tech');
+    expect(() => directHostFingerprint(`${childUri}?host=ep-child-pooler.us.neon.tech`)).toThrow(
+      /pooled/i
+    );
+  });
+
+  it('refuses a provider URI whose ?host= leaves the created endpoint before any command', async () => {
+    const responses = happyResponses();
+    responses[9] = { uri: `${responses[9].uri}?host=elsewhere.invalid` };
+    const commandRunner = vi.fn();
+    const tailReader = vi.fn().mockResolvedValueOnce('0049_kpi_observations');
+    await expect(
+      run({ fetchImpl: mockFetch(responses), commandRunner, tailReader })
+    ).rejects.toThrow('Created Neon connection URI identity mismatch');
+    expect(commandRunner).not.toHaveBeenCalled();
+    expect(tailReader).toHaveBeenCalledOnce();
   });
 
   it('binds role, endpoint, database, branch, operations, and command order', async () => {
@@ -761,6 +802,31 @@ describe('journaled 0050-0061 rehearsal', { retry: 0 }, () => {
       /^Rehearsal command failed$/
     );
     expect(commandRunner).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the runner the effective endpoint fingerprint when ?host= and ?port= override the authority', async () => {
+    const responses = happyResponses();
+    responses[9] = {
+      uri: 'postgres://app_owner:child-secret@elsewhere.invalid/updog?host=ep-child.us.neon.tech&port=5433',
+    };
+    const commandRunner = resultWritingRunner(applyResult('0049_kpi_observations', 3, 0));
+    await run({
+      input: { ...input, mode: 'journaled-0050-0061' },
+      fetchImpl: mockFetch(responses),
+      commandRunner,
+      tailReader: vi
+        .fn()
+        .mockResolvedValueOnce('0049_kpi_observations')
+        .mockResolvedValueOnce('0061_durable_create_receipts'),
+    });
+    expect(commandRunner.mock.calls[0][2].EXPECTED_TARGET_FINGERPRINT).toBe(
+      computeTargetFingerprint({
+        directHost: 'ep-child.us.neon.tech',
+        port: 5433,
+        database: 'updog',
+        user: 'app_owner',
+      })
+    );
   });
 
   it('refuses a final tail other than 0061', async () => {

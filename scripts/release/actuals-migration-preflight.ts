@@ -18,7 +18,11 @@ import {
   type ActualsMigrationPredicateObservation,
   type ActualsMigrationPreflightReport,
 } from '../../shared/contracts/schema-reconcile-receipt-v1.contract';
-import { assertDirectDatabaseUrl, readDatabaseIdentity } from '../reconcile-prod-schema.mjs';
+import {
+  assertDirectDatabaseUrl,
+  computeTargetFingerprint,
+  readDatabaseIdentity,
+} from '../reconcile-prod-schema.mjs';
 import {
   loadActualsDraftMigration,
   runActualsDraftJournaledMigration,
@@ -113,7 +117,9 @@ async function deriveBinding(input: ActualsMigrationPreflightInput): Promise<Bin
   const manifestHash = sha256(bytes);
   if (restatement && manifestHash !== ACTUALS_RESTATEMENT_MANIFEST_IDENTITY.hash)
     throw new Error('0057 manifest source mismatch');
-  const endpoint = new URL(input.databaseUrl);
+  // The driver's effective endpoint, not the URL authority: connection-string
+  // ?host= and ?port= override the authority. Constructing a Client does not connect.
+  const endpoint = new pg.Client({ connectionString: input.databaseUrl });
   const { databaseUrl: _databaseUrl, ...publicInput } = input;
   return {
     ...publicInput,
@@ -125,14 +131,12 @@ async function deriveBinding(input: ActualsMigrationPreflightInput): Promise<Bin
       sqlSha256: migration.hash,
     },
     manifest: { path: manifestPath, sha256: manifestHash },
-    targetFingerprint: sha256(
-      JSON.stringify({
-        directHost: endpoint.hostname.toLowerCase(),
-        port: endpoint.port || '5432',
-        database: input.provider.databaseName,
-        user: input.provider.roleName,
-      })
-    ),
+    targetFingerprint: computeTargetFingerprint({
+      directHost: endpoint.host,
+      port: endpoint.port,
+      database: input.provider.databaseName,
+      user: input.provider.roleName,
+    }),
   };
 }
 
