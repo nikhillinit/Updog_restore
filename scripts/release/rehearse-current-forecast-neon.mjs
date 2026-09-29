@@ -172,10 +172,14 @@ async function waitForOperations({
         `/projects/${projectId}/operations/${operationId}`
       ));
     }
+    // Neon pairs every branch create with a project-level epc_sync operation
+    // that carries no branch or endpoint; every other operation must name the child.
+    const projectLevelSync =
+      operation?.action === 'epc_sync' && !operation.branch_id && !operation.endpoint_id;
     if (
       operation?.id !== operationId ||
       operation.project_id !== projectId ||
-      operation.branch_id !== branchId ||
+      (!projectLevelSync && operation.branch_id !== branchId) ||
       (operation.endpoint_id && operation.endpoint_id !== endpointId)
     ) {
       throw new Error('Created Neon operation identity mismatch');
