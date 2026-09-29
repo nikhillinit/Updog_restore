@@ -22,6 +22,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-09-29)
+
+- #1599 (`d5a3f5d78`) also carried commit `9545ba63a`, which its squash message
+  omits: both calculation enqueue paths persist the exactly-once queued event
+  before BullMQ publication, and the lockfile moves `ip-address` to 10.5.1.
+- Added `docs/1-plans/F_1.18.1_production-release-7ee0210fa.plan.md`, the
+  approved plan for the release-vehicle PR that releases the F_1.18.0 schema
+  route code.
+
 ### Removed (2026-09-28)
 
 - Deleted the never-routed `client/src/pages/analytics.tsx` with its only
