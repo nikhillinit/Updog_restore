@@ -180,12 +180,18 @@ export function normalizeVercelEvidence(vercel, expectedProjectId) {
   };
 }
 
-function verifyStagedVercel(normalized, expectedSha) {
+function verifyStagedVercel(normalized, expectedSha, canonicalHostname) {
   const sha = requiredSha(expectedSha);
+  const hostname = normalizeCanonicalHostname(canonicalHostname);
   const { deployment, version } = normalized;
   if (deployment.readyState !== 'READY') fail('Vercel deployment is not READY');
   if (deployment.target !== 'production') fail('Vercel staged candidate target is invalid');
-  if (deployment.aliases.length !== 0) fail('Vercel staged candidate has an alias');
+  // Vercel gives every deployment generated *.vercel.app aliases, so a staged
+  // candidate is never alias-free (phase B run 36756024336). Not promoted means
+  // its live alias list does not hold the canonical hostname.
+  if (deployment.aliases.includes(hostname)) {
+    fail('Vercel staged candidate already holds the canonical alias');
+  }
   if (
     deployment.meta.githubCommitRef !== 'main' ||
     deployment.meta.githubCommitSha !== sha
@@ -231,7 +237,9 @@ export function verifyVercelEvidence(vercel, expectedProjectId, mode) {
     fail('Vercel evidence mode is invalid');
   }
   const normalized = normalizeVercelEvidence(vercel, expectedProjectId);
-  if (mode.kind === 'staged_candidate') return verifyStagedVercel(normalized, mode.expectedSha);
+  if (mode.kind === 'staged_candidate') {
+    return verifyStagedVercel(normalized, mode.expectedSha, mode.canonicalHostname);
+  }
   if (mode.kind === 'canonical_baseline') {
     return verifyCanonicalVercel(normalized, mode.canonicalHostname);
   }

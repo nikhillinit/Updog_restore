@@ -8,6 +8,8 @@ import {
   assertVercelCandidateHost,
   normalizeRailwayResponse,
   normalizeVercelEvidence,
+  vercelDeploymentAliasesUrl,
+  withCurrentVercelAliases,
 } from './provider-evidence-contract.mjs';
 import { postRailwayGraphql } from './railway-graphql-transport.mjs';
 
@@ -179,6 +181,16 @@ export async function collectProviderEvidence({
     },
     'Vercel deployment'
   );
+  const aliases = await getJson(
+    fetchImpl,
+    vercelDeploymentAliasesUrl(deployment?.id, vercelOrgId),
+    {
+      headers: { Authorization: `Bearer ${vercelToken}` },
+      deadlineAt: collectionDeadlineAt,
+      now,
+    },
+    'Vercel deployment aliases'
+  );
   const version = await getJson(
     fetchImpl,
     new URL('/api/version', url).toString(),
@@ -190,7 +202,7 @@ export async function collectProviderEvidence({
     'Vercel version'
   );
   const vercelEvidence = normalizeVercelEvidence(
-    { deployment, version },
+    { deployment: withCurrentVercelAliases(deployment, aliases), version },
     vercelProjectId
   );
 

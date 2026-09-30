@@ -5607,7 +5607,17 @@ describe('required CI fails closed', () => {
       expect(identityStep?.run).toContain("deployment.meta?.githubDeployment === '1'");
       expect(identityStep?.run).toContain("deployment.readyState === 'READY'");
       expect(identityStep?.run).toContain("deployment.target === 'production'");
-      expect(identityStep?.run).toContain('(deployment.alias ?? []).length === 0');
+      // Every Vercel deployment carries generated aliases, so the staged check
+      // reads the live alias list and rejects only the canonical host (phase B
+      // run 36756024336 failed on the old alias-free rule).
+      expect(identityStep?.env?.VERCEL_PRODUCTION_HOSTNAME).toBe(
+        '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
+      );
+      expect(identityStep?.run).toContain('/v2/deployments/${DEPLOYMENT_ID}/aliases');
+      expect(identityStep?.run).toContain(
+        '!liveAliases.some((entry) => entry.alias.toLowerCase() === canonicalHost)'
+      );
+      expect(identityStep?.run).not.toContain('(deployment.alias ?? []).length === 0');
       expect(identityStep?.run).toContain('deployment.projectId === process.env.VERCEL_PROJECT_ID');
       expect(identityStep?.run).toContain(
         'deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA'

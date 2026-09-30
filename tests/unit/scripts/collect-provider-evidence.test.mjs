@@ -25,7 +25,8 @@ function vercelDeployment() {
     readyState: 'READY',
     target: 'production',
     projectId: 'vercel-project',
-    alias: [],
+    // Creation-time only; the collector must replace it with the live list.
+    alias: ['stale-creation-alias.vercel.app'],
     meta: { githubCommitRef: 'main', githubCommitSha: SHA },
   };
 }
@@ -73,9 +74,17 @@ function railwayControl({ hasNextPage = false } = {}) {
   };
 }
 
-function makeFetch({ control = railwayControl(), deployment = vercelDeployment(), versionBody = version() } = {}) {
+const LIVE_ALIASES = { aliases: [{ alias: 'project-candidate-team.vercel.app' }] };
+
+function makeFetch({
+  control = railwayControl(),
+  deployment = vercelDeployment(),
+  versionBody = version(),
+  aliasesBody = LIVE_ALIASES,
+} = {}) {
   return vi.fn(async (url, options) => {
     if (url.includes('/v13/deployments/')) return { ok: true, json: async () => deployment };
+    if (url.includes('/v2/deployments/')) return { ok: true, json: async () => aliasesBody };
     if (url.endsWith('/api/version')) return { ok: true, json: async () => versionBody };
     const payload = JSON.parse(options.body);
     if (payload.query.includes('projectToken')) {
@@ -120,19 +129,25 @@ describe('collect-provider-evidence', () => {
       writeFileImpl,
     });
 
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
     expect(fetchImpl.mock.calls[0][0]).toBe(
       'https://api.vercel.com/v13/deployments/candidate.vercel.app?teamId=vercel-org'
     );
     expect(fetchImpl.mock.calls[0][1].headers.Authorization).toBe(
       `Bearer ${TOKENS.VERCEL_TOKEN}`
     );
-    expect(fetchImpl.mock.calls[1][0]).toBe('https://candidate.vercel.app/api/version');
-    expect(fetchImpl.mock.calls[1][1].headers['x-vercel-protection-bypass']).toBe(
+    expect(fetchImpl.mock.calls[1][0]).toBe(
+      'https://api.vercel.com/v2/deployments/dpl_candidate/aliases?teamId=vercel-org'
+    );
+    expect(fetchImpl.mock.calls[1][1].headers.Authorization).toBe(
+      `Bearer ${TOKENS.VERCEL_TOKEN}`
+    );
+    expect(fetchImpl.mock.calls[2][0]).toBe('https://candidate.vercel.app/api/version');
+    expect(fetchImpl.mock.calls[2][1].headers['x-vercel-protection-bypass']).toBe(
       TOKENS.VERCEL_AUTOMATION_BYPASS_SECRET
     );
-    expect(JSON.parse(fetchImpl.mock.calls[2][1].body).query).toContain('projectToken');
-    expect(JSON.parse(fetchImpl.mock.calls[3][1].body).variables).toEqual({
+    expect(JSON.parse(fetchImpl.mock.calls[3][1].body).query).toContain('projectToken');
+    expect(JSON.parse(fetchImpl.mock.calls[4][1].body).variables).toEqual({
       projectId: 'railway-project',
       environmentId: 'railway-environment',
     });
@@ -142,6 +157,7 @@ describe('collect-provider-evidence', () => {
     ]);
     expect(writes.every(({ encoding }) => encoding === 'utf8')).toBe(true);
     expect(result.vercelEvidence).toMatchObject({ expectedProjectId: 'vercel-project' });
+    expect(result.vercelEvidence.deployment.aliases).toEqual(['project-candidate-team.vercel.app']);
     expect(result.railwayEvidence.services).toHaveLength(2);
     expect(JSON.parse(writes[0].body)).toEqual(result.vercelEvidence);
     expect(JSON.parse(writes[1].body)).toEqual(result.railwayEvidence);
@@ -165,8 +181,10 @@ describe('collect-provider-evidence', () => {
   it.each([
     ['paginated topology', makeFetch({ control: railwayControl({ hasNextPage: true }) })],
     ['malformed deployment', makeFetch({ deployment: { id: 'missing-fields' } })],
+    ['malformed live aliases', makeFetch({ aliasesBody: { aliases: [{}] } })],
     ['GraphQL error', vi.fn(async (url, options) => {
       if (url.includes('/v13/deployments/')) return { ok: true, json: async () => vercelDeployment() };
+      if (url.includes('/v2/deployments/')) return { ok: true, json: async () => LIVE_ALIASES };
       if (url.endsWith('/api/version')) return { ok: true, json: async () => version() };
       const query = JSON.parse(options.body).query;
       return query.includes('projectToken')
@@ -299,7 +317,7 @@ describe('collect-provider-evidence', () => {
       writeFileImpl: vi.fn(),
     })).resolves.toBeDefined();
 
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
     expect(fetchImpl.mock.calls.every(([, options]) => options.signal instanceof globalThis.AbortSignal)).toBe(
       true
     );
