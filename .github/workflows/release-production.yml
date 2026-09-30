@@ -1757,25 +1757,26 @@ jobs:
               'utf8'
             )
           );
-          const edges = railwayEvidence.data?.environment?.serviceInstances?.edges ?? [];
+          // collect-provider-evidence writes the normalized form
+          // ({ projectId, environmentId, services }), not the raw GraphQL body.
+          const evidenceServices = Array.isArray(railwayEvidence.services) ? railwayEvidence.services : [];
           const serviceByExpectedId = new Map([
             [process.env.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID, 'fund-scenario-calc'],
             [process.env.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID, 'capital-call-status'],
           ]);
           const services = [];
           for (const serviceName of ['fund-scenario-calc', 'capital-call-status']) {
-            const edge = edges.find((candidate) => {
-              const node = candidate?.node;
-              return node && serviceByExpectedId.get(node.serviceId) === serviceName;
-            });
-            const deployment = edge?.node?.latestDeployment;
+            const service = evidenceServices.find(
+              (candidate) => serviceByExpectedId.get(candidate?.serviceId) === serviceName
+            );
+            const deployment = service?.latestDeployment;
             if (!deployment?.id || deployment.meta?.commitHash !== process.env.EXPECTED_SHA) {
               console.error(`Post-promotion Railway identity for ${serviceName} is not canonical.`);
               process.exit(1);
             }
             services.push({
               serviceName,
-              serviceId: edge.node.serviceId,
+              serviceId: service.serviceId,
               deploymentId: deployment.id,
               sourceSha: process.env.EXPECTED_SHA,
             });
