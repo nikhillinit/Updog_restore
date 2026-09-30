@@ -495,7 +495,8 @@ function deploymentInput(config, service) {
     projectId: config.projectId,
     serviceId: service.serviceId,
     environmentId: config.environmentId,
-    status: { successfulOnly: true },
+    // Railway DeploymentStatusInput accepts only `in` and `notIn`; any other key is a 400.
+    status: { in: ['SUCCESS'] },
   };
 }
 
