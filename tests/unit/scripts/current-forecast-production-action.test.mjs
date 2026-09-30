@@ -227,6 +227,10 @@ async function createHarness(action = 'kill', overrides = {}) {
   };
   const fetchImpl = vi.fn(async (url, init = {}) => {
     const method = init.method ?? 'GET';
+    if (url.startsWith('https://api.vercel.com/v2/deployments/deployment/aliases')) {
+      calls.push('provider:aliases');
+      return jsonResponse(overrides.vercelAliasesBody ?? { aliases: [{ alias: 'updog.example' }] });
+    }
     if (url.startsWith('https://api.vercel.com/')) {
       calls.push('provider');
       return jsonResponse(
@@ -236,7 +240,8 @@ async function createHarness(action = 'kill', overrides = {}) {
           projectId: 'project',
           readyState: 'READY',
           target: 'production',
-          aliases: ['updog.example'],
+          // Creation-time field: a promoted deployment does not list the canonical host here.
+          alias: ['project-team.vercel.app'],
           meta: { githubCommitSha: SHA },
         }
       );
@@ -541,6 +546,7 @@ describe('Current Forecast production action execution', { retry: 0 }, () => {
       'git:main',
       'manifest:schema',
       'provider',
+      'provider:aliases',
       'api:version',
       'db:connect',
       'db:identity',

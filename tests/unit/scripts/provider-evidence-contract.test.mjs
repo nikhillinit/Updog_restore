@@ -3,8 +3,10 @@ import { URL } from 'node:url';
 
 import {
   normalizeRailwayResponse,
+  vercelDeploymentAliasesUrl,
   verifyRailwayTopology,
   verifyVercelEvidence,
+  withCurrentVercelAliases,
 } from '../../../scripts/release/provider-evidence-contract.mjs';
 
 const SHA = 'a'.repeat(40);
@@ -32,7 +34,7 @@ function service(serviceName, serviceId, options = {}) {
   return {
     serviceId,
     serviceName,
-    numReplicas: options.numReplicas ?? 1,
+    numReplicas: 'numReplicas' in options ? options.numReplicas : 1,
     domains: options.domains ?? [],
     latestDeployment: current,
     activeDeployments: [{ ...current, instances: current.instances.map((instance) => ({ ...instance })) }],
@@ -202,6 +204,97 @@ describe('provider-evidence-contract', () => {
       data: { projectId: 'p', environmentId: 'e', environment: { serviceInstances: { edges: [], pageInfo: { hasNextPage: false } } } },
       errors: [{ message: 'provider error' }],
     })).toThrow(/errors/i);
+  });
+
+  it('reads the canonical alias from the live alias list, not the creation-time field', { retry: 0 }, () => {
+    const promoted = { ...vercel().deployment, alias: ['project-team.vercel.app'] };
+    delete promoted.aliases;
+    const mode = { kind: 'canonical_baseline', canonicalHostname: 'production.example.com' };
+    expect(() => verifyVercelEvidence({ deployment: promoted }, 'vercel-project', mode)).toThrow(
+      /canonical alias/i
+    );
+    const live = {
+      aliases: [{ alias: 'project-team.vercel.app' }, { alias: 'production.example.com' }],
+    };
+    expect(
+      verifyVercelEvidence({ deployment: withCurrentVercelAliases(promoted, live) }, 'vercel-project', mode)
+    ).toMatchObject({ deploymentId: 'dpl_candidate', sourceSha: SHA });
+  });
+
+  it('rejects a canonical host that only the stale creation-time field lists', { retry: 0 }, () => {
+    const stale = { ...vercel().deployment, alias: ['production.example.com'] };
+    delete stale.aliases;
+    expect(() => verifyVercelEvidence(
+      { deployment: withCurrentVercelAliases(stale, { aliases: [] }) },
+      'vercel-project',
+      { kind: 'canonical_baseline', canonicalHostname: 'production.example.com' }
+    )).toThrow(/canonical alias/i);
+  });
+
+  it.each([
+    ['missing list', {}],
+    ['non-array list', { aliases: 'production.example.com' }],
+    ['entry without alias', { aliases: [{}] }],
+    ['blank alias', { aliases: [{ alias: ' ' }] }],
+  ])('rejects a malformed live alias response: %s', { retry: 0 }, (_label, body) => {
+    expect(() => withCurrentVercelAliases(vercel().deployment, body)).toThrow(/alias/i);
+  });
+
+  it('builds the live alias URL from encoded identifiers', { retry: 0 }, () => {
+    expect(vercelDeploymentAliasesUrl('dpl_a/b', 'team 1')).toBe(
+      'https://api.vercel.com/v2/deployments/dpl_a%2Fb/aliases?teamId=team%201'
+    );
+    expect(() => vercelDeploymentAliasesUrl('', 'team')).toThrow(/deployment ID/i);
+    expect(() => vercelDeploymentAliasesUrl('dpl_a', undefined)).toThrow(/team ID/i);
+  });
+
+  it('accepts a null replica count only with exactly one running instance', { retry: 0 }, () => {
+    const nullReplicas = (name, options = {}) =>
+      service(name, TOPOLOGY.services[name], { numReplicas: null, ...options });
+    expect(() => verifyRailwayTopology(
+      railway({ services: [nullReplicas('fund-scenario-calc'), nullReplicas('capital-call-status')] }),
+      SHA,
+      TOPOLOGY
+    )).not.toThrow();
+
+    const twoInstances = nullReplicas('fund-scenario-calc');
+    for (const current of [twoInstances.latestDeployment, twoInstances.activeDeployments[0]]) {
+      current.instances.push({ id: 'second-instance', status: 'RUNNING' });
+    }
+    expect(() => verifyRailwayTopology(
+      railway({ services: [twoInstances, nullReplicas('capital-call-status')] }),
+      SHA,
+      TOPOLOGY
+    )).toThrow(/instance is invalid/i);
+
+    expect(() => verifyRailwayTopology(
+      railway({
+        services: [
+          nullReplicas('fund-scenario-calc', { numReplicas: 2 }),
+          nullReplicas('capital-call-status'),
+        ],
+      }),
+      SHA,
+      TOPOLOGY
+    )).toThrow(/replica count/i);
+  });
+
+  it('keeps every release Railway topology query syntactically closed', { retry: 0 }, async () => {
+    const { readFile } = await import('node:fs/promises');
+    const sources = [
+      'scripts/release/capture-release-recovery-context.mjs',
+      'scripts/release/collect-provider-evidence.mjs',
+      'scripts/release/wait-railway-workers.mjs',
+      '.github/workflows/release-proof.yml',
+    ];
+    for (const relative of sources) {
+      const source = await readFile(new URL(`../../../${relative}`, import.meta.url), 'utf8');
+      const queries = source.match(/query\(\$projectId: String!, \$environmentId: String!\)[^'`]*/g) ?? [];
+      expect(queries.length, relative).toBeGreaterThan(0);
+      for (const query of queries) {
+        expect((query.match(/\{/g) ?? []).length, relative).toBe((query.match(/\}/g) ?? []).length);
+      }
+    }
   });
 
   it('contains no IO implementation in pure contract module', { retry: 0 }, async () => {

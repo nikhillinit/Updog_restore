@@ -11,7 +11,11 @@ import pg from 'pg';
 import { tsImport } from 'tsx/esm/api';
 import { z } from 'zod';
 
-import { verifyVercelEvidence } from './provider-evidence-contract.mjs';
+import {
+  vercelDeploymentAliasesUrl,
+  verifyVercelEvidence,
+  withCurrentVercelAliases,
+} from './provider-evidence-contract.mjs';
 import { verifyCanonicalPromotion } from './verify-vercel-promotion.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -465,14 +469,21 @@ export async function executeCurrentForecastProductionAction({
     { headers: { Authorization: `Bearer ${secrets.vercelToken}` } }
   );
   if (!vercelResponse.response.ok) throw new Error('Vercel deployment lookup failed');
+  const aliasesResponse = await fetchJson(
+    fetchImpl,
+    vercelDeploymentAliasesUrl(context.vercelDeploymentId, secrets.vercelOrgId),
+    { headers: { Authorization: `Bearer ${secrets.vercelToken}` } }
+  );
+  if (!aliasesResponse.response.ok) throw new Error('Vercel deployment alias lookup failed');
+  const deployment = withCurrentVercelAliases(vercelResponse.body, aliasesResponse.body);
   verifyCanonicalPromotion({
     canonicalHostname: context.canonicalHostname,
-    deployment: vercelResponse.body,
+    deployment,
     expectedDeploymentId: context.vercelDeploymentId,
     expectedProjectId: context.vercelProjectId,
     expectedSha: context.expectedSha,
   });
-  verifyVercelEvidence(vercelResponse.body, context.vercelProjectId, {
+  verifyVercelEvidence(deployment, context.vercelProjectId, {
     kind: 'canonical_baseline',
     canonicalHostname: context.canonicalHostname,
   });

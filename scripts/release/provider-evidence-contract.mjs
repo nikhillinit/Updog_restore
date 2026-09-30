@@ -100,6 +100,31 @@ function normalizeAliases(value) {
   });
 }
 
+// A deployment record's `alias` field lists only the aliases assigned at
+// creation and never updates, so it goes stale on promote and reassignment.
+// Canonical checks read the live list from /v2/deployments/{id}/aliases.
+export function vercelDeploymentAliasesUrl(deploymentId, teamId) {
+  requiredText(deploymentId, 'Vercel deployment ID is required');
+  requiredText(teamId, 'Vercel team ID is required');
+  return (
+    `https://api.vercel.com/v2/deployments/${encodeURIComponent(deploymentId)}/aliases` +
+    `?teamId=${encodeURIComponent(teamId)}`
+  );
+}
+
+export function withCurrentVercelAliases(deployment, aliasesResponse) {
+  if (!deployment || typeof deployment !== 'object' || Array.isArray(deployment)) {
+    fail('Vercel deployment is missing');
+  }
+  const entries = requiredArray(aliasesResponse?.aliases, 'Vercel deployment aliases are malformed');
+  const current = { ...deployment };
+  delete current.alias;
+  current.aliases = entries.map((entry) =>
+    requiredText(entry?.alias, 'Vercel deployment alias is malformed')
+  );
+  return current;
+}
+
 function normalizeVercelDeployment(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     fail('Vercel deployment is missing');
@@ -348,7 +373,11 @@ function verifyProtectedService(service, serviceName, expectedServiceId, expecte
   if (!service || service.serviceName !== serviceName || service.serviceId !== expectedServiceId) {
     fail('Railway protected service identity does not match');
   }
-  if (service.numReplicas !== 1) fail('Railway protected service replica count is invalid');
+  // Railway reports null here once a service's replicas live in multiRegionConfig.
+  // verifyDeployment still requires exactly one RUNNING instance per deployment.
+  if (service.numReplicas !== 1 && service.numReplicas !== null) {
+    fail('Railway protected service replica count is invalid');
+  }
   if (!Array.isArray(service.domains) || service.domains.length !== 0) {
     fail('Railway protected service domains are invalid');
   }
