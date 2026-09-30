@@ -27,6 +27,13 @@ and this project adheres to
 - `release-production.yml` `baseline-policy-preflight` checks out full history
   (`fetch-depth: 0`). A shallow checkout made the baseline ancestry check fail,
   which stopped the #1604 phase A release before any provider mutation.
+- `release-production.yml` passes `secrets: inherit` to `release-proof.yml`
+  again. #1413 dropped it, so the certifying proof jobs saw empty `Production`
+  environment secrets and stopped the #1605 phase A release before any provider
+  mutation.
+- Production dependencies: `brace-expansion` 5.0.9 to 5.0.12 (override) and
+  `engine.io` 6.6.9 to 6.6.11 clear the high-severity `npm audit` findings that
+  fail `Dependency Validation (Linux)` and, through it, the release G3 gate.
 
 ### Changed (2026-09-30)
 

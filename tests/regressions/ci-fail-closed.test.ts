@@ -5087,7 +5087,9 @@ describe('required CI fails closed', () => {
       // Source/local proof must finish before the candidate exists. Provider
       // identity is proved only after stage-production creates its exact URL.
       expect(releaseProof?.with?.require_provider_identity).toBe(false);
-      expect(releaseProof?.secrets).toBeUndefined();
+      // Certifying jobs read Production environment secrets, which reach a called
+      // workflow only through inherit; without it they arrive empty (run 36677899792).
+      expect(releaseProof?.secrets).toBe('inherit');
       expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain('staged-smoke');
       expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
         'staged-provider-identity'

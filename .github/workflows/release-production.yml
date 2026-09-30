@@ -384,6 +384,9 @@ jobs:
       # source/local evidence; staged-provider-identity owns provider proof.
       require_provider_identity: false
       proof_mode: certifying
+    # Certifying jobs read Production environment secrets; a called workflow
+    # sees none of them without inherit.
+    secrets: inherit
 
   schema-audit:
     name: Clean Production Schema Audit
