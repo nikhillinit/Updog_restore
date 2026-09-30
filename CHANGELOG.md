@@ -30,6 +30,8 @@ and this project adheres to
 - Added `docs/1-plans/F_1.18.1_production-release-7ee0210fa.plan.md`, the
   approved plan for the release-vehicle PR that releases the F_1.18.0 schema
   route code.
+- Added `docs/3-code-review/CR_w10_release-evidence-live-providers.md`, the
+  review record for #1603 (release evidence reads live provider state).
 
 ### Removed (2026-09-28)
 
