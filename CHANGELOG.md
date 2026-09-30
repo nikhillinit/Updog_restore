@@ -24,6 +24,17 @@ and this project adheres to
 
 ### Fixed (2026-09-30)
 
+- The release evidence finalizer compares artifact digests in the Actions API's
+  `sha256:<hex>` form. It compared them with the producer's bare hex, so every
+  full-mode finalizer failed.
+- The `release-provider` fragment in `promote` reads the normalized Railway
+  evidence that `collect-provider-evidence` writes. It read the raw GraphQL
+  shape and would have failed after promotion.
+- The staged-candidate check in `release-production.yml` (`validate-deployment`)
+  and `verifyStagedVercel` read the live alias list and reject only a candidate
+  that already holds the canonical hostname. They required no aliases at all,
+  but Vercel gives every deployment a generated `*.vercel.app` alias, so the
+  #1608 phase B release stopped before promotion.
 - `scripts/release/deploy-railway-workers.mjs` filters its reuse lookup with
   `status: { in: ['SUCCESS'] }`. Railway's `DeploymentStatusInput` has no
   `successfulOnly` field, so the lookup got HTTP 400 and stopped the #1606 phase

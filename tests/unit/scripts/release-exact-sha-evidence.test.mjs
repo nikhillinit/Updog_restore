@@ -61,7 +61,7 @@ function ready(workerType, deploymentId = DEPLOYMENT_ID, timestamp = new Date().
 function providerEvidence(mode = 'workflow') {
   const deployment = {
     id: 'vercel-deployment', url: 'candidate.vercel.app', readyState: 'READY', projectId: 'project-1',
-    target: 'production', aliases: [], meta: { githubCommitRef: 'main', githubCommitSha: SHA },
+    target: 'production', aliases: ['candidate-team.vercel.app'], meta: { githubCommitRef: 'main', githubCommitSha: SHA },
   };
   const version = {
     version: '1.2.5', commit: SHA, environment: 'production', timestamp: 'now', nodeVersion: '22', platform: 'linux', arch: 'x64',
@@ -73,6 +73,7 @@ function providerEvidence(mode = 'workflow') {
   return {
     mode, expectedSha: SHA,
     expectedVercelProjectId: 'project-1',
+    canonicalHostname: 'production.example.test',
     vercel: { expectedProjectId: 'project-1', deployment, version },
     railway: {
       projectId: 'railway-project', environmentId: 'railway-environment',
@@ -389,8 +390,8 @@ describe('exact SHA release evidence', () => {
     previewTarget.vercel.deployment.target = null;
     expect(() => verifyProviderIdentity(previewTarget)).toThrow(/staged candidate target is invalid/i);
     const aliasedProduction = providerEvidence();
-    aliasedProduction.vercel.deployment.aliases = ['production.example.test'];
-    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/staged candidate has an alias/i);
+    aliasedProduction.vercel.deployment.aliases = ['candidate-team.vercel.app', 'production.example.test'];
+    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/already holds the canonical alias/i);
     const missingRailwayScope = providerEvidence();
     delete missingRailwayScope.railway.projectId;
     expect(() => verifyProviderIdentity(missingRailwayScope)).toThrow(/project ID/i);
@@ -480,6 +481,7 @@ describe('exact SHA release evidence', () => {
     }));
     const railwayIdentityFlags = [
       '--expected-vercel-project-id', 'project-1',
+      '--canonical-hostname', 'production.example.test',
       '--expected-railway-project-id', 'railway-project',
       '--expected-railway-environment-id', 'railway-environment',
       '--expected-fund-scenario-service-id', 'fund-scenario-calc-id',

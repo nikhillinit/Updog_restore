@@ -667,10 +667,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
         run: |
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          : "${VERCEL_PRODUCTION_HOSTNAME:?VERCEL_PRODUCTION_HOSTNAME is required}"
           node <<'NODE'
           const fs = require('node:fs');
           const url = new URL(process.env.DEPLOYMENT_URL);
@@ -696,11 +698,25 @@ jobs:
             --header "Authorization: Bearer ${VERCEL_TOKEN}" \
             "https://api.vercel.com/v13/deployments/${DEPLOYMENT_HOST}?teamId=${VERCEL_ORG_ID}" \
             --output "$RUNNER_TEMP/vercel-deployment.json"
+          # The record's `alias` field is creation-time only; read the live list.
+          DEPLOYMENT_ID="$(node -e 'process.stdout.write(String(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).id ?? ""))' "$RUNNER_TEMP/vercel-deployment.json")"
+          if [[ ! "$DEPLOYMENT_ID" =~ ^[A-Za-z0-9_-]{1,128}$ ]]; then
+            echo "Staged deployment ID is invalid." >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v2/deployments/${DEPLOYMENT_ID}/aliases?teamId=${VERCEL_ORG_ID}" \
+            --output "$RUNNER_TEMP/vercel-deployment-aliases.json"
           node <<'NODE'
           const fs = require('node:fs');
           const deployment = JSON.parse(
             fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment.json`, 'utf8')
           );
+          const liveAliases = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment-aliases.json`, 'utf8')
+          ).aliases;
+          const canonicalHost = process.env.VERCEL_PRODUCTION_HOSTNAME.toLowerCase();
           const requestedHost = fs
             .readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployment-host.txt`, 'utf8')
             .trim();
@@ -708,7 +724,11 @@ jobs:
           const valid =
             deployment.readyState === 'READY' &&
             deployment.target === 'production' &&
-            (deployment.alias ?? []).length === 0 &&
+            // Every deployment carries generated *.vercel.app aliases (run
+            // 36756024336); not promoted means the canonical host is absent.
+            Array.isArray(liveAliases) &&
+            liveAliases.every((entry) => typeof entry?.alias === 'string' && entry.alias !== '') &&
+            !liveAliases.some((entry) => entry.alias.toLowerCase() === canonicalHost) &&
             deployment.projectId === process.env.VERCEL_PROJECT_ID &&
             deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
             deployment.meta?.githubCommitRef === 'main' &&
@@ -1284,6 +1304,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
@@ -1299,6 +1320,7 @@ jobs:
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          : "${VERCEL_PRODUCTION_HOSTNAME:?VERCEL_PRODUCTION_HOSTNAME is required}"
           : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
           : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
           : "${RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:?RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID is required}"
@@ -1316,6 +1338,7 @@ jobs:
             --vercel "$provider_evidence_dir/vercel-evidence.json" \
             --railway "$provider_evidence_dir/railway-evidence.json" \
             --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+            --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -1375,6 +1398,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
@@ -1388,6 +1412,7 @@ jobs:
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          : "${VERCEL_PRODUCTION_HOSTNAME:?VERCEL_PRODUCTION_HOSTNAME is required}"
           : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
           : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
           : "${RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:?RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID is required}"
@@ -1403,6 +1428,7 @@ jobs:
             --vercel "$provider_evidence_dir/vercel-evidence.json" \
             --railway "$provider_evidence_dir/railway-evidence.json" \
             --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+            --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -1416,6 +1442,7 @@ jobs:
         env:
           CANDIDATE_SHA: ${{ inputs.expected_sha }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
@@ -1428,6 +1455,7 @@ jobs:
             --vercel "$RUNNER_TEMP/provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/vercel-evidence.json" \
             --railway "$RUNNER_TEMP/provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/railway-evidence.json" \
             --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+            --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -1587,6 +1615,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
@@ -1599,6 +1628,7 @@ jobs:
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          : "${VERCEL_PRODUCTION_HOSTNAME:?VERCEL_PRODUCTION_HOSTNAME is required}"
           : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
@@ -1619,6 +1649,7 @@ jobs:
               --vercel "$PROVIDER_EVIDENCE_DIR/vercel-evidence.json" \
               --railway "$PROVIDER_EVIDENCE_DIR/railway-evidence.json" \
               --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+              --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
               --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
               --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
               --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -1726,25 +1757,26 @@ jobs:
               'utf8'
             )
           );
-          const edges = railwayEvidence.data?.environment?.serviceInstances?.edges ?? [];
+          // collect-provider-evidence writes the normalized form
+          // ({ projectId, environmentId, services }), not the raw GraphQL body.
+          const evidenceServices = Array.isArray(railwayEvidence.services) ? railwayEvidence.services : [];
           const serviceByExpectedId = new Map([
             [process.env.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID, 'fund-scenario-calc'],
             [process.env.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID, 'capital-call-status'],
           ]);
           const services = [];
           for (const serviceName of ['fund-scenario-calc', 'capital-call-status']) {
-            const edge = edges.find((candidate) => {
-              const node = candidate?.node;
-              return node && serviceByExpectedId.get(node.serviceId) === serviceName;
-            });
-            const deployment = edge?.node?.latestDeployment;
+            const service = evidenceServices.find(
+              (candidate) => serviceByExpectedId.get(candidate?.serviceId) === serviceName
+            );
+            const deployment = service?.latestDeployment;
             if (!deployment?.id || deployment.meta?.commitHash !== process.env.EXPECTED_SHA) {
               console.error(`Post-promotion Railway identity for ${serviceName} is not canonical.`);
               process.exit(1);
             }
             services.push({
               serviceName,
-              serviceId: edge.node.serviceId,
+              serviceId: service.serviceId,
               deploymentId: deployment.id,
               sourceSha: process.env.EXPECTED_SHA,
             });
@@ -2033,7 +2065,9 @@ jobs:
                   record.expired === false &&
                   record.name === process.env.ARTIFACT_NAME &&
                   record.name.endsWith(expectedSuffix) &&
-                  record.digest === process.env.ARTIFACT_DIGEST;
+                  // The Actions API reports "sha256:<hex>"; upload-artifact outputs bare hex.
+                  /^[a-f0-9]{64}$/.test(process.env.ARTIFACT_DIGEST ?? "") &&
+                  record.digest === "sha256:" + process.env.ARTIFACT_DIGEST;
                 if (!valid) {
                   console.error(process.env.ARTIFACT_LABEL + " artifact record does not match this exact execution.");
                   process.exit(1);
@@ -2130,7 +2164,9 @@ jobs:
                   record.expired === false &&
                   record.name === expectedName &&
                   record.name === process.env.ARTIFACT_NAME &&
-                  record.digest === process.env.ARTIFACT_DIGEST;
+                  // The Actions API reports "sha256:<hex>"; upload-artifact outputs bare hex.
+                  /^[a-f0-9]{64}$/.test(process.env.ARTIFACT_DIGEST ?? "") &&
+                  record.digest === "sha256:" + process.env.ARTIFACT_DIGEST;
                 if (!valid) {
                   console.error("Fragment " + process.env.FRAGMENT_KIND + " artifact record does not match this exact execution.");
                   process.exit(1);

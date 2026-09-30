@@ -55,7 +55,7 @@ function vercelEvidence() {
       readyState: 'READY',
       target: 'production',
       projectId: 'vercel-project',
-      aliases: [],
+      aliases: ['project-candidate-team.vercel.app'],
       meta: { githubCommitRef: 'main', githubCommitSha: SHA },
     },
     version: {
@@ -76,6 +76,7 @@ describe('verify-provider-identity', () => {
       mode: 'workflow',
       expectedSha: SHA,
       expectedVercelProjectId: 'vercel-project',
+      canonicalHostname: 'production.example.com',
       vercel: vercelEvidence(),
       railway: railwayEvidence(),
       protectedTopology: TOPOLOGY,
@@ -117,6 +118,7 @@ describe('verify-provider-identity', () => {
       mode: 'workflow',
       expectedSha: SHA,
       expectedVercelProjectId: 'vercel-project',
+      canonicalHostname: 'production.example.com',
       vercel: vercelEvidence(),
       railway,
       protectedTopology: TOPOLOGY,
@@ -132,6 +134,7 @@ describe('verify-provider-identity', () => {
       mode: 'workflow',
       expectedSha: SHA,
       expectedVercelProjectId: 'vercel-project',
+      canonicalHostname: 'production.example.com',
       vercel: vercelEvidence(),
       railway: railwayEvidence(),
       protectedTopology: TOPOLOGY,
@@ -156,6 +159,20 @@ describe('verify-provider-identity', () => {
         'fund-scenario-calc': 'wrong-deployment',
       },
     })).toThrow(/active deployment ID does not match expected deployment ID/);
+  });
+
+  it('rejects a staged candidate that already holds the canonical alias', { retry: 0 }, () => {
+    const vercel = vercelEvidence();
+    vercel.deployment.aliases = ['project-candidate-team.vercel.app', 'production.example.com'];
+    expect(() => verifyProviderIdentity({
+      mode: 'workflow',
+      expectedSha: SHA,
+      expectedVercelProjectId: 'vercel-project',
+      canonicalHostname: 'production.example.com',
+      vercel,
+      railway: railwayEvidence(),
+      protectedTopology: TOPOLOGY,
+    })).toThrow(/already holds the canonical alias/);
   });
 
   it('allows unrelated services only after full topology scan', { retry: 0 }, () => {

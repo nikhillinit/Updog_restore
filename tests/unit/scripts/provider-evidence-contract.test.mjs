@@ -60,7 +60,8 @@ function vercel(options = {}) {
       readyState: 'READY',
       target: 'production',
       projectId: 'vercel-project',
-      aliases: [],
+      // Vercel gives every deployment a generated alias (phase B run 36756024336).
+      aliases: ['project-candidate-team.vercel.app'],
       meta: { githubCommitRef: 'main', githubCommitSha: SHA },
       ...options.deployment,
     },
@@ -82,21 +83,29 @@ describe('provider-evidence-contract', () => {
     const result = verifyVercelEvidence(vercel(), 'vercel-project', {
       kind: 'staged_candidate',
       expectedSha: SHA,
+      canonicalHostname: 'production.example.com',
     });
 
     expect(result).toMatchObject({
       projectId: 'vercel-project',
       deploymentId: 'dpl_candidate',
       sourceSha: SHA,
-      deployment: { aliases: [] },
+      deployment: { aliases: ['project-candidate-team.vercel.app'] },
     });
+  });
+
+  it('rejects a staged candidate without a canonical hostname to compare', { retry: 0 }, () => {
+    expect(() => verifyVercelEvidence(vercel(), 'vercel-project', {
+      kind: 'staged_candidate',
+      expectedSha: SHA,
+    })).toThrow(/canonical hostname/i);
   });
 
   it.each([
     ['wrong project', { expectedProjectId: 'other' }, 'Vercel deployment project'],
     ['not ready', { deployment: { readyState: 'BUILDING' } }, 'not READY'],
     ['wrong target', { deployment: { target: 'preview' } }, 'target'],
-    ['aliased', { deployment: { aliases: ['production.example.com'] } }, 'alias'],
+    ['already promoted', { deployment: { aliases: ['project-candidate-team.vercel.app', 'production.example.com'] } }, 'canonical alias'],
     ['wrong commit', { deployment: { meta: { githubCommitRef: 'main', githubCommitSha: 'b'.repeat(40) } } }, 'commit'],
     ['wrong version', { version: { commit: 'b'.repeat(40) } }, 'version'],
     ['non-vercel URL', { deployment: { url: 'https://example.com' } }, 'URL'],
@@ -105,6 +114,7 @@ describe('provider-evidence-contract', () => {
     expect(() => verifyVercelEvidence(input, changes.expectedProjectId ?? 'vercel-project', {
       kind: 'staged_candidate',
       expectedSha: SHA,
+      canonicalHostname: 'production.example.com',
     })).toThrow(new RegExp(expected, 'i'));
   });
 

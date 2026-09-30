@@ -5607,7 +5607,17 @@ describe('required CI fails closed', () => {
       expect(identityStep?.run).toContain("deployment.meta?.githubDeployment === '1'");
       expect(identityStep?.run).toContain("deployment.readyState === 'READY'");
       expect(identityStep?.run).toContain("deployment.target === 'production'");
-      expect(identityStep?.run).toContain('(deployment.alias ?? []).length === 0');
+      // Every Vercel deployment carries generated aliases, so the staged check
+      // reads the live alias list and rejects only the canonical host (phase B
+      // run 36756024336 failed on the old alias-free rule).
+      expect(identityStep?.env?.VERCEL_PRODUCTION_HOSTNAME).toBe(
+        '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
+      );
+      expect(identityStep?.run).toContain('/v2/deployments/${DEPLOYMENT_ID}/aliases');
+      expect(identityStep?.run).toContain(
+        '!liveAliases.some((entry) => entry.alias.toLowerCase() === canonicalHost)'
+      );
+      expect(identityStep?.run).not.toContain('(deployment.alias ?? []).length === 0');
       expect(identityStep?.run).toContain('deployment.projectId === process.env.VERCEL_PROJECT_ID');
       expect(identityStep?.run).toContain(
         'deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA'
@@ -6616,6 +6626,13 @@ describe('required CI fails closed', () => {
     expect(finalizerScripts).toContain('repos/${REPO}/actions/artifacts/${artifact_id}');
     expect(finalizerScripts).not.toContain('artifacts?name');
     expect(finalizerScripts).toContain('record.expired === false');
+    // The Actions API reports artifact digests as "sha256:<hex>" while
+    // upload-artifact outputs bare hex; comparing them raw failed every
+    // full-mode finalizer (phase B run 36756024336).
+    expect(
+      finalizerScripts.split('record.digest === "sha256:" + process.env.ARTIFACT_DIGEST').length - 1
+    ).toBe(2);
+    expect(finalizerScripts).not.toContain('record.digest === process.env.ARTIFACT_DIGEST;');
     expect(finalizerScripts).toContain(
       'String(record.workflow_run?.id) === process.env.GITHUB_RUN_ID'
     );

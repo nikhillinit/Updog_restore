@@ -167,6 +167,7 @@ export function verifyProviderIdentity({
   railway,
   protectedTopology,
   expectedVercelProjectId,
+  canonicalHostname,
   privateProof,
   expectedDeploymentIds,
   expectedFundScenarioDeploymentId,
@@ -184,7 +185,7 @@ export function verifyProviderIdentity({
   const vercelSummary = verifyVercelEvidence(
     vercel,
     expectedVercelProjectId,
-    { kind: 'staged_candidate', expectedSha: sha }
+    { kind: 'staged_candidate', expectedSha: sha, canonicalHostname }
   );
   const railwaySummary = verifyRailwayTopology(railway, sha, protectedTopology);
   verifyExpectedRailwayDeploymentIds(railwaySummary, {
@@ -279,6 +280,7 @@ async function main() {
       },
     },
     expectedVercelProjectId: args['expected-vercel-project-id'],
+    canonicalHostname: args['canonical-hostname'],
     privateProof,
     expectedDeploymentIds,
     maxProbeAgeMinutes,

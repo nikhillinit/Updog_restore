@@ -297,6 +297,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
@@ -367,6 +368,7 @@ jobs:
           node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" \
             --vercel "$RUNNER_TEMP/vercel-evidence.json" --railway "$RUNNER_TEMP/railway-evidence.json" \
             --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+            --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
