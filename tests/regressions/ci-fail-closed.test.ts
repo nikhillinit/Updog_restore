@@ -6207,6 +6207,15 @@ describe('required CI fails closed', () => {
     120_000
   );
 
+  it('checks out full history before the baseline ancestry check', async () => {
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+    const steps = releaseWorkflow.jobs?.['baseline-policy-preflight']?.steps ?? [];
+    const checkout = steps.find((step) => step.name === 'Checkout exact release verifier');
+    // A shallow checkout makes git merge-base --is-ancestor fail (run 36667875964).
+    expect(checkout?.with?.['fetch-depth']).toBe(0);
+    expect(steps.some((step) => step.run?.includes('verify-baseline-consumption'))).toBe(true);
+  });
+
   it('pins production evidence to HTTP v2 while recovery remains aggregate-only', async () => {
     const releaseWorkflow = await readWorkflow('release-production.yml');
     const baselinePreflight = releaseWorkflow.jobs?.['baseline-policy-preflight'];

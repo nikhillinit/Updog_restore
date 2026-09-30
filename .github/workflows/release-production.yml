@@ -158,6 +158,9 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.expected_sha }}
+          # The baseline ancestry check (git merge-base --is-ancestor) cannot
+          # cross a shallow boundary at the release commit.
+          fetch-depth: 0
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
