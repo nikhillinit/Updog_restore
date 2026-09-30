@@ -15,7 +15,7 @@ const VERCEL_API_URL = 'https://api.vercel.com';
 const PROJECT_SCOPE_QUERY =
   'query { projectToken { project { id } environment { id } } }';
 const SERVICE_INSTANCES_QUERY =
-  'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }';
+  'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }';
 const REQUIRED_ENVIRONMENT = Object.freeze([
   'VERCEL_TOKEN',
   'VERCEL_ORG_ID',

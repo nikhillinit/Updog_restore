@@ -50,6 +50,8 @@ async function readback(databaseUrl: string, directHostFingerprint: string) {
   const calls: string[] = [];
   const fetchImpl = vi.fn(async (url: string, init: { headers?: Record<string, string> } = {}) => {
     calls.push(new URL(url).pathname);
+    if (url.startsWith('https://api.vercel.com/v2/deployments/deployment/aliases'))
+      return json({ aliases: [{ alias: 'updog.example' }] });
     if (url.startsWith('https://api.vercel.com/'))
       return json({
         id: 'deployment',
