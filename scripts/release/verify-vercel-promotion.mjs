@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 import {
   normalizeCanonicalHostname as normalizeProviderCanonicalHostname,
+  vercelDeploymentAliasesUrl,
+  withCurrentVercelAliases,
 } from './provider-evidence-contract.mjs';
 
 const MAX_ATTEMPTS = 60;
@@ -171,7 +173,7 @@ async function requestWithTimeout(url, token, fetchImpl, timeoutMs = REQUEST_TIM
   }
 }
 
-async function resolveCanonicalPromotion({
+export async function resolveCanonicalPromotion({
   canonicalHostname,
   expectedDeploymentId,
   expectedProjectId,
@@ -198,9 +200,18 @@ async function resolveCanonicalPromotion({
       // cannot overrun its five-minute deadline by a full request timeout.
       const requestBudget = Math.min(REQUEST_TIMEOUT_MS, deadline - performance.now());
       const deployment = await requestWithTimeout(url, token, fetchImpl, requestBudget);
+      // The hostname lookup names the deployment; its live alias list proves the
+      // canonical hostname, because the record's own alias field is creation-time only.
+      const aliasesBudget = Math.min(REQUEST_TIMEOUT_MS, deadline - performance.now());
+      const aliases = await requestWithTimeout(
+        vercelDeploymentAliasesUrl(deployment?.id, orgId),
+        token,
+        fetchImpl,
+        aliasesBudget
+      );
       verifyCanonicalPromotion({
         canonicalHostname: hostname,
-        deployment,
+        deployment: withCurrentVercelAliases(deployment, aliases),
         expectedDeploymentId,
         expectedProjectId,
         expectedSha,

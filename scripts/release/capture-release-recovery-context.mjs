@@ -9,8 +9,10 @@ import { promisify } from 'node:util';
 
 import {
   normalizeRailwayResponse,
+  vercelDeploymentAliasesUrl,
   verifyRailwayTopology,
   verifyVercelEvidence,
+  withCurrentVercelAliases,
 } from './provider-evidence-contract.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
@@ -421,13 +423,14 @@ export async function captureProviderBaseline({
     'Vercel deployment'
   );
   assertSafeVercelDeploymentUrl(vercelDeployment?.url);
+  const vercelAliases = await responseJson(
+    fetchImpl,
+    vercelDeploymentAliasesUrl(vercelDeployment?.id, vercelOrgId),
+    { headers: { Authorization: `Bearer ${vercelToken}` } },
+    'Vercel deployment aliases'
+  );
   const vercel = verifyVercelEvidence(
-    {
-      deployment: {
-        ...vercelDeployment,
-        aliases: vercelDeployment?.aliases ?? vercelDeployment?.alias ?? [],
-      },
-    },
+    { deployment: withCurrentVercelAliases(vercelDeployment, vercelAliases) },
     expected.vercelProjectId,
     { kind: 'canonical_baseline', canonicalHostname: expected.vercelHostname }
   );
@@ -458,7 +461,7 @@ export async function captureProviderBaseline({
       headers: railwayHeaders,
       body: JSON.stringify({
         query:
-          'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }',
+          'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }',
         variables: { projectId, environmentId },
       }),
     },

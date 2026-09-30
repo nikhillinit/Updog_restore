@@ -344,7 +344,7 @@ jobs:
           const response = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/railway-token-context.json`, 'utf8'));
           if (response.errors?.length || !response.data?.projectToken?.project?.id || !response.data?.projectToken?.environment?.id) process.exit(1);
           fs.writeFileSync(`${process.env.RUNNER_TEMP}/railway-query.json`, JSON.stringify({
-            query: 'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }',
+            query: 'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }',
             variables: { projectId: response.data.projectToken.project.id, environmentId: response.data.projectToken.environment.id },
           }));
           NODE

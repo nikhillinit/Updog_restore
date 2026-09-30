@@ -4,6 +4,7 @@ import { URL } from 'node:url';
 
 import {
   normalizeCanonicalHostname,
+  resolveCanonicalPromotion,
   verifyCanonicalPromotion,
 } from '../../../scripts/release/verify-vercel-promotion.mjs';
 
@@ -38,6 +39,35 @@ function verify(overrides = {}) {
 }
 
 describe('verify-vercel-promotion', () => {
+  it('resolves promotion from the live alias list when the record field is stale', { retry: 0 }, async () => {
+    const requested = [];
+    const fetchImpl = async (url, init) => {
+      requested.push(url);
+      expect(init.headers.Authorization).toBe('Bearer vercel-token');
+      const body = url.includes('/v2/deployments/dpl_staged/aliases')
+        ? { aliases: [{ alias: 'project-team.vercel.app' }, { alias: CANONICAL_HOSTNAME }] }
+        : { ...deployment(), aliases: undefined, alias: ['project-team.vercel.app'] };
+      if (body.aliases === undefined) delete body.aliases;
+      return { ok: true, json: async () => body };
+    };
+    await expect(resolveCanonicalPromotion({
+      canonicalHostname: CANONICAL_HOSTNAME,
+      expectedDeploymentId: EXPECTED_DEPLOYMENT_ID,
+      expectedProjectId: EXPECTED_PROJECT_ID,
+      expectedSha: EXPECTED_SHA,
+      token: 'vercel-token',
+      organizationId: 'team_protected',
+      fetchImpl,
+    })).resolves.toEqual({
+      productionUrl: `https://${CANONICAL_HOSTNAME}`,
+      deploymentId: EXPECTED_DEPLOYMENT_ID,
+    });
+    expect(requested).toEqual([
+      `https://api.vercel.com/v13/deployments/${CANONICAL_HOSTNAME}?teamId=team_protected`,
+      'https://api.vercel.com/v2/deployments/dpl_staged/aliases?teamId=team_protected',
+    ]);
+  });
+
   it('normalizes a bare lowercase canonical hostname', { retry: 0 }, () => {
     expect(normalizeCanonicalHostname(CANONICAL_HOSTNAME)).toBe(CANONICAL_HOSTNAME);
   });

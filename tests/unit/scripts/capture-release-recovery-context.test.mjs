@@ -130,6 +130,12 @@ function providerFetch({ deploymentUrl = 'baseline.vercel.app' } = {}) {
   return async (url, options) => {
     if (url.includes('api.vercel.com')) {
       expect(options.headers.Authorization).toBe('Bearer vercel-token-secret');
+      if (url.includes('/v2/deployments/dpl_baseline/aliases')) {
+        return {
+          ok: true,
+          json: async () => ({ aliases: [{ alias: 'production.example.com' }] }),
+        };
+      }
       return {
         ok: true,
         json: async () => ({
@@ -138,7 +144,8 @@ function providerFetch({ deploymentUrl = 'baseline.vercel.app' } = {}) {
           readyState: 'READY',
           target: 'production',
           projectId: 'vercel-project',
-          aliases: ['production.example.com'],
+          // Creation-time field: a promoted deployment does not list the canonical host here.
+          alias: ['project-team.vercel.app'],
           meta: { githubCommitSha: VERCEL_SOURCE_SHA },
         }),
       };

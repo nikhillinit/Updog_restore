@@ -13,7 +13,7 @@ import { postRailwayGraphql } from './railway-graphql-transport.mjs';
 const SHA = /^[a-f0-9]{40}$/;
 const PROJECT_SCOPE_QUERY = 'query { projectToken { project { id } environment { id } } }';
 const SERVICE_INSTANCES_QUERY =
-  'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }';
+  'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }';
 
 export const DEFAULT_INTERVAL_MS = 15_000;
 export const DEFAULT_TIMEOUT_MS = 10 * 60_000;
