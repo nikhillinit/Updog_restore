@@ -2064,7 +2064,9 @@ jobs:
                   record.expired === false &&
                   record.name === process.env.ARTIFACT_NAME &&
                   record.name.endsWith(expectedSuffix) &&
-                  record.digest === process.env.ARTIFACT_DIGEST;
+                  // The Actions API reports "sha256:<hex>"; upload-artifact outputs bare hex.
+                  /^[a-f0-9]{64}$/.test(process.env.ARTIFACT_DIGEST ?? "") &&
+                  record.digest === "sha256:" + process.env.ARTIFACT_DIGEST;
                 if (!valid) {
                   console.error(process.env.ARTIFACT_LABEL + " artifact record does not match this exact execution.");
                   process.exit(1);
@@ -2161,7 +2163,9 @@ jobs:
                   record.expired === false &&
                   record.name === expectedName &&
                   record.name === process.env.ARTIFACT_NAME &&
-                  record.digest === process.env.ARTIFACT_DIGEST;
+                  // The Actions API reports "sha256:<hex>"; upload-artifact outputs bare hex.
+                  /^[a-f0-9]{64}$/.test(process.env.ARTIFACT_DIGEST ?? "") &&
+                  record.digest === "sha256:" + process.env.ARTIFACT_DIGEST;
                 if (!valid) {
                   console.error("Fragment " + process.env.FRAGMENT_KIND + " artifact record does not match this exact execution.");
                   process.exit(1);

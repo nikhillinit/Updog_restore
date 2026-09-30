@@ -6626,6 +6626,13 @@ describe('required CI fails closed', () => {
     expect(finalizerScripts).toContain('repos/${REPO}/actions/artifacts/${artifact_id}');
     expect(finalizerScripts).not.toContain('artifacts?name');
     expect(finalizerScripts).toContain('record.expired === false');
+    // The Actions API reports artifact digests as "sha256:<hex>" while
+    // upload-artifact outputs bare hex; comparing them raw failed every
+    // full-mode finalizer (phase B run 36756024336).
+    expect(
+      finalizerScripts.split('record.digest === "sha256:" + process.env.ARTIFACT_DIGEST').length - 1
+    ).toBe(2);
+    expect(finalizerScripts).not.toContain('record.digest === process.env.ARTIFACT_DIGEST;');
     expect(finalizerScripts).toContain(
       'String(record.workflow_run?.id) === process.env.GITHUB_RUN_ID'
     );
