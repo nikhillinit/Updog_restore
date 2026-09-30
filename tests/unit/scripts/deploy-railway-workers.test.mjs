@@ -353,16 +353,23 @@ describe('deploy-railway-workers', () => {
     });
     const reuseRequest = requests.find(
       ({ body }) => requestKind(body.query) === 'deployments' &&
-        body.variables.input.status?.successfulOnly === true
+        body.variables.input.status !== undefined
     );
     expect(reuseRequest.body.variables).toEqual({
       input: {
         projectId: 'project-1',
         serviceId: 'service-fund',
         environmentId: 'environment-1',
-        status: { successfulOnly: true },
+        status: { in: ['SUCCESS'] },
       },
     });
+    // Railway's DeploymentStatusInput has only `in` and `notIn`. Any other key
+    // fails GraphQL validation with HTTP 400 (phase A run 36691035889).
+    for (const { body } of requests) {
+      const status = body.variables?.input?.status;
+      if (status === undefined) continue;
+      expect(Object.keys(status).every((key) => key === 'in' || key === 'notIn')).toBe(true);
+    }
     const deploymentRequest = requests.find(({ body }) => requestKind(body.query) === 'deployment');
     expect(deploymentRequest.body.query).toContain('serviceId');
     expect(deploymentRequest.body.query).toContain('environmentId');
@@ -649,7 +656,6 @@ describe('deploy-railway-workers', () => {
     const reconciliation = serviceCalls(calls, 'deployments').find((call) =>
       call.operation.includes('reconcile deploy')
     );
-    expect(reconciliation.query).not.toContain('successfulOnly');
     expect(reconciliation.query).toContain('first: 5');
     expect(reconciliation.variables).toEqual({
       input: {

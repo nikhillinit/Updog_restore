@@ -24,6 +24,10 @@ and this project adheres to
 
 ### Fixed (2026-09-30)
 
+- `scripts/release/deploy-railway-workers.mjs` filters its reuse lookup with
+  `status: { in: ['SUCCESS'] }`. Railway's `DeploymentStatusInput` has no
+  `successfulOnly` field, so the lookup got HTTP 400 and stopped the #1606 phase
+  A release at `Deploy Railway Workers`, before any provider mutation.
 - `release-production.yml` `baseline-policy-preflight` checks out full history
   (`fetch-depth: 0`). A shallow checkout made the baseline ancestry check fail,
   which stopped the #1604 phase A release before any provider mutation.
