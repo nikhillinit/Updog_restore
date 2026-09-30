@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-09-30)
+
+- `release-production.yml` `baseline-policy-preflight` checks out full history
+  (`fetch-depth: 0`). A shallow checkout made the baseline ancestry check fail,
+  which stopped the #1604 phase A release before any provider mutation.
+
 ### Changed (2026-09-30)
 
 - #1602 merged before its baseline capture ran, so it cannot be the release
