@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-09-30)
+
+- #1602 merged before its baseline capture ran, so it cannot be the release
+  vehicle. The F_1.18.1 plan now names `f787b09c3` as the baseline, and the next
+  pull request carries the release.
+
 ### Changed (2026-09-29)
 
 - #1599 (`d5a3f5d78`) also carried commit `9545ba63a`, which its squash message
