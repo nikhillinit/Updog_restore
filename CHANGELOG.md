@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-01)
+
+- The shared rate-limit Redis adapter preserves native increment tuples for
+  `rate-limit-redis`, preventing protected API requests from failing with an
+  array-parsing error while retaining fail-closed connection handling.
+
 ### Security (2026-09-30)
 
 - `npm audit --omit=dev` in `Dependency Validation (Linux)` and
