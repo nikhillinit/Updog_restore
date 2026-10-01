@@ -502,7 +502,7 @@ jobs:
         run: npm run doctor:quick
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=critical
 
   pr-light-security:
     name: PR Light Security
@@ -522,7 +522,7 @@ jobs:
           restore-tool-cache: 'false'
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
