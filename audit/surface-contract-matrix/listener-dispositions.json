@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "F_1.17.0 PR 1b round 6 (source 0cf59c0190536e77afab4bec99b2c631091f6890); Dockerfile.railway unchanged (same listener fingerprint as the F_1.17.0 PR 1 approval); re-proposed only by the forced legacy rule in mergeListenerDispositions; legacy undeployed Railway API container, excluded from production topology (ADR-080); historical G1 closure unchanged"
+    "decision_evidence": "Independent /root/scoped_review source review at 86010a17a3d98ba02a339c9eb7df7ee1cfc9330d: Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b, listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4, healthcheck/CMD sites :43/:47 and disposition/rationale unchanged. seed-matrix.mjs:1580-1598 forcedLegacy unconditionally re-proposes exact listener and drops decision_evidence despite equal fingerprint. Source topology checked: railway.toml absent; railway.worker.toml and railway.capital-call-status.worker.toml bind Dockerfile.worker; DECISIONS.md:10647-10685 ADR-080 retains legacy API retirement; runtime-exclusions legacy-railway-api-topology semantically unchanged. Exact single source disposition restoration supported by fresh independent investigation. No current provider inventory, deployment or production authorization asserted. Original closed g1_closure preserved."
   },
   {
     "candidate_path": "Dockerfile.simple",
