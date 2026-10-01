@@ -22,6 +22,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security (2026-09-30)
+
+- `npm audit --omit=dev` in `Dependency Validation (Linux)` and
+  `PR Light Security` fails only on critical advisories (owner decision,
+  standing policy). High advisories published after a commit's full CI passed
+  blocked the F_1.18.1 release twice with no code change. They still print in
+  the audit output, and the Trivy filesystem and container scans still fail on
+  HIGH findings.
+- Updated `@grpc/grpc-js` to 1.14.5, `axios` to 1.20.0, `fast-uri` to 3.1.8, and
+  `ip-address` to 10.7.2 in `package-lock.json` (GHSA-f596-whhp-79r4,
+  GHSA-542g-h47m-68v8, and related advisories).
+
 ### Fixed (2026-09-30)
 
 - The release evidence finalizer compares artifact digests in the Actions API's
