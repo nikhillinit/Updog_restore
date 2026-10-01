@@ -1,13 +1,6 @@
 import type { Store, Options } from 'express-rate-limit';
+import type { RedisReply } from 'rate-limit-redis';
 import { logger } from './logger.js';
-
-function normalizeRedisResult(result: unknown): string | number | null {
-  if (typeof result === 'string' || typeof result === 'number' || result === null) {
-    return result;
-  }
-
-  return result === undefined ? null : String(result);
-}
 
 /**
  * Factory for rate limit stores
@@ -44,9 +37,8 @@ export async function createRateLimitStore(required = false): Promise<Store | un
     return new RedisStore({
       // Remove client property as it's not in the expected type
       // Instead, use sendCommand which is properly typed
-      sendCommand: async (command: string, ...args: string[]): Promise<string | number | null> => {
-        return normalizeRedisResult(await client.call(command, ...args));
-      },
+      sendCommand: (command: string, ...args: string[]) =>
+        client.call(command, ...args) as Promise<RedisReply>,
       prefix: 'rate-limit:',
     }) as unknown as Store;
   } catch (error) {
