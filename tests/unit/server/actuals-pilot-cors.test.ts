@@ -9,8 +9,7 @@ const originalEnvironment = { ...process.env };
 let makeApp: typeof import('../../../server/app').makeApp;
 let server: Server | undefined;
 let providers:
-  | Awaited<ReturnType<typeof import('../../../server/providers.js').buildProviders>>
-  | undefined;
+  Awaited<ReturnType<typeof import('../../../server/providers.js').buildProviders>> | undefined;
 let setReady: ((ready: boolean) => void) | undefined;
 
 function configureMemoryEnvironment(): void {
@@ -72,21 +71,17 @@ afterAll(async () => {
 
 describe('actuals pilot CORS exposure', () => {
   it('exposes ETag, Retry-After, and X-Request-ID on makeApp()', async () => {
-    const response = await request(makeApp())
-      .get('/healthz')
-      .set('Origin', ORIGIN);
+    const response = await request(makeApp()).get('/healthz').set('Origin', ORIGIN);
 
     expect(response.status).toBe(200);
     expect(response.headers['access-control-allow-origin']).toBe(ORIGIN);
     expect(response.headers['access-control-expose-headers']).toBe(
-      'ETag, Retry-After, X-Request-ID'
+      'ETag, Fund-Draft-Revision, Retry-After, X-Request-ID'
     );
   });
 
   it('exposes ETag and Retry-After on createServer()', async () => {
-    const response = await request(server!)
-      .get('/healthz')
-      .set('Origin', ORIGIN);
+    const response = await request(server!).get('/healthz').set('Origin', ORIGIN);
 
     expect(response.status).toBe(200);
     expect(response.headers['access-control-allow-origin']).toBe(ORIGIN);

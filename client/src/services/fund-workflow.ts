@@ -11,6 +11,7 @@ import { withApiBase } from '@/lib/api-url';
 import { ApiError, markSessionReauthRequired, parseRetryAfterMs } from '@/lib/queryClient';
 import { getErrorMessage, SERVER_ERROR_MESSAGE } from '@/lib/http-response';
 import { isRecord } from '@shared/utils/type-guards';
+import { FUND_DRAFT_REVISION_HEADER } from '@shared/contracts/fund-workflow-v1.contract';
 
 export const FUND_WORKFLOW_TIMEOUT_MS = 10_000;
 
@@ -165,7 +166,8 @@ export async function workflowRequest<T = unknown>(
   return {
     status: response.status,
     body: payload as T,
-    etag: response.headers.get('ETag'),
+    // The revision header survives intermediary re-encoding that weakens ETag.
+    etag: response.headers.get(FUND_DRAFT_REVISION_HEADER) ?? response.headers.get('ETag'),
     replayed: response.headers.get('Idempotency-Replay') === 'true',
   };
 }

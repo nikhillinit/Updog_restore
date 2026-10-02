@@ -20,6 +20,7 @@ import {
   fundWorkflowHeaders,
   fundWorkflowWritesAllowed,
   sendFundWorkflowError,
+  setFundDraftRevisionHeaders,
   setFundWorkflowResponseHeaders,
 } from '../services/fund-workflow-service';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
@@ -264,7 +265,7 @@ export function registerFundConfigRoutes(app: Express) {
         return res.status(404).json(error);
       }
 
-      res.setHeader('ETag', draftETag(draft));
+      setFundDraftRevisionHeaders(res, draftETag(draft));
       res.setHeader('Cache-Control', 'no-store');
       res.json(draftResponse(draft));
     } catch (error) {

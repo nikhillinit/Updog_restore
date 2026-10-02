@@ -703,10 +703,18 @@ describe('fund lifecycle DB proof', () => {
 
   it('serializes saves, replays the original revision, and never overwrites a stale draft', async () => {
     const active = runtime!;
+    // Every response carrying a draft ETag must also carry the strong revision in
+    // Fund-Draft-Revision: edge compression can weaken the ETag to W/"...".
+    const revision = (response: { headers: Record<string, unknown> }) => {
+      expect(response.headers['fund-draft-revision']).toMatch(/^"[0-9a-f]{16}"$/);
+      expect(response.headers['fund-draft-revision']).toBe(response.headers['etag']);
+    };
     const created = await createDraft(active);
+    revision(created.response);
     const key = randomUUID();
     const first = await saveDraft(active, created.fundId, created.etag, key);
     expect(first.status, JSON.stringify(first.body)).toBe(200);
+    revision(first);
     expect(first.body.data).not.toHaveProperty('draftRevision');
     expect(first.headers['etag']).not.toBe(created.etag);
     const second = await saveDraft(active, created.fundId, first.headers['etag'], randomUUID(), {
@@ -721,11 +729,13 @@ describe('fund lifecycle DB proof', () => {
     expect(replay.headers['idempotency-replay']).toBe('true');
     expect(replay.body).toEqual(first.body);
     expect(replay.headers['etag']).toBe(first.headers['etag']);
+    revision(replay);
     const stale = await saveDraft(active, created.fundId, created.etag);
     expect(stale.status).toBe(412);
     expect(stale.body.code).toBe('PRECONDITION_FAILED');
     expect(stale.body.details.current).toBe(second.headers['etag']);
     expect(stale.headers['etag']).toBe(second.headers['etag']);
+    revision(stale);
     const changed = await saveDraft(active, created.fundId, created.etag, key, {
       fundName: 'Overwrite attempt',
     });
@@ -736,6 +746,7 @@ describe('fund lifecycle DB proof', () => {
       .get(`/api/funds/${created.fundId}/draft`)
       .set('Authorization', authHeader(active));
     expect(read.headers['etag']).toBe(second.headers['etag']);
+    revision(read);
     expect(read.body).toEqual(second.body.data);
   });
 
