@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:86aafe9c2eb2c24bbdebe68b0b2f02e12adeb6f03aa4e67b736c9b7b3ba6a37d",
+  "snapshot_id": "snapshot:2b32dbc7221d429f3b99a799711d2208476f29febff4d00b1fa96b7e0b7a55a5",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -504,7 +504,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "bb45b7a72a4809d1ed9bf4d0d6269b4991b39028f0e531d1531b8feab7d447e1",
+    "audit/surface-contract-matrix/boot-proofs.json": "fd2f9cc4ea9eb2f43964605ae4e42a3d371ad48521c380581cce0448b13d76c9",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
@@ -541,7 +541,7 @@
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
     "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
     "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
-    "server/app.ts": "5abd6c613fa3aa6fde69df5e57c3ac93f57abfddeaeec498c9409a6109254bd3",
+    "server/app.ts": "da6bb1d6ddc98d681c98cd2766129d7a3dacee81afe8c3777d0f36fa36eb653e",
     "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
     "server/lib/auth/jwt.ts": "914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
     "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
@@ -11554,7 +11554,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:86aafe9c2eb2c24bbdebe68b0b2f02e12adeb6f03aa4e67b736c9b7b3ba6a37d"
+      "snapshot:2b32dbc7221d429f3b99a799711d2208476f29febff4d00b1fa96b7e0b7a55a5"
     ]
   },
   "kg_counts": {
