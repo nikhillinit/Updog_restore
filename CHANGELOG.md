@@ -22,6 +22,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-02)
+
+- New Fund draft saves and resumes no longer fail with "Save not confirmed" on
+  Vercel. Vercel's edge brotli-compresses larger draft responses and weakens the
+  strong `ETag` to `W/"..."`, even with `Cache-Control: no-transform`; this was
+  verified live on an isolated preview. The client rejected the weak revision.
+  Every fund-draft response now also carries the strong revision in
+  `Fund-Draft-Revision` (exposed through CORS). The client reads that header
+  first and falls back to `ETag`, and `If-Match` stays strong.
+
 ### Fixed (2026-10-01)
 
 - The shared rate-limit Redis adapter preserves native increment tuples for

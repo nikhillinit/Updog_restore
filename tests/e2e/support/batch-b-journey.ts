@@ -50,6 +50,15 @@ export async function loadRuntime(): Promise<Runtime> {
   return value as Runtime;
 }
 
+/**
+ * Draft revision as the client reads it: Fund-Draft-Revision, else ETag. Behind
+ * a compressing edge (Vercel) the ETag arrives weakened as W/"...", so reading
+ * ETag directly would compare the wrong representation.
+ */
+export function draftRevision(headers: Record<string, string>): string | undefined {
+  return headers['fund-draft-revision'] ?? headers['etag'];
+}
+
 export function responseFundId(responseBody: unknown): number {
   const id = (responseBody as { data?: { id?: unknown } })?.data?.id;
   if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
