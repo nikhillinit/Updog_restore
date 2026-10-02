@@ -55,6 +55,7 @@ export default [
       '.claude/**',
       '.codex/**', // local Codex CLI workspace; untracked tool scripts
       '.hermes/**',
+      '.pi/**', // Pi harness; tested via node --test (see .pi/README.md)
       '.tmp/**',
       '.omx/**',
       '.remember/**',

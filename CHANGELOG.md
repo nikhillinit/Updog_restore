@@ -22,6 +22,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-10-02)
+
+- Project configuration for the Pi coding agent under `.pi/`: a guard extension
+  that mirrors the `.claude/settings.json` deny list and hooks plus
+  `AGENT-SAFETY.md`, the `/verify` and `/specialist` prompt templates, and a
+  static system-prompt addendum. Agent tooling only; no application change. See
+  `docs/2-changelog/w11_pi-harness.md`.
+
 ### Fixed (2026-10-01)
 
 - The shared rate-limit Redis adapter preserves native increment tuples for
