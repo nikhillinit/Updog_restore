@@ -13,3 +13,11 @@ export const FundWorkflowKeySchema = z
   .uuid()
   .transform((key) => key.toLowerCase());
 export const FundDraftETagSchema = z.string().regex(/^"[0-9a-f]{16}"$/);
+/**
+ * Response header carrying the same strong draft revision as `ETag`.
+ * Intermediaries that re-encode a response may weaken its ETag to `W/"..."`
+ * (Vercel's edge does this under Brotli, even with `no-transform`), which
+ * FundDraftETagSchema rejects. Clients read this header first and fall back to
+ * `ETag`; If-Match still carries the strong value.
+ */
+export const FUND_DRAFT_REVISION_HEADER = 'Fund-Draft-Revision';

@@ -6,6 +6,7 @@ import { fundConfigs, funds, fundWorkflowCommands, userFundGrants } from '@share
 import type { FundConfig } from '@shared/schema/fund';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 import {
+  FUND_DRAFT_REVISION_HEADER,
   FUND_WORKFLOW_CONTRACT_VERSION,
   FundDraftETagSchema,
   FundWorkflowKeySchema,
@@ -231,11 +232,17 @@ export async function executeFundWorkflowCommand(
   return { ...result, body, replayed: false };
 }
 
+/** ETag plus a transform-proof copy; see FUND_DRAFT_REVISION_HEADER. */
+export function setFundDraftRevisionHeaders(res: Response, etag: string) {
+  res.setHeader('ETag', etag);
+  res.setHeader(FUND_DRAFT_REVISION_HEADER, etag);
+}
+
 export function setFundWorkflowResponseHeaders(
   res: Response,
   result: WorkflowResult & { replayed: boolean }
 ) {
-  res.setHeader('ETag', result.etag);
+  setFundDraftRevisionHeaders(res, result.etag);
   res.setHeader('Cache-Control', 'no-store');
   if (result.replayed) res.setHeader('Idempotency-Replay', 'true');
 }
@@ -249,7 +256,7 @@ export function sendFundWorkflowError(res: Response, error: unknown): boolean {
     return true;
   }
   if (error instanceof FundWorkflowError) {
-    if (error.current) res.setHeader('ETag', error.current);
+    if (error.current) setFundDraftRevisionHeaders(res, error.current);
     sendApiError(res, error.status, {
       error: error.message,
       code: error.code,

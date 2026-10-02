@@ -6,6 +6,7 @@ import {
   attachScreenshot,
   countFundsByName,
   createDraftThroughStepOne,
+  draftRevision,
   loadRuntime,
   openWorkspace,
   publishCurrentFund,
@@ -339,7 +340,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
     await expect(replayPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
     const beforeSave = await replayPage.request.get(draftPath);
     expect(beforeSave.status()).toBe(200);
-    const beforeRevision = beforeSave.headers()['etag'];
+    const beforeRevision = draftRevision(beforeSave.headers());
     expect(beforeRevision).toBeTruthy();
 
     let firstPut = true;
@@ -355,7 +356,7 @@ test('authenticated user can publish one fund and persist a distinct second draf
       recordedIfMatch = route.request().headers()['if-match'];
       const committed = await route.fetch();
       committedStatus = committed.status();
-      committedRevision = committed.headers()['etag'];
+      committedRevision = draftRevision(committed.headers());
       await route.abort('failed');
     });
     const failedSave = replayPage.waitForEvent('requestfailed', {
@@ -392,8 +393,8 @@ test('authenticated user can publish one fund and persist a distinct second draf
     expect(replayResponse.request().headers()['if-match']).toBe(recordedIfMatch);
     expect(replayResponse.status()).toBe(200);
     expect(replayResponse.headers()['idempotency-replay']).toBe('true');
-    expect(replayResponse.headers()['etag']).toBe(committedRevision);
-    expect(replayResponse.headers()['etag']).not.toBe(beforeRevision);
+    expect(draftRevision(replayResponse.headers())).toBe(committedRevision);
+    expect(draftRevision(replayResponse.headers())).not.toBe(beforeRevision);
     await expect(replayPage.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
     await expect(replayPage.getByTestId('model-inputs-as-of-date')).toHaveValue(replayedAsOfDate);
     expect(

@@ -20,6 +20,7 @@ import {
   countFundsByName,
   countPublishedConfigs,
   createDraftThroughStepOne,
+  draftRevision,
   forwardOutOfBand,
   loadRuntime,
   logOut,
@@ -308,7 +309,7 @@ test('C1: a stale draft save preserves local edits without an automatic overwrit
     const winnerDate = '2026-07-01';
     const localDate = '2026-07-02';
     const winner = await saveDate(page, fund.id, winnerDate);
-    expect(winner.headers()['etag']).not.toBe(oldETag);
+    expect(draftRevision(winner.headers())).not.toBe(oldETag);
 
     const puts: Request[] = [];
     const draftPath = `/api/funds/${fund.id}/draft`;
@@ -360,7 +361,7 @@ test('C2: stale publication stays on review and creates neither config nor recei
     await signIn(other, runtime.username, runtime.password);
     await openDraft(other, fund.id);
     const updated = await saveDate(other, fund.id, '2026-07-03');
-    expect(updated.headers()['etag']).not.toBe(oldETag);
+    expect(draftRevision(updated.headers())).not.toBe(oldETag);
 
     const rejected = await clickPublish(page);
     const command = commandIdentity(rejected.request());

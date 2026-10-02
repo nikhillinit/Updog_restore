@@ -30,6 +30,44 @@ describe('workflowRequest', () => {
     expect(newWorkflowKey()).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it('prefers the strong revision header when an intermediary weakened the ETag', async () => {
+    // Vercel's edge brotli-compresses larger draft responses and rewrites the
+    // ETag to W/"..."; Fund-Draft-Revision carries the untouched strong value.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({ ok: 1 }, 200, {
+          ETag: 'W/"0000000000000002"',
+          'Fund-Draft-Revision': '"0000000000000002"',
+        })
+      )
+    );
+
+    const result = await workflowRequest(
+      'PUT',
+      '/api/funds/1/draft',
+      { fundName: 'x' },
+      {
+        key: KEY,
+        etag: '"0000000000000001"',
+      }
+    );
+
+    expect(result.etag).toBe('"0000000000000002"');
+  });
+
+  it('keeps a weakened ETag visible when no revision header is present', async () => {
+    // Fallback must not silently strengthen W/ tags; callers reject them.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ ok: 1 }, 200, { ETag: 'W/"0000000000000002"' }))
+    );
+
+    const result = await workflowRequest('GET', '/api/funds/1/draft', undefined);
+
+    expect(result.etag).toBe('W/"0000000000000002"');
+  });
+
   it('sends key and If-Match and returns the ETag and replay marker', async () => {
     const fetchMock = vi
       .fn()
