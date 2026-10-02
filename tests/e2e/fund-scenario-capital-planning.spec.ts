@@ -6,7 +6,10 @@ import type {
   CapitalPlanningMemoV1,
   AggregatePreferenceInputV1,
 } from '../../shared/contracts/capital-planning-v1.contract';
-import { CreateFundScenarioSetV3Schema } from '../../shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  CreateFundScenarioSetV3Schema,
+  CreateFundScenarioSetV4Schema,
+} from '../../shared/contracts/fund-scenario-sets-v1.contract';
 import { FundScenarioCapitalComparisonV2Schema } from '../../shared/contracts/fund-scenario-comparison-v1.contract';
 import frozen from '../fixtures/capital-planning/workspace-b8.json' with { type: 'json' };
 import {
@@ -661,6 +664,457 @@ test('CORRECTED-V2: explicit assumptions, history ownership, saved comparison an
       await context.close();
     }
   }
+});
+
+test('CAPITAL-20M: corrected decision comparison, two sessions and economic source refresh', async ({
+  capital,
+  browser,
+}) => {
+  const { fundId } = capital.config;
+  const resized = await capital.pool.query(
+    'UPDATE funds SET size=20000000 WHERE id=$1 AND size=100 RETURNING id',
+    [fundId]
+  );
+  expect(resized.rowCount).toBe(1);
+  const originalSource = await capital.source();
+  await capital.publication(
+    fundId,
+    {
+      id: originalSource.projection.sourceConfigId,
+      version: originalSource.projection.sourceConfigVersion,
+    },
+    (raw) => {
+      raw['fundSize'] = 20_000_000;
+      raw['fundLife'] = 10;
+      raw['investmentPeriod'] = 2;
+      raw['fundedFromFeesPct'] = 0;
+      const economics = raw['economicsAssumptions'] as {
+        gpCommitmentModel: { commitmentAmount: number };
+        feeModel: { tiers: { rate: number; endYear: number }[] };
+        expenseModel: { annualExpenses: { amount: number; endYear: number }[] };
+      };
+      economics.gpCommitmentModel.commitmentAmount = 0;
+      economics.feeModel.tiers[0]!.endYear = 10;
+      economics.expenseModel.annualExpenses[0]!.amount = 100_000;
+      economics.expenseModel.annualExpenses[0]!.endYear = 10;
+      const profiles = raw['pipelineProfiles'] as { stages: Record<string, unknown>[] }[];
+      profiles[0]!.stages.push({ ...profiles[0]!.stages[0], id: 's1', name: 'Series A' });
+    }
+  );
+  await capital.reload();
+  const dialog = await capital.openDraft('Synthetic $20M decision');
+  await capital.keyboard.select(
+    dialog.getByRole('combobox', { name: 'Calculation method', exact: true }),
+    'corrected'
+  );
+  await capital.keyboard.select(dialog.getByLabel('Solve mode', { exact: true }), 'fixed_fund');
+  await declarations(capital, fundId);
+  await step(capital, 'Allocations');
+  for (const [label, value] of [
+    ['Source allocation', 'a1'],
+    ['Pipeline profile', 'p1'],
+    ['Entry stage', 's0'],
+    ['Schedule anchor', 'entry_deployment_month'],
+    ['Initial deployment cadence', 'uniform_monthly_over_deployment_period'],
+    ['Valuation basis', 'post_money'],
+    ['Primary capital denominator', 'total_primary_including_fund_check'],
+  ] as const)
+    await capital.keyboard.select(dialog.getByLabel(label, { exact: true }), value);
+  for (const [label, value] of [
+    ['Allocation name', 'Seed'],
+    ['Entry round', 'Seed'],
+    ['Initial investment dollar weight (ratio)', '1'],
+    ['Initial check (USD)', '500000'],
+    ['Deployment period (years)', '2'],
+    ['Planned company count (optional)', '20'],
+    ['Valuation (USD)', '10000000'],
+    ['Total primary capital (USD)', '2000000'],
+  ] as const)
+    await capital.keyboard.fill(dialog.getByLabel(label, { exact: true }), value);
+  await capital.keyboard.check(
+    dialog.getByLabel('Primary capital only; excludes all secondary sales', { exact: true })
+  );
+  await step(capital, 'Follow-ons');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Add follow-on round', exact: true })
+  );
+  for (const [label, value] of [
+    ['Stage', 's1'],
+    ['Follow-on eligibility', 'all'],
+    ['Participation policy', 'homogeneous_conditional_probability'],
+    ['Check policy', 'fixed_check'],
+    ['Timing basis', 'interval_from_previous_round'],
+    ['Pool basis', 'incremental_pre_money'],
+    ['Valuation basis', 'pre_money'],
+    ['Primary capital denominator', 'total_primary_including_fund_check'],
+  ] as const)
+    await capital.keyboard.select(dialog.getByLabel(label, { exact: true }), value);
+  for (const [label, value] of [
+    ['Round label', 'Series A'],
+    ['Graduation (ratio)', '0.5'],
+    ['Conditional participation probability (ratio)', '0.5'],
+    ['Check (USD)', '1000000'],
+    ['Months after previous round', '18'],
+    ['Incremental pool dilution (ratio)', '0'],
+    ['Valuation (USD)', '20000000'],
+    ['Total primary capital (USD)', '5000000'],
+  ] as const)
+    await capital.keyboard.fill(dialog.getByLabel(label, { exact: true }), value);
+  await capital.keyboard.check(
+    dialog.getByLabel('Primary capital only; excludes all secondary sales', { exact: true })
+  );
+  for (const [name, check, participation] of [
+    ['Larger check', '750000', '0.5'],
+    ['Higher participation', '500000', '0.75'],
+  ]) {
+    await capital.keyboard.activate(
+      dialog.getByRole('button', { name: 'Add variant', exact: true })
+    );
+    await capital.keyboard.fill(dialog.getByLabel('Variant name', { exact: true }), name!);
+    await step(capital, 'Allocations');
+    await capital.keyboard.fill(dialog.getByLabel('Initial check (USD)', { exact: true }), check!);
+    await step(capital, 'Follow-ons');
+    await capital.keyboard.fill(
+      dialog.getByLabel('Conditional participation probability (ratio)', { exact: true }),
+      participation!
+    );
+  }
+  await declarations(capital, fundId);
+  await step(capital, 'Review');
+  await capital.keyboard.activate(
+    dialog.getByRole('button', { name: 'Review capital plan', exact: true })
+  );
+  const saveButton = dialog.getByRole('button', { name: 'Save capital scenario', exact: true });
+  await expect(saveButton).toBeEnabled();
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const saving = capital.page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname === `/api/funds/${fundId}/scenario-sets`
+  );
+  await capital.keyboard.activate(saveButton);
+  const saved = await saving;
+  expect(saved.status()).toBe(201);
+  const request = CreateFundScenarioSetV4Schema.parse(JSON.parse(saved.request().postData()!));
+  const id = ((await saved.json()) as { scenarioSetId: string }).scenarioSetId;
+  const card = capital.page.locator(`article[data-scenario-id="${id}"]`);
+  await expect(card).toHaveAttribute('data-representation', 'capital-plan-v2');
+  const url = (setId: string, suffix = '') =>
+    scenarioURL(fundId, `/${setId}${suffix}`).replace('capital-plan-v1', 'capital-plan-v2');
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const calculating = capital.page.waitForResponse(
+    (r) => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith(`/${id}/calculate`)
+  );
+  await capital.keyboard.activate(
+    card.getByRole('button', { name: 'Calculate capital scenario', exact: true })
+  );
+  const calculated = await calculating;
+  expect(calculated.status()).toBe(200);
+  const calculationBytes = await calculated.text();
+  const comparisonResponse = await capital.xhr(url(id, '/comparison'));
+  expect(comparisonResponse.status).toBe(200);
+  const comparison = FundScenarioCapitalComparisonV2Schema.parse(
+    JSON.parse(comparisonResponse.text)
+  );
+  const memos = [comparison.baseline!, ...comparison.variants.map((variant) => variant.memo)];
+  const expected = [
+    {
+      count: '20.000000000000',
+      initial: '10000000.000000',
+      reserve: '5000000.000000',
+      demand: '15000000.000000',
+      residual: '0.000000',
+      ownership: '0.050000000000',
+      skipped: '0.040000000000',
+      participated: '0.080000000000',
+      mass: '0.250000000000',
+      skipMass: '0.250000000000',
+      rounding: '-0.000008',
+      followRounding: '0.000008',
+    },
+    {
+      count: '15.000000000000',
+      initial: '11250000.000000',
+      reserve: '3750000.000000',
+      demand: '20000000.000000',
+      residual: '-5000000.000000',
+      ownership: '0.075000000000',
+      skipped: '0.060000000000',
+      participated: '0.100000000000',
+      mass: '0.250000000000',
+      skipMass: '0.250000000000',
+      rounding: '0.000000',
+      followRounding: '0.000000',
+    },
+    {
+      count: '17.142857142857',
+      initial: '8571428.571429',
+      reserve: '6428571.428571',
+      demand: '17500000.000000',
+      residual: '-2500000.000000',
+      ownership: '0.050000000000',
+      skipped: '0.040000000000',
+      participated: '0.080000000000',
+      mass: '0.375000000000',
+      skipMass: '0.125000000000',
+      rounding: '-0.000003',
+      followRounding: '0.000003',
+    },
+  ];
+  expect(memos).toHaveLength(3);
+  for (const [index, memo] of memos.entries()) {
+    const oracle = expected[index]!;
+    expect(memo.result.construction.budgetBridge).toMatchObject({
+      committedCapitalUsd: '20000000.000000',
+      lifetimeFeesUsd: '4000000.000000',
+      lifetimeExpensesUsd: '1000000.000000',
+      availableConstructionCapitalUsd: '15000000.000000',
+    });
+    expect(memo.result.construction.solution).toMatchObject({
+      mode: 'fixed_fund',
+      feasible: true,
+      totalExpectedCompanyCount: oracle.count,
+      initialPoolUsd: oracle.initial,
+      totalReserveUsd: oracle.reserve,
+      sourceCapacityGapUsd: '0.000000',
+    });
+    const allocation = memo.result.construction.allocations[0]!;
+    expect(allocation).toMatchObject({
+      allocationId: 'a1',
+      initialScheduleRoundingResidualUsd: oracle.rounding,
+      followOnScheduleRoundingResidualUsd: oracle.followRounding,
+    });
+    expect(memo.result.input.allocations[0]).toMatchObject({
+      allocationId: 'a1',
+      pipelineProfileId: 'p1',
+      entryStageId: 's0',
+    });
+    expect(allocation.entered).toMatchObject({
+      companyCount: '20.000000000000',
+      totalDemandUsd: oracle.demand,
+      signedBudgetResidualUsd: oracle.residual,
+    });
+    expect(allocation.rounds[0]!.paths).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          outcome: 'non_graduation',
+          probability: '0.500000000000',
+          ownershipRatio: oracle.ownership,
+          checkUsd: '0.000000',
+        }),
+        expect.objectContaining({
+          outcome: 'eligible_zero_election',
+          probability: oracle.skipMass,
+          ownershipRatio: oracle.skipped,
+          checkUsd: '0.000000',
+        }),
+        expect.objectContaining({
+          outcome: 'participated',
+          probability: oracle.mass,
+          ownershipRatio: oracle.participated,
+          checkUsd: '1000000.000000',
+          demandUsd: oracle.reserve,
+        }),
+      ])
+    );
+  }
+  const beforeReplay = await capital.snapshot();
+  await capital.page.screenshot({
+    path: `${capital.config.evidenceDir}/capital-20m-comparison.png`,
+    fullPage: true,
+  });
+  for (const sessionNumber of [1, 2]) {
+    const context = await browser.newContext();
+    const fresh = new CapitalBrowser(
+      await context.newPage(),
+      capital.config,
+      capital.pool,
+      capital.extendForBudgetWait
+    );
+    try {
+      expect(await context.cookies()).toEqual([]);
+      await fresh.login();
+      const reopened = fresh.page.locator(`article[data-scenario-id="${id}"]`);
+      await expect(reopened).toHaveAttribute('data-representation', 'capital-plan-v2');
+      const again = await fresh.xhr(url(id, '/comparison'));
+      expect(again.status).toBe(200);
+      expect(JSON.parse(again.text)).toEqual(comparison);
+      const replay = await fresh.xhr(url(id, '/calculate'), { method: 'POST', csrf: 'valid' });
+      expect(replay.status).toBe(200);
+      expect(replay.text).toBe(calculationBytes);
+      expect(await fresh.snapshot()).toEqual(beforeReplay);
+      await fresh.receipt('capital-20m-session', {
+        sessionNumber,
+        ownerAcceptance: 'NOT_RECORDED',
+        scenarioSetId: id,
+        source: comparison.baseline!.result.sourceBundle.projection,
+        comparison,
+        replaySha256: sha256(replay.text),
+      });
+    } finally {
+      await context.close();
+    }
+  }
+  const fixed = structuredClone(request);
+  fixed.name = 'Synthetic $20M fixed portfolio';
+  for (const variant of fixed.variants) {
+    variant.variantId = randomUUID();
+    const input =
+      'input' in variant.override.payload
+        ? variant.override.payload.input
+        : variant.override.payload;
+    input.solve = { mode: 'fixed_portfolio', totalExpectedCompanyCount: '20.000000000000' };
+  }
+  fixed.baselineVariantId = fixed.variants[0]!.variantId;
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const fixedCreate = await capital.xhr(
+    scenarioURL(fundId).replace('capital-plan-v1', 'capital-plan-v2'),
+    {
+      method: 'POST',
+      csrf: 'valid',
+      key: randomUUID(),
+      body: JSON.stringify(CreateFundScenarioSetV4Schema.parse(fixed)),
+    }
+  );
+  expect(fixedCreate.status).toBe(201);
+  const fixedId = (JSON.parse(fixedCreate.text) as { scenarioSetId: string }).scenarioSetId;
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  expect(
+    (await capital.xhr(url(fixedId, '/calculate'), { method: 'POST', csrf: 'valid' })).status
+  ).toBe(200);
+  const fixedComparison = FundScenarioCapitalComparisonV2Schema.parse(
+    JSON.parse((await capital.xhr(url(fixedId, '/comparison'))).text)
+  );
+  expect(fixedComparison.baseline?.variantId).toBe(fixed.baselineVariantId);
+  expect(fixedComparison.variants.map((v) => v.memo.variantId)).toEqual(
+    fixed.variants.slice(1).map((v) => v.variantId)
+  );
+  for (const [index, memo] of [
+    fixedComparison.baseline!,
+    ...fixedComparison.variants.map((v) => v.memo),
+  ].entries()) {
+    expect(memo.result.construction.solution).toMatchObject({
+      mode: 'fixed_portfolio',
+      feasible: index === 0,
+      requiredConstructionCapitalUsd: expected[index]!.demand,
+      sourceCapacityGapUsd: ['0.000000', '5000000.000000', '2500000.000000'][index],
+      requiredCommittedCapitalUsd: {
+        state: 'available',
+        value: ['20000000.000000', '26250000.000000', '23125000.000000'][index],
+      },
+    });
+  }
+  await capital.reload();
+  await capital.keyboard.activate(
+    card.getByRole('button', { name: 'Duplicate to draft', exact: true })
+  );
+  await capital.keyboard.fill(
+    capital.dialog().getByLabel('Scenario name', { exact: true }),
+    'Synthetic $20M refreshed decision'
+  );
+  await declarations(capital, fundId);
+  await step(capital, 'Review');
+  await capital.keyboard.activate(
+    capital.dialog().getByRole('button', { name: 'Review capital plan', exact: true })
+  );
+  const source = await capital.source();
+  const publication = await capital.publication(
+    fundId,
+    { id: source.projection.sourceConfigId, version: source.projection.sourceConfigVersion },
+    (raw) => {
+      const economics = raw['economicsAssumptions'] as { feeModel: { tiers: { rate: number }[] } };
+      economics.feeModel.tiers[0]!.rate = 0.025;
+    }
+  );
+  const beforeConflict = await capital.snapshot();
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const conflicting = capital.page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname === `/api/funds/${fundId}/scenario-sets`
+  );
+  await capital.keyboard.activate(
+    capital.dialog().getByRole('button', { name: 'Save capital scenario', exact: true })
+  );
+  expect((await conflicting).status()).toBe(409);
+  expect(await capital.snapshot()).toEqual(beforeConflict);
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const oldReplay = await capital.xhr(url(id, '/calculate'), { method: 'POST', csrf: 'valid' });
+  expect(oldReplay.status).toBe(200);
+  expect(oldReplay.text).toBe(calculationBytes);
+  expect(await capital.snapshot()).toEqual(beforeConflict);
+  const stale = FundScenarioCapitalComparisonV2Schema.parse(
+    JSON.parse((await capital.xhr(url(id, '/comparison'))).text)
+  );
+  expect(stale.readState.sourceFreshness).toBe('STALE_PUBLISH');
+  expect(stale.baseline!.result).toEqual(comparison.baseline!.result);
+  await step(capital, 'Source and budget');
+  await capital.keyboard.activate(
+    capital.dialog().getByRole('button', { name: 'Refresh source', exact: true })
+  );
+  await expect(capital.dialog().getByRole('status')).toContainText('Confirm source units again');
+  await expect(
+    capital.dialog().getByRole('button', { name: 'Save capital scenario', exact: true })
+  ).toBeDisabled();
+  await declarations(capital, fundId);
+  await step(capital, 'Review');
+  await capital.keyboard.activate(
+    capital.dialog().getByRole('button', { name: 'Review capital plan', exact: true })
+  );
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  const refreshedSaving = capital.page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      new URL(r.url()).pathname === `/api/funds/${fundId}/scenario-sets`
+  );
+  await capital.keyboard.activate(
+    capital.dialog().getByRole('button', { name: 'Save capital scenario', exact: true })
+  );
+  const refreshedSaved = await refreshedSaving;
+  expect(refreshedSaved.status()).toBe(201);
+  const refreshedRequest = CreateFundScenarioSetV4Schema.parse(
+    JSON.parse(refreshedSaved.request().postData()!)
+  );
+  expect(refreshedRequest.expectedSourceConfigId).toBe(publication.id);
+  expect(refreshedRequest.expectedSourceConfigVersion).toBe(publication.version);
+  expect(refreshedRequest.expectedSourceBundleHash).not.toBe(request.expectedSourceBundleHash);
+  const refreshedId = ((await refreshedSaved.json()) as { scenarioSetId: string }).scenarioSetId;
+  await capital.waitForScenarioBudget(fundId, 'mutate');
+  expect(
+    (await capital.xhr(url(refreshedId, '/calculate'), { method: 'POST', csrf: 'valid' })).status
+  ).toBe(200);
+  const refreshed = FundScenarioCapitalComparisonV2Schema.parse(
+    JSON.parse((await capital.xhr(url(refreshedId, '/comparison'))).text)
+  );
+  expect(refreshed.baseline?.variantId).toBe(refreshedRequest.baselineVariantId);
+  expect(refreshed.variants.map((v) => v.memo.variantId)).toEqual(
+    refreshedRequest.variants.slice(1).map((v) => v.variantId)
+  );
+  for (const [index, memo] of [
+    refreshed.baseline!,
+    ...refreshed.variants.map((v) => v.memo),
+  ].entries()) {
+    expect(memo.result.construction.budgetBridge).toMatchObject({
+      lifetimeFeesUsd: '5000000.000000',
+      availableConstructionCapitalUsd: '14000000.000000',
+    });
+    expect(memo.result.construction.solution).toMatchObject({
+      totalExpectedCompanyCount: ['18.666666666667', '14.000000000000', '16.000000000000'][index],
+      initialPoolUsd: ['9333333.333333', '10500000.000000', '8000000.000000'][index],
+      totalReserveUsd: ['4666666.666667', '3500000.000000', '6000000.000000'][index],
+    });
+  }
+  await capital.receipt('capital-20m-decision', {
+    ownerAcceptance: 'NOT_RECORDED',
+    scenarioSetId: id,
+    comparison,
+    fixedComparison,
+    publication,
+    refreshed,
+    replaySha256: sha256(oldReplay.text),
+    interpretation:
+      'Synthetic expected counts; manual reserve guardrail and owner usefulness are not native acceptance claims.',
+  });
 });
 
 const expectedDisclosures = [
