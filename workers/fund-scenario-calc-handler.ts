@@ -5,6 +5,7 @@ import { metrics } from '../lib/metrics';
 import {
   isScenarioCalculationOwnershipLost,
   runReserveScenarioCalculation,
+  UnmatchedScenarioDeliveryError,
   type ReserveScenarioAttempt,
 } from '../server/services/fund-scenario-reserve-calculation-service';
 import {
@@ -36,6 +37,10 @@ async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promis
     timer({ status: 'success' });
     return result;
   } catch (error) {
+    // No run was claimed, so the engine never ran: leave engine metrics alone.
+    if (error instanceof UnmatchedScenarioDeliveryError) {
+      throw error;
+    }
     timer({ status: 'error' });
     metrics.engineErrors.inc({
       engine: 'fund-scenario-reserve',
@@ -87,7 +92,7 @@ export function createFundScenarioCalcJobHandler(deps?: {
   ) {
     const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
     const startedAt = process.hrtime.bigint();
-    let outcome: 'success' | 'failure' | 'hard_timeout' = 'failure';
+    let outcome: 'success' | 'failure' | 'hard_timeout' | 'unmatched_delivery' = 'failure';
 
     logger.info('Processing reserve scenario calculation', {
       fundId,
@@ -131,6 +136,21 @@ export function createFundScenarioCalcJobHandler(deps?: {
       outcome = 'success';
       return isScenarioCalculationOwnershipLost(result) ? undefined : result;
     } catch (error) {
+      if (error instanceof UnmatchedScenarioDeliveryError) {
+        // Contract violation, not a transient fault: a retry reaches the same
+        // branch, so fail once and keep the job in the failed set.
+        outcome = 'unmatched_delivery';
+        metrics.fundScenarioUnmatchedDeliveries.inc({ reason: error.reason });
+        logger.warn('Unmatched fund scenario delivery', {
+          fundId,
+          scenarioSetId,
+          correlationId,
+          jobId: job.id,
+          reason: error.reason,
+        });
+        throw new UnrecoverableError(error.message);
+      }
+
       const err = error as Error;
       if (isFundScenarioHardTimeoutError(error)) {
         outcome = 'hard_timeout';
@@ -172,5 +192,4 @@ export const handleFundScenarioCalcJob: (
   job: FundScenarioCalcJob,
   _token?: string,
   signal?: AbortSignal
-) => Promise<FundScenarioCalculationResponseV1 | undefined> =
-  createFundScenarioCalcJobHandler();
+) => Promise<FundScenarioCalculationResponseV1 | undefined> = createFundScenarioCalcJobHandler();

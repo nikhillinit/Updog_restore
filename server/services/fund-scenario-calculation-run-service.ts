@@ -597,6 +597,27 @@ export async function findScenarioCalculationRunForDelivery(
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }
 
+/**
+ * Reads a run back after a zero-row claim and reports whether it still carries
+ * this delivery's job id and identity fence. Callers classify on the fence,
+ * never on status: a retry requeue can move the row between statements.
+ */
+export async function readScenarioCalculationRunFence(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<{ run: ScenarioCalculationRunRecord; fenceMatches: boolean } | null> {
+  const result = await client.query<ScenarioCalculationRunRow & { fence_matches: boolean | null }>(
+    `SELECT *,
+            (job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}) AS fence_matches
+       FROM fund_scenario_calculation_runs
+      WHERE id = $1`,
+    asyncRunFenceParams(runId, identity)
+  );
+  const row = result.rows[0];
+  return row ? { run: mapRun(row), fenceMatches: row.fence_matches === true } : null;
+}
+
 export async function completeScenarioCalculationRunIfRunning(
   client: QueryClient,
   runId: string,

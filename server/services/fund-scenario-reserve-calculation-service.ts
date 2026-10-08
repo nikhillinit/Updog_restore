@@ -34,12 +34,14 @@ import {
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import { logger } from '../lib/logger';
+import { metrics } from '../../lib/metrics';
 import {
   claimScenarioCalculationRunIfQueued,
   completeScenarioCalculationRunIfRunning,
   failScenarioCalculationRunIfRunning,
   findScenarioCalculationRunForDelivery,
   markScenarioCalculationRunTimedOut,
+  readScenarioCalculationRunFence,
   requeueScenarioCalculationRunIfRunning,
   type ScenarioCalculationRunRecord,
   type ScenarioCalculationRunFenceIdentity,
@@ -198,6 +200,66 @@ class ScenarioRunOwnershipLostError extends Error {
     super('Scenario calculation run ownership was lost');
     this.name = 'ScenarioRunOwnershipLostError';
   }
+}
+
+/**
+ * A delivery that no calculation run can own. The current producer commits the
+ * run before enqueueing, so this is a contract violation, never a race: the
+ * worker fails the job non-retryably instead of completing it silently.
+ */
+export class UnmatchedScenarioDeliveryError extends Error {
+  readonly reason: 'legacy_no_run' | 'missing_run' | 'identity_mismatch';
+  readonly fundId: number;
+  readonly scenarioSetId: string;
+  readonly jobId: string | null;
+  readonly correlationId: string;
+
+  constructor(input: {
+    reason: UnmatchedScenarioDeliveryError['reason'];
+    fundId: number;
+    scenarioSetId: string;
+    jobId: string | null;
+    correlationId: string;
+  }) {
+    super(
+      input.reason === 'identity_mismatch'
+        ? 'Fund scenario delivery was rejected by the run identity fence'
+        : 'Fund scenario delivery has no calculation run'
+    );
+    this.name = 'UnmatchedScenarioDeliveryError';
+    this.reason = input.reason;
+    this.fundId = input.fundId;
+    this.scenarioSetId = input.scenarioSetId;
+    this.jobId = input.jobId;
+    this.correlationId = input.correlationId;
+  }
+}
+
+function unmatchedDelivery(
+  reason: UnmatchedScenarioDeliveryError['reason'],
+  input: RunReserveScenarioCalculationInput,
+  jobId: string | null,
+  detail: Record<string, unknown> = {}
+): UnmatchedScenarioDeliveryError {
+  const error = new UnmatchedScenarioDeliveryError({
+    reason,
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    jobId,
+    correlationId: input.correlationId,
+  });
+  logger.warn(
+    {
+      fundId: input.fundId,
+      scenarioSetId: input.scenarioSetId,
+      jobId,
+      correlationId: input.correlationId,
+      reason,
+      ...detail,
+    },
+    error.message
+  );
+  return error;
 }
 
 class ScenarioRunIdentityDriftError extends Error {
@@ -710,11 +772,16 @@ async function claimReserveScenarioRun(
         ? await findScenarioCalculationRunForDelivery(client, runIdentity)
         : null;
     const deliveryRunId = input.runId ?? legacyDeliveryRun?.id ?? null;
-    if (deliveryRunId === null || (input.runId === undefined && legacyDeliveryRun?.status !== 'queued')) {
+    if (deliveryRunId === null) {
+      throw unmatchedDelivery('legacy_no_run', input, runIdentity.jobId);
+    }
+    if (input.runId === undefined && legacyDeliveryRun?.status !== 'queued') {
+      // A running legacy row can be an in-flight duplicate of this delivery.
       logger.info(
         { runId: deliveryRunId, jobId: runIdentity.jobId },
         'Ignoring fund scenario calculation delivery without a queued run'
       );
+      metrics.fundScenarioStaleDeliveries.inc();
       return null;
     }
 
@@ -728,10 +795,27 @@ async function claimReserveScenarioRun(
         deliveryRunId,
         runIdentity.jobId
       );
+      if (timedOut === 0) {
+        // Classify by fence, never by status: a retry requeue can move a
+        // matching row from running back to queued between these statements.
+        const readBack = await readScenarioCalculationRunFence(client, deliveryRunId, runIdentity);
+        if (readBack === null) {
+          throw unmatchedDelivery('missing_run', input, runIdentity.jobId, {
+            runId: deliveryRunId,
+          });
+        }
+        if (!readBack.fenceMatches) {
+          throw unmatchedDelivery('identity_mismatch', input, runIdentity.jobId, {
+            runId: deliveryRunId,
+            runJobId: readBack.run.jobId,
+          });
+        }
+      }
       logger.info(
         { runId: deliveryRunId, jobId: runIdentity.jobId, timedOut: timedOut > 0 },
         'Ignoring stale fund scenario calculation delivery'
       );
+      metrics.fundScenarioStaleDeliveries.inc();
       return null;
     }
 

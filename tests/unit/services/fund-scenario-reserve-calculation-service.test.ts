@@ -18,7 +18,9 @@ import {
   ReserveWorkerPermanentFailureError,
   ReserveWorkerTransientFailureError,
   runReserveScenarioCalculation,
+  UnmatchedScenarioDeliveryError,
 } from '../../../server/services/fund-scenario-reserve-calculation-service';
+import { metrics } from '../../../lib/metrics';
 import * as calculationRunService from '../../../server/services/fund-scenario-calculation-run-service';
 import * as reserveInputBuilder from '../../../server/services/reserve-input-builder';
 import * as scenarioSetService from '../../../server/services/fund-scenario-set-service';
@@ -157,14 +159,19 @@ function mockIdentityQueries(config: unknown): void {
     .mockResolvedValueOnce({ rows: [{ version: 3 }] });
 }
 
-function configureOrchestration(options: {
-  currentDate?: string | undefined;
-  completedResponse?: typeof reserveResponse | null;
-  claimResult?: Record<string, unknown> | null;
-  completionResult?: Record<string, unknown> | null;
-  failureResult?: Record<string, unknown> | null;
-  failureError?: Error | null;
-} = {}): { order: string[]; events: Array<Record<string, unknown>> } {
+function configureOrchestration(
+  options: {
+    currentDate?: string | undefined;
+    completedResponse?: typeof reserveResponse | null;
+    claimResult?: Record<string, unknown> | null;
+    completionResult?: Record<string, unknown> | null;
+    failureResult?: Record<string, unknown> | null;
+    failureError?: Error | null;
+    fenceReadBack?: Awaited<
+      ReturnType<typeof calculationRunService.readScenarioCalculationRunFence>
+    >;
+  } = {}
+): { order: string[]; events: Array<Record<string, unknown>> } {
   const order: string[] = [];
   const events: Array<Record<string, unknown>> = [];
   let transactionNumber = 0;
@@ -203,6 +210,13 @@ function configureOrchestration(options: {
     });
   void failureSpy;
   vi.spyOn(calculationRunService, 'requeueScenarioCalculationRunIfRunning').mockResolvedValue(1);
+  // Default zero-row-claim read-back: the row still carries this delivery's
+  // fence, so the delivery is a benign stale duplicate.
+  vi.spyOn(calculationRunService, 'readScenarioCalculationRunFence').mockResolvedValue(
+    options.fenceReadBack === undefined
+      ? { run: { ...orchestrationRun, status: 'running' }, fenceMatches: true }
+      : options.fenceReadBack
+  );
 
   vi.spyOn(scenarioSetService, 'insertScenarioSetEvent').mockImplementation(
     async (_client, event) => {
@@ -211,60 +225,72 @@ function configureOrchestration(options: {
       order.push(`event:${String(eventRecord.eventType)}`);
     }
   );
-  vi.spyOn(reserveInputBuilder, 'buildReservePortfolioInputForClientWithProvenance').mockImplementation(
-    async () => {
-      order.push('expensive-input');
-      return {
-        portfolio: [],
-        reserveInputTrustSummary: {
-          trustedForActivation: true,
-          defaultedInputCount: 0,
-          unavailableInputCount: 0,
-          defaultedFields: [],
-          unavailableFields: [],
-        },
-      };
-    }
-  );
+  vi.spyOn(
+    reserveInputBuilder,
+    'buildReservePortfolioInputForClientWithProvenance'
+  ).mockImplementation(async () => {
+    order.push('expensive-input');
+    return {
+      portfolio: [],
+      reserveInputTrustSummary: {
+        trustedForActivation: true,
+        defaultedInputCount: 0,
+        unavailableInputCount: 0,
+        defaultedFields: [],
+        unavailableFields: [],
+      },
+    };
+  });
   vi.spyOn(snapshotStore, 'findReusableReserveScenarioSnapshot').mockResolvedValue(
-    options.completedResponse
-      ? (options.completedResponse as never)
-      : null
+    options.completedResponse ? (options.completedResponse as never) : null
   );
   vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot').mockImplementation(async () => {
     order.push('snapshot');
     return reserveResponse as never;
   });
 
-  transactionMock.mockImplementation(async (callback: (client: { query: typeof identityQueryMock }) => unknown) => {
-    const transactionId = ++transactionNumber;
-    order.push(`tx${transactionId}:begin`);
-    const client = {
-      query: vi.fn(async (sqlValue: unknown) => {
-        const sql = String(sqlValue);
-        if (sql.includes('SELECT id, version, config')) {
-          return {
-            rows: [{ id: 2, version: 3, config: { fundName: 'Reserve Fund', ...(options.currentDate ? { modelInputsAsOfDate: options.currentDate } : { modelInputsAsOfDate: '2026-06-30' }) } }],
-          };
-        }
-        if (sql.includes('is_published = TRUE')) return { rows: [{ version: 3 }] };
-        if (sql.includes('SELECT size FROM funds')) return { rows: [{ size: '1000000' }] };
-        if (sql.includes('FROM fund_scenario_sets')) {
-          order.push('scenario-lock');
-          return { rows: [{ id: identityScenarioSetId }] };
-        }
-        return { rows: [] };
-      }),
-    };
-    try {
-      const result = await callback(client);
-      order.push(`tx${transactionId}:commit`);
-      return result;
-    } catch (error) {
-      order.push(`tx${transactionId}:rollback`);
-      throw error;
+  transactionMock.mockImplementation(
+    async (callback: (client: { query: typeof identityQueryMock }) => unknown) => {
+      const transactionId = ++transactionNumber;
+      order.push(`tx${transactionId}:begin`);
+      const client = {
+        query: vi.fn(async (sqlValue: unknown) => {
+          const sql = String(sqlValue);
+          if (sql.includes('SELECT id, version, config')) {
+            return {
+              rows: [
+                {
+                  id: 2,
+                  version: 3,
+                  config: {
+                    fundName: 'Reserve Fund',
+                    ...(options.currentDate
+                      ? { modelInputsAsOfDate: options.currentDate }
+                      : { modelInputsAsOfDate: '2026-06-30' }),
+                  },
+                },
+              ],
+            };
+          }
+          if (sql.includes('is_published = TRUE')) return { rows: [{ version: 3 }] };
+          if (sql.includes('SELECT size FROM funds')) return { rows: [{ size: '1000000' }] };
+          if (sql.includes('FROM fund_scenario_sets')) {
+            order.push('scenario-lock');
+            return { rows: [{ id: identityScenarioSetId }] };
+          }
+          return { rows: [] };
+        }),
+      };
+      try {
+        const result = await callback(client);
+        order.push(`tx${transactionId}:commit`);
+        return result;
+      } catch (error) {
+        order.push(`tx${transactionId}:rollback`);
+        throw error;
+      }
     }
-  });
+  );
 
   return { order, events };
 }
@@ -331,6 +357,7 @@ describe('fund scenario reserve calculation service', () => {
   it('does not acquire or create a run for a stale fenced delivery', async () => {
     const { order, events } = configureOrchestration();
     vi.mocked(calculationRunService.claimScenarioCalculationRunIfQueued).mockResolvedValue(null);
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
 
     const result = await runReserveScenarioCalculation({
       ...calculationInput,
@@ -343,14 +370,53 @@ describe('fund scenario reserve calculation service', () => {
       'stale-run-id',
       expect.objectContaining({ jobId: calculationInput.jobId })
     );
+    expect(calculationRunService.readScenarioCalculationRunFence).toHaveBeenCalledWith(
+      expect.anything(),
+      'stale-run-id',
+      expect.objectContaining({ jobId: calculationInput.jobId })
+    );
+    expect(staleInc).toHaveBeenCalledTimes(1);
     expect(calculationRunService.acquireScenarioCalculationRun).not.toHaveBeenCalled();
     expect(order).not.toContain('expensive-input');
     expect(events).toEqual([]);
   });
 
-  it('drains a legacy delivery without creating a replacement run', async () => {
+  it('fails a legacy delivery that has no run without creating a replacement run', async () => {
     const { order, events } = configureOrchestration();
     vi.mocked(calculationRunService.findScenarioCalculationRunForDelivery).mockResolvedValue(null);
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
+
+    const error = await runReserveScenarioCalculation({
+      ...calculationInput,
+      runId: undefined,
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(UnmatchedScenarioDeliveryError);
+    expect(error).toMatchObject({
+      reason: 'legacy_no_run',
+      fundId: calculationInput.fundId,
+      scenarioSetId: calculationInput.scenarioSetId,
+      jobId: calculationInput.jobId,
+      correlationId: calculationInput.correlationId,
+      message: 'Fund scenario delivery has no calculation run',
+    });
+    expect(calculationRunService.findScenarioCalculationRunForDelivery).toHaveBeenCalled();
+    expect(calculationRunService.claimScenarioCalculationRunIfQueued).not.toHaveBeenCalled();
+    expect(calculationRunService.acquireScenarioCalculationRun).not.toHaveBeenCalled();
+    expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(calculationRunService.requeueScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(staleInc).not.toHaveBeenCalled();
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
+  it('treats a legacy delivery against a running run as stale', async () => {
+    const { order, events } = configureOrchestration();
+    vi.mocked(calculationRunService.findScenarioCalculationRunForDelivery).mockResolvedValue({
+      ...orchestrationRun,
+      status: 'running',
+    });
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
 
     const result = await runReserveScenarioCalculation({
       ...calculationInput,
@@ -358,9 +424,90 @@ describe('fund scenario reserve calculation service', () => {
     });
 
     expect(isScenarioCalculationOwnershipLost(result)).toBe(true);
-    expect(calculationRunService.findScenarioCalculationRunForDelivery).toHaveBeenCalled();
     expect(calculationRunService.claimScenarioCalculationRunIfQueued).not.toHaveBeenCalled();
+    expect(staleInc).toHaveBeenCalledTimes(1);
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
+  it('treats a zero-row claim the timeout CAS terminalized as stale', async () => {
+    const { order, events } = configureOrchestration({ claimResult: null });
+    vi.spyOn(calculationRunService, 'markScenarioCalculationRunTimedOut').mockResolvedValue(1);
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
+
+    const result = await runReserveScenarioCalculation(calculationInput);
+
+    expect(isScenarioCalculationOwnershipLost(result)).toBe(true);
+    expect(staleInc).toHaveBeenCalledTimes(1);
+    expect(calculationRunService.readScenarioCalculationRunFence).not.toHaveBeenCalled();
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
+  it('keeps a zero-row claim stale when the row was requeued between claim and read', async () => {
+    const { order, events } = configureOrchestration({
+      claimResult: null,
+      fenceReadBack: { run: { ...orchestrationRun, status: 'queued' }, fenceMatches: true },
+    });
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
+
+    const result = await runReserveScenarioCalculation(calculationInput);
+
+    expect(isScenarioCalculationOwnershipLost(result)).toBe(true);
+    expect(staleInc).toHaveBeenCalledTimes(1);
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
+  it('fails a fenced delivery whose referenced run row is gone', async () => {
+    const { order, events } = configureOrchestration({ claimResult: null, fenceReadBack: null });
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
+
+    const error = await runReserveScenarioCalculation(calculationInput).catch(
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(UnmatchedScenarioDeliveryError);
+    expect(error).toMatchObject({
+      reason: 'missing_run',
+      fundId: calculationInput.fundId,
+      scenarioSetId: calculationInput.scenarioSetId,
+      jobId: calculationInput.jobId,
+      correlationId: calculationInput.correlationId,
+      message: 'Fund scenario delivery has no calculation run',
+    });
+    expect(order).toContain('tx1:rollback');
     expect(calculationRunService.acquireScenarioCalculationRun).not.toHaveBeenCalled();
+    expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(calculationRunService.requeueScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(staleInc).not.toHaveBeenCalled();
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
+  it('fails a fenced delivery the identity fence rejected', async () => {
+    const { order, events } = configureOrchestration({
+      claimResult: null,
+      fenceReadBack: {
+        run: { ...orchestrationRun, status: 'queued', jobId: 'job-someone-else' },
+        fenceMatches: false,
+      },
+    });
+    const staleInc = vi.spyOn(metrics.fundScenarioStaleDeliveries, 'inc');
+
+    const error = await runReserveScenarioCalculation(calculationInput).catch(
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(UnmatchedScenarioDeliveryError);
+    expect(error).toMatchObject({
+      reason: 'identity_mismatch',
+      jobId: calculationInput.jobId,
+      message: 'Fund scenario delivery was rejected by the run identity fence',
+    });
+    expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(calculationRunService.requeueScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+    expect(staleInc).not.toHaveBeenCalled();
     expect(order).not.toContain('expensive-input');
     expect(events).toEqual([]);
   });
@@ -444,9 +591,8 @@ describe('fund scenario reserve calculation service', () => {
 
     await expect(runReserveScenarioCalculation(calculationInput)).rejects.toBe(smuggledError);
 
-    const failureCall = vi.mocked(
-      calculationRunService.failScenarioCalculationRunIfRunning
-    ).mock.calls[0];
+    const failureCall = vi.mocked(calculationRunService.failScenarioCalculationRunIfRunning).mock
+      .calls[0];
     expect(failureCall?.[3]).toEqual({
       code: 'WORKER_EXECUTION_FAILED',
       message: 'Reserve scenario calculation failed during worker execution',
@@ -492,9 +638,8 @@ describe('fund scenario reserve calculation service', () => {
 
     await expect(runReserveScenarioCalculation(calculationInput)).rejects.toBe(brandedError);
 
-    const failureCall = vi.mocked(
-      calculationRunService.failScenarioCalculationRunIfRunning
-    ).mock.calls[0];
+    const failureCall = vi.mocked(calculationRunService.failScenarioCalculationRunIfRunning).mock
+      .calls[0];
     expect(failureCall?.[3]).toEqual({
       code: 'PERMANENT_WORKER_FAILURE',
       message: 'Reserve scenario calculation failed permanently in the worker',
@@ -529,9 +674,8 @@ describe('fund scenario reserve calculation service', () => {
     await expect(
       failingRunner({ ...calculationInput, attempt: { number: 2, limit: 2 } })
     ).rejects.toBeInstanceOf(ReserveWorkerTransientFailureError);
-    const failureCall = vi.mocked(
-      calculationRunService.failScenarioCalculationRunIfRunning
-    ).mock.calls[0];
+    const failureCall = vi.mocked(calculationRunService.failScenarioCalculationRunIfRunning).mock
+      .calls[0];
     expect(failureCall?.[3]).toMatchObject({ code: 'TRANSIENT_WORKER_FAILURE' });
   });
 

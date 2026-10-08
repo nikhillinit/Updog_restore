@@ -57,6 +57,18 @@ const fundScenarioHardTimeouts = getOrCreateCounter(
   []
 );
 
+const fundScenarioUnmatchedDeliveries = getOrCreateCounter(
+  'fund_scenario_unmatched_deliveries_total',
+  'Fund scenario deliveries failed because no calculation run matched them',
+  ['reason']
+);
+
+const fundScenarioStaleDeliveries = getOrCreateCounter(
+  'fund_scenario_stale_deliveries_total',
+  'Fund scenario deliveries ignored as stale duplicates of a matching run',
+  []
+);
+
 const fundScenarioHardTimeoutDuration = getOrCreateHistogram(
   'fund_scenario_hard_timeout_duration_seconds',
   'Configured fund scenario hard timeout duration in seconds',
@@ -115,6 +127,8 @@ export const metrics = {
   snapshotWrites,
   fundScenarioHardTimeouts,
   fundScenarioHardTimeoutDuration,
+  fundScenarioUnmatchedDeliveries,
+  fundScenarioStaleDeliveries,
   capitalCallStatusHardTimeouts,
   capitalCallStatusHardTimeoutDuration,
   workerJobDuration,
