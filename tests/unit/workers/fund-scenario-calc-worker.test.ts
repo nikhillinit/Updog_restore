@@ -8,9 +8,12 @@ const {
   reserveFailureCounterMock,
   fundScenarioHardTimeoutsMock,
   fundScenarioHardTimeoutDurationMock,
+  fundScenarioUnmatchedDeliveriesMock,
   workerJobDurationMock,
   loggerInfoMock,
+  loggerWarnMock,
   loggerErrorMock,
+  MockUnmatchedScenarioDeliveryError,
   workerConstructorMock,
   workerCloseMock,
   queueConstructorMock,
@@ -31,9 +34,22 @@ const {
   reserveFailureCounterMock: vi.fn(),
   fundScenarioHardTimeoutsMock: { inc: vi.fn() },
   fundScenarioHardTimeoutDurationMock: { observe: vi.fn() },
+  fundScenarioUnmatchedDeliveriesMock: { inc: vi.fn() },
   workerJobDurationMock: { observe: vi.fn() },
   loggerInfoMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
   loggerErrorMock: vi.fn(),
+  // The handler narrows with instanceof, so the mocked service must export
+  // the exact class the test rejects with.
+  MockUnmatchedScenarioDeliveryError: class UnmatchedScenarioDeliveryError extends Error {
+    constructor(
+      readonly reason: 'legacy_no_run' | 'missing_run' | 'identity_mismatch',
+      message: string
+    ) {
+      super(message);
+      this.name = 'UnmatchedScenarioDeliveryError';
+    }
+  },
   workerConstructorMock: vi.fn(),
   workerCloseMock: vi.fn().mockResolvedValue(undefined),
   queueConstructorMock: vi.fn(),
@@ -51,6 +67,7 @@ const {
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
   runReserveScenarioCalculation: runReserveScenarioCalculationMock,
   isScenarioCalculationOwnershipLost: (value: unknown) => value === ownershipLostOutcome,
+  UnmatchedScenarioDeliveryError: MockUnmatchedScenarioDeliveryError,
 }));
 
 vi.mock('../../../server/config/features', () => ({
@@ -60,6 +77,7 @@ vi.mock('../../../server/config/features', () => ({
 vi.mock('../../../lib/logger', () => ({
   logger: {
     info: loggerInfoMock,
+    warn: loggerWarnMock,
     error: loggerErrorMock,
   },
 }));
@@ -72,6 +90,7 @@ vi.mock('../../../lib/metrics', () => ({
     engineErrors: { inc: reserveEngineErrorMock },
     fundScenarioHardTimeouts: fundScenarioHardTimeoutsMock,
     fundScenarioHardTimeoutDuration: fundScenarioHardTimeoutDurationMock,
+    fundScenarioUnmatchedDeliveries: fundScenarioUnmatchedDeliveriesMock,
     workerJobDuration: workerJobDurationMock,
   },
 }));
@@ -269,6 +288,56 @@ describe('fund scenario calc worker handler', () => {
       expect.any(Number)
     );
     expect(loggerErrorMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['legacy_no_run', 'Fund scenario delivery has no calculation run'],
+    ['missing_run', 'Fund scenario delivery has no calculation run'],
+    ['identity_mismatch', 'Fund scenario delivery was rejected by the run identity fence'],
+  ] as const)('fails an unmatched delivery non-retryably (%s)', async (reason, message) => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    runReserveScenarioCalculationMock.mockRejectedValue(
+      new MockUnmatchedScenarioDeliveryError(reason, message)
+    );
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-unmatched',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          actor: null,
+        },
+      })
+    ).rejects.toMatchObject({ name: 'UnrecoverableError', message });
+
+    expect(workerJobDurationMock.observe).toHaveBeenCalledTimes(1);
+    expect(workerJobDurationMock.observe).toHaveBeenCalledWith(
+      { worker_type: 'fund-scenario-calc', outcome: 'unmatched_delivery' },
+      expect.any(Number)
+    );
+    expect(fundScenarioUnmatchedDeliveriesMock.inc).toHaveBeenCalledTimes(1);
+    expect(fundScenarioUnmatchedDeliveriesMock.inc).toHaveBeenCalledWith({ reason });
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      'Unmatched fund scenario delivery',
+      expect.objectContaining({
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        correlationId: '00000000-0000-0000-0000-000000000123',
+        jobId: 'job-unmatched',
+        reason,
+      })
+    );
+    expect(loggerErrorMock).not.toHaveBeenCalled();
+    expect(reserveMetricTimerMock).not.toHaveBeenCalled();
+    expect(reserveEngineErrorMock).not.toHaveBeenCalled();
+    expect(reserveFailureCounterMock).not.toHaveBeenCalled();
+    expect(fundScenarioHardTimeoutsMock.inc).not.toHaveBeenCalled();
   });
 
   it('importing the handler does not start a BullMQ worker or health server', async () => {

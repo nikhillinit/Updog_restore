@@ -4540,6 +4540,17 @@ describe('required CI fails closed', () => {
       expect(String(step.with?.['exit-code'])).toBe('1');
     }
 
+    const deepScanWorkflow = await readWorkflow('security-scan.yml');
+    for (const jobName of ['filesystem-scan', 'container-scan']) {
+      const sarifStep = deepScanWorkflow.jobs?.[jobName]?.steps?.find((step) =>
+        step.uses?.includes('aquasecurity/trivy-action')
+      );
+      expect(sarifStep?.with?.format).toBe('sarif');
+      expect(String(sarifStep?.with?.severity)).toBe('CRITICAL,HIGH');
+      expect(String(sarifStep?.with?.['limit-severities-for-sarif'])).toBe('true');
+      expect(String(sarifStep?.with?.['exit-code'])).toBe('1');
+    }
+
     const gateNeeds = workflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
     expect(normalizedNeeds).toContain('pr-light-security');

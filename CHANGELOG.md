@@ -22,6 +22,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-08)
+
+- Reserve scenario deliveries that no calculation run can own no longer complete
+  silently. The worker fails them non-retryably (`UnrecoverableError`, kept in
+  the BullMQ failed set for a day) with a `warn` line carrying the fund,
+  scenario set, job, and correlation ids, the
+  `fund_scenario_unmatched_deliveries_total{reason}` counter (`legacy_no_run`,
+  `missing_run`, `identity_mismatch`), and the `unmatched_delivery` outcome on
+  `worker_job_duration_seconds`. Stale duplicates keep their benign completion
+  and are counted by `fund_scenario_stale_deliveries_total`. The
+  production-boundaries database health assertion now reports the response body.
+  See ADR-106.
+
 ### Fixed (2026-10-02)
 
 - New Fund draft saves and resumes no longer fail with "Save not confirmed" on

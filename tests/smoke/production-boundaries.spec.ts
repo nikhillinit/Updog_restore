@@ -90,7 +90,9 @@ test.describe('production boundary smoke', () => {
     expect(body['status']).toBe('ok');
   });
 
-  test('deployed release identity matches checked-out package and expected SHA', async ({ request }) => {
+  test('deployed release identity matches checked-out package and expected SHA', async ({
+    request,
+  }) => {
     // SKIP: ad-hoc smoke runs may omit release identity; governed workflows require EXPECTED_SHA.
     test.skip(!EXPECTED_SHA, 'EXPECTED_SHA is required by the governed release workflow');
     expect(EXPECTED_SHA, 'EXPECTED_SHA must be provided by governed release workflow').toMatch(
@@ -160,7 +162,8 @@ test.describe('production boundary smoke', () => {
     });
 
     expectNotSpaRewrite(response);
-    expect(response.status()).toBe(200);
+    // The body names which 503 path fired (F_1.21.0 diagnosis aid).
+    expect(response.status(), await response.text()).toBe(200);
     expectContentTypeStartsWith(response, 'application/json');
   });
 
