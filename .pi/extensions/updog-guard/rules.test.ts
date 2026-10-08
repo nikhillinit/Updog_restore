@@ -28,7 +28,28 @@ test('bash: owner-only production actions are hard blocks', () => {
   assert.deepEqual(ids(BASH_RULES, 'gh workflow run release-production.yml'), [
     'hard:prod-dispatch',
     'confirm:workflow-run',
+    'confirm:github-write',
   ]);
+  for (const cmd of [
+    'gh api -X POST repos/nikhillinit/Updog_restore/actions/workflows/release-production.yml/dispatches -f ref=main',
+    'gh api --method post /repos/nikhillinit/Updog_restore/actions/workflows/current-forecast-production-action.yml/dispatches -f ref=main',
+    'gh api repos/nikhillinit/Updog_restore/actions/workflows/release-canary-recovery.yml/dispatches -f ref=main',
+    'gh -R nikhillinit/Updog_restore workflow run release-production.yml',
+    'gh -Rnikhillinit/Updog_restore workflow run release-production.yml',
+    'gh --hostname github.com api -X POST https://api.github.com/repos/nikhillinit/Updog_restore/actions/workflows/release-production.yml/dispatches -f ref=main',
+    'gh api -X GET --method POST repos/nikhillinit/Updog_restore/actions/workflows/release-production.yml/dispatches -f ref=main',
+    'gh.exe workflow run release-production.yml',
+    'gh workflow run 123456 --ref main',
+    'gh api -X POST repos/nikhillinit/Updog_restore/actions/workflows/123456/dispatches -f ref=main',
+  ]) {
+    assert.equal(ids(BASH_RULES, cmd)[0], 'hard:prod-dispatch', cmd);
+  }
+  assert.ok(
+    !ids(
+      BASH_RULES,
+      'gh api -X GET repos/nikhillinit/Updog_restore/actions/workflows/release-production.yml/dispatches -f ref=main'
+    ).some((id) => id.startsWith('hard:'))
+  );
 });
 
 test('bash: every force spelling to main/master is a hard block', () => {
@@ -152,6 +173,16 @@ test('bash: destructive and external actions need confirmation', () => {
     ['gh api --method=POST repos/o/r/issues', 'github-write'],
     ['gh api repos/o/r/issues -ftitle=x', 'github-write'],
     ['gh api repos/o/r/issues -Ftitle=x', 'github-write'],
+    ['gh api -X delete repos/o/r/issues/1', 'github-write'],
+    ['gh api --method=patch repos/o/r/issues/1 -f title=x', 'github-write'],
+    ['gh api --method GET -X DELETE repos/o/r/issues/1', 'github-write'],
+    ['gh secret set FOO --body bar', 'github-write'],
+    ['gh variable set FOO --body bar', 'github-write'],
+    ['gh workflow disable release-production.yml', 'github-write'],
+    ['gh repo delete nikhillinit/Updog_restore --yes', 'github-write'],
+    ['gh run cancel 123', 'github-write'],
+    ['gh unknown command', 'github-write'],
+    ['gh.exe pr create --fill', 'github-write'],
     ['cat .env', 'secret-read'],
     ['head -5 server/.env.local', 'secret-read'],
   ];
@@ -176,7 +207,21 @@ test('bash: routine commands pass', () => {
     "git commit -m 'fix: x'",
     'git push origin feature/x',
     'gh pr view 12',
+    'gh pr checks 12 --watch',
+    'gh issue list --state open',
+    'gh repo view --json nameWithOwner',
+    'gh run list --limit 5',
+    'gh run watch 123',
+    'gh workflow list',
+    'gh workflow view ci.yml',
+    'gh release view v1.0.0',
+    'gh secret list',
+    'gh variable get FOO',
+    'gh auth status',
+    'gh -R nikhillinit/Updog_restore pr view 1615',
     'gh api repos/o/r/pulls',
+    'gh api -X get search/issues -f q=repo:o/r',
+    'gh api -X GET --method get search/issues -f q=repo:o/r',
     'gh api -X GET search/issues -f q=repo:o/r',
     'gh api --method=GET search/issues -fq=x',
     'git push --all origin',
@@ -224,6 +269,8 @@ test('truth run recognition requires an unmasked truth command', () => {
     'npm run phoenix:truth',
     'TZ=UTC npm run phoenix:truth',
     'TZ=UTC npx vitest run tests/unit/truth-cases/runner.test.ts',
+    'npx vitest run tests/unit/truth-cases/',
+    'npx vitest run tests/unit/truth-cases/xirr.test.ts tests/unit/truth-cases/runner.test.ts',
   ]) {
     assert.ok(TRUTH_RUN.test(cmd), cmd);
   }
@@ -240,6 +287,12 @@ test('truth run recognition requires an unmasked truth command', () => {
     'X=x;true npm run phoenix:truth',
     'X=$(true) npm run phoenix:truth',
     'X=x&&true npm run phoenix:truth',
+    'npm run phoenix:truth -- --help',
+    'npx vitest run fake/tests/unit/truth-cases --passWithNoTests',
+    'npx vitest run tests/unit/truth-cases/fake.test.ts --passWithNoTests',
+    'npx vitest run tests/unit/truth-cases/runner.test.ts --help',
+    'npx vitest run tests/unit/truth-cases/runner.test.ts -t "xirr"',
+    'npx vitest run tests/unit/truth-cases/../foo.test.ts',
   ]) {
     assert.ok(!TRUTH_RUN.test(cmd), cmd);
   }

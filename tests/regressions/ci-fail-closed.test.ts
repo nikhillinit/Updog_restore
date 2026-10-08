@@ -4439,6 +4439,15 @@ describe('required CI fails closed', () => {
     const fullMatrix = workflow.jobs?.['test-full']?.strategy?.matrix?.group;
     expect(checkMatrix).toEqual(['typecheck', 'lint', 'unit-fast']);
     expect(fullMatrix).toBe('${{ fromJSON(needs.changes.outputs.test_full_groups) }}');
+    const checkScript = (workflow.jobs?.check?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    const unitFast = checkScript.match(/unit-fast\)([\s\S]*?);;/)?.[1] ?? '';
+    expect(unitFast).toContain(
+      'TZ=UTC node --experimental-strip-types --test .pi/extensions/updog-guard/*.test.ts'
+    );
+    expect(unitFast).toContain('npm run test:unit');
+    expect(unitFast).not.toMatch(/\|\||\|\s*true|;\s*true/);
     expect(workflow.jobs?.['test-affected']?.if).toContain(
       "needs.changes.outputs.schema != 'true'"
     );

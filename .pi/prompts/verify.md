@@ -17,7 +17,7 @@ ${@:-all changed paths}.
    (`npx vitest run <paths>`). Run `npm test` only when targeted tests pass but
    suspicion remains, or when test infrastructure, shared mocks, or fixtures
    changed. If `.pi/extensions/` changed, also run
-   `node --experimental-strip-types --test .pi/extensions/updog-guard/rules.test.ts`
+   `node --experimental-strip-types --test .pi/extensions/updog-guard/*.test.ts`
    (Vitest and ESLint do not cover `.pi/`).
 5. Financial paths: if any changed path is financial per
    `scripts/ci/classify-change-paths.mjs` (`isFinancialPath`), run

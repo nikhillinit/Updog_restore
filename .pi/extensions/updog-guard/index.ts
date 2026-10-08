@@ -21,7 +21,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
@@ -38,6 +39,15 @@ import {
 } from './rules.ts';
 
 export default function updogGuard(pi: ExtensionAPI) {
+  type FinancialSnapshot = {
+    complete: boolean;
+    head: string;
+    fingerprint: string;
+    paths: string[];
+  };
+
+  // ponytail: sample 64 dirty paths; overflow keeps the truth reminder armed.
+  const MAX_SNAPSHOT_PATHS = 64;
   let repoRoot = '';
   let isFinancialPath: ((p: string) => boolean) | undefined;
   let sentRepoState = false;
@@ -45,6 +55,7 @@ export default function updogGuard(pi: ExtensionAPI) {
   // Session-scoped, not per run: retries and continuations start new runs, and
   // pending financial edits must survive them until a truth run clears them.
   const financialEdits = new Set<string>();
+  const shellSnapshots = new Map<string, FinancialSnapshot>();
   let reminded = false;
   let touched = 0;
 
@@ -58,6 +69,108 @@ export default function updogGuard(pi: ExtensionAPI) {
       .join('/');
     return rel.startsWith('..') ? abs : rel;
   };
+
+  const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+
+  const parseStatus = (status: string) => {
+    const entries: { path: string; status: string }[] = [];
+    const records = status.split('\0');
+    for (let index = 0; index < records.length; index++) {
+      const record = records[index];
+      if (!record) continue;
+      const code = record.slice(0, 2);
+      const changedPath = record.slice(3);
+      if (changedPath) entries.push({ path: changedPath, status: code });
+      if (/[RC]/.test(code)) index++;
+    }
+    return entries;
+  };
+
+  async function snapshotFinancialState(): Promise<FinancialSnapshot> {
+    if (!repoRoot || !isFinancialPath)
+      return { complete: false, head: '', fingerprint: '', paths: [] };
+
+    const [status, head] = await Promise.all([
+      pi.exec('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
+        cwd: repoRoot,
+        timeout: 5000,
+      }),
+      pi.exec('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, timeout: 5000 }),
+    ]);
+    if (status.code !== 0 || head.code !== 0 || !head.stdout.trim())
+      return { complete: false, head: '', fingerprint: '', paths: [] };
+
+    const entries = parseStatus(status.stdout)
+      .filter((entry) => isFinancialPath?.(entry.path))
+      .sort((a, b) => a.path.localeCompare(b.path));
+    const paths = entries.map((entry) => entry.path);
+    const sampled = entries.slice(0, MAX_SNAPSHOT_PATHS);
+    const tracked = sampled.filter((entry) => entry.status !== '??').map((entry) => entry.path);
+    const untracked = sampled.filter((entry) => entry.status === '??').map((entry) => entry.path);
+    const empty = { code: 0, stdout: '' };
+    const [trackedDiff, untrackedHashes] = await Promise.all([
+      tracked.length > 0
+        ? pi.exec('git', ['diff', '--no-ext-diff', '--binary', 'HEAD', '--', ...tracked], {
+            cwd: repoRoot,
+            timeout: 5000,
+          })
+        : empty,
+      untracked.length > 0
+        ? pi.exec('git', ['hash-object', '--no-filters', '--', ...untracked], {
+            cwd: repoRoot,
+            timeout: 5000,
+          })
+        : empty,
+    ]);
+    const complete =
+      entries.length <= MAX_SNAPSHOT_PATHS && trackedDiff.code === 0 && untrackedHashes.code === 0;
+    const fingerprint = hash(
+      JSON.stringify(sampled.map(({ path: changedPath, status: code }) => [changedPath, code])) +
+        trackedDiff.stdout +
+        untrackedHashes.stdout
+    );
+
+    return { complete, head: head.stdout.trim(), fingerprint, paths };
+  }
+
+  async function reconcileShellState(
+    before: FinancialSnapshot | undefined,
+    after: FinancialSnapshot
+  ) {
+    const paths = new Set([...(before?.paths ?? []), ...after.paths]);
+    if (!before || !before.complete || !after.complete) {
+      for (const changedPath of paths) financialEdits.add(changedPath);
+      if (paths.size === 0) {
+        financialEdits.add('(shell financial state unavailable)');
+      }
+      if (financialEdits.size > 0) reminded = false;
+      return;
+    }
+
+    let changed = before.fingerprint !== after.fingerprint;
+    if (before.head !== after.head) {
+      const committed = await pi.exec(
+        'git',
+        ['diff', '--name-only', '-z', before.head, after.head, '--'],
+        { cwd: repoRoot, timeout: 5000 }
+      );
+      if (committed.code !== 0) {
+        paths.add('(shell financial state unavailable)');
+        changed = true;
+      } else {
+        for (const changedPath of committed.stdout.split('\0')) {
+          if (isFinancialPath?.(changedPath)) {
+            paths.add(changedPath);
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) {
+      for (const changedPath of paths) financialEdits.add(changedPath);
+      reminded = false;
+    }
+  }
 
   async function git(args: string[]) {
     const r = await pi.exec('git', args, { cwd: repoRoot || undefined, timeout: 5000 });
@@ -135,6 +248,7 @@ export default function updogGuard(pi: ExtensionAPI) {
   pi.on('session_shutdown', async () => {
     allowedForSession.clear();
     financialEdits.clear();
+    shellSnapshots.clear();
     reminded = false;
     touched = 0;
   });
@@ -172,24 +286,56 @@ export default function updogGuard(pi: ExtensionAPI) {
       const result = await decideAll(BASH_RULES, command, ctx);
       if (result) return result;
       // Already decided by the local force-push rule; do not prompt twice.
-      if (matchRules(BASH_RULES, command).some((r) => r.id === 'force-push')) return undefined;
-      const guard = runGitGuardScript(command);
-      if (!guard.blocked) return undefined;
-      const rule: Rule = guard.protectedBranch
-        ? {
-            id: 'force-push-main',
-            tier: 'hard',
-            test: /./,
-            reason: 'Force push to main/master is not allowed.',
-          }
-        : { id: 'force-push', tier: 'confirm', test: /./, reason: 'Force push (git-guard-hook).' };
-      return decide(rule, command, ctx);
+      if (!matchRules(BASH_RULES, command).some((r) => r.id === 'force-push')) {
+        const guard = runGitGuardScript(command);
+        if (guard.blocked) {
+          const rule: Rule = guard.protectedBranch
+            ? {
+                id: 'force-push-main',
+                tier: 'hard',
+                test: /./,
+                reason: 'Force push to main/master is not allowed.',
+              }
+            : {
+                id: 'force-push',
+                tier: 'confirm',
+                test: /./,
+                reason: 'Force push (git-guard-hook).',
+              };
+          const guardResult = await decide(rule, command, ctx);
+          if (guardResult) return guardResult;
+        }
+      }
+      shellSnapshots.set(event.toolCallId, await snapshotFinancialState());
+      return undefined;
     }
     const raw = String(input.path ?? '');
     if (kind === 'write')
       return raw ? decideAll(WRITE_PATH_RULES, toRepoPath(raw, ctx.cwd), ctx) : undefined;
-    if (kind === 'read')
-      return raw ? decideAll(READ_PATH_RULES, toRepoPath(raw, ctx.cwd), ctx) : undefined;
+    if (kind === 'read') {
+      const effectivePath = toRepoPath(raw || '.', ctx.cwd);
+      const pathResult = await decideAll(READ_PATH_RULES, effectivePath, ctx);
+      if (pathResult) return pathResult;
+      if (event.toolName === 'grep') {
+        let explicitFile = false;
+        try {
+          explicitFile =
+            statSync(path.resolve(ctx.cwd, raw.replace(/^@/, '') || '.'), {
+              throwIfNoEntry: false,
+            })?.isFile() ?? false;
+        } catch {
+          // Unknown search roots can still contain secret files.
+        }
+        if (!explicitFile) {
+          return decideAll(
+            READ_PATH_RULES,
+            toRepoPath(path.join(raw || '.', '.env'), ctx.cwd),
+            ctx
+          );
+        }
+      }
+      return undefined;
+    }
     if (kind === 'unverified') {
       const rule: Rule = {
         id: `tool:${event.toolName}`,
@@ -203,6 +349,16 @@ export default function updogGuard(pi: ExtensionAPI) {
   });
 
   pi.on('tool_result', async (event, ctx) => {
+    if (classifyTool(event.toolName) === 'shell') {
+      const before = shellSnapshots.get(event.toolCallId);
+      shellSnapshots.delete(event.toolCallId);
+      const after = await snapshotFinancialState();
+      await reconcileShellState(before, after);
+      if (!event.isError && TRUTH_RUN.test(String(event.input.command ?? ''))) {
+        financialEdits.clear();
+      }
+      return undefined;
+    }
     if (event.isError) return undefined;
     if (event.toolName === 'write' || event.toolName === 'edit') {
       touched++;
@@ -211,11 +367,6 @@ export default function updogGuard(pi: ExtensionAPI) {
         financialEdits.add(rel);
         reminded = false;
       }
-    } else if (
-      classifyTool(event.toolName) === 'shell' &&
-      TRUTH_RUN.test(String(event.input.command ?? ''))
-    ) {
-      financialEdits.clear();
     }
     return undefined;
   });

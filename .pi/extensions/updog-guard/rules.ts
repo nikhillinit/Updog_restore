@@ -39,6 +39,44 @@ const VALUE_FLAGS = new Set(['-o', '--push-option', '--receive-pack', '--exec'])
 /** Redirections with optional fd and attached or separated target: `2>/dev/null`, `2>&1`, `> out`, `<in`. */
 const REDIRECT = /\d*(?:[<>]+&?|&>>?)[ \t]*[^\s<>]*/g;
 
+const GH_READ_ONLY =
+  /^(?:alias\s+list|auth\s+status|config\s+(?:get|list)|issue\s+(?:list|status|view)|pr\s+(?:checks|diff|list|status|view)|release\s+(?:list|verify|verify-asset|view)|repo\s+(?:gitignore|license|list|read-dir|read-file|view)|run\s+(?:list|view|watch)|search\s+\S+|secret\s+list|status\b|variable\s+(?:get|list)|workflow\s+(?:list|view))\b/;
+const GH_PRODUCTION_DISPATCH =
+  /(?:^|\s)(?:https:\/\/api\.github\.com\/|\/?)repos\/[^\s/]+\/[^\s/]+\/actions\/workflows\/(?:\d+|[^\s/]*(?:prod|release-production|release-canary|production-action)[^\s/]*)\/dispatches\b/i;
+
+const githubArgs = (args: string) =>
+  args.trim().replace(/^(?:(?:-R(?:\S+|\s+\S+)|--(?:repo|hostname)(?:=\S+|\s+\S+))\s+)*/, '');
+
+function githubApiIsWrite(args: string): boolean {
+  const methods = [...args.matchAll(/(?:^|\s)(?:-X|--method)(?:=|\s+)?([a-z]+)\b/gi)];
+  if (methods.length) return methods.some((match) => match[1].toUpperCase() !== 'GET');
+  return /(?:^|\s)(?:-[fF]\S*|--(?:raw-)?field(?:=|\s|$)|--input(?:=|\s|$))/.test(args);
+}
+
+function githubNeedsConfirmation(command: string): boolean {
+  for (const match of command.matchAll(/\bgh(?:\.exe)?\s+([^;&|\n]+)/gi)) {
+    const args = githubArgs(match[1]);
+    if (/^(?:--help|--version|help\b)/.test(args) || GH_READ_ONLY.test(args)) continue;
+    if (/^api\b/.test(args) && !githubApiIsWrite(args.slice(3))) continue;
+    return true;
+  }
+  return false;
+}
+
+function isProductionDispatch(command: string): boolean {
+  for (const match of command.matchAll(/\bgh(?:\.exe)?\s+([^;&|\n]+)/gi)) {
+    const args = githubArgs(match[1]);
+    if (
+      /^workflow\s+run\b/.test(args) &&
+      /prod|release-production|release-canary|production-action|\s\d+(?=\s|$)/.test(args)
+    )
+      return true;
+    if (/^api\b/.test(args) && GH_PRODUCTION_DISPATCH.test(args) && githubApiIsWrite(args))
+      return true;
+  }
+  return false;
+}
+
 /**
  * True when a forced `git push` has no explicit destination: no refspec, or
  * only HEAD/@. Git then resolves the target from whatever repository, branch,
@@ -99,9 +137,9 @@ export const BASH_RULES: Rule[] = [
   {
     id: 'prod-dispatch',
     tier: 'hard',
-    test: /\bgh\s+workflow\s+run\b[^\n]*(prod|release-production|release-canary|production-action)/,
+    test: { test: isProductionDispatch },
     reason:
-      'Production workflow dispatch is owner-only; evidence never supplies dispatch authority.',
+      'Production workflow dispatch is owner-only; numeric workflow targets cannot be verified from command text.',
   },
   {
     id: 'vercel-prod',
@@ -236,19 +274,19 @@ export const BASH_RULES: Rule[] = [
   {
     id: 'workflow-run',
     tier: 'confirm',
-    test: /\bgh\s+workflow\s+run\b/,
+    test: /\bgh(?:\.exe)?\s+workflow\s+run\b/i,
     reason: 'Dispatches a CI workflow.',
   },
   {
     id: 'pr-merge',
     tier: 'confirm',
-    test: /\bgh\s+pr\s+merge\b/,
+    test: /\bgh(?:\.exe)?\s+pr\s+merge\b/i,
     reason: 'Merge is source admission; requires current-head CI Gate Status.',
   },
   {
     id: 'github-write',
     tier: 'confirm',
-    test: /\bgh\s+(pr\s+(create|comment|review|close|reopen|ready|edit)|issue\s+(create|comment|close|edit)|release\s+(create|edit|delete)|api\b[^\n]*(-X|--method)(\s*|=)(POST|PUT|PATCH|DELETE))\b|\bgh\s+api\b(?![^\n]*(-X|--method)(\s*|=)GET\b)[^\n]*\s(-[fF]\S*|--raw-field|--field|--input)(\s|=|$)/,
+    test: { test: githubNeedsConfirmation },
     reason: 'Writes to GitHub (visible to others).',
   },
   {
@@ -350,7 +388,7 @@ export function classifyTool(name: string, annotations?: { readOnlyHint?: boolea
  * `|`, `&`, newline, or subshell that could mask its exit status.
  */
 export const TRUTH_RUN =
-  /^[ \t]*(?:[A-Z_][A-Z0-9_]*=[^\s;&|`$()<>]*[ \t]+)*(?:npm[ \t]+run[ \t]+phoenix:truth|npx[ \t]+vitest[ \t]+run[ \t]+[^;&|`$()\n\r]*tests\/unit\/truth-cases)[^;&|`$()\n\r]*$/;
+  /^[ \t]*(?:[A-Z_][A-Z0-9_]*=[^\s;&|`$()<>]*[ \t]+)*(?:npm[ \t]+run[ \t]+phoenix:truth|npx[ \t]+vitest[ \t]+run(?:[ \t]+tests\/unit\/truth-cases(?:\/|(?:\/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)+))+)[ \t]*$/;
 
 /**
  * Strip shell quotes while keeping word boundaries: whitespace inside quotes or

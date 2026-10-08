@@ -73,17 +73,22 @@ matching cannot see, so name the branch:
 `git push --force-with-lease origin <branch>`. Shell quotes are stripped before
 matching. Variables, `eval`, aliases, and scripts are not expanded, so
 server-side branch protection on `main` remains the real boundary. Only a bare
-`npm run phoenix:truth` (or `npx vitest run ...tests/unit/truth-cases...`) with
-no pipe, `;`, `&`, or substitution clears the financial reminder. User `!cmd`
-shell input is not gated. For real isolation, see Pi `docs/containerization.md`.
+`npm run phoenix:truth` (or an approved `npx vitest run tests/unit/truth-cases/`
+command) with no pipe, `;`, `&`, or substitution clears the financial reminder.
+User `!cmd` shell input is not gated. For real isolation, see Pi
+`docs/containerization.md`.
 
 ## Change and test
+
+Directory `grep` searches require secret-read confirmation regardless of glob;
+explicit non-secret files pass. Numeric workflow dispatch selectors are blocked
+because their production target cannot be established from command text.
 
 Edits under `.pi/` trigger the guard's `harness` confirmation. After changing
 anything, run these checks, then run `/reload` in Pi:
 
 ```bash
-TZ=UTC node --experimental-strip-types --test .pi/extensions/updog-guard/rules.test.ts
+TZ=UTC node --experimental-strip-types --test .pi/extensions/updog-guard/*.test.ts
 ```
 
 Cost and cache checks: `/session` shows the cache hit rate and re-billed misses.
