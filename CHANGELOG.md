@@ -34,6 +34,12 @@ and this project adheres to
   and are counted by `fund_scenario_stale_deliveries_total`. The
   production-boundaries database health assertion now reports the response body.
   See ADR-106.
+- The PR 1617 scoped-review allowlist in `.gitleaks.toml` now pins the squash
+  commit as well as the PR head commit. With only the PR head pinned, the squash
+  commit's 422 SHA-256 digest lines failed every push scan of `main` history
+  since 2026-10-02. The first push scan of the merge commit confirms the fix.
+  Release plan:
+  `docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md`.
 
 ### Fixed (2026-10-02)
 
