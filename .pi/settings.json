@@ -1,0 +1,15 @@
+{
+  "shellCommandPrefix": "export TZ=UTC",
+  "skills": [
+    "../.claude/skills/phoenix-truth-case-orchestrator",
+    "../.claude/skills/phoenix-waterfall-ledger-semantics",
+    "../.claude/skills/phoenix-xirr-fees-validator",
+    "../.claude/skills/phoenix-precision-guard",
+    "../.claude/skills/phoenix-reserves-optimizer",
+    "../.claude/skills/phoenix-capital-exit-investigator",
+    "../.claude/skills/phoenix-advanced-forecasting",
+    "../.claude/skills/phoenix-docs-sync",
+    "../.claude/skills/phoenix-brand-reporting"
+  ],
+  "prompts": ["../.claude/commands"]
+}

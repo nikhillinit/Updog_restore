@@ -218,6 +218,7 @@ jobs:
               NODE_OPTIONS=--max-old-space-size=6144 npm run lint
               ;;
             unit-fast)
+              TZ=UTC node --experimental-strip-types --test .pi/extensions/updog-guard/*.test.ts
               npm run test:unit -- --bail=1 --reporter=dot
               ;;
           esac
