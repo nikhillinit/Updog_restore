@@ -264,7 +264,7 @@ export const WRITE_PATH_RULES: Rule[] = [
   {
     id: 'vcs-internal',
     tier: 'hard',
-    test: /(^|\/)(\.git|node_modules)\//,
+    test: /(^|\/)(\.git|node_modules)(\/|$)/,
     reason: 'VCS or dependency internals.',
   },
   {

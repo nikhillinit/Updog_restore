@@ -210,6 +210,15 @@ test('write paths', () => {
   assert.deepEqual(ids(WRITE_PATH_RULES, '.claude/skills/x/SKILL.md'), []);
 });
 
+test('write paths: protect worktree pointers without blocking similar names', () => {
+  for (const target of ['.git', './.git', 'worktree/.git', '/tmp/worktree/.git', 'node_modules']) {
+    assert.deepEqual(ids(WRITE_PATH_RULES, target), ['hard:vcs-internal'], target);
+  }
+  for (const target of ['.gitignore', 'worktree/.gitkeep', 'node_modules-backup/index.js']) {
+    assert.deepEqual(ids(WRITE_PATH_RULES, target), [], target);
+  }
+});
+
 test('truth run recognition requires an unmasked truth command', () => {
   for (const cmd of [
     'npm run phoenix:truth',
