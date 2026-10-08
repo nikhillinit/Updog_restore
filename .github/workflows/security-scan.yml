@@ -49,6 +49,7 @@ jobs:
           format: sarif
           output: trivy-fs-results.sarif
           severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
           skip-files: .config/.semgrep/semgrep_rules.json
           exit-code: '1'
           version: v0.72.0
@@ -78,6 +79,7 @@ jobs:
           format: sarif
           output: trivy-container-results.sarif
           severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
           exit-code: '1'
           version: v0.72.0
 
