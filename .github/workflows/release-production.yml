@@ -137,7 +137,8 @@ jobs:
     environment: Production
     # The only job allowed to read protected provider IDs and residue policy
     # variables pre-mutation; pull-requests read proves exact PR head/merge
-    # metadata. It performs no provider, database, or repository mutation.
+    # metadata. Its final step reads the production database in a read-only
+    # transaction for a report-only count.
     permissions:
       contents: read
       actions: read
@@ -365,6 +366,16 @@ jobs:
       - name: Remove baseline context evidence
         if: always()
         run: rm -rf -- "$RUNNER_TEMP/release-baseline.zip" "$RUNNER_TEMP/release-baseline" "$RUNNER_TEMP/baseline-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-baseline.json" "$RUNNER_TEMP/policy-config-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-policy-config.json" ./build-policy-config-payload.tmp.mts
+
+      - name: Report reserve delivery exposure (read-only, report-only)
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/release/report-reserve-delivery-exposure.mjs
 
   release-proof:
     name: Full Release Proof
