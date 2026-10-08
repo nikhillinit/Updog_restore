@@ -71,7 +71,9 @@ function isProductionDispatch(command: string): boolean {
       const target = tokens.find(
         (token, index) =>
           !token.startsWith('-') &&
-          !['--ref', '-r', '--field', '-F', '--raw-field', '-f'].includes(tokens[index - 1])
+          !['--ref', '-r', '--field', '-F', '--raw-field', '-f', '--repo', '-R'].includes(
+            tokens[index - 1]
+          )
       );
       if (target && /prod|release-production|release-canary|production-action|^\d+$/.test(target))
         return true;
