@@ -5541,6 +5541,21 @@ describe('required CI fails closed', () => {
         '--context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"'
       );
       expect(baselinePreflightScripts).not.toMatch(/vercel|railway\s/i);
+      expect(baselinePreflight?.env).toBeUndefined();
+      const exposureReportStep = baselinePreflight?.steps?.find(
+        (step) => step.name === 'Report reserve delivery exposure (read-only, report-only)'
+      );
+      expect(exposureReportStep).toBeDefined();
+      expect(baselinePreflight?.steps?.at(-1)).toBe(exposureReportStep);
+      expect(exposureReportStep?.['continue-on-error']).toBe(true);
+      expect(exposureReportStep?.['timeout-minutes']).toBe(3);
+      expect(exposureReportStep?.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
+      expect(
+        baselinePreflight?.steps?.filter((step) => Object.hasOwn(step.env ?? {}, 'DATABASE_URL'))
+      ).toEqual([exposureReportStep]);
+      expect(exposureReportStep?.run).toContain(
+        'scripts/release/report-reserve-delivery-exposure.mjs'
+      );
       const preflightCheckout = baselinePreflight?.steps?.find((step) =>
         step.uses?.startsWith('actions/checkout@')
       );
@@ -5985,6 +6000,11 @@ describe('required CI fails closed', () => {
           name: 'Remove baseline context evidence',
           if: 'always()',
           'continue-on-error': undefined,
+        },
+        {
+          name: 'Report reserve delivery exposure (read-only, report-only)',
+          if: undefined,
+          'continue-on-error': true,
         },
         { name: 'Run release canaries', if: undefined, 'continue-on-error': true },
         { name: 'Assert bounded canary residue', if: 'always()', 'continue-on-error': undefined },

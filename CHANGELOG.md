@@ -22,6 +22,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-10-08)
+
+- Every `release-production` dispatch now reports reserve calculation delivery
+  exposure: a read-only, report-only step in `baseline-policy-preflight` runs
+  the F_1.21.0 reconciliation for the window since the last canonical promotion
+  and prints per-classification counts, never identifiers. See the ADR-106
+  amendment and
+  `docs/1-plans/F_1.22.0_reserve-delivery-exposure-release-report.plan.md`.
+
 ### Fixed (2026-10-08)
 
 - Reserve scenario deliveries that no calculation run can own no longer complete

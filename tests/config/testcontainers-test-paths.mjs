@@ -18,6 +18,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/actuals-restatement-journaled-migration.pg.test.ts',
   'tests/integration/journaled-0050-0061-migration.pg.test.ts',
   'tests/integration/provision-prod-users.pg.test.ts',
+  'tests/integration/reserve-delivery-exposure.pg.test.ts',
   'tests/integration/current-forecast-production-action.pg.test.ts',
   'tests/integration/migrations/investment-rounds-schema.test.ts',
   'tests/integration/migrations/investments-id-fund-unique.test.ts',

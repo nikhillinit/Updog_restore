@@ -12861,7 +12861,8 @@ and `tests/unit/scripts/provision-prod-users.test.ts`.
 **Date:** 2026-10-08
 
 **Status:** Proposed; owner decisions D-A to D-C recorded 2026-10-08; source
-admission pending
+admitted as `7b21f953b` (#1623), not yet released; D-B resolved by the
+2026-10-08 amendment
 
 **Tags:** #worker #bullmq #observability #reserve-scenarios #release
 
@@ -12928,3 +12929,28 @@ phase A and phase B every canonical-web delivery fails visibly as
 `legacy_no_run`, which gives the owner a live exposure signal. No migration,
 route, contract, workflow, or client change; rollback is a source revert. Plan:
 `docs/1-plans/F_1.21.0_reserve-delivery-contract-visibility.plan.md`.
+
+### Amendment (2026-10-08): D-B resolution
+
+The owner resolved D-B (F_1.22.0) with a read-only exposure report, not a
+mutating canonical canary:
+
+- **E-1:** `scripts/release/report-reserve-delivery-exposure.mjs` runs the
+  F_1.21.0 classification query in one `READ ONLY` transaction. No residue, and
+  no change to `release-canary-http-workflow-v2`.
+- **E-2:** it runs as the last step of `baseline-policy-preflight` in every
+  `release-production` dispatch. Its window starts at the `run_started_at` of
+  the newest earlier run whose `Resolve and prove canonical Vercel promotion`
+  step succeeded, or at `2026-08-09T00:00:00Z` when none exists.
+- **E-3:** report only (`continue-on-error: true`, `timeout-minutes: 3`). A
+  finding never fails the step or the release.
+- **E-4:** counts only. Identifiers stay in the database; the owner runs the
+  F_1.21.0 appendix SQL locally for resubmission rows.
+
+A canonical canary was not built. Promotion moves the exact staged deployment
+that staged canary 5 already exercises against the production database and
+workers. The incident class, web and worker skew, happens between phase A and
+phase B or between releases, where a post-promotion check never runs. A
+canonical canary would also need a new residue reservation, re-certified caps in
+both environments, and production residue on every release. Plan:
+`docs/1-plans/F_1.22.0_reserve-delivery-exposure-release-report.plan.md`.

@@ -550,6 +550,26 @@ This stage is capability, not authority. Merge establishes merge eligibility
 only; every production dispatch remains a separate owner-authorized action under
 the governing policy, and every applicable blocker above still applies.
 
+## Reserve delivery exposure report (release-production)
+
+The last step of `baseline-policy-preflight`, in both modes, runs
+`scripts/release/report-reserve-delivery-exposure.mjs` (F_1.22.0, ADR-106
+amendment). It classifies every `calculation_queued` event since the start of
+the newest earlier release run whose canonical promotion proof succeeded
+(fallback `2026-08-09T00:00:00Z`), using the F_1.21.0 reconciliation query in a
+read-only transaction against the production database.
+
+- Report only: `continue-on-error: true` and `timeout-minutes: 3`; a finding or
+  a failure never changes the release outcome.
+- Counts only: the log and step summary carry per-classification counts, the
+  window, and its source. A `::warning::` names the counts of
+  `no_run_drop_candidate`, `repeat_job_id`, `stuck`,
+  `completed_without_snapshot`, and `calculated_event_only` for non-canary
+  funds.
+- For the rows to resubmit, the owner runs the appendix SQL in
+  `docs/1-plans/F_1.21.0_reserve-delivery-contract-visibility.plan.md` locally.
+  Zero findings are a lower bound, not proof of no exposure.
+
 ## Provider observations, dated and revalidated
 
 Observed on 2026-08-14 for this project only: a Vercel `main` push creates a

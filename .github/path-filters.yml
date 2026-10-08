@@ -404,6 +404,8 @@ schema_tests:
   - 'tests/integration/journaled-0050-0061-migration.pg.test.ts'
   - 'tests/integration/provision-prod-users.pg.test.ts'
   - 'scripts/provision-prod-users.ts'
+  - 'tests/integration/reserve-delivery-exposure.pg.test.ts'
+  - 'scripts/release/report-reserve-delivery-exposure.mjs'
   - 'tests/integration/current-forecast-production-action.pg.test.ts'
   - 'scripts/run-actuals-draft-journaled-migration.mjs'
   - 'scripts/run-actuals-restatement-journaled-migration.mjs'
