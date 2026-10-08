@@ -12855,3 +12855,76 @@ authorizes no provisioning run. The governing policy and
 `docs/workflows/PRODUCTION_SCRIPTS.md` ("Production user provisioning") carry
 the owner sequence. Tests: `tests/integration/provision-prod-users.pg.test.ts`
 and `tests/unit/scripts/provision-prod-users.test.ts`.
+
+## ADR-106: Unmatched Reserve Scenario Deliveries Fail Visibly
+
+**Date:** 2026-10-08
+
+**Status:** Proposed; owner decisions D-A to D-C recorded 2026-10-08; source
+admission pending
+
+**Tags:** #worker #bullmq #observability #reserve-scenarios #release
+
+### Context
+
+The canonical web app (`068430726a`) enqueues reserve scenario calculations
+without a `runId` and without a `fund_scenario_calculation_runs` row. The
+deployed worker (`55c9a6a2b`) only executes a delivery that matches a `queued`
+run. For a canonical-web delivery it logged one `info` line, returned a private
+sentinel, and BullMQ recorded the job as a success, so the calculation never ran
+and nothing durable said so. The producer fix is already on `main`
+(`acquireReserveCalculationRun` commits the run before enqueueing) and reaches
+production only through a fresh two-phase release.
+
+### Decision
+
+1. **D-A: fail unmatched deliveries non-retryably.** `claimReserveScenarioRun`
+   throws `UnmatchedScenarioDeliveryError` with a `reason`: `legacy_no_run` (no
+   `runId` and no `queued` or `running` legacy run), `missing_run` (the
+   referenced run row is gone), or `identity_mismatch` (the run's job id or
+   identity fence rejected the delivery). The handler logs a `warn` line,
+   increments `fund_scenario_unmatched_deliveries_total{reason}`, records
+   outcome `unmatched_delivery`, and throws `UnrecoverableError`. Engine metrics
+   do not move. The claim transaction only reads, so nothing is written.
+2. A zero-row claim that the timeout CAS did not terminalize is read back
+   through the identity fence and classified by the fence, never by status: a
+   retry requeue can move a matching row from `running` back to `queued` between
+   statements. A fence-matching row is a stale duplicate. Stale duplicates keep
+   their benign completion and are counted by
+   `fund_scenario_stale_deliveries_total`. Mid-calculation ownership loss is
+   unchanged.
+3. **D-B:** the canonical post-promotion completed-calculation check is a
+   separate follow-up plan. This change adds worker metrics, `warn` lines, and
+   failed-set visibility only.
+4. **D-C:** no database-health 503 fix here. The production-boundaries smoke
+   assertion now carries the response body so the next 503 names its path.
+5. The exposure since 2026-08-09 is measured by the plan's owner-run, read-only
+   reconciliation SQL, which also yields the post-release resubmission list.
+
+### Reading rule
+
+Only the current producer sends `runId`, and it commits the run first, so a
+`missing_run` or `identity_mismatch` count above zero is a defect, with one
+known exception: `missing_run` can also appear without a producer defect when a
+failed release canary's fund is cleaned up while its job is still queued (the
+cascade removes the run row). `legacy_no_run` is old-producer exposure, not a
+defect: it rises while canonical web runs the old producer, and each `warn` line
+names a resubmission candidate. Counters reset on worker restart, so each
+reading is recorded with the worker deployment it came from.
+
+### Alternatives
+
+- **Complete the job with a label:** the completed job is evicted within an
+  hour, so the drop would live only in metrics and logs.
+- **Retry:** a retry reaches the same branch and only re-logs it.
+- **Create the run in the worker:** reintroduces the lazy-create path that
+  `869dfd3e8` removed on purpose, and a canonical-web delivery has no command
+  row to recover into.
+
+### Consequences
+
+Worker code changes, so the next release takes the two-phase route. Between
+phase A and phase B every canonical-web delivery fails visibly as
+`legacy_no_run`, which gives the owner a live exposure signal. No migration,
+route, contract, workflow, or client change; rollback is a source revert. Plan:
+`docs/1-plans/F_1.21.0_reserve-delivery-contract-visibility.plan.md`.

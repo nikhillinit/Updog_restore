@@ -21,6 +21,7 @@ const failingScenarioSetId = '00000000-0000-0000-0000-00000000a002';
 const completionRaceScenarioSetId = '00000000-0000-0000-0000-00000000a003';
 const transientScenarioSetId = '00000000-0000-0000-0000-00000000a004';
 const permanentScenarioSetId = '00000000-0000-0000-0000-00000000a005';
+const unmatchedScenarioSetId = '00000000-0000-0000-0000-00000000a006';
 
 type TestContextWithSkip = { skip?: () => void };
 
@@ -163,6 +164,14 @@ async function seedScenarioFixtures(pool: Pool): Promise<{ fundId: number }> {
     name: 'Reserve permanent failure',
     companyId,
     plannedReservesCents: 3_500_000_00,
+  });
+  await insertScenarioSet(pool, {
+    fundId,
+    configId,
+    id: unmatchedScenarioSetId,
+    name: 'Reserve unmatched delivery',
+    companyId,
+    plannedReservesCents: 4_000_000_00,
   });
 
   return { fundId };
@@ -1161,6 +1170,120 @@ describe('fund scenario reserve worker integration', () => {
         await staleWorker.close();
         await staleQueueEvents.close();
         await staleQueue.close();
+      }
+    },
+    JOB_TIMEOUT_MS + 15_000
+  );
+
+  it.for([
+    { reason: 'legacy_no_run', failedReason: 'no calculation run' },
+    { reason: 'missing_run', failedReason: 'no calculation run' },
+    { reason: 'identity_mismatch', failedReason: 'identity fence' },
+  ] as const)(
+    'fails an unmatched delivery non-retryably and keeps it in the failed set ($reason)',
+    async ({ reason, failedReason }, ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { getReserveScenarioCalculationIdentity } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+      const { handleFundScenarioCalcJob } =
+        await import('../../workers/fund-scenario-calc-handler');
+      const queueName = `fund-scenario-calc-unmatched-${reason}-${Date.now()}`;
+      const unmatchedQueue = new Queue<FundScenarioCalcJobData>(queueName, {
+        connection: active.queueConnection,
+      });
+      const unmatchedQueueEvents = new QueueEvents(queueName, {
+        connection: active.queueConnection,
+      });
+      const unmatchedWorker = new Worker<FundScenarioCalcJobData>(
+        queueName,
+        handleFundScenarioCalcJob,
+        { connection: active.queueConnection, concurrency: 1 }
+      );
+      const jobId = `unmatched-${reason}-${Date.now()}`;
+      const correlationId = randomUUID();
+
+      // legacy_no_run: no runId and no run row. missing_run: a runId with no
+      // row. identity_mismatch: a live queued row seeded under another job id,
+      // so the claim CAS fence rejects this delivery.
+      let runId: string | undefined;
+      let seededJobId: string | null = null;
+      if (reason === 'missing_run') {
+        runId = randomUUID();
+      } else if (reason === 'identity_mismatch') {
+        const identity = await getReserveScenarioCalculationIdentity(
+          active.fundId,
+          unmatchedScenarioSetId
+        );
+        seededJobId = `${jobId}-seeded`;
+        runId = await seedQueuedDeliveryRun({
+          pool: active.pool,
+          fundId: active.fundId,
+          scenarioSetId: unmatchedScenarioSetId,
+          sourceConfigId: identity.sourceConfigId,
+          sourceConfigVersion: identity.sourceConfigVersion,
+          inputHash: identity.inputHash,
+          hashKind: identity.inputLineage.hashKind,
+          modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+          comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+          jobId: seededJobId,
+          correlationId,
+        });
+      }
+
+      try {
+        const job = await unmatchedQueue.add(
+          'async_reserve_allocation',
+          {
+            fundId: active.fundId,
+            scenarioSetId: unmatchedScenarioSetId,
+            correlationId,
+            calculationMode: 'async_reserve_allocation',
+            ...(runId === undefined ? {} : { runId }),
+            actor: { userId: null, label: 'integration@example.com' },
+          },
+          { jobId, attempts: 2, removeOnComplete: false, removeOnFail: false }
+        );
+        await expect(
+          job.waitUntilFinished(unmatchedQueueEvents, JOB_TIMEOUT_MS)
+        ).rejects.toThrow(failedReason);
+
+        const failed = await unmatchedQueue.getJob(jobId);
+        expect(await failed!.isFailed()).toBe(true);
+        expect(failed!.attemptsMade).toBe(1);
+        expect(failed!.failedReason).toContain(failedReason);
+        expect(await unmatchedQueue.getDelayedCount()).toBe(0);
+        expect(await unmatchedQueue.getWaitingCount()).toBe(0);
+
+        const events = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type IN ('calculation_started', 'calculation_failed')`,
+          [unmatchedScenarioSetId]
+        );
+        expect(events.rows[0]?.count).toBe('0');
+
+        if (seededJobId === null) {
+          const runs = await active.pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
+               FROM fund_scenario_calculation_runs
+              WHERE job_id = $1`,
+            [jobId]
+          );
+          expect(runs.rows[0]?.count).toBe('0');
+        } else {
+          const seeded = await active.pool.query<{ status: string; job_id: string }>(
+            `SELECT status, job_id FROM fund_scenario_calculation_runs WHERE id = $1`,
+            [runId]
+          );
+          expect(seeded.rows).toEqual([{ status: 'queued', job_id: seededJobId }]);
+        }
+      } finally {
+        await unmatchedWorker.close();
+        await unmatchedQueueEvents.close();
+        await unmatchedQueue.close();
       }
     },
     JOB_TIMEOUT_MS + 15_000

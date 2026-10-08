@@ -22,6 +22,29 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-08)
+
+- Reserve scenario deliveries that no calculation run can own no longer complete
+  silently. The worker fails them non-retryably (`UnrecoverableError`, kept in
+  the BullMQ failed set for a day) with a `warn` line carrying the fund,
+  scenario set, job, and correlation ids, the
+  `fund_scenario_unmatched_deliveries_total{reason}` counter (`legacy_no_run`,
+  `missing_run`, `identity_mismatch`), and the `unmatched_delivery` outcome on
+  `worker_job_duration_seconds`. Stale duplicates keep their benign completion
+  and are counted by `fund_scenario_stale_deliveries_total`. The
+  production-boundaries database health assertion now reports the response body.
+  See ADR-106.
+
+### Fixed (2026-10-02)
+
+- New Fund draft saves and resumes no longer fail with "Save not confirmed" on
+  Vercel. Vercel's edge brotli-compresses larger draft responses and weakens the
+  strong `ETag` to `W/"..."`, even with `Cache-Control: no-transform`; this was
+  verified live on an isolated preview. The client rejected the weak revision.
+  Every fund-draft response now also carries the strong revision in
+  `Fund-Draft-Revision` (exposed through CORS). The client reads that header
+  first and falls back to `ETag`, and `If-Match` stays strong.
+
 ### Added (2026-10-02)
 
 - Project configuration for the Pi coding agent under `.pi/`: a guard extension

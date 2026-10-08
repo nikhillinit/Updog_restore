@@ -103,6 +103,19 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow PR 1617 historical scoped-review SHA-256 digests of eight tracked source files"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["97c1bdc469eb732fab013b92b733e60632ff509f"]
+regexTarget = "line"
+regexes = [
+  '''^\s*"(?:scripts/build-vercel-api\.mjs|server/lib/public-api-boundary\.ts|server/routes/(?:auth|lp-api(?:\.schemas)?|performance-api(?:\.schemas)?)\.ts|shared/routes/api-route-manifest\.ts)(?:":\s*"|=)[0-9a-f]{64}",?\s*$'''
+]
+paths = [
+  '''^audit/surface-contract-matrix/pr1617-scoped-review\.json$'''
+]
+
+[[allowlists]]
 description = "Allow historical negative-control fixture template from blocking repo-history scans"
 targetRules = ["updog-negative-control-token"]
 condition = "AND"

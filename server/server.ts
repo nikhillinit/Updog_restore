@@ -138,6 +138,7 @@ export async function createServer(
         'RateLimit-Remaining',
         'RateLimit-Reset',
         'ETag',
+        'Fund-Draft-Revision',
         'Retry-After',
       ],
     })
