@@ -66,11 +66,16 @@ function githubNeedsConfirmation(command: string): boolean {
 function isProductionDispatch(command: string): boolean {
   for (const match of command.matchAll(/\bgh(?:\.exe)?\s+([^;&|\n]+)/gi)) {
     const args = githubArgs(match[1]);
-    if (
-      /^workflow\s+run\b/.test(args) &&
-      /prod|release-production|release-canary|production-action|\s\d+(?=\s|$)/.test(args)
-    )
-      return true;
+    if (/^workflow\s+run\b/.test(args)) {
+      const tokens = args.split(/\s+/).slice(2);
+      const target = tokens.find(
+        (token, index) =>
+          !token.startsWith('-') &&
+          !['--ref', '-r', '--field', '-F', '--raw-field', '-f'].includes(tokens[index - 1])
+      );
+      if (target && /prod|release-production|release-canary|production-action|^\d+$/.test(target))
+        return true;
+    }
     if (/^api\b/.test(args) && GH_PRODUCTION_DISPATCH.test(args) && githubApiIsWrite(args))
       return true;
   }

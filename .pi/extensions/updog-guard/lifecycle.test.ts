@@ -5,12 +5,13 @@ import test from 'node:test';
 
 import updogGuard from './index.ts';
 
-type DirtyState = { status: string; fingerprint: string };
+type DirtyState = { status: string; fingerprint: string; originalPath?: string };
 
 async function createHarness(initial: Record<string, DirtyState> = {}) {
   const handlers = new Map<string, (event: any, ctx: any) => Promise<any>>();
   const dirty = new Map(Object.entries(initial));
   const committedPaths: string[] = [];
+  const renamedSources: string[] = [];
   let head = 'a'.repeat(40);
   let failStatus = false;
   let toolInvocations = 0;
@@ -37,12 +38,18 @@ async function createHarness(initial: Record<string, DirtyState> = {}) {
         if (failStatus) return { code: 1, stdout: '', stderr: 'status unavailable' };
         const stdout = [...dirty.entries()]
           .sort(([left], [right]) => left.localeCompare(right))
-          .map(([changedPath, state]) => `${state.status} ${changedPath}\0`)
+          .map(
+            ([changedPath, state]) =>
+              `${state.status} ${changedPath}\0${state.originalPath ? `${state.originalPath}\0` : ''}`
+          )
           .join('');
         return { code: 0, stdout, stderr: '' };
       }
       if (args[0] === 'diff' && args.includes('--name-only')) {
-        return { code: 0, stdout: committedPaths.join('\0'), stderr: '' };
+        const paths = args.includes('--no-renames')
+          ? [...committedPaths, ...renamedSources]
+          : committedPaths;
+        return { code: 0, stdout: paths.join('\0'), stderr: '' };
       }
       if (args[0] === 'diff' || args[0] === 'hash-object') {
         const separator = args.lastIndexOf('--');
@@ -63,6 +70,7 @@ async function createHarness(initial: Record<string, DirtyState> = {}) {
   return {
     dirty,
     committedPaths,
+    renamedSources,
     set head(value: string) {
       head = value;
     },
@@ -254,4 +262,28 @@ test('incomplete before snapshots cannot silently lose financial reminders', asy
     overflow.dirty.clear();
   });
   assert.match(JSON.stringify(await overflow.settle()), /shared\/core\/generated-/);
+});
+
+test('a committed rename retains the financial source path in the reminder', async () => {
+  const financialPath = 'shared/lib/wizard-reserve.ts';
+  const harness = await createHarness();
+  await harness.call('bash', { command: 'node scripts/generate.mjs' }, () => {
+    harness.head = 'b'.repeat(40);
+    harness.committedPaths.push('docs/wizard-reserve.ts');
+    harness.renamedSources.push(financialPath);
+  });
+  assert.match(JSON.stringify(await harness.settle()), new RegExp(financialPath));
+});
+
+test('an uncommitted rename retains the financial source path in the reminder', async () => {
+  const financialPath = 'shared/lib/wizard-reserve.ts';
+  const harness = await createHarness();
+  await harness.call('bash', { command: 'node scripts/generate.mjs' }, () => {
+    harness.dirty.set('docs/wizard-reserve.ts', {
+      status: 'R ',
+      fingerprint: 'renamed',
+      originalPath: financialPath,
+    });
+  });
+  assert.match(JSON.stringify(await harness.settle()), new RegExp(financialPath));
 });

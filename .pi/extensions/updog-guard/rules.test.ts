@@ -40,6 +40,7 @@ test('bash: owner-only production actions are hard blocks', () => {
     'gh api -X GET --method POST repos/nikhillinit/Updog_restore/actions/workflows/release-production.yml/dispatches -f ref=main',
     'gh.exe workflow run release-production.yml',
     'gh workflow run 123456 --ref main',
+    'gh workflow run --ref main 123456',
     'gh api -X POST repos/nikhillinit/Updog_restore/actions/workflows/123456/dispatches -f ref=main',
   ]) {
     assert.equal(ids(BASH_RULES, cmd)[0], 'hard:prod-dispatch', cmd);
@@ -229,6 +230,18 @@ test('bash: routine commands pass', () => {
     'rm -f tmp.txt',
   ]) {
     assert.deepEqual(ids(BASH_RULES, cmd), [], cmd);
+  }
+});
+
+test('numeric refs on named CI workflows do not trigger production blocks', () => {
+  for (const command of [
+    'gh workflow run ci-unified.yml --ref 123',
+    'gh workflow run docs-validate.yml --ref 2026',
+    'gh workflow run --ref 123 ci-unified.yml',
+    'gh workflow run --field count=123 ci-unified.yml',
+  ]) {
+    assert.ok(!ids(BASH_RULES, command).some((id) => id.startsWith('hard:')), command);
+    assert.ok(ids(BASH_RULES, command).includes('confirm:github-write'), command);
   }
 });
 

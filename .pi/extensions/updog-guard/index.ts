@@ -81,7 +81,10 @@ export default function updogGuard(pi: ExtensionAPI) {
       const code = record.slice(0, 2);
       const changedPath = record.slice(3);
       if (changedPath) entries.push({ path: changedPath, status: code });
-      if (/[RC]/.test(code)) index++;
+      if (/[RC]/.test(code)) {
+        const originalPath = records[++index];
+        if (originalPath) entries.push({ path: originalPath, status: code });
+      }
     }
     return entries;
   };
@@ -151,7 +154,7 @@ export default function updogGuard(pi: ExtensionAPI) {
     if (before.head !== after.head) {
       const committed = await pi.exec(
         'git',
-        ['diff', '--name-only', '-z', before.head, after.head, '--'],
+        ['diff', '--no-renames', '--name-only', '-z', before.head, after.head, '--'],
         { cwd: repoRoot, timeout: 5000 }
       );
       if (committed.code !== 0) {
