@@ -30,8 +30,11 @@ const PROVIDER_TIMEOUT_MS = 15_000;
 export const DEFAULT_GIT_FETCH_TIMEOUT_MS = 2 * 60_000;
 const execFileAsync = promisify(execFile);
 
-function fail(message) {
-  throw new Error(`Release recovery context capture failed: ${message}`);
+function fail(message, { transport = false } = {}) {
+  const error = new Error(`Release recovery context capture failed: ${message}`);
+  // Transport failures are never evidence mismatches; discovery must not skip them.
+  if (transport) error.transport = true;
+  throw error;
 }
 
 function plainObject(value, label) {
@@ -361,13 +364,15 @@ async function responseJson(fetchImpl, url, options, label) {
       signal: globalThis.AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
   } catch {
-    fail(`${label} request failed`);
+    fail(`${label} request failed`, { transport: true });
   }
-  if (!response?.ok || typeof response.json !== 'function') fail(`${label} request failed`);
+  if (!response?.ok || typeof response.json !== 'function') {
+    fail(`${label} request failed`, { transport: true });
+  }
   try {
     return await response.json();
   } catch {
-    fail(`${label} response is malformed`);
+    fail(`${label} response is malformed`, { transport: true });
   }
 }
 
@@ -607,6 +612,36 @@ async function githubJson(fetchImpl, repository, path, token) {
   return response;
 }
 
+/**
+ * A capture candidate is an open, unmerged, same-repository PR into main whose
+ * live head is the frozen head and whose history contains baseline main.
+ */
+async function verifyOpenCandidate({ fetchImpl, repository, token, prNumber, headSha, baselineMainSha }) {
+  const pullRequest = await githubJson(fetchImpl, repository, `/pulls/${prNumber}`, token);
+  if (pullRequest?.state !== 'open' || pullRequest?.merged !== false) {
+    fail('planned PR is not open and unmerged');
+  }
+  if (pullRequest?.base?.ref !== 'main' || pullRequest?.base?.repo?.full_name !== repository) {
+    fail('planned PR does not target main');
+  }
+  if (pullRequest?.head?.repo?.full_name !== repository) {
+    fail('planned PR head is not in this repository');
+  }
+  if (sha(pullRequest?.head?.sha, 'planned PR head SHA') !== headSha) {
+    fail('live PR head does not match planned PR head SHA');
+  }
+  const comparison = await githubJson(
+    fetchImpl,
+    repository,
+    `/compare/${baselineMainSha}...${headSha}`,
+    token
+  );
+  if (!['ahead', 'identical'].includes(comparison?.status) || comparison?.behind_by !== 0) {
+    fail('planned PR head does not contain baseline main');
+  }
+  return pullRequest;
+}
+
 export async function verifyBaselineBinding({
   baselineMainSha,
   plannedPrHeadSha,
@@ -639,11 +674,14 @@ export async function verifyBaselineBinding({
   }
   const liveMain = sha((await githubJson(fetchImpl, repository, '/commits/main', token))?.sha, 'live main SHA');
   if (liveMain !== baseline) fail('live main SHA does not match baseline main SHA');
-  const prHead = sha(
-    (await githubJson(fetchImpl, repository, `/pulls/${plannedNumber}`, token))?.head?.sha,
-    'planned PR head SHA'
-  );
-  if (prHead !== planned) fail('live PR head does not match planned PR head SHA');
+  await verifyOpenCandidate({
+    fetchImpl,
+    repository,
+    token,
+    prNumber: plannedNumber,
+    headSha: planned,
+    baselineMainSha: baseline,
+  });
   const remoteRef = `origin/pr-${plannedNumber}`;
   await gitOutput(
     execFileImpl,
@@ -662,6 +700,118 @@ export async function verifyBaselineBinding({
 const RELEASE_MODES = Object.freeze(['primary', 'rollback']);
 const ARTIFACT_DIGEST = /^sha256:[a-f0-9]{64}$/;
 const BASELINE_WORKFLOW_PATH = '.github/workflows/capture-release-baseline.yml';
+const CAPTURE_JOB_NAME = 'Capture Immutable Provider Baseline';
+const GITHUB_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+
+function githubTime(value, label) {
+  const text = safeText(value, label);
+  const time = Date.parse(text);
+  if (!GITHUB_TIMESTAMP.test(text) || !Number.isFinite(time)) fail(`${label} is invalid`);
+  return time;
+}
+
+/**
+ * Authenticate one exact capture attempt: the run's current attempt must be
+ * the selected attempt, and that attempt's jobs endpoint -- never run
+ * updated_at -- supplies the successful capture job and its timing.
+ */
+async function verifyCaptureAttempt({ fetchImpl, repository, token, runId: id, runAttempt: attempt }) {
+  const [owner] = repository.split('/');
+  const run = await githubJson(fetchImpl, repository, `/actions/runs/${id}`, token);
+  if (run?.path !== BASELINE_WORKFLOW_PATH) fail('baseline run is not the capture workflow');
+  if (run?.repository?.full_name !== repository) fail('baseline run repository is invalid');
+  if (run?.event !== 'workflow_dispatch') fail('baseline run was not dispatched');
+  if (run?.head_branch !== 'main') fail('baseline run did not execute on main');
+  if (run?.actor?.login !== owner) fail('baseline run actor is not the repository owner');
+  if (run?.run_attempt !== attempt) fail('baseline run attempt is not the current run attempt');
+  if (run?.status !== 'completed' || run?.conclusion !== 'success') {
+    fail('baseline run did not conclude successfully');
+  }
+  const headSha = sha(run?.head_sha, 'baseline run head SHA');
+
+  const selected = await githubJson(fetchImpl, repository, `/actions/runs/${id}/attempts/${attempt}`, token);
+  if (
+    String(selected?.id ?? '') !== id ||
+    selected?.run_attempt !== attempt ||
+    selected?.head_sha !== headSha ||
+    selected?.status !== 'completed' ||
+    selected?.conclusion !== 'success'
+  ) {
+    fail('baseline run attempt did not conclude successfully');
+  }
+
+  const jobs = await githubJson(
+    fetchImpl,
+    repository,
+    `/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`,
+    token
+  );
+  if (!Array.isArray(jobs?.jobs) || jobs.total_count !== jobs.jobs.length) {
+    fail('baseline capture jobs are incomplete');
+  }
+  const captureJobs = jobs.jobs.filter((job) => job?.name === CAPTURE_JOB_NAME);
+  if (captureJobs.length !== 1) fail('baseline capture job is missing or duplicated');
+  const [job] = captureJobs;
+  if (
+    String(job.run_id ?? '') !== id ||
+    job.run_attempt !== attempt ||
+    job.status !== 'completed' ||
+    job.conclusion !== 'success'
+  ) {
+    fail('baseline capture job did not complete successfully');
+  }
+  const startedAt = githubTime(job.started_at, 'baseline capture job start');
+  const completedAt = githubTime(job.completed_at, 'baseline capture job completion');
+  if (startedAt > completedAt) fail('baseline capture job timing is invalid');
+  return { headSha, jobId: runId(String(job.id ?? '')), startedAt, completedAt };
+}
+
+/**
+ * Validate the provider identity shape without the protected expected
+ * identity, which only the Production-environment capture can read.
+ */
+function contextProviderShape(context) {
+  const vercel = plainObject(context.vercel, 'baseline context Vercel identity');
+  const railway = plainObject(context.railway, 'baseline context Railway identity');
+  const services = Array.isArray(railway.services) ? railway.services : [];
+  providerIdentity(
+    { vercel, railway },
+    expectedIdentity({
+      vercelProjectId: vercel.projectId,
+      vercelHostname: vercel.hostname,
+      railwayProjectId: railway.projectId,
+      railwayEnvironmentId: railway.environmentId,
+      railwayServices: Object.fromEntries(
+        services.map((service) => [service?.serviceName, service?.serviceId])
+      ),
+    })
+  );
+}
+
+/**
+ * Cross-bind a parsed context to the authenticated capture attempt and the
+ * planned head carried by the exact artifact name.
+ */
+function verifyContextCapture(context, { runId: id, runAttempt: attempt, capture, plannedPrHeadSha }) {
+  if (runId(context.githubRunId) !== id) {
+    fail('baseline context run ID does not match the exact capture run');
+  }
+  if (runAttempt(context.githubRunAttempt) !== attempt) {
+    fail('baseline context run attempt does not match the exact capture run');
+  }
+  if (sha(context.baselineMainSha, 'baseline main SHA') !== capture.headSha) {
+    fail('baseline context main SHA does not match the capture run');
+  }
+  if (sha(context.plannedPrHeadSha, 'planned PR head SHA') !== plannedPrHeadSha) {
+    fail('baseline context head does not match the artifact name');
+  }
+  const time = Date.parse(capturedAt(context.capturedAt));
+  // Job timestamps carry whole seconds; compare against the containing second.
+  if (time < capture.startedAt || time >= capture.completedAt + 1000) {
+    fail('baseline context was not captured inside the capture job');
+  }
+  contextProviderShape(context);
+}
 
 /**
  * Rollback releases must restore the application tree exactly; only release
@@ -761,19 +911,13 @@ export async function verifyBaselineArtifact({
   const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
   const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
   if (!GITHUB_REPOSITORY.test(repository)) fail('GitHub repository is invalid');
-  const [owner] = repository.split('/');
-
-  const run = await githubJson(
+  const capture = await verifyCaptureAttempt({
     fetchImpl,
     repository,
-    `/actions/runs/${binding.baselineRunId}`,
-    token
-  );
-  if (run?.path !== BASELINE_WORKFLOW_PATH) fail('baseline run is not the capture workflow');
-  if (run?.repository?.full_name !== repository) fail('baseline run repository is invalid');
-  if (run?.head_branch !== 'main') fail('baseline run did not execute on main');
-  if (run?.conclusion !== 'success') fail('baseline run did not conclude successfully');
-  if (run?.actor?.login !== owner) fail('baseline run actor is not the repository owner');
+    token,
+    runId: binding.baselineRunId,
+    runAttempt: binding.baselineRunAttempt,
+  });
 
   const artifact = await githubJson(
     fetchImpl,
@@ -809,7 +953,7 @@ export async function verifyBaselineArtifact({
     fail('baseline artifact is duplicated or missing on the exact run');
   }
 
-  return { binding, plannedPrHeadSha };
+  return { binding, plannedPrHeadSha, capture };
 }
 
 async function isAncestor(execFileImpl, ancestorSha, descendantSha) {
@@ -891,7 +1035,13 @@ export async function verifyBaselineConsumption({
   ) {
     fail('baseline evidence dependencies are unavailable');
   }
-  const binding = decodeBaselineEvidence(baselineEvidenceB64, mode);
+  // Authenticate run, attempt, capture job, and artifact before reading bytes.
+  const { binding, plannedPrHeadSha: artifactHeadSha, capture } = await verifyBaselineArtifact({
+    baselineEvidenceB64,
+    releaseMode: mode,
+    environment,
+    fetchImpl,
+  });
   const release = sha(releaseSha, 'release SHA');
   const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
   const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
@@ -936,14 +1086,14 @@ export async function verifyBaselineConsumption({
   if (!isHistoricalContext && JSON.stringify(actualContextKeys) !== JSON.stringify(capturedContextKeys)) {
     fail('baseline context has unknown, missing, or hybrid provenance fields');
   }
-  const baselineMainSha = sha(parsed.baselineMainSha, 'baseline main SHA');
-  const plannedPrHeadSha = sha(parsed.plannedPrHeadSha, 'planned PR head SHA');
-  if (runId(parsed.githubRunId) !== binding.baselineRunId) {
-    fail('baseline context run ID does not match the exact capture run');
-  }
-  if (runAttempt(parsed.githubRunAttempt) !== binding.baselineRunAttempt) {
-    fail('baseline context run attempt does not match the exact capture run');
-  }
+  verifyContextCapture(parsed, {
+    runId: binding.baselineRunId,
+    runAttempt: binding.baselineRunAttempt,
+    capture,
+    plannedPrHeadSha: artifactHeadSha,
+  });
+  const baselineMainSha = parsed.baselineMainSha;
+  const plannedPrHeadSha = parsed.plannedPrHeadSha;
 
   // Never assume either SHA is present in a shallow checkout.
   await gitOutput(
@@ -985,8 +1135,32 @@ export async function verifyBaselineConsumption({
     if (sha(pullRequest?.merge_commit_sha, 'runtime PR merge SHA') !== release) {
       fail('runtime PR merge commit is not the release SHA');
     }
+    // Strict: a capture that finishes in the merge second is not pre-merge.
+    if (!(capture.completedAt < githubTime(pullRequest?.merged_at, 'runtime PR merge time'))) {
+      fail('baseline capture did not complete before the runtime PR merged');
+    }
+    if (baselineMainSha === release) fail('release SHA cannot be its own baseline');
+    const [commit, ...parents] = (
+      await gitOutput(execFileImpl, ['rev-list', '--parents', '-n', '1', release])
+    ).split(' ');
+    if (commit !== release || parents.length !== 1 || parents[0] !== baselineMainSha) {
+      fail('release SHA is not a single-parent squash onto the captured baseline');
+    }
+    await gitOutput(
+      execFileImpl,
+      ['fetch', '--no-tags', 'origin', `pull/${runtimePrNumber}/head:refs/remotes/origin/pr-${runtimePrNumber}`],
+      { gitFetchTimeoutMs, deadlineAt, now }
+    );
+    if ((await gitOutput(execFileImpl, ['rev-parse', `origin/pr-${runtimePrNumber}`])) !== plannedPrHeadSha) {
+      fail('fetched PR head does not match the captured planned head');
+    }
+    const planDigest = sha256(parsed.planSha256, 'plan SHA-256');
+    const headPlan = await gitContents(execFileImpl, ['show', `${plannedPrHeadSha}:${capturedPlanPath}`]);
+    if (createHash('sha256').update(headPlan).digest('hex') !== planDigest) {
+      fail('planned head plan digest does not match captured plan digest');
+    }
     const releasePlan = await gitContents(execFileImpl, ['show', `${release}:${capturedPlanPath}`]);
-    if (createHash('sha256').update(releasePlan).digest('hex') !== sha256(parsed.planSha256, 'plan SHA-256')) {
+    if (createHash('sha256').update(releasePlan).digest('hex') !== planDigest) {
       fail('release plan digest does not match captured plan digest');
     }
     if (emitNormalizedPath !== undefined) {

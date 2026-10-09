@@ -12,6 +12,7 @@ type ChangeClassification = {
   changeCount: number;
   financialCalcRelevant: boolean;
   heavyCiRelevant: boolean;
+  releaseBaselinePlanTouched: boolean;
   valid: boolean;
 };
 
@@ -91,6 +92,7 @@ describe('CI fail-closed change classification', () => {
         changeCount: 1,
         financialCalcRelevant: false,
         heavyCiRelevant: false,
+        releaseBaselinePlanTouched: false,
         valid: true,
       });
     }
@@ -104,6 +106,7 @@ describe('CI fail-closed change classification', () => {
       changeCount: 3,
       financialCalcRelevant: false,
       heavyCiRelevant: false,
+      releaseBaselinePlanTouched: false,
       valid: true,
     });
   });
@@ -192,6 +195,43 @@ describe('CI fail-closed change classification', () => {
     expect(classified.status).not.toBe(0);
     expect(classified.result).toBeNull();
     expect(classified.stderr).toMatch(/change classification failed/i);
+  });
+});
+
+describe('Release baseline plan change classification', () => {
+  const PLAN = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+
+  it.each([
+    ['modified plan', rawChange('M', [PLAN])],
+    ['added plan', rawChange('A', [PLAN], '000000', '100644')],
+    ['deleted plan', rawChange('D', [PLAN], '100644', '000000')],
+    ['plan renamed away', rawChange('R100', [PLAN, 'docs/1-plans/renamed.plan.md'])],
+    ['plan renamed into place', rawChange('R087', ['docs/1-plans/draft.plan.md', PLAN])],
+    ['plan copied', rawChange('C100', [PLAN, 'docs/1-plans/copy.plan.md'])],
+    ['plan executable-bit change', rawChange('M', [PLAN], '100644', '100755')],
+    [
+      'plan among unrelated changes',
+      [...rawChange('M', ['client/src/App.tsx']), ...rawChange('M', [PLAN])],
+    ],
+  ] as const)('requires the baseline prerequisite for %s', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ releaseBaselinePlanTouched: true, valid: true });
+  });
+
+  it.each([
+    ['unrelated source', rawChange('M', ['client/src/App.tsx'])],
+    [
+      'sibling plan',
+      rawChange('M', ['docs/1-plans/F_1.21.0_reserve-delivery-contract-visibility.plan.md']),
+    ],
+    ['suffixed path', rawChange('M', [`${PLAN}.bak`])],
+    ['nested path', rawChange('M', [`archive/${PLAN}`])],
+    ['generated light output', rawChange('M', ['docs/_generated/router-fast.json'])],
+  ] as const)('does not require the baseline prerequisite for %s', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ releaseBaselinePlanTouched: false, valid: true });
   });
 });
 
