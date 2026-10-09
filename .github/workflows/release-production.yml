@@ -187,7 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           ARTIFACT_ID="$(node -e 'const binding = JSON.parse(Buffer.from(process.env.BASELINE_EVIDENCE_B64 ?? "", "base64").toString("utf8")); const id = String(binding.baselineArtifactId ?? ""); if (!/^[1-9][0-9]{0,31}$/.test(id)) { console.error("baseline artifact ID is invalid"); process.exit(1); } console.log(id);')"
+          ARTIFACT_SHA256="$(node -e 'const binding = JSON.parse(Buffer.from(process.env.BASELINE_EVIDENCE_B64 ?? "", "base64").toString("utf8")); const digest = String(binding.baselineArtifactDigest ?? ""); if (!/^sha256:[0-9a-f]{64}$/.test(digest)) { console.error("baseline artifact digest is invalid"); process.exit(1); } console.log(digest.slice(7));')"
           gh api "repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > "$RUNNER_TEMP/release-baseline.zip"
+          # The downloaded bytes, not only the API metadata, must match the bound digest.
+          echo "${ARTIFACT_SHA256}  $RUNNER_TEMP/release-baseline.zip" | sha256sum --check --status
+          [[ "$(unzip -Z1 "$RUNNER_TEMP/release-baseline.zip")" == "release-recovery-context-v1.json" ]]
           unzip -o "$RUNNER_TEMP/release-baseline.zip" -d "$RUNNER_TEMP/release-baseline"
           test -f "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"
 

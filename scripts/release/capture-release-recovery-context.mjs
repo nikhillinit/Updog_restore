@@ -1573,8 +1573,14 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch(() => {
-    console.error('Release recovery context capture failed.');
+  main().catch((error) => {
+    // fail() messages are fixed diagnostics; anything else may carry raw output.
+    const message = String(error?.message ?? '');
+    console.error(
+      message.startsWith('Release recovery context capture failed: ')
+        ? message
+        : 'Release recovery context capture failed.'
+    );
     process.exitCode = 1;
   });
 }

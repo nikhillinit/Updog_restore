@@ -60,6 +60,7 @@ jobs:
       heavy_ci_relevant: ${{ steps.classify.outputs.heavy_ci_relevant }}
       financial_calc_relevant: ${{ steps.classify.outputs.financial_calc_relevant }}
       change_count: ${{ steps.classify.outputs.change_count }}
+      release_baseline_plan_touched: ${{ steps.classify.outputs.release_baseline_plan_touched }}
       test_full_groups: ${{ steps.groups.outputs.test_full_groups }}
       full_suite: ${{ steps.groups.outputs.full_suite }}
     steps:
@@ -79,18 +80,33 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            # A manual run on a candidate branch must still report the scoped
+            # release plan so it cannot stand in for pull_request CI (ADR-107).
+            release_baseline_plan_touched=false
+            if [[ "$REF_NAME" != "refs/heads/main" ]]; then
+              head_sha="$(git rev-parse HEAD)"
+              merge_base="$(git merge-base origin/main "$head_sha")"
+              if [[ "$merge_base" != "$head_sha" ]]; then
+                release_baseline_plan_touched="$(node scripts/ci/classify-change-paths.mjs \
+                  --base "$merge_base" \
+                  --head "$head_sha" \
+                  --filters .github/path-filters.yml | jq -r '.releaseBaselinePlanTouched')"
+              fi
+            fi
             {
               echo "valid=true"
               echo "auto_docs_only=false"
               echo "heavy_ci_relevant=true"
               echo "financial_calc_relevant=${{ github.event.inputs.run_full_suite == 'true' }}"
               echo "change_count=manual"
+              echo "release_baseline_plan_touched=$release_baseline_plan_touched"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -884,6 +900,65 @@ jobs:
             --expected-sha "$GITHUB_SHA" \
             --output-root "$RUNNER_TEMP/surface-projection"
 
+  release-baseline:
+    name: Release Baseline Prerequisite
+    # Scoped to the exact F_1.21.1 release plan path (ADR-107). Runs verifier
+    # code from protected main only; the candidate head is read as Git data
+    # and API evidence, never checked out or executed.
+    needs: changes
+    if: needs.changes.outputs.release_baseline_plan_touched == 'true' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      baseline_main_sha: ${{ steps.verify.outputs.baseline_main_sha }}
+    steps:
+      - name: Require pull_request CI
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "::error::The release baseline prerequisite is satisfied only by pull_request CI."
+          exit 1
+
+      - name: Checkout protected main verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node.js without dependency install
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22.23.2'
+
+      - name: Verify pre-merge release baseline
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          result="$RUNNER_TEMP/premerge-baseline.json"
+          node scripts/release/capture-release-recovery-context.mjs verify-premerge \
+            --pr-number "$PR_NUMBER" \
+            --pr-head-sha "$PR_HEAD_SHA" > "$result"
+          baseline_main_sha="$(jq -r '.baselineMainSha' "$result")"
+          [[ "$baseline_main_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "baseline_main_sha=$baseline_main_sha" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Release baseline prerequisite"
+            echo ""
+            echo "Verified pre-merge capture binding for the owner release dispatch:"
+            echo ""
+            echo '```json'
+            jq '.' "$result"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   gate:
     name: CI Gate Status
     needs:
@@ -902,6 +977,7 @@ jobs:
       - guards
       - neon-lane
       - surface-projection-audit
+      - release-baseline
       - secret-scan
     if: always()
     runs-on: ubuntu-latest
@@ -934,6 +1010,8 @@ jobs:
           neon_lane_result="${{ needs.neon-lane.result }}"
           audit_result="${{ needs.surface-projection-audit.result }}"
           secret_scan_result="${{ needs.secret-scan.result }}"
+          release_baseline_plan_touched="${{ needs.changes.outputs.release_baseline_plan_touched }}"
+          release_baseline_result="${{ needs.release-baseline.result }}"
 
           validate_boolean() {
             local name="$1"
@@ -948,6 +1026,7 @@ jobs:
           validate_boolean "auto-docs-only" "$auto_docs_only"
           validate_boolean "heavy-ci-relevant" "$heavy_ci_relevant"
           validate_boolean "financial-calc-relevant" "$financial_calc_relevant"
+          validate_boolean "release-baseline-plan-touched" "$release_baseline_plan_touched"
 
           if [[ "$change_classification_valid" != "true" ]]; then
             echo "Change classification is invalid"
@@ -1006,6 +1085,7 @@ jobs:
           # textually distinct for the regression-test harness, which
           # resolves expression substitutions by expression text.
           audit_expected="${{ github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true' }}"
+          release_baseline_expected="${{ needs.changes.outputs.release_baseline_plan_touched == 'true' && github.ref != 'refs/heads/main' }}"
           if [[ "$check_expected" != "true" ]]; then
             if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
               check_expected=true
@@ -1047,6 +1127,7 @@ jobs:
           require_result "Memory mode" "$memory_result" "$memory_expected"
           require_result "Neon transaction lane" "$neon_lane_result" "$neon_expected"
           require_result "Surface projection audit" "$audit_result" "$audit_expected"
+          require_result "Release baseline prerequisite" "$release_baseline_result" "$release_baseline_expected"
           require_result "Secret scan" "$secret_scan_result" "true"
 
           {
@@ -1068,6 +1149,7 @@ jobs:
             echo "| memory-mode | $memory_result | $memory_expected |"
             echo "| neon-lane | $neon_lane_result | $neon_expected |"
             echo "| surface-projection-audit | $audit_result | $audit_expected |"
+            echo "| release-baseline | $release_baseline_result | $release_baseline_expected |"
             echo "| secret-scan | $secret_scan_result | true |"
             echo "| change-classification-valid | $change_classification_valid | true |"
             echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
@@ -1080,6 +1162,28 @@ jobs:
           fi
 
           echo "result=success" >> "$GITHUB_OUTPUT"
+
+      - name: Re-fence scoped release candidate
+        if: needs.release-baseline.result == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASELINE_MAIN_SHA: ${{ needs.release-baseline.outputs.baseline_main_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          candidate="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '[.state, .head.sha] | join(" ")')"
+          if [[ "$candidate" != "open ${PR_HEAD_SHA}" ]]; then
+            echo "::error::The scoped release candidate is no longer open at the verified head."
+            exit 1
+          fi
+          live_main="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"
+          if [[ "$live_main" != "$BASELINE_MAIN_SHA" ]]; then
+            echo "::error::main moved after baseline verification; update the branch and recapture."
+            exit 1
+          fi
 
       - name: Comment PR status
         if: github.event_name == 'pull_request'
