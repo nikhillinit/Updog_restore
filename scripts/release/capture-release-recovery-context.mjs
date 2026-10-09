@@ -741,6 +741,10 @@ async function verifyCaptureAttempt({ fetchImpl, repository, token, runId: id, r
   ) {
     fail('baseline run attempt did not conclude successfully');
   }
+  // A rerun keeps the original actor; the owner must have triggered this attempt.
+  if (selected?.triggering_actor?.login !== owner) {
+    fail('baseline run attempt was not triggered by the repository owner');
+  }
 
   const jobs = await githubJson(
     fetchImpl,
@@ -1000,7 +1004,12 @@ async function downloadArtifactArchive(fetchImpl, repository, artifactId, token)
   if (!response?.ok || typeof response.arrayBuffer !== 'function') {
     fail('baseline artifact archive request failed', { transport: true });
   }
-  const bytes = globalThis.Buffer.from(await response.arrayBuffer());
+  let bytes;
+  try {
+    bytes = globalThis.Buffer.from(await response.arrayBuffer());
+  } catch {
+    fail('baseline artifact archive request failed', { transport: true });
+  }
   if (bytes.length === 0 || bytes.length > MAX_ARCHIVE_BYTES) fail('baseline artifact archive size is invalid');
   return bytes;
 }

@@ -12992,10 +12992,11 @@ downloaded archive digest.
    into `main` whose head contains baseline `main`, at start and at the final
    re-fence.
 4. **Attempt authentication.** Consumers require the run's current attempt to
-   equal the selected attempt. The attempt must be successful. Its jobs endpoint
-   must report exactly one successful `Capture Immutable Provider Baseline` job.
-   The context `capturedAt` must fall inside that job's interval. Run
-   `updated_at` is never timing authority.
+   equal the selected attempt. The attempt must be successful and triggered by
+   the repository owner, since a rerun keeps the original actor. Its jobs
+   endpoint must report exactly one successful
+   `Capture Immutable Provider Baseline` job. The context `capturedAt` must fall
+   inside that job's interval. Run `updated_at` is never timing authority.
 5. **Primary ordering.** Primary consumption requires capture-job completion
    strictly before `merged_at`. The baseline must not equal the release SHA, and
    the release must be a single-parent commit whose parent is the baseline. The

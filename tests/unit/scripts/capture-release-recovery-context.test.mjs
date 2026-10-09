@@ -782,6 +782,7 @@ describe('baseline evidence decoding and exact consumption', () => {
       head_sha: BASELINE_MAIN_SHA,
       status: 'completed',
       conclusion: 'success',
+      triggering_actor: { login: 'nikhillinit' },
       ...overrides,
     };
   }
@@ -994,6 +995,8 @@ describe('baseline evidence decoding and exact consumption', () => {
     ['unsuccessful selected attempt', { attempt: attemptResponse({ conclusion: 'failure' }) }],
     ['selected attempt for another run', { attempt: attemptResponse({ id: 5 }) }],
     ['selected attempt at another head', { attempt: attemptResponse({ head_sha: '9'.repeat(40) }) }],
+    ['selected attempt rerun by another account', { attempt: attemptResponse({ triggering_actor: { login: 'intruder' } }) }],
+    ['selected attempt without a triggering actor', { attempt: attemptResponse({ triggering_actor: undefined }) }],
     ['missing capture job', { jobs: jobsResponse([captureJob({ name: 'Other Job' })]) }],
     ['duplicated capture job', { jobs: jobsResponse([captureJob(), captureJob({ id: 555002 })]) }],
     ['failed capture job', { jobs: jobsResponse([captureJob({ conclusion: 'failure' })]) }],
@@ -1361,6 +1364,7 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
   const PLAN_DIGEST = createHash('sha256').update(PLAN_BODY).digest('hex');
   const CONTEXT_FILE = 'release-recovery-context-v1.json';
   const TRANSPORT_FAILURE = Symbol('transport failure');
+  const BODY_FAILURE = Symbol('body read failure');
 
   function digestOf(value) {
     return createHash('sha256').update(value).digest('hex');
@@ -1379,6 +1383,7 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
     archiveDigest,
     artifacts,
     jobs,
+    triggeringActor = 'nikhillinit',
   }) {
     const contents = `${JSON.stringify(
       buildReleaseRecoveryContext(
@@ -1433,6 +1438,7 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
           head_sha: MAIN,
           status: 'completed',
           conclusion,
+          triggering_actor: { login: triggeringActor },
         },
         [`/actions/runs/${id}`]: {
           id,
@@ -1513,6 +1519,9 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
       if (!key) throw new Error(`unexpected fetch ${url}`);
       const value = routes[key];
       if (value === TRANSPORT_FAILURE) return { ok: false };
+      if (value === BODY_FAILURE) {
+        return { ok: true, arrayBuffer: async () => Promise.reject(new Error('stream reset')) };
+      }
       if (Buffer.isBuffer(value)) {
         return { ok: true, arrayBuffer: async () => Uint8Array.from(value).buffer };
       }
@@ -1585,6 +1594,7 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
     ['a newer capture whose archive digest differs', () => newer({ archiveDigest: '0'.repeat(64) })],
     ['a newer capture whose archive holds extra entries', () => newer({ archiveEntries: [CONTEXT_FILE, 'extra.sh'] })],
     ['a newer capture captured outside its job', () => newer({ context: { capturedAt: '2026-10-09T09:00:00.000Z' } })],
+    ['a newer capture attempt rerun by another account', () => newer({ triggeringActor: 'intruder' })],
   ])('skips %s and selects the older matching capture', async (_label, makeNewer) => {
     const { verify } = harness({ runs: [makeNewer(), older()] });
     await expect(verify()).resolves.toMatchObject({ binding: { baselineRunId: '9001' } });
@@ -1604,6 +1614,7 @@ describe('pre-merge baseline discovery for the scoped release plan', () => {
     ['a malformed run listing', { listing: { total_count: 1 } }, /listing/],
     ['a transport failure on the newest candidate', { runs: [newer(), older()], extraRoutes: { '/actions/runs/9002/attempts/1/jobs': TRANSPORT_FAILURE } }, /request failed/],
     ['a transport failure downloading the archive', { runs: [newer(), older()], extraRoutes: { '/actions/artifacts/8002/zip': TRANSPORT_FAILURE } }, /request failed/],
+    ['an archive body read failure on the newest candidate', { runs: [newer(), older()], extraRoutes: { '/actions/artifacts/8002/zip': BODY_FAILURE } }, /request failed/],
     ['live main that moved during discovery', { runs: [older()], mains: [MAIN, '1'.repeat(40)] }, /live main/],
     ['a plan missing at the PR head', { runs: [older()], plan: null }, /missing at the PR head/],
   ])('fails closed for %s', async (_label, options, message) => {
