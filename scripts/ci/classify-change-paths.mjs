@@ -223,7 +223,7 @@ function readChangedPaths(options) {
 
   const completed = spawnSync(
     'git',
-    ['diff', '--raw', '-z', '--no-abbrev', '--find-renames', options.base, options.head, '--'],
+    ['diff', '--raw', '-z', '--no-abbrev', '--find-renames', '--find-copies-harder', options.base, options.head, '--'],
     {
       encoding: null,
       maxBuffer: 16 * 1024 * 1024,

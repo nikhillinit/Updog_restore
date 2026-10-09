@@ -1,4 +1,5 @@
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
@@ -200,6 +201,59 @@ describe('CI fail-closed change classification', () => {
 
 describe('Release baseline plan change classification', () => {
   const PLAN = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+
+  it('detects a copy of an unchanged plan through the Git CLI', async () => {
+    const directory = await fs.mkdtemp(path.join(tmpdir(), 'updog-plan-copy-'));
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+
+    try {
+      git('init', '--quiet');
+      git('config', 'user.name', 'Plan Copy Test');
+      git('config', 'user.email', 'plan-copy-test@example.invalid');
+      git('config', 'commit.gpgSign', 'false');
+      git('config', 'core.hooksPath', '/dev/null');
+      const planPath = path.join(directory, PLAN);
+      await fs.mkdir(path.dirname(planPath), { recursive: true });
+      await fs.writeFile(planPath, '# Release baseline plan\n');
+      git('add', PLAN);
+      git('commit', '--quiet', '-m', 'base');
+      const base = git('rev-parse', 'HEAD');
+
+      const copyPath = 'docs/1-plans/copy.plan.md';
+      await fs.copyFile(planPath, path.join(directory, copyPath));
+      git('add', copyPath);
+      git('commit', '--quiet', '-m', 'copy unchanged plan');
+      const head = git('rev-parse', 'HEAD');
+      expect(git('diff', base, head, '--', PLAN)).toBe('');
+
+      const completed = spawnSync(
+        process.execPath,
+        [
+          CHANGE_CLASSIFIER,
+          '--base',
+          base,
+          '--head',
+          head,
+          '--filters',
+          path.join(process.cwd(), '.github/path-filters.yml'),
+        ],
+        { cwd: directory, encoding: 'utf8' }
+      );
+
+      expect(completed.status, completed.stderr).toBe(0);
+      expect(JSON.parse(completed.stdout)).toEqual({
+        autoDocsOnly: false,
+        changeCount: 1,
+        financialCalcRelevant: false,
+        heavyCiRelevant: true,
+        releaseBaselinePlanTouched: true,
+        valid: true,
+      });
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
 
   it.each([
     ['modified plan', rawChange('M', [PLAN])],
