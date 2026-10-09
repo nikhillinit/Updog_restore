@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-08)
+
+- #1625 merged before its baseline capture ran, so it cannot be the release
+  vehicle. The F_1.21.1 plan now names `b398d316b` as the baseline for a new
+  docs-only release vehicle.
+
 ### Added (2026-10-08)
 
 - Every `release-production` dispatch now reports reserve calculation delivery
