@@ -24,9 +24,10 @@ and this project adheres to
 
 ### Changed (2026-10-08)
 
-- #1625 and #1628 merged before any baseline capture ran, so neither can be the
-  release vehicle. The F_1.21.1 plan now names `7dc2a5f9e` as the baseline for a
-  new docs-only release vehicle.
+- #1625, #1628, and #1629 merged before any baseline capture ran, so none can be
+  the release vehicle. The F_1.21.1 plan now names `17a744fca` as the baseline
+  for a new docs-only release vehicle and requires a recorded successful capture
+  before that vehicle is marked ready.
 
 ### Added (2026-10-08)
 
