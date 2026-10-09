@@ -12954,3 +12954,80 @@ phase B or between releases, where a post-promotion check never runs. A
 canonical canary would also need a new residue reservation, re-certified caps in
 both environments, and production residue on every release. Plan:
 `docs/1-plans/F_1.22.0_reserve-delivery-exposure-release-report.plan.md`.
+
+## ADR-107: Scoped Pre-Merge Release Baseline Prerequisite
+
+**Date:** 2026-10-09
+
+**Status:** Proposed; implemented on a repair branch, not admitted to `main`;
+hosted staging acceptance open
+
+**Tags:** #release #ci #governance #baseline-capture
+
+### Context
+
+PR #1630 was marked ready and squash-merged less than five minutes later. No
+baseline capture ran for its head, so it cannot be the F_1.21.1 release vehicle.
+It is the fourth vehicle lost this way after #1625, #1628, and #1629.
+`CI Gate Status` had no baseline predicate, so written sequencing alone did not
+stop the merge. Release-time validation also had gaps. It did not require the
+capture to come from an open PR. It did not authenticate the capture job of the
+selected attempt or compare the job's completion time with the merge time. It
+accepted a release SHA equal to its own baseline. It did not recompute the
+downloaded archive digest.
+
+### Decision
+
+1. **Exact-path scope.** `classify-change-paths.mjs` reports
+   `release_baseline_plan_touched` when any raw-diff path equals the F_1.21.1
+   plan path. No label, title, draft state, or comment changes scope.
+2. **One conditional feeder under the sole aggregate.** `CI Gate Status` needs
+   `release-baseline`, expected only for a touched non-`main` ref. The job has
+   read-only `actions`, `contents`, and `pull-requests` permissions. It has no
+   provider secrets and no environment. It fails on any event other than
+   `pull_request`. It runs verifier code from a `main` checkout without a
+   dependency install and never checks out or runs the candidate. The gate
+   re-reads the PR head and live `main` before success.
+3. **Capture fence.** Capture requires an open, unmerged, same-repository PR
+   into `main` whose head contains baseline `main`, at start and at the final
+   re-fence.
+4. **Attempt authentication.** Consumers require the run's current attempt to
+   equal the selected attempt. The attempt must be successful. Its jobs endpoint
+   must report exactly one successful `Capture Immutable Provider Baseline` job.
+   The context `capturedAt` must fall inside that job's interval. Run
+   `updated_at` is never timing authority.
+5. **Primary ordering.** Primary consumption requires capture-job completion
+   strictly before `merged_at`. The baseline must not equal the release SHA, and
+   the release must be a single-parent commit whose parent is the baseline. The
+   plan must hash to the captured digest at both the PR head and the release
+   SHA. Rollback keeps its explicit rollback-PR and application-tree checks.
+6. **Archive bytes.** Release preflight recomputes the downloaded ZIP SHA-256
+   against the bound digest and requires exactly one context entry. Pre-merge
+   discovery does the same for every candidate.
+7. **Discovery.** `verify-premerge` reads at most 100 completed capture runs at
+   live `main`. It skips mismatched candidates and fails on transport errors or
+   listing overflow. It selects the newest verified capture by job completion
+   time, then run ID.
+
+### Alternatives
+
+- **Operating discipline only** (one merger, draft hold, checklist): rejected as
+  sufficient. The same session can mark ready and merge, and written sequencing
+  already failed four times.
+- **Merge bot, queue, or a second required check:** deferred. These add new
+  authority, settings, and tokens for one scoped defect. Reconsider only if
+  hosted staging cannot show strict freshness.
+- **Release-time validation only:** necessary but insufficient. It still allows
+  repeated unusable release vehicles.
+
+### Consequences
+
+- This is a scoped enforcement change under the existing aggregate, not a new
+  merge authority. Production dispatch stays owner-only, and this ADR does not
+  amend the governing policy.
+- A scoped candidate needs the owner to capture, then rerun the original
+  `pull_request` CI run for the same head. The procedure is in
+  `docs/workflows/PRODUCTION_SCRIPTS.md`.
+- Limits: an administrator can change protection. Artifact deletion after a
+  green check is caught only at release preflight. Hosted staging proof of
+  strict and test-merge freshness and same-head rerun is still open.
