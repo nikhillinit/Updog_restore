@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BaselineFragmentPayloadSchema } from '../../../shared/contracts/release-evidence-fragment-v1.contract';
 import {
+  RELEASE_BASELINE_PLAN_PATH,
   ROLLBACK_DIFF_ALLOWLIST,
   buildReleaseRecoveryContext,
   captureProviderBaseline,
@@ -16,6 +17,7 @@ import {
   verifyBaselineArtifact,
   verifyBaselineBinding,
   verifyBaselineConsumption,
+  verifyPremergeBaseline,
 } from '../../../scripts/release/capture-release-recovery-context.mjs';
 
 const BASELINE_MAIN_SHA = 'a'.repeat(40);
@@ -1346,5 +1348,276 @@ describe('baseline evidence decoding and exact consumption', () => {
         ).rejects.toThrow(/could not be written/);
       });
     });
+  });
+});
+
+describe('pre-merge baseline discovery for the scoped release plan', () => {
+  const REPOSITORY = 'nikhillinit/Updog_restore';
+  const PR_NUMBER = 1700;
+  const HEAD = PLANNED_PR_HEAD_SHA;
+  const MAIN = BASELINE_MAIN_SHA;
+  const PLAN = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+  const PLAN_BODY = 'scoped release plan body\n';
+  const PLAN_DIGEST = createHash('sha256').update(PLAN_BODY).digest('hex');
+  const CONTEXT_FILE = 'release-recovery-context-v1.json';
+  const TRANSPORT_FAILURE = Symbol('transport failure');
+
+  function digestOf(value) {
+    return createHash('sha256').update(value).digest('hex');
+  }
+
+  // One capture run at MAIN with its attempt, jobs, artifact, and archive.
+  function captureRun({
+    id,
+    artifactId,
+    attempt = 1,
+    artifactAttempt = attempt,
+    conclusion = 'success',
+    completedAt = '2026-10-09T10:00:00Z',
+    context = {},
+    archiveEntries = [CONTEXT_FILE],
+    archiveDigest,
+    artifacts,
+    jobs,
+  }) {
+    const contents = `${JSON.stringify(
+      buildReleaseRecoveryContext(
+        captureInput({
+          plannedPrNumber: PR_NUMBER,
+          planPath: PLAN,
+          planSha256: PLAN_DIGEST,
+          githubRunId: String(id),
+          githubRunAttempt: artifactAttempt,
+          capturedAt: completedAt.replace('Z', '.000Z'),
+          ...context,
+        })
+      )
+    )}\n`;
+    const zip = Buffer.from(`zip-archive-${id}`);
+    const name = `release-baseline-v1-${id}-${artifactAttempt}-${HEAD}`;
+    const startedAt = new Date(Date.parse(completedAt) - 60_000).toISOString().replace('.000Z', 'Z');
+    return {
+      listing: {
+        id,
+        run_attempt: attempt,
+        head_sha: MAIN,
+        status: 'completed',
+        conclusion,
+        path: '.github/workflows/capture-release-baseline.yml',
+      },
+      archive: { key: zip.toString(), entries: archiveEntries, contents },
+      routes: {
+        [`/actions/runs/${id}/artifacts`]:
+          artifacts ?? {
+            total_count: artifactAttempt === attempt ? 1 : 0,
+            artifacts: artifactAttempt === attempt ? [{ id: artifactId, name }] : [],
+          },
+        [`/actions/runs/${id}/attempts/${attempt}/jobs`]: jobs ?? {
+          total_count: 1,
+          jobs: [
+            {
+              id: id * 10,
+              run_id: id,
+              run_attempt: attempt,
+              name: 'Capture Immutable Provider Baseline',
+              status: 'completed',
+              conclusion: 'success',
+              started_at: startedAt,
+              completed_at: completedAt,
+            },
+          ],
+        },
+        [`/actions/runs/${id}/attempts/${attempt}`]: {
+          id,
+          run_attempt: attempt,
+          head_sha: MAIN,
+          status: 'completed',
+          conclusion,
+        },
+        [`/actions/runs/${id}`]: {
+          id,
+          path: '.github/workflows/capture-release-baseline.yml',
+          repository: { full_name: REPOSITORY },
+          event: 'workflow_dispatch',
+          head_branch: 'main',
+          head_sha: MAIN,
+          run_attempt: attempt,
+          status: 'completed',
+          conclusion,
+          actor: { login: 'nikhillinit' },
+        },
+        [`/actions/artifacts/${artifactId}/zip`]: zip,
+        [`/actions/artifacts/${artifactId}`]: {
+          id: artifactId,
+          name,
+          expired: false,
+          size_in_bytes: zip.length,
+          digest: `sha256:${archiveDigest ?? digestOf(zip)}`,
+          workflow_run: { id, head_sha: MAIN },
+        },
+      },
+      binding: {
+        schemaVersion: 'release-baseline-binding-v1',
+        baselineRunId: String(id),
+        baselineRunAttempt: attempt,
+        baselineArtifactId: String(artifactId),
+        baselineArtifactDigest: `sha256:${digestOf(zip)}`,
+        baselineFileSha256: digestOf(contents),
+      },
+    };
+  }
+
+  function openPull(overrides = {}) {
+    return {
+      state: 'open',
+      merged: false,
+      head: { sha: HEAD, repo: { full_name: REPOSITORY } },
+      base: { ref: 'main', repo: { full_name: REPOSITORY } },
+      ...overrides,
+    };
+  }
+
+  function harness({
+    runs = [],
+    listing,
+    pull = openPull(),
+    mains = [MAIN],
+    checkout = MAIN,
+    plan = PLAN_BODY,
+    extraRoutes = {},
+  } = {}) {
+    const urls = [];
+    const commands = [];
+    let mainReads = 0;
+    const routes = {
+      [`/pulls/${PR_NUMBER}`]: pull,
+      [`/compare/${MAIN}...${HEAD}`]: { status: 'ahead', behind_by: 0 },
+      '/actions/workflows/capture-release-baseline.yml/runs': listing ?? {
+        total_count: runs.length,
+        workflow_runs: runs.map((run) => run.listing),
+      },
+      ...Object.assign({}, ...runs.map((run) => run.routes)),
+      ...extraRoutes,
+    };
+    const archives = new Map(runs.map((run) => [run.archive.key, run.archive]));
+    const fetchImpl = async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith('/commits/main')) {
+        const sha = mains[Math.min(mainReads, mains.length - 1)];
+        mainReads += 1;
+        return { ok: true, json: async () => ({ sha }) };
+      }
+      const key = Object.keys(routes)
+        .filter((fragment) => String(url).includes(fragment))
+        .sort((left, right) => right.length - left.length)[0];
+      if (!key) throw new Error(`unexpected fetch ${url}`);
+      const value = routes[key];
+      if (value === TRANSPORT_FAILURE) return { ok: false };
+      if (Buffer.isBuffer(value)) {
+        return { ok: true, arrayBuffer: async () => Uint8Array.from(value).buffer };
+      }
+      return { ok: true, json: async () => value };
+    };
+    const execFileImpl = async (command, args) => {
+      commands.push([command, ...args].join(' '));
+      if (command === 'unzip') {
+        const archive = archives.get((await readFile(args.at(-1) === CONTEXT_FILE ? args.at(-2) : args.at(-1))).toString());
+        if (!archive) throw new Error('unknown archive');
+        if (args[0] === '-Z1') return { stdout: `${archive.entries.join('\n')}\n` };
+        if (args[0] === '-p') return { stdout: archive.contents };
+      }
+      if (command !== 'git') throw new Error(`unexpected command ${command}`);
+      const key = args.join(' ');
+      if (key === 'rev-parse HEAD') return { stdout: `${checkout}\n` };
+      if (key === `fetch --no-tags origin pull/${PR_NUMBER}/head:refs/remotes/origin/pr-${PR_NUMBER}`) {
+        return { stdout: '' };
+      }
+      if (key === `rev-parse origin/pr-${PR_NUMBER}`) return { stdout: `${HEAD}\n` };
+      if (key === `show ${HEAD}:${PLAN}`) {
+        if (plan === null) throw new Error('path does not exist');
+        return { stdout: plan };
+      }
+      throw new Error(`unexpected git command ${key}`);
+    };
+    const verify = () =>
+      verifyPremergeBaseline({
+        prNumber: String(PR_NUMBER),
+        prHeadSha: HEAD,
+        environment: { GITHUB_REPOSITORY: REPOSITORY, GH_TOKEN: 'workflow-token' },
+        fetchImpl,
+        execFileImpl,
+      });
+    return { verify, urls, commands };
+  }
+
+  const older = () => captureRun({ id: 9001, artifactId: 8001, completedAt: '2026-10-09T10:00:00Z' });
+  const newer = (options = {}) =>
+    captureRun({ id: 9002, artifactId: 8002, completedAt: '2026-10-09T11:00:00Z', ...options });
+
+  it('pins the scoped plan path shared with the change classifier', () => {
+    expect(RELEASE_BASELINE_PLAN_PATH).toBe(PLAN);
+  });
+
+  it('selects the newest verified capture and emits its exact binding', async () => {
+    const latest = newer();
+    const { verify, commands, urls } = harness({ runs: [latest, older()] });
+    await expect(verify()).resolves.toEqual({
+      prNumber: PR_NUMBER,
+      prHeadSha: HEAD,
+      baselineMainSha: MAIN,
+      planPath: PLAN,
+      planSha256: PLAN_DIGEST,
+      captureJobCompletedAt: '2026-10-09T11:00:00.000Z',
+      binding: latest.binding,
+    });
+    // Candidate bytes are read only as Git data; no candidate code runs.
+    expect(commands.every((command) => /^(git (rev-parse|fetch --no-tags origin pull\/1700\/head|show)|unzip )/.test(command))).toBe(true);
+    expect(commands.some((command) => /checkout|npm|node|worktree/.test(command))).toBe(false);
+    expect(urls.every((url) => url.startsWith(`https://api.github.com/repos/${REPOSITORY}/`))).toBe(true);
+    expect(urls.find((url) => url.includes('/actions/workflows/'))).toContain(`head_sha=${MAIN}`);
+  });
+
+  it.each([
+    ['a newer capture for another plan digest', () => newer({ context: { planSha256: 'f'.repeat(64) } })],
+    ['a newer capture for another PR number', () => newer({ context: { plannedPrNumber: 1699 } })],
+    ['a newer failed capture run', () => newer({ conclusion: 'failure' })],
+    ['a newer rerun whose artifact belongs to an older attempt', () => newer({ attempt: 2, artifactAttempt: 1 })],
+    ['a newer capture whose archive digest differs', () => newer({ archiveDigest: '0'.repeat(64) })],
+    ['a newer capture whose archive holds extra entries', () => newer({ archiveEntries: [CONTEXT_FILE, 'extra.sh'] })],
+    ['a newer capture captured outside its job', () => newer({ context: { capturedAt: '2026-10-09T09:00:00.000Z' } })],
+  ])('skips %s and selects the older matching capture', async (_label, makeNewer) => {
+    const { verify } = harness({ runs: [makeNewer(), older()] });
+    await expect(verify()).resolves.toMatchObject({ binding: { baselineRunId: '9001' } });
+  });
+
+  it.each([
+    ['no capture run', {}],
+    ['only a failed capture run', { runs: [older()].map((run) => ({ ...run, listing: { ...run.listing, conclusion: 'failure' } })) }],
+    ['only an incompatible capture', { runs: [newer({ context: { planSha256: 'f'.repeat(64) } })] }],
+  ])('fails closed with %s', async (_label, options) => {
+    await expect(harness(options).verify()).rejects.toThrow(/no verified pre-merge capture/);
+  });
+
+  it.each([
+    ['a duplicated artifact on a matching run', { runs: [newer({ artifacts: { total_count: 2, artifacts: [{ id: 8002 }, { id: 8003 }] } })] }, /duplicated/],
+    ['a run listing beyond the bound', { listing: { total_count: 101, workflow_runs: [] } }, /bound/],
+    ['a malformed run listing', { listing: { total_count: 1 } }, /listing/],
+    ['a transport failure on the newest candidate', { runs: [newer(), older()], extraRoutes: { '/actions/runs/9002/attempts/1/jobs': TRANSPORT_FAILURE } }, /request failed/],
+    ['a transport failure downloading the archive', { runs: [newer(), older()], extraRoutes: { '/actions/artifacts/8002/zip': TRANSPORT_FAILURE } }, /request failed/],
+    ['live main that moved during discovery', { runs: [older()], mains: [MAIN, '1'.repeat(40)] }, /live main/],
+    ['a plan missing at the PR head', { runs: [older()], plan: null }, /missing at the PR head/],
+  ])('fails closed for %s', async (_label, options, message) => {
+    await expect(harness(options).verify()).rejects.toThrow(message);
+  });
+
+  it.each([
+    ['a closed PR', { pull: openPull({ state: 'closed' }) }],
+    ['a merged PR', { pull: openPull({ state: 'closed', merged: true }) }],
+    ['a PR head that moved', { pull: openPull({ head: { sha: '9'.repeat(40), repo: { full_name: REPOSITORY } } }) }],
+    ['a verifier checkout that is not live main', { checkout: '1'.repeat(40) }],
+  ])('refuses %s before reading any capture evidence', async (_label, options) => {
+    const { verify, urls } = harness({ runs: [older()], ...options });
+    await expect(verify()).rejects.toThrow(/release recovery context capture failed/i);
+    expect(urls.some((url) => url.includes('/actions/'))).toBe(false);
   });
 });

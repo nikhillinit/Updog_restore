@@ -12,7 +12,7 @@ const EXACT_LIGHT_ALLOWLIST = [
 
 // Any change to this exact plan path, on either side of a rename or copy,
 // requires a verified pre-merge release baseline capture (ADR-107).
-const RELEASE_BASELINE_PLAN_PATH = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+export const RELEASE_BASELINE_PLAN_PATH = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
 
 const FINANCIAL_PATHS = {
   inclusionRoots: [

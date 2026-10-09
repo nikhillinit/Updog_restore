@@ -1,12 +1,14 @@
 import console from 'node:console';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { open, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { RELEASE_BASELINE_PLAN_PATH } from '../ci/classify-change-paths.mjs';
 import {
   normalizeRailwayResponse,
   vercelDeploymentAliasesUrl,
@@ -956,6 +958,254 @@ export async function verifyBaselineArtifact({
   return { binding, plannedPrHeadSha, capture };
 }
 
+export { RELEASE_BASELINE_PLAN_PATH };
+const CONTEXT_FILE = 'release-recovery-context-v1.json';
+const MAX_CAPTURE_RUNS = 100;
+const MAX_ARCHIVE_BYTES = 1024 * 1024;
+const CAPTURED_CONTEXT_KEYS = Object.freeze([
+  'schemaVersion',
+  'baselineMainSha',
+  'plannedPrHeadSha',
+  'plannedPrNumber',
+  'planPath',
+  'planSha256',
+  'githubRunId',
+  'githubRunAttempt',
+  'capturedAt',
+  'vercel',
+  'railway',
+]);
+
+function sha256Hex(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+async function downloadArtifactArchive(fetchImpl, repository, artifactId, token) {
+  let response;
+  try {
+    response = await fetchImpl(
+      `https://api.github.com/repos/${repository}/actions/artifacts/${artifactId}/zip`,
+      {
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        signal: globalThis.AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      }
+    );
+  } catch {
+    fail('baseline artifact archive request failed', { transport: true });
+  }
+  if (!response?.ok || typeof response.arrayBuffer !== 'function') {
+    fail('baseline artifact archive request failed', { transport: true });
+  }
+  const bytes = globalThis.Buffer.from(await response.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > MAX_ARCHIVE_BYTES) fail('baseline artifact archive size is invalid');
+  return bytes;
+}
+
+// Archive bytes are untrusted data: list and read through unzip, never execute.
+async function extractContextFile(execFileImpl, bytes) {
+  const directory = await mkdtemp(join(tmpdir(), 'release-baseline-'));
+  const archive = join(directory, 'baseline.zip');
+  try {
+    await writeFile(archive, bytes, { mode: 0o600 });
+    let entries;
+    let contents;
+    try {
+      entries = String((await execFileImpl('unzip', ['-Z1', archive], { encoding: 'utf8' })).stdout);
+      if (entries !== `${CONTEXT_FILE}\n`) throw new Error('unexpected entries');
+      contents = String(
+        (await execFileImpl('unzip', ['-p', archive, CONTEXT_FILE], {
+          encoding: 'utf8',
+          maxBuffer: MAX_ARCHIVE_BYTES,
+        })).stdout
+      );
+    } catch {
+      fail('baseline artifact archive must hold exactly the context file');
+    }
+    return contents;
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Prove one listed capture run is verified evidence for the exact candidate
+ * P/H/B/L/D. Throws on any mismatch; transport failures carry `transport`.
+ */
+async function verifyCandidateCapture({ fetchImpl, execFileImpl, repository, token, run, artifactId, candidate }) {
+  const id = runId(String(run?.id ?? ''));
+  const attempt = runAttempt(run?.run_attempt);
+  const capture = await verifyCaptureAttempt({ fetchImpl, repository, token, runId: id, runAttempt: attempt });
+  if (capture.headSha !== candidate.baselineMainSha) fail('capture run did not execute at baseline main');
+  const artifact = await githubJson(fetchImpl, repository, `/actions/artifacts/${artifactId}`, token);
+  const name = `release-baseline-v1-${id}-${attempt}-${candidate.prHeadSha}`;
+  const digest = safeText(artifact?.digest, 'baseline artifact digest');
+  if (
+    String(artifact?.id ?? '') !== artifactId ||
+    String(artifact?.workflow_run?.id ?? '') !== id ||
+    artifact?.name !== name ||
+    artifact?.expired !== false ||
+    !ARTIFACT_DIGEST.test(digest) ||
+    !Number.isSafeInteger(artifact?.size_in_bytes) ||
+    artifact.size_in_bytes > MAX_ARCHIVE_BYTES
+  ) {
+    fail('baseline artifact identity is invalid');
+  }
+  const archive = await downloadArtifactArchive(fetchImpl, repository, artifactId, token);
+  if (`sha256:${sha256Hex(archive)}` !== digest) fail('baseline artifact archive digest does not match');
+  const contents = await extractContextFile(execFileImpl, archive);
+  let context;
+  try {
+    context = JSON.parse(contents);
+  } catch {
+    fail('baseline context file is malformed');
+  }
+  exactKeys(context, CAPTURED_CONTEXT_KEYS, 'baseline context');
+  if (context.schemaVersion !== 'release-recovery-context-v1') fail('baseline context schema version is invalid');
+  verifyContextCapture(context, { runId: id, runAttempt: attempt, capture, plannedPrHeadSha: candidate.prHeadSha });
+  if (
+    pullRequestNumber(context.plannedPrNumber, 'captured planned PR number') !== candidate.prNumber ||
+    planPath(context.planPath) !== candidate.planPath ||
+    sha256(context.planSha256, 'plan SHA-256') !== candidate.planSha256
+  ) {
+    fail('baseline context does not bind this candidate');
+  }
+  return {
+    completedAt: capture.completedAt,
+    binding: {
+      schemaVersion: 'release-baseline-binding-v1',
+      baselineRunId: id,
+      baselineRunAttempt: attempt,
+      baselineArtifactId: artifactId,
+      baselineArtifactDigest: digest,
+      baselineFileSha256: sha256Hex(contents),
+    },
+  };
+}
+
+/**
+ * Pre-merge consumer for the scoped release plan (ADR-107). Runs from a
+ * protected-main checkout; the candidate head is read only as Git data.
+ * Selects the newest verified capture for the exact P/H/B/L/D tuple.
+ */
+export async function verifyPremergeBaseline({
+  prNumber,
+  prHeadSha,
+  environment = process.env,
+  fetchImpl = globalThis.fetch,
+  execFileImpl = execFileAsync,
+  gitFetchTimeoutMs = DEFAULT_GIT_FETCH_TIMEOUT_MS,
+  deadlineAt,
+  now = Date.now,
+} = {}) {
+  if (typeof fetchImpl !== 'function' || typeof execFileImpl !== 'function') {
+    fail('baseline evidence dependencies are unavailable');
+  }
+  const number = pullRequestNumber(prNumber, 'pr-number');
+  const head = sha(prHeadSha, 'PR head SHA');
+  const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
+  const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
+  if (!GITHUB_REPOSITORY.test(repository)) fail('GitHub repository is invalid');
+  const liveMain = async () =>
+    sha((await githubJson(fetchImpl, repository, '/commits/main', token))?.sha, 'live main SHA');
+
+  const baseline = await liveMain();
+  if ((await gitOutput(execFileImpl, ['rev-parse', 'HEAD'])) !== baseline) {
+    fail('protected verifier checkout is not live main');
+  }
+  const openCandidate = () =>
+    verifyOpenCandidate({ fetchImpl, repository, token, prNumber: number, headSha: head, baselineMainSha: baseline });
+  await openCandidate();
+  await gitOutput(
+    execFileImpl,
+    ['fetch', '--no-tags', 'origin', `pull/${number}/head:refs/remotes/origin/pr-${number}`],
+    { gitFetchTimeoutMs, deadlineAt, now }
+  );
+  if ((await gitOutput(execFileImpl, ['rev-parse', `origin/pr-${number}`])) !== head) {
+    fail('fetched PR head does not match PR head SHA');
+  }
+  let plan;
+  try {
+    plan = await gitContents(execFileImpl, ['show', `${head}:${RELEASE_BASELINE_PLAN_PATH}`]);
+  } catch {
+    fail('scoped release plan is missing at the PR head');
+  }
+  const candidate = {
+    prNumber: number,
+    prHeadSha: head,
+    baselineMainSha: baseline,
+    planPath: RELEASE_BASELINE_PLAN_PATH,
+    planSha256: sha256Hex(plan),
+  };
+
+  const listing = await githubJson(
+    fetchImpl,
+    repository,
+    `/actions/workflows/capture-release-baseline.yml/runs?branch=main&event=workflow_dispatch&status=completed&head_sha=${baseline}&per_page=${MAX_CAPTURE_RUNS}`,
+    token
+  );
+  if (!Array.isArray(listing?.workflow_runs) || !Number.isSafeInteger(listing?.total_count)) {
+    fail('capture run listing is malformed');
+  }
+  if (listing.total_count > MAX_CAPTURE_RUNS || listing.workflow_runs.length !== listing.total_count) {
+    fail(`capture run listing exceeds the ${MAX_CAPTURE_RUNS}-run verification bound`);
+  }
+
+  let selected;
+  for (const run of listing.workflow_runs) {
+    if (run?.conclusion !== 'success') continue;
+    const id = runId(String(run?.id ?? ''));
+    const name = `release-baseline-v1-${id}-${runAttempt(run?.run_attempt)}-${head}`;
+    const listed = await githubJson(
+      fetchImpl,
+      repository,
+      `/actions/runs/${id}/artifacts?name=${encodeURIComponent(name)}&per_page=100`,
+      token
+    );
+    if (!Array.isArray(listed?.artifacts)) fail('capture artifact listing is malformed');
+    if (listed.artifacts.length === 0) continue;
+    if (listed.artifacts.length !== 1 || listed.total_count !== 1) {
+      fail('capture artifact is duplicated on its run');
+    }
+    let evidence;
+    try {
+      evidence = await verifyCandidateCapture({
+        fetchImpl,
+        execFileImpl,
+        repository,
+        token,
+        run,
+        artifactId: runId(String(listed.artifacts[0]?.id ?? '')),
+        candidate,
+      });
+    } catch (error) {
+      if (error?.transport) throw error;
+      continue; // Not evidence for this exact candidate.
+    }
+    if (
+      !selected ||
+      evidence.completedAt > selected.completedAt ||
+      (evidence.completedAt === selected.completedAt &&
+        Number(evidence.binding.baselineRunId) > Number(selected.binding.baselineRunId))
+    ) {
+      selected = evidence;
+    }
+  }
+  if (!selected) fail('no verified pre-merge capture matches this candidate');
+
+  // Final re-fence: the candidate and main must not have moved during discovery.
+  if ((await liveMain()) !== baseline) fail('live main moved during baseline discovery');
+  await openCandidate();
+  return {
+    ...candidate,
+    captureJobCompletedAt: new Date(selected.completedAt).toISOString(),
+    binding: selected.binding,
+  };
+}
+
 async function isAncestor(execFileImpl, ancestorSha, descendantSha) {
   try {
     await execFileImpl('git', ['merge-base', '--is-ancestor', ancestorSha, descendantSha], {
@@ -1252,6 +1502,16 @@ async function main() {
       planSha256: options['--plan-sha256'],
     });
     console.log('Release baseline binding verified.');
+    return;
+  }
+  if (command === 'verify-premerge') {
+    const options = parseArguments(args, ['--pr-number', '--pr-head-sha']);
+    const result = await verifyPremergeBaseline({
+      prNumber: options['--pr-number'],
+      prHeadSha: options['--pr-head-sha'],
+    });
+    // Identifiers only: no provider identity, raw context, or encoded payload.
+    console.log(JSON.stringify(result));
     return;
   }
   if (command === 'verify-baseline-artifact') {
