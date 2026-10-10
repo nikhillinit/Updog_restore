@@ -22,6 +22,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-09)
+
+- ADR-107: a pull request that touches the F_1.21.1 release plan path now needs
+  a verified pre-merge baseline capture before `CI Gate Status` turns green.
+  Capture refuses a PR that is not open into `main`. Release preflight
+  authenticates the exact capture attempt and job, requires capture before merge
+  and a single-parent squash onto the baseline, and checks the downloaded
+  archive bytes. #1630 stays merged; it is not a release vehicle.
+
 ### Changed (2026-10-08)
 
 - #1625, #1628, and #1629 merged before any baseline capture ran, so none can be

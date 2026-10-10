@@ -10,6 +10,10 @@ const EXACT_LIGHT_ALLOWLIST = [
   'docs/skills/WIZARD_INDEX.md',
 ];
 
+// Any change to this exact plan path, on either side of a rename or copy,
+// requires a verified pre-merge release baseline capture (ADR-107).
+export const RELEASE_BASELINE_PLAN_PATH = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+
 const FINANCIAL_PATHS = {
   inclusionRoots: [
     'server/engine/',
@@ -161,12 +165,16 @@ function classify(raw, lightAllowlist) {
   const financialCalcRelevant = changes.some((change) =>
     change.paths.some((changedPath) => isFinancialPath(changedPath))
   );
+  const releaseBaselinePlanTouched = changes.some((change) =>
+    change.paths.includes(RELEASE_BASELINE_PLAN_PATH)
+  );
 
   return {
     autoDocsOnly,
     changeCount: changes.length,
     financialCalcRelevant,
     heavyCiRelevant: !autoDocsOnly,
+    releaseBaselinePlanTouched,
     valid: true,
   };
 }
@@ -215,7 +223,7 @@ function readChangedPaths(options) {
 
   const completed = spawnSync(
     'git',
-    ['diff', '--raw', '-z', '--no-abbrev', '--find-renames', options.base, options.head, '--'],
+    ['diff', '--raw', '-z', '--no-abbrev', '--find-renames', '--find-copies-harder', options.base, options.head, '--'],
     {
       encoding: null,
       maxBuffer: 16 * 1024 * 1024,
@@ -237,6 +245,7 @@ function writeGitHubOutputs(outputPath, classification) {
       `auto_docs_only=${String(classification.autoDocsOnly)}`,
       `financial_calc_relevant=${String(classification.financialCalcRelevant)}`,
       `heavy_ci_relevant=${String(classification.heavyCiRelevant)}`,
+      `release_baseline_plan_touched=${String(classification.releaseBaselinePlanTouched)}`,
       `change_count=${String(classification.changeCount)}`,
       '',
     ].join('\n')

@@ -2803,6 +2803,7 @@ const GATE_FEEDING_JOBS = [
   'guards',
   'neon-lane',
   'surface-projection-audit',
+  'release-baseline',
   'secret-scan',
 ];
 
@@ -2821,6 +2822,11 @@ type GateEvaluatorScenario = {
   // these fields are unaffected.
   auditExpected?: boolean;
   auditResult?: string;
+  // Optional: isolate the scoped release-baseline prerequisite (ADR-107).
+  // Defaults model an unscoped change (not touched, not expected, skipped).
+  releaseBaselinePlanTouched?: string;
+  releaseBaselineExpected?: boolean;
+  releaseBaselineResult?: string;
 };
 
 function interpolateGateExpression(expression: string, scenario: GateEvaluatorScenario): string {
@@ -2881,6 +2887,20 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
     "github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true'"
   ) {
     return (scenario.auditExpected ?? heavy) ? 'true' : 'false';
+  }
+  if (normalized === 'needs.changes.outputs.release_baseline_plan_touched') {
+    return (
+      scenario.releaseBaselinePlanTouched ?? (scenario.releaseBaselineExpected ? 'true' : 'false')
+    );
+  }
+  if (
+    normalized ===
+    "needs.changes.outputs.release_baseline_plan_touched == 'true' && github.ref != 'refs/heads/main'"
+  ) {
+    return scenario.releaseBaselineExpected ? 'true' : 'false';
+  }
+  if (normalized === 'needs.release-baseline.result') {
+    return scenario.releaseBaselineResult ?? 'skipped';
   }
   if (normalized === 'needs.test-affected.result') return scenario.affectedTestResult ?? 'skipped';
   if (normalized.endsWith('.result')) return 'skipped';
@@ -7661,6 +7681,130 @@ describe('required CI fails closed', () => {
         expect(execution.passed, `${expected}:${result || '<empty>'}`).toBe(shouldPass);
       }
     }
+  });
+
+  it.each([
+    [true, 'success', 'passed'],
+    [true, 'failure', 'failed'],
+    [true, 'cancelled', 'failed'],
+    [true, 'skipped', 'failed'],
+    [false, 'skipped', 'passed'],
+    [false, 'success', 'failed'],
+    [false, 'failure', 'failed'],
+  ] as const)(
+    'gates on the scoped release baseline prerequisite (expected=%s, result=%s)',
+    { retry: 0 },
+    async (releaseBaselineExpected, releaseBaselineResult, expected) => {
+      await expect(
+        evaluateCiGateStatus({ releaseBaselineExpected, releaseBaselineResult })
+      ).resolves.toBe(expected);
+    }
+  );
+
+  it.each(['', 'maybe', 'TRUE'])(
+    'fails closed on a malformed release baseline classification (%j)',
+    { retry: 0 },
+    async (releaseBaselinePlanTouched) => {
+      await expect(evaluateCiGateStatus({ releaseBaselinePlanTouched })).resolves.toBe('failed');
+    }
+  );
+
+  it('wires the scoped release baseline feeder from protected main only (ADR-107)', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const changes = workflow.jobs?.changes;
+    expect(changes?.outputs?.release_baseline_plan_touched).toBe(
+      '${{ steps.classify.outputs.release_baseline_plan_touched }}'
+    );
+    const classify = (changes?.steps ?? []).find((step) => step.id === 'classify');
+    // The manual-dispatch branch reports the plan path too, so a dispatch on a
+    // candidate branch cannot stand in for pull_request CI.
+    expect(classify?.run).toContain(
+      'echo "release_baseline_plan_touched=$release_baseline_plan_touched"'
+    );
+    expect(classify?.run).toContain('git merge-base origin/main "$head_sha"');
+
+    const feeder = workflow.jobs?.['release-baseline'];
+    expect(feeder?.if).toBe(
+      "needs.changes.outputs.release_baseline_plan_touched == 'true' && github.ref != 'refs/heads/main'"
+    );
+    expect(normalizeNeeds(feeder?.needs)).toEqual(['changes']);
+    expect(feeder?.permissions).toEqual({
+      actions: 'read',
+      contents: 'read',
+      'pull-requests': 'read',
+    });
+    expect(feeder).not.toHaveProperty('environment');
+    expect(JSON.stringify(feeder)).not.toContain('secrets.');
+
+    const steps = feeder?.steps ?? [];
+    expect(steps[0]?.if).toBe("github.event_name != 'pull_request'");
+    expect(steps[0]?.run).toContain('exit 1');
+    const checkouts = steps.filter((step) => step.uses?.startsWith('actions/checkout'));
+    expect(checkouts).toHaveLength(1);
+    expect(checkouts[0]?.with).toMatchObject({ ref: 'main', 'persist-credentials': false });
+    expect(checkouts[0]?.with).not.toHaveProperty('repository');
+    // No local action, dependency install, or candidate checkout can run PR code.
+    expect(steps.some((step) => step.uses?.startsWith('./'))).toBe(false);
+    const scripts = steps.flatMap((step) => (typeof step.run === 'string' ? [step.run] : []));
+    expect(scripts.join('\n')).not.toMatch(/\bnpm\b|\bnpx\b|git checkout|pull_request\.head\.ref/);
+    const verify = steps.find((step) => step.id === 'verify');
+    expect(verify?.run).toContain(
+      'node scripts/release/capture-release-recovery-context.mjs verify-premerge'
+    );
+    expect(verify?.env).toMatchObject({
+      PR_NUMBER: '${{ github.event.pull_request.number }}',
+      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
+    });
+
+    const gateSteps = workflow.jobs?.gate?.steps ?? [];
+    const determineIndex = gateSteps.findIndex((step) => step.name === 'Determine gate status');
+    const refenceIndex = gateSteps.findIndex(
+      (step) => step.name === 'Re-fence scoped release candidate'
+    );
+    expect(refenceIndex).toBeGreaterThan(determineIndex);
+    const refence = gateSteps[refenceIndex];
+    expect(refence?.if).toBe("needs.release-baseline.result == 'success'");
+    expect(refence).not.toHaveProperty('continue-on-error');
+    expect(refence?.run).toContain('"open ${PR_HEAD_SHA}"');
+    expect(refence?.run).toContain('"$live_main" != "$BASELINE_MAIN_SHA"');
+    expect(gateSteps[determineIndex]?.run).toContain(
+      'require_result "Release baseline prerequisite" "$release_baseline_result" "$release_baseline_expected"'
+    );
+  });
+
+  it('verifies downloaded baseline archive bytes before any release mutation', async () => {
+    const workflow = await readWorkflow('release-production.yml');
+    const preflight = workflow.jobs?.['baseline-policy-preflight'];
+    const steps = preflight?.steps ?? [];
+    const names = steps.map((step) => step.name);
+    const artifactIndex = names.indexOf('Verify exact baseline artifact identity');
+    const downloadIndex = names.indexOf('Download exact baseline artifact by ID');
+    const consumeIndex = names.indexOf('Verify baseline consumption and release lineage');
+    expect(artifactIndex).toBeGreaterThanOrEqual(0);
+    expect(downloadIndex).toBeGreaterThan(artifactIndex);
+    expect(consumeIndex).toBeGreaterThan(downloadIndex);
+
+    const download = String(steps[downloadIndex]?.run);
+    const digestCheck = download.indexOf('sha256sum --check --status');
+    const entryCheck = download.indexOf(
+      'unzip -Z1 "$RUNNER_TEMP/release-baseline.zip")" == "release-recovery-context-v1.json"'
+    );
+    const extract = download.indexOf('unzip -o');
+    expect(digestCheck).toBeGreaterThan(
+      download.indexOf('/zip" > "$RUNNER_TEMP/release-baseline.zip"')
+    );
+    expect(entryCheck).toBeGreaterThan(digestCheck);
+    expect(extract).toBeGreaterThan(entryCheck);
+
+    // A baseline refusal blocks the first mutation in both modes.
+    const stage = workflow.jobs?.['stage-production'];
+    expect(normalizeNeeds(stage?.needs)).toContain('baseline-policy-preflight');
+    expect(String(stage?.steps?.[0]?.run)).toContain(
+      '"$BASELINE_POLICY_PREFLIGHT_RESULT" != "success"'
+    );
+    const workers = workflow.jobs?.['railway-workers-deploy'];
+    expect(normalizeNeeds(workers?.needs)).toContain('baseline-policy-preflight');
+    expect(String(workers?.if)).toContain("needs.baseline-policy-preflight.result == 'success'");
   });
 
   it('makes every reporting publisher fail-open with bounded retries', async () => {

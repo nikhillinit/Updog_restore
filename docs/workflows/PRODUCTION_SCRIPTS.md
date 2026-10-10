@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-09-27
+last_updated: 2026-10-09
 ---
 
 # Canonical Production-Action Procedure
@@ -480,6 +480,59 @@ The canonical route performs one final source/currentness fence immediately befo
 It evaluates only controls applicable to the requested action.
 Automated drift recovery may re-fence and retry once; if currentness drifts again, return `BLOCKED`
 for owner disposition. Do not loop, reuse a stale fence, or dispatch a mutation.
+
+## Release baseline prerequisite (ADR-107)
+
+Scope: a pull request whose raw diff touches
+`docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md`, on either
+side of a rename or copy, including deletion. Labels, titles, draft state, and
+comments do not change scope. Other pull requests keep their existing merge
+requirements.
+
+For a scoped pull request, `CI Gate Status` requires the
+`Release Baseline Prerequisite` job to succeed. That job runs `verify-premerge`
+from `scripts/release/capture-release-recovery-context.mjs` in a checkout of
+protected `main`. It reads the candidate only as Git data and API evidence. It
+selects the newest capture whose run attempt, capture job, artifact archive, and
+context bind the exact PR number, PR head, live `main`, plan path, and plan
+SHA-256. The gate then re-reads the PR head and live `main` before it turns
+green. A manual `workflow_dispatch` run on a candidate branch cannot satisfy the
+prerequisite.
+
+### Owner sequence
+
+1. Freeze the candidate after its ordinary feeders pass. The prerequisite and
+   the gate may be red only because the capture is missing. Keep the PR in
+   draft.
+2. Dispatch `Capture Release Baseline` on current `main` with the exact PR
+   number, frozen head, plan path, and plan SHA-256. Capture refuses a closed,
+   merged, retargeted, or fork PR, a stale head, and a head that does not
+   contain `main`.
+3. Rerun the original `pull_request` CI run for the same frozen head (re-run all
+   jobs). A new `workflow_dispatch` run is not a substitute. Do not rerun a
+   production release attempt.
+4. Confirm the prerequisite summary in the new attempt, a green `CI Gate Status`
+   on the current head, and live `main`. Then mark the PR ready and squash-merge
+   it.
+5. If `main` advances or the head changes, update the branch, capture again, and
+   rerun CI. Earlier captures stay historical receipts, but they are not
+   evidence for a new head.
+6. Use the five-field binding from the prerequisite summary for the owner
+   release dispatch. Release preflight rejects the binding before the first
+   provider mutation unless all of these hold: the capture job completed
+   strictly before the merge; the merge commit has the captured baseline as its
+   only parent; the plan bytes match at both the PR head and the merge commit;
+   and the downloaded archive bytes match the bound digest.
+
+### Limits
+
+- Strict branch protection, not this job, blocks a merge after `main` advances
+  past a green check.
+- Artifact deletion or expiry after a green check does not block source
+  admission. Release preflight rejects unavailable evidence before mutation.
+- Hosted staging proof of strict and test-merge freshness and of same-head rerun
+  behavior is still open. Until it passes, do not prepare the next release
+  vehicle.
 
 ## Railway worker deploy stage (release-production)
 

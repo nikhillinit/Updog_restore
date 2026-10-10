@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BaselineFragmentPayloadSchema } from '../../../shared/contracts/release-evidence-fragment-v1.contract';
 import {
+  RELEASE_BASELINE_PLAN_PATH,
   ROLLBACK_DIFF_ALLOWLIST,
   buildReleaseRecoveryContext,
   captureProviderBaseline,
@@ -16,6 +17,7 @@ import {
   verifyBaselineArtifact,
   verifyBaselineBinding,
   verifyBaselineConsumption,
+  verifyPremergeBaseline,
 } from '../../../scripts/release/capture-release-recovery-context.mjs';
 
 const BASELINE_MAIN_SHA = 'a'.repeat(40);
@@ -27,6 +29,18 @@ const APPROVED_PLAN_TEXT = 'approved hardening plan body\n';
 const APPROVED_PLAN_DIGEST = createHash('sha256').update(APPROVED_PLAN_TEXT).digest('hex');
 const VERCEL_SOURCE_SHA = 'd'.repeat(40);
 const RAILWAY_SOURCE_SHA = 'e'.repeat(40);
+
+const COMPARE_PATH = `/compare/${BASELINE_MAIN_SHA}...${PLANNED_PR_HEAD_SHA}`;
+
+function openPullRequest(overrides = {}) {
+  return {
+    state: 'open',
+    merged: false,
+    head: { sha: PLANNED_PR_HEAD_SHA, repo: { full_name: 'nikhillinit/Updog_restore' } },
+    base: { ref: 'main', repo: { full_name: 'nikhillinit/Updog_restore' } },
+    ...overrides,
+  };
+}
 
 function captureInput(overrides = {}) {
   return {
@@ -275,8 +289,9 @@ describe('capture-release-recovery-context', () => {
         if (url.endsWith('/commits/main'))
           return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
         if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`))
-          return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
-        throw new Error('unexpected URL');
+          return { ok: true, json: async () => openPullRequest() };
+        if (url.endsWith(COMPARE_PATH)) return { ok: true, json: async () => ({ status: 'ahead', behind_by: 0 }) };
+      throw new Error('unexpected URL');
       };
       const execFileImpl = async (_command, args) => {
         const key = args.join(' ');
@@ -494,6 +509,51 @@ describe('capture-release-recovery-context', () => {
     }
   );
 
+  it.each([
+    ['a closed PR', { pull: openPullRequest({ state: 'closed' }) }],
+    ['a merged PR', { pull: openPullRequest({ state: 'closed', merged: true }) }],
+    ['a PR retargeted away from main', { pull: openPullRequest({ base: { ref: 'develop', repo: { full_name: 'nikhillinit/Updog_restore' } } }) }],
+    ['a fork PR head', { pull: openPullRequest({ head: { sha: PLANNED_PR_HEAD_SHA, repo: { full_name: 'someone/fork' } } }) }],
+    ['a stale PR head', { pull: openPullRequest({ head: { sha: '9'.repeat(40), repo: { full_name: 'nikhillinit/Updog_restore' } } }) }],
+    ['a PR that does not contain baseline main', { compare: { status: 'diverged', behind_by: 2 } }],
+    ['a PR behind baseline main', { compare: { status: 'behind', behind_by: 1 } }],
+  ])('rejects capture for %s before any git fetch', { retry: 0 }, async (_label, { pull, compare }) => {
+    const environment = providerEnvironment({
+      GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
+      GH_TOKEN: 'workflow-token',
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_SHA: BASELINE_MAIN_SHA,
+    });
+    const gitCalls = [];
+    const fetchImpl = async (url) => {
+      if (url.endsWith('/commits/main')) return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
+      if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) return { ok: true, json: async () => pull ?? openPullRequest() };
+      if (url.endsWith(COMPARE_PATH)) {
+        return { ok: true, json: async () => compare ?? { status: 'ahead', behind_by: 0 } };
+      }
+      throw new Error(`unexpected URL ${url}`);
+    };
+    const execFileImpl = async (_command, args) => {
+      gitCalls.push(args.join(' '));
+      if (args.join(' ') === 'rev-parse HEAD') return { stdout: `${BASELINE_MAIN_SHA}\n` };
+      throw new Error(`unexpected git command ${args.join(' ')}`);
+    };
+
+    await expect(
+      verifyBaselineBinding({
+        baselineMainSha: BASELINE_MAIN_SHA,
+        plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+        plannedPrNumber: PLANNED_PR_NUMBER,
+        planPath: PLAN_PATH,
+        planSha256: APPROVED_PLAN_DIGEST,
+        environment,
+        fetchImpl,
+        execFileImpl,
+      })
+    ).rejects.toThrow(/release recovery context capture failed/i);
+    expect(gitCalls).toEqual(['rev-parse HEAD']);
+  });
+
   it('passes bounded timeouts to network git fetches while leaving local git reads unchanged', { retry: 0 }, async () => {
     const environment = providerEnvironment({
       GITHUB_REPOSITORY: 'nikhillinit/Updog_restore',
@@ -507,8 +567,9 @@ describe('capture-release-recovery-context', () => {
         return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
       }
       if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
-        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+        return { ok: true, json: async () => openPullRequest() };
       }
+      if (url.endsWith(COMPARE_PATH)) return { ok: true, json: async () => ({ status: 'ahead', behind_by: 0 }) };
       throw new Error(`unexpected URL ${url}`);
     };
     const execFileImpl = async (_command, args, options) => {
@@ -557,8 +618,9 @@ describe('capture-release-recovery-context', () => {
         return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
       }
       if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
-        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+        return { ok: true, json: async () => openPullRequest() };
       }
+      if (url.endsWith(COMPARE_PATH)) return { ok: true, json: async () => ({ status: 'ahead', behind_by: 0 }) };
       throw new Error(`unexpected URL ${url}`);
     };
     const execFileImpl = async (_command, args, options) => {
@@ -595,8 +657,9 @@ describe('capture-release-recovery-context', () => {
         return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
       }
       if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) {
-        return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
+        return { ok: true, json: async () => openPullRequest() };
       }
+      if (url.endsWith(COMPARE_PATH)) return { ok: true, json: async () => ({ status: 'ahead', behind_by: 0 }) };
       throw new Error(`unexpected URL ${url}`);
     };
     const execFileImpl = async (_command, args) => {
@@ -698,13 +761,48 @@ describe('baseline evidence decoding and exact consumption', () => {
 
   function runResponse(overrides = {}) {
     return {
+      id: 123456789,
       path: '.github/workflows/capture-release-baseline.yml',
       repository: { full_name: REPOSITORY },
+      event: 'workflow_dispatch',
       head_branch: 'main',
+      head_sha: BASELINE_MAIN_SHA,
+      run_attempt: 2,
+      status: 'completed',
       conclusion: 'success',
       actor: { login: 'nikhillinit' },
       ...overrides,
     };
+  }
+
+  function attemptResponse(overrides = {}) {
+    return {
+      id: 123456789,
+      run_attempt: 2,
+      head_sha: BASELINE_MAIN_SHA,
+      status: 'completed',
+      conclusion: 'success',
+      triggering_actor: { login: 'nikhillinit' },
+      ...overrides,
+    };
+  }
+
+  function captureJob(overrides = {}) {
+    return {
+      id: 555001,
+      run_id: 123456789,
+      run_attempt: 2,
+      name: 'Capture Immutable Provider Baseline',
+      status: 'completed',
+      conclusion: 'success',
+      started_at: '2026-08-13T23:59:00Z',
+      completed_at: '2026-08-14T00:01:00Z',
+      ...overrides,
+    };
+  }
+
+  function jobsResponse(jobs = [captureJob()]) {
+    return { total_count: jobs.length, jobs };
   }
 
   function artifactResponse(overrides = {}) {
@@ -718,9 +816,14 @@ describe('baseline evidence decoding and exact consumption', () => {
     };
   }
 
-  function makeFetch(routes) {
+  // The longest matching fragment wins, so a run route never shadows its
+  // attempt, jobs, or artifact sub-resources. Every URL is recorded.
+  function makeFetch(routes, urls = []) {
     return async (url) => {
-      const key = Object.keys(routes).find((fragment) => String(url).includes(fragment));
+      urls.push(String(url));
+      const key = Object.keys(routes)
+        .filter((fragment) => String(url).includes(fragment))
+        .sort((left, right) => right.length - left.length)[0];
       if (!key) throw new Error(`unexpected fetch ${url}`);
       return { ok: true, json: async () => routes[key] };
     };
@@ -732,11 +835,20 @@ describe('baseline evidence decoding and exact consumption', () => {
         artifacts: [{ id: 777001, name: ARTIFACT_NAME }],
       },
       '/actions/artifacts/777001': overrides.artifact ?? artifactResponse(),
+      '/actions/runs/123456789/attempts/2/jobs': overrides.jobs ?? jobsResponse(),
+      '/actions/runs/123456789/attempts/2': overrides.attempt ?? attemptResponse(),
       '/actions/runs/123456789': overrides.run ?? runResponse(),
     };
   }
 
-  function makeExecFile({ ancestor = true, diff = '', plan = PLAN_TEXT } = {}) {
+  function makeExecFile({
+    ancestor = true,
+    diff = '',
+    plan = PLAN_TEXT,
+    headPlan = plan,
+    parents = [BASELINE_MAIN_SHA],
+    fetchedHead = PLANNED_PR_HEAD_SHA,
+  } = {}) {
     return async (command, args) => {
       if (command !== 'git') throw new Error(`unexpected command ${command}`);
       if (args[0] === 'fetch') return { stdout: '' };
@@ -744,7 +856,11 @@ describe('baseline evidence decoding and exact consumption', () => {
         if (!ancestor) throw new Error('not an ancestor');
         return { stdout: '' };
       }
-      if (args[0] === 'show') return { stdout: plan };
+      if (args[0] === 'rev-list') return { stdout: `${[args.at(-1), ...parents].join(' ')}\n` };
+      if (args.join(' ') === `rev-parse origin/pr-${PLANNED_PR_NUMBER}`) return { stdout: `${fetchedHead}\n` };
+      if (args[0] === 'show') {
+        return { stdout: args[1].startsWith(`${PLANNED_PR_HEAD_SHA}:`) ? headPlan : plan };
+      }
       if (args[0] === 'diff') return { stdout: diff };
       throw new Error(`unexpected git args ${args.join(' ')}`);
     };
@@ -752,18 +868,24 @@ describe('baseline evidence decoding and exact consumption', () => {
 
   function pullRoutes({ primary, rollback } = {}) {
     return {
-      [`/pulls/${PLANNED_PR_NUMBER}`]: primary ?? {
-        head: { sha: PLANNED_PR_HEAD_SHA },
-        merged: true,
-        base: { ref: 'main' },
-        merge_commit_sha: RELEASE_SHA,
-      },
+      [`/pulls/${PLANNED_PR_NUMBER}`]: primary ?? mergedPullRequest(),
       '/pulls/4321': rollback ?? {
         head: { sha: ROLLBACK_HEAD_SHA },
         merged: true,
         base: { ref: 'main' },
         merge_commit_sha: RELEASE_SHA,
       },
+    };
+  }
+
+  function mergedPullRequest(overrides = {}) {
+    return {
+      head: { sha: PLANNED_PR_HEAD_SHA },
+      merged: true,
+      merged_at: '2026-08-14T01:00:00Z',
+      base: { ref: 'main' },
+      merge_commit_sha: RELEASE_SHA,
+      ...overrides,
     };
   }
 
@@ -783,13 +905,17 @@ describe('baseline evidence decoding and exact consumption', () => {
     prNumber: 'prNumber' in overrides ? overrides.prNumber : String(PLANNED_PR_NUMBER),
       environment: baselineEnvironment(),
       fetchImpl:
-        overrides.fetchImpl ?? makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
+        overrides.fetchImpl ??
+        makeFetch(
+          { ...artifactRoutes(overrides.artifactRoutes ?? {}), ...pullRoutes(overrides.pulls ?? {}) },
+          overrides.urls
+        ),
       execFileImpl: overrides.execFileImpl ?? makeExecFile(overrides.git ?? {}),
       readFileImpl: async () => contents,
     });
   }
 
-  it('passes bounded timeouts to both baseline-consumption git fetches', async () => {
+  it('passes bounded timeouts to all three baseline-consumption git fetches', async () => {
     const calls = [];
     const baselineExecFile = makeExecFile();
     const execFileImpl = async (command, args, options) => {
@@ -800,7 +926,7 @@ describe('baseline evidence decoding and exact consumption', () => {
     await expect(consume('primary', { execFileImpl })).resolves.toMatchObject({ mode: 'primary' });
 
     const fetchCalls = calls.filter(({ args }) => args[0] === 'fetch');
-    expect(fetchCalls).toHaveLength(2);
+    expect(fetchCalls).toHaveLength(3);
     expect(fetchCalls.every(({ options }) => options.timeout === 120_000)).toBe(true);
   });
 
@@ -863,6 +989,21 @@ describe('baseline evidence decoding and exact consumption', () => {
     ],
     ['duplicate artifact', { list: { artifacts: [{ id: 777001 }, { id: 777002 }] } }],
     ['missing artifact on run', { list: { artifacts: [] } }],
+    ['non-dispatch run event', { run: runResponse({ event: 'push' }) }],
+    ['run still in progress', { run: runResponse({ status: 'in_progress' }) }],
+    ['newer rerun attempt on the run', { run: runResponse({ run_attempt: 3 }) }],
+    ['unsuccessful selected attempt', { attempt: attemptResponse({ conclusion: 'failure' }) }],
+    ['selected attempt for another run', { attempt: attemptResponse({ id: 5 }) }],
+    ['selected attempt at another head', { attempt: attemptResponse({ head_sha: '9'.repeat(40) }) }],
+    ['selected attempt rerun by another account', { attempt: attemptResponse({ triggering_actor: { login: 'intruder' } }) }],
+    ['selected attempt without a triggering actor', { attempt: attemptResponse({ triggering_actor: undefined }) }],
+    ['missing capture job', { jobs: jobsResponse([captureJob({ name: 'Other Job' })]) }],
+    ['duplicated capture job', { jobs: jobsResponse([captureJob(), captureJob({ id: 555002 })]) }],
+    ['failed capture job', { jobs: jobsResponse([captureJob({ conclusion: 'failure' })]) }],
+    ['capture job from another attempt', { jobs: jobsResponse([captureJob({ run_attempt: 1 })]) }],
+    ['incomplete capture job timing', { jobs: jobsResponse([captureJob({ completed_at: null })]) }],
+    ['inverted capture job timing', { jobs: jobsResponse([captureJob({ started_at: '2026-08-14T00:02:00Z' })]) }],
+    ['truncated jobs page', { jobs: { total_count: 2, jobs: [captureJob()] } }],
   ])('rejects baseline artifact identity for %s', async (_label, overrides) => {
     await expect(
       verifyBaselineArtifact({
@@ -903,7 +1044,9 @@ describe('baseline evidence decoding and exact consumption', () => {
   });
 
   it('fails closed when the approved plan differs at the exact release SHA', async () => {
-    await expect(consume('primary', { git: { plan: 'tampered release plan\n' } })).rejects.toThrow(
+    await expect(
+      consume('primary', { git: { plan: 'tampered release plan\n', headPlan: PLAN_TEXT } })
+    ).rejects.toThrow(
       /release plan digest/i
     );
   });
@@ -918,6 +1061,61 @@ describe('baseline evidence decoding and exact consumption', () => {
     await expect(
       consume('primary', { prNumber: '99999' })
     ).rejects.toThrow(/pr number/i);
+  });
+
+  it.each([
+    ['capture completed exactly at merge time', { pulls: { primary: mergedPullRequest({ merged_at: '2026-08-14T00:01:00Z' }) } }],
+    ['capture completed after merge', { pulls: { primary: mergedPullRequest({ merged_at: '2026-08-14T00:00:30Z' }) } }],
+    ['missing merge time', { pulls: { primary: mergedPullRequest({ merged_at: null }) } }],
+    [
+      'release SHA equal to its own baseline',
+      {
+        releaseSha: BASELINE_MAIN_SHA,
+        pulls: { primary: mergedPullRequest({ merge_commit_sha: BASELINE_MAIN_SHA }) },
+      },
+    ],
+    ['merge commit with two parents', { git: { parents: [BASELINE_MAIN_SHA, '1'.repeat(40)] } }],
+    ['baseline that is an older ancestor, not the parent', { git: { parents: ['1'.repeat(40)] } }],
+    ['plan differs at the frozen PR head', { git: { headPlan: 'tampered head plan\n' } }],
+    ['fetched PR head differs from the captured head', { git: { fetchedHead: '9'.repeat(40) } }],
+    ['context captured before the capture job started', { contents: contextContents({ capturedAt: '2026-08-13T23:58:59.000Z' }) }],
+    ['context captured after the capture job completed', { contents: contextContents({ capturedAt: '2026-08-14T00:01:01.000Z' }) }],
+    [
+      'context baseline that differs from the capture run head',
+      {
+        artifactRoutes: {
+          run: runResponse({ head_sha: '1'.repeat(40) }),
+          attempt: attemptResponse({ head_sha: '1'.repeat(40) }),
+        },
+      },
+    ],
+    ['context head that differs from the artifact name', { contents: contextContents({ plannedPrHeadSha: '9'.repeat(40) }) }],
+    [
+      'malformed provider identity in the context',
+      { contents: contextContents({ vercel: { projectId: 'vercel-project' } }) },
+    ],
+    ['newer rerun attempt on the capture run', { artifactRoutes: { run: runResponse({ run_attempt: 3 }) } }],
+    ['failed capture job', { artifactRoutes: { jobs: jobsResponse([captureJob({ conclusion: 'failure' })]) } }],
+  ])('refuses primary consumption for %s before any provider call', async (_label, overrides) => {
+    const urls = [];
+    await expect(consume('primary', { ...overrides, urls })).rejects.toThrow(
+      /release recovery context capture failed/i
+    );
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((url) => url.startsWith(`https://api.github.com/repos/${REPOSITORY}/`))).toBe(true);
+  });
+
+  it('keeps rollback a distinct route after a primary refusal', async () => {
+    const lateMerge = { pulls: { primary: mergedPullRequest({ merged_at: '2026-08-14T00:00:30Z' }) } };
+    await expect(consume('primary', lateMerge)).rejects.toThrow(/before the runtime PR merged/);
+    // Switching mode needs an explicit rollback PR pair in the evidence ...
+    await expect(
+      consume('rollback', { ...lateMerge, binding: { rollbackPrNumber: undefined, rollbackPrHeadSha: undefined } })
+    ).rejects.toThrow(/baseline evidence/);
+    // ... and still requires exact application-tree restoration.
+    await expect(
+      consume('rollback', { ...lateMerge, prNumber: undefined, git: { diff: 'client/src/App.tsx\n' } })
+    ).rejects.toThrow(/differs from the baseline application tree/);
   });
 
   it('accepts a clean rollback revert bounded by the control-plane allowlist', async () => {
@@ -940,7 +1138,7 @@ describe('baseline evidence decoding and exact consumption', () => {
     );
   });
 
-  it('consumes a historical rollback context with only the bound rollback PR fetch', async () => {
+  it('consumes a historical rollback context without reading the planned PR', async () => {
     const historical = JSON.parse(contextContents());
     delete historical.plannedPrNumber;
     delete historical.planPath;
@@ -948,6 +1146,7 @@ describe('baseline evidence decoding and exact consumption', () => {
       consume('rollback', {
         contents: `${JSON.stringify(historical)}\n`,
         fetchImpl: makeFetch({
+          ...artifactRoutes(),
           '/pulls/4321': {
             head: { sha: ROLLBACK_HEAD_SHA },
             merged: true,
@@ -1152,5 +1351,284 @@ describe('baseline evidence decoding and exact consumption', () => {
         ).rejects.toThrow(/could not be written/);
       });
     });
+  });
+});
+
+describe('pre-merge baseline discovery for the scoped release plan', () => {
+  const REPOSITORY = 'nikhillinit/Updog_restore';
+  const PR_NUMBER = 1700;
+  const HEAD = PLANNED_PR_HEAD_SHA;
+  const MAIN = BASELINE_MAIN_SHA;
+  const PLAN = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+  const PLAN_BODY = 'scoped release plan body\n';
+  const PLAN_DIGEST = createHash('sha256').update(PLAN_BODY).digest('hex');
+  const CONTEXT_FILE = 'release-recovery-context-v1.json';
+  const TRANSPORT_FAILURE = Symbol('transport failure');
+  const BODY_FAILURE = Symbol('body read failure');
+
+  function digestOf(value) {
+    return createHash('sha256').update(value).digest('hex');
+  }
+
+  // One capture run at MAIN with its attempt, jobs, artifact, and archive.
+  function captureRun({
+    id,
+    artifactId,
+    attempt = 1,
+    artifactAttempt = attempt,
+    conclusion = 'success',
+    completedAt = '2026-10-09T10:00:00Z',
+    context = {},
+    archiveEntries = [CONTEXT_FILE],
+    archiveDigest,
+    artifacts,
+    jobs,
+    triggeringActor = 'nikhillinit',
+  }) {
+    const contents = `${JSON.stringify(
+      buildReleaseRecoveryContext(
+        captureInput({
+          plannedPrNumber: PR_NUMBER,
+          planPath: PLAN,
+          planSha256: PLAN_DIGEST,
+          githubRunId: String(id),
+          githubRunAttempt: artifactAttempt,
+          capturedAt: completedAt.replace('Z', '.000Z'),
+          ...context,
+        })
+      )
+    )}\n`;
+    const zip = Buffer.from(`zip-archive-${id}`);
+    const name = `release-baseline-v1-${id}-${artifactAttempt}-${HEAD}`;
+    const startedAt = new Date(Date.parse(completedAt) - 60_000).toISOString().replace('.000Z', 'Z');
+    return {
+      listing: {
+        id,
+        run_attempt: attempt,
+        head_sha: MAIN,
+        status: 'completed',
+        conclusion,
+        path: '.github/workflows/capture-release-baseline.yml',
+      },
+      archive: { key: zip.toString(), entries: archiveEntries, contents },
+      routes: {
+        [`/actions/runs/${id}/artifacts`]:
+          artifacts ?? {
+            total_count: artifactAttempt === attempt ? 1 : 0,
+            artifacts: artifactAttempt === attempt ? [{ id: artifactId, name }] : [],
+          },
+        [`/actions/runs/${id}/attempts/${attempt}/jobs`]: jobs ?? {
+          total_count: 1,
+          jobs: [
+            {
+              id: id * 10,
+              run_id: id,
+              run_attempt: attempt,
+              name: 'Capture Immutable Provider Baseline',
+              status: 'completed',
+              conclusion: 'success',
+              started_at: startedAt,
+              completed_at: completedAt,
+            },
+          ],
+        },
+        [`/actions/runs/${id}/attempts/${attempt}`]: {
+          id,
+          run_attempt: attempt,
+          head_sha: MAIN,
+          status: 'completed',
+          conclusion,
+          triggering_actor: { login: triggeringActor },
+        },
+        [`/actions/runs/${id}`]: {
+          id,
+          path: '.github/workflows/capture-release-baseline.yml',
+          repository: { full_name: REPOSITORY },
+          event: 'workflow_dispatch',
+          head_branch: 'main',
+          head_sha: MAIN,
+          run_attempt: attempt,
+          status: 'completed',
+          conclusion,
+          actor: { login: 'nikhillinit' },
+        },
+        [`/actions/artifacts/${artifactId}/zip`]: zip,
+        [`/actions/artifacts/${artifactId}`]: {
+          id: artifactId,
+          name,
+          expired: false,
+          size_in_bytes: zip.length,
+          digest: `sha256:${archiveDigest ?? digestOf(zip)}`,
+          workflow_run: { id, head_sha: MAIN },
+        },
+      },
+      binding: {
+        schemaVersion: 'release-baseline-binding-v1',
+        baselineRunId: String(id),
+        baselineRunAttempt: attempt,
+        baselineArtifactId: String(artifactId),
+        baselineArtifactDigest: `sha256:${digestOf(zip)}`,
+        baselineFileSha256: digestOf(contents),
+      },
+    };
+  }
+
+  function openPull(overrides = {}) {
+    return {
+      state: 'open',
+      merged: false,
+      head: { sha: HEAD, repo: { full_name: REPOSITORY } },
+      base: { ref: 'main', repo: { full_name: REPOSITORY } },
+      ...overrides,
+    };
+  }
+
+  function harness({
+    runs = [],
+    listing,
+    pull = openPull(),
+    mains = [MAIN],
+    checkout = MAIN,
+    plan = PLAN_BODY,
+    extraRoutes = {},
+  } = {}) {
+    const urls = [];
+    const commands = [];
+    let mainReads = 0;
+    const routes = {
+      [`/pulls/${PR_NUMBER}`]: pull,
+      [`/compare/${MAIN}...${HEAD}`]: { status: 'ahead', behind_by: 0 },
+      '/actions/workflows/capture-release-baseline.yml/runs': listing ?? {
+        total_count: runs.length,
+        workflow_runs: runs.map((run) => run.listing),
+      },
+      ...Object.assign({}, ...runs.map((run) => run.routes)),
+      ...extraRoutes,
+    };
+    const archives = new Map(runs.map((run) => [run.archive.key, run.archive]));
+    const fetchImpl = async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith('/commits/main')) {
+        const sha = mains[Math.min(mainReads, mains.length - 1)];
+        mainReads += 1;
+        return { ok: true, json: async () => ({ sha }) };
+      }
+      const key = Object.keys(routes)
+        .filter((fragment) => String(url).includes(fragment))
+        .sort((left, right) => right.length - left.length)[0];
+      if (!key) throw new Error(`unexpected fetch ${url}`);
+      const value = routes[key];
+      if (value === TRANSPORT_FAILURE) return { ok: false };
+      if (value === BODY_FAILURE) {
+        return { ok: true, arrayBuffer: async () => Promise.reject(new Error('stream reset')) };
+      }
+      if (Buffer.isBuffer(value)) {
+        return { ok: true, arrayBuffer: async () => Uint8Array.from(value).buffer };
+      }
+      return { ok: true, json: async () => value };
+    };
+    const execFileImpl = async (command, args) => {
+      commands.push([command, ...args].join(' '));
+      if (command === 'unzip') {
+        const archive = archives.get((await readFile(args.at(-1) === CONTEXT_FILE ? args.at(-2) : args.at(-1))).toString());
+        if (!archive) throw new Error('unknown archive');
+        if (args[0] === '-Z1') return { stdout: `${archive.entries.join('\n')}\n` };
+        if (args[0] === '-p') return { stdout: archive.contents };
+      }
+      if (command !== 'git') throw new Error(`unexpected command ${command}`);
+      const key = args.join(' ');
+      if (key === 'rev-parse HEAD') return { stdout: `${checkout}\n` };
+      if (key === `fetch --no-tags origin pull/${PR_NUMBER}/head:refs/remotes/origin/pr-${PR_NUMBER}`) {
+        return { stdout: '' };
+      }
+      if (key === `rev-parse origin/pr-${PR_NUMBER}`) return { stdout: `${HEAD}\n` };
+      if (key === `show ${HEAD}:${PLAN}`) {
+        if (plan === null) throw new Error('path does not exist');
+        return { stdout: plan };
+      }
+      throw new Error(`unexpected git command ${key}`);
+    };
+    const verify = () =>
+      verifyPremergeBaseline({
+        prNumber: String(PR_NUMBER),
+        prHeadSha: HEAD,
+        environment: { GITHUB_REPOSITORY: REPOSITORY, GH_TOKEN: 'workflow-token' },
+        fetchImpl,
+        execFileImpl,
+      });
+    return { verify, urls, commands };
+  }
+
+  const older = () => captureRun({ id: 9001, artifactId: 8001, completedAt: '2026-10-09T10:00:00Z' });
+  const newer = (options = {}) =>
+    captureRun({ id: 9002, artifactId: 8002, completedAt: '2026-10-09T11:00:00Z', ...options });
+
+  it('pins the scoped plan path shared with the change classifier', () => {
+    expect(RELEASE_BASELINE_PLAN_PATH).toBe(PLAN);
+  });
+
+  it('selects the newest verified capture and emits its exact binding', async () => {
+    const latest = newer();
+    const { verify, commands, urls } = harness({ runs: [latest, older()] });
+    await expect(verify()).resolves.toEqual({
+      prNumber: PR_NUMBER,
+      prHeadSha: HEAD,
+      baselineMainSha: MAIN,
+      planPath: PLAN,
+      planSha256: PLAN_DIGEST,
+      captureJobCompletedAt: '2026-10-09T11:00:00.000Z',
+      binding: latest.binding,
+    });
+    // Candidate bytes are read only as Git data; no candidate code runs.
+    expect(commands.every((command) => /^(git (rev-parse|fetch --no-tags origin pull\/1700\/head|show)|unzip )/.test(command))).toBe(true);
+    expect(commands.some((command) => /checkout|npm|node|worktree/.test(command))).toBe(false);
+    expect(urls.every((url) => url.startsWith(`https://api.github.com/repos/${REPOSITORY}/`))).toBe(true);
+    expect(urls.find((url) => url.includes('/actions/workflows/'))).toContain(`head_sha=${MAIN}`);
+  });
+
+  it.each([
+    ['a newer capture for another plan digest', () => newer({ context: { planSha256: 'f'.repeat(64) } })],
+    ['a newer capture for another PR number', () => newer({ context: { plannedPrNumber: 1699 } })],
+    ['a newer failed capture run', () => newer({ conclusion: 'failure' })],
+    ['a newer rerun whose artifact belongs to an older attempt', () => newer({ attempt: 2, artifactAttempt: 1 })],
+    ['a newer capture whose archive digest differs', () => newer({ archiveDigest: '0'.repeat(64) })],
+    ['a newer capture whose archive holds extra entries', () => newer({ archiveEntries: [CONTEXT_FILE, 'extra.sh'] })],
+    ['a newer capture captured outside its job', () => newer({ context: { capturedAt: '2026-10-09T09:00:00.000Z' } })],
+    ['a newer capture attempt rerun by another account', () => newer({ triggeringActor: 'intruder' })],
+  ])('skips %s and selects the older matching capture', async (_label, makeNewer) => {
+    const { verify } = harness({ runs: [makeNewer(), older()] });
+    await expect(verify()).resolves.toMatchObject({ binding: { baselineRunId: '9001' } });
+  });
+
+  it.each([
+    ['no capture run', {}],
+    ['only a failed capture run', { runs: [older()].map((run) => ({ ...run, listing: { ...run.listing, conclusion: 'failure' } })) }],
+    ['only an incompatible capture', { runs: [newer({ context: { planSha256: 'f'.repeat(64) } })] }],
+  ])('fails closed with %s', async (_label, options) => {
+    await expect(harness(options).verify()).rejects.toThrow(/no verified pre-merge capture/);
+  });
+
+  it.each([
+    ['a duplicated artifact on a matching run', { runs: [newer({ artifacts: { total_count: 2, artifacts: [{ id: 8002 }, { id: 8003 }] } })] }, /duplicated/],
+    ['a run listing beyond the bound', { listing: { total_count: 101, workflow_runs: [] } }, /bound/],
+    ['a malformed run listing', { listing: { total_count: 1 } }, /listing/],
+    ['a transport failure on the newest candidate', { runs: [newer(), older()], extraRoutes: { '/actions/runs/9002/attempts/1/jobs': TRANSPORT_FAILURE } }, /request failed/],
+    ['a transport failure downloading the archive', { runs: [newer(), older()], extraRoutes: { '/actions/artifacts/8002/zip': TRANSPORT_FAILURE } }, /request failed/],
+    ['an archive body read failure on the newest candidate', { runs: [newer(), older()], extraRoutes: { '/actions/artifacts/8002/zip': BODY_FAILURE } }, /request failed/],
+    ['live main that moved during discovery', { runs: [older()], mains: [MAIN, '1'.repeat(40)] }, /live main/],
+    ['a plan missing at the PR head', { runs: [older()], plan: null }, /missing at the PR head/],
+  ])('fails closed for %s', async (_label, options, message) => {
+    await expect(harness(options).verify()).rejects.toThrow(message);
+  });
+
+  it.each([
+    ['a closed PR', { pull: openPull({ state: 'closed' }) }],
+    ['a merged PR', { pull: openPull({ state: 'closed', merged: true }) }],
+    ['a PR head that moved', { pull: openPull({ head: { sha: '9'.repeat(40), repo: { full_name: REPOSITORY } } }) }],
+    ['a verifier checkout that is not live main', { checkout: '1'.repeat(40) }],
+  ])('refuses %s before reading any capture evidence', async (_label, options) => {
+    const { verify, urls } = harness({ runs: [older()], ...options });
+    await expect(verify()).rejects.toThrow(/release recovery context capture failed/i);
+    expect(urls.some((url) => url.includes('/actions/'))).toBe(false);
   });
 });

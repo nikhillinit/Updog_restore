@@ -1,4 +1,5 @@
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,6 +13,7 @@ type ChangeClassification = {
   changeCount: number;
   financialCalcRelevant: boolean;
   heavyCiRelevant: boolean;
+  releaseBaselinePlanTouched: boolean;
   valid: boolean;
 };
 
@@ -91,6 +93,7 @@ describe('CI fail-closed change classification', () => {
         changeCount: 1,
         financialCalcRelevant: false,
         heavyCiRelevant: false,
+        releaseBaselinePlanTouched: false,
         valid: true,
       });
     }
@@ -104,6 +107,7 @@ describe('CI fail-closed change classification', () => {
       changeCount: 3,
       financialCalcRelevant: false,
       heavyCiRelevant: false,
+      releaseBaselinePlanTouched: false,
       valid: true,
     });
   });
@@ -192,6 +196,96 @@ describe('CI fail-closed change classification', () => {
     expect(classified.status).not.toBe(0);
     expect(classified.result).toBeNull();
     expect(classified.stderr).toMatch(/change classification failed/i);
+  });
+});
+
+describe('Release baseline plan change classification', () => {
+  const PLAN = 'docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md';
+
+  it('detects a copy of an unchanged plan through the Git CLI', async () => {
+    const directory = await fs.mkdtemp(path.join(tmpdir(), 'updog-plan-copy-'));
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+
+    try {
+      git('init', '--quiet');
+      git('config', 'user.name', 'Plan Copy Test');
+      git('config', 'user.email', 'plan-copy-test@example.invalid');
+      git('config', 'commit.gpgSign', 'false');
+      git('config', 'core.hooksPath', '/dev/null');
+      const planPath = path.join(directory, PLAN);
+      await fs.mkdir(path.dirname(planPath), { recursive: true });
+      await fs.writeFile(planPath, '# Release baseline plan\n');
+      git('add', PLAN);
+      git('commit', '--quiet', '-m', 'base');
+      const base = git('rev-parse', 'HEAD');
+
+      const copyPath = 'docs/1-plans/copy.plan.md';
+      await fs.copyFile(planPath, path.join(directory, copyPath));
+      git('add', copyPath);
+      git('commit', '--quiet', '-m', 'copy unchanged plan');
+      const head = git('rev-parse', 'HEAD');
+      expect(git('diff', base, head, '--', PLAN)).toBe('');
+
+      const completed = spawnSync(
+        process.execPath,
+        [
+          CHANGE_CLASSIFIER,
+          '--base',
+          base,
+          '--head',
+          head,
+          '--filters',
+          path.join(process.cwd(), '.github/path-filters.yml'),
+        ],
+        { cwd: directory, encoding: 'utf8' }
+      );
+
+      expect(completed.status, completed.stderr).toBe(0);
+      expect(JSON.parse(completed.stdout)).toEqual({
+        autoDocsOnly: false,
+        changeCount: 1,
+        financialCalcRelevant: false,
+        heavyCiRelevant: true,
+        releaseBaselinePlanTouched: true,
+        valid: true,
+      });
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['modified plan', rawChange('M', [PLAN])],
+    ['added plan', rawChange('A', [PLAN], '000000', '100644')],
+    ['deleted plan', rawChange('D', [PLAN], '100644', '000000')],
+    ['plan renamed away', rawChange('R100', [PLAN, 'docs/1-plans/renamed.plan.md'])],
+    ['plan renamed into place', rawChange('R087', ['docs/1-plans/draft.plan.md', PLAN])],
+    ['plan copied', rawChange('C100', [PLAN, 'docs/1-plans/copy.plan.md'])],
+    ['plan executable-bit change', rawChange('M', [PLAN], '100644', '100755')],
+    [
+      'plan among unrelated changes',
+      [...rawChange('M', ['client/src/App.tsx']), ...rawChange('M', [PLAN])],
+    ],
+  ] as const)('requires the baseline prerequisite for %s', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ releaseBaselinePlanTouched: true, valid: true });
+  });
+
+  it.each([
+    ['unrelated source', rawChange('M', ['client/src/App.tsx'])],
+    [
+      'sibling plan',
+      rawChange('M', ['docs/1-plans/F_1.21.0_reserve-delivery-contract-visibility.plan.md']),
+    ],
+    ['suffixed path', rawChange('M', [`${PLAN}.bak`])],
+    ['nested path', rawChange('M', [`archive/${PLAN}`])],
+    ['generated light output', rawChange('M', ['docs/_generated/router-fast.json'])],
+  ] as const)('does not require the baseline prerequisite for %s', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ releaseBaselinePlanTouched: false, valid: true });
   });
 });
 
