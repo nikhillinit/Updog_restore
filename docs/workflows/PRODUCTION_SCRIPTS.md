@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-10-09
+last_updated: 2026-10-10
 ---
 
 # Canonical Production-Action Procedure
@@ -485,9 +485,9 @@ for owner disposition. Do not loop, reuse a stale fence, or dispatch a mutation.
 
 Scope: a pull request whose raw diff touches
 `docs/1-plans/F_1.21.1_production-release-reserve-delivery.plan.md`, on either
-side of a rename or copy, including deletion. Labels, titles, draft state, and
-comments do not change scope. Other pull requests keep their existing merge
-requirements.
+side of a rename or copy, including deletion and a copy of an unchanged plan.
+Labels, titles, draft state, and comments do not change scope. Other pull
+requests keep their existing merge requirements.
 
 For a scoped pull request, `CI Gate Status` requires the
 `Release Baseline Prerequisite` job to succeed. That job runs `verify-premerge`
@@ -508,9 +508,10 @@ prerequisite.
    number, frozen head, plan path, and plan SHA-256. Capture refuses a closed,
    merged, retargeted, or fork PR, a stale head, and a head that does not
    contain `main`.
-3. Rerun the original `pull_request` CI run for the same frozen head (re-run all
-   jobs). A new `workflow_dispatch` run is not a substitute. Do not rerun a
-   production release attempt.
+3. Rerun the original `pull_request` CI run for the same frozen head. Re-running
+   all jobs and re-running only the failed jobs both re-evaluate the
+   prerequisite and the gate. A new `workflow_dispatch` run is not a substitute.
+   Do not rerun a production release attempt.
 4. Confirm the prerequisite summary in the new attempt, a green `CI Gate Status`
    on the current head, and live `main`. Then mark the PR ready and squash-merge
    it.
@@ -530,9 +531,15 @@ prerequisite.
   past a green check.
 - Artifact deletion or expiry after a green check does not block source
   admission. Release preflight rejects unavailable evidence before mutation.
-- Hosted staging proof of strict and test-merge freshness and of same-head rerun
-  behavior is still open. Until it passes, do not prepare the next release
-  vehicle.
+- Hosted staging acceptance passed on 2026-10-10 in the disposable repository
+  `nikhillinit/updog-release-baseline-staging`, which uses a mock capture and
+  production-equivalent protection. A missing capture kept the gate red and
+  blocked both a direct merge and auto-merge. A capture plus a rerun of the same
+  CI run turned the gate green. A `main` advance moved a green PR to `BEHIND`,
+  and the updated head failed until a new capture. A manual dispatch on a
+  candidate branch was refused. The required check came from App 15368.
+- Not tested in staging: an administrator `--admin` merge and a spoofed commit
+  status. This control does not claim to stop an administrator.
 
 ## Railway worker deploy stage (release-production)
 

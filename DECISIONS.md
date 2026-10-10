@@ -12959,8 +12959,8 @@ both environments, and production residue on every release. Plan:
 
 **Date:** 2026-10-09
 
-**Status:** Proposed; implemented on a repair branch, not admitted to `main`;
-hosted staging acceptance open
+**Status:** Proposed; source admitted as `909671a3f` (#1631); hosted staging
+acceptance passed 2026-10-10
 
 **Tags:** #release #ci #governance #baseline-capture
 
@@ -12980,7 +12980,8 @@ downloaded archive digest.
 
 1. **Exact-path scope.** `classify-change-paths.mjs` reports
    `release_baseline_plan_touched` when any raw-diff path equals the F_1.21.1
-   plan path. No label, title, draft state, or comment changes scope.
+   plan path. The diff uses `--find-copies-harder`, so a copy of an unchanged
+   plan also counts. No label, title, draft state, or comment changes scope.
 2. **One conditional feeder under the sole aggregate.** `CI Gate Status` needs
    `release-baseline`, expected only for a touched non-`main` ref. The job has
    read-only `actions`, `contents`, and `pull-requests` permissions. It has no
@@ -13030,5 +13031,6 @@ downloaded archive digest.
   `pull_request` CI run for the same head. The procedure is in
   `docs/workflows/PRODUCTION_SCRIPTS.md`.
 - Limits: an administrator can change protection. Artifact deletion after a
-  green check is caught only at release preflight. Hosted staging proof of
-  strict and test-merge freshness and same-head rerun is still open.
+  green check is caught only at release preflight. Hosted staging acceptance
+  passed on 2026-10-10 (see `docs/workflows/PRODUCTION_SCRIPTS.md`); an
+  administrator merge and a spoofed commit status were not tested.

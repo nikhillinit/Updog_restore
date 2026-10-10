@@ -22,6 +22,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-10)
+
+- ADR-107 hosted staging acceptance passed in the disposable repository
+  `nikhillinit/updog-release-baseline-staging`. A missing capture blocks merge,
+  a capture plus a same-run rerun unblocks it, a `main` advance forces a new
+  capture, and a manual dispatch cannot satisfy the prerequisite. The owner
+  sequence now allows re-running only the failed jobs.
+
 ### Changed (2026-10-09)
 
 - ADR-107: a pull request that touches the F_1.21.1 release plan path now needs
