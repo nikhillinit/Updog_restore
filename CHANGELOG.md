@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-10)
+
+- Sign-in now refuses the public dev seed passwords outside development and
+  test, for every account, including accounts created outside
+  `scripts/provision-prod-users.ts`. The login response stays the uniform 401.
+
 ### Changed (2026-10-10)
 
 - ADR-107 hosted staging acceptance passed in the disposable repository
