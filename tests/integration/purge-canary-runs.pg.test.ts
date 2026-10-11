@@ -12,22 +12,23 @@ import {
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const skipIfNoDocker =
-  !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
+  !process.env['TEST_DATABASE_URL'] && !process.env['CI'] && process.platform === 'win32';
 const HEAD_SHA = 'a'.repeat(40);
 const TEMPLATE = `purge_canary_template_${process.pid}`;
 const databases: string[] = [];
 let admin: Pool;
 let startedContainer = false;
 
-type Plan = { digest: string; deleteOrder: Array<{ table: string; count: number }> } & Record<
-  string,
-  unknown
->;
+type Plan = {
+  digest: string;
+  deleteOrder: Array<{ table: string; count: number }>;
+  writeExcludedTables: string[];
+} & Record<string, unknown>;
 type Summary = { outcome: string } & Record<string, unknown>;
 type Wrap = (client: Client) => Client;
 
 function baseConnection(): string {
-  return process.env.TEST_DATABASE_URL ?? getPostgresConnectionString();
+  return process.env['TEST_DATABASE_URL'] ?? getPostgresConnectionString();
 }
 
 function databaseUrl(name: string): string {
@@ -198,7 +199,7 @@ function counts(plan: Plan) {
 
 describe.skipIf(skipIfNoDocker)('single canary run purge', { retry: 0, timeout: 120_000 }, () => {
   beforeAll(async () => {
-    if (!process.env.TEST_DATABASE_URL) {
+    if (!process.env['TEST_DATABASE_URL']) {
       await setupTestContainers();
       startedContainer = true;
     }
