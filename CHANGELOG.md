@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-11)
+
+- Finalize no longer returns 500 when an optional fallback read fails inside its
+  transaction. Release Phase B run 38157590549 failed canary 1 this way: the
+  `investment_round_model_overrides` table (migration 0027) is absent in
+  production, the MOIC facts and rounds-evidence reads caught the error and fell
+  back, but the transaction was already aborted, so the next read failed with
+  25P02. Those reads, and the flag-gated facts-shadow and ranked-reserve
+  fallbacks, now run in savepoints (`withReadSavepoint`). MOIC resolution and H9
+  fingerprint inputs are unchanged.
+
 ### Fixed (2026-10-10)
 
 - Sign-in now refuses the public dev seed passwords outside development and

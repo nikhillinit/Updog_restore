@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { withReadSavepoint } from '../db/request-context';
 import { fundSnapshots } from '@shared/schema';
 import { generateReserveSummary } from '@shared/core/reserves/ReserveEngine';
 import { isFlagEnabled } from '@shared/flags/getFlag';
@@ -136,11 +137,13 @@ async function emitReserveFactsShadowComparison(input: {
 }): Promise<void> {
   const startedAt = performance.now();
   try {
-    const facts = await buildFactsReserveCandidates({
-      fundId: input.fundId,
-      asOfDate: input.asOfDate,
-      factsSource: input.factsSource,
-    });
+    const facts = await withReadSavepoint(db, () =>
+      buildFactsReserveCandidates({
+        fundId: input.fundId,
+        asOfDate: input.asOfDate,
+        factsSource: input.factsSource,
+      })
+    );
     const factsPortfolio = eligibleInputs(facts.candidates);
     const factsSummary = generateReserveSummary(input.fundId, factsPortfolio);
     const excludedCounts = excludedCountsByReason(facts.candidates);
@@ -284,10 +287,12 @@ export async function runReserveCalculation({
   if (rankedReserveMode !== 'off') {
     const rankedAsOfDate = new Date().toISOString().slice(0, 10);
     try {
-      const composed = await buildRankedReserveAllocation({
-        fundId,
-        asOfDate: rankedAsOfDate,
-      });
+      const composed = await withReadSavepoint(db, () =>
+        buildRankedReserveAllocation({
+          fundId,
+          asOfDate: rankedAsOfDate,
+        })
+      );
       if (rankedReserveMode === 'shadow') {
         rankedShadowEmission = {
           asOfDate: rankedAsOfDate,
@@ -297,7 +302,9 @@ export async function runReserveCalculation({
         // composed.failSafe encodes the envelope trust/block and actionable-candidate conditions.
         const rankedGatePasses = !composed.failSafe && actionability.actionability === 'actionable';
         if (rankedGatePasses) {
-          const envelope = await buildReserveEnvelope({ fundId, asOfDate: rankedAsOfDate });
+          const envelope = await withReadSavepoint(db, () =>
+            buildReserveEnvelope({ fundId, asOfDate: rankedAsOfDate })
+          );
           if (envelope.inputHash === composed.envelopeInputHash) {
             reserves = toReserveSummary(envelope, composed);
             rankedBasis = {

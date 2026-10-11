@@ -304,4 +304,107 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
       ]);
     }
   );
+
+  // Optional reads that callers catch and replace with a fallback (withReadSavepoint).
+  function sqlState(error: unknown): unknown {
+    const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+    return cause?.code ?? (error as { code?: unknown } | null)?.code;
+  }
+
+  it('aborts the request transaction when a caught read fails without a savepoint (control)', async () => {
+    const failure = await database
+      .runWithDatabaseContext(
+        context,
+        async (tx) => {
+          await tx.execute(sql`SELECT * FROM optional_read_missing_table`).catch(() => undefined);
+          await tx.execute(sql`SELECT 1`);
+        },
+        { timeoutMs: 1_000 }
+      )
+      .then(
+        () => 'committed',
+        (error: unknown) => sqlState(error)
+      );
+    expect(failure).toBe('25P02');
+    await noLeases();
+  });
+
+  it('rolls a failed optional read back to its savepoint and keeps the request transaction usable', async () => {
+    let readerIsProxy: boolean | undefined;
+    let readerPid: unknown;
+    const result = await database.runWithDatabaseContext(
+      context,
+      async (tx) => {
+        await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'before optional read')`);
+        // Services pass the db proxy, which forwards to the request transaction.
+        const fallback = await contextModule
+          .withReadSavepoint(database.db, async (reader) => {
+            readerIsProxy = reader === database.db;
+            readerPid = (await reader.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
+            await reader.execute(sql`SELECT * FROM optional_read_missing_table`);
+          })
+          .then(
+            () => 'read',
+            (error: unknown) => sqlState(error)
+          );
+        await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'after optional read')`);
+        const pid = (await tx.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
+        return { fallback, samePid: pid === readerPid };
+      },
+      { timeoutMs: 1_000 }
+    );
+    // Same backend, and the transaction recovered: only a savepoint rollback does both.
+    expect(result).toEqual({ fallback: '42P01', samePid: true });
+    expect(readerIsProxy).toBe(false);
+    expect(
+      (
+        await observer.query(
+          `SELECT value FROM neon_context_probe WHERE value LIKE '% optional read' ORDER BY value`
+        )
+      ).rows
+    ).toEqual([{ value: 'after optional read' }, { value: 'before optional read' }]);
+    await noLeases();
+  });
+
+  it('opens a savepoint for an explicit transaction outside any request scope', async () => {
+    expect(contextModule.getRequestDatabaseScope()).toBeUndefined();
+    // No scope and no transaction: the read gets the database itself.
+    await expect(
+      contextModule.withReadSavepoint(database.db, async (reader) => reader === database.db)
+    ).resolves.toBe(true);
+
+    let readerIsTx: boolean | undefined;
+    let readerPid: unknown;
+    const result = await database.db.transaction(async (tx) => {
+      const scoped = contextModule.getRequestDatabaseScope() !== undefined;
+      // RLS context set directly on this transaction, not through request ALS.
+      await tx.execute(sql`SELECT set_config('app.current_user', '7', true),
+        set_config('app.current_org', 'adapter-org', true),
+        set_config('app.current_fund', '41', true)`);
+      await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'before explicit-tx read')`);
+      const fallback = await contextModule
+        .withReadSavepoint(tx, async (reader) => {
+          readerIsTx = reader === tx;
+          readerPid = (await reader.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
+          await reader.execute(sql`SELECT * FROM optional_read_missing_table`);
+        })
+        .then(
+          () => 'read',
+          (error: unknown) => sqlState(error)
+        );
+      await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'after explicit-tx read')`);
+      const pid = (await tx.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
+      return { scoped, fallback, samePid: pid === readerPid };
+    });
+    expect(result).toEqual({ scoped: false, fallback: '42P01', samePid: true });
+    expect(readerIsTx).toBe(false);
+    expect(
+      (
+        await observer.query(
+          `SELECT value FROM neon_context_probe WHERE value LIKE '% explicit-tx read' ORDER BY value`
+        )
+      ).rows
+    ).toEqual([{ value: 'after explicit-tx read' }, { value: 'before explicit-tx read' }]);
+    await noLeases();
+  });
 });
