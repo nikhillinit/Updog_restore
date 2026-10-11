@@ -450,6 +450,18 @@ describe.skipIf(skipIfNoDocker)('single canary run purge', { retry: 0, timeout: 
       })
     ).rejects.toThrow(/recovery evidence is stale/);
     expect(recoveryChecks).toBe(1);
+    // An asynchronous validator must settle before any write.
+    await expect(
+      purge(connectionString, {
+        ...target,
+        ...bound(fingerprint, swapped.digest),
+        verifyRecoveryEvidence: () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('late recovery refusal')), 200);
+          }),
+      })
+    ).rejects.toThrow(/late recovery refusal/);
+    expect(await snapshot(connectionString)).toEqual(beforeRefusals);
     await expect(
       purge(connectionString, {
         ...target,

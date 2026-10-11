@@ -755,9 +755,10 @@ async function runSingleRunPurge(client, options) {
           'dry run. Re-run the dry run and review the new plan.'
       );
     }
-    options.revalidateSource();
-    // Re-checked here, after the digest and source checks and before any write.
-    const recoveryEvidence = options.verifyRecoveryEvidence();
+    await options.revalidateSource();
+    // Re-checked here, after the digest and source checks and before any write;
+    // awaited so an asynchronous validator settles first.
+    const recoveryEvidence = await options.verifyRecoveryEvidence();
     if (recoveryEvidence === null || typeof recoveryEvidence !== 'object') {
       throw new Error('Recovery evidence validator returned no evidence record');
     }
