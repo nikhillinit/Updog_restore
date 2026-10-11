@@ -265,6 +265,23 @@ describe('production governance documentation routing', () => {
     }
   });
 
+  it('keeps single-run canary purge execute unadmitted pending recovery validation', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const decisions = await readRepositoryFile('DECISIONS.md');
+    const script = await readRepositoryFile('scripts/release/purge-canary-runs.mjs');
+
+    // Admission needs a recovery evidence validator plus a policy amendment.
+    expect(flatPolicy).not.toContain('purge-canary-runs.mjs');
+    expect(decisions).toContain(
+      '## ADR-108: Single Release-Canary Run Purge, Execute Blocked Pending Recovery Validation'
+    );
+    expect(flatGuide).toContain(
+      '`--execute` stays mechanically blocked, with or without `--run-id`'
+    );
+    expect(script).toContain('if (options.execute) throw new Error(RECOVERY_BLOCK_MESSAGE);');
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(

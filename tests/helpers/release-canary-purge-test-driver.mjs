@@ -1,6 +1,6 @@
-// Testcontainers-only mutation seam. This file is intentionally outside the
-// production command path: production can preview but cannot import or reach
-// a delete implementation.
+// Testcontainers-only mutation seam for the characterization suite. It is not
+// the production route: production execute is the single-run purge in
+// scripts/release/purge-canary-runs.mjs (ADR-108), which never imports this.
 import {
   PURGE_RESIDUE_GROUPS,
   PURGE_RESIDUE_GROUP_TABLES,
@@ -180,8 +180,7 @@ export async function purgeCanaryRunForTest(client, { runId, expectedVersion }) 
     if (version !== expectedVersion) throw new Error('Release canary purge lost its version fence');
     if (!['completed', 'failed', 'expired'].includes(run.status))
       throw new Error('Release canary purge target is not terminal eligible');
-    if (run.expired !== true)
-      throw new Error('Release canary purge target has not expired');
+    if (run.expired !== true) throw new Error('Release canary purge target has not expired');
     const targets = await client.query(
       `SELECT id FROM funds WHERE data_origin = $1 AND canary_run_id = $2 ORDER BY id FOR UPDATE`,
       [CANARY_ORIGIN, runId]

@@ -24,6 +24,40 @@ describe('canary purge command', () => {
     expect(parsePurgeArgs(['--execute'])).toEqual({ execute: true });
   });
 
+  it('parses the single-run binding flags and rejects anything else', () => {
+    expect(
+      parsePurgeArgs([
+        '--run-id=11111111-1111-4111-8111-111111111111',
+        '--fund-id=3',
+        `--expected-plan-digest=${'a'.repeat(64)}`,
+        '--execute',
+      ])
+    ).toEqual({
+      execute: true,
+      runId: '11111111-1111-4111-8111-111111111111',
+      fundId: '3',
+      expectedPlanDigest: 'a'.repeat(64),
+    });
+    expect(() => parsePurgeArgs(['--run-id'])).toThrow(/unknown argument/i);
+    expect(() => parsePurgeArgs(['--fund=3'])).toThrow(/unknown argument/i);
+  });
+
+  it('refuses malformed single-run targets and pooled endpoints before any query', async () => {
+    const client = { query: vi.fn(), host: 'db.internal', port: 5432 };
+    const base = {
+      runId: '11111111-1111-4111-8111-111111111111',
+      fundId: '3',
+      headSha: 'a'.repeat(40),
+    };
+    await expect(runPurge(client, { ...base, runId: 'not-a-uuid' })).rejects.toThrow(/--run-id/);
+    await expect(runPurge(client, { ...base, fundId: '0' })).rejects.toThrow(/--fund-id/);
+    await expect(runPurge(client, { ...base, fundId: undefined })).rejects.toThrow(/--fund-id/);
+    await expect(
+      runPurge({ ...client, host: 'ep-x-pooler.us-east-2.aws.neon.tech' }, base)
+    ).rejects.toThrow(/pooled endpoint/i);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('prints exact targeted residue counts without mutating input', () => {
     const row = {
       fund: '2',
@@ -178,10 +212,17 @@ describe('canary purge command', () => {
         .mockResolvedValueOnce({ rowCount: 1 })
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ status: 'purged', version: 2, purged_at: '2026-08-11T10:00:00.000Z', ...emptyReceiptRow }],
+          rows: [
+            {
+              status: 'purged',
+              version: 2,
+              purged_at: '2026-08-11T10:00:00.000Z',
+              ...emptyReceiptRow,
+            },
+          ],
         })
-      .mockResolvedValueOnce({ rows: [{ count: 0 }] })
-      .mockResolvedValueOnce({ rowCount: 1 }),
+        .mockResolvedValueOnce({ rows: [{ count: 0 }] })
+        .mockResolvedValueOnce({ rowCount: 1 }),
     };
     await expect(
       purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
@@ -209,7 +250,9 @@ describe('canary purge command', () => {
       purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
     ).rejects.toThrow(/terminal/i);
     expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
-    expect(client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))).toBe(false);
+    expect(
+      client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))
+    ).toBe(false);
   });
 
   it('rejects an unexpired terminal run before deriving purge targets', async () => {
@@ -227,7 +270,9 @@ describe('canary purge command', () => {
       purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
     ).rejects.toThrow(/not expired/i);
     expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
-    expect(client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))).toBe(false);
+    expect(
+      client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))
+    ).toBe(false);
   });
 
   it('rejects a replay tombstone without purged_at', async () => {
@@ -254,7 +299,14 @@ describe('canary purge command', () => {
         .mockResolvedValueOnce({ rowCount: 1 })
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ status: 'purged', version: 2, purged_at: '2026-08-11T10:00:00.000Z', ...emptyReceiptRow }],
+          rows: [
+            {
+              status: 'purged',
+              version: 2,
+              purged_at: '2026-08-11T10:00:00.000Z',
+              ...emptyReceiptRow,
+            },
+          ],
         })
         .mockResolvedValueOnce({ rows: [{ count: 1 }] }),
     };

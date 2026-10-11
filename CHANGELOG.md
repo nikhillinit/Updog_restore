@@ -22,6 +22,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-11)
+
+- `scripts/release/purge-canary-runs.mjs` gains a read-only single-run dry run
+  (`--run-id`, `--fund-id`) with a digest over the executing SHA, target, run
+  row, dependency catalog, and verbatim row content, plus a hardened single-run
+  execute implementation (ADR-108). Production execute stays mechanically
+  blocked until a recovery evidence validator and a policy amendment are added.
+
 ### Fixed (2026-10-10)
 
 - Sign-in now refuses the public dev seed passwords outside development and

@@ -13034,3 +13034,128 @@ downloaded archive digest.
   green check is caught only at release preflight. Hosted staging acceptance
   passed on 2026-10-10 (see `docs/workflows/PRODUCTION_SCRIPTS.md`); an
   administrator merge and a spoofed commit status were not tested.
+
+## ADR-108: Single Release-Canary Run Purge, Execute Blocked Pending Recovery Validation
+
+**Date:** 2026-10-11
+
+**Status:** Proposed; production execute stays mechanically blocked. This ADR
+amends no policy and admits no production route.
+
+**Tags:** #production-data #release-canary #residue #governance
+
+### Context
+
+A failed release canary left one terminal, unpurged `release_canary_runs` row
+and its canary fund in production. The TTL deletes nothing. Since #1396,
+`scripts/release/purge-canary-runs.mjs --execute` has refused every run. Once
+the row expires, `assert-canary-residue.mjs` reports a policy failure for every
+later release until the row is purged. The only delete implementation was a
+Testcontainers driver that deletes every direct `funds` foreign-key child while
+its receipt counts only the residue groups, so it cannot be promoted as is.
+
+The governing policy requires zero dispatch for a production data action while
+managed backup/PITR, isolated-restore freshness, custody-role, or
+preview/restore-isolation evidence is missing or unresolved, and requires the
+restore reference and digest to be revalidated immediately before apply. No
+machine-checkable validator for that evidence exists in this repository, and the
+ADR-103 and ADR-105 owner-confirmation exceptions apply only to their own
+routes.
+
+### Decision
+
+1. **Execute stays blocked.** The CLI refuses `--execute` with `--run-id` before
+   connecting (`RECOVERY_BLOCK_MESSAGE`), and a bare `--execute` keeps the
+   existing block. Admitting production execute needs a later change that adds
+   an authoritative recovery evidence validator, a governing-policy amendment,
+   and this ADR's acceptance together.
+2. **Read-only single-run dry run.** `--run-id=<uuid> --fund-id=<id>` prints the
+   plan and its digest inside `BEGIN READ ONLY`, or reads back the stored
+   receipt of a purged run.
+3. **Hardened execute implementation, reachable only with an injected
+   validator.** `runPurge` executes only when given the run, fund, reviewed
+   digest, executing SHA, expected target fingerprint, a source re-check, and a
+   recovery evidence validator. Synthetic tests inject the validator; the CLI
+   never does. The implementation is:
+   - **Eligibility:** terminal (`completed`, `failed`, or `expired`) and past
+     `expires_at`; the fund is the run's single release-canary fund. A deadline
+     does not authorize an early purge.
+   - **Gates before the first write:** non-pooler endpoint; fingerprint (ADR-103
+     recipe) equal to the expected value; digest recomputed under lock equal to
+     the reviewed digest; then the source re-check and the recovery evidence
+     validator, in that order, immediately before the first write. The executing
+     SHA is distinct from the run's historical `release_sha`.
+   - **Explicit scope:** deletes only from the residue-group tables, the
+     outbox's parent `lp_capital_calls`, and `funds`, by fund scope, in
+     foreign-key order. It refuses any row outside that scope that references a
+     row in it (including another fund's row in an allowlisted table), any row
+     whose `fund_id` or `canary_run_id` column names the fund or run, any delete
+     trigger or rule on the scope, and any trigger or rule on
+     `release_canary_runs` or `audit_log`. Each delete must remove exactly the
+     reviewed rows; a recount must then find none.
+   - **Digest:** over the executing SHA, target fingerprint, the run row's JSONB
+     text (release SHA, workflow identity, status, version, expiry), the fund,
+     the dependency catalog, and every row's JSONB text. Database text is kept
+     verbatim, so a same-count replacement or a change beyond 2^53 changes the
+     digest.
+   - **Concurrency:** transaction-local 5 s `lock_timeout` and 60 s
+     `statement_timeout`. The run row, the fund row, and every row to delete are
+     locked `FOR UPDATE`, which fences writers with a foreign key to them.
+     Tables a writer could change without such a key (a `fund_id` without a
+     foreign key to `funds`, any `canary_run_id`, and `funds` itself) are locked
+     `IN SHARE MODE` before the ownership counts and held until `COMMIT`.
+   - **Receipt and replay:** one `audit_log` row in the same transaction holds
+     the digest, executing SHA, target fingerprint, validator evidence, the run
+     row, and every deleted row as verbatim JSONB text. The run row becomes the
+     tombstone (`purged`, `purged_at`, version plus one) and keeps its stored
+     residue counts as history. A repeat with the same intent returns the same
+     receipt; a different digest, fund, source, or target refuses. A readback
+     refuses when any row still names the fund or run. An unacknowledged
+     `COMMIT` is reported as unknown state.
+
+### Owner decision required before admission
+
+Define the authoritative recovery evidence and its validator: which managed
+backup/PITR window, isolated-restore freshness bound, custody role, and
+restore-isolation proof count; which provider API or record proves each one; and
+how the validator binds that evidence to this target and run immediately before
+the first write. Until then, neither the deadline nor a printable
+operator-supplied reference unblocks execute.
+
+### Alternatives
+
+- **Manual SQL.** Rejected: no source, target, scope, or plan check.
+- **Promote the Testcontainers driver.** Rejected: catalog-driven deletes of
+  uncounted tables, counts-only receipt, no digest.
+- **An owner-supplied restore reference string.** Rejected: it does not satisfy
+  the unchanged policy floor.
+- **Route through `release-canary-recovery.yml`.** Rejected: that surface is
+  defined as never purging.
+- **A new receipt table.** Rejected under the ADR-103 migration freeze;
+  `audit_log` is in the baseline schema, and the dry run refuses when it is
+  absent.
+
+### Accepted risks (for the implementation, once admitted)
+
+- Ownership without a foreign key is detected only through `fund_id` and
+  `canary_run_id` columns. An unrelated `fund_id` column holding the same value
+  refuses the purge rather than passing it.
+- A writer blocked by the share locks resumes after `COMMIT` and, where no
+  foreign key exists, can still write a row naming the deleted fund. The purge
+  guarantees none exists at `COMMIT`; the readback refuses if one appears later.
+- The share locks briefly block writes to every write-excluded table, `funds`
+  included, for all funds.
+- `lp_capital_calls` rows are deleted but are not a residue group, so they
+  appear in the plan and receipt but not in the stored counts.
+- The receipt keeps synthetic canary rows in `audit_log` under its retention.
+
+### Consequences
+
+Merge authorizes no purge and admits no route; the residue row stays until a
+later admitted change. `assert-canary-residue.mjs` is unchanged; whether a
+purged, failed expected-SHA row should keep counting stays an open owner
+question. `docs/workflows/PRODUCTION_SCRIPTS.md` ("Release canary run purge")
+documents the read-only dry run. Tests:
+`tests/integration/purge-canary-runs.pg.test.ts`,
+`tests/unit/scripts/purge-canary-runs.test.ts`, and
+`tests/unit/scripts/production-data-dispatch-block.test.mjs`.
