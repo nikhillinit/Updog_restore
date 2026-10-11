@@ -374,21 +374,37 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
     ).resolves.toBe(true);
 
     let readerIsTx: boolean | undefined;
+    let readerPid: unknown;
     const result = await database.db.transaction(async (tx) => {
+      const scoped = contextModule.getRequestDatabaseScope() !== undefined;
+      // RLS context set directly on this transaction, not through request ALS.
+      await tx.execute(sql`SELECT set_config('app.current_user', '7', true),
+        set_config('app.current_org', 'adapter-org', true),
+        set_config('app.current_fund', '41', true)`);
+      await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'before explicit-tx read')`);
       const fallback = await contextModule
         .withReadSavepoint(tx, async (reader) => {
           readerIsTx = reader === tx;
+          readerPid = (await reader.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
           await reader.execute(sql`SELECT * FROM optional_read_missing_table`);
         })
         .then(
           () => 'read',
           (error: unknown) => sqlState(error)
         );
-      const after = await tx.execute(sql`SELECT 1 AS ok`);
-      return { fallback, after: after.rows[0] };
+      await tx.execute(sql`INSERT INTO neon_context_probe VALUES (41, 'after explicit-tx read')`);
+      const pid = (await tx.execute(sql`SELECT pg_backend_pid() AS pid`)).rows[0]?.pid;
+      return { scoped, fallback, samePid: pid === readerPid };
     });
-    expect(result).toEqual({ fallback: '42P01', after: { ok: 1 } });
+    expect(result).toEqual({ scoped: false, fallback: '42P01', samePid: true });
     expect(readerIsTx).toBe(false);
+    expect(
+      (
+        await observer.query(
+          `SELECT value FROM neon_context_probe WHERE value LIKE '% explicit-tx read' ORDER BY value`
+        )
+      ).rows
+    ).toEqual([{ value: 'after explicit-tx read' }, { value: 'before explicit-tx read' }]);
     await noLeases();
   });
 });
