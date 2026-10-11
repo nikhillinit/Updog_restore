@@ -35,6 +35,10 @@ and this project adheres to
   a capture plus a same-run rerun unblocks it, a `main` advance forces a new
   capture, and a manual dispatch cannot satisfy the prerequisite. The owner
   sequence now allows re-running only the failed jobs.
+- #1630 also merged before any baseline capture ran, so it is not a release
+  vehicle. The F_1.21.1 plan now names `1b18d805f` as the baseline for a fifth
+  docs-only release vehicle, the first gated by the ADR-107 prerequisite, and
+  its release sequence follows the ADR-107 owner sequence.
 
 ### Changed (2026-10-09)
 
