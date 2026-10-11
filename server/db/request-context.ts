@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PoolClient } from 'pg';
 import type { CombinedSchema } from '../db-schema';
 import type { UserContext } from '../lib/secure-context';
@@ -26,6 +27,28 @@ export function getRequestDatabaseScope(): RequestDatabaseScope | undefined {
   const scope = requestDatabaseStorage.getStore();
   if (scope?.completed) throw new Error('Request database transaction has completed');
   return scope;
+}
+
+/**
+ * Run a read whose failure the caller catches and replaces with a fallback.
+ * Inside a transaction the read gets its own savepoint: a failed statement
+ * rolls back only the savepoint, so the caller's transaction stays usable
+ * instead of failing every later statement with 25P02. Outside a transaction
+ * the read runs unchanged.
+ */
+export function withReadSavepoint<D extends object, T>(
+  database: D,
+  read: (database: D) => Promise<T>
+): Promise<T> {
+  if (getRequestDatabaseScope() === undefined && !(database instanceof PgTransaction)) {
+    return read(database);
+  }
+  // The `db` proxy forwards transaction() to the request transaction, and a
+  // drizzle transaction's transaction() opens a savepoint on its connection.
+  const transactional = database as unknown as {
+    transaction<R>(callback: (savepoint: D) => Promise<R>): Promise<R>;
+  };
+  return transactional.transaction(read);
 }
 
 export async function applyRLSContext(client: PoolClient, context: UserContext): Promise<void> {

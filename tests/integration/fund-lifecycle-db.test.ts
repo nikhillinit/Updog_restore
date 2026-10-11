@@ -15,6 +15,7 @@ import type {
 } from '../../shared/contracts/fund-finalize-v1.contract';
 import type { FundResultsReadV1 } from '../../shared/contracts/fund-results-v1.contract';
 import type { FundStateReadV1 } from '../../shared/contracts/fund-state-read-v1.contract';
+import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
   parseReleaseCanaryHttpFundProofV2,
   RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
@@ -992,6 +993,46 @@ describe('fund lifecycle DB proof', () => {
       expect((await durableState(active, created.fundId)).receipts).toBe(2);
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  it('finalizes when the optional round-overrides table is absent, recording the MOIC fallback', async () => {
+    const active = runtime!;
+    // Production lacks migration 0027 (QA F-03). The renamed table makes both
+    // optional overrides reads fail inside the finalize transaction.
+    await active.pool.query(
+      'ALTER TABLE investment_round_model_overrides RENAME TO investment_round_model_overrides_hidden'
+    );
+    try {
+      const response = await request(active.app)
+        .post('/api/funds/finalize')
+        .set('Authorization', authHeader(active))
+        .set('Idempotency-Key', randomUUID())
+        .send(finalizeFixture());
+      expect(response.status, JSON.stringify(response.body)).toBe(201);
+
+      const snapshots = await active.pool.query(
+        `SELECT h9_round_evidence_input_hash, h9_actionability_status
+           FROM fund_snapshots
+          WHERE fund_id = $1 AND type = 'RESERVE'`,
+        [response.body.data.fundId]
+      );
+      expect(snapshots.rows).toEqual([
+        {
+          h9_round_evidence_input_hash: canonicalSha256({
+            companyCount: 0,
+            investmentCount: 0,
+            activeRoundCount: 0,
+            activeOverrideCount: 0,
+            warningsByCode: { ROUND_ADAPTER_FAILED: 1 },
+          }),
+          h9_actionability_status: 'non_actionable',
+        },
+      ]);
+    } finally {
+      await active.pool.query(
+        'ALTER TABLE investment_round_model_overrides_hidden RENAME TO investment_round_model_overrides'
+      );
     }
   });
 

@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { withReadSavepoint } from '../db/request-context';
 import { MOICCalculator } from '../../shared/core/moic/MOICCalculator.js';
 import type { Investment as MOICInvestment } from '../../shared/core/moic/MOICCalculator.js';
 import { dbToMOICInvestment } from '../lib/moic-mapper.js';
@@ -452,27 +453,29 @@ export async function getFundMoicRankingSources(
   now: Date = new Date()
 ): Promise<FundMoicRankingSources> {
   const asOfDate = now.toISOString().slice(0, 10);
-  const [companies, resolvedFactsSource] = await Promise.all([
-    database.query.portfolioCompanies.findMany({
-      where: (pc, { eq }) => eq(pc.fundId, fundId),
-      orderBy: (pc, { asc }) => [asc(pc.id)],
-    }),
-    factsSource
-      ? Promise.resolve(factsSource)
-      : buildFundCompanyActualsFacts({ fundId, asOfDate, database, now })
-          .then((response) => ({ status: 'available' as const, response }))
-          .catch((error: unknown) => {
-            logger.warn(
-              {
-                fundId,
-                asOfDate,
-                error: error instanceof Error ? error.message : String(error),
-              },
-              'fund-moic actuals facts load failed; using unavailable facts source'
-            );
-            return FUND_MOIC_FACTS_ABSENT;
-          }),
-  ]);
+  // Sequential on purpose: a concurrent statement on the same transaction
+  // connection could land inside the facts savepoint and fail with it.
+  const companies = await database.query.portfolioCompanies.findMany({
+    where: (pc, { eq }) => eq(pc.fundId, fundId),
+    orderBy: (pc, { asc }) => [asc(pc.id)],
+  });
+  const resolvedFactsSource =
+    factsSource ??
+    (await withReadSavepoint(database, (reader) =>
+      buildFundCompanyActualsFacts({ fundId, asOfDate, database: reader, now })
+    )
+      .then((response) => ({ status: 'available' as const, response }))
+      .catch((error: unknown) => {
+        logger.warn(
+          {
+            fundId,
+            asOfDate,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'fund-moic actuals facts load failed; using unavailable facts source'
+        );
+        return FUND_MOIC_FACTS_ABSENT;
+      }));
 
   return buildMoicRankingSourcesFromCompanies(fundId, companies, resolvedFactsSource);
 }
