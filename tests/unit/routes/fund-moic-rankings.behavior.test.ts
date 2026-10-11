@@ -251,6 +251,14 @@ function getRankings(path = '/api/funds/1/moic/rankings?contract=v2') {
   return request(buildApp()).get(path);
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   authState.user = USER;
@@ -624,6 +632,44 @@ describe('fund MOIC rankings route - behavioral state machine', () => {
       'ROUND_MODEL_OVERRIDE_APPLIED',
       'UNKNOWN_WARNING',
     ]);
+  });
+
+  it('starts each v2 reader only after the preceding one settles', async () => {
+    // In the request transaction the sources and evidence reads open savepoints
+    // on one connection, so a later reader must not begin while one is pending.
+    const sources = deferred<FundMoicRankingSources>();
+    const reconciliation = deferred<null>();
+    const evidence = deferred<ReturnType<typeof roundsEvidence>>();
+    svc.getFundMoicRankingSources.mockReturnValue(sources.promise);
+    svc.getLatestCompletedMoicReconciliation.mockReturnValue(reconciliation.promise);
+    svc.buildRoundsToModelEvidence.mockReturnValue(evidence.promise);
+    const drain = () => new Promise((done) => setImmediate(done));
+
+    const response = getRankings().then((res) => res);
+    try {
+      await vi.waitFor(() => expect(svc.getFundMoicRankingSources).toHaveBeenCalledOnce());
+      await drain();
+      expect(svc.getLatestCompletedMoicReconciliation).not.toHaveBeenCalled();
+      expect(svc.buildRoundsToModelEvidence).not.toHaveBeenCalled();
+
+      sources.resolve(sourceBundle());
+      await vi.waitFor(() =>
+        expect(svc.getLatestCompletedMoicReconciliation).toHaveBeenCalledOnce()
+      );
+      await drain();
+      expect(svc.buildRoundsToModelEvidence).not.toHaveBeenCalled();
+
+      reconciliation.resolve(null);
+      await vi.waitFor(() => expect(svc.buildRoundsToModelEvidence).toHaveBeenCalledOnce());
+      evidence.resolve(roundsEvidence());
+      expect((await response).status).toBe(200);
+    } finally {
+      // Release every reader so a failed assertion cannot leave the request open.
+      sources.resolve(sourceBundle());
+      reconciliation.resolve(null);
+      evidence.resolve(roundsEvidence());
+      await response;
+    }
   });
 
   it('rejects unsupported contracts', async () => {
