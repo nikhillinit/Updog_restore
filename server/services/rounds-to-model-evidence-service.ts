@@ -2,6 +2,7 @@ import { and, asc, eq, notExists } from 'drizzle-orm';
 import { aliasedTable } from 'drizzle-orm/alias';
 
 import { db } from '../db';
+import { withReadSavepoint } from '../db/request-context';
 import {
   serializeRoundsToModelEvidence,
   type RoundModelRole,
@@ -406,102 +407,105 @@ export async function buildRoundsToModelEvidence(params: {
   const now = params.now ?? new Date();
 
   try {
-    const [fund] = await database
-      .select({ id: funds.id, baseCurrency: funds.baseCurrency })
-      .from(funds)
-      .where(eq(funds.id, params.fundId))
-      .limit(1);
-    if (!fund) {
-      throw new Error(`Fund ${params.fundId} was not found`);
-    }
+    // Every read here is optional: the catch below falls back to adapter-failed evidence.
+    return await withReadSavepoint(database, async (database) => {
+      const [fund] = await database
+        .select({ id: funds.id, baseCurrency: funds.baseCurrency })
+        .from(funds)
+        .where(eq(funds.id, params.fundId))
+        .limit(1);
+      if (!fund) {
+        throw new Error(`Fund ${params.fundId} was not found`);
+      }
 
-    const companies = await database
-      .select({ id: portfolioCompanies.id, name: portfolioCompanies.name })
-      .from(portfolioCompanies)
-      .where(eq(portfolioCompanies.fundId, params.fundId))
-      .orderBy(asc(portfolioCompanies.id));
-    const parentInvestments = await database
-      .select({
-        id: investments.id,
-        fundId: investments.fundId,
-        companyId: investments.companyId,
-      })
-      .from(investments)
-      .where(eq(investments.fundId, params.fundId))
-      .orderBy(asc(investments.id));
-    const activeRounds = await database
-      .select({
-        id: investmentRounds.id,
-        fundId: investmentRounds.fundId,
-        investmentId: investmentRounds.investmentId,
-        roundDate: investmentRounds.roundDate,
-        createdAt: investmentRounds.createdAt,
-        securityType: investmentRounds.securityType,
-        currency: investmentRounds.currency,
-        investmentAmount: investmentRounds.investmentAmount,
-      })
-      .from(investmentRounds)
-      .where(
-        and(
-          eq(investmentRounds.fundId, params.fundId),
-          notExists(
-            database
-              .select({ id: supersedingRounds.id })
-              .from(supersedingRounds)
-              .where(eq(supersedingRounds.supersedesRoundId, investmentRounds.id))
+      const companies = await database
+        .select({ id: portfolioCompanies.id, name: portfolioCompanies.name })
+        .from(portfolioCompanies)
+        .where(eq(portfolioCompanies.fundId, params.fundId))
+        .orderBy(asc(portfolioCompanies.id));
+      const parentInvestments = await database
+        .select({
+          id: investments.id,
+          fundId: investments.fundId,
+          companyId: investments.companyId,
+        })
+        .from(investments)
+        .where(eq(investments.fundId, params.fundId))
+        .orderBy(asc(investments.id));
+      const activeRounds = await database
+        .select({
+          id: investmentRounds.id,
+          fundId: investmentRounds.fundId,
+          investmentId: investmentRounds.investmentId,
+          roundDate: investmentRounds.roundDate,
+          createdAt: investmentRounds.createdAt,
+          securityType: investmentRounds.securityType,
+          currency: investmentRounds.currency,
+          investmentAmount: investmentRounds.investmentAmount,
+        })
+        .from(investmentRounds)
+        .where(
+          and(
+            eq(investmentRounds.fundId, params.fundId),
+            notExists(
+              database
+                .select({ id: supersedingRounds.id })
+                .from(supersedingRounds)
+                .where(eq(supersedingRounds.supersedesRoundId, investmentRounds.id))
+            )
           )
         )
-      )
-      .orderBy(
-        asc(investmentRounds.investmentId),
-        asc(investmentRounds.roundDate),
-        asc(investmentRounds.createdAt),
-        asc(investmentRounds.id)
-      );
-    const activeOverrides = await database
-      .select({
-        id: investmentRoundModelOverrides.id,
-        fundId: investmentRoundModelOverrides.fundId,
-        roundId: investmentRoundModelOverrides.roundId,
-        overrideRole: investmentRoundModelOverrides.overrideRole,
-        supersedesOverrideId: investmentRoundModelOverrides.supersedesOverrideId,
-        createdAt: investmentRoundModelOverrides.createdAt,
-      })
-      .from(investmentRoundModelOverrides)
-      .innerJoin(
-        investmentRounds,
-        and(
-          eq(investmentRoundModelOverrides.roundId, investmentRounds.id),
-          eq(investmentRoundModelOverrides.fundId, investmentRounds.fundId)
-        )
-      )
-      .where(
-        and(
-          eq(investmentRoundModelOverrides.fundId, params.fundId),
-          notExists(
-            database
-              .select({ id: supersedingRounds.id })
-              .from(supersedingRounds)
-              .where(eq(supersedingRounds.supersedesRoundId, investmentRounds.id))
+        .orderBy(
+          asc(investmentRounds.investmentId),
+          asc(investmentRounds.roundDate),
+          asc(investmentRounds.createdAt),
+          asc(investmentRounds.id)
+        );
+      const activeOverrides = await database
+        .select({
+          id: investmentRoundModelOverrides.id,
+          fundId: investmentRoundModelOverrides.fundId,
+          roundId: investmentRoundModelOverrides.roundId,
+          overrideRole: investmentRoundModelOverrides.overrideRole,
+          supersedesOverrideId: investmentRoundModelOverrides.supersedesOverrideId,
+          createdAt: investmentRoundModelOverrides.createdAt,
+        })
+        .from(investmentRoundModelOverrides)
+        .innerJoin(
+          investmentRounds,
+          and(
+            eq(investmentRoundModelOverrides.roundId, investmentRounds.id),
+            eq(investmentRoundModelOverrides.fundId, investmentRounds.fundId)
           )
         )
-      )
-      .orderBy(
-        asc(investmentRoundModelOverrides.roundId),
-        asc(investmentRoundModelOverrides.createdAt),
-        asc(investmentRoundModelOverrides.id)
-      );
+        .where(
+          and(
+            eq(investmentRoundModelOverrides.fundId, params.fundId),
+            notExists(
+              database
+                .select({ id: supersedingRounds.id })
+                .from(supersedingRounds)
+                .where(eq(supersedingRounds.supersedesRoundId, investmentRounds.id))
+            )
+          )
+        )
+        .orderBy(
+          asc(investmentRoundModelOverrides.roundId),
+          asc(investmentRoundModelOverrides.createdAt),
+          asc(investmentRoundModelOverrides.id)
+        );
 
-    return buildRoundsToModelEvidenceFromRows({
-      fundId: params.fundId,
-      now,
-      rows: {
-        fund,
-        companies,
-        investments: parentInvestments,
-        activeRounds: activeRounds as ActiveRoundRow[],
-        activeOverrides: activeOverrides as ActiveOverrideRow[],
-      },
+      return buildRoundsToModelEvidenceFromRows({
+        fundId: params.fundId,
+        now,
+        rows: {
+          fund,
+          companies,
+          investments: parentInvestments,
+          activeRounds: activeRounds as ActiveRoundRow[],
+          activeOverrides: activeOverrides as ActiveOverrideRow[],
+        },
+      });
     });
   } catch (error) {
     return serializeRoundsToModelEvidence({

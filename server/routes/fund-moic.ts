@@ -387,11 +387,11 @@ router.get(
 
     const factsShadowStartedAt = performance.now();
 
-    const [sources, latestReconciliation, evidence] = await Promise.all([
-      getFundMoicRankingSources(fundId),
-      getLatestCompletedMoicReconciliation(fundId),
-      buildRoundsToModelEvidence({ fundId }),
-    ]);
+    // Sequential on purpose: inside the request transaction the optional reads
+    // run in savepoints on one connection, and concurrent savepoints interleave.
+    const sources = await getFundMoicRankingSources(fundId);
+    const latestReconciliation = await getLatestCompletedMoicReconciliation(fundId);
+    const evidence = await buildRoundsToModelEvidence({ fundId });
     const actualsFacts =
       sources.factsSource.status === 'available' ? sources.factsSource.response : null;
     const sourceCompanyCount = sources.legacy.provenance.sourceRecordCount;
