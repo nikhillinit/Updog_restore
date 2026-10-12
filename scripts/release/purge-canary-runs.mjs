@@ -674,15 +674,19 @@ function describePlan({ runId, fundId, headSha, digest, plan }) {
   };
 }
 
-async function runSingleRunPurge(client, options) {
-  const { execute = false, output = console.log } = options;
-  const runId = options.runId;
+function assertSingleRunTarget({ runId, fundId }) {
   if (typeof runId !== 'string' || !UUID_PATTERN.test(runId)) {
     throw new Error('--run-id must be a lowercase canary run UUID');
   }
-  if (typeof options.fundId !== 'string' || !FUND_ID_PATTERN.test(options.fundId)) {
+  if (typeof fundId !== 'string' || !FUND_ID_PATTERN.test(fundId)) {
     throw new Error('--fund-id must be the positive integer fund id of the run');
   }
+}
+
+async function runSingleRunPurge(client, options) {
+  const { execute = false, output = console.log } = options;
+  assertSingleRunTarget(options);
+  const runId = options.runId;
   const fundId = Number(options.fundId);
   if (execute && !isBoundExecute(options)) {
     throw new Error(
@@ -946,7 +950,13 @@ async function main() {
     throw new Error('DATABASE_URL is required; refusing to run against memory://');
   }
 
+  // The whole intent is checked before any connection; runPurge re-checks it.
+  if (options.execute && options.runId === undefined) throw new Error(BLOCKED_MESSAGE);
   if (options.runId !== undefined) {
+    assertSingleRunTarget(options);
+    if (options.execute && !DIGEST_PATTERN.test(options.expectedPlanDigest ?? '')) {
+      throw new Error('Execute requires --expected-plan-digest=<digest printed by the dry run>.');
+    }
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
     if (options.execute) {
       Object.assign(

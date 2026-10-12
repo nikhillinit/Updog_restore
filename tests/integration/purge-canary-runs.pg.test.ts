@@ -1,3 +1,8 @@
+import { execFile } from 'node:child_process';
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { type AddressInfo, createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -174,6 +179,70 @@ function bound(fingerprint: string, digest: string) {
     revalidateSource: () => undefined,
     verifyRecoveryEvidence: () => ({ synthetic: 'recovery-evidence-test' }),
   };
+}
+
+type Exec = { code: number; stdout: string; stderr: string };
+
+function exec(file: string, args: string[], cwd: string, env: Record<string, string>) {
+  return new Promise<Exec>((resolveExec) => {
+    execFile(file, args, { cwd, env, encoding: 'utf8', timeout: 60_000 }, (error, stdout, stderr) =>
+      resolveExec({ code: error ? Number(error.code ?? 1) : 0, stdout, stderr })
+    );
+  });
+}
+
+/** The purge CLI and its relative-import closure, as repository-relative paths. */
+async function purgeCliSources() {
+  const seen = new Set<string>();
+  const pending = [resolve('scripts/release/purge-canary-runs.mjs')];
+  while (pending.length > 0) {
+    const file = pending.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const text = await readFile(file, 'utf8');
+    for (const match of text.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) {
+      pending.push(resolve(dirname(file), match[1]!));
+    }
+  }
+  return [...seen].map((file) => relative(process.cwd(), file));
+}
+
+/**
+ * A synthetic checkout of the purge CLI whose `origin` is a local bare
+ * repository at the same `main`. Git runs with an isolated HOME and no system
+ * config, and the CLI runs with explicit synthetic environment values only, so
+ * no real credential, key, or env file is read.
+ */
+async function syntheticCheckout() {
+  const root = await mkdtemp(join(tmpdir(), 'purge-cli-checkout-'));
+  const checkout = join(root, 'checkout');
+  const env = {
+    PATH: process.env['PATH'] ?? '',
+    HOME: root,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_AUTHOR_NAME: 'synthetic',
+    GIT_AUTHOR_EMAIL: 'synthetic@example.invalid',
+    GIT_COMMITTER_NAME: 'synthetic',
+    GIT_COMMITTER_EMAIL: 'synthetic@example.invalid',
+  };
+  const git = async (cwd: string, ...args: string[]) => {
+    const result = await exec('git', args, cwd, env);
+    if (result.code !== 0) throw new Error(`git ${args[0]} failed: ${result.stderr}`);
+    return result.stdout.trim();
+  };
+  for (const file of await purgeCliSources()) {
+    await mkdir(dirname(join(checkout, file)), { recursive: true });
+    await cp(file, join(checkout, file));
+  }
+  await symlink(resolve('node_modules'), join(checkout, 'node_modules'));
+  await writeFile(join(checkout, '.gitignore'), 'node_modules\n');
+  await git(root, 'init', '--bare', '--initial-branch=main', 'origin.git');
+  await git(checkout, 'init', '--initial-branch=main');
+  await git(checkout, 'add', '.');
+  await git(checkout, 'commit', '--quiet', '-m', 'synthetic purge CLI checkout');
+  await git(checkout, 'remote', 'add', 'origin', join(root, 'origin.git'));
+  await git(checkout, 'push', '--quiet', 'origin', 'main');
+  return { root, checkout, env, headSha: await git(checkout, 'rev-parse', 'HEAD') };
 }
 
 /** True once `pid` waits on a lock; false if it settles first or 5 s pass. */
@@ -358,6 +427,97 @@ describe.skipIf(skipIfNoDocker)('single canary run purge', { retry: 0, timeout: 
         verifiedByScript: false,
       },
     });
+  });
+
+  it('runs the owner-run CLI end to end with the real Git reader against a synthetic origin', async () => {
+    const { connectionString, fingerprint } = await freshDatabase();
+    const { runId, fundId } = await seedCanary(connectionString);
+    const synthetic = await syntheticCheckout();
+    const runIdArg = `--run-id=${runId}`;
+    const fundIdArg = `--fund-id=${fundId}`;
+    const runCli = (args: string[], env: Record<string, string>) =>
+      exec(
+        process.execPath,
+        ['scripts/release/purge-canary-runs.mjs', ...args],
+        synthetic.checkout,
+        { ...synthetic.env, ...env }
+      );
+    const cli = (args: string[], extra: Record<string, string> = {}) =>
+      runCli([runIdArg, fundIdArg, ...args], { DATABASE_URL: connectionString, ...extra });
+    let connections = 0;
+    const server = createServer((socket) => {
+      connections += 1;
+      socket.destroy();
+    });
+    try {
+      // Valid owner and source inputs: a missing or malformed intent field still
+      // refuses before any connection.
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const owner = {
+        RELEASE_CANARY_PURGE_OPERATOR: '1',
+        EXPECTED_SHA: synthetic.headSha,
+        EXPECTED_TARGET_FINGERPRINT: fingerprint,
+        RESTORE_BRANCH_ID: 'br-synthetic-cli-0001',
+        DATABASE_URL: `postgres://synthetic@127.0.0.1:${(server.address() as AddressInfo).port}/synthetic`,
+      };
+      const digestArg = `--expected-plan-digest=${'b'.repeat(64)}`;
+      for (const [args, message] of [
+        [['--execute', fundIdArg, digestArg], /mechanically blocked/],
+        [['--execute', '--run-id=not-a-uuid', fundIdArg, digestArg], /--run-id must be/],
+        [['--execute', runIdArg, digestArg], /--fund-id must be/],
+        [['--execute', runIdArg, fundIdArg], /--expected-plan-digest/],
+      ] as const) {
+        const refused = await runCli([...args], owner);
+        expect(refused.code, args.join(' ')).toBe(1);
+        expect(refused.stderr, args.join(' ')).toMatch(message);
+      }
+      expect(connections).toBe(0);
+
+      const dry = await cli([]);
+      expect(dry.code, dry.stderr).toBe(0);
+      const plan = JSON.parse(dry.stdout) as Plan;
+      expect(plan).toMatchObject({
+        mode: 'single-run-dry-run',
+        executingSha: synthetic.headSha,
+      });
+
+      const executed = await cli(['--execute', `--expected-plan-digest=${plan.digest}`], {
+        RELEASE_CANARY_PURGE_OPERATOR: '1',
+        EXPECTED_SHA: synthetic.headSha,
+        EXPECTED_TARGET_FINGERPRINT: fingerprint,
+        RESTORE_BRANCH_ID: 'br-synthetic-cli-0001',
+      });
+      expect(executed.code, executed.stderr).toBe(0);
+      expect(JSON.parse(executed.stdout)).toMatchObject({
+        outcome: 'purged',
+        runId,
+        digest: plan.digest,
+        executingSha: synthetic.headSha,
+      });
+
+      const readback = await cli([]);
+      expect(readback.code, readback.stderr).toBe(0);
+      expect(JSON.parse(readback.stdout)).toMatchObject({
+        outcome: 'readback',
+        digest: plan.digest,
+      });
+
+      const after = await snapshot(connectionString);
+      expect(after.funds.map((row) => row.id)).not.toContain(fundId);
+      expect(after.receipts).toHaveLength(1);
+      expect(after.receipts[0]?.changes).toMatchObject({
+        executingSha: synthetic.headSha,
+        targetFingerprint: fingerprint,
+        recoveryEvidence: {
+          kind: 'owner-confirmed-neon-restore-branch',
+          restoreBranchId: 'br-synthetic-cli-0001',
+          verifiedByScript: false,
+        },
+      });
+    } finally {
+      if (server.listening) await new Promise((done) => server.close(done));
+      await rm(synthetic.root, { recursive: true, force: true });
+    }
   });
 
   it('refuses active, unexpired, and mismatched targets before any write', async () => {
