@@ -468,6 +468,36 @@ A JSON array kept outside the repository and deleted after use. Each entry has
    - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
      run to confirm the current state before retrying.
 
+## Release canary run purge
+
+`scripts/release/purge-canary-runs.mjs` has no admitted production execute
+route. `--execute` stays mechanically blocked, with or without `--run-id`, until
+a machine-checkable recovery evidence validator and a governing-policy amendment
+are added (ADR-108). The single-run dry run below is read only.
+
+1. Check out the exact live `main` SHA with no tracked changes.
+2. Use the direct (non-pooler) production URL. Read it into the shell so it
+   stays out of shell history:
+
+   ```bash
+   read -rs DATABASE_URL; export DATABASE_URL
+   ```
+
+3. Dry run, inside `BEGIN READ ONLY`:
+
+   ```bash
+   node scripts/release/purge-canary-runs.mjs --run-id=<run uuid> --fund-id=<fund id>
+   ```
+
+   The JSON shows `executingSha` (this checkout), which is distinct from
+   `run.releaseSha` (the release the canary ran for); the workflow identity,
+   status, version, and expiry; `storedResidue` against `liveResidue`; every
+   `deleteOrder` count; the `writeExcludedTables` that execute would lock; and
+   the `digest`. A refusal names its cause: not terminal, not expired, wrong
+   fund, a dependent or fund-owned row outside the scope, a trigger or rule, or
+   a missing `audit_log`. For a purged run it prints the stored receipt as
+   `"outcome": "readback"`, and refuses if any row still names the fund or run.
+
 ## Immutable certification and action-time eligibility
 
 Preserve historical receipts and immutable candidate certification for their
