@@ -22,6 +22,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-12)
+
+- The governing policy admits
+  `scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` as an
+  owner-run route (ADR-108 accepted on merge). The restore reference is a Neon
+  restore branch the owner creates immediately before execute and passes in
+  `RESTORE_BRANCH_ID`; the script records it in the receipt and does not verify
+  it. Isolation is an accepted risk, not a proven control. The execute
+  transaction now sets a 30 s `idle_in_transaction_session_timeout`, and the
+  prewrite source re-check has a 10 s deadline. Each execute is a separate owner
+  action.
+
 ### Fixed (2026-10-11)
 
 - Finalize no longer returns 500 when an optional fallback read fails inside its

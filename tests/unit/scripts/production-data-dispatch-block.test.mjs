@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
-import { RECOVERY_BLOCK_MESSAGE, runPurge } from '../../../scripts/release/purge-canary-runs.mjs';
+import { runPurge } from '../../../scripts/release/purge-canary-runs.mjs';
 import { parseRedeliveryArgs } from '../../../scripts/release/redeliver-capital-call-outbox.mjs';
 import { assertDemoSeedEnabled } from '../../../server/seed-demo-data.ts';
 import { parseProvisioningMode } from '../../../scripts/provision-prod-users.ts';
@@ -44,27 +44,43 @@ describe('production data dispatch block', () => {
     }
   });
 
-  it('blocks the single-run canary purge CLI execute before connecting', () => {
-    const result = spawnSync(
-      process.execPath,
-      [
-        'scripts/release/purge-canary-runs.mjs',
-        '--execute',
-        '--run-id=11111111-1111-4111-8111-111111111111',
-        '--fund-id=3',
-        `--expected-plan-digest=${'b'.repeat(64)}`,
-      ],
-      {
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          RELEASE_CANARY_PURGE_OPERATOR: '1',
-          DATABASE_URL: 'postgres://blocked@127.0.0.1:1/never',
-        },
-      }
+  it('refuses single-run canary purge CLI execute without owner-run bindings before connecting', () => {
+    const owned = ['EXPECTED_SHA', 'EXPECTED_TARGET_FINGERPRINT', 'RESTORE_BRANCH_ID'];
+    const inherited = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !owned.includes(key))
     );
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(RECOVERY_BLOCK_MESSAGE);
+    const run = (env) =>
+      spawnSync(
+        process.execPath,
+        [
+          'scripts/release/purge-canary-runs.mjs',
+          '--execute',
+          '--run-id=11111111-1111-4111-8111-111111111111',
+          '--fund-id=3',
+          `--expected-plan-digest=${'b'.repeat(64)}`,
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...inherited,
+            RELEASE_CANARY_PURGE_OPERATOR: '1',
+            DATABASE_URL: 'postgres://blocked@127.0.0.1:1/never',
+            ...env,
+          },
+        }
+      );
+    const fingerprint = { EXPECTED_TARGET_FINGERPRINT: 'c'.repeat(64) };
+    const restore = { ...fingerprint, RESTORE_BRANCH_ID: 'br-wild-sun-a5abc123' };
+    for (const [env, message] of [
+      [{}, 'EXPECTED_TARGET_FINGERPRINT'],
+      [fingerprint, 'RESTORE_BRANCH_ID'],
+      [restore, 'EXPECTED_SHA must be a full 40-character commit SHA.'],
+    ]) {
+      const result = run(env);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(message);
+      expect(result.stderr).not.toContain('ECONNREFUSED');
+    }
   });
 
   it('blocks outbox redelivery apply before database selection or update', () => {

@@ -139,6 +139,31 @@ prerequisite and replaces, for this route, the managed backup/PITR,
 isolated-restore freshness, custody-role, and preview/restore-isolation evidence
 floor below. Every other floor applies unchanged.
 
+The owner-run route
+`scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` is admitted
+for purging one release-canary run (ADR-108): it deletes the run's single canary
+fund and that fund's rows in the reviewed scope, and keeps the run row as a
+purged tombstone. The owner runs it locally, never from CI, against the direct
+(non-pooler) endpoint. Before any write it refuses when the checkout HEAD, live
+`main`, and `EXPECTED_SHA` differ or tracked changes exist; when the target
+fingerprint differs from `EXPECTED_TARGET_FINGERPRINT`; when the run is not
+terminal and expired, or the fund is not that run's single release-canary fund;
+when any row outside the reviewed scope depends on or names the fund or run; or
+when the plan digest of the owner-reviewed dry run no longer matches the source,
+target, run, and rows to delete. It re-checks the source within a bounded
+deadline immediately before the first write. For this route, the restore
+reference is a Neon restore branch that the owner creates after reviewing the
+dry run and confirms immediately before execute by passing its identifier in
+`RESTORE_BRANCH_ID`. The script records that identifier in the purge receipt and
+does not verify the branch. The owner, as sole dispatch issuer, withholds
+`--execute` when it is absent. This paragraph is an explicit amendment for this
+route only, on the same terms as the ADR-103 and ADR-105 paragraphs above: the
+owner's confirmation satisfies the restore-reference prerequisite and replaces,
+for this route, the managed backup/PITR, isolated-restore freshness,
+custody-role, and preview/restore-isolation evidence floor below. No restore
+producer, provider attestation, or isolation proof is required or claimed. Every
+other floor applies unchanged.
+
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or
 preview/restore-isolation evidence yields zero dispatch. A restore reference or

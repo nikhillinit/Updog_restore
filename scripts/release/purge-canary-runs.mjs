@@ -258,19 +258,24 @@ export async function runPurge(client, options = {}) {
 //
 // The only execute shape: one named, terminal, expired canary run and its one
 // fund, bound to a reviewed dry-run digest, the executing source SHA, the
-// target fingerprint, and recovery evidence that a validator re-checks
-// immediately before the first write. No such validator exists yet, so the CLI
-// refuses execute (RECOVERY_BLOCK_MESSAGE) and only synthetic tests inject one.
-// Every other execute shape stays blocked above.
-
-export const RECOVERY_BLOCK_MESSAGE =
-  'Single-run canary purge execute is mechanically blocked: no machine-checkable ' +
-  'recovery evidence validator is bound (ADR-108)';
+// target fingerprint, and recovery evidence re-checked immediately before the
+// first write. The governing policy admits it as an owner-run route: the CLI
+// binds the owner's restore-branch confirmation, which it records but does not
+// verify (ownerRunBindings). Every other execute shape stays blocked above.
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const FUND_ID_PATTERN = /^[1-9][0-9]{0,9}$/;
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
+const RESTORE_BRANCH_PATTERN = /^br-[a-z0-9-]{1,60}$/;
+// Source checks: before connecting (no lock held), then immediately before the
+// first write, while the share locks are held.
+const SOURCE_CHECK_TIMEOUT_MS = 30_000;
+const PREWRITE_SOURCE_CHECK_TIMEOUT_MS = 10_000;
+// Server-side backstop for the execute transaction: a client that stalls
+// between statements (a network wait, a sleeping laptop) loses its session,
+// and so its locks, after this long.
+const EXECUTE_IDLE_TIMEOUT = '30s';
 const TERMINAL_STATUSES = Object.freeze(['completed', 'failed', 'expired']);
 const RECEIPT_ACTION = 'release_canary_purge';
 const RECEIPT_ENTITY = 'release_canary_run';
@@ -699,7 +704,12 @@ async function runSingleRunPurge(client, options) {
     // Fixed text forms keep the digest independent of the operator's session.
     await client.query("SET LOCAL TimeZone = 'UTC'");
     await client.query("SET LOCAL statement_timeout = '60s'");
-    if (execute) await client.query("SET LOCAL lock_timeout = '5s'");
+    if (execute) {
+      await client.query("SET LOCAL lock_timeout = '5s'");
+      await client.query(
+        `SET LOCAL idle_in_transaction_session_timeout = '${EXECUTE_IDLE_TIMEOUT}'`
+      );
+    }
     const identity = await readDatabaseIdentity(client);
     const targetFingerprint = computeTargetFingerprint({
       directHost: client.host,
@@ -863,6 +873,69 @@ function readHeadSha(repoRoot) {
   }).trim();
 }
 
+// Mirrors assertSourceIdentity in scripts/provision-prod-users.ts (ADR-105).
+function assertOwnerRunSource({ expectedSha, headSha, liveMainSha, dirty }) {
+  if (headSha !== expectedSha) throw new Error('Checkout HEAD does not equal EXPECTED_SHA.');
+  if (liveMainSha !== expectedSha) {
+    throw new Error('Live origin main does not equal EXPECTED_SHA.');
+  }
+  if (dirty) throw new Error('Checkout has uncommitted tracked changes.');
+}
+
+function readSourceIdentity(repoRoot, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  const git = (...args) => {
+    const timeout = deadline - Date.now();
+    if (timeout <= 0) throw new Error(`Source check exceeded its ${timeoutMs} ms deadline`);
+    return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8', timeout }).trim();
+  };
+  return {
+    headSha: git('rev-parse', 'HEAD'),
+    liveMainSha: git('ls-remote', 'origin', 'refs/heads/main').split(/\s+/)[0] ?? '',
+    dirty: git('status', '--porcelain', '--untracked-files=no') !== '',
+  };
+}
+
+/**
+ * Execute bindings for the owner-run route (ADR-108). Checks the inputs and the
+ * source before any connection; the returned source re-check runs immediately
+ * before the first write within a shorter deadline. The recovery evidence is the
+ * owner's confirmation of a Neon restore branch: recorded in the receipt, never
+ * verified by this script. `readSource(timeoutMs)` returns
+ * `{ headSha, liveMainSha, dirty }`.
+ */
+export function ownerRunBindings(env, readSource) {
+  const expectedTargetFingerprint = env.EXPECTED_TARGET_FINGERPRINT;
+  if (!expectedTargetFingerprint) {
+    throw new Error('Execute requires EXPECTED_TARGET_FINGERPRINT.');
+  }
+  const restoreBranchId = env.RESTORE_BRANCH_ID;
+  if (!RESTORE_BRANCH_PATTERN.test(restoreBranchId ?? '')) {
+    throw new Error(
+      'Execute requires RESTORE_BRANCH_ID: the id (br-...) of the Neon restore branch ' +
+        'created after the dry run, immediately before execute.'
+    );
+  }
+  const expectedSha = env.EXPECTED_SHA;
+  if (!SHA_PATTERN.test(expectedSha ?? '')) {
+    throw new Error('EXPECTED_SHA must be a full 40-character commit SHA.');
+  }
+  const source = readSource(SOURCE_CHECK_TIMEOUT_MS);
+  assertOwnerRunSource({ expectedSha, ...source });
+  const evidence = Object.freeze({
+    kind: 'owner-confirmed-neon-restore-branch',
+    restoreBranchId,
+    verifiedByScript: false,
+  });
+  return {
+    headSha: source.headSha,
+    expectedTargetFingerprint,
+    revalidateSource: () =>
+      assertOwnerRunSource({ expectedSha, ...readSource(PREWRITE_SOURCE_CHECK_TIMEOUT_MS) }),
+    verifyRecoveryEvidence: () => evidence,
+  };
+}
+
 async function main() {
   const options = parsePurgeArgs(process.argv.slice(2));
   if (options.execute && process.env.RELEASE_CANARY_PURGE_OPERATOR !== '1') {
@@ -874,8 +947,15 @@ async function main() {
   }
 
   if (options.runId !== undefined) {
-    if (options.execute) throw new Error(RECOVERY_BLOCK_MESSAGE);
-    options.headSha = readHeadSha(resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'));
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+    if (options.execute) {
+      Object.assign(
+        options,
+        ownerRunBindings(process.env, (timeoutMs) => readSourceIdentity(repoRoot, timeoutMs))
+      );
+    } else {
+      options.headSha = readHeadSha(repoRoot);
+    }
   }
 
   const pool = new Pool({ connectionString: databaseUrl });

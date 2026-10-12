@@ -4,6 +4,7 @@ import {
   PURGE_RESIDUE_GROUPS,
   PURGE_RESIDUE_GROUP_TABLES,
   buildPurgePlan,
+  ownerRunBindings,
   parsePurgeArgs,
   runPurge,
   topologicallyOrderChildTables,
@@ -56,6 +57,62 @@ describe('canary purge command', () => {
       runPurge({ ...client, host: 'ep-x-pooler.us-east-2.aws.neon.tech' }, base)
     ).rejects.toThrow(/pooled endpoint/i);
     expect(client.query).not.toHaveBeenCalled();
+  });
+
+  describe('owner-run execute bindings (ADR-108)', () => {
+    const sha = 'a'.repeat(40);
+    const env = {
+      EXPECTED_SHA: sha,
+      EXPECTED_TARGET_FINGERPRINT: 'c'.repeat(64),
+      RESTORE_BRANCH_ID: 'br-wild-sun-a5abc123',
+    };
+    const clean = { headSha: sha, liveMainSha: sha, dirty: false };
+
+    it('refuses missing or malformed inputs before reading the source', () => {
+      const readSource = vi.fn(() => clean);
+      for (const [key, value, message] of [
+        ['EXPECTED_TARGET_FINGERPRINT', undefined, /EXPECTED_TARGET_FINGERPRINT/],
+        ['RESTORE_BRANCH_ID', undefined, /RESTORE_BRANCH_ID/],
+        ['RESTORE_BRANCH_ID', 'main', /RESTORE_BRANCH_ID/],
+        ['EXPECTED_SHA', undefined, /EXPECTED_SHA must be a full/],
+        ['EXPECTED_SHA', 'a'.repeat(7), /EXPECTED_SHA must be a full/],
+      ] as const) {
+        expect(() => ownerRunBindings({ ...env, [key]: value }, readSource)).toThrow(message);
+      }
+      expect(readSource).not.toHaveBeenCalled();
+    });
+
+    it('refuses source drift before connecting', () => {
+      for (const [source, message] of [
+        [{ ...clean, headSha: 'b'.repeat(40) }, /Checkout HEAD does not equal EXPECTED_SHA/],
+        [{ ...clean, liveMainSha: 'b'.repeat(40) }, /Live origin main does not equal EXPECTED_SHA/],
+        [{ ...clean, dirty: true }, /uncommitted tracked changes/],
+      ] as const) {
+        expect(() => ownerRunBindings(env, () => source)).toThrow(message);
+      }
+    });
+
+    it('re-checks the source within a short deadline and records the unverified restore branch', () => {
+      const budgets: number[] = [];
+      let live = clean;
+      const bindings = ownerRunBindings(env, (timeoutMs: number) => {
+        budgets.push(timeoutMs);
+        return live;
+      });
+      expect(bindings).toMatchObject({ headSha: sha, expectedTargetFingerprint: 'c'.repeat(64) });
+      expect(budgets).toEqual([30_000]);
+
+      expect(() => bindings.revalidateSource()).not.toThrow();
+      live = { ...clean, liveMainSha: 'b'.repeat(40) };
+      expect(() => bindings.revalidateSource()).toThrow(/Live origin main/);
+      expect(budgets).toEqual([30_000, 10_000, 10_000]);
+
+      expect(bindings.verifyRecoveryEvidence()).toEqual({
+        kind: 'owner-confirmed-neon-restore-branch',
+        restoreBranchId: 'br-wild-sun-a5abc123',
+        verifiedByScript: false,
+      });
+    });
   });
 
   it('prints exact targeted residue counts without mutating input', () => {

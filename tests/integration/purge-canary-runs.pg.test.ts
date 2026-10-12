@@ -1,7 +1,7 @@
 import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runPurge } from '../../scripts/release/purge-canary-runs.mjs';
+import { ownerRunBindings, runPurge } from '../../scripts/release/purge-canary-runs.mjs';
 import { readDatabaseIdentity } from '../../scripts/reconcile-prod-schema.mjs';
 import { computeTargetFingerprint } from '../../scripts/run-journaled-0050-0061-migrations.mjs';
 import {
@@ -303,6 +303,61 @@ describe.skipIf(skipIfNoDocker)('single canary run purge', { retry: 0, timeout: 
     ).rejects.toThrow(/conflicting purge intent/i);
     expect(await snapshot(connectionString)).toEqual(after);
     expect(bystanderRows(await snapshot(connectionString))).toEqual(bystanderBefore);
+  });
+
+  it('executes through the owner-run bindings with an idle backstop and records the restore branch', async () => {
+    const { connectionString, fingerprint } = await freshDatabase();
+    const { runId, fundId } = await seedCanary(connectionString);
+    const target = { runId, fundId: String(fundId) };
+    const plan = await purge(connectionString, target);
+    const budgets: number[] = [];
+    let live = { headSha: HEAD_SHA, liveMainSha: HEAD_SHA, dirty: false };
+    const bindings = ownerRunBindings(
+      {
+        EXPECTED_SHA: HEAD_SHA,
+        EXPECTED_TARGET_FINGERPRINT: fingerprint,
+        RESTORE_BRANCH_ID: 'br-wild-sun-a5abc123',
+      },
+      (timeoutMs: number) => {
+        budgets.push(timeoutMs);
+        return live;
+      }
+    );
+    const owner = { ...target, execute: true, expectedPlanDigest: plan.digest, ...bindings };
+
+    // main moved after the dry run: the prewrite re-check refuses and nothing is written.
+    const before = await snapshot(connectionString);
+    live = { ...live, liveMainSha: 'c'.repeat(40) };
+    await expect(purge(connectionString, owner)).rejects.toThrow(/live origin main/i);
+    expect(await snapshot(connectionString)).toEqual(before);
+
+    live = { ...live, liveMainSha: HEAD_SHA };
+    let idleTimeout: unknown;
+    const purged = await withClient(connectionString, (client) =>
+      runPurge(client, {
+        ...owner,
+        output: () => undefined,
+        verifyRecoveryEvidence: async () => {
+          const shown = await client.query('SHOW idle_in_transaction_session_timeout');
+          idleTimeout = shown.rows[0]?.idle_in_transaction_session_timeout;
+          return bindings.verifyRecoveryEvidence();
+        },
+      })
+    );
+    expect(purged).toMatchObject({ outcome: 'purged', runId, digest: plan.digest });
+    expect(idleTimeout).toBe('30s');
+    expect(budgets).toEqual([30_000, 10_000, 10_000]);
+    const [receipt] = (await snapshot(connectionString)).receipts;
+    expect(receipt?.changes).toMatchObject({
+      digest: plan.digest,
+      executingSha: HEAD_SHA,
+      targetFingerprint: fingerprint,
+      recoveryEvidence: {
+        kind: 'owner-confirmed-neon-restore-branch',
+        restoreBranchId: 'br-wild-sun-a5abc123',
+        verifiedByScript: false,
+      },
+    });
   });
 
   it('refuses active, unexpired, and mismatched targets before any write', async () => {
