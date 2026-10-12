@@ -191,7 +191,9 @@ Do not dispatch while any applicable blocker remains UNKNOWN, including:
   proof for a production schema/data action, except as the ADR-103 route
   exception above states for `apply-journaled-0050-0061` and the governing
   policy states for `scripts/provision-prod-users.ts --apply` (see "Production
-  user provisioning" below).
+  user provisioning" below) and for
+  `scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` (see
+  "Release canary run purge" below).
 
 Retained entrypoints are not an authority or coverage claim. Any retained
 entrypoint whose current targeted order proof or action evidence is absent,
@@ -470,10 +472,12 @@ A JSON array kept outside the repository and deleted after use. Each entry has
 
 ## Release canary run purge
 
-`scripts/release/purge-canary-runs.mjs` has no admitted production execute
-route. `--execute` stays mechanically blocked, with or without `--run-id`, until
-a machine-checkable recovery evidence validator and a governing-policy amendment
-are added (ADR-108). The single-run dry run below is read only.
+`scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` is admitted
+by the governing policy as an owner-run route (ADR-108). It deletes one
+terminal, expired release-canary run's single canary fund and that fund's rows
+in the reviewed scope, and keeps the run row as a purged tombstone. The owner
+runs it locally, never from CI. Each execute is a separate owner action. A bare
+`--execute` without `--run-id` stays mechanically blocked.
 
 1. Check out the exact live `main` SHA with no tracked changes.
 2. Use the direct (non-pooler) production URL. Read it into the shell so it
@@ -497,6 +501,42 @@ are added (ADR-108). The single-run dry run below is read only.
    fund, a dependent or fund-owned row outside the scope, a trigger or rule, or
    a missing `audit_log`. For a purged run it prints the stored receipt as
    `"outcome": "readback"`, and refuses if any row still names the fund or run.
+
+4. Derive the target fingerprint with the recipe above. For the same URL and
+   role it equals `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`.
+5. Create a Neon restore branch of the production branch after reviewing the dry
+   run and immediately before execute. Record its identifier (`br-...`) and
+   creation time privately, outside the repository.
+6. Execute. Read the fingerprint into the shell like the URL, so it stays
+   private:
+
+   ```bash
+   read -rs EXPECTED_TARGET_FINGERPRINT; export EXPECTED_TARGET_FINGERPRINT
+   RELEASE_CANARY_PURGE_OPERATOR=1 EXPECTED_SHA="<main SHA>" RESTORE_BRANCH_ID="<restore branch id>" node scripts/release/purge-canary-runs.mjs --execute --run-id=<run uuid> --fund-id=<fund id> --expected-plan-digest=<digest>
+   ```
+
+   Before connecting it checks the inputs and that the checkout HEAD, live
+   `main`, and `EXPECTED_SHA` are equal with no tracked changes. In one
+   transaction it locks the run, the fund, and every row to delete (waiting at
+   most 5 s for a conflicting transaction), share-locks the write-excluded
+   tables, recomputes the digest, re-checks the source within 10 s, and then
+   writes the receipt, the deletes, and the tombstone. The script records
+   `RESTORE_BRANCH_ID` in the receipt and does not verify the branch. While it
+   holds the locks, writes to `funds` and the other write-excluded tables wait
+   for every fund; a client idle for 30 s inside the transaction loses its
+   session and its locks.
+
+7. Act on the outcome:
+   - `"outcome": "purged"`: success. Run the dry run again: it must print
+     `"outcome": "readback"`. Delete the restore branch only after that
+     readback.
+   - `Plan digest mismatch`, `Target fingerprint missing or mismatched`, a
+     pooled-endpoint refusal, a source refusal, or a missing input: nothing was
+     written. Re-run the dry run and review again.
+   - `COMMIT was not confirmed`: unknown state. Run the dry run to read the run
+     back before any retry.
+   - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
+     run to confirm the current state before retrying.
 
 ## Immutable certification and action-time eligibility
 

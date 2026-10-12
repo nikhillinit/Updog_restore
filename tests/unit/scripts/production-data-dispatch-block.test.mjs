@@ -1,12 +1,40 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
 
-import { RECOVERY_BLOCK_MESSAGE, runPurge } from '../../../scripts/release/purge-canary-runs.mjs';
+import { runPurge } from '../../../scripts/release/purge-canary-runs.mjs';
 import { parseRedeliveryArgs } from '../../../scripts/release/redeliver-capital-call-outbox.mjs';
 import { assertDemoSeedEnabled } from '../../../server/seed-demo-data.ts';
 import { parseProvisioningMode } from '../../../scripts/provision-prod-users.ts';
+
+const purgeCli = resolve('scripts/release/purge-canary-runs.mjs');
+
+// Runs the purge CLI from an empty directory with only explicit synthetic
+// environment values, so dotenv in the imported modules finds no file to load.
+async function runPurgeCli(args, env) {
+  const cwd = await mkdtemp(join(tmpdir(), 'purge-cli-'));
+  const definedEnv = Object.fromEntries(
+    Object.entries({ PATH: process.env.PATH, ...env }).filter(([, value]) => value !== undefined)
+  );
+  try {
+    return await new Promise((resolveRun) => {
+      execFile(
+        process.execPath,
+        [purgeCli, ...args],
+        { cwd, env: definedEnv, encoding: 'utf8', timeout: 30_000 },
+        (error, stdout, stderr) =>
+          resolveRun({ code: error ? Number(error.code ?? 1) : 0, stdout, stderr })
+      );
+    });
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+}
 
 describe('production data dispatch block', () => {
   it('blocks canary purge before first database query', async () => {
@@ -44,27 +72,65 @@ describe('production data dispatch block', () => {
     }
   });
 
-  it('blocks the single-run canary purge CLI execute before connecting', () => {
-    const result = spawnSync(
-      process.execPath,
-      [
-        'scripts/release/purge-canary-runs.mjs',
-        '--execute',
-        '--run-id=11111111-1111-4111-8111-111111111111',
-        '--fund-id=3',
-        `--expected-plan-digest=${'b'.repeat(64)}`,
-      ],
-      {
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          RELEASE_CANARY_PURGE_OPERATOR: '1',
-          DATABASE_URL: 'postgres://blocked@127.0.0.1:1/never',
-        },
+  it('refuses single-run canary purge CLI execute before any connection for each missing or malformed binding', async () => {
+    let connections = 0;
+    const server = createServer((socket) => {
+      connections += 1;
+      socket.destroy();
+    });
+    await new Promise((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const databaseUrl = `postgres://synthetic@127.0.0.1:${server.address().port}/synthetic`;
+    const owner = {
+      RELEASE_CANARY_PURGE_OPERATOR: '1',
+      DATABASE_URL: databaseUrl,
+      EXPECTED_SHA: 'a'.repeat(40),
+      EXPECTED_TARGET_FINGERPRINT: 'c'.repeat(64),
+      RESTORE_BRANCH_ID: 'br-synthetic-a1b2c3',
+    };
+    const runId = '--run-id=11111111-1111-4111-8111-111111111111';
+    const fundId = '--fund-id=3';
+    const digest = `--expected-plan-digest=${'b'.repeat(64)}`;
+    try {
+      for (const [args, env, message] of [
+        [['--execute', fundId, digest], owner, /mechanically blocked/],
+        [['--execute', '--run-id=not-a-uuid', fundId, digest], owner, /--run-id must be/],
+        [['--execute', runId, digest], owner, /--fund-id must be/],
+        [['--execute', runId, '--fund-id=0', digest], owner, /--fund-id must be/],
+        [['--execute', runId, fundId], owner, /--expected-plan-digest/],
+        [
+          ['--execute', runId, fundId, '--expected-plan-digest=abc'],
+          owner,
+          /--expected-plan-digest/,
+        ],
+        [
+          ['--execute', runId, fundId, digest],
+          { ...owner, EXPECTED_TARGET_FINGERPRINT: undefined },
+          /EXPECTED_TARGET_FINGERPRINT/,
+        ],
+        [
+          ['--execute', runId, fundId, digest],
+          { ...owner, RESTORE_BRANCH_ID: 'main' },
+          /RESTORE_BRANCH_ID/,
+        ],
+        [
+          ['--execute', runId, fundId, digest],
+          { ...owner, EXPECTED_SHA: undefined },
+          /EXPECTED_SHA must be a full/,
+        ],
+      ]) {
+        const result = await runPurgeCli(args, env);
+        expect(result.code, args.join(' ')).toBe(1);
+        expect(result.stderr, args.join(' ')).toMatch(message);
       }
-    );
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(RECOVERY_BLOCK_MESSAGE);
+      expect(connections).toBe(0);
+
+      // Control: a well-formed dry run does connect, so the counter sees connections.
+      const control = await runPurgeCli([runId, fundId], { DATABASE_URL: databaseUrl });
+      expect(control.code).toBe(1);
+      expect(connections).toBeGreaterThan(0);
+    } finally {
+      await new Promise((resolveClose) => server.close(resolveClose));
+    }
   });
 
   it('blocks outbox redelivery apply before database selection or update', () => {

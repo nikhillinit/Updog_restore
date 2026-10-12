@@ -265,21 +265,37 @@ describe('production governance documentation routing', () => {
     }
   });
 
-  it('keeps single-run canary purge execute unadmitted pending recovery validation', async () => {
+  it('admits owner-run single canary run purge with its gates and procedure', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
     const decisions = await readRepositoryFile('DECISIONS.md');
     const script = await readRepositoryFile('scripts/release/purge-canary-runs.mjs');
 
-    // Admission needs a recovery evidence validator plus a policy amendment.
-    expect(flatPolicy).not.toContain('purge-canary-runs.mjs');
-    expect(decisions).toContain(
-      '## ADR-108: Single Release-Canary Run Purge, Execute Blocked Pending Recovery Validation'
+    expect(flatPolicy).toContain(
+      'The owner-run route `scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` is admitted for purging one release-canary run (ADR-108)'
     );
-    expect(flatGuide).toContain(
-      '`--execute` stays mechanically blocked, with or without `--run-id`'
+    expect(flatPolicy).toContain(
+      'The owner, as sole dispatch issuer, withholds `--execute` when it is absent.'
     );
-    expect(script).toContain('if (options.execute) throw new Error(RECOVERY_BLOCK_MESSAGE);');
+    expect(flatPolicy).toContain(
+      'No restore producer, provider attestation, or isolation proof is required or claimed.'
+    );
+    // The policy amends only together with its ADR entry in the same change.
+    expect(decisions).toContain('## ADR-108: Single Release-Canary Run Purge, Owner-Run Execute');
+    expect(flatGuide).toContain('## Release canary run purge');
+    expect(flatGuide).toContain('--expected-plan-digest=<digest>');
+    expect(flatGuide).toContain('RESTORE_BRANCH_ID="<restore branch id>"');
+    expect(flatGuide).toContain('read -rs EXPECTED_TARGET_FINGERPRINT');
+    for (const gate of [
+      'export function ownerRunBindings(',
+      'ownerRunBindings(process.env,',
+      'idle_in_transaction_session_timeout',
+      "throw new Error('Target fingerprint missing or mismatched.')",
+      "'Plan digest mismatch: ",
+      'FOR UPDATE',
+    ]) {
+      expect(script).toContain(gate);
+    }
   });
 
   it('keeps index deployment and scripts routing non-authorizing', async () => {

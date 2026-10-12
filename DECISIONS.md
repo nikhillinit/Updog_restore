@@ -13035,12 +13035,14 @@ downloaded archive digest.
   passed on 2026-10-10 (see `docs/workflows/PRODUCTION_SCRIPTS.md`); an
   administrator merge and a spoofed commit status were not tested.
 
-## ADR-108: Single Release-Canary Run Purge, Execute Blocked Pending Recovery Validation
+## ADR-108: Single Release-Canary Run Purge, Owner-Run Execute
 
-**Date:** 2026-10-11
+**Date:** 2026-10-11 (amended 2026-10-12)
 
-**Status:** Proposed; production execute stays mechanically blocked. This ADR
-amends no policy and admits no production route.
+**Status:** Accepted on merge of the pull request that amends the governing
+policy with this route (the owner selected this route on 2026-10-12). That merge
+records approval of the policy text and acceptance of the risks below. Each
+execute is a separate owner action.
 
 **Tags:** #production-data #release-canary #residue #governance
 
@@ -13062,21 +13064,35 @@ machine-checkable validator for that evidence exists in this repository, and the
 ADR-103 and ADR-105 owner-confirmation exceptions apply only to their own
 routes.
 
+On 2026-10-12 a recovery-validator admission proposal reviewed the strict path:
+a restore producer that performs an actual restore, with attested evidence,
+custody, freshness, and isolation proof. Isolation and containment of the
+restored data from production side-effect channels, and authoritative intent
+reconciliation for the producer, have no identified provider proof, so that path
+would keep execute blocked with no bounded end. The owner selected a
+route-scoped exception instead.
+
 ### Decision
 
-1. **Execute stays blocked.** The CLI refuses `--execute` with `--run-id` before
-   connecting (`RECOVERY_BLOCK_MESSAGE`), and a bare `--execute` keeps the
-   existing block. Admitting production execute needs a later change that adds
-   an authoritative recovery evidence validator, a governing-policy amendment,
-   and this ADR's acceptance together.
+1. **Execute is admitted only as an owner-run route.** The governing policy
+   admits `--execute --run-id --fund-id`, run locally by the owner. Before
+   connecting, the CLI requires `RELEASE_CANARY_PURGE_OPERATOR=1`,
+   `EXPECTED_TARGET_FINGERPRINT`, `RESTORE_BRANCH_ID` (a Neon branch id),
+   `--expected-plan-digest`, and an `EXPECTED_SHA` equal to the checkout HEAD
+   and live `main` with no tracked changes (`ownerRunBindings`, mirroring the
+   ADR-105 source check). The source re-check runs again immediately before the
+   first write, within a 10 s deadline. The recovery evidence is the owner's
+   restore-branch confirmation, recorded in the receipt as
+   `owner-confirmed-neon-restore-branch` with `verifiedByScript: false`. A bare
+   `--execute` keeps the existing block.
 2. **Read-only single-run dry run.** `--run-id=<uuid> --fund-id=<id>` prints the
    plan and its digest inside `BEGIN READ ONLY`, or reads back the stored
    receipt of a purged run.
-3. **Hardened execute implementation, reachable only with an injected
-   validator.** `runPurge` executes only when given the run, fund, reviewed
-   digest, executing SHA, expected target fingerprint, a source re-check, and a
-   recovery evidence validator. Synthetic tests inject the validator; the CLI
-   never does. The implementation is:
+3. **Hardened execute implementation.** `runPurge` executes only when given the
+   run, fund, reviewed digest, executing SHA, expected target fingerprint, a
+   source re-check, and a recovery evidence validator. The CLI supplies them
+   through the owner-run bindings (item 1); tests may inject their own. The
+   implementation is:
    - **Eligibility:** terminal (`completed`, `failed`, or `expired`) and past
      `expires_at`; the fund is the run's single release-canary fund. A deadline
      does not authorize an early purge.
@@ -13103,7 +13119,10 @@ routes.
      locked `FOR UPDATE`, which fences writers with a foreign key to them.
      Tables a writer could change without such a key (a `fund_id` without a
      foreign key to `funds`, any `canary_run_id`, and `funds` itself) are locked
-     `IN SHARE MODE` before the ownership counts and held until `COMMIT`.
+     `IN SHARE MODE` before the ownership counts and held until `COMMIT`. The
+     execute transaction also sets a 30 s `idle_in_transaction_session_timeout`,
+     so a client that stalls while holding the locks (a network wait, a sleeping
+     laptop) loses its session and its locks.
    - **Receipt and replay:** one `audit_log` row in the same transaction holds
      the digest, executing SHA, target fingerprint, validator evidence, the run
      row, and every deleted row as verbatim JSONB text. The run row becomes the
@@ -13113,49 +13132,79 @@ routes.
      refuses when any row still names the fund or run. An unacknowledged
      `COMMIT` is reported as unknown state.
 
-### Owner decision required before admission
+### Owner decision (2026-10-12)
 
-Define the authoritative recovery evidence and its validator: which managed
-backup/PITR window, isolated-restore freshness bound, custody role, and
-restore-isolation proof count; which provider API or record proves each one; and
-how the validator binds that evidence to this target and run immediately before
-the first write. Until then, neither the deadline nor a printable
-operator-supplied reference unblocks execute.
+The owner selected the route-scoped exception (option (b) of the
+recovery-validator admission proposal), recorded in the governing policy:
+
+- **Restore requirement:** a Neon restore branch of the production branch,
+  created by the owner after reviewing the dry run and immediately before
+  execute. Its identifier is passed in `RESTORE_BRANCH_ID` and recorded in the
+  receipt; the script does not verify it. Delete the branch only after the
+  readback confirms the purge.
+- **Isolation and containment:** not proven; replaced for this route by the
+  accepted risks below.
+- **Intent reconciliation:** not applicable, because this route has no restore
+  producer. The purge intent is bound by the reviewed digest, the executing SHA,
+  and the target fingerprint, and the receipt binds the restore-branch
+  identifier to that intent.
+- **Freshness:** the owner creates the branch immediately before execute; this
+  is not machine-checked.
+- **Eligible scope and retained controls:** unchanged from Decision 3.
+
+A deadline never authorizes an early purge or a purge outside this route.
 
 ### Alternatives
 
 - **Manual SQL.** Rejected: no source, target, scope, or plan check.
 - **Promote the Testcontainers driver.** Rejected: catalog-driven deletes of
   uncounted tables, counts-only receipt, no digest.
-- **An owner-supplied restore reference string.** Rejected: it does not satisfy
-  the unchanged policy floor.
+- **An owner-supplied restore reference string under the unchanged floor.**
+  Rejected: it does not satisfy that floor. It is used only through the explicit
+  policy amendment for this route, as the owner's restore-branch confirmation.
+- **A strict restore producer with attested evidence, custody, freshness, and
+  isolation proof.** Not adopted now: isolation, containment, and intent
+  reconciliation have no identified provider proof, so execute would stay
+  blocked with no bounded end. It remains the path for any future
+  machine-checked route.
 - **Route through `release-canary-recovery.yml`.** Rejected: that surface is
   defined as never purging.
 - **A new receipt table.** Rejected under the ADR-103 migration freeze;
   `audit_log` is in the baseline schema, and the dry run refuses when it is
   absent.
 
-### Accepted risks (for the implementation, once admitted)
+### Accepted risks
 
+- The script does not verify the restore branch. Its existence, parent, timing,
+  and contents rest on the owner's confirmation.
+- Isolation of the restore branch from production side-effect channels (workers,
+  outbox delivery, email, webhooks, preview deployments) is not proven.
+- Recovery from the restore branch, or from the receipt's before-images, is a
+  manual procedure that has not been tested. The receipt sits in the same
+  database, so it is not independent evidence custody.
 - Ownership without a foreign key is detected only through `fund_id` and
   `canary_run_id` columns. An unrelated `fund_id` column holding the same value
   refuses the purge rather than passing it.
 - A writer blocked by the share locks resumes after `COMMIT` and, where no
   foreign key exists, can still write a row naming the deleted fund. The purge
   guarantees none exists at `COMMIT`; the readback refuses if one appears later.
-- The share locks briefly block writes to every write-excluded table, `funds`
-  included, for all funds.
+- The share locks block writes to every write-excluded table, `funds` included,
+  for all funds, until `COMMIT`. Lock waits are bounded by `lock_timeout` (5 s),
+  each statement by `statement_timeout` (60 s), the prewrite source re-check by
+  its 10 s deadline, and a stalled client by the 30 s idle timeout. No single
+  timer bounds the whole transaction.
 - `lp_capital_calls` rows are deleted but are not a residue group, so they
   appear in the plan and receipt but not in the stored counts.
 - The receipt keeps synthetic canary rows in `audit_log` under its retention.
 
 ### Consequences
 
-Merge authorizes no purge and admits no route; the residue row stays until a
-later admitted change. `assert-canary-residue.mjs` is unchanged; whether a
+Merge admits the owner-run route and authorizes no purge; each execute is a
+separate owner action. `assert-canary-residue.mjs` is unchanged; whether a
 purged, failed expected-SHA row should keep counting stays an open owner
 question. `docs/workflows/PRODUCTION_SCRIPTS.md` ("Release canary run purge")
-documents the read-only dry run. Tests:
+documents the dry run and the owner sequence. Tests:
 `tests/integration/purge-canary-runs.pg.test.ts`,
-`tests/unit/scripts/purge-canary-runs.test.ts`, and
-`tests/unit/scripts/production-data-dispatch-block.test.mjs`.
+`tests/unit/scripts/purge-canary-runs.test.ts`,
+`tests/unit/scripts/production-data-dispatch-block.test.mjs`, and
+`tests/unit/docs/production-governance-routing.test.ts`.
