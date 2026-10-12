@@ -24,6 +24,11 @@ and this project adheres to
 
 ### Changed (2026-10-12)
 
+- The F_1.21.1 plan starts a new docs-only release vehicle from `336729dda`
+  after `main` advanced through #1638 and the bounded cleanup readback passed.
+  Earlier provider and runtime observations remain dated historical evidence and
+  must be refreshed by the release sequence. No runtime code, dependency,
+  schema, provider configuration, or workflow changes.
 - The governing policy admits
   `scripts/release/purge-canary-runs.mjs --execute --run-id --fund-id` as an
   owner-run route (ADR-108 accepted on merge). The restore reference is a Neon
