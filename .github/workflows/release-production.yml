@@ -70,6 +70,7 @@ permissions:
 concurrency:
   group: release-production
   cancel-in-progress: false
+  queue: max
 
 jobs:
   validate-target:

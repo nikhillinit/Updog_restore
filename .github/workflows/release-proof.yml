@@ -108,6 +108,7 @@ permissions:
 concurrency:
   group: full-release-proof-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   proof-contract:

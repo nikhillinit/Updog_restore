@@ -35,11 +35,12 @@ permissions:
 
 # Shared with release-production.yml: recovery queues behind an in-progress
 # release and can never cancel one mid-provider-mutation, and vice versa.
-# GitHub holds only one PENDING run per group, so a queued-but-unstarted run
-# in either workflow can be superseded by the other; re-dispatch it.
+# Retain up to 100 pending runs across both workflows instead of replacing
+# an earlier queued release or recovery request when another is dispatched.
 concurrency:
   group: release-production
   cancel-in-progress: false
+  queue: max
 
 jobs:
   recover-canary-run:

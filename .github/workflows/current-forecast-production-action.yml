@@ -26,6 +26,7 @@ on:
 concurrency:
   group: current-forecast-production-${{ inputs.fund_id }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   action:
