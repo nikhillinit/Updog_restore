@@ -298,6 +298,39 @@ describe('production governance documentation routing', () => {
     }
   });
 
+  it('admits owner-run original project Preview containment as one bounded write', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const decisions = await readRepositoryFile('DECISIONS.md');
+
+    expect(flatPolicy).toContain(
+      'The owner-run route `PATCH /v9/projects/prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team `team_BzOixmLqQ9VA2mTvFvzBLRWw`) with body `{"previewDeploymentsDisabled":true}` is admitted for containing Preview deployments of the original Vercel project (ADR-109).'
+    );
+    expect(flatPolicy).toContain(
+      'No conditional-update precondition is documented for this write; the lost update between the read and the write is an accepted risk.'
+    );
+    expect(flatPolicy).toContain(
+      'This paragraph is an explicit amendment, for this one field on this one project only, of the optimistic-locking mandate retained above'
+    );
+    expect(flatPolicy).toContain('a field value in a response is not proof.');
+    expect(flatPolicy).toContain(
+      'No other project field, project, Neon setting, deployment, promotion, rollback, or branch deletion is admitted'
+    );
+    // The policy amends only together with its ADR entry in the same change.
+    expect(decisions).toContain(
+      '## ADR-109: Original Vercel Project Preview Containment, Owner-Run Write'
+    );
+    expect(flatGuide).toContain('## Original project Preview containment (ADR-109)');
+    expect(flatGuide).toContain(
+      'printf \'{"previewDeploymentsDisabled":true}\' | vercel api -X PATCH'
+    );
+    expect(flatGuide).toContain('REFUSE: pre-state differs from ADR-109');
+    expect(flatGuide).toContain('STOP: a field other than previewDeploymentsDisabled changed');
+    expect(flatGuide).toContain('branches?include_deleted=true');
+    expect(flatGuide).toContain('The deployment list is the authoritative signal');
+    expect(flatGuide).toContain('Containment is unproven until the first check passes.');
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(

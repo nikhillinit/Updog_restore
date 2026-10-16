@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-16)
+
+- The governing policy admits one owner-run write to the original Vercel project
+  `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`: `{"previewDeploymentsDisabled":true}`
+  (ADR-109, accepted on merge). Its non-main Git Previews fork production data
+  through the Neon integration. The policy amends the optimistic-locking mandate
+  for this one field only, because Vercel documents no conditional update; the
+  read-compare-write-read sequence and its lost-update window are accepted.
+  Completion and recovery are verified behaviorally
+  (`docs/workflows/PRODUCTION_SCRIPTS.md`). Merge applies no write.
+
 ### Changed (2026-10-12)
 
 - The F_1.21.1 plan starts a new docs-only release vehicle from `336729dda`

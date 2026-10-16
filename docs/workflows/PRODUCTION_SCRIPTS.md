@@ -538,6 +538,124 @@ runs it locally, never from CI. Each execute is a separate owner action. A bare
    - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
      run to confirm the current state before retrying.
 
+## Original project Preview containment (ADR-109)
+
+The governing policy admits one owner-run write:
+`PATCH /v9/projects/prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team
+`team_BzOixmLqQ9VA2mTvFvzBLRWw`) with body
+`{"previewDeploymentsDisabled":true}`. It stops Git Preview deployments of the
+original project, whose non-main Previews fork production data through the Neon
+integration. The owner runs it locally with the owner's own Vercel CLI login
+(`vercel api`, beta in CLI 58.9.0), never from CI or an agent. The merge that
+admits the route applies nothing. Vercel documents the field only as a nullable
+request boolean: no conditional update, no documented meaning for absent or
+null, and no documented GET field. Hence the checks below are behavioral.
+
+1. Define the read projection. It keeps identity, Git link, protection, and
+   environment-variable metadata, and never prints a variable value:
+
+   ```bash
+   P=prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp; T=team_BzOixmLqQ9VA2mTvFvzBLRWw
+   project_view() {
+     node -e '
+       let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+         const p = JSON.parse(s);
+         console.log(JSON.stringify({
+           id: p.id, name: p.name, accountId: p.accountId,
+           link: [p.link?.type, `${p.link?.org}/${p.link?.repo}`, p.link?.productionBranch],
+           field: Object.hasOwn(p, "previewDeploymentsDisabled") ? p.previewDeploymentsDisabled : "absent",
+           gitForkProtection: p.gitForkProtection, autoAssignCustomDomains: p.autoAssignCustomDomains,
+           sso: p.ssoProtection?.deploymentType ?? null, nodeVersion: p.nodeVersion,
+           env: (p.env ?? []).map((e) => [e.id, e.key, [...(e.target ?? [])].sort().join(","), e.gitBranch ?? "", e.updatedAt]).sort(),
+           updatedAt: p.updatedAt,
+         }));
+       });'
+   }
+   ```
+
+2. Read and check the pre-state. Stop on `REFUSE`:
+
+   ```bash
+   vercel api "/v9/projects/$P?teamId=$T" --raw | project_view > before.json
+   node -e '
+     const b = JSON.parse(require("node:fs").readFileSync("before.json", "utf8"));
+     const ok = b.id === "prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp" && b.accountId === "team_BzOixmLqQ9VA2mTvFvzBLRWw"
+       && b.name === "updog-restore" && b.link.join("|") === "github|nikhillinit/Updog_restore|main"
+       && (b.field === "absent" || b.field === null);
+     if (!ok) { console.error("REFUSE: pre-state differs from ADR-109"); process.exit(1); }
+     console.log("pre-state ok");'
+   ```
+
+3. Within one minute of step 2, record the time and write:
+
+   ```bash
+   T0=$(node -e 'console.log(Date.now())')
+   printf '{"previewDeploymentsDisabled":true}' | vercel api -X PATCH "/v9/projects/$P?teamId=$T" --input - --raw | project_view > patch-response.json
+   ```
+
+   On an error or no response, do not repeat blindly. Run step 4. When only
+   `field` and `updatedAt` differ from `before.json`, one repeat of the same
+   body is admitted: the body is a constant, so a repeat is duplicate-safe.
+
+4. Read again and compare:
+
+   ```bash
+   vercel api "/v9/projects/$P?teamId=$T" --raw | project_view > after.json
+   node -e '
+     const fs = require("node:fs");
+     const strip = (f) => { const o = JSON.parse(fs.readFileSync(f, "utf8")); delete o.updatedAt; delete o.field; return JSON.stringify(o); };
+     if (strip("before.json") !== strip("after.json")) { console.error("STOP: a field other than previewDeploymentsDisabled changed"); process.exit(1); }
+     console.log("unchanged except field and updatedAt");'
+   ```
+
+   `STOP` means another writer changed the project between the reads. Compare
+   the two files, then decide on recovery. Keep `T0`, the three files, and the
+   `field` values privately, outside the repository.
+
+5. Behavioral checks. Do not push a branch to test them; wait for natural
+   events.
+   - Next non-main push (for example Dependabot): no deployment of a non-main
+     ref created after `T0`. The deployment list is the authoritative signal:
+     the integration forks only for a Preview deployment. The Neon listing
+     corroborates: no branch with parent `br-cool-tree-advjpopv` created after
+     `T0` except owner restore branches. The integration cleans its branches up,
+     and on 2026-10-16 `include_deleted=true` did not return its cleaned-up
+     2026-10-13 and 2026-10-14 branches, so an empty Neon listing proves nothing
+     alone:
+
+     ```bash
+     vercel api "/v6/deployments?projectId=$P&teamId=$T&since=$T0&limit=100" --raw | node -e '
+       let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+         for (const d of JSON.parse(s).deployments)
+           console.log(new Date(d.created).toISOString(), d.uid, d.target ?? "preview", d.meta?.githubCommitRef ?? "", d.source ?? "");
+       });'
+     read -rs NEON_API_KEY; export NEON_API_KEY
+     curl -fsS -H "Authorization: Bearer $NEON_API_KEY" "https://console.neon.tech/api/v2/projects/bold-truth-07145433/branches?include_deleted=true&limit=400" | node -e '
+       let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+         for (const b of JSON.parse(s).branches)
+           if (b.parent_id === "br-cool-tree-advjpopv" && Date.parse(b.created_at) > Number(process.argv[1]))
+             console.log(b.created_at, b.id, b.name, b.creation_source ?? "");
+       });' "$T0"
+     ```
+
+   - First merge to `main` after `T0`: no `main` deployment, or only
+     `target=null` with no alias. A Production target or alias stops the
+     sequence; Production rollback is a production action on its own route, not
+     admitted here. Then use the recovery write.
+   - Next Release Production dispatch:
+     `vercel deploy --prebuilt --prod --skip-domain` still returns a deployment
+     URL. A refusal fails closed before promote; use the recovery write, and
+     re-dispatch under its own authority.
+
+   Containment is unproven until the first check passes.
+
+6. Recovery write, same steps 1-4 with `true` replaced by `false` (and step 2's
+   field condition inverted to `true`). When the next non-main push still
+   creates no Preview, repeat with `null`. Recovery reopens the exposure; use it
+   only when the containment breaks Production, release, or `main` behavior.
+
+Deleting Neon branches or deployments that already exist is not admitted here.
+
 ## Immutable certification and action-time eligibility
 
 Preserve historical receipts and immutable candidate certification for their
@@ -721,8 +839,8 @@ until first authorized dispatch.
 ## Retained boundaries
 
 Archive Gate, Phoenix truth and Phoenix protected paths, AGENTS/CLAUDE
-idempotency and optimistic locking mandates, ADR-079 tracked proof, and the
-promotion hard stop remain controlling in their named scopes. ADR-075 supplies
-topology/identity context only. Rollback uses a separately authorized forward
-correction; no down migration, force push, or local production mutation is
-authorized by this guide.
+idempotency and optimistic locking mandates (amended only for the ADR-109
+write), ADR-079 tracked proof, and the promotion hard stop remain controlling in
+their named scopes. ADR-075 supplies topology/identity context only. Rollback
+uses a separately authorized forward correction; no down migration, force push,
+or local production mutation is authorized by this guide.
