@@ -116362,7 +116362,7 @@
       "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
       "shared/routes/app-route-definitions.ts": "b9a58c423aec1c3848ada861b3df4c395f8589c6ff4eed13ae9a302bc5855b1d",
       "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
-      "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
+      "vercel.json": "3ed364c08324cd0895ad58601dd6305b1a987f8653cf4a1013bc63e64ca183e3",
       "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
       "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
       "workers/cohort-worker.ts": "8cbd7f1e4852b2fd4f5c4d92a4eece06c69340547eea8e89ca2f3f404e0dfb0e",

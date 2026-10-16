@@ -298,37 +298,32 @@ describe('production governance documentation routing', () => {
     }
   });
 
-  it('admits owner-run original project Preview containment as one bounded write', async () => {
+  it('restricts the original project to no Preview-producing action and admits no write', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
     const decisions = await readRepositoryFile('DECISIONS.md');
 
     expect(flatPolicy).toContain(
-      'The owner-run route `PATCH /v9/projects/prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team `team_BzOixmLqQ9VA2mTvFvzBLRWw`) with body `{"previewDeploymentsDisabled":true}` is admitted for containing Preview deployments of the original Vercel project (ADR-109).'
+      'Under ADR-109 no Preview-producing action is admitted on the original Vercel project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team `team_BzOixmLqQ9VA2mTvFvzBLRWw`).'
     );
+    expect(flatPolicy).toContain('Production reaches it only through Release Production.');
+    expect(flatPolicy).toContain('This paragraph admits no provider write.');
     expect(flatPolicy).toContain(
-      'No conditional-update precondition is documented for this write; the lost update between the read and the write is an accepted risk.'
+      'It cannot replace missing behavior or recovery evidence, and passing documentation tests does not supply that evidence.'
     );
-    expect(flatPolicy).toContain(
-      'This paragraph is an explicit amendment, for this one field on this one project only, of the optimistic-locking mandate retained above'
-    );
-    expect(flatPolicy).toContain('a field value in a response is not proof.');
-    expect(flatPolicy).toContain(
-      'No other project field, project, Neon setting, deployment, promotion, rollback, or branch deletion is admitted'
-    );
+    expect(flatPolicy).toContain('The Neon default branch stays `br-cool-tree-advjpopv`.');
+    expect(flatPolicy).not.toContain('`{"previewDeploymentsDisabled":true}` is admitted');
     // The policy amends only together with its ADR entry in the same change.
-    expect(decisions).toContain(
-      '## ADR-109: Original Vercel Project Preview Containment, Owner-Run Write'
-    );
+    expect(decisions).toContain('## ADR-109: Original Vercel Project Preview Containment Sequence');
     expect(flatGuide).toContain('## Original project Preview containment (ADR-109)');
+    expect(flatGuide).toContain('REFUSE: admitted policy');
+    expect(flatGuide).toContain('d.meta?.githubCommitSha === process.argv[1]');
+    expect(flatGuide).toContain('--paginate --raw');
     expect(flatGuide).toContain(
-      'printf \'{"previewDeploymentsDisabled":true}\' | vercel api -X PATCH'
+      '### Step 2: isolated Disconnect demonstration (owner-authorized; not executed)'
     );
-    expect(flatGuide).toContain('REFUSE: pre-state differs from ADR-109');
-    expect(flatGuide).toContain('STOP: a field other than previewDeploymentsDisabled changed');
-    expect(flatGuide).toContain('branches?include_deleted=true');
-    expect(flatGuide).toContain('The deployment list is the authoritative signal');
-    expect(flatGuide).toContain('Containment is unproven until the first check passes.');
+    expect(flatGuide).toContain('### Step 4: `previewDeploymentsDisabled` (not admitted)');
+    expect(flatGuide).not.toContain('vercel api -X PATCH');
   });
 
   it('keeps index deployment and scripts routing non-authorizing', async () => {

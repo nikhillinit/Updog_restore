@@ -164,30 +164,28 @@ custody-role, and preview/restore-isolation evidence floor below. No restore
 producer, provider attestation, or isolation proof is required or claimed. Every
 other floor applies unchanged.
 
-The owner-run route `PATCH /v9/projects/prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team
-`team_BzOixmLqQ9VA2mTvFvzBLRWw`) with body `{"previewDeploymentsDisabled":true}`
-is admitted for containing Preview deployments of the original Vercel project
-(ADR-109). Every non-main Git Preview of that project receives a Neon branch
-forked with data from the production default branch `br-cool-tree-advjpopv`. The
-owner issues the write once, locally, with the owner's own Vercel credentials,
-never from CI, an agent, or the dashboard. Before the write the owner refuses
-when a fresh read shows a project, team, name, or Git link other than
-`nikhillinit/Updog_restore` with production branch `main`, or shows the field as
-anything other than absent or null. Immediately after the write the owner reads
-the project again and stops when any recorded field other than
-`previewDeploymentsDisabled` and `updatedAt` changed. No conditional-update
-precondition is documented for this write; the lost update between the read and
-the write is an accepted risk. This paragraph is an explicit amendment, for this
-one field on this one project only, of the optimistic-locking mandate retained
-above: the read-compare-write-read sequence replaces optimistic locking for this
-write. The route is complete only after the behavioral checks in the canonical
-guide pass; a field value in a response is not proof. The recovery write,
-admitted on the same terms, sets the field to `false`, or to `null` when `false`
-does not restore Preview creation; neither value is documented to restore the
-absent pre-state, so recovery is complete only when a non-main push creates a
-Preview again. No other project field, project, Neon setting, deployment,
-promotion, rollback, or branch deletion is admitted, and this route supplies no
-merge or release authority. Every other floor applies unchanged.
+Under ADR-109 no Preview-producing action is admitted on the original Vercel
+project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team
+`team_BzOixmLqQ9VA2mTvFvzBLRWw`). No Git, CLI, API, or integration-created
+Preview deployment of it is authorized, and Production reaches it only through
+Release Production. Its non-main Git Previews have received Neon branches forked
+with data from the production branch `br-cool-tree-advjpopv`. `vercel.json` sets
+`git.deploymentEnabled: false`. Whether that setting covers every push is
+UNDETERMINED: the provider does not document which commit's file gates a push,
+and the setting does not cover deployments created through the CLI or API. The
+Neon default branch stays `br-cool-tree-advjpopv`. This paragraph admits no
+provider write. Each of the following needs separate owner authorization of that
+exact action, and its own admitted route where it touches the original project,
+the production branch, or production credentials: a Disconnect of the Neon
+integration; a `previewDeploymentsDisabled` write; deletion of existing Preview
+deployments or production-parented Neon branches; the isolated demonstration
+resources that ADR-109 describes; and any production credential rotation. A
+later amendment for Disconnect or `previewDeploymentsDisabled` requires
+demonstrated behavior and recovery in an isolated equivalent setup. That
+amendment may accept the concurrency risk of a write for which no
+conditional-update contract is established. It cannot replace missing behavior
+or recovery evidence, and passing documentation tests does not supply that
+evidence. Every other floor applies unchanged.
 
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or

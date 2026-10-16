@@ -24,14 +24,16 @@ and this project adheres to
 
 ### Changed (2026-10-16)
 
-- The governing policy admits one owner-run write to the original Vercel project
-  `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`: `{"previewDeploymentsDisabled":true}`
-  (ADR-109, accepted on merge). Its non-main Git Previews fork production data
-  through the Neon integration. The policy amends the optimistic-locking mandate
-  for this one field only, because Vercel documents no conditional update; the
-  read-compare-write-read sequence and its lost-update window are accepted.
-  Completion and recovery are verified behaviorally
-  (`docs/workflows/PRODUCTION_SCRIPTS.md`). Merge applies no write.
+- The governing policy admits no Preview-producing action on the original Vercel
+  project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, whose non-main Git Previews fork
+  production data through the Neon integration (ADR-109, accepted on merge).
+  `vercel.json` sets `git.deploymentEnabled: false` (coverage UNDETERMINED; CLI
+  and API deployments not covered), and `scripts/deploy-staging.ps1` is retired.
+  No provider write is admitted. The owner sequence (isolated Disconnect
+  demonstration, existing-exposure cleanup, conditions for
+  `previewDeploymentsDisabled`) is in `docs/workflows/PRODUCTION_SCRIPTS.md`;
+  each provider step needs separate owner authorization. The Neon default branch
+  is unchanged.
 
 ### Changed (2026-10-12)
 
