@@ -27,7 +27,8 @@ and this project adheres to
 - ADR-109 Step 1 in `docs/workflows/PRODUCTION_SCRIPTS.md` now classifies a
   zero-deployment reading whose bracket is not met as either a pending
   observation (conditions (b) to (e) not yet readable; recheck later) or a
-  missing historical control (no processed push at most 1 hour before `PUSHED`;
+  missing historical control (no push at most 1 hour before `PUSHED` produced
+  both a Git-created deployment on this project and a `Vercel` commit status;
   permanently UNDETERMINED for that push, not repaired by waiting or by an
   after-control, never resolved by creating a deployment). The condition (e)
   Neon-branch predicate excludes the production branch id and counts only

@@ -672,12 +672,13 @@ Dependabot SHA `baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
 With zero deployments and a bracket that is not met, classify the result as a
 _pending observation_ when (b), (c), (d), or (e) is not yet readable; recheck
 those conditions later. Classify it as a _missing historical control_ when no
-push at most 1 hour before `PUSHED` produced a Git-created deployment, making
-(a) permanently unmet for that push. Waiting or an after-control cannot repair
-that missing historical control: the result stays UNDETERMINED, retains the
-coverage gap, and blocks any action requiring that proof. A later natural push
-needs its own bracket. Never create a deployment to obtain a control. The
-table's "Recheck later" instruction applies only to a pending observation.
+push at most 1 hour before `PUSHED` produced both a Git-created deployment on
+this project and a `Vercel` commit status, making (a) permanently unmet for that
+push. Waiting or an after-control cannot repair that missing historical control:
+the result stays UNDETERMINED, retains the coverage gap, and blocks any action
+requiring that proof. A later natural push needs its own bracket. Never create a
+deployment to obtain a control. The table's "Recheck later" instruction applies
+only to a pending observation.
 
 Worked evidence (read-only; owner check 2026-10-19T02:45Z, re-read 02:53Z):
 

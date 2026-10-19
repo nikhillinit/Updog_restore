@@ -403,6 +403,25 @@ describe('production governance documentation routing', () => {
     expect(decisions).toContain('6. **Rebase before push.**');
   });
 
+  it.each([
+    canonicalGuidePath,
+    'docs/1-plans/F_1.3.5_post-adr109-containment-and-release-resequencing.plan.md',
+    'CHANGELOG.md',
+  ])(
+    'requires both before-control signals in the missing-control definition in %s',
+    async (path) => {
+      const document = await readRepositoryFile(path);
+      const definition = document
+        .split(/\r?\n\s*\r?\n/)
+        .find((paragraph) => /missing historical control.*(?:when|where|\()/s.test(paragraph));
+
+      expect(definition).toBeDefined();
+      expect(flattenWhitespace(definition ?? '')).toContain(
+        'no push at most 1 hour before `PUSHED` produced both a Git-created deployment on this project and a `Vercel` commit status'
+      );
+    }
+  );
+
   it('counts only post-push Neon branches in the Step 1 condition (e) script', async () => {
     const guide = await readRepositoryFile(canonicalGuidePath);
     const step1 = guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '';
