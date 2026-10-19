@@ -30,14 +30,16 @@ and this project adheres to
   `scripts/release/assert-canary-residue.mjs` reloads the exact run and proves
   its terminal status before the reservation bound, and an `exact-run-failure`
   summary now carries the transitioned residue counts and the reloaded status
-  (exit codes and verdicts unchanged). Regression coverage: the batch-b
-  canary-shaped browser journey asserts the dollar size and the six-event list
-  the built runtime produces (step 2's mount-time stage sync adds a second,
-  payload-distinct draft save, reproducing the failed production run's sixth
-  event and selecting the legitimate-write row of plan item 1; the dev runtime
-  yields five), the bootstrap unit suite pins the `1` to `1_000_000` boundary,
-  and the residue script tests cover the reordered readback. No contract, hook,
-  or reservation change; the v2 reservation moves in a separate contract PR.
+  (exit codes and verdicts unchanged). `InvestmentRoundsStepV2` no longer syncs
+  its stage table into the fund store on mount and no longer clears the stored
+  sector profiles and allocations: on the built runtime that mount sync
+  dispatched a second, payload-distinct draft save, the failed production run's
+  sixth `fund_events` row (plan item 4, D-8). Regression coverage: the batch-b
+  canary-shaped browser journey asserts the dollar size and the five-event list
+  on both runtimes, the step 2 unit suite pins mount-without-sync and
+  edit-with-sync, the bootstrap unit suite pins the `1` to `1_000_000` boundary,
+  and the residue script tests cover the reordered readback. No server,
+  contract, hook, or reservation change.
 
 ### Changed (2026-10-19)
 

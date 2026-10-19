@@ -11,7 +11,7 @@
  * This is a redesign based on Magic Patterns prototype for improved UX.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import type { ValidationIssue } from '@/components/wizard/InvestmentValidationCa
 import { InvestmentValidationCallout } from '@/components/wizard/InvestmentValidationCallout';
 import { InfoBanner } from '@/components/wizard/InfoBanner';
 import { ProfileHeader } from '@/components/wizard/ProfileHeader';
+import { fundStore } from '@/stores/fundStore';
 import { useFundAction } from '@/stores/useFundSelector';
 import { DEFAULT_PROFILES, DEFAULT_STAGES } from './constants';
 
@@ -39,6 +40,9 @@ export default function InvestmentRoundsStepV2() {
 
   // Get the fromInvestmentStrategy action to sync data to fundStore
   const fromInvestmentStrategy = useFundAction((s) => s.fromInvestmentStrategy);
+  // Only a user edit in this step syncs stages to the store. Mount never does:
+  // the mount sync replaced the stored stages and scheduled a second draft save.
+  const userEditedRef = useRef(false);
 
   const activeProfile = useMemo(
     () => DEFAULT_PROFILES.find((p) => p.id === activeProfileId) || DEFAULT_PROFILES[0]!,
@@ -48,6 +52,7 @@ export default function InvestmentRoundsStepV2() {
   // Handle stage field changes
   const handleStageChange = useCallback(
     (id: string, field: keyof StageData, value: StageData[keyof StageData]) => {
+      userEditedRef.current = true;
       setStages((prev) =>
         prev.map((stage) => (stage.id === id ? { ...stage, [field]: value } : stage))
       );
@@ -68,6 +73,7 @@ export default function InvestmentRoundsStepV2() {
       monthsToNext: 18,
       exitRate: 10,
     };
+    userEditedRef.current = true;
     setStages((prev) => [...prev, newStage]);
   }, []);
 
@@ -75,6 +81,7 @@ export default function InvestmentRoundsStepV2() {
   const handleResetStage = useCallback((id: string) => {
     const defaultStage = DEFAULT_STAGES.find((s) => s.id === id);
     if (defaultStage) {
+      userEditedRef.current = true;
       setStages((prev) => prev.map((stage) => (stage.id === id ? { ...defaultStage } : stage)));
     }
   }, []);
@@ -131,18 +138,18 @@ export default function InvestmentRoundsStepV2() {
     );
   }, [stages]);
 
-  // Sync stages to fundStore whenever they change
+  // Sync user-edited stages to fundStore; keep the stored sector profiles and
+  // allocations (an empty array would clear them).
   useEffect(() => {
-    // Convert StageData[] to shape expected by fromInvestmentStrategy
+    if (!userEditedRef.current) return;
     const stagesForStore = stages.map((stage) => ({
       id: stage.id,
       name: stage.name,
       graduationRate: stage.gradRate,
       exitRate: stage.exitRate,
     }));
-
-    // Sync to fundStore (this persists to localStorage via zustand persist middleware)
-    fromInvestmentStrategy({ stages: stagesForStore, sectorProfiles: [], allocations: [] });
+    const { sectorProfiles, allocations } = fundStore.getState();
+    fromInvestmentStrategy({ stages: stagesForStore, sectorProfiles, allocations });
   }, [stages, fromInvestmentStrategy]);
 
   // Check if we have validation errors
