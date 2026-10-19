@@ -502,10 +502,15 @@ test('authenticated user can publish one fund and persist a distinct second draf
 });
 
 // F_1.3.6 item 5c: the release-canary journey (1 in Capital Committed ($M), steps 2 to 6,
-// finalize) against the harness database. The stored size must be dollars and the event list
-// must be the five the v2 residue reservation characterizes; the save_draft receipts are
-// recorded for the F_1.3.6 item 1 decision table (locally this journey yields five events and
-// one save_draft receipt; the production sixth event is not reproduced here).
+// finalize) against the harness database. The stored size must be dollars. The event list is
+// the journey's residue on the built runtime (makeApp plus the Preact bundle, which CI and
+// production run): six events, because step 2's mount-time stage sync
+// (InvestmentRoundsStepV2) schedules an autosave that the step-change flush dispatches as a
+// second, payload-distinct save_draft. That matches the failed production run and selects the
+// legitimate-write row of plan item 1; the v2 reservation moves in the separate contract PR
+// (plan Files item 11). The dev runtime yields five events and one save_draft receipt: the
+// same store change is not persisted there (effect-flush order differs; recorded as a separate
+// finding). The save_draft receipts are attached for the decision table.
 const CANARY_SHAPED_FUND = {
   name: 'Batch B Canary Shaped Fund',
   capital: '1',
@@ -627,9 +632,12 @@ test('canary-shaped journey stores a dollar size and a bounded event list', asyn
       'FUND_CREATED',
       'DRAFT_SAVED',
       'DRAFT_SAVED',
+      'DRAFT_SAVED',
       'PUBLISHED',
       'CALC_TRIGGERED',
     ]);
+    expect(saveDrafts.rows).toHaveLength(2);
+    expect(residue['saveDraftConfigsEqual']).toBe(false);
   } catch (error) {
     await attachScreenshot(page, testInfo, 'batch-b-canary-shaped-failure.png').catch(
       () => undefined
