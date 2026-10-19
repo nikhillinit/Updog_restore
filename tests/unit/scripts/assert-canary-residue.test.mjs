@@ -50,9 +50,18 @@ const RESIDUE_GROUPS = [
   'reporting',
 ];
 const THREE_RUN_POLICY = {
-  portfolioCompany: 3, fund: 3, fundConfig: 3, fundEvent: 12, notification: 0,
-  grant: 3, calculation: 36, mutationReceipt: 6, scenario: 21, reporting: 33,
-  total: 120, ttlHours: 24,
+  portfolioCompany: 3,
+  fund: 3,
+  fundConfig: 3,
+  fundEvent: 12,
+  notification: 0,
+  grant: 3,
+  calculation: 36,
+  mutationReceipt: 6,
+  scenario: 21,
+  reporting: 33,
+  total: 120,
+  ttlHours: 24,
 };
 
 function policy(overrides = {}) {
@@ -96,14 +105,22 @@ function evaluate(rows, policyOverrides = {}, options = {}) {
 }
 
 const EXACT_ARGS = Object.freeze([
-  '--expected-sha', SHA,
-  '--expected-fund-id', String(FUND_ID),
-  '--expected-canary-run-id', RUN_UUID,
-  '--github-run-id', GITHUB_RUN_ID,
-  '--github-run-attempt', String(GITHUB_RUN_ATTEMPT),
-  '--started-at', STARTED_AT,
-  '--max-clock-skew-seconds', '300',
-  '--reservation-identity', 'release-canary-http-workflow-v2',
+  '--expected-sha',
+  SHA,
+  '--expected-fund-id',
+  String(FUND_ID),
+  '--expected-canary-run-id',
+  RUN_UUID,
+  '--github-run-id',
+  GITHUB_RUN_ID,
+  '--github-run-attempt',
+  String(GITHUB_RUN_ATTEMPT),
+  '--started-at',
+  STARTED_AT,
+  '--max-clock-skew-seconds',
+  '300',
+  '--reservation-identity',
+  'release-canary-http-workflow-v2',
   '--complete-current-run',
 ]);
 
@@ -159,11 +176,11 @@ function prove(overrides = {}) {
 }
 
 function runExact(overrides = {}) {
-  const transitionRun =
-    overrides.transitionRun ?? vi.fn().mockResolvedValue(exactCounts());
+  const transitionRun = overrides.transitionRun ?? vi.fn().mockResolvedValue(exactCounts());
   const exactRows = overrides.exactRows ?? [exactRunRow()];
-  const reloadedRows =
-    overrides.reloadedRows ?? [exactRunRow({ runStatus: 'completed', runVersion: 2 })];
+  const reloadedRows = overrides.reloadedRows ?? [
+    exactRunRow({ runStatus: 'completed', runVersion: 2 }),
+  ];
   let exactQueryCall = 0;
   const queryExactRunRows =
     overrides.queryExactRunRows ??
@@ -177,7 +194,9 @@ function runExact(overrides = {}) {
     args: overrides.args ?? [...EXACT_ARGS],
     env: overrides.env ?? { DATABASE_URL: 'postgres://read-only.example.test/canary' },
     ...('readRuntimePolicy' in overrides
-      ? overrides.readRuntimePolicy !== undefined && { readRuntimePolicy: overrides.readRuntimePolicy }
+      ? overrides.readRuntimePolicy !== undefined && {
+          readRuntimePolicy: overrides.readRuntimePolicy,
+        }
       : { readRuntimePolicy: () => policy() }),
     readReservedResidue: overrides.readReservedResidue ?? (() => RESERVED),
     queryRows: overrides.queryRows ?? (async () => [row()]),
@@ -210,32 +229,38 @@ describe('release canary residue assertion', () => {
 
   it('allows three complete retained runs and rejects a fourth projected run', () => {
     const complete = row({
-      portfolioCompanyResidueCount: 1, fundResidueCount: 1, fundConfigResidueCount: 1,
-      fundEventResidueCount: 4, notificationResidueCount: 0, grantResidueCount: 1,
-      calculationResidueCount: 12, mutationReceiptResidueCount: 2, scenarioResidueCount: 7,
-      reportingResidueCount: 11, totalResidueCount: 40,
+      portfolioCompanyResidueCount: 1,
+      fundResidueCount: 1,
+      fundConfigResidueCount: 1,
+      fundEventResidueCount: 4,
+      notificationResidueCount: 0,
+      grantResidueCount: 1,
+      calculationResidueCount: 12,
+      mutationReceiptResidueCount: 2,
+      scenarioResidueCount: 7,
+      reportingResidueCount: 11,
+      totalResidueCount: 40,
     });
     expect(evaluate([complete, complete, complete], THREE_RUN_POLICY)).toMatchObject({
-      exitCode: CANARY_RESIDUE_EXIT_CODES.SUCCESS, verdict: 'pass',
+      exitCode: CANARY_RESIDUE_EXIT_CODES.SUCCESS,
+      verdict: 'pass',
     });
     expect(evaluate([complete, complete, complete, complete], THREE_RUN_POLICY)).toMatchObject({
-      exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE, verdict: 'policy-failure',
+      exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE,
+      verdict: 'policy-failure',
     });
   });
 
-  it.each(RESIDUE_GROUPS.map((group) => [group]))(
-    'fails policy when %s cap is exceeded',
-    (cap) => {
-      const result = evaluate([row()], { [cap]: 0 });
+  it.each(RESIDUE_GROUPS.map((group) => [group]))('fails policy when %s cap is exceeded', (cap) => {
+    const result = evaluate([row()], { [cap]: 0 });
 
-      expect(result).toMatchObject({
-        exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE,
-        verdict: 'policy-failure',
-      });
-      expect(result.reason).toContain(cap);
-      expect(result.residue[cap]).toBe(1);
-    }
-  );
+    expect(result).toMatchObject({
+      exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE,
+      verdict: 'policy-failure',
+    });
+    expect(result.reason).toContain(cap);
+    expect(result.residue[cap]).toBe(1);
+  });
 
   it('fails policy when stored total residue exceeds its cap', () => {
     const result = evaluate([row()], { total: 4 });
@@ -506,18 +531,14 @@ describe('release canary residue assertion', () => {
     (value, expectedTotal) => {
       expect(
         evaluate([
-          row(
-            counts({ portfolioCompanyResidueCount: value, totalResidueCount: expectedTotal })
-          ),
+          row(counts({ portfolioCompanyResidueCount: value, totalResidueCount: expectedTotal })),
         ])
       ).toMatchObject({
         exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
         verdict: 'invalid',
       });
       expect(
-        evaluate([
-          row(counts({ grantResidueCount: value, totalResidueCount: expectedTotal })),
-        ])
+        evaluate([row(counts({ grantResidueCount: value, totalResidueCount: expectedTotal }))])
       ).toMatchObject({
         exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
         verdict: 'invalid',
@@ -601,9 +622,11 @@ describe('release canary residue assertion', () => {
     ).toThrow(/reservation-identity/);
     expect(() =>
       parseCanaryResidueArgs([
-        '--expected-sha', SHA,
+        '--expected-sha',
+        SHA,
         '--global-only',
-        '--reservation-identity', 'release-canary-http-workflow-v2',
+        '--reservation-identity',
+        'release-canary-http-workflow-v2',
       ])
     ).toThrow('--reservation-identity is forbidden with --global-only');
 
@@ -617,9 +640,9 @@ describe('release canary residue assertion', () => {
   });
 
   it('removes the SHA-wide reconcile surface entirely', async () => {
-    expect(() =>
-      parseCanaryResidueArgs([...EXACT_ARGS, '--reconcile-expected-sha', SHA])
-    ).toThrow(/Unknown argument/);
+    expect(() => parseCanaryResidueArgs([...EXACT_ARGS, '--reconcile-expected-sha', SHA])).toThrow(
+      /Unknown argument/
+    );
     const scriptModule = await import('../../../scripts/release/assert-canary-residue.mjs');
     expect(scriptModule.reconcileExpectedShaRuns).toBeUndefined();
   });
@@ -821,7 +844,11 @@ describe('release canary residue assertion', () => {
   it('fails closed when the reload returns a different run identity', async () => {
     const { exitCodePromise, output } = runExact({
       reloadedRows: [
-        exactRunRow({ runId: OTHER_RUN_UUID, fundCanaryRunId: OTHER_RUN_UUID, runStatus: 'completed' }),
+        exactRunRow({
+          runId: OTHER_RUN_UUID,
+          fundCanaryRunId: OTHER_RUN_UUID,
+          runStatus: 'completed',
+        }),
       ],
     });
 
@@ -845,9 +872,7 @@ describe('release canary residue assertion', () => {
   });
 
   it('keeps raw database failures generic in the emitted summary', async () => {
-    const rawDatabaseError = new Error(
-      'connect ECONNREFUSED 10.0.0.9:5432 password=super-secret'
-    );
+    const rawDatabaseError = new Error('connect ECONNREFUSED 10.0.0.9:5432 password=super-secret');
     const { exitCodePromise, output, errors } = runExact({
       transitionRun: vi.fn().mockRejectedValue(rawDatabaseError),
     });
@@ -860,12 +885,43 @@ describe('release canary residue assertion', () => {
   });
 
   it('rejects an over-reservation exact run before global evaluation', async () => {
-    const { exitCodePromise, output } = runExact({
-      transitionRun: vi.fn().mockResolvedValue(exactCounts({ fund: 6, total: 9 })),
+    const overCounts = exactCounts({ fund: 6, fundEvent: 6, total: 14 });
+    const { exitCodePromise, queryExactRunRows, output } = runExact({
+      transitionRun: vi.fn().mockResolvedValue(overCounts),
     });
 
     await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE);
-    expect(JSON.parse(output[0]).reason).toMatch(/exceeds reservation/);
+    // The terminal readback runs before the bound is judged, and the summary
+    // carries the complete counts (every exceeding field) plus the reloaded status.
+    expect(queryExactRunRows).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(output[0])).toMatchObject({
+      verdict: 'exact-run-failure',
+      reason: 'exact run fund residue 6 exceeds reservation 5',
+      exactRun: { residue: overCounts, runStatus: 'completed' },
+    });
+  });
+
+  it('reports the reloaded status before the reservation bound when the readback fails', async () => {
+    const overCounts = exactCounts({ fund: 6, total: 9 });
+    const { exitCodePromise, output } = runExact({
+      transitionRun: vi.fn().mockResolvedValue(overCounts),
+      reloadedRows: [exactRunRow({ runStatus: 'running' })],
+    });
+
+    await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE);
+    expect(JSON.parse(output[0])).toMatchObject({
+      reason: expect.stringMatching(/terminal status/),
+      exactRun: { residue: overCounts, runStatus: 'running' },
+    });
+  });
+
+  it('carries null exact-run diagnostics when proof fails before the transition', async () => {
+    const { exitCodePromise, output } = runExact({
+      exactRows: [exactRunRow({ fundDataOrigin: 'production', fundCanaryRunId: null })],
+    });
+
+    await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE);
+    expect(JSON.parse(output[0]).exactRun).toEqual({ residue: null, runStatus: null });
   });
 
   it('rejects memory DATABASE_URL before it can query', async () => {
@@ -1029,13 +1085,16 @@ describe('release canary residue assertion', () => {
       await withEmitDirectory(async (directory) => {
         const emitPath = path.join(directory, 'release-canary-residue-result.json');
         const overCounts = exactCounts({ reporting: 6, total: 10 });
-        const { exitCodePromise } = runExact({
+        const { exitCodePromise, queryExactRunRows, output } = runExact({
           args: [...EXACT_ARGS, '--emit-result', emitPath],
           transitionRun: vi.fn().mockResolvedValue(overCounts),
         });
-        await expect(exitCodePromise).resolves.toBe(
-          CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE
-        );
+        await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE);
+        expect(queryExactRunRows).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(output[0])).toMatchObject({
+          verdict: 'exact-run-failure',
+          exactRun: { residue: overCounts, runStatus: 'completed' },
+        });
 
         expect(JSON.parse(await readFile(emitPath, 'utf8'))).toEqual({
           ...expectedEmit('completed'),
@@ -1058,22 +1117,22 @@ describe('release canary residue assertion', () => {
         const { exitCodePromise, errors } = runExact({
           args: [...EXACT_ARGS, '--emit-result', emitPath],
         });
-        await expect(exitCodePromise).resolves.toBe(
-          CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT
-        );
+        await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT);
         expect(errors.join('\n')).toContain('canary residue result file could not be written');
       });
     });
 
     it('rejects an empty emit path and forbids --emit-result with --global-only', () => {
-      expect(() =>
-        parseCanaryResidueArgs([...EXACT_ARGS, '--emit-result', '   '])
-      ).toThrow('--emit-result must be a file path');
+      expect(() => parseCanaryResidueArgs([...EXACT_ARGS, '--emit-result', '   '])).toThrow(
+        '--emit-result must be a file path'
+      );
       expect(() =>
         parseCanaryResidueArgs([
-          '--expected-sha', SHA,
+          '--expected-sha',
+          SHA,
           '--global-only',
-          '--emit-result', '/tmp/result.json',
+          '--emit-result',
+          '/tmp/result.json',
         ])
       ).toThrow('--emit-result is forbidden with --global-only');
     });
