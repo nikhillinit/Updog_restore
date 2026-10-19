@@ -24,9 +24,9 @@ and this project adheres to
 
 ### Fixed (2026-10-19)
 
-- F_1.3.6 slice 1 (phase B canary repair, test and release-script only): release
-  canary 1 now fills Capital Committed ($M) in millions so the deployed reload
-  assertion reads the dollar size it expects;
+- F_1.3.6 slice 1 (phase B canary repair: one wizard step, tests, and a release
+  script): release canary 1 now fills Capital Committed ($M) in millions so the
+  deployed reload assertion reads the dollar size it expects;
   `scripts/release/assert-canary-residue.mjs` reloads the exact run and proves
   its terminal status before the reservation bound, and an `exact-run-failure`
   summary now carries the transitioned residue counts and the reloaded status
