@@ -326,6 +326,58 @@ describe('production governance documentation routing', () => {
     expect(flatGuide).not.toContain('vercel api -X PATCH');
   });
 
+  it.each(['yes', 'no'])(
+    'keeps empty deployment results undetermined for a %s tree until push processing is verified',
+    async (treeCovered) => {
+      const guide = await readRepositoryFile(canonicalGuidePath);
+      const step = guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '';
+      const rows = step
+        .split('\n')
+        .filter((line) => line.startsWith('|'))
+        .map((line) =>
+          line
+            .split('|')
+            .slice(1, -1)
+            .map((cell) => cell.trim())
+        );
+      const zeroRows = rows.filter(([tree, , count]) => tree === treeCovered && count === '0');
+
+      expect(zeroRows).toHaveLength(2);
+      expect(zeroRows.find(([, processing]) => processing === 'unverified')?.[3]).toMatch(
+        /UNDETERMINED.*[Rr]echeck/
+      );
+      expect(zeroRows.find(([, processing]) => processing === 'verified')).toBeDefined();
+      expect(
+        rows
+          .filter(([, processing, count]) => count === '0' && processing !== 'verified')
+          .every((row) => row[3]?.includes('UNDETERMINED'))
+      ).toBe(true);
+    }
+  );
+
+  it('requires exact-push provider completion and a later query, with bounded undetermined rechecks', async () => {
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+
+    expect(flatGuide).toContain(
+      'terminal provider evidence for the exact repository, project, ref, SHA, and push'
+    );
+    expect(flatGuide).toContain('Git processing and integration processing have completed');
+    expect(flatGuide).toContain(
+      'A delivered webhook, a canceled Git deployment, or elapsed time alone is insufficient.'
+    );
+    expect(flatGuide).toContain(
+      'Query again after that evidence before interpreting a zero count.'
+    );
+    expect(flatGuide).toContain('recheck every 30 seconds for at most 10 minutes');
+    expect(flatGuide).toContain('the deadline expires, retain UNDETERMINED');
+    expect(flatGuide).toContain('Other stale branches and later pushes remain UNDETERMINED.');
+    expect(flatGuide).not.toContain('--jq .commit.committer.date');
+    expect(decisions).toContain(
+      'A zero count stays UNDETERMINED until exact-push provider processing is verified and a subsequent paginated query is empty.'
+    );
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(

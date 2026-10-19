@@ -33,7 +33,10 @@ and this project adheres to
   demonstration, existing-exposure cleanup, conditions for
   `previewDeploymentsDisabled`) is in `docs/workflows/PRODUCTION_SCRIPTS.md`;
   each provider step needs separate owner authorization. The Neon default branch
-  is unchanged.
+  is unchanged. Empty deployment queries stay UNDETERMINED until terminal
+  provider evidence verifies the exact push's Git and integration processing and
+  a subsequent paginated query is empty; bounded rechecks do not imply coverage
+  for other stale branches.
 
 ### Changed (2026-10-12)
 

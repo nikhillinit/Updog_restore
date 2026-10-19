@@ -13292,10 +13292,11 @@ tests does not close those gaps."
    project, the production branch, or production credentials.
 4. **Sequence.** `docs/workflows/PRODUCTION_SCRIPTS.md` ("Original project
    Preview containment (ADR-109)") holds it: the source and admitted-policy
-   fence before any provider step; Step 1 positive-control verification; Step 2
-   isolated Disconnect demonstration with exact resources and teardown; Step 3
-   exposure inventory and handling; Step 4 conditions for the flag. Each
-   provider step is owner-authorized and has not been executed.
+   fence before any provider step; Step 1 exact-push processing verification
+   followed by a paginated deployment query; Step 2 isolated Disconnect
+   demonstration with exact resources and teardown; Step 3 exposure inventory
+   and handling; Step 4 conditions for the flag. Each provider step is
+   owner-authorized and has not been executed.
 5. **Later amendments.** An amendment for Disconnect or
    `previewDeploymentsDisabled` requires demonstrated behavior and recovery in
    an isolated equivalent setup. It may accept the concurrency risk; it cannot
@@ -13304,8 +13305,13 @@ tests does not close those gaps."
 ### UNDETERMINED
 
 - Which commit's `vercel.json` decides a push, hence whether stale branches
-  (open Dependabot and agent branches without the key) keep forking. Step 1's
-  positive control decides it per push.
+  (open Dependabot and agent branches without the key) keep forking. A zero
+  count stays UNDETERMINED until exact-push provider processing is verified and
+  a subsequent paginated query is empty. Step 1 requires terminal evidence for
+  both Git and integration processing; neither a canceled Git deployment nor a
+  fixed wait proves completion. Missing proof or a recheck deadline leaves the
+  result UNDETERMINED. Evidence for one push does not establish coverage for
+  other stale branches or later pushes.
 - Whether a `main` merge still creates a Git deployment after this change.
 - Whether Release Production's CLI deploy, which passes `githubDeployment=1` and
   `githubCommitRef=main` metadata, is outside the setting as the documented
@@ -13386,7 +13392,8 @@ tests does not close those gaps."
 
 Merge admits the restriction and the source changes. It authorizes no provider
 write. The open question from #1639 of whether an automatic `main` Preview
-counts as a deployment shrinks once Step 1 shows no `main` deployment. Tests:
+counts as a deployment shrinks only when Step 1 verifies processing of that
+exact `main` push and a subsequent query shows no deployment. Tests:
 `tests/regressions/ci-fail-closed.test.ts` and
 `tests/unit/docs/production-governance-routing.test.ts`; they verify text and
 configuration only, not provider behavior.

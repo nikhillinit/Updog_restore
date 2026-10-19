@@ -583,14 +583,26 @@ treats it is UNDETERMINED until the first Release Production dispatch after the
 merge. A refusal fails closed before promote: the deploy step validates the
 returned URL before any later step runs.
 
-Verify with a positive control. Waiting for silence cannot tell "no push" from
-"suppressed", so start from a push that GitHub, not Vercel, shows:
+Verify with an already-authorized push that GitHub records. Record its push
+event or receipt, repository, ref, SHA, and actual push time privately; a
+commit's committer date or a PR's update time is not a push timestamp. Do not
+create a new push just to probe containment. GitHub's record proves the push
+occurred, but does not prove Vercel finished processing it.
+
+Mark processing verified only with terminal provider evidence for the exact
+repository, project, ref, SHA, and push. The evidence must show that Git
+processing and integration processing have completed, with no deferred
+deployment creation remaining. Record the provider event/log identifier,
+completion time, and outcome privately. A delivered webhook, a canceled Git
+deployment, or elapsed time alone is insufficient. If that evidence is
+unavailable or ambiguous, processing stays unverified. Query again after that
+evidence before interpreting a zero count.
 
 ```bash
 P=prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp; T=team_BzOixmLqQ9VA2mTvFvzBLRWw
 gh pr list --repo nikhillinit/Updog_restore --author app/dependabot --state open --json headRefName,headRefOid,updatedAt --jq '.[] | [.headRefName, .headRefOid, .updatedAt] | @tsv'
 REF="<ref>"; SHA="<40-hex SHA pushed after the merge>"
-PUSHED=$(gh api "repos/nikhillinit/Updog_restore/commits/$SHA" --jq .commit.committer.date)
+PUSHED="<UTC push timestamp from the matching GitHub push event or receipt>"
 git fetch -q origin "$REF" && git show "$SHA:vercel.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log("tree covered:", JSON.parse(s).git?.deploymentEnabled === false))'
 SINCE=$(node -e 'console.log(Date.parse(process.argv[1]) - 3600000)' "$PUSHED")
 vercel api "/v6/deployments?projectId=$P&teamId=$T&since=$SINCE&limit=100" --paginate --raw | node -e '
@@ -602,16 +614,24 @@ vercel api "/v6/deployments?projectId=$P&teamId=$T&since=$SINCE&limit=100" --pag
 ```
 
 The query covers every state and follows every page. Record `REF`, `SHA`,
-`PUSHED`, the tree result, and the count privately. Read the result:
+`PUSHED`, the tree result, processing evidence, query time, and the count
+privately. For an empty result, recheck every 30 seconds for at most 10 minutes,
+including a query after verified processing. If a query fails, processing proof
+is missing or incomplete, or the deadline expires, retain UNDETERMINED and
+schedule a later read-only recheck. Repeated empty queries do not substitute for
+processing proof. Read the result:
 
-| Tree covered | Deployments for SHA | Meaning                                                            |
-| ------------ | ------------------- | ------------------------------------------------------------------ |
-| yes          | 0                   | Covered for this push.                                             |
-| no           | 0                   | Production-branch file likely decides; stale branches are covered. |
-| no           | 1 or more           | Pushed-commit file decides; stale branches fork until they rebase. |
-| yes          | 1 or more           | Setting ineffective. Stop and escalate; containment has not begun. |
+| Tree covered | Push processing | Deployments for SHA | Meaning                                                                                                                                                         |
+| ------------ | --------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| yes          | unverified      | 0                   | UNDETERMINED. Recheck; deployment creation may still be pending.                                                                                                |
+| no           | unverified      | 0                   | UNDETERMINED. Recheck; deployment creation may still be pending.                                                                                                |
+| yes          | verified        | 0                   | Covered for this exact push after the post-processing query.                                                                                                    |
+| no           | verified        | 0                   | Consistent with production-branch configuration for this exact push after the post-processing query. Other stale branches and later pushes remain UNDETERMINED. |
+| no           | any             | 1 or more           | Containment failed for this uncovered push. Stop and escalate.                                                                                                  |
+| yes          | any             | 1 or more           | Setting ineffective for this push. Stop and escalate.                                                                                                           |
 
-One observation settles one push, not every future push. On 2026-10-16 the same
+Processing evidence applies only to its exact push and target; do not reuse it
+for another ref, SHA, or repeated push of the same SHA. On 2026-10-16 the same
 query found both deployments (Git, canceled; API, READY) for Dependabot SHA
 `baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
 
