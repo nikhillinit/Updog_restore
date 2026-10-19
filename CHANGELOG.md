@@ -33,10 +33,11 @@ and this project adheres to
   demonstration, existing-exposure cleanup, conditions for
   `previewDeploymentsDisabled`) is in `docs/workflows/PRODUCTION_SCRIPTS.md`;
   each provider step needs separate owner authorization. The Neon default branch
-  is unchanged. Empty deployment queries stay UNDETERMINED until terminal
-  provider evidence verifies the exact push's Git and integration processing and
-  a subsequent paginated query is empty; bounded rechecks do not imply coverage
-  for other stale branches.
+  is unchanged. A zero deployment result for an exact push counts as covered
+  only inside a bracket (a processed before-control push, a 30-minute gap, no
+  deployment, Vercel status, or Neon branch for the push), confirmed by the next
+  natural deployment when one occurs. Before any push, `HEAD:vercel.json` must
+  carry the key; otherwise rebase onto `origin/main`.
 
 ### Changed (2026-10-12)
 

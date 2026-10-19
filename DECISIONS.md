@@ -13292,26 +13292,34 @@ tests does not close those gaps."
    project, the production branch, or production credentials.
 4. **Sequence.** `docs/workflows/PRODUCTION_SCRIPTS.md` ("Original project
    Preview containment (ADR-109)") holds it: the source and admitted-policy
-   fence before any provider step; Step 1 exact-push processing verification
-   followed by a paginated deployment query; Step 2 isolated Disconnect
-   demonstration with exact resources and teardown; Step 3 exposure inventory
-   and handling; Step 4 conditions for the flag. Each provider step is
-   owner-authorized and has not been executed.
+   fence before any provider step; Step 1 bracket verification of each exact
+   push with an after-control; Step 2 isolated Disconnect demonstration with
+   exact resources and teardown; Step 3 exposure inventory and handling; Step 4
+   conditions for the flag. Each provider step is owner-authorized and has not
+   been executed.
 5. **Later amendments.** An amendment for Disconnect or
    `previewDeploymentsDisabled` requires demonstrated behavior and recovery in
    an isolated equivalent setup. It may accept the concurrency risk; it cannot
    replace that evidence.
+6. **Rebase before push.** Before any branch is pushed,
+   `git show HEAD:vercel.json` must have `git.deploymentEnabled: false`;
+   otherwise the branch is rebased onto `origin/main` first. Until this merges,
+   `origin/main` lacks the key, so new Dependabot branches still fork; an
+   earlier merge narrows that window.
 
 ### UNDETERMINED
 
 - Which commit's `vercel.json` decides a push, hence whether stale branches
-  (open Dependabot and agent branches without the key) keep forking. A zero
-  count stays UNDETERMINED until exact-push provider processing is verified and
-  a subsequent paginated query is empty. Step 1 requires terminal evidence for
-  both Git and integration processing; neither a canceled Git deployment nor a
-  fixed wait proves completion. Missing proof or a recheck deadline leaves the
-  result UNDETERMINED. Evidence for one push does not establish coverage for
-  other stale branches or later pushes.
+  (open Dependabot and agent branches without the key) keep forking. Vercel
+  creates no record when it declines a push, so a zero result for an exact push
+  counts as covered only inside a bracket: a before-control push processed at
+  most 1 hour earlier, a query at least 30 minutes after the push, zero
+  deployments for the SHA, no Vercel status, and no Neon branch for the ref. The
+  next natural Git-created deployment is the after-control; without it the
+  result stays covered (before-bracket only). The two PR pushes of 2026-10-19
+  read that way while `main` lacked the key. If Vercel processed them, the
+  pushed commit's file decides, and branches without the key still fork. One
+  reading never covers other stale branches or later pushes.
 - Whether a `main` merge still creates a Git deployment after this change.
 - Whether Release Production's CLI deploy, which passes `githubDeployment=1` and
   `githubCommitRef=main` metadata, is outside the setting as the documented
@@ -13343,13 +13351,12 @@ tests does not close those gaps."
    part of the build. Rerun items 1, 2, 4, 5, 9, and 13 immediately before
    merge. The merge applies no provider write. The merge SHA is the first
    positive control for a covered tree.
-2. **Push of the pull-request branch: OPEN OWNER DECISION.** No route has proven
-   first-push safety. If the pushed commit's `vercel.json` decides, this
-   branch's own key prevents its Preview. If the production branch's file
-   decides, the push forks production data like every non-main push before it.
-   Neither is documented. If the owner accepts the push, it doubles as a Step 1
-   positive control. Bound it to one push with no later push or rebase (the
-   #1639 rule); any fork it causes is cleaned up only under separate authority.
+2. **Push of the pull-request branch.** No route proved first-push safety in
+   advance. The owner pushed the branch on 2026-10-19 (branch creation
+   01:20:38Z, push 01:45:58Z). Step 1 reads both pushes as covered
+   (before-bracket only): no deployment, status, or Neon branch. Each later push
+   follows the rebase-before-push rule and is another data point; any fork is
+   cleaned up only under separate authority.
 3. **CI.** The `vercel.json` change activates the Batch B path filter
    (`.github/path-filters.yml`, `batch_b`), a local real-backend E2E lane with
    no provider target.
@@ -13392,8 +13399,7 @@ tests does not close those gaps."
 
 Merge admits the restriction and the source changes. It authorizes no provider
 write. The open question from #1639 of whether an automatic `main` Preview
-counts as a deployment shrinks only when Step 1 verifies processing of that
-exact `main` push and a subsequent query shows no deployment. Tests:
-`tests/regressions/ci-fail-closed.test.ts` and
+counts as a deployment shrinks when Step 1 reads that exact `main` push as
+covered. Tests: `tests/regressions/ci-fail-closed.test.ts` and
 `tests/unit/docs/production-governance-routing.test.ts`; they verify text and
 configuration only, not provider behavior.

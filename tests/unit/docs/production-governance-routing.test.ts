@@ -327,7 +327,7 @@ describe('production governance documentation routing', () => {
   });
 
   it.each(['yes', 'no'])(
-    'keeps empty deployment results undetermined for a %s tree until push processing is verified',
+    'reads an empty deployment result for a %s tree as covered only inside the bracket',
     async (treeCovered) => {
       const guide = await readRepositoryFile(canonicalGuidePath);
       const step = guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '';
@@ -343,39 +343,53 @@ describe('production governance documentation routing', () => {
       const zeroRows = rows.filter(([tree, , count]) => tree === treeCovered && count === '0');
 
       expect(zeroRows).toHaveLength(2);
-      expect(zeroRows.find(([, processing]) => processing === 'unverified')?.[3]).toMatch(
+      expect(zeroRows.find(([, bracket]) => bracket === 'not met')?.[3]).toMatch(
         /UNDETERMINED.*[Rr]echeck/
       );
-      expect(zeroRows.find(([, processing]) => processing === 'verified')).toBeDefined();
+      expect(zeroRows.find(([, bracket]) => bracket === 'met')?.[3]).toMatch(/^Covered/);
       expect(
         rows
-          .filter(([, processing, count]) => count === '0' && processing !== 'verified')
+          .filter(([, bracket, count]) => count === '0' && bracket !== 'met')
           .every((row) => row[3]?.includes('UNDETERMINED'))
+      ).toBe(true);
+      expect(
+        rows
+          .filter(([tree, , count]) => tree === treeCovered && count === '1 or more')
+          .every((row) => row[3]?.includes('a deployment exists'))
       ).toBe(true);
     }
   );
 
-  it('requires exact-push provider completion and a later query, with bounded undetermined rechecks', async () => {
+  it('defines the reachable zero-result bracket, its after-control, and rebase before push', async () => {
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
 
+    expect(flatGuide).toContain('Vercel creates no record when it declines a push');
     expect(flatGuide).toContain(
-      'terminal provider evidence for the exact repository, project, ref, SHA, and push'
+      'A zero result for that exact push counts as covered only when all of these hold:'
     );
-    expect(flatGuide).toContain('Git processing and integration processing have completed');
-    expect(flatGuide).toContain(
-      'A delivered webhook, a canceled Git deployment, or elapsed time alone is insufficient.'
-    );
-    expect(flatGuide).toContain(
-      'Query again after that evidence before interpreting a zero count.'
-    );
-    expect(flatGuide).toContain('recheck every 30 seconds for at most 10 minutes');
-    expect(flatGuide).toContain('the deadline expires, retain UNDETERMINED');
-    expect(flatGuide).toContain('Other stale branches and later pushes remain UNDETERMINED.');
+    expect(flatGuide).toContain('at most 1 hour before `PUSHED`');
+    expect(flatGuide).toContain('the query runs at least 30 minutes after `PUSHED`');
+    expect(flatGuide).toContain('(d) No `Vercel` status on `SHA`.');
+    expect(flatGuide).toContain('(e) No Neon branch for `REF`');
+    expect(flatGuide).toContain('Never create one to confirm.');
+    expect(flatGuide).toContain('the result stays "covered (before-bracket only)"');
+    expect(flatGuide).toContain('repos/$R/activity?ref=refs/heads/$REF');
     expect(flatGuide).not.toContain('--jq .commit.committer.date');
-    expect(decisions).toContain(
-      'A zero count stays UNDETERMINED until exact-push provider processing is verified and a subsequent paginated query is empty.'
+    expect(flatGuide).not.toContain('terminal provider evidence');
+    expect(flatGuide).toContain('`dpl_Pguk6ntG2s71ba7b5EqwVehmRjTx`');
+    expect(flatGuide).toContain('### Rebase before push');
+    expect(flatGuide).toContain(
+      'Until #1645 merges, `origin/main` lacks the key, so no rebase supplies it'
     );
+    expect(flatPolicy).toContain(
+      'Before any branch of this repository is pushed, `git show HEAD:vercel.json` must show `git.deploymentEnabled: false`; a branch without it is rebased onto `origin/main` first.'
+    );
+    expect(decisions).toContain(
+      'a zero result for an exact push counts as covered only inside a bracket'
+    );
+    expect(decisions).toContain('6. **Rebase before push.**');
   });
 
   it('keeps index deployment and scripts routing non-authorizing', async () => {

@@ -583,57 +583,106 @@ treats it is UNDETERMINED until the first Release Production dispatch after the
 merge. A refusal fails closed before promote: the deploy step validates the
 returned URL before any later step runs.
 
-Verify with an already-authorized push that GitHub records. Record its push
-event or receipt, repository, ref, SHA, and actual push time privately; a
-commit's committer date or a PR's update time is not a push timestamp. Do not
-create a new push just to probe containment. GitHub's record proves the push
-occurred, but does not prove Vercel finished processing it.
-
-Mark processing verified only with terminal provider evidence for the exact
-repository, project, ref, SHA, and push. The evidence must show that Git
-processing and integration processing have completed, with no deferred
-deployment creation remaining. Record the provider event/log identifier,
-completion time, and outcome privately. A delivered webhook, a canceled Git
-deployment, or elapsed time alone is insufficient. If that evidence is
-unavailable or ambiguous, processing stays unverified. Query again after that
-evidence before interpreting a zero count.
+Verify each exact push, read-only. Do not create a push to probe containment.
+Vercel creates no record when it declines a push, so coverage is read from a
+bracket around the push, not from a provider receipt. Take the push time from
+GitHub's repository activity, not from a committer date or a PR update time:
 
 ```bash
-P=prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp; T=team_BzOixmLqQ9VA2mTvFvzBLRWw
-gh pr list --repo nikhillinit/Updog_restore --author app/dependabot --state open --json headRefName,headRefOid,updatedAt --jq '.[] | [.headRefName, .headRefOid, .updatedAt] | @tsv'
-REF="<ref>"; SHA="<40-hex SHA pushed after the merge>"
-PUSHED="<UTC push timestamp from the matching GitHub push event or receipt>"
+P=prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp; T=team_BzOixmLqQ9VA2mTvFvzBLRWw; R=nikhillinit/Updog_restore
+REF="<ref>"
+gh api "repos/$R/activity?ref=refs/heads/$REF&per_page=10" --jq '.[] | [.timestamp, .activity_type, .after] | @tsv'
+SHA="<after SHA of that push>"; PUSHED="<its activity timestamp>"
 git fetch -q origin "$REF" && git show "$SHA:vercel.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log("tree covered:", JSON.parse(s).git?.deploymentEnabled === false))'
+```
+
+A zero result for that exact push counts as covered only when all of these hold:
+
+- (a) Before-control: Vercel was processing pushes just before. An earlier push
+  to this repository, at most 1 hour before `PUSHED`, has a Git-created
+  deployment on this project and a `Vercel` commit status. Record both latencies
+  from that push's activity timestamp.
+- (b) Gap: the query runs at least 30 minutes after `PUSHED`. On 2026-10-19 the
+  before-control showed 4 s from push to status and to deployment, and the
+  integration's replacement deployment has followed within about 5 s more. 30
+  minutes exceeds that combined delay more than 100 times.
+- (c) Zero deployments for `SHA`, all states, all pages.
+- (d) No `Vercel` status on `SHA`.
+- (e) No Neon branch for `REF`: no branch of `bold-truth-07145433` whose name
+  contains `REF`, and none with parent `br-cool-tree-advjpopv` created after
+  `PUSHED` except owner restore branches.
+
+```bash
+# (a) for the earlier push: Vercel status time; its deployment appears in (c)'s listing
+gh api "repos/$R/commits/<earlier SHA>/statuses?per_page=100" --jq '.[] | select(.context == "Vercel") | .created_at'
+# (c)
 SINCE=$(node -e 'console.log(Date.parse(process.argv[1]) - 3600000)' "$PUSHED")
 vercel api "/v6/deployments?projectId=$P&teamId=$T&since=$SINCE&limit=100" --paginate --raw | node -e '
   let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
-    const hits = JSON.parse(s).filter((d) => d.meta?.githubCommitSha === process.argv[1]);
-    for (const d of hits) console.log(d.uid, d.state, d.target ?? "preview", d.meta?.githubCommitRef, d.source ?? "");
-    console.log("deployments for SHA:", hits.length);
+    const all = JSON.parse(s);
+    for (const d of all) console.log(new Date(d.created).toISOString(), d.uid, d.state, d.target ?? "preview", d.meta?.githubCommitRef, d.source ?? "");
+    console.log("deployments for SHA:", all.filter((d) => d.meta?.githubCommitSha === process.argv[1]).length);
   });' "$SHA"
+# (d)
+gh api "repos/$R/commits/$SHA/statuses?per_page=100" --jq '[.[] | select(.context == "Vercel")] | length'
+# (e)
+neonctl branches list --project-id bold-truth-07145433 --output json | node -e '
+  let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    const [ref, pushed] = process.argv.slice(1);
+    const hits = JSON.parse(s).filter((b) => b.name.includes(ref)
+      || (b.parent_id === "br-cool-tree-advjpopv" && Date.parse(b.created_at) > Date.parse(pushed) && !b.name.startsWith("restore/")));
+    for (const b of hits) console.log(b.created_at, b.id, b.name);
+    console.log("Neon branches for ref:", hits.length);
+  });' "$REF" "$PUSHED"
 ```
 
-The query covers every state and follows every page. Record `REF`, `SHA`,
-`PUSHED`, the tree result, processing evidence, query time, and the count
-privately. For an empty result, recheck every 30 seconds for at most 10 minutes,
-including a query after verified processing. If a query fails, processing proof
-is missing or incomplete, or the deadline expires, retain UNDETERMINED and
-schedule a later read-only recheck. Repeated empty queries do not substitute for
-processing proof. Read the result:
+After-control: the next natural Git-created deployment on this project after
+`PUSHED` confirms that the integration was live across the push. Once the key is
+on `main`, that deployment may itself be an uncovered stale-branch fork, or may
+never come. Never create one to confirm. Without it, the result stays "covered
+(before-bracket only)". Record `REF`, `SHA`, `PUSHED`, the tree result, (a) to
+(e) with their query times, and any after-control privately. For a stale tree
+the reading assumes `main`'s file has the key at `PUSHED`.
 
-| Tree covered | Push processing | Deployments for SHA | Meaning                                                                                                                                                         |
-| ------------ | --------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| yes          | unverified      | 0                   | UNDETERMINED. Recheck; deployment creation may still be pending.                                                                                                |
-| no           | unverified      | 0                   | UNDETERMINED. Recheck; deployment creation may still be pending.                                                                                                |
-| yes          | verified        | 0                   | Covered for this exact push after the post-processing query.                                                                                                    |
-| no           | verified        | 0                   | Consistent with production-branch configuration for this exact push after the post-processing query. Other stale branches and later pushes remain UNDETERMINED. |
-| no           | any             | 1 or more           | Containment failed for this uncovered push. Stop and escalate.                                                                                                  |
-| yes          | any             | 1 or more           | Setting ineffective for this push. Stop and escalate.                                                                                                           |
+| Tree covered | Bracket (a)-(e) | Deployments for SHA | Meaning                                                                                                                         |
+| ------------ | --------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| yes          | met             | 0                   | Covered (before-bracket only) for this exact push; covered (bracketed) after the after-control.                                 |
+| yes          | not met         | 0                   | UNDETERMINED. Recheck later; do not interpret.                                                                                  |
+| no           | met             | 0                   | Covered for this exact push, consistent with `main`'s file deciding. Other stale branches and later pushes remain UNDETERMINED. |
+| no           | not met         | 0                   | UNDETERMINED. Recheck later; do not interpret.                                                                                  |
+| no           | any             | 1 or more           | Failed coverage: a deployment exists for this uncovered push. Stop and escalate.                                                |
+| yes          | any             | 1 or more           | Setting ineffective: a deployment exists for this push. Stop and escalate.                                                      |
 
-Processing evidence applies only to its exact push and target; do not reuse it
-for another ref, SHA, or repeated push of the same SHA. On 2026-10-16 the same
-query found both deployments (Git, canceled; API, READY) for Dependabot SHA
-`baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
+One reading settles one exact push, never another ref, SHA, or repeated push. On
+2026-10-16 query (c) found both deployments (Git, canceled; API, READY) for
+Dependabot SHA `baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
+
+Worked evidence (read-only; owner check 2026-10-19T02:45Z, re-read 02:53Z):
+
+- Before-control: the #1639 merge `c64771fc4` was pushed at
+  2026-10-19T01:11:49Z. Its `Vercel` status is from 01:11:53Z. Git deployment
+  `dpl_Pguk6ntG2s71ba7b5EqwVehmRjTx` was created at 01:11:53.167Z (about 4 s),
+  target null, no alias, READY.
+- PR #1645 heads `1096a507f` (branch creation 01:20:38Z, 9 minutes later) and
+  `0f07c4fc2` (push 01:45:58Z, 34 minutes later): both trees have the key. The
+  queries ran 59 to 92 minutes after the pushes. Zero deployments for either SHA
+  (528 scanned, all states, all pages; the only deployment since 2026-10-17 is
+  `dpl_Pguk6ntG…`), zero statuses on either SHA, and six Neon branches, none for
+  this ref. Both read covered (before-bracket only); no after-control yet.
+- Conditional inference: `main` (`c64771fc4`) lacked the key at both pushes. If
+  Vercel processed them, the pushed commit's `vercel.json` decides, so branches
+  whose tree lacks the key still deploy and fork.
+
+### Rebase before push
+
+Before pushing any branch, confirm that `git show HEAD:vercel.json` has
+`git.deploymentEnabled: false`. If it does not, rebase onto `origin/main` first.
+This covers agent and human branches cut from an older `main`. New Dependabot
+branches start from `main`, so they carry the key once #1645 merges; an open
+Dependabot branch carries it only after Dependabot rebases or recreates it.
+Until #1645 merges, `origin/main` lacks the key, so no rebase supplies it, and
+new Dependabot branches (GitHub Actions updates run daily) still fork. An
+earlier merge narrows that window.
 
 ### Step 2: isolated Disconnect demonstration (owner-authorized; not executed)
 

@@ -185,7 +185,10 @@ demonstrated behavior and recovery in an isolated equivalent setup. That
 amendment may accept the concurrency risk of a write for which no
 conditional-update contract is established. It cannot replace missing behavior
 or recovery evidence, and passing documentation tests does not supply that
-evidence. Every other floor applies unchanged.
+evidence. Before any branch of this repository is pushed,
+`git show HEAD:vercel.json` must show `git.deploymentEnabled: false`; a branch
+without it is rebased onto `origin/main` first. Every other floor applies
+unchanged.
 
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or
