@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-19)
+
+- F_1.3.6 slice 1 (phase B canary repair, test and release-script only): release
+  canary 1 now fills Capital Committed ($M) in millions so the deployed reload
+  assertion reads the dollar size it expects;
+  `scripts/release/assert-canary-residue.mjs` reloads the exact run and proves
+  its terminal status before the reservation bound, and an `exact-run-failure`
+  summary now carries the transitioned residue counts and the reloaded status
+  (exit codes and verdicts unchanged). Regression coverage: the batch-b
+  canary-shaped browser journey asserts the dollar size and the five-event list,
+  the bootstrap unit suite pins the `1` to `1_000_000` boundary, and the residue
+  script tests cover the reordered readback. No contract, hook, or reservation
+  change.
+
 ### Changed (2026-10-19)
 
 - Plan

@@ -382,6 +382,8 @@ describe('FundBasicsStep bootstrap identity', () => {
   });
 
   it.each([
+    // F_1.3.6 5a: the release-canary unit boundary (1 in the $M field is one million dollars).
+    ['1', 1_000_000],
     ['72', 72_000_000],
     ['4.1', 4_100_000],
   ])(

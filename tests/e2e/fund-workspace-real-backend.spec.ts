@@ -4,12 +4,14 @@ import { expect, request, test, type Page } from '@playwright/test';
 import { Pool } from 'pg';
 import {
   attachScreenshot,
+  clickPublish,
   countFundsByName,
   createDraftThroughStepOne,
   draftRevision,
   loadRuntime,
   openWorkspace,
   publishCurrentFund,
+  signIn,
 } from './support/batch-b-journey';
 
 type MutationSummary = {
@@ -494,6 +496,151 @@ test('authenticated user can publish one fund and persist a distinct second draf
     await writeFile(acceptancePath, JSON.stringify(acceptance, null, 2));
     await testInfo.attach('batch-b-acceptance.json', {
       path: acceptancePath,
+      contentType: 'application/json',
+    });
+  }
+});
+
+// F_1.3.6 item 5c: the release-canary journey (1 in Capital Committed ($M), steps 2 to 6,
+// finalize) against the harness database. The stored size must be dollars and the event list
+// must be the five the v2 residue reservation characterizes; the save_draft receipts are
+// recorded for the F_1.3.6 item 1 decision table (locally this journey yields five events and
+// one save_draft receipt; the production sixth event is not reproduced here).
+const CANARY_SHAPED_FUND = {
+  name: 'Batch B Canary Shaped Fund',
+  capital: '1',
+  asOfDate: '2026-08-31',
+};
+
+test('canary-shaped journey stores a dollar size and a bounded event list', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  const runtime = await loadRuntime();
+  const pool = new Pool({ connectionString: runtime.databaseUrl, max: 1 });
+  const draftPuts: Array<{ status: number; replay: string | undefined }> = [];
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    if (/^\/api\/funds\/\d+\/draft$/.test(url.pathname) && response.request().method() === 'PUT') {
+      draftPuts.push({
+        status: response.status(),
+        replay: response.headers()['idempotency-replay'],
+      });
+    }
+  });
+  const residue: Record<string, unknown> = {};
+  try {
+    await signIn(page, runtime.username, runtime.password);
+    await expect(page.getByTestId('fund-workspace')).toBeVisible();
+    await page.getByTestId('workspace-new-fund').click();
+    await expect(page).toHaveURL(/\/fund-setup\?step=1$/);
+    const fundId = await createDraftThroughStepOne(page, CANARY_SHAPED_FUND);
+    residue['fundId'] = fundId;
+    residue['draftPutsAfterStepOne'] = draftPuts.length;
+
+    for (const step of [3, 4, 5, 6] as const) {
+      await page.getByTestId('next-step').click();
+      await expect(page).toHaveURL(new RegExp(`/fund-setup\\?step=${step}$`));
+    }
+    await page.getByTestId('finish-setup').click();
+    await expect(page).toHaveURL(/\/fund-setup\?step=7$/);
+    // Let any debounced autosave (600 ms) queued by the step walk settle before finalize, so
+    // the recorded count is the journey's maximum rather than a race with the finalize.
+    await expect(page.getByTestId('draft-sync-status')).toContainText('Latest draft saved');
+    await page.waitForTimeout(1_500);
+    residue['draftPutsBeforeFinalize'] = draftPuts.length;
+
+    const finalizeResponse = await clickPublish(page);
+    expect(finalizeResponse.status()).toBe(201);
+    await expect(page).toHaveURL(new RegExp(`/fund-model-results/${fundId}$`));
+    await expect(page.getByText('Vintage 2026 | Fund size: $1M', { exact: true })).toBeVisible();
+
+    const fund = await pool.query<{ size: string }>('SELECT size FROM funds WHERE id = $1', [
+      fundId,
+    ]);
+    const events = await pool.query<{
+      id: number;
+      event_type: string;
+      operation: string | null;
+      entity_type: string | null;
+      created_at: Date;
+    }>(
+      `SELECT id, event_type, operation, entity_type, created_at
+         FROM fund_events WHERE fund_id = $1 ORDER BY id`,
+      [fundId]
+    );
+    const saveDrafts = await pool.query<{
+      idempotency_key: string;
+      request_hash: string;
+      created_at: Date;
+      config: Record<string, unknown> | null;
+    }>(
+      `SELECT idempotency_key, request_hash, created_at,
+              response_body -> 'data' -> 'config' AS config
+         FROM fund_workflow_commands
+        WHERE fund_id = $1 AND operation = 'save_draft'
+        ORDER BY created_at, id`,
+      [fundId]
+    );
+    const receipts = await pool.query<{ operation: string; count: number }>(
+      `SELECT operation, count(*)::int AS count FROM fund_workflow_commands
+        WHERE fund_id = $1 GROUP BY operation ORDER BY operation`,
+      [fundId]
+    );
+    const firstFundEvents = await pool.query<{ event_type: string }>(
+      `SELECT e.event_type FROM fund_events e JOIN funds f ON f.id = e.fund_id
+        WHERE f.name = $1 ORDER BY e.id`,
+      [FIRST_FUND.name]
+    );
+    const configs = saveDrafts.rows.map((row) => row.config);
+    const configDiff = configs.map((config, index) => {
+      const previous = configs[index - 1];
+      if (index === 0 || !config || !previous) return null;
+      const keys = new Set([...Object.keys(config), ...Object.keys(previous)]);
+      return [...keys].filter(
+        (key) => JSON.stringify(config[key]) !== JSON.stringify(previous[key])
+      );
+    });
+    Object.assign(residue, {
+      draftPuts,
+      size: fund.rows[0]?.size,
+      eventTypes: events.rows.map((row) => row.event_type),
+      events: events.rows,
+      receiptsByOperation: receipts.rows,
+      saveDraftReceipts: saveDrafts.rows.map((row) => ({
+        idempotencyKey: row.idempotency_key,
+        requestHash: row.request_hash,
+        createdAt: row.created_at,
+        config: row.config,
+      })),
+      saveDraftRequestHashesEqual:
+        saveDrafts.rows.length > 1 &&
+        saveDrafts.rows.every((row) => row.request_hash === saveDrafts.rows[0]!.request_hash),
+      saveDraftConfigsEqual:
+        configs.length > 1 &&
+        configs.every((config) => JSON.stringify(config) === JSON.stringify(configs[0])),
+      saveDraftConfigDiffKeys: configDiff,
+      firstFundEventTypes: firstFundEvents.rows.map((row) => row.event_type),
+    });
+    expect(Number(fund.rows[0]?.size)).toBe(1_000_000);
+    expect(events.rows.map((row) => row.event_type)).toEqual([
+      'FUND_CREATED',
+      'DRAFT_SAVED',
+      'DRAFT_SAVED',
+      'PUBLISHED',
+      'CALC_TRIGGERED',
+    ]);
+  } catch (error) {
+    await attachScreenshot(page, testInfo, 'batch-b-canary-shaped-failure.png').catch(
+      () => undefined
+    );
+    throw error;
+  } finally {
+    await pool.end();
+    const residuePath = testInfo.outputPath('batch-b-canary-shaped-residue.json');
+    await writeFile(residuePath, JSON.stringify(residue, null, 2));
+    await testInfo.attach('batch-b-canary-shaped-residue.json', {
+      path: residuePath,
       contentType: 'application/json',
     });
   }
