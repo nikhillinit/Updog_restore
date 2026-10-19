@@ -298,6 +298,100 @@ describe('production governance documentation routing', () => {
     }
   });
 
+  it('restricts the original project to no Preview-producing action and admits no write', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const decisions = await readRepositoryFile('DECISIONS.md');
+
+    expect(flatPolicy).toContain(
+      'Under ADR-109 no Preview-producing action is admitted on the original Vercel project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team `team_BzOixmLqQ9VA2mTvFvzBLRWw`).'
+    );
+    expect(flatPolicy).toContain('Production reaches it only through Release Production.');
+    expect(flatPolicy).toContain('This paragraph admits no provider write.');
+    expect(flatPolicy).toContain(
+      'It cannot replace missing behavior or recovery evidence, and passing documentation tests does not supply that evidence.'
+    );
+    expect(flatPolicy).toContain('The Neon default branch stays `br-cool-tree-advjpopv`.');
+    expect(flatPolicy).not.toContain('`{"previewDeploymentsDisabled":true}` is admitted');
+    // The policy amends only together with its ADR entry in the same change.
+    expect(decisions).toContain('## ADR-109: Original Vercel Project Preview Containment Sequence');
+    expect(flatGuide).toContain('## Original project Preview containment (ADR-109)');
+    expect(flatGuide).toContain('REFUSE: admitted policy');
+    expect(flatGuide).toContain('d.meta?.githubCommitSha === process.argv[1]');
+    expect(flatGuide).toContain('--paginate --raw');
+    expect(flatGuide).toContain(
+      '### Step 2: isolated Disconnect demonstration (owner-authorized; not executed)'
+    );
+    expect(flatGuide).toContain('### Step 4: `previewDeploymentsDisabled` (not admitted)');
+    expect(flatGuide).not.toContain('vercel api -X PATCH');
+  });
+
+  it.each(['yes', 'no'])(
+    'reads an empty deployment result for a %s tree as covered only inside the bracket',
+    async (treeCovered) => {
+      const guide = await readRepositoryFile(canonicalGuidePath);
+      const step = guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '';
+      const rows = step
+        .split('\n')
+        .filter((line) => line.startsWith('|'))
+        .map((line) =>
+          line
+            .split('|')
+            .slice(1, -1)
+            .map((cell) => cell.trim())
+        );
+      const zeroRows = rows.filter(([tree, , count]) => tree === treeCovered && count === '0');
+
+      expect(zeroRows).toHaveLength(2);
+      expect(zeroRows.find(([, bracket]) => bracket === 'not met')?.[3]).toMatch(
+        /UNDETERMINED.*[Rr]echeck/
+      );
+      expect(zeroRows.find(([, bracket]) => bracket === 'met')?.[3]).toMatch(/^Covered/);
+      expect(
+        rows
+          .filter(([, bracket, count]) => count === '0' && bracket !== 'met')
+          .every((row) => row[3]?.includes('UNDETERMINED'))
+      ).toBe(true);
+      expect(
+        rows
+          .filter(([tree, , count]) => tree === treeCovered && count === '1 or more')
+          .every((row) => row[3]?.includes('a deployment exists'))
+      ).toBe(true);
+    }
+  );
+
+  it('defines the reachable zero-result bracket, its after-control, and rebase before push', async () => {
+    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+
+    expect(flatGuide).toContain('Vercel creates no record when it declines a push');
+    expect(flatGuide).toContain(
+      'A zero result for that exact push counts as covered only when all of these hold:'
+    );
+    expect(flatGuide).toContain('at most 1 hour before `PUSHED`');
+    expect(flatGuide).toContain('the query runs at least 30 minutes after `PUSHED`');
+    expect(flatGuide).toContain('(d) No `Vercel` status on `SHA`.');
+    expect(flatGuide).toContain('(e) No Neon branch for `REF`');
+    expect(flatGuide).toContain('Never create one to confirm.');
+    expect(flatGuide).toContain('the result stays "covered (before-bracket only)"');
+    expect(flatGuide).toContain('repos/$R/activity?ref=refs/heads/$REF');
+    expect(flatGuide).not.toContain('--jq .commit.committer.date');
+    expect(flatGuide).not.toContain('terminal provider evidence');
+    expect(flatGuide).toContain('`dpl_Pguk6ntG2s71ba7b5EqwVehmRjTx`');
+    expect(flatGuide).toContain('### Rebase before push');
+    expect(flatGuide).toContain(
+      'Until #1645 merges, `origin/main` lacks the key, so no rebase supplies it'
+    );
+    expect(flatPolicy).toContain(
+      'Before any branch of this repository is pushed, `git show HEAD:vercel.json` must show `git.deploymentEnabled: false`; a branch without it is rebased onto `origin/main` first.'
+    );
+    expect(decisions).toContain(
+      'a zero result for an exact push counts as covered only inside a bracket'
+    );
+    expect(decisions).toContain('6. **Rebase before push.**');
+  });
+
   it('keeps index deployment and scripts routing non-authorizing', async () => {
     const index = await readRepositoryFile('docs/INDEX.md');
     const quickNavigation = index.slice(

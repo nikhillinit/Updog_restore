@@ -538,6 +538,261 @@ runs it locally, never from CI. Each execute is a separate owner action. A bare
    - Any other failure before `COMMIT`: the transaction rolled back. Run the dry
      run to confirm the current state before retrying.
 
+## Original project Preview containment (ADR-109)
+
+The governing policy admits no Preview-producing action on the original Vercel
+project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team
+`team_BzOixmLqQ9VA2mTvFvzBLRWw`). Production reaches it only through Release
+Production. The policy admits no provider write for this containment. Every
+provider step below is owner-authorized, separately, for that exact action, and
+none has been executed. The Neon default branch stays `br-cool-tree-advjpopv`.
+UNDETERMINED marks what no official source or observation has settled.
+
+Before any provider step, run the fence from a clean checkout of live `main`:
+
+```bash
+EXPECTED_SHA="<main SHA>"
+fence() {
+  git fetch -q origin main || return 1
+  local live; live=$(gh api repos/nikhillinit/Updog_restore/commits/main --jq .sha) || return 1
+  [[ "$live" =~ ^[0-9a-f]{40}$ && "$live" == "$EXPECTED_SHA" && "$(git rev-parse HEAD)" == "$EXPECTED_SHA" ]] || { echo "REFUSE: source identity"; return 1; }
+  git diff --quiet HEAD || { echo "REFUSE: tracked changes"; return 1; }
+  git show "$live:docs/governance/solo-internal-change-and-production-policy.md" | tr -s ' \n' ' ' \
+    | grep -qF 'Under ADR-109 no Preview-producing action is admitted' || { echo "REFUSE: admitted policy"; return 1; }
+  echo "fence ok"
+}
+fence
+```
+
+A step that touches the original project, the production branch, or production
+credentials also needs its own admitted route; the fence does not supply one.
+
+### Step 1: Git deployments off (source; admitted by merge)
+
+`vercel.json` sets `git.deploymentEnabled: false`, a documented setting.
+Coverage is UNDETERMINED. Vercel does not document whether the pushed commit's
+`vercel.json` or the production branch's decides. If it is the pushed commit,
+branches whose tree lacks the key (open Dependabot and agent branches) keep
+deploying, and a branch could remove the key before CI rejects the change. The
+setting does not cover CLI or API deployments, so it is not project-wide
+containment. Release Production is expected to be unaffected, because the
+documented scope is deployments upon commits and it deploys through the CLI
+(`vercel deploy --prebuilt --prod --skip-domain`). That deploy also passes
+`--meta githubDeployment=1 --meta githubCommitRef=main`, and how the setting
+treats it is UNDETERMINED until the first Release Production dispatch after the
+merge. A refusal fails closed before promote: the deploy step validates the
+returned URL before any later step runs.
+
+Verify each exact push, read-only. Do not create a push to probe containment.
+Vercel creates no record when it declines a push, so coverage is read from a
+bracket around the push, not from a provider receipt. Take the push time from
+GitHub's repository activity, not from a committer date or a PR update time:
+
+```bash
+P=prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp; T=team_BzOixmLqQ9VA2mTvFvzBLRWw; R=nikhillinit/Updog_restore
+REF="<ref>"
+gh api "repos/$R/activity?ref=refs/heads/$REF&per_page=10" --jq '.[] | [.timestamp, .activity_type, .after] | @tsv'
+SHA="<after SHA of that push>"; PUSHED="<its activity timestamp>"
+git fetch -q origin "$REF" && git show "$SHA:vercel.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log("tree covered:", JSON.parse(s).git?.deploymentEnabled === false))'
+```
+
+A zero result for that exact push counts as covered only when all of these hold:
+
+- (a) Before-control: Vercel was processing pushes just before. An earlier push
+  to this repository, at most 1 hour before `PUSHED`, has a Git-created
+  deployment on this project and a `Vercel` commit status. Record both latencies
+  from that push's activity timestamp.
+- (b) Gap: the query runs at least 30 minutes after `PUSHED`. On 2026-10-19 the
+  before-control showed 4 s from push to status and to deployment, and the
+  integration's replacement deployment has followed within about 5 s more. 30
+  minutes exceeds that combined delay more than 100 times.
+- (c) Zero deployments for `SHA`, all states, all pages.
+- (d) No `Vercel` status on `SHA`.
+- (e) No Neon branch for `REF`: no branch of `bold-truth-07145433` whose name
+  contains `REF`, and none with parent `br-cool-tree-advjpopv` created after
+  `PUSHED` except owner restore branches.
+
+```bash
+# (a) for the earlier push: Vercel status time; its deployment appears in (c)'s listing
+gh api "repos/$R/commits/<earlier SHA>/statuses?per_page=100" --jq '.[] | select(.context == "Vercel") | .created_at'
+# (c)
+SINCE=$(node -e 'console.log(Date.parse(process.argv[1]) - 3600000)' "$PUSHED")
+vercel api "/v6/deployments?projectId=$P&teamId=$T&since=$SINCE&limit=100" --paginate --raw | node -e '
+  let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    const all = JSON.parse(s);
+    for (const d of all) console.log(new Date(d.created).toISOString(), d.uid, d.state, d.target ?? "preview", d.meta?.githubCommitRef, d.source ?? "");
+    console.log("deployments for SHA:", all.filter((d) => d.meta?.githubCommitSha === process.argv[1]).length);
+  });' "$SHA"
+# (d)
+gh api "repos/$R/commits/$SHA/statuses?per_page=100" --jq '[.[] | select(.context == "Vercel")] | length'
+# (e)
+neonctl branches list --project-id bold-truth-07145433 --output json | node -e '
+  let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    const [ref, pushed] = process.argv.slice(1);
+    const hits = JSON.parse(s).filter((b) => b.name.includes(ref)
+      || (b.parent_id === "br-cool-tree-advjpopv" && Date.parse(b.created_at) > Date.parse(pushed) && !b.name.startsWith("restore/")));
+    for (const b of hits) console.log(b.created_at, b.id, b.name);
+    console.log("Neon branches for ref:", hits.length);
+  });' "$REF" "$PUSHED"
+```
+
+After-control: the next natural Git-created deployment on this project after
+`PUSHED` confirms that the integration was live across the push. Once the key is
+on `main`, that deployment may itself be an uncovered stale-branch fork, or may
+never come. Never create one to confirm. Without it, the result stays "covered
+(before-bracket only)". Record `REF`, `SHA`, `PUSHED`, the tree result, (a) to
+(e) with their query times, and any after-control privately. For a stale tree
+the reading assumes `main`'s file has the key at `PUSHED`.
+
+| Tree covered | Bracket (a)-(e) | Deployments for SHA | Meaning                                                                                                                         |
+| ------------ | --------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| yes          | met             | 0                   | Covered (before-bracket only) for this exact push; covered (bracketed) after the after-control.                                 |
+| yes          | not met         | 0                   | UNDETERMINED. Recheck later; do not interpret.                                                                                  |
+| no           | met             | 0                   | Covered for this exact push, consistent with `main`'s file deciding. Other stale branches and later pushes remain UNDETERMINED. |
+| no           | not met         | 0                   | UNDETERMINED. Recheck later; do not interpret.                                                                                  |
+| no           | any             | 1 or more           | Failed coverage: a deployment exists for this uncovered push. Stop and escalate.                                                |
+| yes          | any             | 1 or more           | Setting ineffective: a deployment exists for this push. Stop and escalate.                                                      |
+
+One reading settles one exact push, never another ref, SHA, or repeated push. On
+2026-10-16 query (c) found both deployments (Git, canceled; API, READY) for
+Dependabot SHA `baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
+
+Worked evidence (read-only; owner check 2026-10-19T02:45Z, re-read 02:53Z):
+
+- Before-control: the #1639 merge `c64771fc4` was pushed at
+  2026-10-19T01:11:49Z. Its `Vercel` status is from 01:11:53Z. Git deployment
+  `dpl_Pguk6ntG2s71ba7b5EqwVehmRjTx` was created at 01:11:53.167Z (about 4 s),
+  target null, no alias, READY.
+- PR #1645 heads `1096a507f` (branch creation 01:20:38Z, 9 minutes later) and
+  `0f07c4fc2` (push 01:45:58Z, 34 minutes later): both trees have the key. The
+  queries ran 59 to 92 minutes after the pushes. Zero deployments for either SHA
+  (528 scanned, all states, all pages; the only deployment since 2026-10-17 is
+  `dpl_Pguk6ntG…`), zero statuses on either SHA, and six Neon branches, none for
+  this ref. Both read covered (before-bracket only); no after-control yet.
+- Conditional inference: `main` (`c64771fc4`) lacked the key at both pushes. If
+  Vercel processed them, the pushed commit's `vercel.json` decides, so branches
+  whose tree lacks the key still deploy and fork.
+
+### Rebase before push
+
+Before pushing any branch, confirm that `git show HEAD:vercel.json` has
+`git.deploymentEnabled: false`. If it does not, rebase onto `origin/main` first.
+This covers agent and human branches cut from an older `main`. New Dependabot
+branches start from `main`, so they carry the key once #1645 merges; an open
+Dependabot branch carries it only after Dependabot rebases or recreates it.
+Until #1645 merges, `origin/main` lacks the key, so no rebase supplies it, and
+new Dependabot branches (GitHub Actions updates run daily) still fork. An
+earlier merge narrows that window.
+
+### Step 2: isolated Disconnect demonstration (owner-authorized; not executed)
+
+Goal: documented Disconnect behavior for Production bindings and its recovery,
+without touching the original configuration. The original project's Production
+`DATABASE_URL` (`yL4DAX9PN4E6TxGY`) and `DATABASE_URL_UNPOOLED`
+(`veBjCROfACjkkGOX`) are integration-managed (`icfg_zEkOlbUTxKAqwTE8pQWxud8j`,
+`projectSelection: all`). A test project in the same team would share that
+configuration, so the test uses another Vercel scope.
+
+Resources the owner creates for the test, and only these:
+
+- A Vercel scope other than `team_BzOixmLqQ9VA2mTvFvzBLRWw`. Its Neon
+  integration configuration id must differ from `icfg_zEkOlbUTxKAqwTE8pQWxud8j`;
+  stop if it does not.
+- A disposable private repository `updog-disconnect-probe` whose build only
+  prints the names of database variables, never values.
+- A Vercel project `updog-disconnect-probe` in that scope, linked to that
+  repository.
+- A Neon project `updog-disconnect-probe`, separate from `bold-truth-07145433`,
+  with a dedicated production branch and a separate default branch. That mirrors
+  the original: Production bound to a dedicated branch, Previews forking the
+  default.
+
+Sequence:
+
+1. Baseline, read-only: record the two original variables (`id`, `key`,
+   `target`, `configurationId`, `updatedAt`), the original configuration
+   (`projectSelection`, `updatedAt`), and the `bold-truth-07145433` branch list.
+2. Connect the probe Neon project to the probe Vercel project. Push a branch: a
+   Preview and a Neon fork appear. Deploy Production: the Production variables
+   appear.
+3. Disconnect the probe Neon project from the probe Vercel project.
+4. Observe on the probe: which Production variables survive; whether the next
+   Production deployment still gets them (removed variables break the next
+   deployment, not existing ones); whether the next branch push forks; whether
+   existing deployments keep their snapshots.
+5. Recovery: reconnect. Observe whether the Production variables return and
+   whether their ids change.
+6. Re-read the baseline items and require equality. Any difference stops the
+   sequence and is reported.
+7. Teardown: delete the probe Vercel project, remove the probe integration
+   configuration, delete the probe Neon project, delete the probe repository.
+   Record every created id and its deletion privately.
+
+What transfers to the original configuration stays UNDETERMINED: same product,
+different configuration.
+
+### Step 3: existing exposure (each action owner-authorized; none executed)
+
+Inventory, read-only, 2026-10-16T05:05Z to 06:30Z:
+
+- Neon branches with parent `br-cool-tree-advjpopv` and `parent-data`:
+  `br-round-band-ad34ggcp` (`restore/pre-canary-execute-20261012T181202Z`,
+  ready), `br-lingering-sky-adzjiz8k`
+  (`restore/pre-canary-c1e35889-20261012T173839Z`, ready),
+  `br-curly-glade-adflx0xw` (`restore/pre-fund1-purge-20260914`, archived), and
+  `br-lively-star-adj13yj1` (`dev`, archived). No integration-created branch was
+  live. `include_deleted=true` did not list the cleaned-up ones.
+- Neon-bound Preview deployments of the original project: 164 non-main
+  deployments with `neon*` metadata, 2026-09-15T23:08Z to 2026-10-14T03:32Z (152
+  READY, 12 ERROR). Selector: project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`,
+  `meta.githubCommitRef` not `main`, a `neon*` metadata key. The ids are kept
+  outside this public repository. Each snapshot keeps its injected database
+  variables.
+- Integration-managed Development variables `O7D1sUXujvMx161I` and
+  `u53FiARXOYqElTE1` (target branch UNDETERMINED), and manual branch-scoped
+  Preview variables `NNAVak5aIq4Fs6fl` (`codex/preview-main-repair-20261010`),
+  `xOcqCCFCO8vlvTvn`, and `zWtiwpFd5P9AJz6K`
+  (`fix/vercel-fn-tsconfig-paths-esm`). Their targets are UNDETERMINED without
+  decryption.
+
+Credentials. Neon documents that a child branch inherits its parent's roles and
+passwords, except children of protected branches. The production branch is not
+protected. The 2026-10-15 review observed that the schema-only seed
+`br-withered-sound-adzaoio1` has the production owner password. Treat "the
+children and the 164 snapshots carry the production role password" as an
+observation to confirm, UNDETERMINED. A password reset is branch-scoped.
+Rotating the production role stops reuse of the old password against Production.
+It neither revokes child-branch credentials nor removes copied data; deleting a
+child branch does both. Rotation is a production credential change on its own
+route, after Step 2 shows how integration-managed Production variables behave.
+
+Handling, each needing separate owner authorization:
+
+- Delete the four child branches when they no longer serve as restore
+  references. For the 2026-10-12 restore branches, ADR-108 deletes only after
+  its readback confirms the purge.
+- Delete the Neon-bound Preview deployments, or accept them behind SSO
+  (`all_except_custom_domains`) as a recorded risk.
+- Review the Development and branch-scoped Preview variables above.
+- Rotate the production role on its own route.
+
+Neon auto-cleanup runs on the next Preview deployment, so suppressing Previews
+stops it. Cleanup is explicit.
+
+### Step 4: `previewDeploymentsDisabled` (not admitted)
+
+Vercel documents the field in one OpenAPI request-body sentence. Absent, null,
+`false` as rollback, the effect on `main` and CLI or API deployments, and the
+interaction with `github.autoAlias:false` are UNDETERMINED. No
+conditional-update contract is established for `updateProject`. Use it only
+after an isolated equivalent project demonstrates its behavior for non-main
+pushes, `main` pushes, CLI Preview and production deployments, and integration
+redeploys, and demonstrates recovery with `false` and `null`. A later amendment
+may then admit the write. That amendment may accept the concurrency risk, but
+its procedure must use the fence above, an identity-only precondition (the field
+is not documented on GET, so recovery cannot require any field value), a
+post-read comparison, and the Step 1 positive control.
+
 ## Immutable certification and action-time eligibility
 
 Preserve historical receipts and immutable candidate certification for their
@@ -708,7 +963,9 @@ staged Git deployment and promotion to production is separate. Railway had
 deployment failed while the prior deployment remained active. Before relying on
 either observation, require read-only revalidation at the exact candidate. An
 observation may drift and remains non-authorizing; it is not approval,
-readiness, target identity, or a general provider guarantee.
+readiness, target identity, or a general provider guarantee. Since ADR-109,
+`vercel.json` sets `git.deploymentEnabled: false`; whether a `main` push still
+creates a Git deployment is UNDETERMINED until observed.
 
 Recorded on 2026-08-28: schema-existence evidence for every Railway operation,
 field, and status value the deploy helper uses, including the

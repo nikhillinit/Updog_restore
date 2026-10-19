@@ -64,6 +64,9 @@ These PowerShell scripts automate the entire deployment pipeline:
 
 ### **1. deploy-staging.ps1**
 
+Retired (ADR-109): the script now refuses to run. The original Vercel project
+admits no Preview-producing action.
+
 Deploys code to Vercel staging environment with automated checks.
 
 #### Usage

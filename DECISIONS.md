@@ -13208,3 +13208,198 @@ documents the dry run and the owner sequence. Tests:
 `tests/unit/scripts/purge-canary-runs.test.ts`,
 `tests/unit/scripts/production-data-dispatch-block.test.mjs`, and
 `tests/unit/docs/production-governance-routing.test.ts`.
+
+## ADR-109: Original Vercel Project Preview Containment Sequence
+
+**Date:** 2026-10-16
+
+**Status:** Proposed. Accepted on merge of the pull request that amends the
+governing policy with this restriction. That merge records approval of the
+policy text and acceptance of the risks below. It authorizes no provider write.
+
+**Tags:** #provider #vercel #neon #preview #confidential-data #governance
+
+### Context
+
+The original Vercel project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (`updog-restore`,
+team `team_BzOixmLqQ9VA2mTvFvzBLRWw`) is Git-linked to
+`nikhillinit/Updog_restore` with production branch `main`. The Neon-managed
+integration (`icfg_zEkOlbUTxKAqwTE8pQWxud8j`, `projectSelection: all`) gives
+every Preview a Neon branch forked from the default branch of project
+`bold-truth-07145433`. That default, `br-cool-tree-advjpopv`, is the production
+branch, and forks use `init_source: parent-data`. A Preview build therefore runs
+with credentials to a copy of production data. The same configuration manages
+the Production `DATABASE_URL` (`yL4DAX9PN4E6TxGY`) and `DATABASE_URL_UNPOOLED`
+(`veBjCROfACjkkGOX`).
+
+Read-only observation, 2026-10-16:
+
+- 164 non-main deployments carry `neon*` metadata, from 2026-09-15T23:08Z to
+  2026-10-14T03:32Z (152 READY, 12 ERROR). Each is an API-created deployment
+  holding the injected variables, created seconds after the Git deployment of
+  the same push; every such Git deployment checked (6 of 6) read CANCELED.
+- Dependabot pushes daily (GitHub Actions) and weekly (npm), so the exposure
+  recurs without owner action. npm updates run third-party install scripts
+  during these builds.
+- No integration-created Neon branch was live; the integration had cleaned them
+  up. Four other children of the production branch are live or archived (guide,
+  Step 3).
+- `main` Previews carry no database variable and fail closed (2026-10-16
+  checklist, items 2-8). Production deployments come only from Release
+  Production (`vercel deploy --prebuilt --prod --skip-domain`, then
+  `vercel promote` of that exact deployment). `scripts/deploy-staging.ps1` ran
+  the Vercel CLI without `--prod`, a Preview on whatever project was linked.
+
+The project field `previewDeploymentsDisabled` appears in the public OpenAPI
+contract (`https://openapi.vercel.sh`, SHA-256
+`12ef0e5c594405fc621eb3e9c57894f9401a6c3e0925335d75c4200b4dfc499b`, read
+2026-10-16) only in the `createProject` and `updateProject` request bodies, as
+one sentence: "Specifies whether preview deployments are disabled for this
+project". No official source defines absent or null, documents `false` as a
+rollback, or describes its effect on `main`, CLI, or API deployments. No
+conditional-update contract is established for `updateProject`.
+`git.deploymentEnabled` is documented
+(`https://vercel.com/docs/project-configuration/git-configuration`), but not
+which commit's `vercel.json` decides a push.
+
+### Owner direction (2026-10-16)
+
+"Prioritize production-data containment. I would revise ADR-109 before pushing
+or executing it, and leave Neon's default branch unchanged." The preferred
+sequence: validate documented Disconnect behavior and Production bindings in an
+isolated equivalent setup; define handling for existing Preview deployments,
+branches, and credentials; add documented `git.deploymentEnabled` restrictions
+where appropriate, noting that their Git scope does not cover independent API
+deployments; use the undocumented flag only if its behavior and recovery are
+demonstrated. "A narrow policy exception can accept a concurrency risk. It
+cannot replace missing behavior or recovery evidence. Passing documentation
+tests does not close those gaps."
+
+### Decision
+
+1. **Rule.** No Preview-producing action on the original project: no Git, CLI,
+   API, or integration-created Preview deployment. Production reaches it only
+   through Release Production. The Neon default branch stays
+   `br-cool-tree-advjpopv`.
+2. **Source restrictions, admitted by this merge.** `vercel.json` sets
+   `git.deploymentEnabled: false`. `scripts/deploy-staging.ps1` is retired and
+   refuses to run. `tests/regressions/ci-fail-closed.test.ts` pins both.
+3. **No provider write is admitted.** The isolated Disconnect demonstration,
+   deletion of existing deployments and branches, review of existing variables,
+   production role rotation, Disconnect on the original configuration, and any
+   `previewDeploymentsDisabled` write each need separate owner authorization of
+   that exact action, and their own admitted route where they touch the original
+   project, the production branch, or production credentials.
+4. **Sequence.** `docs/workflows/PRODUCTION_SCRIPTS.md` ("Original project
+   Preview containment (ADR-109)") holds it: the source and admitted-policy
+   fence before any provider step; Step 1 bracket verification of each exact
+   push with an after-control; Step 2 isolated Disconnect demonstration with
+   exact resources and teardown; Step 3 exposure inventory and handling; Step 4
+   conditions for the flag. Each provider step is owner-authorized and has not
+   been executed.
+5. **Later amendments.** An amendment for Disconnect or
+   `previewDeploymentsDisabled` requires demonstrated behavior and recovery in
+   an isolated equivalent setup. It may accept the concurrency risk; it cannot
+   replace that evidence.
+6. **Rebase before push.** Before any branch is pushed,
+   `git show HEAD:vercel.json` must have `git.deploymentEnabled: false`;
+   otherwise the branch is rebased onto `origin/main` first. Until this merges,
+   `origin/main` lacks the key, so new Dependabot branches still fork; an
+   earlier merge narrows that window.
+
+### UNDETERMINED
+
+- Which commit's `vercel.json` decides a push, hence whether stale branches
+  (open Dependabot and agent branches without the key) keep forking. Vercel
+  creates no record when it declines a push, so a zero result for an exact push
+  counts as covered only inside a bracket: a before-control push processed at
+  most 1 hour earlier, a query at least 30 minutes after the push, zero
+  deployments for the SHA, no Vercel status, and no Neon branch for the ref. The
+  next natural Git-created deployment is the after-control; without it the
+  result stays covered (before-bracket only). The two PR pushes of 2026-10-19
+  read that way while `main` lacked the key. If Vercel processed them, the
+  pushed commit's file decides, and branches without the key still fork. One
+  reading never covers other stale branches or later pushes.
+- Whether a `main` merge still creates a Git deployment after this change.
+- Whether Release Production's CLI deploy, which passes `githubDeployment=1` and
+  `githubCommitRef=main` metadata, is outside the setting as the documented
+  scope (deployments upon commits) implies. The first dispatch after merge
+  settles it; a refusal fails closed before promote.
+- Whether the `vercel.json` edit needs a scoped surface-contract matrix review.
+  This commit refreshed its source hash mechanically (`source-inventory.json`,
+  `matrix.json`, `g1-review.json`); dated scoped reviews keep the old hash.
+- Disconnect's effect on integration-managed Production variables, on Preview
+  forking, and its recovery. Step 2 measures this on another configuration; how
+  it transfers to `icfg_zEkOlbUTxKAqwTE8pQWxud8j` stays undetermined.
+- Every `previewDeploymentsDisabled` behavior listed in Context.
+- Whether the four child branches and the 164 snapshots carry the production
+  role password. Neon documents inheritance with an exception for children of
+  protected branches; the production branch is unprotected.
+- Targets of the Development variables and the three manual branch-scoped
+  Preview variables.
+
+### Admission safety
+
+1. **Squash merge to `main`.** The diff changes `vercel.json` only by adding the
+   `git` key; build, install, output, functions, rewrites, and
+   `github.autoAlias:false` are unchanged. The merged tree, and so `main`'s
+   file, contains the key, so the expected result is no Git deployment. If one
+   is created, it is a `main` Preview under the conditions of the 2026-10-16
+   checklist (items 1-16: no database binding and fail-closed boot, isolated
+   Redis, no Production alias, no build-time migration or network call, no
+   Railway or Actions provider action). The retired script and the tests are not
+   part of the build. Rerun items 1, 2, 4, 5, 9, and 13 immediately before
+   merge. The merge applies no provider write. The merge SHA is the first
+   positive control for a covered tree.
+2. **Push of the pull-request branch.** No route proved first-push safety in
+   advance. The owner pushed the branch on 2026-10-19 (branch creation
+   01:20:38Z, push 01:45:58Z). Step 1 reads both pushes as covered
+   (before-bracket only): no deployment, status, or Neon branch. Each later push
+   follows the rebase-before-push rule and is another data point; any fork is
+   cleaned up only under separate authority.
+3. **CI.** The `vercel.json` change activates the Batch B path filter
+   (`.github/path-filters.yml`, `batch_b`), a local real-backend E2E lane with
+   no provider target.
+
+### Alternatives
+
+- **Write `previewDeploymentsDisabled` first** (the previous draft). Rejected by
+  the owner: behavior and recovery are undocumented and undemonstrated, and a
+  policy exception can accept only the concurrency risk.
+- **Switch the Neon default to the schema-only seed
+  `br-withered-sound-adzaoio1`.** Rejected; the owner keeps the default. It
+  needs writes without an established conditional-update contract
+  (`set_as_default`) plus a credential reset, because the seed's owner password
+  equals Production's (2026-10-15 review). It does not stop Preview builds. It
+  moves the default for every unpinned client: the owner's restore branches were
+  created in the Console with parent `br-cool-tree-advjpopv`, and a restore
+  branch that followed a seed default would copy an empty schema, which the
+  ADR-103, ADR-105, and ADR-108 routes accept unverified.
+- **Disconnect the original configuration now.** Rejected until Step 2: the
+  configuration also manages the Production variables, and removed variables
+  break the next Production deployment.
+- **Delete fork branches reactively.** Each fork has copied data before
+  deletion. Deletion is cleanup, not containment.
+
+### Accepted risks
+
+- `git.deploymentEnabled: false` may not cover stale branches, and does not
+  cover CLI or API deployments. Until Step 1 settles it, containment is partial
+  and unproven.
+- The first push of this pull request may fork production data (Admission
+  safety, item 2).
+- Existing exposure persists until Step 3 actions: four child branches with
+  copied data, 164 snapshots with injected variables behind SSO
+  (`all_except_custom_domains`), and a possibly shared production password.
+  Suppressing Previews stops Neon auto-cleanup, so cleanup is explicit.
+- Pull requests get no Vercel Preview on the original project. The isolated
+  project `prj_ewt5p3ixMzRoT3DXlH9QHFkp2MMo` is the manual Preview lane.
+
+### Consequences
+
+Merge admits the restriction and the source changes. It authorizes no provider
+write. The open question from #1639 of whether an automatic `main` Preview
+counts as a deployment shrinks when Step 1 reads that exact `main` push as
+covered. Tests: `tests/regressions/ci-fail-closed.test.ts` and
+`tests/unit/docs/production-governance-routing.test.ts`; they verify text and
+configuration only, not provider behavior.

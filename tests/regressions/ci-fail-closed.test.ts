@@ -5326,8 +5326,22 @@ describe('required CI fails closed', () => {
 
       const vercelConfig = JSON.parse(
         await readFile(path.join(process.cwd(), 'vercel.json'), 'utf8')
-      ) as { github?: { autoAlias?: boolean }; installCommand?: string };
+      ) as {
+        git?: { deploymentEnabled?: unknown };
+        github?: { autoAlias?: boolean };
+        installCommand?: string;
+      };
       expect(vercelConfig.github?.autoAlias).toBe(false);
+      // ADR-109: no Git deployment of the original project; coverage of pushes
+      // whose own vercel.json lacks this key is undetermined, and CLI or API
+      // deployments are not covered.
+      expect(vercelConfig.git?.deploymentEnabled).toBe(false);
+      const retiredStaging = await readFile(
+        path.join(process.cwd(), 'scripts/deploy-staging.ps1'),
+        'utf8'
+      );
+      expect(retiredStaging).toContain('Retired (ADR-109)');
+      expect(retiredStaging).not.toMatch(/^\s*(npx\s+)?vercel\b/m);
       expect(vercelConfig.installCommand).toBe('npm ci --include=dev');
 
       const automationSurfaces = await collectAutomationSurfaces();

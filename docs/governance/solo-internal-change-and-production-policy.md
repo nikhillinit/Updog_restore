@@ -164,6 +164,32 @@ custody-role, and preview/restore-isolation evidence floor below. No restore
 producer, provider attestation, or isolation proof is required or claimed. Every
 other floor applies unchanged.
 
+Under ADR-109 no Preview-producing action is admitted on the original Vercel
+project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp` (team
+`team_BzOixmLqQ9VA2mTvFvzBLRWw`). No Git, CLI, API, or integration-created
+Preview deployment of it is authorized, and Production reaches it only through
+Release Production. Its non-main Git Previews have received Neon branches forked
+with data from the production branch `br-cool-tree-advjpopv`. `vercel.json` sets
+`git.deploymentEnabled: false`. Whether that setting covers every push is
+UNDETERMINED: the provider does not document which commit's file gates a push,
+and the setting does not cover deployments created through the CLI or API. The
+Neon default branch stays `br-cool-tree-advjpopv`. This paragraph admits no
+provider write. Each of the following needs separate owner authorization of that
+exact action, and its own admitted route where it touches the original project,
+the production branch, or production credentials: a Disconnect of the Neon
+integration; a `previewDeploymentsDisabled` write; deletion of existing Preview
+deployments or production-parented Neon branches; the isolated demonstration
+resources that ADR-109 describes; and any production credential rotation. A
+later amendment for Disconnect or `previewDeploymentsDisabled` requires
+demonstrated behavior and recovery in an isolated equivalent setup. That
+amendment may accept the concurrency risk of a write for which no
+conditional-update contract is established. It cannot replace missing behavior
+or recovery evidence, and passing documentation tests does not supply that
+evidence. Before any branch of this repository is pushed,
+`git show HEAD:vercel.json` must show `git.deploymentEnabled: false`; a branch
+without it is rebased onto `origin/main` first. Every other floor applies
+unchanged.
+
 For production schema or data action, missing, malformed, stale, mismatched, or
 unresolved managed backup/PITR, isolated-restore freshness, custody-role, or
 preview/restore-isolation evidence yields zero dispatch. A restore reference or

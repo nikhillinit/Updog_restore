@@ -22,6 +22,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-16)
+
+- The governing policy admits no Preview-producing action on the original Vercel
+  project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, whose non-main Git Previews fork
+  production data through the Neon integration (ADR-109, accepted on merge).
+  `vercel.json` sets `git.deploymentEnabled: false` (coverage UNDETERMINED; CLI
+  and API deployments not covered), and `scripts/deploy-staging.ps1` is retired.
+  No provider write is admitted. The owner sequence (isolated Disconnect
+  demonstration, existing-exposure cleanup, conditions for
+  `previewDeploymentsDisabled`) is in `docs/workflows/PRODUCTION_SCRIPTS.md`;
+  each provider step needs separate owner authorization. The Neon default branch
+  is unchanged. A zero deployment result for an exact push counts as covered
+  only inside a bracket (a processed before-control push, a 30-minute gap, no
+  deployment, Vercel status, or Neon branch for the push), confirmed by the next
+  natural deployment when one occurs. Before any push, `HEAD:vercel.json` must
+  carry the key; otherwise rebase onto `origin/main`.
+
 ### Changed (2026-10-12)
 
 - The F_1.21.1 plan starts a new docs-only release vehicle from `336729dda`
