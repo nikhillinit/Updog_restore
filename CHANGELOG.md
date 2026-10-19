@@ -24,6 +24,19 @@ and this project adheres to
 
 ### Changed (2026-10-19)
 
+- Plan
+  `docs/1-plans/F_1.3.6_phase-b-canary-repair-and-successor-vehicle.plan.md` is
+  admitted. It replans the F_1.21.1 release after phase B run 39249160715
+  (attempt 1, release SHA `5c0c0d906`) failed at the staged smoke before
+  promotion: canary 1 enters its dollar fund size into the Capital Committed
+  ($M) field, and the exact-run `fundEvent` residue (6) exceeded the frozen
+  reservation (5). Five slices: read-only diagnosis of the six events against
+  the exact recovery tuple; a source repair PR with regression tests; governed
+  recovery and ADR-108 purge after expiry; a seventh docs-only vehicle with a
+  fresh ADR-107 capture; F_1.21.1 steps 8 to 11. Finding C is resolved for the
+  tracked CLI path. The ADR-103 migration freeze and the Dependabot HOLD (now
+  nine PRs, including #1649) run through successor step 8. No source,
+  reservation, or `vercel.json` change; no push or dispatch authorized.
 - ADR-109 Step 1 in `docs/workflows/PRODUCTION_SCRIPTS.md` now classifies a
   zero-deployment reading whose bracket is not met as either a pending
   observation (conditions (b) to (e) not yet readable; recheck later) or a
