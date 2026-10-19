@@ -22,6 +22,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-19)
+
+- ADR-109 Step 1 in `docs/workflows/PRODUCTION_SCRIPTS.md` now classifies a
+  zero-deployment reading whose bracket is not met as either a pending
+  observation (conditions (b) to (e) not yet readable; recheck later) or a
+  missing historical control (no push at most 1 hour before `PUSHED` produced
+  both a Git-created deployment on this project and a `Vercel` commit status;
+  permanently UNDETERMINED for that push, not repaired by waiting or by an
+  after-control, never resolved by creating a deployment). The condition (e)
+  Neon-branch predicate excludes the production branch id and counts only
+  branches created after `PUSHED`, a defect fix for `main` refs. The `42a3ac8a9`
+  merge push of 2026-10-19 is recorded as the first missing historical control,
+  separate from the two #1645 PR-head readings. `DECISIONS.md` carries the dated
+  ADR-109 amendment and `tests/unit/docs/production-governance-routing.test.ts`
+  pins both phrases and the amended script. Plan
+  `docs/1-plans/F_1.3.5_post-adr109-containment-and-release-resequencing.plan.md`
+  is admitted. No authority change; no `vercel.json` edit.
+
 ### Changed (2026-10-16)
 
 - The governing policy admits no Preview-producing action on the original Vercel

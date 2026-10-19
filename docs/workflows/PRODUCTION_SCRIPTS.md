@@ -608,9 +608,15 @@ A zero result for that exact push counts as covered only when all of these hold:
   minutes exceeds that combined delay more than 100 times.
 - (c) Zero deployments for `SHA`, all states, all pages.
 - (d) No `Vercel` status on `SHA`.
-- (e) No Neon branch for `REF`: no branch of `bold-truth-07145433` whose name
-  contains `REF`, and none with parent `br-cool-tree-advjpopv` created after
-  `PUSHED` except owner restore branches.
+- (e) No Neon branch for `REF`: no non-production branch of
+  `bold-truth-07145433` whose name contains `REF` and was created after
+  `PUSHED`, and no branch with parent `br-cool-tree-advjpopv` created after
+  `PUSHED` except owner restore branches. The name match excludes production
+  branch id `br-cool-tree-advjpopv` and applies the same created-after-`PUSHED`
+  cutoff. This is a defect fix for `main` refs: the production branch is named
+  `main`, so the prior name term always matched it. The cutoff is intentional;
+  older name-matched branches no longer count. It preserves both recorded #1645
+  PR-head readings.
 
 ```bash
 # (a) for the earlier push: Vercel status time; its deployment appears in (c)'s listing
@@ -629,8 +635,14 @@ gh api "repos/$R/commits/$SHA/statuses?per_page=100" --jq '[.[] | select(.contex
 neonctl branches list --project-id bold-truth-07145433 --output json | node -e '
   let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
     const [ref, pushed] = process.argv.slice(1);
-    const hits = JSON.parse(s).filter((b) => b.name.includes(ref)
-      || (b.parent_id === "br-cool-tree-advjpopv" && Date.parse(b.created_at) > Date.parse(pushed) && !b.name.startsWith("restore/")));
+    const hits = JSON.parse(s).filter(
+      (b) =>
+        (b.id !== "br-cool-tree-advjpopv" && b.name.includes(ref)
+          && Date.parse(b.created_at) > Date.parse(pushed))
+        || (b.parent_id === "br-cool-tree-advjpopv"
+          && Date.parse(b.created_at) > Date.parse(pushed)
+          && !b.name.startsWith("restore/"))
+    );
     for (const b of hits) console.log(b.created_at, b.id, b.name);
     console.log("Neon branches for ref:", hits.length);
   });' "$REF" "$PUSHED"
@@ -657,6 +669,17 @@ One reading settles one exact push, never another ref, SHA, or repeated push. On
 2026-10-16 query (c) found both deployments (Git, canceled; API, READY) for
 Dependabot SHA `baf098f073e1dcc501c18f588e6839eb1175a910`, so it detects a fork.
 
+With zero deployments and a bracket that is not met, classify the result as a
+_pending observation_ when (b), (c), (d), or (e) is not yet readable; recheck
+those conditions later. Classify it as a _missing historical control_ when no
+push at most 1 hour before `PUSHED` produced both a Git-created deployment on
+this project and a `Vercel` commit status, making (a) permanently unmet for that
+push. Waiting or an after-control cannot repair that missing historical control:
+the result stays UNDETERMINED, retains the coverage gap, and blocks any action
+requiring that proof. A later natural push needs its own bracket. Never create a
+deployment to obtain a control. The table's "Recheck later" instruction applies
+only to a pending observation.
+
 Worked evidence (read-only; owner check 2026-10-19T02:45Z, re-read 02:53Z):
 
 - Before-control: the #1639 merge `c64771fc4` was pushed at
@@ -669,6 +692,16 @@ Worked evidence (read-only; owner check 2026-10-19T02:45Z, re-read 02:53Z):
   (528 scanned, all states, all pages; the only deployment since 2026-10-17 is
   `dpl_Pguk6ntG…`), zero statuses on either SHA, and six Neon branches, none for
   this ref. Both read covered (before-bracket only); no after-control yet.
+- `main` push `42a3ac8a9` (2026-10-19T03:13:41Z, repository activity
+  `pr_merge`): tree covered yes. (a) is not met: nearest processed push
+  `c64771fc4` at 01:11:49Z was 2h01m52s earlier; the two #1645 branch pushes
+  produced no deployment and are not controls. (b) is met, and (c) to (e) were
+  read at 04:27:17Z, 73 minutes after `PUSHED`: zero deployments since 02:13:41Z
+  across all states and pages (the 00:00Z cross-check found only `dpl_Pguk6ntG…`
+  at 01:11:53Z), zero `Vercel` statuses, and six Neon branches with none created
+  after `PUSHED`. The old (e) name term reports 1 because the production branch
+  is named `main`; the amended predicate reports 0. Classification:
+  UNDETERMINED, missing historical control.
 - Conditional inference: `main` (`c64771fc4`) lacked the key at both pushes. If
   Vercel processed them, the pushed commit's `vercel.json` decides, so branches
   whose tree lacks the key still deploy and fork.

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -361,9 +362,14 @@ describe('production governance documentation routing', () => {
   );
 
   it('defines the reachable zero-result bracket, its after-control, and rebase before push', async () => {
-    const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const guide = await readRepositoryFile(canonicalGuidePath);
+    const flatGuide = flattenWhitespace(guide);
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
-    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const decisionsDocument = await readRepositoryFile('DECISIONS.md');
+    const decisions = flattenWhitespace(decisionsDocument);
+    const adr109 = flattenWhitespace(
+      decisionsDocument.split('## ADR-109:')[1]?.split('\n## ADR-')[0] ?? ''
+    );
 
     expect(flatGuide).toContain('Vercel creates no record when it declines a push');
     expect(flatGuide).toContain(
@@ -374,6 +380,11 @@ describe('production governance documentation routing', () => {
     expect(flatGuide).toContain('(d) No `Vercel` status on `SHA`.');
     expect(flatGuide).toContain('(e) No Neon branch for `REF`');
     expect(flatGuide).toContain('Never create one to confirm.');
+    const step1 = flattenWhitespace(guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '');
+    for (const phrase of ['pending observation', 'missing historical control']) {
+      expect(step1).toContain(phrase);
+      expect(adr109).toContain(phrase);
+    }
     expect(flatGuide).toContain('the result stays "covered (before-bracket only)"');
     expect(flatGuide).toContain('repos/$R/activity?ref=refs/heads/$REF');
     expect(flatGuide).not.toContain('--jq .commit.committer.date');
@@ -390,6 +401,84 @@ describe('production governance documentation routing', () => {
       'a zero result for an exact push counts as covered only inside a bracket'
     );
     expect(decisions).toContain('6. **Rebase before push.**');
+  });
+
+  it.each([
+    canonicalGuidePath,
+    'docs/1-plans/F_1.3.5_post-adr109-containment-and-release-resequencing.plan.md',
+    'CHANGELOG.md',
+  ])(
+    'requires both before-control signals in the missing-control definition in %s',
+    async (path) => {
+      const document = await readRepositoryFile(path);
+      const definition = document
+        .split(/\r?\n\s*\r?\n/)
+        .find((paragraph) => /missing historical control.*(?:when|where|\()/s.test(paragraph));
+
+      expect(definition).toBeDefined();
+      expect(flattenWhitespace(definition ?? '')).toContain(
+        'no push at most 1 hour before `PUSHED` produced both a Git-created deployment on this project and a `Vercel` commit status'
+      );
+    }
+  );
+
+  it('counts only post-push Neon branches in the Step 1 condition (e) script', async () => {
+    const guide = await readRepositoryFile(canonicalGuidePath);
+    const step1 = guide.split('### Step 1:')[1]?.split('### Step 2:')[0] ?? '';
+    const conditionE = step1.slice(step1.indexOf('# (e)'));
+    const script = /neonctl branches list[\s\S]*?node -e '([\s\S]*?)'\s*"\$REF"\s*"\$PUSHED"/.exec(
+      conditionE
+    )?.[1];
+
+    expect(script).toBeDefined();
+    if (!script) return;
+
+    const ref = 'main';
+    const pushed = '2026-10-19T03:13:41Z';
+    const cases = [
+      {
+        fixture: [
+          {
+            id: 'br-cool-tree-advjpopv',
+            name: 'main',
+            parent_id: null,
+            created_at: '2026-10-18T00:00:00Z',
+          },
+        ],
+        count: 0,
+      },
+      {
+        fixture: [
+          {
+            id: 'br-parent-data-after-push',
+            name: 'parent-data',
+            parent_id: 'br-cool-tree-advjpopv',
+            created_at: '2026-10-19T03:14:00Z',
+          },
+        ],
+        count: 1,
+      },
+      {
+        fixture: [
+          {
+            id: 'br-older-main-branch',
+            name: 'main-before-push',
+            parent_id: null,
+            created_at: '2026-10-18T00:00:00Z',
+          },
+        ],
+        count: 0,
+      },
+    ];
+
+    for (const { fixture, count } of cases) {
+      const output = execFileSync('node', ['-e', script, ref, pushed], {
+        input: JSON.stringify(fixture),
+        encoding: 'utf8',
+      });
+
+      expect(output.trim().split('\n').at(-1)).toBe(`Neon branches for ref: ${count}`);
+    }
   });
 
   it('keeps index deployment and scripts routing non-authorizing', async () => {
