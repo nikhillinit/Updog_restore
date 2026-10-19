@@ -39,6 +39,14 @@ and this project adheres to
   pins both phrases and the amended script. Plan
   `docs/1-plans/F_1.3.5_post-adr109-containment-and-release-resequencing.plan.md`
   is admitted. No authority change; no `vercel.json` edit.
+- The F_1.21.1 plan starts the sixth docs-only release vehicle from `e60dd1d43`
+  after #1639 merged at `c64771fc4` without a release and #1645, #1646, and
+  #1647 advanced `main`. Capture 38292779127 is a historical receipt that no
+  release can consume. The plan adds the ADR-109 open risk (Release Production's
+  CLI deploy under `git.deploymentEnabled: false` is UNDETERMINED until the
+  phase B `stage-production` step; a refusal fails closed before promote), the
+  D-2 Dependabot HOLD, and the D-1 slice placement record. No runtime code,
+  dependency, schema, provider configuration, or workflow changes.
 
 ### Changed (2026-10-16)
 
