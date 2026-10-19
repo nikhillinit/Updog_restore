@@ -34,6 +34,7 @@ on:
 concurrency:
   group: current-forecast-neon-${{ inputs.project_id }}-${{ inputs.parent_branch_id }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   rehearse:

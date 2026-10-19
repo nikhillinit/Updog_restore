@@ -25,6 +25,7 @@ permissions:
 concurrency:
   group: prod-schema-reconcile
   cancel-in-progress: false
+  queue: max
 
 jobs:
   recover:

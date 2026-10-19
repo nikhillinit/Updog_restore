@@ -7280,6 +7280,7 @@ describe('required CI fails closed', () => {
     expect(workflow.concurrency).toEqual({
       group: 'release-production',
       'cancel-in-progress': false,
+      queue: 'max',
     });
 
     expect(Object.keys(workflow.jobs ?? {})).toEqual(['recover-canary-run']);
