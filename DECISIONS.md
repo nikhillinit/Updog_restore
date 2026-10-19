@@ -13319,7 +13319,14 @@ tests does not close those gaps."
   result stays covered (before-bracket only). The two PR pushes of 2026-10-19
   read that way while `main` lacked the key. If Vercel processed them, the
   pushed commit's file decides, and branches without the key still fork. One
-  reading never covers other stale branches or later pushes.
+  reading never covers other stale branches or later pushes. When (b), (c), (d),
+  or (e) is not yet readable, the classification is a pending observation and
+  the reading can be rechecked. When no qualifying before-control exists, the
+  classification is a missing historical control, not a pending observation; the
+  `42a3ac8a9` merge push of 2026-10-19 is the first such case. Its UNDETERMINED
+  result permanently retains the coverage gap for that push; waiting or an
+  after-control cannot repair it, later natural pushes require their own
+  bracket, and no deployment may be created to obtain a control.
 - Whether a `main` merge still creates a Git deployment after this change.
 - Whether Release Production's CLI deploy, which passes `githubDeployment=1` and
   `githubCommitRef=main` metadata, is outside the setting as the documented
@@ -13403,3 +13410,11 @@ counts as a deployment shrinks when Step 1 reads that exact `main` push as
 covered. Tests: `tests/regressions/ci-fail-closed.test.ts` and
 `tests/unit/docs/production-governance-routing.test.ts`; they verify text and
 configuration only, not provider behavior.
+
+### Amendment (2026-10-19): missing historical control classification
+
+Amended 2026-10-19: classification of missing historical controls; no authority
+change. The Step 1 distinction between a pending observation and a missing
+historical control clarifies when a bracket can be rechecked. It does not change
+the one-hour threshold, resolve the `42a3ac8a9` reading, or grant production,
+provider, or release authority.
