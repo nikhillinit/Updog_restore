@@ -511,6 +511,8 @@ test('authenticated user can publish one fund and persist a distinct second draf
 // (plan Files item 11). The dev runtime yields five events and one save_draft receipt: the
 // same store change is not persisted there (effect-flush order differs; recorded as a separate
 // finding). The save_draft receipts are attached for the decision table.
+// Same selector as playwright.batch-b.config.ts: the built runtime is what CI runs.
+const BUILT_RUNTIME = process.env.BATCH_B_RUNTIME === 'built';
 const CANARY_SHAPED_FUND = {
   name: 'Batch B Canary Shaped Fund',
   capital: '1',
@@ -628,15 +630,19 @@ test('canary-shaped journey stores a dollar size and a bounded event list', asyn
       firstFundEventTypes: firstFundEvents.rows.map((row) => row.event_type),
     });
     expect(Number(fund.rows[0]?.size)).toBe(1_000_000);
-    expect(events.rows.map((row) => row.event_type)).toEqual([
-      'FUND_CREATED',
-      'DRAFT_SAVED',
-      'DRAFT_SAVED',
-      'DRAFT_SAVED',
-      'PUBLISHED',
-      'CALC_TRIGGERED',
-    ]);
-    expect(saveDrafts.rows).toHaveLength(2);
+    expect(events.rows.map((row) => row.event_type)).toEqual(
+      BUILT_RUNTIME
+        ? [
+            'FUND_CREATED',
+            'DRAFT_SAVED',
+            'DRAFT_SAVED',
+            'DRAFT_SAVED',
+            'PUBLISHED',
+            'CALC_TRIGGERED',
+          ]
+        : ['FUND_CREATED', 'DRAFT_SAVED', 'DRAFT_SAVED', 'PUBLISHED', 'CALC_TRIGGERED']
+    );
+    expect(saveDrafts.rows).toHaveLength(BUILT_RUNTIME ? 2 : 1);
     expect(residue['saveDraftConfigsEqual']).toBe(false);
   } catch (error) {
     await attachScreenshot(page, testInfo, 'batch-b-canary-shaped-failure.png').catch(
