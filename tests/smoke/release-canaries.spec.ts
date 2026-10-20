@@ -626,7 +626,8 @@ test.describe('release mutation canaries', () => {
     await page.getByLabel('Model Inputs As-Of Date').fill(REPORT_AS_OF_DATE);
     await fundSetup.fillFundBasics({
       name: fundName,
-      fundSize: String(fundSize),
+      // The page object fills Capital Committed ($M); fundSize stays in dollars.
+      fundSize: String(fundSize / 1_000_000),
     });
 
     const createResponsePromise = page.waitForResponse(

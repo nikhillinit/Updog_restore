@@ -724,9 +724,8 @@ async function queryWithPool(databaseUrl, createPool, text, values) {
   let client;
   try {
     client = await pool.connect();
-    const result = values === undefined
-      ? await client.query(text)
-      : await client.query(text, values);
+    const result =
+      values === undefined ? await client.query(text) : await client.query(text, values);
     return result?.rows;
   } finally {
     try {
@@ -737,21 +736,31 @@ async function queryWithPool(databaseUrl, createPool, text, values) {
   }
 }
 
-function exactRunSummary(error, options, caps) {
-  return summary({
-    expectedSha: options?.expectedSha ?? null,
-    caps,
-    exitCode: CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE,
-    verdict: 'exact-run-failure',
-    reason: error.message,
-  });
+// The exact run's transitioned counts and reloaded status travel with the
+// failure so an overflow is diagnosable from the summary alone (the workflow
+// deletes the emit-result file). Both are null when the failure preceded them.
+function exactRunSummary(error, options, caps, exactRun = {}) {
+  return {
+    ...summary({
+      expectedSha: options?.expectedSha ?? null,
+      caps,
+      exitCode: CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE,
+      verdict: 'exact-run-failure',
+      reason: error.message,
+    }),
+    exactRun: {
+      residue: exactRun.residue ?? null,
+      runStatus: exactRun.runStatus ?? null,
+    },
+  };
 }
 
 /**
  * Execute the exact-execution completion command with injectable environment
  * and I/O boundaries. Order: validate arguments and policy, prove the exact
- * current execution, transition only that run, bound its residue by the
- * frozen reservation, then evaluate the global cap/TTL/active-state policy.
+ * current execution, transition only that run, reload it to prove the
+ * requested terminal state, bound its residue by the frozen reservation, then
+ * evaluate the global cap/TTL/active-state policy.
  */
 export async function runCanaryResidueAssertion({
   args = process.argv.slice(2),
@@ -804,6 +813,8 @@ export async function runCanaryResidueAssertion({
         : (fundId) =>
             queryWithPool(databaseUrl, createPool, RELEASE_CANARY_EXACT_RUN_QUERY, [fundId]);
 
+    let exactCounts;
+    let reloadedRunStatus;
     try {
       const exactRows = await readExactRunRows(options.expectedFundId);
       const proof = proveExactCurrentExecution({
@@ -813,7 +824,7 @@ export async function runCanaryResidueAssertion({
       });
 
       const transition = transitionRun ?? (await readSharedCanaryRunTransition());
-      const exactCounts = await transition(proof.runId, options.terminalStatus, proof.runVersion, [
+      exactCounts = await transition(proof.runId, options.terminalStatus, proof.runVersion, [
         'created',
         'running',
       ]);
@@ -834,8 +845,9 @@ export async function runCanaryResidueAssertion({
           residue: emittedResidue,
         });
       }
-      assertExactRunResidueWithinReservation(exactCounts, reserved);
 
+      // The transition is committed; prove the terminal state before judging
+      // the bound so an overflow still reports what the run became.
       const reloadedRows = await readExactRunRows(options.expectedFundId);
       if (!Array.isArray(reloadedRows) || reloadedRows.length !== 1) {
         exactProofFailure('exact run reload did not return exactly one row');
@@ -845,11 +857,15 @@ export async function runCanaryResidueAssertion({
       if (reloadedRunId !== proof.runId) {
         exactProofFailure('exact run reload returned a different run');
       }
-      if (reloadedRows[0]?.runStatus !== options.terminalStatus) {
+      reloadedRunStatus =
+        typeof reloadedRows[0]?.runStatus === 'string' ? reloadedRows[0].runStatus : null;
+      if (reloadedRunStatus !== options.terminalStatus) {
         exactProofFailure(
           `exact run did not reach requested terminal status ${options.terminalStatus}`
         );
       }
+
+      assertExactRunResidueWithinReservation(exactCounts, reserved);
     } catch (error) {
       // Transition-fence conflicts carry constructed, non-sensitive messages;
       // anything else stays generic through invalidSummary below.
@@ -858,7 +874,10 @@ export async function runCanaryResidueAssertion({
         error?.name === 'CanaryRunTransitionConflictError' ||
         error?.name === 'CanaryResiduePreflightError'
       ) {
-        result = exactRunSummary(error, options, caps);
+        result = exactRunSummary(error, options, caps, {
+          residue: exactCounts,
+          runStatus: reloadedRunStatus,
+        });
         output(JSON.stringify(result));
         errorOutput(result.reason);
         return result.exitCode;

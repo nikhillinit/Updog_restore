@@ -22,6 +22,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-19)
+
+- F_1.3.6 slice 1 (phase B canary repair: one wizard step, tests, and a release
+  script): release canary 1 now fills Capital Committed ($M) in millions so the
+  deployed reload assertion reads the dollar size it expects;
+  `scripts/release/assert-canary-residue.mjs` reloads the exact run and proves
+  its terminal status before the reservation bound, and an `exact-run-failure`
+  summary now carries the transitioned residue counts and the reloaded status
+  (exit codes and verdicts unchanged). `InvestmentRoundsStepV2` no longer syncs
+  its stage table into the fund store on mount and no longer clears the stored
+  sector profiles and allocations: on the built runtime that mount sync
+  dispatched a second, payload-distinct draft save, the failed production run's
+  sixth `fund_events` row (plan item 4, D-8). Regression coverage: the batch-b
+  canary-shaped browser journey asserts the dollar size and the five-event list
+  on both runtimes, the step 2 unit suite pins mount-without-sync and
+  edit-with-sync, the bootstrap unit suite pins the `1` to `1_000_000` boundary,
+  and the residue script tests cover the reordered readback. No server,
+  contract, hook, or reservation change.
+
 ### Changed (2026-10-19)
 
 - Plan
