@@ -22,6 +22,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-20)
+
+- The F_1.21.1 plan starts the seventh docs-only release vehicle from
+  `c20fabbbe` (F_1.3.6 slice 3) after phase B run 39249160715 at `5c0c0d906`
+  (#1648) failed at the staged smoke before promotion and #1650 and #1653
+  advanced `main`. It records the failed attempt (canonical web unchanged, both
+  workers on `5c0c0d906`, staged deployment unpromoted), Finding C as resolved
+  for the tracked CLI path, the step 8 `/api/version` `commit` reading, the
+  Dependabot HOLD as of 2026-10-20, and the ADR-108 purge of the failed canary
+  run as a precondition of the freeze. The purge outcome is not yet recorded; it
+  replaces the pending paragraph before freeze. No runtime code, dependency,
+  schema, provider configuration, or workflow changes.
+
 ### Fixed (2026-10-19)
 
 - F_1.3.6 slice 1 (phase B canary repair: one wizard step, tests, and a release
