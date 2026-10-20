@@ -22,6 +22,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-20)
+
+- `client/index.html` no longer loads the legacy Replit dev-banner script from
+  `replit.com`. Since 2026-10-20 Replit refuses headless Chromium, and full CI
+  runs 39459237532 and 39480686943 at `445ba5b69` failed `Test e2e` on
+  `net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin` console errors in
+  `route-fund-context-fidelity.spec.ts`, which blocked G3 for the seventh
+  F_1.21.1 vehicle. The page also stops pulling a third-party script into the
+  app origin. The surface-contract matrix source hash for the file is refreshed.
+
 ### Changed (2026-10-20)
 
 - The F_1.21.1 plan starts the seventh docs-only release vehicle from

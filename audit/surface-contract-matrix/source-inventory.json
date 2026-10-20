@@ -513,7 +513,7 @@
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
     "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "c86a881d617a3e52b795cd024c53c92f4e70d93a962c6a2c8deaab02f2e623d6",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
-    "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
+    "client/index.html": "6267a8686b906ba4480f99255fb3b3dbea859c46004737eac7718f95f64c8698",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
     "client/src/app/app-router.tsx": "edefaccac0c7b3f11c27829470c6a904fee40954f7c9821e3ce111e28b2a815d",
     "client/src/main.tsx": "2be1496402b1cb8550e760c0703a1e01893e713fcc50e6401b0c731204435071",
