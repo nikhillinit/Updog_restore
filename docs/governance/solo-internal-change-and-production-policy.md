@@ -77,6 +77,51 @@ durable-write rule requires a separate ADR/PR with complete affected-surface,
 retry/duplicate/concurrency, executable-invariant, independent-verification, and
 rollback evidence.
 
+## One-time Railway credential repair (ADR-110)
+
+For the owner-approved Railway credential repair of October 21, 2026 only, this
+amendment permits the owner to accept the concurrent-writer overwrite risk of
+one replacement of this repository's GitHub environment `Production` secret
+`RAILWAY_TOKEN`. GitHub's documented environment-secret API has no established
+conditional-write contract. A metadata precheck and local exclusive lock are not
+optimistic locking: another UI or API writer can overwrite the secret, or be
+overwritten, between the check and the write. The owner must accept that
+residual risk for this repair before execution. This exception does not apply to
+application, database, deployment, other-secret, or other provider-configuration
+updates.
+
+The canonical procedure is "One-time Railway credential repair (ADR-110)" in
+`docs/workflows/PRODUCTION_SCRIPTS.md`. It requires a fresh, independently
+reviewed helper and durable receipt bound to the original terminal attempt,
+protected source, exact target, and fixed action identifier
+`railway-production-credential-repair-2026-10-21`. The old helper is not
+replayed. For this route only, an explicit owner instruction may authorize one
+delegated local executor to invoke that reviewed helper. This amends the
+requirement for the owner's own local invocation only for this credential
+action; the owner remains the sole issuer of its authority. The first
+token-creation attempt consumes this action's creation budget; the same
+execution may submit at most one GitHub secret write after validating the exact
+returned token. A new label, receipt, process, or host does not replenish either
+budget. Unknown outcomes stop for reconciliation; they never trigger automatic
+recreation, rewrite, rollback, or revocation.
+
+Before creation, require provider token-management recovery, complete token
+inventory reconciliation, unchanged protected scope and secret metadata, no
+active credential-consuming release, and the owner's exclusive operating window.
+That window is an operator commitment, not server-enforced exclusion. Keep both
+existing and newly created tokens. Bound the whole action to five minutes and
+each request to thirty seconds, with no hidden write retries. Credential
+plaintext stays in memory or stdin. Readback and independent review must
+distinguish acknowledged submission from stored-value equality and workflow
+consumption; neither of the latter is proven by secret metadata.
+
+This paragraph explicitly replaces the optimistic-locking requirement only for
+the single named GitHub secret write. It does not waive idempotency, executable
+failure-path and secrecy tests, provider behavior evidence, exact identity
+checks, or the other production-action requirements. Candidate text does not
+self-activate: admission requires the policy/ADR pull request and required
+current-head CI. Merge alone grants no credential-execution authority.
+
 ## Proportional release-governance applicability
 
 Release governance separates source admission, immutable candidate
@@ -239,7 +284,11 @@ Precedence rules:
 - Production-dispatch issuer: the sole issuer of action-scoped production
   authority is the repository owner, via explicit dispatch of the named workflow
   or, for an owner-run route this policy admits by name, via the owner's own
-  local invocation of that route (ADR-105); no agent, plan, or artifact
+  local invocation of that route (ADR-105). ADR-110 permits the owner's explicit
+  instruction to one delegated local executor for the fixed action
+  `railway-production-credential-repair-2026-10-21`, after explicit acceptance
+  of that action's concurrent-writer risk and satisfaction of its admission
+  gates. This exception does not change the issuer: no agent, plan, or artifact
   self-authorizes.
 - Provider coupling: merge to `main` may causally trigger provider deployment
   under current topology (ADR-075). That coupling is a topology fact, not an

@@ -899,6 +899,111 @@ prerequisite.
 - Not tested in staging: an administrator `--admin` merge and a spoofed commit
   status. This control does not claim to stop an administrator.
 
+## One-time Railway credential repair (ADR-110)
+
+This is a credential-only operator procedure for the owner-approved repair of
+October 21, 2026. It is available only after the matching policy amendment and
+ADR-110 are admitted to protected `main`. Before invocation, require recorded
+explicit owner acceptance of the described concurrent-writer risk and explicit
+delegation to one executor for the operating window. Acceptance and delegation
+may be given for the exact reviewed amendment before admission and remain valid
+for that unchanged scope; admission and all execution gates must still pass. A
+delegate cannot issue or expand that authority. Existing approval for the token
+replacement is retained but alone does not establish acceptance of this
+exception. This procedure does not infer that the old token is invalid or
+authorize release execution.
+
+### Scope and admission
+
+- Fixed action identifier: `railway-production-credential-repair-2026-10-21`.
+  Bind it to the original terminal failed attempt, exact protected source,
+  repository, `Production/RAILWAY_TOKEN`, intended Railway project/environment,
+  and one successor token label. Keep provider identifiers in private operator
+  evidence; do not embed them or credentials in source or portable reports.
+- Re-read the admitted policy from protected `main`. Compare live `main` with
+  the reviewed source; reconcile any advance before execution. Verify the
+  protected project, environment, and service bindings, all environment-secret
+  metadata, and release state. Refuse changed targets or metadata and any active
+  release that may consume the credential; do not cancel it to clear the gate.
+- Require the official Railway incident to be resolved, or an official update
+  explicitly clearing token-management operations. Also require two successful
+  read-only inventory/scope samples through the same CLI/account path, at least
+  sixty seconds apart, with complete pagination, identical target identities,
+  and thirty-second request deadlines. Browser or connector availability alone
+  does not satisfy this predicate.
+- Reconcile the original and successor token labels against complete provider
+  inventory. Any existing matching record requires reconciliation before a new
+  creation; absence in an incomplete or degraded inventory is inconclusive.
+- The owner establishes a window with no other credential writers or release
+  dispatchers and appoints one executor. This cannot exclude an uncoordinated
+  GitHub UI/API writer. Record that accepted residual risk; a local lock or
+  timestamp comparison must not be reported as server-side concurrency proof.
+
+### Guarded execution and evidence
+
+Prepare a new helper outside the repository's live working tree, with its digest
+and an independent review bound into a create-only action receipt. Do not edit
+or rerun the old helper. Before real mutation, test the fresh helper with
+synthetic credentials and stubbed provider boundaries: duplicate runners,
+incomplete pagination, target/source drift, wrong token scope, crash/restart at
+each phase, provider acceptance followed by timeout, lost GitHub
+acknowledgement, deadline exhaustion, and credential leakage. Verify zero
+duplicate writes and zero secret material in stdout, stderr, argv, files, and
+receipts. Mocked tests do not prove undocumented provider behavior or GitHub
+conditional-write support.
+
+1. Acquire the action's local exclusive lock and create its durable receipt
+   atomically. All participating executors use the same receipt/lock location;
+   another host is not an independent action. Persist phase transitions before
+   their associated writes. Do not start if this action has an unresolved or
+   consumed attempt marker. Pin the helper, policy, and parent receipt digests.
+2. Recheck source, targets, complete inventory, secret metadata, and release
+   quiescence immediately before creation. Persist `CREATE_ATTEMPTED`, then make
+   one project/environment-scoped token-creation request. Disable write retries.
+   Keep the returned value in memory and validate that exact value with a
+   read-only scope query. Require agreement with one provider metadata record.
+   No secret write follows an absent, malformed, mismatched, or lost value.
+3. Recheck source, targets, release quiescence, and every environment-secret
+   metadata entry immediately before the GitHub write. A change stops the action
+   with the new token retained and GitHub untouched. Persist
+   `SECRET_WRITE_ATTEMPTED` and submit the exact validated token once, using
+   in-memory encryption or stdin, to the single named environment secret. This
+   PUT is unconditional; the admitted exception accepts its overwrite risk.
+4. Require an acknowledged successful write, unchanged secret `created_at`,
+   advanced target `updated_at`, unchanged unrelated secret metadata, unchanged
+   source/targets/release state, the original token still present, and exactly
+   one expected new token record. Revalidate the exact in-memory token's scope.
+   Independent review checks the sanitized receipt and target-only delta.
+
+Use one five-minute action deadline after the recovery samples, including
+preflight, both writes, validation, and any reconciliation. Individual requests
+remain bounded to thirty seconds and the remaining action budget. Deadline
+exhaustion forbids further writes. Reconcile at most once within the remaining
+budget, then stop; an expired budget does not start a new reconciliation window.
+
+### Failure, recovery, and stop
+
+- A creation timeout or lost response records `CREATE_OUTCOME_UNKNOWN`. A
+  read-only complete inventory reconciliation may identify the token, but cannot
+  recover lost plaintext or prove absence during degraded consistency. Stop;
+  never retry with a new label. A token whose value was lost remains in place.
+- A GitHub timeout or lost acknowledgement records
+  `SECRET_WRITE_OUTCOME_UNKNOWN`. Read metadata once if the deadline permits,
+  then stop. A changed timestamp cannot prove that GitHub stored this
+  execution's value. Do not rewrite it.
+- Any failed postcondition records `PARTIAL_OR_UNKNOWN`. Do not undo another
+  writer's update. Preserve both tokens and the receipt for a separately scoped
+  recovery decision. The previous secret plaintext is unavailable, so automatic
+  rollback is not possible. Retaining the old Railway token does not restore
+  GitHub's previous secret value.
+- Success records `CREDENTIAL_REPAIR_VERIFIED`: exact new-token scope verified,
+  submitted value acknowledged, and metadata postconditions verified. Stored
+  plaintext equality and workflow consumption remain unproven. Stop there.
+- No workflow retry/dispatch, environment approval, deployment, promotion,
+  runtime/Redis probe, token revocation/deletion, or Neon action is included. A
+  fresh receipt cannot reset a consumed budget. Any further credential attempt
+  requires a new owner-scoped recovery decision under the then-current policy.
+
 ## Railway worker deploy stage (release-production)
 
 `release-production.yml` is the only tracked provider-mutating caller. Its

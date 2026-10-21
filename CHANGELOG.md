@@ -24,6 +24,14 @@ and this project adheres to
 
 ### Changed (2026-10-21)
 
+- Add owner-approved ADR-110 and a credential-only procedure for one Railway
+  production token replacement. The matching policy amendment permits the owner
+  to accept the GitHub environment-secret API's concurrent-writer overwrite risk
+  for this single write, while retaining provider recovery, exact scope,
+  one-attempt guards, secret handling, and independent verification
+  requirements. Unmerged text grants no execution authority; no credentials or
+  provider state change.
+
 - The F_1.21.1 plan prepares the eighth docs-only release vehicle from
   `cb786a386` after #1654's seventh vehicle merged at `445ba5b69` without a
   release and #1655 admitted the exact CI repair. #1654 and any baseline chain

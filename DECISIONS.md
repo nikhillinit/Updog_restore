@@ -13418,3 +13418,120 @@ change. The Step 1 distinction between a pending observation and a missing
 historical control clarifies when a bracket can be rechecked. It does not change
 the one-hour threshold, resolve the `42a3ac8a9` reading, or grant production,
 provider, or release authority.
+
+## ADR-110: One-Time Railway Credential Repair Without GitHub CAS
+
+**Date:** 2026-10-21 **Status:** Owner-approved; effective only after policy/ADR
+admission to protected main
+
+### Context
+
+The owner approved creation of one Railway project/environment-scoped token,
+read-only validation of that exact token, and replacement of only this
+repository's GitHub environment `Production` secret `RAILWAY_TOKEN`. The first
+creation attempt terminated without a returned value. That attempt and its
+helper remain terminal; its receipt is parent evidence, not a replay vehicle.
+Existing-token validity is unproven. The provider incident is an independent
+recovery prerequisite, not proof that an existing credential is bad.
+
+GitHub's documented environment-secret PUT accepts `encrypted_value` and
+`key_id` and acknowledges creation or update. No documented expected-version
+input or server-enforced stale-write rejection contract has been established.
+The repository's retained optimistic-locking mandate therefore blocks the
+approved replacement. Local locking, preflight metadata, a browser form, and an
+undocumented conditional header cannot honestly be called GitHub CAS.
+
+References: GitHub REST Actions secrets, "Create or update an environment
+secret" and "Get an environment secret"; the protected governing policy's
+retained controls and amendment rule. Provider contract observations are
+time-specific and must be refreshed before implementation.
+
+### Decision
+
+Adopt a one-time, explicit concurrency-risk exception for the single named
+GitHub secret write, coupled to the canonical "One-time Railway credential
+repair (ADR-110)" procedure in `docs/workflows/PRODUCTION_SCRIPTS.md`. The owner
+must accept the residual overwrite risk. The existing token-replacement approval
+is retained, but does not silently stand in for acceptance of this new
+exception. Unmerged text, agent review, or a local receipt cannot activate it.
+Required current-head CI and policy/ADR source admission remain necessary.
+
+The fixed action identifier is
+`railway-production-credential-repair-2026-10-21`. Bind a fresh reviewed helper
+and create-only receipt to the original attempt, protected source, exact
+repository/environment/secret and Railway target. The owner may explicitly
+delegate this local credential action to one executor. This is a narrow
+amendment to the owner-local-invocation requirement, not a new authority issuer
+or a release dispatcher.
+
+Require official token-management recovery plus two successful complete
+read-only samples through the same CLI/account path, no active credential
+consumer, an owner-established operating window, immediate source/target/
+metadata rechecks, and a shared local exclusive lock. The helper makes at most
+one new-token creation attempt and one secret-write attempt after exact-token
+scope validation. Durable pre-write phase markers, bounded deadlines, disabled
+write retries, and crash/restart tests prevent participating executors from
+replaying an uncertain mutation. Another receipt, label, process, or host does
+not replenish the action budget.
+
+Retain both tokens, use in-memory/stdin secret handling, and stop after an
+acknowledged write and validated metadata readback or after a partial/unknown
+outcome. No token revocation, workflow execution, runtime probe, database
+action, deployment, or promotion is included.
+
+### Affected surfaces and verification
+
+| Surface                                  | Change and evidence required                                                                                                                 |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Governing policy                         | Exact one-write exception and delegated local invocation; all other optimistic-locking and production controls retained.                     |
+| Canonical production guide               | Scope, recovery predicates, one-attempt state transitions, deadlines, failure containment, and stop conditions.                              |
+| Fresh external helper and receipt        | Separate implementation/review gate before mutation; helper/parent/source digests, atomic initialization and transitions, shared local lock. |
+| Railway token API                        | Scoped creation once, exact returned-value validation, complete metadata reconciliation, preserve existing credentials.                      |
+| GitHub environment-secret API            | One unconditional PUT; fresh metadata preflight and target-only readback; no claim of CAS or plaintext readback.                             |
+| Application, database, release workflows | No behavioral or authority change.                                                                                                           |
+
+Existing documentation/governance tests and independent scope review validate
+this proposal's consistency only. They do not prove provider recovery or a
+working credential. Before execution, the fresh helper must pass synthetic
+duplicate-runner, wrong-scope, incomplete-inventory, source/target drift,
+accepted-then-timeout, lost-acknowledgement, deadline, restart, and fake-secret
+leakage cases. Review the actual documented provider requests and denial paths;
+mock tests cannot establish undocumented API behavior. The proposal contains no
+credential executable and is not an execution-ready receipt.
+
+### Accepted risks
+
+- An uncoordinated GitHub writer can change the secret after the preflight read
+  or after the acknowledged PUT. Local locks and an operating-window commitment
+  do not exclude that writer. Metadata comparisons detect some drift but cannot
+  prevent it or prove the final secret value.
+- GitHub does not return stored secret plaintext. Successful submission plus
+  metadata readback does not prove stored-value equality or workflow use.
+- A newly created Railway token may remain unused after a later failure or
+  process crash. Its value can be irrecoverably lost. Preserve its record for
+  explicit recovery; do not create another token to conceal that state.
+- Previous GitHub secret plaintext is unavailable. Preserving the old Railway
+  token does not provide automatic rollback of the GitHub value.
+
+### Alternatives
+
+- Keep the current secret until GitHub provides a documented CAS contract. This
+  retains the strongest concurrency rule but leaves this repair blocked.
+- Treat local locking, a timestamp check, or the UI as optimistic locking.
+  Rejected: none prevents a stale write by another GitHub actor.
+- Reset services, delete the existing token/secret, or weaken locking globally.
+  Rejected: those actions add disruption or expand the exception without
+  resolving the provider contract.
+
+### Rollback and revisit
+
+Before any credential mutation, withdraw the proposal or revert the amendment
+through the normal policy/ADR process. After a credential mutation, retain the
+receipt and tokens; do not blindly restore, rewrite, or revoke. Any repair of an
+unknown/partial result needs a separately scoped owner recovery decision under
+the then-current policy. A revert cannot restore unknown prior plaintext.
+
+Revisit if GitHub offers a documented conditional-write contract, another writer
+is introduced, or the single action budget is consumed. This exception is not a
+standing credential-rotation exemption. Source admission does not certify the
+helper, clear provider recovery, or authorize release execution.
