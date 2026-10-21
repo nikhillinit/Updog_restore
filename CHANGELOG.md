@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-21)
+
+- The F_1.21.1 plan prepares the eighth docs-only release vehicle from
+  `cb786a386` after #1654's seventh vehicle merged at `445ba5b69` without a
+  release and #1655 admitted the exact CI repair. #1654 and any baseline chain
+  bound to it are historical and non-reusable. The plan records the completed
+  ADR-108 purge and the 2026-10-21T04:49:53.704886Z read-only global proof: two
+  release-canary rows, both purged; zero unpurged, active, or expired rows; all
+  eleven residue caps passing. These prove recovery readiness only. A fresh
+  frozen head, plan hash, baseline capture, original-PR CI, admission, exact-SHA
+  certification, phase A, phase B, and promotion proof remain required. Current
+  freezes and HOLDs remain. No runtime code, dependency, schema, provider
+  configuration, or workflow changes.
+
 ### Fixed (2026-10-20)
 
 - `client/index.html` no longer loads the legacy Replit dev-banner script from
