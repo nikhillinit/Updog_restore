@@ -251,6 +251,9 @@ function collectCurrentTypeScriptState(runCompiler = runTypeScriptCompiler) {
       failure.signal
       || ![1, 2].includes(failure.status)
       || parseTypeScriptErrors(failure.output).length === 0
+      || failure.output.split('\n').some(line =>
+        /\berror\s+TS\d+:/.test(line) && parseTypeScriptErrors(line).length === 0
+      )
     );
 
   console.log(`Found ${errors.length} TypeScript errors`);

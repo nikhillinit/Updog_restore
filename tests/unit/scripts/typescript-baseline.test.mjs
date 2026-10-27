@@ -17,7 +17,7 @@ function emptyBaseline() {
   return collectCurrentTypeScriptState(() => '').baseline;
 }
 
-function loadScriptWithCompiler(execSync, command) {
+function loadScriptWithCompiler(execSync, command, baseline) {
   const loadedModule = { exports: {} };
   const processMock = {
     argv: ['node', scriptPath, command],
@@ -27,7 +27,16 @@ function loadScriptWithCompiler(execSync, command) {
   const writeFileSync = vi.fn();
   const requireMock = name => {
     if (name === 'child_process') return { execSync };
-    if (name === 'fs') return { ...fs, writeFileSync };
+    if (name === 'fs') return {
+      ...fs,
+      readFileSync(file, ...args) {
+        if (baseline && String(file).endsWith('.tsc-baseline.json')) {
+          return JSON.stringify(baseline);
+        }
+        return fs.readFileSync(file, ...args);
+      },
+      writeFileSync,
+    };
     return require(name);
   };
   requireMock.main = command ? loadedModule : undefined;
@@ -141,6 +150,37 @@ describe('TypeScript baseline collection', () => {
       expect(state.compilerFailures).toEqual([]);
       expect(checkBaseline({ baseline: state.baseline, collectState: () => state })).toBe(0);
       expect(checkBaseline({ baseline: emptyBaseline(), collectState: () => state })).toBe(1);
+    }
+  );
+
+  it.each(
+    [1, 2].flatMap(status =>
+      ['check', 'save', 'progress'].map(command => [status, command])
+    )
+  )(
+    'fails %s diagnostic exit for mixed handled and unhandled diagnostics in %s',
+    (status, command) => {
+      const positioned =
+        "server/tsconfig.json(6,15): error TS5110: Option 'module' must be set to 'NodeNext' when option 'moduleResolution' is set to 'NodeNext'.\n";
+      const mixed =
+        "error TS2688: Cannot find type definition file for 'missing-types'.\n" +
+        "  The file is in the program because:\n" +
+        "    Entry point of type library 'missing-types' specified in compilerOptions\n" +
+        positioned;
+      const compiler = output => vi.fn(command => {
+        if (!command.includes('tsconfig.server.json')) return '';
+        throw Object.assign(new Error('TypeScript diagnostics'), {
+          status,
+          signal: null,
+          stdout: output,
+        });
+      });
+      const known = loadScriptWithCompiler(compiler(positioned));
+      const baseline = known.exports.collectCurrentTypeScriptState().baseline;
+      const loaded = loadScriptWithCompiler(compiler(mixed), command, baseline);
+
+      expect(loaded.processMock.exitCode).toBe(1);
+      expect(loaded.writeFileSync).not.toHaveBeenCalled();
     }
   );
 
