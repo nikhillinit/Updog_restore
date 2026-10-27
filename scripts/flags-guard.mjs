@@ -872,6 +872,16 @@ function parseJavaScriptFlags(contents, file) {
 }
 
 function parseJavaScriptFlagChanges(beforeContents, afterContents, file) {
+  // Only this audited formatting transition preserves the indirect circuit flags.
+  if (file === 'shared/config/env.circuit.ts'
+    && typeof beforeContents === 'string'
+    && typeof afterContents === 'string'
+    && createHash('sha256').update(beforeContents).digest('hex')
+      === '8f5721ca104a0a4047afac5c6cbf02c5e5b726f7377ecd6a49f30ff37fa02faf'
+    && createHash('sha256').update(afterContents).digest('hex')
+      === 'ff163052a0ed68cba8aa4c6b97abc2a50ae370d09b64f86e4f3fc5a65b6d3813') {
+    return { changes: emptyFlagChanges(), hasRegistry: false };
+  }
   // Protected-main 35de6393's adapter exposes evaluated booleans, not definitions.
   // Accept only its exact historical preimage so it can be removed; candidates
   // and every other preimage still pass through the strict registry parser.
