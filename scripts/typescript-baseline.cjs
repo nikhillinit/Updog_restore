@@ -62,41 +62,48 @@ function createEmptyProjectEntry(timestamp) {
  * Execute TypeScript compiler for a specific project
  * @param {string} project - Project name
  * @param {string} configFile - TypeScript config file path
- * @returns {string} - TypeScript compiler output (stdout + stderr)
+ * @returns {{ output: string, status: number, signal: string|null }} - Compiler result
  */
 function runProjectCheck(project, configFile) {
   try {
     // Success case: no errors
-    return execSync(
+    const output = execSync(
       `npx tsc -p ${configFile} --noEmit --pretty false 2>&1`,
       { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }  // 10MB buffer
     );
+    return { output, status: 0, signal: null };
   } catch (error) {
     // Expected case: tsc exits with non-zero code when errors exist
     // When using 2>&1, all output is in stdout
-    if (error.stdout) {
-      return error.stdout.toString();
-    }
-    return '';
+    return {
+      output: error.stdout ? error.stdout.toString() : '',
+      status: error.status ?? 1,
+      signal: error.signal ?? null,
+    };
   }
 }
 
 /**
  * Execute TypeScript compiler for all projects
- * @returns {string} - Combined TypeScript compiler output
+ * @returns {{ output: string, failures: Array }} - Combined output and failed process results
  */
 function runTypeScriptCompiler() {
   let combinedOutput = '';
+  const failures = [];
 
   for (const [project, configFile] of Object.entries(PROJECTS)) {
     console.log(`  Checking ${project} (${configFile})...`);
-    const output = runProjectCheck(project, configFile);
+    const result = runProjectCheck(project, configFile);
+    const { output } = result;
     if (output) {
       combinedOutput += output + '\n';
     }
+    if (result.status !== 0 || result.signal) {
+      failures.push({ project, ...result });
+    }
   }
 
-  return combinedOutput;
+  return { output: combinedOutput, failures };
 }
 
 /**
@@ -215,14 +222,39 @@ function parseTypeScriptErrors(output) {
  * (hash-only) representation and the full detailed error list from that
  * single collection.
  * @param {Function} [runCompiler] - Compiler runner (injectable for tests)
- * @returns {{ baseline: Object, errors: Array }} - Baseline object and detailed errors
+ * @returns {{ baseline: Object, errors: Array, compilerFailures: Array }} - Collected state
  */
 function collectCurrentTypeScriptState(runCompiler = runTypeScriptCompiler) {
   console.log('Running TypeScript compilation...');
   const startTime = Date.now();
 
-  const output = runCompiler();
+  let compilation;
+  try {
+    compilation = runCompiler();
+  } catch (error) {
+    compilation = {
+      output: '',
+      failures: [{
+        project: 'compiler',
+        output: '',
+        status: error.status ?? 1,
+        signal: error.signal ?? null,
+        message: error.message,
+      }],
+    };
+  }
+  const output = typeof compilation === 'string' ? compilation : compilation.output;
   const errors = parseTypeScriptErrors(output);
+  const compilerFailures = typeof compilation === 'string'
+    ? []
+    : compilation.failures.filter(failure =>
+      failure.signal
+      || ![1, 2].includes(failure.status)
+      || parseTypeScriptErrors(failure.output).length === 0
+      || failure.output.split('\n').some(line =>
+        /\berror\s+TS\d+:/.test(line) && parseTypeScriptErrors(line).length === 0
+      )
+    );
 
   console.log(`Found ${errors.length} TypeScript errors`);
 
@@ -265,7 +297,16 @@ function collectCurrentTypeScriptState(runCompiler = runTypeScriptCompiler) {
 
   baseline.elapsedMs = Date.now() - startTime;
 
-  return { baseline, errors };
+  return { baseline, errors, compilerFailures };
+}
+
+function reportCompilerFailures(compilerFailures) {
+  console.error('\n[FAIL] TypeScript compiler execution failed');
+  for (const failure of compilerFailures) {
+    const outcome = failure.signal ? `signal ${failure.signal}` : `exit ${failure.status}`;
+    console.error(`  ${failure.project}: ${outcome}`);
+    if (failure.message) console.error(`  ${failure.message}`);
+  }
 }
 
 /**
@@ -293,7 +334,12 @@ function loadBaseline() {
  * Save baseline to disk
  */
 function saveBaseline() {
-  const { baseline } = collectCurrentTypeScriptState();
+  const { baseline, compilerFailures } = collectCurrentTypeScriptState();
+
+  if (compilerFailures.length > 0) {
+    reportCompilerFailures(compilerFailures);
+    return 1;
+  }
 
   fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
 
@@ -307,6 +353,8 @@ function saveBaseline() {
   for (const [project, data] of Object.entries(baseline.projects)) {
     console.log(`   ${project.padEnd(10)} ${data.total.toString().padStart(4)} errors`);
   }
+
+  return 0;
 }
 
 /**
@@ -317,7 +365,12 @@ function saveBaseline() {
  * @returns {number} - Exit code (0 = no new errors, 1 = new errors found)
  */
 function checkBaseline({ baseline = loadBaseline(), collectState = collectCurrentTypeScriptState } = {}) {
-  const { baseline: current, errors } = collectState();
+  const { baseline: current, errors, compilerFailures = [] } = collectState();
+
+  if (compilerFailures.length > 0) {
+    reportCompilerFailures(compilerFailures);
+    return 1;
+  }
 
   // Build hash sets for comparison
   const baselineHashes = new Set();
@@ -402,7 +455,12 @@ function checkBaseline({ baseline = loadBaseline(), collectState = collectCurren
  */
 function showProgress() {
   const baseline = loadBaseline();
-  const { baseline: current } = collectCurrentTypeScriptState();
+  const { baseline: current, compilerFailures } = collectCurrentTypeScriptState();
+
+  if (compilerFailures.length > 0) {
+    reportCompilerFailures(compilerFailures);
+    return 1;
+  }
 
   console.log('\nTypeScript Error Progress\n');
   console.log('─'.repeat(70));
@@ -439,6 +497,8 @@ function showProgress() {
   console.log('─'.repeat(70));
   console.log(`\nBaseline last updated: ${new Date(baseline.timestamp).toLocaleString()}`);
   console.log(`Check completed in: ${current.elapsedMs}ms\n`);
+
+  return 0;
 }
 
 // ============================================================================
@@ -458,15 +518,13 @@ function printUsage() {
 function main(command = process.argv[2]) {
   switch (command) {
     case 'save':
-      saveBaseline();
-      return 0;
+      return saveBaseline();
 
     case 'check':
       return checkBaseline();
 
     case 'progress':
-      showProgress();
-      return 0;
+      return showProgress();
 
     default:
       printUsage();

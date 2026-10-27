@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "e22ad560c8accc0e5c1da912bc4a25f5d28a0450",
-    "snapshot_id": "snapshot:90b07145f6461bcee8c453f00a6ecc44b59ee0ec1a8e5163e4be99d8c9a08a2e"
+    "git_head": "fb357451b01efb5b383a592affd31ee85e485991",
+    "snapshot_id": "snapshot:1b2e74640f6d5fbae29d0767bae9f167e935d970c959a299b9e3fab999484a47"
   },
   "rows": [
     {
@@ -95,7 +95,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:279 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:286 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/transactions/:transactionId",
@@ -106,7 +106,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:279",
+              "site": "server/routes/cashflow.ts:286",
               "role": "handler",
               "effective_mount_order": 4
             }
@@ -138,7 +138,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:279"
+        "server/routes/cashflow.ts:286"
       ],
       "source_mapping": {
         "kg_node": "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -1478,6 +1478,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:DELETE:/api/monte-carlo/cache",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -1550,7 +1559,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:487",
+              "site": "server/routes/portfolio-intelligence.ts:496",
               "role": "handler",
               "effective_mount_order": 565
             }
@@ -1583,7 +1592,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:487"
+        "server/routes/portfolio-intelligence.ts:496"
       ],
       "source_mapping": {
         "kg_node": "api:DELETE:/api/portfolio/strategies/:id",
@@ -5569,7 +5578,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:321 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:328 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/capital-calls",
@@ -5580,7 +5589,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:321",
+              "site": "server/routes/cashflow.ts:328",
               "role": "handler",
               "effective_mount_order": 5
             }
@@ -5612,7 +5621,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:321"
+        "server/routes/cashflow.ts:328"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/cashflow/:fundId/capital-calls",
@@ -5709,7 +5718,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:509 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:516 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/cash-position",
@@ -5720,7 +5729,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:509",
+              "site": "server/routes/cashflow.ts:516",
               "role": "handler",
               "effective_mount_order": 8
             }
@@ -5752,7 +5761,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:509"
+        "server/routes/cashflow.ts:516"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/cashflow/:fundId/cash-position",
@@ -5849,7 +5858,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:402 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:409 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/liquidity-forecast",
@@ -5860,7 +5869,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:402",
+              "site": "server/routes/cashflow.ts:409",
               "role": "handler",
               "effective_mount_order": 7
             }
@@ -5892,7 +5901,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:402"
+        "server/routes/cashflow.ts:409"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/cashflow/:fundId/liquidity-forecast",
@@ -5989,7 +5998,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:595 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:602 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/recurring-expenses",
@@ -6000,7 +6009,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:595",
+              "site": "server/routes/cashflow.ts:602",
               "role": "handler",
               "effective_mount_order": 9
             }
@@ -6032,7 +6041,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:595"
+        "server/routes/cashflow.ts:602"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/cashflow/:fundId/recurring-expenses",
@@ -6129,7 +6138,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:109 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:116 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/transactions",
@@ -6140,7 +6149,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:109",
+              "site": "server/routes/cashflow.ts:116",
               "role": "handler",
               "effective_mount_order": 1
             }
@@ -6172,7 +6181,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:109"
+        "server/routes/cashflow.ts:116"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/cashflow/:fundId/transactions",
@@ -46086,6 +46095,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:GET:/api/monte-carlo/funds/:fundId/simulate",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -46248,6 +46266,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:GET:/api/monte-carlo/health",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -46406,6 +46433,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:GET:/api/monte-carlo/jobs/:jobId",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -46564,6 +46600,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:GET:/api/monte-carlo/jobs/:jobId/stream",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -46722,6 +46767,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:GET:/api/monte-carlo/performance",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -48652,7 +48706,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:980",
+              "site": "server/routes/portfolio-intelligence.ts:989",
               "role": "handler",
               "effective_mount_order": 574
             }
@@ -48685,7 +48739,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:980"
+        "server/routes/portfolio-intelligence.ts:989"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/portfolio/forecasts/:scenarioId",
@@ -48793,7 +48847,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:1185",
+              "site": "server/routes/portfolio-intelligence.ts:1196",
               "role": "handler",
               "effective_mount_order": 578
             }
@@ -48825,7 +48879,7 @@
       "environment": "local-only",
       "owner": "analytics",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:1185",
+        "server/routes/portfolio-intelligence.ts:1196",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -48934,7 +48988,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:831",
+              "site": "server/routes/portfolio-intelligence.ts:840",
               "role": "handler",
               "effective_mount_order": 571
             }
@@ -48967,7 +49021,7 @@
       "owner": "analytics",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:831"
+        "server/routes/portfolio-intelligence.ts:840"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/portfolio/reserves/strategies/:fundId",
@@ -49075,7 +49129,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:619",
+              "site": "server/routes/portfolio-intelligence.ts:628",
               "role": "handler",
               "effective_mount_order": 567
             }
@@ -49108,7 +49162,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:619"
+        "server/routes/portfolio-intelligence.ts:628"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/portfolio/scenarios/:fundId",
@@ -49216,7 +49270,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:337",
+              "site": "server/routes/portfolio-intelligence.ts:346",
               "role": "handler",
               "effective_mount_order": 563
             }
@@ -49248,7 +49302,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:337",
+        "server/routes/portfolio-intelligence.ts:346",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -49358,7 +49412,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:1074",
+              "site": "server/routes/portfolio-intelligence.ts:1083",
               "role": "handler",
               "effective_mount_order": 576
             }
@@ -49390,7 +49444,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:1074",
+        "server/routes/portfolio-intelligence.ts:1083",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -62868,7 +62922,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:360 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:367 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/capital-calls",
@@ -62879,7 +62933,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:360",
+              "site": "server/routes/cashflow.ts:367",
               "role": "handler",
               "effective_mount_order": 6
             }
@@ -62911,7 +62965,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:360"
+        "server/routes/cashflow.ts:367"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/cashflow/:fundId/capital-calls",
@@ -63008,7 +63062,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:644 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:651 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/recurring-expenses",
@@ -63019,7 +63073,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:644",
+              "site": "server/routes/cashflow.ts:651",
               "role": "handler",
               "effective_mount_order": 10
             }
@@ -63051,7 +63105,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:644"
+        "server/routes/cashflow.ts:651"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/cashflow/:fundId/recurring-expenses",
@@ -63148,7 +63202,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:191 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:198 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/transactions",
@@ -63159,7 +63213,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:191",
+              "site": "server/routes/cashflow.ts:198",
               "role": "handler",
               "effective_mount_order": 2
             }
@@ -63191,7 +63245,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:191"
+        "server/routes/cashflow.ts:198"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/cashflow/:fundId/transactions",
@@ -86130,7 +86184,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/reallocation.ts:473 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:464 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/commit",
@@ -86141,12 +86195,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:473",
+              "site": "server/routes/reallocation.ts:464",
               "role": "guard",
               "effective_mount_order": 46
             },
             {
-              "site": "server/routes/reallocation.ts:473",
+              "site": "server/routes/reallocation.ts:464",
               "role": "handler",
               "effective_mount_order": 46
             }
@@ -86156,8 +86210,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 483,
-              "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
+              "line": 474,
+              "evidence": "server/routes/reallocation.ts:474 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86196,7 +86250,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/reallocation.ts:473 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:464 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/commit",
@@ -86207,12 +86261,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:473",
+              "site": "server/routes/reallocation.ts:464",
               "role": "guard",
               "effective_mount_order": 46
             },
             {
-              "site": "server/routes/reallocation.ts:473",
+              "site": "server/routes/reallocation.ts:464",
               "role": "handler",
               "effective_mount_order": 46
             }
@@ -86222,8 +86276,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 483,
-              "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
+              "line": 474,
+              "evidence": "server/routes/reallocation.ts:474 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86265,7 +86319,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/reallocation.ts:473"
+        "server/routes/reallocation.ts:464"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reallocation/commit",
@@ -86311,8 +86365,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/reallocation.ts",
-          "line": 483,
-          "evidence": "server/routes/reallocation.ts:483 enforces provided fund scope"
+          "line": 474,
+          "evidence": "server/routes/reallocation.ts:474 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -86341,9 +86395,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
+            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:30",
             "assertion_confirmed": false,
-            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
+            "test_file_sha256": "ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reallocation/commit",
@@ -86359,9 +86413,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
+            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:30",
             "assertion_confirmed": false,
-            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
+            "test_file_sha256": "ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea"
           }
         ],
         "manual": [
@@ -86380,14 +86434,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "60d1ad342ce517ae5bf4eec76fe2a36f996ef443e8df853cdc8c48cd325af3fa",
+      "decision_evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST commit source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:667-670; original error logging remains at :656-657; requirePartnerWrite and write-scoped fund authorization remain at :465-476; typed VERSION_CONFLICT 409 remains at :527-533 and :656-665; typed VALIDATION_FAILED 400 remains at :550-555 and :656-665. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: cross-fund and restricted-principal guards tests/unit/routes/reallocation.contract.test.ts:91-102 and :258-267; partner/admin success :269-295; hostile database/SQL text is excluded from fixed 500 response while the original error is logged :297-320. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains stale-row 409 with no updates or audit writes at tests/integration/reallocation.pg.test.ts:333-350. Contract remains in-contract, writes, soft destructive, staged-only, gp-team. Automated review evidence only; no human approval or merge/release authority asserted.",
+      "contract_fingerprint": "50d35858f8feda484ee026da72dee573b176137caff959b480a18c1ea18b33ab",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/reallocation.ts=e0a1a839cf4f72d3069bd5259dece8c07c359741ba00707aeff36aa4c4f1306d",
+        "server/routes/reallocation.ts=05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -86429,7 +86483,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/reallocation.ts:357 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:348 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/preview",
@@ -86440,7 +86494,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:357",
+              "site": "server/routes/reallocation.ts:348",
               "role": "handler",
               "effective_mount_order": 45
             }
@@ -86450,8 +86504,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 364,
-              "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
+              "line": 355,
+              "evidence": "server/routes/reallocation.ts:355 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86476,7 +86530,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/reallocation.ts:357 runtime registration",
+          "mount_evidence": "server/routes/reallocation.ts:348 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reallocation/preview",
@@ -86487,7 +86541,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/reallocation.ts:357",
+              "site": "server/routes/reallocation.ts:348",
               "role": "handler",
               "effective_mount_order": 45
             }
@@ -86497,8 +86551,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/reallocation.ts",
-              "line": 364,
-              "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
+              "line": 355,
+              "evidence": "server/routes/reallocation.ts:355 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -86526,7 +86580,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/reallocation.ts:357"
+        "server/routes/reallocation.ts:348"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reallocation/preview",
@@ -86559,8 +86613,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/reallocation.ts",
-          "line": 364,
-          "evidence": "server/routes/reallocation.ts:364 enforces provided fund scope"
+          "line": 355,
+          "evidence": "server/routes/reallocation.ts:355 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -86577,7 +86631,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/reallocation.ts:355, server/routes/reallocation.ts:355 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -86585,7 +86639,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/reallocation.ts:355, server/routes/reallocation.ts:355 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -86593,7 +86647,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/reallocation.ts:364, server/routes/reallocation.ts:364 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/reallocation.ts:355, server/routes/reallocation.ts:355 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -86613,9 +86667,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
+            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:30",
             "assertion_confirmed": false,
-            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
+            "test_file_sha256": "ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reallocation/preview",
@@ -86631,9 +86685,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:28",
+            "assertion_evidence": "tests/unit/routes/reallocation.contract.test.ts:30",
             "assertion_confirmed": false,
-            "test_file_sha256": "02143dc6e5dc98e566d91daf74723ddac79a2403105c750f8c91b686014455e4"
+            "test_file_sha256": "ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea"
           }
         ],
         "manual": [
@@ -86661,14 +86715,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "af7ca32850fb002831de60a8c7b525367fd9af8b78fd4952bc6bb6d0b7e24ec6",
+      "decision_evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST preview source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:442-447; original error logging remains at :442-443; fund-scope authorization and typed 400 request errors remain at :350-365; typed stale-version 409 remains at :392-397. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: canonical-ID/body 400 and cross-fund 403 paths tests/unit/routes/reallocation.contract.test.ts:71-114; hostile database/table and SQL text is excluded from fixed 500 response while original error is logged :185-210; sorted stale 409 response remains :212-256. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains preview success and stale-row 409 at tests/integration/reallocation.pg.test.ts:293-315. Contract remains in-contract, reads-only, non-destructive, prod-safe, gp-team. Automated review evidence only; no human approval or merge/release authority asserted.",
+      "contract_fingerprint": "48ae2b9fe70208895a4f502f417c946b63471fadd8c98adee3a051c462c5890f",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/reallocation.ts=e0a1a839cf4f72d3069bd5259dece8c07c359741ba00707aeff36aa4c4f1306d",
+        "server/routes/reallocation.ts=05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -96026,7 +96080,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/liquidity.ts:117 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:118 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/analyze",
@@ -96037,7 +96091,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:117",
+              "site": "server/routes/liquidity.ts:118",
               "role": "handler",
               "effective_mount_order": 41
             }
@@ -96066,7 +96120,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/liquidity.ts:117 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:118 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/analyze",
@@ -96077,7 +96131,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:117",
+              "site": "server/routes/liquidity.ts:118",
               "role": "handler",
               "effective_mount_order": 41
             }
@@ -96109,7 +96163,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/liquidity.ts:117"
+        "server/routes/liquidity.ts:118"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/liquidity/analyze",
@@ -96158,12 +96212,30 @@
           },
           {
             "row": "api:POST:/api/liquidity/analyze",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/analyze",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/liquidity-status-filters.test.ts:3",
             "assertion_confirmed": false,
             "test_file_sha256": "77de17fdd96da239d995b5dde9e3dd062ab65ed0de82fd04d4809892a4279cb6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/analyze",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
           }
         ],
         "manual": []
@@ -96217,7 +96289,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/liquidity.ts:135 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:136 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/forecast",
@@ -96228,7 +96300,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:135",
+              "site": "server/routes/liquidity.ts:136",
               "role": "handler",
               "effective_mount_order": 42
             }
@@ -96257,7 +96329,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/liquidity.ts:135 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:136 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/forecast",
@@ -96268,7 +96340,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:135",
+              "site": "server/routes/liquidity.ts:136",
               "role": "handler",
               "effective_mount_order": 42
             }
@@ -96300,7 +96372,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/liquidity.ts:135"
+        "server/routes/liquidity.ts:136"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/liquidity/forecast",
@@ -96349,12 +96421,30 @@
           },
           {
             "row": "api:POST:/api/liquidity/forecast",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/forecast",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/liquidity-status-filters.test.ts:3",
             "assertion_confirmed": false,
             "test_file_sha256": "77de17fdd96da239d995b5dde9e3dd062ab65ed0de82fd04d4809892a4279cb6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/forecast",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
           }
         ],
         "manual": []
@@ -96408,7 +96498,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/liquidity.ts:181 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:182 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/optimize-calls",
@@ -96419,7 +96509,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:181",
+              "site": "server/routes/liquidity.ts:182",
               "role": "handler",
               "effective_mount_order": 44
             }
@@ -96448,7 +96538,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/liquidity.ts:181 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:182 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/optimize-calls",
@@ -96459,7 +96549,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:181",
+              "site": "server/routes/liquidity.ts:182",
               "role": "handler",
               "effective_mount_order": 44
             }
@@ -96491,7 +96581,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/liquidity.ts:181"
+        "server/routes/liquidity.ts:182"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/liquidity/optimize-calls",
@@ -96540,12 +96630,30 @@
           },
           {
             "row": "api:POST:/api/liquidity/optimize-calls",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/optimize-calls",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/liquidity-status-filters.test.ts:3",
             "assertion_confirmed": false,
             "test_file_sha256": "77de17fdd96da239d995b5dde9e3dd062ab65ed0de82fd04d4809892a4279cb6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/optimize-calls",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
           }
         ],
         "manual": []
@@ -96599,7 +96707,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/liquidity.ts:157 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:158 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/stress-test",
@@ -96610,7 +96718,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:157",
+              "site": "server/routes/liquidity.ts:158",
               "role": "handler",
               "effective_mount_order": 43
             }
@@ -96639,7 +96747,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/liquidity.ts:157 runtime registration",
+          "mount_evidence": "server/routes/liquidity.ts:158 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/liquidity/stress-test",
@@ -96650,7 +96758,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/liquidity.ts:157",
+              "site": "server/routes/liquidity.ts:158",
               "role": "handler",
               "effective_mount_order": 43
             }
@@ -96682,7 +96790,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/liquidity.ts:157"
+        "server/routes/liquidity.ts:158"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/liquidity/stress-test",
@@ -96731,12 +96839,30 @@
           },
           {
             "row": "api:POST:/api/liquidity/stress-test",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/stress-test",
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/liquidity-status-filters.test.ts:3",
             "assertion_confirmed": false,
             "test_file_sha256": "77de17fdd96da239d995b5dde9e3dd062ab65ed0de82fd04d4809892a4279cb6"
+          },
+          {
+            "row": "api:POST:/api/liquidity/stress-test",
+            "deployment": "vercel-api",
+            "runtime": "make_app",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/server/liquidity-request-schemas.test.ts:5",
+            "assertion_confirmed": false,
+            "test_file_sha256": "1a69eea148a8fcfc62b3cd5b08f86de9ee188e652ebecddd186e95a3c66f10b6"
           }
         ],
         "manual": []
@@ -98213,6 +98339,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:POST:/api/monte-carlo/batch",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -98429,6 +98564,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:POST:/api/monte-carlo/multi-environment",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -98645,6 +98789,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:POST:/api/monte-carlo/simulate",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -98861,6 +99014,15 @@
             "assertion_evidence": "tests/unit/routes/monte-carlo-api.test.ts:78",
             "assertion_confirmed": false,
             "test_file_sha256": "17caa140cf5b5f58ff2af3798a66bbc7079f203f56097d23f547d9df03b67d09"
+          },
+          {
+            "row": "api:POST:/api/monte-carlo/simulate/async",
+            "deployment": "local-process",
+            "runtime": "create_server",
+            "layer": "unit",
+            "assertion_evidence": "tests/unit/routes/monte-carlo-contract.test.ts:9",
+            "assertion_confirmed": false,
+            "test_file_sha256": "097996e16df9178dafa79661dda17229d37c88248545a97200f2097cf11ce89d"
           }
         ],
         "manual": []
@@ -99405,12 +99567,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:923",
+              "site": "server/routes/portfolio-intelligence.ts:932",
               "role": "guard",
               "effective_mount_order": 573
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:923",
+              "site": "server/routes/portfolio-intelligence.ts:932",
               "role": "handler",
               "effective_mount_order": 573
             }
@@ -99443,7 +99605,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:923"
+        "server/routes/portfolio-intelligence.ts:932"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/forecasts",
@@ -99551,7 +99713,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:1019",
+              "site": "server/routes/portfolio-intelligence.ts:1028",
               "role": "handler",
               "effective_mount_order": 575
             }
@@ -99583,7 +99745,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:1019",
+        "server/routes/portfolio-intelligence.ts:1028",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -99692,7 +99854,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:1146",
+              "site": "server/routes/portfolio-intelligence.ts:1157",
               "role": "handler",
               "effective_mount_order": 577
             }
@@ -99724,7 +99886,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:1146",
+        "server/routes/portfolio-intelligence.ts:1157",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -99833,12 +99995,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:876",
+              "site": "server/routes/portfolio-intelligence.ts:885",
               "role": "guard",
               "effective_mount_order": 572
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:876",
+              "site": "server/routes/portfolio-intelligence.ts:885",
               "role": "handler",
               "effective_mount_order": 572
             }
@@ -99871,7 +100033,7 @@
       "owner": "analytics",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:876"
+        "server/routes/portfolio-intelligence.ts:885"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/reserves/backtest",
@@ -99979,12 +100141,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:770",
+              "site": "server/routes/portfolio-intelligence.ts:779",
               "role": "guard",
               "effective_mount_order": 570
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:770",
+              "site": "server/routes/portfolio-intelligence.ts:779",
               "role": "handler",
               "effective_mount_order": 570
             }
@@ -100017,7 +100179,7 @@
       "owner": "analytics",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:770"
+        "server/routes/portfolio-intelligence.ts:779"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/reserves/optimize",
@@ -100125,12 +100287,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:540",
+              "site": "server/routes/portfolio-intelligence.ts:549",
               "role": "guard",
               "effective_mount_order": 566
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:540",
+              "site": "server/routes/portfolio-intelligence.ts:549",
               "role": "handler",
               "effective_mount_order": 566
             }
@@ -100163,7 +100325,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:540"
+        "server/routes/portfolio-intelligence.ts:549"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/scenarios",
@@ -100271,12 +100433,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:704",
+              "site": "server/routes/portfolio-intelligence.ts:713",
               "role": "guard",
               "effective_mount_order": 569
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:704",
+              "site": "server/routes/portfolio-intelligence.ts:713",
               "role": "handler",
               "effective_mount_order": 569
             }
@@ -100309,7 +100471,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:704"
+        "server/routes/portfolio-intelligence.ts:713"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/scenarios/:id/simulate",
@@ -100417,12 +100579,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:661",
+              "site": "server/routes/portfolio-intelligence.ts:670",
               "role": "guard",
               "effective_mount_order": 568
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:661",
+              "site": "server/routes/portfolio-intelligence.ts:670",
               "role": "handler",
               "effective_mount_order": 568
             }
@@ -100455,7 +100617,7 @@
       "owner": "gp-team",
       "evidence": [
         "server/routes/portfolio-intelligence.ts:40",
-        "server/routes/portfolio-intelligence.ts:661"
+        "server/routes/portfolio-intelligence.ts:670"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/portfolio/scenarios/compare",
@@ -100563,12 +100725,12 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:208",
+              "site": "server/routes/portfolio-intelligence.ts:217",
               "role": "guard",
               "effective_mount_order": 562
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:208",
+              "site": "server/routes/portfolio-intelligence.ts:217",
               "role": "handler",
               "effective_mount_order": 562
             }
@@ -100600,7 +100762,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:208",
+        "server/routes/portfolio-intelligence.ts:217",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -102856,7 +103018,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/cashflow.ts:229 runtime registration",
+          "mount_evidence": "server/routes/cashflow.ts:236 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/cashflow/:fundId/transactions/:transactionId",
@@ -102867,7 +103029,7 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/cashflow.ts:229",
+              "site": "server/routes/cashflow.ts:236",
               "role": "handler",
               "effective_mount_order": 3
             }
@@ -102899,7 +103061,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/cashflow.ts:229"
+        "server/routes/cashflow.ts:236"
       ],
       "source_mapping": {
         "kg_node": "api:PUT:/api/cashflow/:fundId/transactions/:transactionId",
@@ -104394,7 +104556,7 @@
               "effective_mount_order": 561
             },
             {
-              "site": "server/routes/portfolio-intelligence.ts:385",
+              "site": "server/routes/portfolio-intelligence.ts:394",
               "role": "handler",
               "effective_mount_order": 564
             }
@@ -104426,7 +104588,7 @@
       "environment": "local-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/portfolio-intelligence.ts:385",
+        "server/routes/portfolio-intelligence.ts:394",
         "server/routes/portfolio-intelligence.ts:40"
       ],
       "source_mapping": {
@@ -115648,26 +115810,6 @@
       "contract_fingerprint": "7e2c92f7db14dcfc73a9d7b8210fcf117a7f992e2772298eb0fa3edbbc0ae083",
       "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
     },
-    "api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "60d1ad342ce517ae5bf4eec76fe2a36f996ef443e8df853cdc8c48cd325af3fa",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
-    },
-    "api:POST:/api/funds/:fundId/reallocation/commit|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "60d1ad342ce517ae5bf4eec76fe2a36f996ef443e8df853cdc8c48cd325af3fa",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
-    },
-    "api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "af7ca32850fb002831de60a8c7b525367fd9af8b78fd4952bc6bb6d0b7e24ec6",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
-    },
-    "api:POST:/api/funds/:fundId/reallocation/preview|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "af7ca32850fb002831de60a8c7b525367fd9af8b78fd4952bc6bb6d0b7e24ec6",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
-    },
     "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "20553903083fba4ae5cce9993149a03b71a28928ad8b1d44bdf075be9c5a788e",
@@ -116207,6 +116349,26 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "6d54a3ce9e17f2bfa3b4d10e7b6d7fa064baadc0e2dfbd77a1decf64df111ce4",
       "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+    },
+    "api:POST:/api/funds/:fundId/reallocation/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "50d35858f8feda484ee026da72dee573b176137caff959b480a18c1ea18b33ab",
+      "evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST commit source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:667-670; original error logging remains at :656-657; requirePartnerWrite and write-scoped fund authorization remain at :465-476; typed VERSION_CONFLICT 409 remains at :527-533 and :656-665; typed VALIDATION_FAILED 400 remains at :550-555 and :656-665. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: cross-fund and restricted-principal guards tests/unit/routes/reallocation.contract.test.ts:91-102 and :258-267; partner/admin success :269-295; hostile database/SQL text is excluded from fixed 500 response while the original error is logged :297-320. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains stale-row 409 with no updates or audit writes at tests/integration/reallocation.pg.test.ts:333-350. Contract remains in-contract, writes, soft destructive, staged-only, gp-team. Automated review evidence only; no human approval or merge/release authority asserted."
+    },
+    "api:POST:/api/funds/:fundId/reallocation/commit|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "50d35858f8feda484ee026da72dee573b176137caff959b480a18c1ea18b33ab",
+      "evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST commit source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:667-670; original error logging remains at :656-657; requirePartnerWrite and write-scoped fund authorization remain at :465-476; typed VERSION_CONFLICT 409 remains at :527-533 and :656-665; typed VALIDATION_FAILED 400 remains at :550-555 and :656-665. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: cross-fund and restricted-principal guards tests/unit/routes/reallocation.contract.test.ts:91-102 and :258-267; partner/admin success :269-295; hostile database/SQL text is excluded from fixed 500 response while the original error is logged :297-320. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains stale-row 409 with no updates or audit writes at tests/integration/reallocation.pg.test.ts:333-350. Contract remains in-contract, writes, soft destructive, staged-only, gp-team. Automated review evidence only; no human approval or merge/release authority asserted."
+    },
+    "api:POST:/api/funds/:fundId/reallocation/preview|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "48ae2b9fe70208895a4f502f417c946b63471fadd8c98adee3a051c462c5890f",
+      "evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST preview source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:442-447; original error logging remains at :442-443; fund-scope authorization and typed 400 request errors remain at :350-365; typed stale-version 409 remains at :392-397. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: canonical-ID/body 400 and cross-fund 403 paths tests/unit/routes/reallocation.contract.test.ts:71-114; hostile database/table and SQL text is excluded from fixed 500 response while original error is logged :185-210; sorted stale 409 response remains :212-256. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains preview success and stale-row 409 at tests/integration/reallocation.pg.test.ts:293-315. Contract remains in-contract, reads-only, non-destructive, prod-safe, gp-team. Automated review evidence only; no human approval or merge/release authority asserted."
+    },
+    "api:POST:/api/funds/:fundId/reallocation/preview|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "48ae2b9fe70208895a4f502f417c946b63471fadd8c98adee3a051c462c5890f",
+      "evidence": "Automated source/contract review by /root/review at candidate fb357451b01efb5b383a592affd31ee85e485991. POST preview source 05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210: only unexpected-error 500 response text changes at server/routes/reallocation.ts:442-447; original error logging remains at :442-443; fund-scope authorization and typed 400 request errors remain at :350-365; typed stale-version 409 remains at :392-397. Active unit contract file ad7117dd66545e6cff2a730e98ea7be774a3d298b1ac8811714c23e1fe4acbea, focused 15/15 passed: canonical-ID/body 400 and cross-fund 403 paths tests/unit/routes/reallocation.contract.test.ts:71-114; hostile database/table and SQL text is excluded from fixed 500 response while original error is logged :185-210; sorted stale 409 response remains :212-256. Existing real-app/PostgreSQL test fb884f6a30c39e49405f68f3b84e567e9eef860c209551a3f43045fbe4de27d2 retains preview success and stale-row 409 at tests/integration/reallocation.pg.test.ts:293-315. Contract remains in-contract, reads-only, non-destructive, prod-safe, gp-team. Automated review evidence only; no human approval or merge/release authority asserted."
     }
   },
   "g1_closure": {
@@ -116497,7 +116659,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:90b07145f6461bcee8c453f00a6ecc44b59ee0ec1a8e5163e4be99d8c9a08a2e",
+      "snapshot_id": "snapshot:1b2e74640f6d5fbae29d0767bae9f167e935d970c959a299b9e3fab999484a47",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,
