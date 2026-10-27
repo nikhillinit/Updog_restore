@@ -28,10 +28,10 @@ export type JobOutboxStatus = z.infer<typeof jobOutboxStatusSchema>;
 export const insertJobOutboxSchema = z.object({
   jobType: z.string().min(1, 'Job type is required'),
   payload: z
-    .record(z.unknown())
+    .record(z.string(), z.unknown())
     .refine((val) => val !== null && typeof val === 'object', 'Payload must be a valid object'),
-  priority: z.number().int().min(0, 'Priority must be non-negative').default(0),
-  maxAttempts: z.number().int().min(1, 'Max attempts must be at least 1').default(3),
+  priority: z.number().int().min(0, 'Priority must be non-negative').prefault(0),
+  maxAttempts: z.number().int().min(1, 'Max attempts must be at least 1').prefault(3),
   scheduledFor: z.date().optional(),
 });
 
@@ -82,7 +82,7 @@ export const scenarioStatesSchema = z.object({
   scenarios: z.array(
     z.object({
       id: z.number().int(),
-      params: z.record(z.unknown()),
+      params: z.record(z.string(), z.unknown()),
     })
   ),
 });
@@ -115,8 +115,8 @@ export type BucketParams = z.infer<typeof bucketParamsSchema>;
  */
 export const sOptSchema = z.object({
   algorithm: z.string(),
-  params: z.record(z.unknown()),
-  convergence: z.record(z.unknown()),
+  params: z.record(z.string(), z.unknown()),
+  convergence: z.record(z.string(), z.unknown()),
 });
 
 export type SOpt = z.infer<typeof sOptSchema>;
@@ -125,7 +125,7 @@ export type SOpt = z.infer<typeof sOptSchema>;
  * Schema for creating a new scenario matrix
  */
 export const insertScenarioMatrixSchema = z.object({
-  scenarioId: z.string().uuid('Scenario ID must be a valid UUID'),
+  scenarioId: z.string().guid('Scenario ID must be a valid UUID'),
   matrixType: matrixTypeSchema,
   moicMatrix: z.string().optional(), // Base64 encoded
   scenarioStates: scenarioStatesSchema.optional(),
@@ -134,7 +134,7 @@ export const insertScenarioMatrixSchema = z.object({
   matrixLayout: z.enum(['row-major', 'column-major']).optional(),
   bucketCount: z.number().int().positive().optional(),
   sOpt: sOptSchema.optional(),
-  status: scenarioMatrixStatusSchema.default('pending'),
+  status: scenarioMatrixStatusSchema.prefault('pending'),
 });
 
 export type InsertScenarioMatrixInput = z.infer<typeof insertScenarioMatrixSchema>;
@@ -143,7 +143,7 @@ export type InsertScenarioMatrixInput = z.infer<typeof insertScenarioMatrixSchem
  * Schema for a complete scenario matrix (all fields required)
  */
 export const completeScenarioMatrixSchema = z.object({
-  scenarioId: z.string().uuid(),
+  scenarioId: z.string().guid(),
   matrixType: matrixTypeSchema,
   moicMatrix: z.string().min(1),
   scenarioStates: scenarioStatesSchema,
@@ -190,7 +190,7 @@ export type OptimizationObjective = z.infer<typeof optimizationObjectiveSchema>;
  */
 export const optimizationConfigSchema = z.object({
   objective: optimizationObjectiveSchema,
-  constraints: z.record(z.unknown()),
+  constraints: z.record(z.string(), z.unknown()),
   algorithm: z.string(),
   maxIterations: z.number().int().positive().optional(),
   convergenceTolerance: z.number().positive().optional(),
@@ -214,11 +214,11 @@ export type ResultMetrics = z.infer<typeof resultMetricsSchema>;
  * Schema for creating a new optimization session
  */
 export const insertOptimizationSessionSchema = z.object({
-  matrixId: z.string().uuid('Matrix ID must be a valid UUID'),
+  matrixId: z.string().guid('Matrix ID must be a valid UUID'),
   optimizationConfig: optimizationConfigSchema,
   pass1EStar: z.string().optional(), // Decimal as string
   primaryLockEpsilon: z.string().optional(), // Decimal as string
-  status: optimizationSessionStatusSchema.default('pending'),
+  status: optimizationSessionStatusSchema.prefault('pending'),
 });
 
 export type InsertOptimizationSessionInput = z.infer<typeof insertOptimizationSessionSchema>;
@@ -231,7 +231,7 @@ export const updateOptimizationSessionSchema = z
     status: optimizationSessionStatusSchema,
     pass1EStar: z.string(),
     primaryLockEpsilon: z.string(),
-    resultWeights: z.record(z.number()),
+    resultWeights: z.record(z.string(), z.number()),
     resultMetrics: resultMetricsSchema,
     errorMessage: z.string().nullable(),
     currentIteration: z.number().int().min(0),

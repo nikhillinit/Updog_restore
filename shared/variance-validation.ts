@@ -24,7 +24,7 @@ export type ValidatedRequest<T extends z.ZodTypeAny> = Request & {
 /**
  * UUID validation schema
  */
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = z.string().guid();
 
 /**
  * Timestamp validation schema
@@ -172,7 +172,7 @@ export const CreateBaselineRequestSchema = z
     tags: z
       .array(z.string().max(50, 'Tag must be 50 characters or less'))
       .max(10, 'Maximum 10 tags allowed')
-      .default([]),
+      .prefault([]),
   })
   .refine(
     (data) => {
@@ -206,7 +206,7 @@ export const BaselineResponseSchema = z.object({
   tvpi: decimalSchema.nullable(),
   portfolioCount: z.number().int().min(0),
   averageInvestment: decimalSchema.nullable(),
-  topPerformers: z.any(), // JSON data
+  topPerformers: z.any().optional(), // JSON data
   companySnapshots: z
     .array(
       z.object({
@@ -222,10 +222,10 @@ export const BaselineResponseSchema = z.object({
     )
     .nullable()
     .optional(),
-  sectorDistribution: z.any(), // JSON data
-  stageDistribution: z.any(), // JSON data
-  reserveAllocation: z.any(), // JSON data
-  pacingMetrics: z.any(), // JSON data
+  sectorDistribution: z.any().optional(), // JSON data
+  stageDistribution: z.any().optional(), // JSON data
+  reserveAllocation: z.any().optional(), // JSON data
+  pacingMetrics: z.any().optional(), // JSON data
   isActive: z.boolean(),
   isDefault: z.boolean(),
   confidence: decimalSchema,
@@ -304,8 +304,8 @@ export const NumericMetricDeltaSchema = z.object({
 });
 
 export const UntypedMetricChangeSchema = z.object({
-  current: z.any().nullable(),
-  baseline: z.any().nullable(),
+  current: z.any().nullable().optional(),
+  baseline: z.any().nullable().optional(),
 });
 
 export const CompanyVarianceRowSchema = z.object({
@@ -389,19 +389,19 @@ export const VarianceReportResponseSchema = z.object({
   analysisStart: timestampSchema,
   analysisEnd: timestampSchema,
   asOfDate: timestampSchema,
-  currentMetrics: z.any(),
-  baselineMetrics: z.any(),
+  currentMetrics: z.any().optional(),
+  baselineMetrics: z.any().optional(),
   ...VarianceCalculationSchema.shape,
-  portfolioVariances: z.any(),
-  sectorVariances: z.any(),
-  stageVariances: z.any(),
-  reserveVariances: z.any(),
-  pacingVariances: z.any(),
+  portfolioVariances: z.any().optional(),
+  sectorVariances: z.any().optional(),
+  stageVariances: z.any().optional(),
+  reserveVariances: z.any().optional(),
+  pacingVariances: z.any().optional(),
   overallVarianceScore: decimalSchema.nullable(),
-  significantVariances: z.any(),
-  varianceFactors: z.any(),
-  alertsTriggered: z.any(),
-  thresholdBreaches: z.any(),
+  significantVariances: z.any().optional(),
+  varianceFactors: z.any().optional(),
+  alertsTriggered: z.any().optional(),
+  thresholdBreaches: z.any().optional(),
   riskLevel: z.string(),
   calculationEngine: z.string(),
   calculationDurationMs: z.number().int().nullable(),
@@ -469,17 +469,17 @@ export const CreateAlertRuleRequestSchema = z
     operator: operatorSchema,
     thresholdValue: z.number(),
     secondaryThreshold: z.number().optional(),
-    severity: severitySchema.default('warning'),
-    category: categorySchema.default('performance'),
-    checkFrequency: checkFrequencySchema.default('daily'),
+    severity: severitySchema.prefault('warning'),
+    category: categorySchema.prefault('performance'),
+    checkFrequency: checkFrequencySchema.prefault('daily'),
     suppressionPeriod: positiveInt()
       .min(1, 'Suppression period must be at least 1 minute')
       .max(10080, 'Suppression period cannot exceed 1 week (10080 minutes)')
-      .default(60),
+      .prefault(60),
     notificationChannels: z
       .array(notificationChannelSchema)
       .min(1, 'At least one notification channel required')
-      .default(['email']),
+      .prefault(['email']),
     escalationRules: z.any().optional(),
     conditions: z.any().optional(),
     filters: z.any().optional(),
@@ -536,10 +536,10 @@ export const AlertRuleResponseSchema = z.object({
   isEnabled: z.boolean(),
   checkFrequency: checkFrequencySchema,
   suppressionPeriod: z.number().int(),
-  escalationRules: z.any(),
+  escalationRules: z.any().optional(),
   notificationChannels: z.array(z.string()),
-  conditions: z.any(),
-  filters: z.any(),
+  conditions: z.any().optional(),
+  filters: z.any().optional(),
   createdBy: positiveInt(),
   lastModifiedBy: positiveInt().nullable(),
   version: z.string(),
@@ -562,7 +562,7 @@ export const PerformanceAlertResponseSchema = z.object({
   category: categorySchema,
   title: z.string(),
   description: z.string(),
-  recommendations: z.any(),
+  recommendations: z.any().optional(),
   metricName: z.string(),
   thresholdValue: signedDecimalSchema.nullable(),
   actualValue: signedDecimalSchema.nullable(),
@@ -578,9 +578,9 @@ export const PerformanceAlertResponseSchema = z.object({
   resolvedBy: positiveInt().nullable(),
   resolvedAt: timestampSchema.nullable(),
   resolutionNotes: z.string().nullable(),
-  affectedEntities: z.any(),
-  contextData: z.any(),
-  notificationsSent: z.any(),
+  affectedEntities: z.any().optional(),
+  contextData: z.any().optional(),
+  notificationsSent: z.any().optional(),
   escalationLevel: z.number().int(),
   escalatedAt: timestampSchema.nullable(),
   escalatedTo: z.array(z.string()),
@@ -659,7 +659,7 @@ export const VarianceAnalysisRequestSchema = z.object({
     .min(1, 'Report name is required')
     .max(100, 'Report name must be 100 characters or less')
     .optional(),
-  includeAlertGeneration: z.boolean().default(true),
+  includeAlertGeneration: z.boolean().prefault(true),
 });
 
 /**

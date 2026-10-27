@@ -54,7 +54,7 @@ export const GPCommitmentSchema = z
     basis: z.enum(['committed_capital', 'management_fees', 'carry']),
 
     /** Fraction of GP commitment funded from fee offsets rather than cash */
-    fundedFromFeesPct: ZodPercentage.default(new Decimal(0)),
+    fundedFromFeesPct: ZodPercentage.prefault(new Decimal(0)),
   })
   .strict();
 
@@ -68,13 +68,13 @@ export const ClawbackPolicySchema = z.object({
   enabled: z.boolean(),
 
   /** Lookback period for clawback calculation (months) */
-  lookbackMonths: z.number().int().positive().default(36),
+  lookbackMonths: z.number().int().positive().prefault(36),
 
   /** Require security/escrow for clawback */
-  securityRequired: z.boolean().default(true),
+  securityRequired: z.boolean().prefault(true),
 
   /** Interest rate on clawback amounts */
-  interestRate: ZodPercentage.default(new Decimal(0)),
+  interestRate: ZodPercentage.prefault(new Decimal(0)),
 });
 
 export type ClawbackPolicy = z.infer<typeof ClawbackPolicySchema>;
@@ -102,10 +102,10 @@ const BaseWaterfallPolicySchemaCore = z.object({
   clawback: ClawbackPolicySchema.optional(),
 
   /** Basis for hurdle rate calculation */
-  hurdleRateBasis: z.enum(['committed', 'contributed']).default('committed'),
+  hurdleRateBasis: z.enum(['committed', 'contributed']).prefault('committed'),
 
   /** Use cumulative calculations across all periods */
-  cumulativeCalculations: z.boolean().default(true),
+  cumulativeCalculations: z.boolean().prefault(true),
 });
 
 const validateTierPriorities = (data: { tiers: Array<{ priority: number }> }) => {

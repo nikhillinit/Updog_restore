@@ -241,7 +241,7 @@ export const CreateFinancingEventRequestSchema = z
     roundName: z.string().min(1),
     securityType: LedgerSecurityTypeSchema,
     eventDate: IsoDateSchema,
-    currency: CurrencySchema.default('USD'),
+    currency: CurrencySchema.prefault('USD'),
     roundSize: MoneyDecimalStringSchema.nullable().optional(),
     preMoneyValuation: MoneyDecimalStringSchema.nullable().optional(),
     postMoneyValuation: MoneyDecimalStringSchema.nullable().optional(),

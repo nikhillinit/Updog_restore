@@ -25,11 +25,7 @@ export const PortfolioCompanyMetadataPatch = z
     sector: z.string().trim().min(1).max(255).optional(),
     foundedYear: z.number().int().min(1900).max(2200).nullable().optional(),
     description: z.string().trim().min(1).max(2000).nullable().optional(),
-    dealTags: z
-      .array(z.string().trim().min(1).max(240))
-      .max(10)
-      .nullable()
-      .optional(),
+    dealTags: z.array(z.string().trim().min(1).max(240)).max(10).nullable().optional(),
   })
   .strict();
 
@@ -116,7 +112,7 @@ export type SnapshotStatus = z.infer<typeof SnapshotStatusEnum>;
  * Corresponds to database table: investment_lots
  */
 export const InvestmentLotV1Schema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   investmentId: z.number().int().positive(),
 
   lotType: LotTypeEnum,
@@ -130,7 +126,7 @@ export const InvestmentLotV1Schema = z.object({
   version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
-    .uuid()
+    .guid()
     .nullable()
     .describe('Optional idempotency key for duplicate prevention'),
 
@@ -146,23 +142,35 @@ export type InvestmentLotV1 = z.infer<typeof InvestmentLotV1Schema>;
  * Corresponds to database table: forecast_snapshots
  */
 export const ForecastSnapshotV1Schema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   fundId: z.number().int().positive(),
 
   name: z.string().min(1).max(255).describe('Human-readable snapshot name'),
   status: SnapshotStatusEnum,
   sourceHash: z.string().nullable().describe('Hash of input data for deduplication'),
-  calculatedMetrics: z.record(z.unknown()).nullable().describe('Calculated metrics (JSONB)'),
+  calculatedMetrics: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe('Calculated metrics (JSONB)'),
 
-  fundState: z.record(z.unknown()).nullable().describe('Fund configuration state (JSONB)'),
-  portfolioState: z.record(z.unknown()).nullable().describe('Portfolio holdings state (JSONB)'),
-  metricsState: z.record(z.unknown()).nullable().describe('Performance metrics state (JSONB)'),
+  fundState: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe('Fund configuration state (JSONB)'),
+  portfolioState: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe('Portfolio holdings state (JSONB)'),
+  metricsState: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe('Performance metrics state (JSONB)'),
 
   snapshotTime: z.coerce.date().describe('When snapshot was captured'),
   version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
-    .uuid()
+    .guid()
     .nullable()
     .describe('Optional idempotency key for duplicate prevention'),
 
@@ -178,8 +186,8 @@ export type ForecastSnapshotV1 = z.infer<typeof ForecastSnapshotV1Schema>;
  * Corresponds to database table: reserve_allocations
  */
 export const ReserveAllocationV1Schema = z.object({
-  id: z.string().uuid(),
-  snapshotId: z.string().uuid(),
+  id: z.string().guid(),
+  snapshotId: z.string().guid(),
   companyId: z.number().int().positive(),
 
   plannedReserveCents: BigIntCentsSchema.describe('Planned reserve allocation in cents (BigInt)'),
@@ -194,7 +202,7 @@ export const ReserveAllocationV1Schema = z.object({
   version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
-    .uuid()
+    .guid()
     .nullable()
     .describe('Optional idempotency key for duplicate prevention'),
 
@@ -218,7 +226,7 @@ export const PaginationRequestSchema = z.object({
     .int()
     .min(1)
     .max(100)
-    .default(20)
+    .prefault(20)
     .describe('Number of results to return (default: 20, max: 100)'),
 });
 export type PaginationRequest = z.infer<typeof PaginationRequestSchema>;
@@ -245,7 +253,7 @@ export const CreateSnapshotRequestSchema = z
     name: z.string().min(1).max(255).describe('Human-readable snapshot name'),
     idempotencyKey: z
       .string()
-      .uuid()
+      .guid()
       .optional()
       .describe('Optional idempotency key for duplicate prevention'),
   })
@@ -257,7 +265,7 @@ export type CreateSnapshotRequest = z.infer<typeof CreateSnapshotRequestSchema>;
  * Returns snapshot ID and polling information
  */
 export const CreateSnapshotResponseSchema = z.object({
-  snapshotId: z.string().uuid().describe('Unique identifier for created snapshot'),
+  snapshotId: z.string().guid().describe('Unique identifier for created snapshot'),
   status: z.enum(['pending', 'calculating']).describe('Initial snapshot status'),
   statusUrl: z.string().url().describe('Polling endpoint URL to check calculation progress'),
   retryAfter: z.number().int().positive().describe('Recommended retry interval in seconds'),
@@ -331,7 +339,7 @@ export const CreateLotRequestSchema = z
     costBasisCents: BigIntCentsSchema.describe('Total cost basis in cents (BigInt)'),
     idempotencyKey: z
       .string()
-      .uuid()
+      .guid()
       .optional()
       .describe('Optional idempotency key for duplicate prevention'),
   })
@@ -399,7 +407,7 @@ export const UpdateSnapshotRequestSchema = z
     name: z.string().min(1).max(255).optional().describe('Updated snapshot name'),
     status: SnapshotStatusEnum.optional().describe('Updated snapshot status'),
     calculatedMetrics: z
-      .record(z.unknown())
+      .record(z.string(), z.unknown())
       .optional()
       .describe('Updated calculated metrics (JSONB)'),
     version: z.bigint().min(1n).describe('Expected version for optimistic locking (required)'),

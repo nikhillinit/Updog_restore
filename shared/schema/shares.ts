@@ -151,11 +151,11 @@ export const selectShareSnapshotSchema = createSelectSchema(shareSnapshots);
 // Extended validation schema with proper types
 export const createShareSchema = z.object({
   fundId: z.string().min(1),
-  accessLevel: z.enum(SHARE_ACCESS_LEVELS).default('view_only'),
-  requirePasskey: z.boolean().default(false),
+  accessLevel: z.enum(SHARE_ACCESS_LEVELS).prefault('view_only'),
+  requirePasskey: z.boolean().prefault(false),
   passkey: z.string().min(4).max(50).optional(),
   expiresInDays: z.number().min(1).max(365).optional(),
-  hiddenMetrics: z.array(z.string()).default([]),
+  hiddenMetrics: z.array(z.string()).prefault([]),
   customTitle: z.string().max(100).optional(),
   customMessage: z.string().max(500).optional(),
 });

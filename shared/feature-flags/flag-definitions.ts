@@ -13,8 +13,8 @@ export const FeatureFlagSchema = z.object({
   key: z.string(),
   name: z.string(),
   description: z.string(),
-  enabled: z.boolean().default(false),
-  rolloutPercentage: z.number().min(0).max(100).default(0),
+  enabled: z.boolean().prefault(false),
+  rolloutPercentage: z.number().min(0).max(100).prefault(0),
   dependencies: z.array(z.string()).optional(),
   expiresAt: z.string().datetime().optional(),
 });

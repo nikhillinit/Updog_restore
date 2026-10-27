@@ -54,26 +54,26 @@ const monteCarloSimulationLimiter = rateLimit({
 // VALIDATION SCHEMAS
 // ============================================================================
 
-const simulationConfigSchema = z.object({
+export const simulationConfigSchema = z.object({
   fundId: z.number().int().positive(),
-  runs: z.number().int().min(100).max(50000).default(10000),
-  timeHorizonYears: z.number().min(1).max(15).default(8),
-  baselineId: z.string().uuid().optional(),
+  runs: z.number().int().min(100).max(50000).prefault(10000),
+  timeHorizonYears: z.number().min(1).max(15).prefault(8),
+  baselineId: z.string().guid().optional(),
   portfolioSize: z.number().int().positive().optional(),
   deploymentScheduleMonths: z.number().int().min(12).max(120).optional(),
   randomSeed: z.number().int().optional(),
 
   // Streaming configuration
-  batchSize: z.number().int().min(100).max(5000).default(1000),
-  maxConcurrentBatches: z.number().int().min(1).max(10).default(4),
-  enableResultStreaming: z.boolean().default(true),
-  memoryThresholdMB: z.number().min(50).max(2000).default(100),
-  enableGarbageCollection: z.boolean().default(true),
+  batchSize: z.number().int().min(100).max(5000).prefault(1000),
+  maxConcurrentBatches: z.number().int().min(1).max(10).prefault(4),
+  enableResultStreaming: z.boolean().prefault(true),
+  memoryThresholdMB: z.number().min(50).max(2000).prefault(100),
+  enableGarbageCollection: z.boolean().prefault(true),
 
   // Engine selection
-  forceEngine: z.enum(['streaming', 'traditional', 'auto']).default('auto'),
-  performanceMode: z.enum(['speed', 'memory', 'balanced']).default('balanced'),
-  enableFallback: z.boolean().default(true),
+  forceEngine: z.enum(['streaming', 'traditional', 'auto']).prefault('auto'),
+  performanceMode: z.enum(['speed', 'memory', 'balanced']).prefault('balanced'),
+  enableFallback: z.boolean().prefault(true),
 
   // Stage distribution (optional, for portfolio composition)
   stageDistribution: z
@@ -88,7 +88,7 @@ const simulationConfigSchema = z.object({
 
 const batchSimulationSchema = z.object({
   simulations: z.array(simulationConfigSchema).min(1).max(10),
-  enableParallelExecution: z.boolean().default(true),
+  enableParallelExecution: z.boolean().prefault(true),
 });
 
 const marketEnvironmentSchema = z.object({

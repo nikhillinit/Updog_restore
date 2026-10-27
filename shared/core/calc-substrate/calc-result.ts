@@ -30,10 +30,10 @@ const nonEmptyReasonCodes = z
   .array(CalcReasonCodeSchema)
   .min(1, 'non-available results must disclose at least one reason code');
 
-export function createCalcResultSchema<
-  V extends z.ZodTypeAny,
-  Extra extends z.ZodRawShape = {},
->(valueSchema: V, extraShape?: Extra) {
+export function createCalcResultSchema<V extends z.ZodTypeAny, Extra extends z.ZodRawShape = {}>(
+  valueSchema: V,
+  extraShape?: Extra
+) {
   const extra = (extraShape ?? {}) as Extra;
   const available = z
     .object({
@@ -82,12 +82,12 @@ export function createCalcResultSchema<
       const baseResult = result as CalcResult<unknown>;
       const { basis } = baseResult;
       const reasonCodes = baseResult.reasonCodes as readonly string[];
-      const carriesValue = result.state === 'available' || result.state === 'indicative';
+      const carriesValue = baseResult.state === 'available' || baseResult.state === 'indicative';
       if (carriesValue && basis.effectiveMode === 'off') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['state'],
-          message: `a ${result.state} value cannot come from an engine whose effectiveMode is off`,
+          message: `a ${baseResult.state} value cannot come from an engine whose effectiveMode is off`,
         });
       }
       if (basis.killSwitchActive && !reasonCodes.includes('KILL_SWITCH_ACTIVE')) {
@@ -111,7 +111,7 @@ export function createCalcResultSchema<
     });
 }
 
-export const GenericCalcResultSchema = createCalcResultSchema(z.unknown());
+export const GenericCalcResultSchema = createCalcResultSchema(z.unknown().optional());
 export type CalcResult<V> =
   | {
       state: 'available';

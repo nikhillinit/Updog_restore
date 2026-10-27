@@ -176,48 +176,48 @@ if (
 
 const envSchema = z.object({
   // Core environment
-  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).prefault('development'),
   // Allow port 0 (ephemeral) in test mode for CI isolation
   PORT: z.preprocess((val) => {
     if (val == null || val === '') return undefined;
     const num = Number(val);
     return Number.isNaN(num) ? undefined : num;
-  }, z.number().int().min(0).default(5000)),
+  }, z.number().int().min(0).prefault(5000)),
 
   // Database (optional only in explicit memory mode)
   DATABASE_URL: z.string().min(1).optional(),
   NEON_DATABASE_URL: z.string().min(1).optional(),
-  ALLOW_MEMORY_STORAGE: bool.default(false),
+  ALLOW_MEMORY_STORAGE: bool.prefault(false),
 
   // Cache & Queue - explicit scheme validation
-  REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),
+  REDIS_URL: z.string().url().or(z.literal('memory://')).prefault('memory://'),
   RATE_LIMIT_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
-  ENABLE_QUEUES: z.enum(['0', '1']).default('0'),
-  ENABLE_IN_PROCESS_QUEUE_WORKERS: z.enum(['0', '1']).default('0'),
+  ENABLE_QUEUES: z.enum(['0', '1']).prefault('0'),
+  ENABLE_IN_PROCESS_QUEUE_WORKERS: z.enum(['0', '1']).prefault('0'),
 
   // Security & CORS
   CORS_ORIGIN: z
     .string()
-    .default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
-  BODY_LIMIT: z.string().default('10mb'),
-  CSP_REPORT_ONLY: bool.default(false),
+    .prefault('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
+  BODY_LIMIT: z.string().prefault('10mb'),
+  CSP_REPORT_ONLY: bool.prefault(false),
   SESSION_SECRET: z.string().min(32).optional(),
   JWT_SECRET: z.string().min(32).optional(),
 
   // Auth - JWT algorithm and identity provider
-  JWT_ALG: z.enum(['HS256', 'RS256']).default('HS256'),
-  JWT_ISSUER: z.string().default('updog'),
-  JWT_AUDIENCE: z.string().default('updog-app'),
+  JWT_ALG: z.enum(['HS256', 'RS256']).prefault('HS256'),
+  JWT_ISSUER: z.string().prefault('updog'),
+  JWT_AUDIENCE: z.string().prefault('updog-app'),
   JWT_JWKS_URL: z.string().url().optional(),
-  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  CLIENT_URL: z.string().url().prefault('http://localhost:5173'),
 
   // Feature flags & modes
-  DEMO_MODE: bool.default(false),
+  DEMO_MODE: bool.prefault(false),
   PROFESSIONAL_DEMO_MODE: z.literal(PROFESSIONAL_DEMO_RUNTIME_MODE).optional(),
-  REQUIRE_AUTH: bool.default(true),
-  ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).default(0),
+  REQUIRE_AUTH: bool.prefault(true),
+  ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).prefault(0),
 
   // Monitoring & Observability
   PROMETHEUS_URL: z.string().optional(),
@@ -225,60 +225,60 @@ const envSchema = z.object({
   METRICS_KEY: z.string().min(16).optional(),
 
   // Deployment & Circuit Breaker
-  CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().default(3),
-  CIRCUIT_BREAKER_RESET_TIMEOUT: z.coerce.number().default(3600000), // 1 hour
+  CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().prefault(3),
+  CIRCUIT_BREAKER_RESET_TIMEOUT: z.coerce.number().prefault(3600000), // 1 hour
 
   // SLO Configuration
-  SLO_ERROR_BUDGET: z.coerce.number().default(0.001), // 99.9% SLO
-  SLO_SHORT_WINDOW: z.coerce.number().default(3600000), // 1 hour
-  SLO_MEDIUM_WINDOW: z.coerce.number().default(21600000), // 6 hours
-  SLO_LONG_WINDOW: z.coerce.number().default(86400000), // 24 hours
+  SLO_ERROR_BUDGET: z.coerce.number().prefault(0.001), // 99.9% SLO
+  SLO_SHORT_WINDOW: z.coerce.number().prefault(3600000), // 1 hour
+  SLO_MEDIUM_WINDOW: z.coerce.number().prefault(21600000), // 6 hours
+  SLO_LONG_WINDOW: z.coerce.number().prefault(86400000), // 24 hours
 
   // Deployment Thresholds
-  DEPLOY_ERROR_THRESHOLD: z.coerce.number().default(0.01),
-  DEPLOY_P99_THRESHOLD: z.coerce.number().default(1000),
-  DEPLOY_MEMORY_THRESHOLD: z.coerce.number().default(0.8),
-  DEPLOY_CPU_THRESHOLD: z.coerce.number().default(0.7),
+  DEPLOY_ERROR_THRESHOLD: z.coerce.number().prefault(0.01),
+  DEPLOY_P99_THRESHOLD: z.coerce.number().prefault(1000),
+  DEPLOY_MEMORY_THRESHOLD: z.coerce.number().prefault(0.8),
+  DEPLOY_CPU_THRESHOLD: z.coerce.number().prefault(0.7),
 
   // Optional Services
   HEALTH_KEY: z.string().min(16).optional(),
-  SHUTDOWN_RETRY_AFTER_SECONDS: z.coerce.number().default(30),
+  SHUTDOWN_RETRY_AFTER_SECONDS: z.coerce.number().prefault(30),
   NATS_URL: z.string().optional(),
 
   // Worker Configuration
   WORKER_TYPE: z
     .enum(['reserve', 'pacing', 'cohort', 'report', 'fund-scenario-calc', 'capital-call-status'])
     .optional(),
-  REDIS_HOST: z.string().default('localhost'),
-  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_HOST: z.string().prefault('localhost'),
+  REDIS_PORT: z.coerce.number().int().positive().prefault(6379),
 
   // Release Information
   npm_package_version: z.string().optional(),
   RELEASE: z.string().optional(),
   GIT_SHA: z.string().optional(),
-  APP_VERSION: z.string().default('dev'),
+  APP_VERSION: z.string().prefault('dev'),
 
   // Application Defaults (previously hardcoded)
-  DEFAULT_FUND_ID: z.coerce.number().int().positive().default(1),
-  DEFAULT_USER_ID: z.coerce.number().int().positive().default(1),
-  DEFAULT_FUND_SIZE: z.coerce.number().positive().default(50000000), // $50M
-  TARGET_PORTFOLIO_SIZE: z.coerce.number().int().positive().default(30), // 30 companies
+  DEFAULT_FUND_ID: z.coerce.number().int().positive().prefault(1),
+  DEFAULT_USER_ID: z.coerce.number().int().positive().prefault(1),
+  DEFAULT_FUND_SIZE: z.coerce.number().positive().prefault(50000000), // $50M
+  TARGET_PORTFOLIO_SIZE: z.coerce.number().int().positive().prefault(30), // 30 companies
 
   // Monte Carlo Settings
-  MONTE_CARLO_DEFAULT_RUNS: z.coerce.number().int().min(100).max(100000).default(10000),
-  MONTE_CARLO_BATCH_SIZE: z.coerce.number().int().min(100).max(10000).default(1000),
-  MONTE_CARLO_TIME_HORIZON_YEARS: z.coerce.number().min(1).max(20).default(8),
+  MONTE_CARLO_DEFAULT_RUNS: z.coerce.number().int().min(100).max(100000).prefault(10000),
+  MONTE_CARLO_BATCH_SIZE: z.coerce.number().int().min(100).max(10000).prefault(1000),
+  MONTE_CARLO_TIME_HORIZON_YEARS: z.coerce.number().min(1).max(20).prefault(8),
 
   // API/Processing Timeouts
-  API_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
-  JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  API_TIMEOUT_MS: z.coerce.number().int().positive().prefault(5000),
+  JOB_TIMEOUT_MS: z.coerce.number().int().positive().prefault(30000),
   FUND_SCENARIO_HARD_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
-  CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
-  STREAM_BUFFER_SIZE_BYTES: z.coerce.number().int().positive().default(10485760), // 10MB
+  CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().prefault(5000),
+  STREAM_BUFFER_SIZE_BYTES: z.coerce.number().int().positive().prefault(10485760), // 10MB
 
   // Time Period Settings (for calculations)
-  PERIOD_DAYS_MONTH: z.coerce.number().int().positive().default(30),
-  PERIOD_DAYS_YEAR: z.coerce.number().positive().default(365.25),
+  PERIOD_DAYS_MONTH: z.coerce.number().int().positive().prefault(30),
+  PERIOD_DAYS_YEAR: z.coerce.number().positive().prefault(365.25),
 });
 
 // Validate and export configuration with fail-fast behavior

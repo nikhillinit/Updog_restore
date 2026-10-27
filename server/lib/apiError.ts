@@ -6,7 +6,7 @@ export type ApiErrorBody = {
   requestId?: string;
   retryAfter?: number;
   /** Zod validation issues -- path is (string | number)[] matching queryClient.ts:78 */
-  issues?: Array<{ path: (string | number)[]; message: string }>;
+  issues?: Array<{ path: PropertyKey[]; message: string }>;
 };
 
 /**

@@ -129,10 +129,14 @@ function refuse(
   throw new AdmissionRefusal([{ code, path, message, support, ...details }]);
 }
 
-function issuePath(parts: (string | number)[]): string {
+function issuePath(parts: PropertyKey[]): string {
   return parts.reduce<string>(
     (path, part) =>
-      typeof part === 'number' ? `${path}[${part}]` : path ? `${path}.${part}` : part,
+      typeof part === 'number'
+        ? `${path}[${part}]`
+        : path
+          ? `${path}.${String(part)}`
+          : String(part),
     ''
   );
 }
@@ -144,7 +148,7 @@ function isTimeOriginIssue(message: string): boolean {
   );
 }
 
-function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown, path: string): T {
+function parse<T>(schema: z.ZodType<T, unknown>, value: unknown, path: string): T {
   const result = schema.safeParse(value);
   if (result.success) return result.data;
   throw new AdmissionRefusal(

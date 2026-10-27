@@ -34,7 +34,7 @@ import {
   runConstrainedReserveWithSubstrate,
   type ConstrainedReserveSubstrateOptions,
 } from '../../../shared/core/reserves/constrained-reserve-substrate-adapter';
-import { ConstraintsSchema } from '../../../shared/schemas';
+import { ConstraintDefaultsSchema } from '../../../shared/schemas';
 import {
   CENTS_PRECISION,
   COMPANY_CAP,
@@ -308,30 +308,17 @@ describe('runConstrainedReserveWithSubstrate raw-input hashing (disclosed)', () 
 });
 
 describe('constrained reserve assumptions restatement parity', () => {
-  /** Walk ZodOptional(ZodDefault(...)) to recover a field's documented default. */
-  function schemaDefault(field: unknown): unknown {
-    let node = field as { _def?: Record<string, unknown> } | undefined;
-    for (let i = 0; i < 6 && node?._def; i++) {
-      const def = node._def as Record<string, unknown>;
-      if (def['typeName'] === 'ZodDefault') {
-        return (def['defaultValue'] as () => unknown)();
-      }
-      node = (def['innerType'] ?? def['schema'] ?? def['type']) as typeof node;
-    }
-    throw new Error('no ZodDefault found in field chain');
-  }
-
-  it('restated constraint defaults match the live ConstraintsSchema', () => {
-    const shape = (ConstraintsSchema as unknown as { shape: Record<string, unknown> }).shape;
+  it('restated constraint defaults match the declared defaults', () => {
+    const defaults = ConstraintDefaultsSchema.parse({});
     const documented = CONSTRAINED_RESERVE_ASSUMPTIONS_VIEW.constraintDefaults;
-    expect(schemaDefault(shape['minCheck'])).toBe(documented.minCheck);
-    expect(schemaDefault(shape['discountRateAnnual'])).toBe(documented.discountRateAnnual);
-    expect(schemaDefault(shape['maxPerStage'])).toEqual(documented.maxPerStage);
-    expect(schemaDefault(shape['graduationYears'])).toEqual(documented.graduationYears);
-    expect(schemaDefault(shape['graduationProb'])).toEqual(documented.graduationProb);
+    expect(defaults.minCheck).toBe(documented.minCheck);
+    expect(defaults.discountRateAnnual).toBe(documented.discountRateAnnual);
+    expect(defaults.maxPerStage).toEqual(documented.maxPerStage);
+    expect(defaults.graduationYears).toEqual(documented.graduationYears);
+    expect(defaults.graduationProb).toEqual(documented.graduationProb);
     // maxPerCompany's schema default is Infinity, restated as the 'unbounded'
     // sentinel because non-finite numbers are not hash-admissible.
-    expect(schemaDefault(shape['maxPerCompany'])).toBe(Number.POSITIVE_INFINITY);
+    expect(defaults.maxPerCompany).toBe(Number.POSITIVE_INFINITY);
     expect(documented.maxPerCompany).toBe('unbounded');
   });
 

@@ -63,8 +63,8 @@ export const CashFlowSchema = z.object({
 export type CashFlow = z.infer<typeof CashFlowSchema>;
 
 export const FlowsInputSchema = z.object({
-  contributions: z.array(CashFlowSchema).optional().default([]),
-  distributions: z.array(CashFlowSchema).optional().default([]),
+  contributions: z.array(CashFlowSchema).optional().prefault([]),
+  distributions: z.array(CashFlowSchema).optional().prefault([]),
 });
 
 export type FlowsInput = z.infer<typeof FlowsInputSchema>;
@@ -89,7 +89,7 @@ export const CohortOutputSchema = z.object({
   cohort: z.string(), // Display name (e.g., "2024")
   amount: z.number(), // In output units (same as input)
   amountCents: z.number().int().optional(), // Internal cents representation
-  type: z.enum(['planned', 'deployed']).optional().default('planned'),
+  type: z.enum(['planned', 'deployed']).optional().prefault('planned'),
 });
 
 export type CohortOutput = z.infer<typeof CohortOutputSchema>;
@@ -120,7 +120,7 @@ export type ConstraintsInput = z.infer<typeof ConstraintsInputSchema>;
 export const TimelineInputSchema = z.object({
   start_date: z.string().optional(),
   end_date: z.string().optional(),
-  rebalance_frequency: z.enum(['quarterly', 'monthly', 'annual']).optional().default('quarterly'),
+  rebalance_frequency: z.enum(['quarterly', 'monthly', 'annual']).optional().prefault('quarterly'),
 });
 
 export type TimelineInput = z.infer<typeof TimelineInputSchema>;
@@ -131,10 +131,10 @@ export type TimelineInput = z.infer<typeof TimelineInputSchema>;
 
 export const CAEngineInputSchema = z.object({
   fund: FundInputSchema,
-  constraints: ConstraintsInputSchema.optional().default({}),
-  timeline: TimelineInputSchema.optional().default({}),
-  flows: FlowsInputSchema.optional().default({ contributions: [], distributions: [] }),
-  cohorts: z.array(CohortInputSchema).optional().default([]),
+  constraints: ConstraintsInputSchema.optional().prefault({}),
+  timeline: TimelineInputSchema.optional().prefault({}),
+  flows: FlowsInputSchema.optional().prefault({ contributions: [], distributions: [] }),
+  cohorts: z.array(CohortInputSchema).optional().prefault([]),
 
   // Normalized fields (populated by adapter)
   commitmentCents: z.number().int().optional(),
@@ -177,7 +177,7 @@ export type ViolationKind = z.infer<typeof ViolationKindSchema>;
 export const ViolationSchema = z.object({
   type: ViolationTypeSchema,
   severity: ViolationSeveritySchema,
-  kind: ViolationKindSchema.default('constraint'),
+  kind: ViolationKindSchema.prefault('constraint'),
   period: z.string().optional().nullable(),
   cohort: z.string().optional().nullable(),
   message: z.string(),
@@ -221,13 +221,13 @@ export const CAEngineOutputSchema = z.object({
   reserveBalanceCents: z.number().int().optional(),
 
   // Allocations (always present, even if empty)
-  allocations_by_cohort: z.array(CohortOutputSchema).default([]),
+  allocations_by_cohort: z.array(CohortOutputSchema).prefault([]),
 
   // Time series (always present, even if empty)
-  reserve_balance_over_time: z.array(ReserveBalancePointSchema).default([]),
+  reserve_balance_over_time: z.array(ReserveBalancePointSchema).prefault([]),
 
   // Pacing target snapshots (always present for period-loop outputs)
-  pacing_targets_by_period: z.array(PacingTargetPointSchema).default([]),
+  pacing_targets_by_period: z.array(PacingTargetPointSchema).prefault([]),
 
   // Capacity tracking
   remaining_capacity: z.number().optional(),
@@ -236,7 +236,7 @@ export const CAEngineOutputSchema = z.object({
   cumulativeDeployedCents: z.number().int().optional(),
 
   // Violations (always present, even if empty)
-  violations: z.array(ViolationSchema).default([]),
+  violations: z.array(ViolationSchema).prefault([]),
 
   // Metadata
   ending_cash: z.number().optional(),

@@ -17,7 +17,7 @@ const subscribeSchema = z.object({
 const eventMessageSchema = z.object({
   fundId: z.number(),
   eventType: z.string(),
-  event: z.unknown(),
+  event: z.unknown().optional(),
   timestamp: z.string().datetime(),
   checksum: z.string().optional(),
 });

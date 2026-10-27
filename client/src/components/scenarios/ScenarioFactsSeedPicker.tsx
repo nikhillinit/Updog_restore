@@ -92,8 +92,8 @@ type ScenarioFactsSeedPickerFormValues = z.infer<typeof ScenarioFactsSeedPickerF
 
 const CreateScenarioCaseFromSeedResponseSchema = z
   .object({
-    scenarioCaseId: z.string().uuid(),
-    scenarioId: z.string().uuid(),
+    scenarioCaseId: z.string().guid(),
+    scenarioId: z.string().guid(),
     scenarioVersion: z.number().int(),
     seededAt: z.string().datetime(),
     replay: z.boolean(),
@@ -362,8 +362,7 @@ export function ScenarioFactsSeedPicker({
   const useSeedFmv = form.watch('useSeedFmv');
   const selectedSeed = seeds.find((seed) => String(seed.companyId) === selectedCompanyId);
   const companyScenariosQuery = useCompanyScenarios(selectedSeed ? selectedCompanyId : null);
-  const scenarioListPending =
-    companyScenariosQuery.isLoading || companyScenariosQuery.isFetching;
+  const scenarioListPending = companyScenariosQuery.isLoading || companyScenariosQuery.isFetching;
   const scenarioListActionable = !scenarioListPending && !companyScenariosQuery.error;
   const scenarios =
     newlyCreatedScenario?.companyId === selectedCompanyId &&
@@ -645,7 +644,9 @@ export function ScenarioFactsSeedPicker({
                     onClick={handleCreateScenario}
                     disabled={createScenarioMutation.isPending}
                   >
-                    {createScenarioMutation.isPending ? 'Creating scenario...' : 'Create new scenario'}
+                    {createScenarioMutation.isPending
+                      ? 'Creating scenario...'
+                      : 'Create new scenario'}
                   </Button>
                 )}
               </div>
@@ -661,8 +662,8 @@ export function ScenarioFactsSeedPicker({
                 </Alert>
               )}
               {scenarioListActionable && scenarios.length === 0 && (
-                  <p className="text-sm text-charcoal-600">No company scenarios yet.</p>
-                )}
+                <p className="text-sm text-charcoal-600">No company scenarios yet.</p>
+              )}
               {scenarioListActionable && scenarios.length > 0 && (
                 <div className="space-y-2" role="radiogroup" aria-label="Company scenarios">
                   {scenarios.map((companyScenario) => {

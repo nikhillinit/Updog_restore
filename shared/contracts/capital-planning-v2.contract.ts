@@ -50,11 +50,13 @@ export const CapitalPathV2Schema = z
   .min(1)
   .max(256)
   .regex(/^[A-Za-z][A-Za-z0-9_]*(?:(?:\[(?:0|[1-9]\d*|"[01]*")\])|(?:\.[A-Za-z0-9_]+))*$/);
-export const CapitalAssumptionProvenanceV2Schema = CapitalAssumptionProvenanceV1Schema.innerType()
+export const CapitalAssumptionProvenanceV2Schema = z
+  .object(CapitalAssumptionProvenanceV1Schema.shape)
+  .strict()
   .extend({
     inputPath: CapitalPathV2Schema,
     effectiveValue: z.union([
-      CapitalAssumptionProvenanceV1Schema.innerType().shape.effectiveValue,
+      CapitalAssumptionProvenanceV1Schema.shape.effectiveValue,
       z.literal(''),
     ]),
   })
@@ -482,8 +484,8 @@ export const CapitalPlanningMemoV2Schema = z
   .object({
     contractVersion: z.literal('capital-planning-memo/2.0.0'),
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
-    variantId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
+    variantId: z.string().guid(),
     scenarioSetName: CapitalScenarioNameV1Schema,
     variantName: CapitalScenarioNameV1Schema,
     result: CapitalPlanningStoredResultV2Schema,

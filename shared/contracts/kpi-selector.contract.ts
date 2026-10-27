@@ -53,7 +53,7 @@ export const RecyclingConfigSchema = z.object({
 
 export const KPIResponseSchema = z.object({
   // Metadata
-  fundId: z.string().uuid(),
+  fundId: z.string().guid(),
   asOf: z.string().datetime(), // ISO 8601 timestamp
   currency: z.string().length(3), // ISO 4217 currency code
 
@@ -114,7 +114,7 @@ export type KPIResponse = z.infer<typeof KPIResponseSchema>;
 // ============================================================================
 
 export const TransactionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   type: z.enum([
     'capital_call',
     'distribution',
@@ -125,12 +125,12 @@ export const TransactionSchema = z.object({
   ]),
   date: z.string().datetime(),
   amount: z.number(),
-  companyId: z.string().uuid().optional(),
-  isRecycled: z.boolean().default(false),
+  companyId: z.string().guid().optional(),
+  isRecycled: z.boolean().prefault(false),
 });
 
 export const FundLedgerSchema = z.object({
-  fundId: z.string().uuid(),
+  fundId: z.string().guid(),
   committedCapital: z.number().nonnegative(),
   transactions: z.array(TransactionSchema),
   recyclingConfig: RecyclingConfigSchema,
@@ -206,10 +206,10 @@ export interface KPISelectors {
 // ============================================================================
 
 export const KPIRequestSchema = z.object({
-  fundId: z.string().uuid(),
+  fundId: z.string().guid(),
   asOf: z.string().datetime().optional(), // Defaults to now
-  includeWaterfall: z.boolean().default(false),
-  includeRecycling: z.boolean().default(true),
+  includeWaterfall: z.boolean().prefault(false),
+  includeRecycling: z.boolean().prefault(true),
 });
 
 export type KPIRequest = z.infer<typeof KPIRequestSchema>;
@@ -235,7 +235,7 @@ export const KPIErrorSchema = z.object({
     'RECYCLING_LIMIT_EXCEEDED',
   ]),
   message: z.string(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type KPIError = z.infer<typeof KPIErrorSchema>;

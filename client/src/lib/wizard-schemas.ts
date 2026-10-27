@@ -26,12 +26,15 @@ export const zPct = z.number().min(0, 'Min 0%').max(100, 'Max 100%');
 export const fundBasicsSchema = z
   .object({
     fundName: z.string().min(1, 'Fund name is required'),
-    establishmentDate: z.string().optional().default(new Date().toISOString().split('T')[0] ?? ''), // ISO date string, defaults to today
+    establishmentDate: z
+      .string()
+      .optional()
+      .prefault(new Date().toISOString().split('T')[0] ?? ''), // ISO date string, defaults to today
     committedCapitalUSD: zUSD, // Total capital committed by LPs
-    gpCommitmentUSD: zUSD.default(0),
+    gpCommitmentUSD: zUSD.prefault(0),
 
     /** Fee basis (committed is most common for preview) */
-    managementFeeBasis: z.enum(['committed', 'called', 'nav']).default('committed'),
+    managementFeeBasis: z.enum(['committed', 'called', 'nav']).prefault('committed'),
 
     /** Management fees (step-down structure) */
     mgmtFeeEarlyPct: zPct, // Years 1..cutover-1
@@ -43,7 +46,7 @@ export const fundBasicsSchema = z
 
     /** Fund term */
     fundLifeYears: z.number().int().min(5).max(15),
-    isEvergreen: z.boolean().default(false),
+    isEvergreen: z.boolean().prefault(false),
   })
   .superRefine((v, ctx) => {
     // Only validate cutover if not evergreen
@@ -212,13 +215,13 @@ export const reserveSettingsSchema = z
       .number()
       .min(0, 'Must be ≥ 0')
       .max(5, 'Are you sure? Usually ≤ 3×')
-      .default(1.0),
+      .prefault(1.0),
     maxFollowOnRounds: z
       .number()
       .int('Whole number')
       .min(1, 'At least 1')
       .max(5, 'Max 5')
-      .default(3),
+      .prefault(3),
 
     // Strategy-specific fields
     targetReserveRatio: z
@@ -270,15 +273,15 @@ export const reserveSettingsSchema = z
  * Operations & Policies
  */
 export const opsPolicySchema = z.object({
-  distributionTiming: z.enum(['immediate', 'quarterly', 'annual']).default('quarterly'),
-  distributionMinimumUSD: zUSD.default(10_000),
-  distributionPreference: z.enum(['cash', 'stock', 'hybrid']).default('cash'),
+  distributionTiming: z.enum(['immediate', 'quarterly', 'annual']).prefault('quarterly'),
+  distributionMinimumUSD: zUSD.prefault(10_000),
+  distributionPreference: z.enum(['cash', 'stock', 'hybrid']).prefault('cash'),
   navValuationMethod: z
     .enum(['cost', 'lastRound', 'quarterlyMarks', 'conservative'])
-    .default('lastRound'),
+    .prefault('lastRound'),
   extensions: z.object({
-    numberOfExtensions: z.number().int().min(0).max(3).default(2),
-    extensionLengthYears: z.number().min(0.5).max(2).default(1),
-    feeDuringExtensionPct: zPct.default(1.5),
+    numberOfExtensions: z.number().int().min(0).max(3).prefault(2),
+    extensionLengthYears: z.number().min(0.5).max(2).prefault(1),
+    feeDuringExtensionPct: zPct.prefault(1.5),
   }),
 });

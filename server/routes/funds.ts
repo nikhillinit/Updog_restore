@@ -165,7 +165,7 @@ async function getCanonicalFundById(id: number): Promise<PersistedFund | undefin
 
 // Local fund calculation DTO for this endpoint
 const FundCalculationSchema = z.object({
-  fundSize: z.coerce.number().positive().int().default(100_000_000),
+  fundSize: z.coerce.number().positive().int().prefault(100_000_000),
 });
 type FundCalculationDTO = z.infer<typeof FundCalculationSchema>;
 

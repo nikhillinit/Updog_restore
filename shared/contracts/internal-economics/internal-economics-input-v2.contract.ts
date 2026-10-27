@@ -208,30 +208,38 @@ export type WaterfallTierV2 =
 // Tier grammar Zod schema
 // ---------------------------------------------------------------------------
 
-const ReturnOfCapitalTierSchema = z.object({
-  kind: z.literal('return_of_capital'),
-  priority: z.number().int().positive(),
-}).strict();
+const ReturnOfCapitalTierSchema = z
+  .object({
+    kind: z.literal('return_of_capital'),
+    priority: z.number().int().positive(),
+  })
+  .strict();
 
-const PreferredReturnTierSchema = z.object({
-  kind: z.literal('preferred_return'),
-  priority: z.number().int().positive(),
-  basis: z.literal('unreturned_settled_cash_capital'),
-  annualRate: RatioDecimalStringSchema,
-  rateMode: z.enum(V2_RATE_MODES),
-}).strict();
+const PreferredReturnTierSchema = z
+  .object({
+    kind: z.literal('preferred_return'),
+    priority: z.number().int().positive(),
+    basis: z.literal('unreturned_settled_cash_capital'),
+    annualRate: RatioDecimalStringSchema,
+    rateMode: z.enum(V2_RATE_MODES),
+  })
+  .strict();
 
-const GpCatchUpTierSchema = z.object({
-  kind: z.literal('gp_catch_up'),
-  priority: z.number().int().positive(),
-  gpAllocationRate: RatioDecimalStringSchema,
-}).strict();
+const GpCatchUpTierSchema = z
+  .object({
+    kind: z.literal('gp_catch_up'),
+    priority: z.number().int().positive(),
+    gpAllocationRate: RatioDecimalStringSchema,
+  })
+  .strict();
 
-const CarryTierSchema = z.object({
-  kind: z.literal('carry'),
-  priority: z.number().int().positive(),
-  gpShare: RatioDecimalStringSchema,
-}).strict();
+const CarryTierSchema = z
+  .object({
+    kind: z.literal('carry'),
+    priority: z.number().int().positive(),
+    gpShare: RatioDecimalStringSchema,
+  })
+  .strict();
 
 export const WaterfallTierV2Schema = z.discriminatedUnion('kind', [
   ReturnOfCapitalTierSchema,
@@ -591,7 +599,7 @@ export const OpeningStateV2Schema = z
   .object({
     openingCash: MoneyDecimalStringSchema,
     openingCashClassification: OpeningCashClassificationV2Schema,
-    openingProvenance: OpeningProvenanceV2Schema.default({
+    openingProvenance: OpeningProvenanceV2Schema.prefault({
       cashLots: [],
       investmentLots: [],
       entitlementPools: [],

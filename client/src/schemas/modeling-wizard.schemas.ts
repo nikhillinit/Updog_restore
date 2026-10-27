@@ -18,7 +18,7 @@ import { z } from 'zod';
  * Currency enum schema
  */
 export const currencySchema = z.enum(['USD', 'EUR', 'GBP'], {
-  errorMap: () => ({ message: 'Currency must be USD, EUR, or GBP' }),
+  error: 'Currency must be USD, EUR, or GBP',
 });
 
 /**
@@ -114,7 +114,7 @@ export const generalInfoSchema = z
 
     establishmentDate: isoDateSchema,
 
-    isEvergreen: z.boolean().default(false),
+    isEvergreen: z.boolean().prefault(false),
 
     fundLife: z
       .number()
@@ -194,7 +194,7 @@ export type GeneralInfoOutput = z.output<typeof generalInfoSchema>;
 export const investmentStageEnum = z.enum(
   ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c', 'series-d', 'series-e-plus'],
   {
-    errorMap: () => ({ message: 'Invalid investment stage' }),
+    error: 'Invalid investment stage',
   }
 );
 
@@ -368,7 +368,7 @@ export type SectorProfilesOutput = z.output<typeof sectorProfilesSchema>;
  * Entry strategy for initial investments
  */
 export const entryStrategyEnum = z.enum(['amount-based', 'ownership-based'], {
-  errorMap: () => ({ message: 'Entry strategy must be amount-based or ownership-based' }),
+  error: 'Entry strategy must be amount-based or ownership-based',
 });
 
 export type EntryStrategy = z.infer<typeof entryStrategyEnum>;
@@ -439,7 +439,7 @@ export type PacingPeriod = z.infer<typeof pacingPeriodSchema>;
 export const capitalAllocationSchema = z
   .object({
     /** Entry strategy: amount-based (fixed check size) or ownership-based (target %) */
-    entryStrategy: entryStrategyEnum.default('amount-based'),
+    entryStrategy: entryStrategyEnum.prefault('amount-based'),
 
     /** Initial check size for first investment ($M) */
     initialCheckSize: positiveNumberSchema
@@ -480,7 +480,7 @@ export const capitalAllocationSchema = z
 
       /** Deployment curve pattern (matches capital call schedule options) */
       deploymentCurve: z.enum(['linear', 'front-loaded', 'back-loaded'], {
-        errorMap: () => ({ message: 'Invalid deployment curve type' }),
+        error: 'Invalid deployment curve type',
       }),
     }),
 
@@ -563,14 +563,14 @@ export type CapitalAllocationOutput = z.output<typeof capitalAllocationSchema>;
  * Fee calculation basis types
  */
 export const feeBasisSchema = z.enum(['committed', 'called', 'fmv'], {
-  errorMap: () => ({ message: 'Invalid fee basis' }),
+  error: 'Invalid fee basis',
 });
 
 export type FeeBasis = z.infer<typeof feeBasisSchema>;
 
 /** Waterfall type for carried interest distribution */
 export const waterfallTypeEnum = z.enum(['american'], {
-  errorMap: () => ({ message: 'Waterfall type must be american' }),
+  error: 'Waterfall type must be american',
 });
 
 export type WaterfallType = z.infer<typeof waterfallTypeEnum>;
@@ -580,17 +580,17 @@ export type WaterfallType = z.infer<typeof waterfallTypeEnum>;
  */
 export const carriedInterestSchema = z.object({
   /** Enable carried interest */
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().prefault(false),
 
   /** Carried interest rate (%) - GP's share of profits */
   rate: percentageSchema
     .refine((val) => val >= 10 && val <= 30, 'Carried interest typically ranges from 10% to 30%')
-    .default(20),
+    .prefault(20),
 
   /** Hurdle rate (%) - Minimum return before carry kicks in */
   hurdleRate: percentageSchema
     .refine((val) => val >= 0 && val <= 20, 'Hurdle rate typically ranges from 0% to 20%')
-    .default(8),
+    .prefault(8),
 
   /** Catch-up percentage - How fast GP catches up to carry rate */
   catchUpPercentage: percentageSchema
@@ -598,10 +598,10 @@ export const carriedInterestSchema = z.object({
       (val) => val === 0 || val === 80 || val === 100,
       'Catch-up typically 0% (none), 80%, or 100% (full)'
     )
-    .default(100),
+    .prefault(100),
 
   /** Waterfall type: American (deal-by-deal) */
-  waterfallType: waterfallTypeEnum.default('american'),
+  waterfallType: waterfallTypeEnum.prefault('american'),
 });
 
 export type CarriedInterest = z.infer<typeof carriedInterestSchema>;
@@ -611,12 +611,12 @@ export type CarriedInterest = z.infer<typeof carriedInterestSchema>;
  */
 export const feeRecyclingSchema = z.object({
   /** Enable fee recycling */
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().prefault(false),
 
   /** Maximum recyclable amount as % of committed capital */
   recyclingCapPercent: percentageSchema
     .refine((val) => val >= 0 && val <= 20, 'Recycling cap typically ranges from 0% to 20%')
-    .default(10),
+    .prefault(10),
 
   /** Period during which fees can be recycled (months) */
   recyclingTermMonths: z
@@ -624,7 +624,7 @@ export const feeRecyclingSchema = z.object({
     .int('Recycling term must be a whole number of months')
     .min(12, 'Recycling term must be at least 12 months')
     .max(180, 'Recycling term cannot exceed 180 months (15 years)')
-    .default(84), // 7 years
+    .prefault(84), // 7 years
 });
 
 export type FeeRecycling = z.infer<typeof feeRecyclingSchema>;
@@ -640,7 +640,7 @@ export type FeeRecycling = z.infer<typeof feeRecyclingSchema>;
  */
 export const retroactiveFeeCatchUpSchema = z.object({
   /** Charge the missed fee months in the first fee period */
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().prefault(false),
 
   /** Month from fund inception when fee accrual starts */
   accrualStartMonth: z
@@ -648,7 +648,7 @@ export const retroactiveFeeCatchUpSchema = z.object({
     .int('Accrual start month must be a whole number')
     .min(0, 'Accrual start month cannot be negative')
     .max(120, 'Accrual start month cannot exceed 120 months (10 years)')
-    .default(0),
+    .prefault(0),
 
   /** Optional limit on the number of missed months that the catch-up charges */
   maxCatchUpMonths: z
@@ -848,9 +848,9 @@ export const expenseItemSchema = z
 
     type: z
       .enum(['one-time', 'annual'], {
-        errorMap: () => ({ message: 'Expense type must be one-time or annual' }),
+        error: 'Expense type must be one-time or annual',
       })
-      .default('one-time'),
+      .prefault('one-time'),
 
     description: z.string().max(500, 'Description cannot exceed 500 characters').optional(),
 
@@ -881,9 +881,9 @@ export const capitalCallScheduleSchema = z
   .object({
     type: z
       .enum(['even', 'front-loaded', 'back-loaded', 'custom'], {
-        errorMap: () => ({ message: 'Capital call schedule type is required' }),
+        error: 'Capital call schedule type is required',
       })
-      .default('even'),
+      .prefault('even'),
 
     customSchedule: z
       .array(
@@ -930,7 +930,7 @@ export const fundFinancialsSchema = z
       .array(expenseItemSchema)
       .max(20, 'Cannot exceed 20 additional expenses')
       .optional()
-      .default([]),
+      .prefault([]),
 
     investmentPeriod: z
       .number()
@@ -1027,7 +1027,7 @@ export type FundFinancialsOutput = z.output<typeof fundFinancialsSchema>;
 
 export const exitRecyclingSchema = z
   .object({
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().prefault(false),
 
     recyclingCap: percentageSchema.optional(),
 
@@ -1101,7 +1101,7 @@ export const waterfallTierSchema = z
 export const waterfallSchema = z
   .object({
     type: z.enum(['american', 'hybrid'], {
-      errorMap: () => ({ message: 'Waterfall type must be american or hybrid' }),
+      error: 'Waterfall type must be american or hybrid',
     }),
 
     preferredReturn: percentageSchema.refine(
@@ -1180,7 +1180,7 @@ export const scenarioAdjustmentSchema = z.object({
     .number()
     .min(0.1, 'MOIC multiplier must be at least 0.1 (10% of base)')
     .max(5.0, 'MOIC multiplier cannot exceed 5.0 (500% of base)')
-    .default(1.0),
+    .prefault(1.0),
 
   /** Exit timing adjustment in months (+/- from base case) */
   exitTimingDelta: z
@@ -1188,21 +1188,21 @@ export const scenarioAdjustmentSchema = z.object({
     .int('Exit timing delta must be whole months')
     .min(-48, 'Cannot exit more than 48 months earlier')
     .max(48, 'Cannot exit more than 48 months later')
-    .default(0),
+    .prefault(0),
 
   /** Loss rate adjustment in percentage points (+/- from base case) */
   lossRateDelta: z
     .number()
     .min(-50, 'Loss rate delta must be at least -50%')
     .max(50, 'Loss rate delta cannot exceed +50%')
-    .default(0),
+    .prefault(0),
 
   /** Follow-on participation rate adjustment in percentage points (+/-) */
   participationRateDelta: z
     .number()
     .min(-50, 'Participation rate delta must be at least -50%')
     .max(50, 'Participation rate delta cannot exceed +50%')
-    .default(0),
+    .prefault(0),
 });
 
 export type ScenarioAdjustment = z.infer<typeof scenarioAdjustmentSchema>;
@@ -1214,7 +1214,7 @@ export type ScenarioAdjustment = z.infer<typeof scenarioAdjustmentSchema>;
 export const scenariosSchema = z
   .object({
     /** Enable scenario analysis (false = base case only) */
-    enabled: z.boolean().default(true),
+    enabled: z.boolean().prefault(true),
 
     /** Scenario configurations (1-5 scenarios allowed) */
     scenarios: z
@@ -1304,7 +1304,7 @@ export function validateWizardStep<T>(
     return { success: true, data: result.data };
   }
 
-  const errors = result.error.errors.map((err) => {
+  const errors = result.error.issues.map((err) => {
     const path = err.path.join('.');
     return path ? `${path}: ${err.message}` : err.message;
   });
@@ -1316,7 +1316,7 @@ export function validateWizardStep<T>(
  * Get validation errors as a flat array of messages
  */
 export function getValidationErrors(zodError: z.ZodError): string[] {
-  return zodError.errors.map((err) => {
+  return zodError.issues.map((err) => {
     const path = err.path.join('.');
     return path ? `${path}: ${err.message}` : err.message;
   });
@@ -1345,7 +1345,7 @@ export function isWarning(error: z.ZodIssue): boolean {
  *
  * Used by storage layer to persist progress across sessions
  */
-export const storableWizardSchema = completeWizardSchema.deepPartial().extend({
+export const storableWizardSchema = completeWizardSchema.partial().extend({
   currentStep: z
     .enum([
       'generalInfo',

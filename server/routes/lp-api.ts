@@ -366,7 +366,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
@@ -497,7 +497,7 @@ router.get(
       }
 
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(
@@ -677,7 +677,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
@@ -780,7 +780,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(
@@ -971,7 +971,7 @@ router.post(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'POST', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);

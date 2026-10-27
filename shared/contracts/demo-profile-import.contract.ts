@@ -51,7 +51,7 @@ export const DemoProfileJsonValueSchema: z.ZodType<DemoProfileJsonValue> = z.laz
     z.number().finite(),
     z.string(),
     z.array(DemoProfileJsonValueSchema),
-    z.record(DemoProfileJsonValueSchema),
+    z.record(z.string(), DemoProfileJsonValueSchema),
   ])
 );
 
@@ -88,9 +88,9 @@ export const DemoProfilePortfolioCompanyRowSchema = z
     investmentDate: IsoDateSchema.optional(),
     currentValuation: MoneyStringSchema.optional(),
     foundedYear: z.number().int().min(1900).max(2200).optional(),
-    status: SanitizedTextSchema.default('active'),
+    status: SanitizedTextSchema.prefault('active'),
     description: SanitizedLongTextSchema.optional(),
-    dealTags: z.array(SanitizedTextSchema).default([]),
+    dealTags: z.array(SanitizedTextSchema).prefault([]),
     deployedReservesCents: z.number().int().nonnegative().optional(),
     plannedReservesCents: z.number().int().nonnegative().optional(),
     exitMoicBps: z.number().int().nonnegative().optional(),
@@ -109,11 +109,11 @@ export const DemoProfileInvestmentRowSchema = z
     round: SanitizedTextSchema,
     ownershipPercentage: OptionalPercentStringSchema,
     valuationAtInvestment: MoneyStringSchema.optional(),
-    dealTags: z.array(SanitizedTextSchema).default([]),
+    dealTags: z.array(SanitizedTextSchema).prefault([]),
     sharePriceCents: PositiveIntegerStringSchema.optional(),
     sharesAcquired: DecimalStringSchema.optional(),
     costBasisCents: PositiveIntegerStringSchema.optional(),
-    pricingConfidence: z.enum(['calculated', 'verified']).default('calculated'),
+    pricingConfidence: z.enum(['calculated', 'verified']).prefault('calculated'),
   })
   .strict();
 
@@ -137,8 +137,8 @@ export const DemoProfileDealOpportunityRowSchema = z
     sourceType: SanitizedTextSchema,
     dealSize: MoneyStringSchema.optional(),
     valuation: MoneyStringSchema.optional(),
-    status: SanitizedTextSchema.default('lead'),
-    priority: z.enum(['high', 'medium', 'low']).default('medium'),
+    status: SanitizedTextSchema.prefault('lead'),
+    priority: z.enum(['high', 'medium', 'low']).prefault('medium'),
     foundedYear: z.number().int().min(1900).max(2200).optional(),
     employeeCount: z.number().int().nonnegative().optional(),
     revenue: MoneyStringSchema.optional(),
@@ -186,7 +186,7 @@ export const DemoProfileFundBaselineRowSchema = z
     multiple: OptionalPercentStringSchema,
     dpi: OptionalPercentStringSchema,
     tvpi: OptionalPercentStringSchema,
-    portfolioCount: z.number().int().nonnegative().default(0),
+    portfolioCount: z.number().int().nonnegative().prefault(0),
     averageInvestment: MoneyStringSchema.optional(),
     topPerformers: DemoProfileJsonValueSchema.optional(),
     companySnapshots: DemoProfileJsonValueSchema.optional(),
@@ -194,11 +194,11 @@ export const DemoProfileFundBaselineRowSchema = z
     stageDistribution: DemoProfileJsonValueSchema.optional(),
     reserveAllocation: DemoProfileJsonValueSchema.optional(),
     pacingMetrics: DemoProfileJsonValueSchema.optional(),
-    isActive: z.boolean().default(true),
-    isDefault: z.boolean().default(false),
-    confidence: OptionalPercentStringSchema.default('1.00'),
-    version: SanitizedTextSchema.default('1.0.0'),
-    tags: z.array(SanitizedTextSchema).default([]),
+    isActive: z.boolean().prefault(true),
+    isDefault: z.boolean().prefault(false),
+    confidence: OptionalPercentStringSchema.prefault('1.00'),
+    version: SanitizedTextSchema.prefault('1.0.0'),
+    tags: z.array(SanitizedTextSchema).prefault([]),
   })
   .strict();
 
@@ -230,13 +230,13 @@ export const DemoProfileVarianceReportRowSchema = z
     varianceFactors: DemoProfileJsonValueSchema.optional(),
     alertsTriggered: DemoProfileJsonValueSchema.optional(),
     thresholdBreaches: DemoProfileJsonValueSchema.optional(),
-    riskLevel: SanitizedTextSchema.default('low'),
-    calculationEngine: SanitizedTextSchema.default('variance-v1'),
+    riskLevel: SanitizedTextSchema.prefault('low'),
+    calculationEngine: SanitizedTextSchema.prefault('variance-v1'),
     calculationDurationMs: z.number().int().nonnegative().optional(),
     dataQualityScore: OptionalPercentStringSchema,
-    status: SanitizedTextSchema.default('draft'),
-    isPublic: z.boolean().default(false),
-    sharedWith: z.array(SanitizedTextSchema).default([]),
+    status: SanitizedTextSchema.prefault('draft'),
+    isPublic: z.boolean().prefault(false),
+    sharedWith: z.array(SanitizedTextSchema).prefault([]),
   })
   .strict();
 
@@ -244,7 +244,7 @@ export const DemoProfileBacktestResultRowSchema = z
   .object({
     sourceKey: SyntheticSourceKeySchema,
     baselineSourceKey: SyntheticSourceKeySchema.optional(),
-    snapshotId: z.string().uuid().optional(),
+    snapshotId: z.string().guid().optional(),
     config: DemoProfileJsonValueSchema,
     simulationSummary: DemoProfileJsonValueSchema,
     actualPerformance: DemoProfileJsonValueSchema,
@@ -252,26 +252,26 @@ export const DemoProfileBacktestResultRowSchema = z
     dataQuality: DemoProfileJsonValueSchema,
     scenarioComparisons: DemoProfileJsonValueSchema.optional(),
     scenarioComparisonSummary: DemoProfileJsonValueSchema.optional(),
-    recommendations: z.array(SanitizedLongTextSchema).default([]),
+    recommendations: z.array(SanitizedLongTextSchema).prefault([]),
     executionTimeMs: z.number().int().nonnegative(),
-    status: SanitizedTextSchema.default('completed'),
+    status: SanitizedTextSchema.prefault('completed'),
     errorMessage: SanitizedLongTextSchema.optional(),
-    tags: z.array(SanitizedTextSchema).default([]),
+    tags: z.array(SanitizedTextSchema).prefault([]),
     expiresAt: IsoDateTimeSchema.optional(),
   })
   .strict();
 
 export const DemoProfileSectionsSchema = z
   .object({
-    portfolioCompanies: z.array(DemoProfilePortfolioCompanyRowSchema).default([]),
-    investments: z.array(DemoProfileInvestmentRowSchema).default([]),
-    investmentLots: z.array(DemoProfileInvestmentLotRowSchema).default([]),
-    dealOpportunities: z.array(DemoProfileDealOpportunityRowSchema).default([]),
-    fundMetrics: z.array(DemoProfileFundMetricRowSchema).default([]),
-    pacingHistory: z.array(DemoProfilePacingHistoryRowSchema).default([]),
-    fundBaselines: z.array(DemoProfileFundBaselineRowSchema).default([]),
-    varianceReports: z.array(DemoProfileVarianceReportRowSchema).default([]),
-    backtestResults: z.array(DemoProfileBacktestResultRowSchema).default([]),
+    portfolioCompanies: z.array(DemoProfilePortfolioCompanyRowSchema).prefault([]),
+    investments: z.array(DemoProfileInvestmentRowSchema).prefault([]),
+    investmentLots: z.array(DemoProfileInvestmentLotRowSchema).prefault([]),
+    dealOpportunities: z.array(DemoProfileDealOpportunityRowSchema).prefault([]),
+    fundMetrics: z.array(DemoProfileFundMetricRowSchema).prefault([]),
+    pacingHistory: z.array(DemoProfilePacingHistoryRowSchema).prefault([]),
+    fundBaselines: z.array(DemoProfileFundBaselineRowSchema).prefault([]),
+    varianceReports: z.array(DemoProfileVarianceReportRowSchema).prefault([]),
+    backtestResults: z.array(DemoProfileBacktestResultRowSchema).prefault([]),
   })
   .strict();
 
@@ -391,7 +391,7 @@ export const DemoProfileImportPreviewSchema = z
   .object({
     datasetId: DatasetIdSchema,
     previewHash: z.string().regex(/^[a-f0-9]{64}$/),
-    counts: z.record(DemoProfileSectionNameSchema, z.number().int().nonnegative()),
+    counts: z.partialRecord(DemoProfileSectionNameSchema, z.number().int().nonnegative()),
     rows: z.array(DemoProfileImportPreviewRowSchema),
   })
   .strict();
@@ -400,8 +400,8 @@ export const DemoProfileImportCommitSummarySchema = z
   .object({
     datasetId: DatasetIdSchema,
     previewHash: z.string().regex(/^[a-f0-9]{64}$/),
-    inserted: z.record(DemoProfileTargetTableSchema, z.number().int().nonnegative()),
-    skipped: z.record(DemoProfileTargetTableSchema, z.number().int().nonnegative()),
+    inserted: z.partialRecord(DemoProfileTargetTableSchema, z.number().int().nonnegative()),
+    skipped: z.partialRecord(DemoProfileTargetTableSchema, z.number().int().nonnegative()),
   })
   .strict();
 

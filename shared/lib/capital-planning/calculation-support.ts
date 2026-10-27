@@ -52,12 +52,14 @@ export function parseCalculation<T>(schema: z.ZodType<T>, value: unknown, path: 
   throw new CapitalPlanningCalculationError(
     parsed.error.issues.slice(0, limits.maxSourceFacts).map((issue) => {
       const field = issue.path.reduce<string>(
-        (result, part) => (typeof part === 'number' ? `${result}[${part}]` : `${result}.${part}`),
+        (result, part) =>
+          typeof part === 'number' ? `${result}[${part}]` : `${result}.${String(part)}`,
         path
       );
       const policy =
         issue.path.includes('checkPolicy') &&
-        (issue.code === 'invalid_union_discriminator' || issue.code === 'unrecognized_keys');
+        ((issue.code === 'invalid_union' && 'discriminator' in issue) ||
+          issue.code === 'unrecognized_keys');
       const code = policy
         ? 'POLICY_UNSUPPORTED'
         : issue.message === 'CHECK_EXCEEDS_ROUND_SIZE'

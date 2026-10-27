@@ -1,5 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 import { db } from '../../db';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
@@ -16,7 +16,7 @@ const CompanyScenarioCreateResponseSchema = z
   .object({
     scenario: z
       .object({
-        id: z.string().uuid(),
+        id: z.string().guid(),
         name: z.string(),
         version: z.number().int(),
         updatedAt: z.string().datetime(),
@@ -34,9 +34,7 @@ export class CompanyScenarioCreateIdempotencyConflictError extends Error {
   readonly code = 'idempotency_conflict';
 
   constructor() {
-    super(
-      'Idempotency-Key is already associated with another company scenario creation request'
-    );
+    super('Idempotency-Key is already associated with another company scenario creation request');
     this.name = 'CompanyScenarioCreateIdempotencyConflictError';
   }
 }

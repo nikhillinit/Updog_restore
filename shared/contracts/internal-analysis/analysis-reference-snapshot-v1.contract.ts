@@ -250,7 +250,7 @@ export const AnalysisRevisionEventV1Schema = z
     draftId: PositiveIntSchema.nullable(),
     referenceId: PositiveIntSchema.nullable(),
     eventType: AnalysisRevisionEventTypeSchema,
-    detail: z.record(z.unknown()),
+    detail: z.record(z.string(), z.unknown()),
     actorId: PositiveIntSchema.nullable(),
     createdAt: IsoDateTimeSchema,
   })
@@ -259,7 +259,7 @@ export const AnalysisRevisionEventV1Schema = z
 /** Manual draft creation. Quarterly drafts come from the outbox planner instead. */
 export const AnalysisDraftCreateRequestSchema = z
   .object({
-    periodKind: AnalysisPeriodKindSchema.default('manual'),
+    periodKind: AnalysisPeriodKindSchema.prefault('manual'),
     periodStart: IsoDateSchema,
     periodEnd: IsoDateSchema,
   })
@@ -279,7 +279,7 @@ export const AnalysisDraftSaveRequestSchema = z
      * Explicit operator override of the one-basis coherence check. Without it a
      * mixed bundle rejects with MIXED_FACTS_BASIS.
      */
-    acknowledgeMixedBasis: z.boolean().default(false),
+    acknowledgeMixedBasis: z.boolean().prefault(false),
   })
   .strict();
 

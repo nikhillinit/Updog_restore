@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const ForecastHorizonMonthsSchema = z.number().int().min(3).max(60);
+
 // =============================================================================
 // CASHFLOW & LIQUIDITY MANAGEMENT SCHEMA
 // =============================================================================
@@ -8,47 +10,47 @@ import { z } from 'zod';
  * Core cash transaction types for VC fund operations
  */
 export const CashTransactionTypeSchema = z.enum([
-  'capital_call',        // LP capital call
-  'investment',          // Investment in portfolio company
-  'distribution',        // Distribution to LPs
-  'expense',            // Fund operating expense
-  'management_fee',     // Management fee payment
+  'capital_call', // LP capital call
+  'investment', // Investment in portfolio company
+  'distribution', // Distribution to LPs
+  'expense', // Fund operating expense
+  'management_fee', // Management fee payment
   'carry_distribution', // Carried interest distribution
-  'interest_income',    // Interest on cash balances
-  'other_income',       // Other fund income
-  'recapitalization',   // Portfolio company recaps
-  'bridge_loan',        // Bridge loans to portfolio companies
-  'follow_on',          // Follow-on investments
+  'interest_income', // Interest on cash balances
+  'other_income', // Other fund income
+  'recapitalization', // Portfolio company recaps
+  'bridge_loan', // Bridge loans to portfolio companies
+  'follow_on', // Follow-on investments
 ]);
 
 /**
  * Transaction status for approval workflows
  */
 export const TransactionStatusSchema = z.enum([
-  'planned',        // Forecast/planned transaction
-  'pending',        // Pending approval
-  'approved',       // Approved for execution
-  'executed',       // Completed transaction
-  'cancelled',      // Cancelled transaction
-  'failed',         // Failed transaction
+  'planned', // Forecast/planned transaction
+  'pending', // Pending approval
+  'approved', // Approved for execution
+  'executed', // Completed transaction
+  'cancelled', // Cancelled transaction
+  'failed', // Failed transaction
 ]);
 
 /**
  * Individual cash transaction
  */
 export const CashTransactionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   fundId: z.string(),
   type: CashTransactionTypeSchema,
   amount: z.number(), // Positive for inflows, negative for outflows
-  currency: z.string().length(3).default('USD'),
+  currency: z.string().length(3).prefault('USD'),
 
   // Timing
   plannedDate: z.date(),
   executedDate: z.date().optional(),
 
   // Status and approval
-  status: TransactionStatusSchema.default('planned'),
+  status: TransactionStatusSchema.prefault('planned'),
   approvedBy: z.string().optional(),
   approvalDate: z.date().optional(),
 
@@ -57,15 +59,15 @@ export const CashTransactionSchema = z.object({
   category: z.string().optional(), // e.g., "legal", "audit", "travel"
   portfolioCompanyId: z.string().optional(), // For investment-related transactions
   lpId: z.string().optional(), // For LP-specific transactions
-  quarterEnd: z.boolean().default(false), // Flag for quarter-end transactions
+  quarterEnd: z.boolean().prefault(false), // Flag for quarter-end transactions
 
   // Additional context
   notes: z.string().optional(),
   documentRef: z.string().optional(), // Reference to supporting documents
 
   // Audit trail
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().default(() => new Date()),
+  createdAt: z.date().prefault(() => new Date()),
+  updatedAt: z.date().prefault(() => new Date()),
   createdBy: z.string(),
 });
 
@@ -73,7 +75,7 @@ export const CashTransactionSchema = z.object({
  * Capital call specific details
  */
 export const CapitalCallSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   fundId: z.string(),
   callNumber: z.number().int().positive(),
   totalAmount: z.number().positive(),
@@ -85,32 +87,42 @@ export const CapitalCallSchema = z.object({
 
   // Purpose and allocation
   purpose: z.string(), // e.g., "Investment in Company XYZ", "Operating expenses Q3"
-  investmentAllocations: z.array(z.object({
-    portfolioCompanyId: z.string(),
-    amount: z.number().positive(),
-    percentage: z.number().min(0).max(100),
-  })).optional(),
-  expenseAllocations: z.array(z.object({
-    category: z.string(),
-    amount: z.number().positive(),
-    description: z.string(),
-  })).optional(),
+  investmentAllocations: z
+    .array(
+      z.object({
+        portfolioCompanyId: z.string(),
+        amount: z.number().positive(),
+        percentage: z.number().min(0).max(100),
+      })
+    )
+    .optional(),
+  expenseAllocations: z
+    .array(
+      z.object({
+        category: z.string(),
+        amount: z.number().positive(),
+        description: z.string(),
+      })
+    )
+    .optional(),
 
   // LP responses
-  lpCommitments: z.array(z.object({
-    lpId: z.string(),
-    committedAmount: z.number().positive(),
-    paidAmount: z.number().nonnegative(),
-    dueAmount: z.number().nonnegative(),
-    status: z.enum(['pending', 'paid', 'partial', 'defaulted']),
-    paidDate: z.date().optional(),
-  })),
+  lpCommitments: z.array(
+    z.object({
+      lpId: z.string(),
+      committedAmount: z.number().positive(),
+      paidAmount: z.number().nonnegative(),
+      dueAmount: z.number().nonnegative(),
+      status: z.enum(['pending', 'paid', 'partial', 'defaulted']),
+      paidDate: z.date().optional(),
+    })
+  ),
 
   status: z.enum(['draft', 'sent', 'collecting', 'completed', 'cancelled']),
 
   // Metadata
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().default(() => new Date()),
+  createdAt: z.date().prefault(() => new Date()),
+  updatedAt: z.date().prefault(() => new Date()),
   createdBy: z.string(),
 });
 
@@ -139,7 +151,7 @@ export const ExpenseCategorySchema = z.enum([
  * Recurring expense template
  */
 export const RecurringExpenseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   fundId: z.string(),
   name: z.string(),
   category: ExpenseCategorySchema,
@@ -156,12 +168,12 @@ export const RecurringExpenseSchema = z.object({
   description: z.string(),
 
   // Auto-generation settings
-  autoGenerate: z.boolean().default(true),
-  approvalRequired: z.boolean().default(false),
+  autoGenerate: z.boolean().prefault(true),
+  approvalRequired: z.boolean().prefault(false),
 
   // Metadata
-  isActive: z.boolean().default(true),
-  createdAt: z.date().default(() => new Date()),
+  isActive: z.boolean().prefault(true),
+  createdAt: z.date().prefault(() => new Date()),
   createdBy: z.string(),
 });
 
@@ -199,17 +211,19 @@ export const LiquidityForecastSchema = z.object({
   runwayMonths: z.number(), // Months until liquidity constraint
 
   // Scenario analysis
-  scenarios: z.array(z.object({
-    name: z.string(),
-    probability: z.number().min(0).max(1),
-    projectedCash: z.number(),
-    notes: z.string().optional(),
-  })),
+  scenarios: z.array(
+    z.object({
+      name: z.string(),
+      probability: z.number().min(0).max(1),
+      projectedCash: z.number(),
+      notes: z.string().optional(),
+    })
+  ),
 
   // Metadata
-  generatedAt: z.date().default(() => new Date()),
+  generatedAt: z.date().prefault(() => new Date()),
   generatedBy: z.string(),
-  lastUpdated: z.date().default(() => new Date()),
+  lastUpdated: z.date().prefault(() => new Date()),
 });
 
 /**
@@ -220,14 +234,16 @@ export const CashPositionSchema = z.object({
   asOfDate: z.date(),
 
   // Bank accounts
-  bankAccounts: z.array(z.object({
-    accountId: z.string(),
-    bankName: z.string(),
-    accountType: z.enum(['operating', 'capital_call', 'distribution', 'escrow']),
-    balance: z.number(),
-    currency: z.string().length(3).default('USD'),
-    lastUpdated: z.date(),
-  })),
+  bankAccounts: z.array(
+    z.object({
+      accountId: z.string(),
+      bankName: z.string(),
+      accountType: z.enum(['operating', 'capital_call', 'distribution', 'escrow']),
+      balance: z.number(),
+      currency: z.string().length(3).prefault('USD'),
+      lastUpdated: z.date(),
+    })
+  ),
 
   // Aggregate positions
   totalCash: z.number(),
@@ -246,8 +262,8 @@ export const CashPositionSchema = z.object({
   availableInvestment: z.number().nonnegative(), // Dry powder - reserves
 
   // Metadata
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().default(() => new Date()),
+  createdAt: z.date().prefault(() => new Date()),
+  updatedAt: z.date().prefault(() => new Date()),
 });
 
 /**
@@ -282,7 +298,7 @@ export const DistributionWaterfallSchema = z.object({
   }),
 
   // Calculation metadata
-  calculatedAt: z.date().default(() => new Date()),
+  calculatedAt: z.date().prefault(() => new Date()),
   waterfallType: z.enum(['AMERICAN']),
   carryRate: z.number().min(0).max(1),
 });
@@ -296,40 +312,40 @@ export const DistributionWaterfallSchema = z.object({
  */
 export const FundCashflowConfigSchema = z.object({
   // Basic settings
-  enableCashflowTracking: z.boolean().default(true),
-  enableAutomaticCapitalCalls: z.boolean().default(false),
-  enableExpenseTracking: z.boolean().default(true),
+  enableCashflowTracking: z.boolean().prefault(true),
+  enableAutomaticCapitalCalls: z.boolean().prefault(false),
+  enableExpenseTracking: z.boolean().prefault(true),
 
   // Capital call settings
   capitalCallSettings: z.object({
-    defaultNoticesDays: z.number().int().min(1).max(90).default(10),
-    defaultPaymentDays: z.number().int().min(1).max(60).default(30),
-    autoGenerateQuarterly: z.boolean().default(false),
-    requireApproval: z.boolean().default(true),
+    defaultNoticesDays: z.number().int().min(1).max(90).prefault(10),
+    defaultPaymentDays: z.number().int().min(1).max(60).prefault(30),
+    autoGenerateQuarterly: z.boolean().prefault(false),
+    requireApproval: z.boolean().prefault(true),
   }),
 
   // Expense settings
   expenseSettings: z.object({
     defaultCategories: z.array(ExpenseCategorySchema),
-    requireApprovalThreshold: z.number().positive().default(10000),
-    autoRecurringExpenses: z.boolean().default(true),
+    requireApprovalThreshold: z.number().positive().prefault(10000),
+    autoRecurringExpenses: z.boolean().prefault(true),
   }),
 
   // Liquidity settings
   liquiditySettings: z.object({
-    minimumCashRatio: z.number().min(0).max(1).default(0.05), // 5% of fund size
-    forecastHorizonMonths: z.number().int().min(3).max(60).default(12),
+    minimumCashRatio: z.number().min(0).max(1).prefault(0.05), // 5% of fund size
+    forecastHorizonMonths: ForecastHorizonMonthsSchema.prefault(12),
     alertThresholds: z.object({
-      lowLiquidity: z.number().min(0).max(1).default(0.02), // 2% of fund size
-      criticalLiquidity: z.number().min(0).max(1).default(0.01), // 1% of fund size
+      lowLiquidity: z.number().min(0).max(1).prefault(0.02), // 2% of fund size
+      criticalLiquidity: z.number().min(0).max(1).prefault(0.01), // 1% of fund size
     }),
   }),
 
   // Integration settings
   integrations: z.object({
-    bankingApi: z.boolean().default(false),
-    portfolioCompanyReporting: z.boolean().default(true),
-    distributionAutomation: z.boolean().default(false),
+    bankingApi: z.boolean().prefault(false),
+    portfolioCompanyReporting: z.boolean().prefault(true),
+    distributionAutomation: z.boolean().prefault(false),
   }),
 });
 
@@ -372,14 +388,17 @@ export function calculateNetCashFlow(transactions: CashTransaction[]): number {
  * Group transactions by type for analysis
  */
 export function groupTransactionsByType(transactions: CashTransaction[]) {
-  return transactions.reduce((groups, transaction) => {
-    const type = transaction.type;
-    if (!groups[type]) {
-      groups[type] = [];
-    }
-    groups[type].push(transaction);
-    return groups;
-  }, {} as Record<CashTransactionType, CashTransaction[]>);
+  return transactions.reduce(
+    (groups, transaction) => {
+      const type = transaction.type;
+      if (!groups[type]) {
+        groups[type] = [];
+      }
+      groups[type].push(transaction);
+      return groups;
+    },
+    {} as Record<CashTransactionType, CashTransaction[]>
+  );
 }
 
 /**

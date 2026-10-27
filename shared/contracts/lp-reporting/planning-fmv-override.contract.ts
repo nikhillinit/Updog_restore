@@ -40,11 +40,11 @@ export const PlanningFmvOverrideCreateRequestSchema = z
     fairValue: DecimalStringSchema.refine((value) => !value.startsWith('-'), {
       message: 'fairValue must be non-negative',
     }),
-    currency: z.literal('USD').default('USD'),
-    confidenceLevel: PlanningFmvConfidenceLevelSchema.default('medium'),
+    currency: z.literal('USD').prefault('USD'),
+    confidenceLevel: PlanningFmvConfidenceLevelSchema.prefault('medium'),
     reason: z.string().trim().min(1).max(1000),
     methodologyNotes: z.string().trim().min(1).max(4000).optional(),
-    source: PlanningFmvSourceContextSchema.default({}),
+    source: PlanningFmvSourceContextSchema.prefault({}),
   })
   .strict();
 

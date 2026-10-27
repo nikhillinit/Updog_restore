@@ -85,21 +85,21 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     fundId: z.coerce.number().int().positive(),
     startTime: z.string().datetime().optional(),
     endTime: z.string().datetime().optional(),
-    limit: z.coerce.number().int().min(1).max(1000).default(100),
-    offset: z.coerce.number().int().min(0).default(0),
+    limit: z.coerce.number().int().min(1).max(1000).prefault(100),
+    offset: z.coerce.number().int().min(0).prefault(0),
   });
 
   // Point-in-time query schema
   const pointInTimeSchema = z.object({
     fundId: z.coerce.number().int().positive(),
     timestamp: z.string().datetime(),
-    includeEvents: z.coerce.boolean().default(false),
+    includeEvents: z.coerce.boolean().prefault(false),
   });
 
   // Snapshot creation schema
   const createSnapshotSchema = z.object({
     fundId: z.coerce.number().int().positive(),
-    type: z.enum(['manual', 'scheduled', 'auto']).default('manual'),
+    type: z.enum(['manual', 'scheduled', 'auto']).prefault('manual'),
     description: z.string().optional(),
   });
   const createSnapshotBodySchema = createSnapshotSchema.omit({ fundId: true });
@@ -261,7 +261,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
       query: z.object({
         timestamp1: z.string().datetime(),
         timestamp2: z.string().datetime(),
-        includeDiff: z.coerce.boolean().default(true),
+        includeDiff: z.coerce.boolean().prefault(true),
       }),
     }),
     asyncHandler(async (req, res) => {
@@ -307,7 +307,7 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
     timelineReadLimiter,
     validateRequest({
       query: z.object({
-        limit: z.coerce.number().int().min(1).max(100).default(20),
+        limit: z.coerce.number().int().min(1).max(100).prefault(20),
         eventTypes: z.array(z.string()).optional(),
       }),
     }),

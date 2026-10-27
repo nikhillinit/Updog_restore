@@ -147,7 +147,8 @@ export function useActualsRestatementPreview(fundId: number) {
   });
 }
 
-const storedBodySchema = ActualsRestatementPublishRequestV1Schema.innerType()
+const storedBodySchema = z
+  .object(ActualsRestatementPublishRequestV1Schema.shape)
   .omit({ ledger: true, valuation: true })
   .extend({
     ledger: ActualsPublishFileV1Schema.omit({ payload: true }).nullable(),
@@ -160,7 +161,7 @@ const storedCommandSchema = z
     fundId: z.number().int().positive(),
     key: z
       .string()
-      .uuid()
+      .guid()
       .regex(/^[a-f0-9-]+$/),
     identityHash: z.string().regex(/^[a-f0-9]{64}$/),
     status: z.enum(['ready', 'uncertain', 'refused']),

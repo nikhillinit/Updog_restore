@@ -56,8 +56,8 @@ const notificationsLimiter = rateLimit({
 
 const NotificationListQuerySchema = z.object({
   type: z.enum(['capital_call', 'distribution', 'report_ready', 'document', 'system']).optional(),
-  unreadOnly: z.coerce.boolean().default(false),
-  limit: z.coerce.number().min(1).max(50).default(20),
+  unreadOnly: z.coerce.boolean().prefault(false),
+  limit: z.coerce.number().min(1).max(50).prefault(20),
   cursor: z.string().optional(),
 });
 
@@ -106,7 +106,7 @@ router.get(
           .json(
             createErrorResponse(
               'VALIDATION_ERROR',
-              queryResult.error.errors[0]?.message ?? 'Invalid query parameters'
+              queryResult.error.issues[0]?.message ?? 'Invalid query parameters'
             )
           );
       }
@@ -425,7 +425,7 @@ router.post(
           .json(
             createErrorResponse(
               'VALIDATION_ERROR',
-              bodyResult.error.errors[0]?.message ?? 'Invalid request body'
+              bodyResult.error.issues[0]?.message ?? 'Invalid request body'
             )
           );
       }
@@ -591,7 +591,7 @@ router.put(
           .json(
             createErrorResponse(
               'VALIDATION_ERROR',
-              bodyResult.error.errors[0]?.message ?? 'Invalid preference values'
+              bodyResult.error.issues[0]?.message ?? 'Invalid preference values'
             )
           );
       }

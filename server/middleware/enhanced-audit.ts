@@ -68,20 +68,20 @@ const defaultAuditConfig: AuditConfig = {
 
 const AuditEventSchema = z.object({
   userId: z.number().int().positive().optional(),
-  sessionId: z.string().uuid().optional(),
+  sessionId: z.string().guid().optional(),
   action: z.string().min(1).max(100),
   entityType: z.string().min(1).max(50),
   entityId: z.union([z.string(), z.number()]).optional(),
   changes: z.unknown().optional(),
-  metadata: z.record(z.unknown()).optional(),
-  ipAddress: z.string().ip().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   userAgent: z.string().max(500).optional(),
-  correlationId: z.string().uuid().optional(),
+  correlationId: z.string().guid().optional(),
   requestPath: z.string().max(500),
   httpMethod: z.string().max(10),
   statusCode: z.number().int().min(100).max(599),
   executionTimeMs: z.number().int().min(0).optional(),
-  riskLevel: z.enum(['low', 'medium', 'high', 'critical']).default('low'),
+  riskLevel: z.enum(['low', 'medium', 'high', 'critical']).prefault('low'),
 });
 
 const FinancialAuditSchema = z.object({
@@ -98,12 +98,12 @@ const FinancialAuditSchema = z.object({
     'compliance_report',
   ]),
   amount: z.number().finite().optional(),
-  currency: z.string().length(3).default('USD'),
+  currency: z.string().length(3).prefault('USD'),
   previousValue: z.number().finite().optional(),
   newValue: z.number().finite().optional(),
   calculationMethod: z.string().max(100).optional(),
-  dataInputs: z.record(z.unknown()).optional(),
-  outputs: z.record(z.unknown()).optional(),
+  dataInputs: z.record(z.string(), z.unknown()).optional(),
+  outputs: z.record(z.string(), z.unknown()).optional(),
   complianceFlags: z.array(z.string()).optional(),
 });
 
@@ -342,7 +342,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
         if (!validation.success) {
           securityLogger.error('Audit data validation failed', {
             correlationId,
-            errors: validation.error.errors,
+            errors: validation.error.issues,
           });
           return;
         }
@@ -525,8 +525,7 @@ async function logFinancialOperation(
       dataInputs: sanitizeSensitiveData(req.body, defaultAuditConfig.sensitiveFields || []),
       outputs: sanitizeSensitiveData(responseBody, defaultAuditConfig.sensitiveFields || []),
       calculationMethod: (resBody?.['calculationMethod'] || reqBody?.['calculationMethod']) as
-        | string
-        | undefined,
+        string | undefined,
       complianceFlags: validateCompliance(reqBody, resBody),
     };
 
@@ -534,7 +533,7 @@ async function logFinancialOperation(
     if (!validation.success) {
       securityLogger.error('Financial audit validation failed', {
         correlationId,
-        errors: validation.error.errors,
+        errors: validation.error.issues,
       });
       return;
     }

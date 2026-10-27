@@ -45,7 +45,9 @@ is Press On Ventures' internal VC fund-modeling and reporting platform (see root
 - **Backend**: Express `5.2.1`, Node `22.x` / npm `>=10.8.0` (runtime pinned by
   `.nvmrc` and `package.json` Volta settings).
 - **Data**: PostgreSQL via Drizzle ORM `^0.45.1` + drizzle-kit `0.31.10` +
-  drizzle-zod `^0.8.3`. Validation: Zod `^3.25.76`. Financial precision:
+  drizzle-zod `^0.8.3`. Validation: Zod `^4.6.7`; migration conventions use
+  `.prefault()`, `.guid()`, sparse `z.partialRecord()`, and default-free PATCH
+  schemas; production imports of `zod/v3` are forbidden. Financial precision:
   `decimal.js ^10.6.0`, `mathjs 15.2.0` — never raw float for money math (see
   `feedback_shared_contract_node_crypto_client_bundle_leak` and precision memory
   notes; `phoenix-precision-guardian` owns this domain).

@@ -51,10 +51,10 @@ const OptimizationConstraintsSchema = z.object({
   cvarLimit: z.number().min(0).max(1).optional(),
   minExpectedWinners: z.number().int().nonnegative().optional(),
   sectorBounds: z
-    .record(z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
+    .record(z.string(), z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
     .optional(),
   stageBounds: z
-    .record(z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
+    .record(z.string(), z.object({ min: z.number().min(0).max(1), max: z.number().min(0).max(1) }))
     .optional(),
   bucketMaxWeight: z.number().min(0).max(1).optional(),
   totalFundSize: z.number().positive(),
@@ -108,7 +108,7 @@ const RunOptimizationRequestSchema = z.object({
  * Schema for job ID parameter
  */
 const JobIdParamSchema = z.object({
-  jobId: z.string().uuid(),
+  jobId: z.string().guid(),
 });
 
 // =====================
@@ -118,7 +118,7 @@ const JobIdParamSchema = z.object({
 /**
  * Type guard to check if error is a ZodError
  */
-function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
+function isZodError(error: unknown): error is { name: 'ZodError'; issues: unknown } {
   return (
     typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
@@ -184,7 +184,7 @@ function handleServiceError(error: unknown, res: Response): void {
     res.status(400).json({
       error: 'validation_error',
       message: 'Invalid request data',
-      details: error.errors,
+      details: error.issues,
     });
     return;
   }

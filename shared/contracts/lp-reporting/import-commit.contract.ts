@@ -21,13 +21,13 @@ export const ImportCommitRequestSchema = z
 
 export const ImportCommitResponseSchema = z
   .object({
-    importBatchId: z.string().uuid(),
+    importBatchId: z.string().guid(),
     previewHash: PreviewHashSchema,
     insertedCount: z.number().int().nonnegative(),
     skippedExistingCount: z.number().int().nonnegative(),
     skippedDuplicateCount: z.number().int().nonnegative(),
     skippedExcludedCount: z.number().int().nonnegative(),
-    insertedIds: z.array(z.number().int().positive()).default([]),
+    insertedIds: z.array(z.number().int().positive()).prefault([]),
   })
   .strict();
 

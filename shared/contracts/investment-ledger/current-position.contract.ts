@@ -63,7 +63,7 @@ export const OwnershipSnapshotRequestSchema = z
     ownershipPct: OwnershipPctStringSchema,
     fdNumerator: StoredPositionDecimalStringSchema.optional(),
     fdDenominator: StoredPositionDecimalStringSchema.optional(),
-    currency: z.literal('USD').default('USD'),
+    currency: z.literal('USD').prefault('USD'),
     supersedesSnapshotId: PositiveIntSchema.optional(),
     sourceObservationId: PositiveIntSchema,
   })
@@ -133,7 +133,7 @@ export const PositionValuationRequestSchema = z
     companyId: PositiveIntSchema,
     asOfDate: IsoDateSchema,
     fairValue: MoneyDecimalStringSchema.refine((value) => new Decimal(value).gte(0)),
-    currency: z.literal('USD').default('USD'),
+    currency: z.literal('USD').prefault('USD'),
     sourceObservationId: PositiveIntSchema,
     markSource: z.enum([
       'financing_round',

@@ -18,16 +18,11 @@ export const ReserveIcDecisionTypeSchema = z.enum([
   'no_action',
 ]);
 
-export const ReserveIcDecisionStatusSchema = z.enum([
-  'draft',
-  'proposed',
-  'approved',
-  'rejected',
-]);
+export const ReserveIcDecisionStatusSchema = z.enum(['draft', 'proposed', 'approved', 'rejected']);
 
 export const ReserveIcDecisionProvenanceSchema = z
   .object({
-    sourceScenarioId: z.string().uuid().nullable(),
+    sourceScenarioId: z.string().guid().nullable(),
     sourceAllocationVersion: z.number().int().min(1).nullable(),
     liveAllocationVersion: z.number().int().min(1).nullable(),
   })
@@ -35,7 +30,7 @@ export const ReserveIcDecisionProvenanceSchema = z
 
 export const ReserveIcDecisionRecordV1Schema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     fundId: z.number().int().positive(),
     companyId: z.number().int().positive(),
     decisionType: ReserveIcDecisionTypeSchema,
@@ -69,7 +64,7 @@ export const CreateReserveIcDecisionV1Schema = z
     fundId: z.number().int().positive(),
     companyId: z.number().int().positive(),
     decisionType: ReserveIcDecisionTypeSchema,
-    decisionStatus: ReserveIcDecisionStatusSchema.default('draft'),
+    decisionStatus: ReserveIcDecisionStatusSchema.prefault('draft'),
     rationale: z.string().trim().min(1).max(4000),
     proposedPlannedReservesCents: z.number().int().min(0).nullable(),
     finalPlannedReservesCents: z.number().int().min(0).nullable().optional(),

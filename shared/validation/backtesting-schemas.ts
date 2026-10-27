@@ -18,7 +18,7 @@ const PositiveNumber = z.number().positive().finite();
 const PositiveInteger = z.number().int().positive().finite();
 const Percentage = z.number().min(0).max(1).finite();
 const FundId = z.number().int().positive();
-const UUID = z.string().uuid();
+const UUID = z.string().guid();
 const ISODateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format');
 
 // =============================================================================
@@ -85,9 +85,9 @@ export const BacktestConfigSchema = z
     fundId: FundId,
     startDate: ISODateString,
     endDate: ISODateString,
-    simulationRuns: PositiveInteger.min(100).max(50000).default(10000),
-    comparisonMetrics: z.array(BacktestMetricSchema).min(1).max(5).default(['irr', 'tvpi', 'dpi']),
-    includeHistoricalScenarios: z.boolean().default(false),
+    simulationRuns: PositiveInteger.min(100).max(50000).prefault(10000),
+    comparisonMetrics: z.array(BacktestMetricSchema).min(1).max(5).prefault(['irr', 'tvpi', 'dpi']),
+    includeHistoricalScenarios: z.boolean().prefault(false),
     historicalScenarios: z.array(HistoricalScenarioNameSchema).max(5).optional(),
     baselineId: UUID.optional(),
     snapshotId: UUID.optional(),
@@ -161,9 +161,9 @@ export const ActualPerformanceSchema = z
 // =============================================================================
 
 const MetricBooleanOrNullRecord = z
-  .record(BacktestMetricSchema, z.boolean().nullable())
+  .partialRecord(BacktestMetricSchema, z.boolean().nullable())
   .optional()
-  .default({});
+  .prefault({});
 
 export const PercentileHitRatesSchema = z
   .object({
@@ -178,9 +178,9 @@ export const PercentileHitRatesSchema = z
 // =============================================================================
 
 const MetricNumberOrNullRecord = z
-  .record(BacktestMetricSchema, z.number().min(0).finite().nullable())
+  .partialRecord(BacktestMetricSchema, z.number().min(0).finite().nullable())
   .optional()
-  .default({});
+  .prefault({});
 
 export const ValidationMetricsSchema = z
   .object({
@@ -189,7 +189,7 @@ export const ValidationMetricsSchema = z
     percentileHitRates: PercentileHitRatesSchema,
     modelQualityScore: z.number().min(0).max(100).finite(),
     calibrationStatus: CalibrationStatusSchema,
-    incalculableMetrics: z.array(BacktestMetricSchema).default([]),
+    incalculableMetrics: z.array(BacktestMetricSchema).prefault([]),
   })
   .strict();
 
@@ -222,7 +222,10 @@ export const ScenarioComparisonSummarySchema = z
 export const SimulationSummarySchema = z
   .object({
     runs: PositiveInteger,
-    metrics: z.record(BacktestMetricSchema, DistributionSummarySchema).optional().default({}),
+    metrics: z
+      .partialRecord(BacktestMetricSchema, DistributionSummarySchema)
+      .optional()
+      .prefault({}),
     engineUsed: EngineTypeSchema,
     executionTimeMs: z.number().min(0).finite(),
   })
@@ -282,14 +285,14 @@ export const ScenarioCompareRequestSchema = z
       .array(HistoricalScenarioNameSchema.exclude(['custom']))
       .min(1)
       .max(5),
-    simulationRuns: PositiveInteger.min(100).max(25000).default(5000),
+    simulationRuns: PositiveInteger.min(100).max(25000).prefault(5000),
   })
   .strict();
 
 export const BacktestHistoryQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(100).default(10),
-    offset: z.coerce.number().int().min(0).default(0),
+    limit: z.coerce.number().int().min(1).max(100).prefault(10),
+    offset: z.coerce.number().int().min(0).prefault(0),
     startDate: ISODateString.optional(),
     endDate: ISODateString.optional(),
   })
@@ -435,7 +438,7 @@ export function validateBacktestResult(data: unknown) {
 export function createValidationError(error: z.ZodError) {
   return {
     isValid: false,
-    errors: error.errors.map((err) => ({
+    errors: error.issues.map((err) => ({
       field: err.path.join('.'),
       message: err.message,
       code: err.code,

@@ -27,7 +27,7 @@ export const RecyclingCapSchema = z.object({
   /** Basis for percentage cap */
   basis: z
     .enum(['committed_capital', 'called_capital', 'original_investment'])
-    .default('committed_capital'),
+    .prefault('committed_capital'),
 });
 
 export type RecyclingCap = z.infer<typeof RecyclingCapSchema>;
@@ -40,10 +40,10 @@ export const RecyclingTermSchema = z.object({
   months: z.number().int().positive(),
 
   /** Extension period (months) */
-  extensionMonths: z.number().int().min(0).default(0),
+  extensionMonths: z.number().int().min(0).prefault(0),
 
   /** Automatic extension if conditions met */
-  automaticExtension: z.boolean().default(false),
+  automaticExtension: z.boolean().prefault(false),
 });
 
 export type RecyclingTerm = z.infer<typeof RecyclingTermSchema>;
@@ -72,7 +72,7 @@ export const RecyclingPolicySchema = z
     name: z.string(),
 
     /** Enable recycling */
-    enabled: z.boolean().default(true),
+    enabled: z.boolean().prefault(true),
 
     /** Recycling sources */
     sources: z.array(RecyclingSourceSchema).min(1),
@@ -84,10 +84,10 @@ export const RecyclingPolicySchema = z
     term: RecyclingTermSchema,
 
     /** Proactively assume recycling for forecasting */
-    anticipatedRecycling: z.boolean().default(false),
+    anticipatedRecycling: z.boolean().prefault(false),
 
     /** Reinvestment timing */
-    reinvestmentTiming: RecyclingTimingSchema.default('immediate'),
+    reinvestmentTiming: RecyclingTimingSchema.prefault('immediate'),
 
     /** Minimum reinvestment amount */
     minimumReinvestmentAmount: ZodPositiveDecimal.optional(),

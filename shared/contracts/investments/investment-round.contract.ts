@@ -22,7 +22,7 @@ export const InvestmentRoundCreateSchema = z
     roundName: z.string().trim().min(1).max(120),
     securityType: SecurityTypeSchema,
     roundDate: z.string().date(),
-    currency: CurrencySchema.default('USD'),
+    currency: CurrencySchema.prefault('USD'),
     investmentAmount: MoneyStringSchema,
     roundSize: MoneyStringSchema.optional(),
     preMoneyValuation: MoneyStringSchema.optional(),

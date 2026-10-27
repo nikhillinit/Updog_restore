@@ -100,7 +100,7 @@ export type MarkConfidenceMix = z.infer<typeof MarkConfidenceMixSchema>;
 export const LpMetricRunResultsSchema = z
   .object({
     asOfDate: z.string().date(),
-    currency: z.literal('USD').default('USD'),
+    currency: z.literal('USD').prefault('USD'),
     dpi: DecimalStringSchema.nullable(),
     rvpi: DecimalStringSchema.nullable(),
     tvpi: DecimalStringSchema.nullable(),
@@ -132,7 +132,7 @@ export const LpMetricRunDiagnosticsSchema = z
   .object({
     engineVersion: z.string().min(1),
     decimalPrecision: z.number().int().positive(),
-    excludedFutureMarks: z.array(z.number().int().positive()).default([]),
+    excludedFutureMarks: z.array(z.number().int().positive()).prefault([]),
     warnings: z
       .array(
         z
@@ -142,7 +142,7 @@ export const LpMetricRunDiagnosticsSchema = z
           })
           .strict()
       )
-      .default([]),
+      .prefault([]),
   })
   .strict();
 
@@ -159,9 +159,9 @@ const MetricRunRequestBaseShape = {
   asOfDate: z.string().date(),
   runType: LpMetricRunTypeSchema,
   perspective: LpMetricRunPerspectiveSchema,
-  sourceEventIds: z.array(z.number().int().positive()).default([]),
-  sourceMarkIds: z.array(z.number().int().positive()).default([]),
-  sourceMarkSelection: MetricRunSourceMarkSelectionSchema.default('explicit'),
+  sourceEventIds: z.array(z.number().int().positive()).prefault([]),
+  sourceMarkIds: z.array(z.number().int().positive()).prefault([]),
+  sourceMarkSelection: MetricRunSourceMarkSelectionSchema.prefault('explicit'),
 } as const;
 
 function rejectExplicitMarksWithActiveSelection(
@@ -292,12 +292,12 @@ export const LpMetricRunCreateSchema = z
     asOfDate: z.string().date(),
     runType: LpMetricRunTypeSchema,
     perspective: LpMetricRunPerspectiveSchema,
-    status: LpMetricRunStatusSchema.default('draft'),
+    status: LpMetricRunStatusSchema.prefault('draft'),
 
     inputsHash: z.string().min(1).max(128),
-    sourceEventIds: z.array(z.number().int().positive()).default([]),
-    sourceMarkIds: z.array(z.number().int().positive()).default([]),
-    sourceEvidenceIds: z.array(z.number().int().positive()).default([]),
+    sourceEventIds: z.array(z.number().int().positive()).prefault([]),
+    sourceMarkIds: z.array(z.number().int().positive()).prefault([]),
+    sourceEvidenceIds: z.array(z.number().int().positive()).prefault([]),
 
     methodologyVersion: z.string().min(1).max(64),
     calculationVersion: z.string().min(1).max(64),

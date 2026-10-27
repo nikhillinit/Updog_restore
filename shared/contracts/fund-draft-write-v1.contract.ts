@@ -69,7 +69,8 @@ const FeeTierSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    percentage: z.number(),
+    // Preserve raw source acceptance so capital admission reports the precise selected-field refusal.
+    percentage: z.union([z.number(), z.literal(Infinity), z.literal(-Infinity)]),
     feeBasis: z.enum([
       'committed_capital',
       'called_capital_period',
@@ -97,7 +98,8 @@ const FundExpenseSchema = z
   .object({
     id: z.string(),
     category: z.string(),
-    monthlyAmount: z.number(),
+    // Preserve raw source acceptance so capital admission reports the precise selected-field refusal.
+    monthlyAmount: z.union([z.number(), z.literal(Infinity), z.literal(-Infinity)]),
     startMonth: z.number(),
     endMonth: z.number().optional(),
   })
@@ -183,9 +185,9 @@ const TargetMetricsSchema = z
 // ---------------------------------------------------------------------------
 // Uniqueness refinement helper
 // ---------------------------------------------------------------------------
-function uniqueIds<T extends z.ZodTypeAny>(schema: z.ZodArray<T>, label: string) {
+function uniqueIds<T extends z.ZodType<{ id?: string }>>(schema: z.ZodArray<T>, label: string) {
   return schema.refine(
-    (items: Array<{ id?: string }>) => {
+    (items) => {
       const ids = items.map((i) => i.id).filter(Boolean);
       return ids.length === new Set(ids).size;
     },

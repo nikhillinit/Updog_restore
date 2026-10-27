@@ -7,39 +7,39 @@ import { z } from 'zod';
 
 // Share access levels
 export const ShareAccessLevel = z.enum([
-  'view_only',           // Basic LP view
-  'view_with_details',   // LP with detailed metrics
-  'collaborator',        // Can comment and interact
-  'admin'               // Full access (GP use)
+  'view_only', // Basic LP view
+  'view_with_details', // LP with detailed metrics
+  'collaborator', // Can comment and interact
+  'admin', // Full access (GP use)
 ]);
 
 export type ShareAccessLevelType = z.infer<typeof ShareAccessLevel>;
 
 // Share configuration schema
 export const ShareConfigSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   fundId: z.string(),
   createdBy: z.string(),
   accessLevel: ShareAccessLevel,
 
   // Access controls
-  requirePasskey: z.boolean().default(false),
+  requirePasskey: z.boolean().prefault(false),
   passkey: z.string().optional(),
   expiresAt: z.date().optional(),
 
   // LP-specific settings
-  hiddenMetrics: z.array(z.string()).default([]), // Hide GP returns, fees, etc.
+  hiddenMetrics: z.array(z.string()).prefault([]), // Hide GP returns, fees, etc.
   customTitle: z.string().optional(),
   customMessage: z.string().optional(),
 
   // Tracking
-  viewCount: z.number().default(0),
+  viewCount: z.number().prefault(0),
   lastViewedAt: z.date().optional(),
 
   // Metadata
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().default(() => new Date()),
-  isActive: z.boolean().default(true)
+  createdAt: z.date().prefault(() => new Date()),
+  updatedAt: z.date().prefault(() => new Date()),
+  isActive: z.boolean().prefault(true),
 });
 
 export type ShareConfig = z.infer<typeof ShareConfigSchema>;
@@ -48,12 +48,12 @@ export type ShareConfig = z.infer<typeof ShareConfigSchema>;
 export const CreateShareLinkSchema = z.object({
   fundId: z.string(),
   accessLevel: ShareAccessLevel,
-  requirePasskey: z.boolean().default(false),
+  requirePasskey: z.boolean().prefault(false),
   passkey: z.string().optional(),
   expiresInDays: z.number().min(1).max(365).optional(),
-  hiddenMetrics: z.array(z.string()).default([]),
+  hiddenMetrics: z.array(z.string()).prefault([]),
   customTitle: z.string().optional(),
-  customMessage: z.string().optional()
+  customMessage: z.string().optional(),
 });
 
 export type CreateShareLinkRequest = z.infer<typeof CreateShareLinkSchema>;
@@ -65,17 +65,17 @@ export const LP_HIDDEN_METRICS = [
   'carried_interest',
   'gp_commitment',
   'fund_expenses',
-  'administrative_costs'
+  'administrative_costs',
 ] as const;
 
 // Share analytics schema
 export const ShareAnalyticsSchema = z.object({
-  shareId: z.string().uuid(),
+  shareId: z.string().guid(),
   viewedAt: z.date(),
   viewerIP: z.string().optional(),
   userAgent: z.string().optional(),
   duration: z.number().optional(), // seconds
-  pagesViewed: z.array(z.string()).default([])
+  pagesViewed: z.array(z.string()).prefault([]),
 });
 
 export type ShareAnalytics = z.infer<typeof ShareAnalyticsSchema>;

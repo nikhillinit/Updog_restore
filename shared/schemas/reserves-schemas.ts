@@ -27,7 +27,7 @@ export const OutcomeSchema = z.enum([
 // Company and Investment Types
 export const PortfolioCompanySchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     name: z.string().min(1).max(100),
     sector: z.string().min(1).max(50),
     currentStage: StageSchema,
@@ -45,15 +45,15 @@ export const PortfolioCompanySchema = z
     lastRoundDate: z.coerce.date().optional(),
     /** Exit date if applicable - accepts Date objects or ISO strings, coerces to Date */
     exitDate: z.coerce.date().optional(),
-    isActive: z.boolean().default(true),
+    isActive: z.boolean().prefault(true),
 
     // Performance metrics
     currentMOIC: z.number().min(0).optional(),
     estimatedExitValue: MoneySchema.optional(),
-    confidenceLevel: PercentageSchema.default(0.5),
+    confidenceLevel: PercentageSchema.prefault(0.5),
 
     // Additional context
-    tags: z.array(z.string()).default([]),
+    tags: z.array(z.string()).prefault([]),
     notes: z.string().optional(),
   })
   .strict();
@@ -115,22 +115,22 @@ export const ReserveAllocationInputSchema = z
 
     // Constraints
     maxSingleAllocation: MoneySchema.optional(),
-    minAllocationThreshold: MoneySchema.default(25000),
-    maxPortfolioConcentration: PercentageSchema.default(0.1),
+    minAllocationThreshold: MoneySchema.prefault(25000),
+    maxPortfolioConcentration: PercentageSchema.prefault(0.1),
 
     // Scenario parameters
-    scenarioType: z.enum(['conservative', 'base', 'optimistic']).default('base'),
-    timeHorizon: z.number().positive().default(84), // months
+    scenarioType: z.enum(['conservative', 'base', 'optimistic']).prefault('base'),
+    timeHorizon: z.number().positive().prefault(84), // months
 
     // Feature flags
-    enableDiversification: z.boolean().default(true),
-    enableRiskAdjustment: z.boolean().default(true),
-    enableLiquidationPreferences: z.boolean().default(true),
+    enableDiversification: z.boolean().prefault(true),
+    enableRiskAdjustment: z.boolean().prefault(true),
+    enableLiquidationPreferences: z.boolean().prefault(true),
   })
   .strict();
 
 export const ReserveAllocationOutputSchema = z.object({
-  companyId: z.string().uuid(),
+  companyId: z.string().guid(),
   companyName: z.string(),
 
   // Allocation details
@@ -275,7 +275,7 @@ export const ExcelParityOutputSchema = z.object({
       webAppValue: z.number(),
       percentageDrift: z.number(),
       withinTolerance: z.boolean(),
-      tolerance: z.number().default(0.01), // 1%
+      tolerance: z.number().prefault(0.01), // 1%
     })
   ),
 
@@ -314,14 +314,14 @@ export const ExcelParityOutputSchema = z.object({
 // Feature Flag Schemas
 export const FeatureFlagSchema = z
   .object({
-    enableNewReserveEngine: z.boolean().default(false),
-    enableParityTesting: z.boolean().default(true),
-    enableRiskAdjustments: z.boolean().default(true),
-    enableScenarioAnalysis: z.boolean().default(true),
-    enableAdvancedDiversification: z.boolean().default(false),
-    enableLiquidationPreferences: z.boolean().default(true),
-    enablePerformanceLogging: z.boolean().default(true),
-    maxCalculationTimeMs: z.number().positive().default(5000),
+    enableNewReserveEngine: z.boolean().prefault(false),
+    enableParityTesting: z.boolean().prefault(true),
+    enableRiskAdjustments: z.boolean().prefault(true),
+    enableScenarioAnalysis: z.boolean().prefault(true),
+    enableAdvancedDiversification: z.boolean().prefault(false),
+    enableLiquidationPreferences: z.boolean().prefault(true),
+    enablePerformanceLogging: z.boolean().prefault(true),
+    maxCalculationTimeMs: z.number().positive().prefault(5000),
   })
   .strict();
 
@@ -466,7 +466,7 @@ export const CompanySchema = z
       .min(0, 'Ownership cannot be negative')
       .max(1, 'Ownership cannot exceed 100%')
       .optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 
@@ -497,7 +497,7 @@ export const StageBasedCapPolicySchema = z
 export const CustomCapPolicySchema = z
   .object({
     kind: z.literal('custom'),
-    custom_fn: z.function().args(CompanySchema).returns(z.number()).optional(),
+    custom_fn: z.function().input([CompanySchema], z.unknown()).output(z.number()).optional(),
   })
   .strict();
 

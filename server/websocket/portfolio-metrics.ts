@@ -10,11 +10,7 @@ import type { Request } from 'express';
 import type { IncomingMessage, Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { z } from 'zod';
-import {
-  monteCarloSimulations,
-  performanceForecasts,
-  portfolioScenarios,
-} from '@shared/schema';
+import { monteCarloSimulations, performanceForecasts, portfolioScenarios } from '@shared/schema';
 import { db } from '../db';
 import { verifyAccessTokenAsync, userFromClaims } from '../lib/auth/jwt';
 import { extractUpgradeRequestCredential } from '../lib/auth/request-credentials';
@@ -27,14 +23,14 @@ const SubscribeSchema = z.object({
   type: z.literal('subscribe'),
   channel: z.enum(['metrics', 'simulation', 'scenario', 'forecast']),
   fundId: z.number().int().positive().optional(),
-  entityId: z.string().uuid().optional(),
+  entityId: z.string().guid().optional(),
 });
 
 const UnsubscribeSchema = z.object({
   type: z.literal('unsubscribe'),
   channel: z.enum(['metrics', 'simulation', 'scenario', 'forecast']),
   fundId: z.number().int().positive().optional(),
-  entityId: z.string().uuid().optional(),
+  entityId: z.string().guid().optional(),
 });
 
 type Channel = 'metrics' | 'simulation' | 'scenario' | 'forecast';
@@ -129,8 +125,7 @@ function isAllowedCookieOrigin(req: IncomingMessage): boolean {
   if (!host) return false;
   const forwardedProtocol = firstHeaderValue(req.headers['x-forwarded-proto']);
   const isEncrypted = (req.socket as { encrypted?: boolean }).encrypted === true;
-  const protocol =
-    forwardedProtocol?.split(',')[0]?.trim() || (isEncrypted ? 'https' : 'http');
+  const protocol = forwardedProtocol?.split(',')[0]?.trim() || (isEncrypted ? 'https' : 'http');
   return parseOrigin(`${protocol}://${host}`) === origin;
 }
 
@@ -390,9 +385,7 @@ export class PortfolioMetricsWebSocket {
     return this.getChannelKey(data.channel, data.fundId, data.entityId);
   }
 
-  private async resolveChannelFundId(
-    data: ChannelAuthorizationRequest
-  ): Promise<number | null> {
+  private async resolveChannelFundId(data: ChannelAuthorizationRequest): Promise<number | null> {
     if (data.channel === 'metrics') {
       return data.entityId === undefined ? (data.fundId ?? null) : null;
     }

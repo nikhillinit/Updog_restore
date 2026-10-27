@@ -48,13 +48,13 @@ export type BaseFundModelInputs = z.infer<typeof BaseFundModelInputsSchema>;
  */
 export const ModelAssumptionsSchema = z.object({
   /** Default holding period (months) */
-  defaultHoldingPeriod: z.number().int().positive().default(60),
+  defaultHoldingPeriod: z.number().int().positive().prefault(60),
 
   /** Reinvestment period (months) */
-  reinvestmentPeriod: z.number().int().positive().default(36),
+  reinvestmentPeriod: z.number().int().positive().prefault(36),
 
   /** Maximum portfolio concentration (% of fund) */
-  portfolioConcentrationLimit: ZodPercentage.default(new Decimal(0.2)),
+  portfolioConcentrationLimit: ZodPercentage.prefault(new Decimal(0.2)),
 
   /** Diversification rules */
   diversificationRules: z
@@ -71,10 +71,10 @@ export const ModelAssumptionsSchema = z.object({
     .optional(),
 
   /** Enable end-of-term liquidation */
-  liquidateAtTermEnd: z.boolean().default(false),
+  liquidateAtTermEnd: z.boolean().prefault(false),
 
   /** FMV discount at forced liquidation */
-  liquidationDiscountPercent: ZodPercentage.default(new Decimal(0.3)),
+  liquidationDiscountPercent: ZodPercentage.prefault(new Decimal(0.3)),
 });
 
 export type ModelAssumptions = z.infer<typeof ModelAssumptionsSchema>;
@@ -84,13 +84,13 @@ export type ModelAssumptions = z.infer<typeof ModelAssumptionsSchema>;
  */
 export const MonteCarloSettingsSchema = z.object({
   /** Enable Monte Carlo mode */
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().prefault(false),
 
   /** Number of simulation runs */
-  numberOfSimulations: z.number().int().min(100).max(10000).default(1000),
+  numberOfSimulations: z.number().int().min(100).max(10000).prefault(1000),
 
   /** Confidence interval for reporting */
-  confidenceInterval: ZodPercentage.default(new Decimal(0.95)),
+  confidenceInterval: ZodPercentage.prefault(new Decimal(0.95)),
 
   /** Random seed for deterministic results */
   randomSeed: z.string().optional(),
@@ -118,7 +118,7 @@ export const ExtendedFundModelInputsSchema = BaseFundModelInputsSchema.extend({
   recyclingPolicy: RecyclingPolicySchema.optional(),
 
   /** Model assumptions */
-  assumptions: ModelAssumptionsSchema.default({}),
+  assumptions: ModelAssumptionsSchema.prefault({}),
 
   /** Monte Carlo settings */
   monteCarloSettings: MonteCarloSettingsSchema.optional(),
@@ -268,7 +268,7 @@ export function validateExtendedFundModel(data: unknown) {
       return {
         success: false as const,
         data: null,
-        errors: error.errors.map((err) => ({
+        errors: error.issues.map((err) => ({
           path: err.path.join('.'),
           message: err.message,
           code: err.code,

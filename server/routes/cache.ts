@@ -153,7 +153,7 @@ router.post('/invalidate', requireHealthKey, async (req: Request, res: Response)
       return res.status(400).json({
         error: 'VALIDATION_ERROR',
         message: 'Invalid invalidation request',
-        details: validation.error.errors,
+        details: validation.error.issues,
       });
     }
 
@@ -188,7 +188,7 @@ router.post('/warm', requireHealthKey, async (req: Request, res: Response) => {
       return res.status(400).json({
         error: 'VALIDATION_ERROR',
         message: 'Invalid warming request',
-        details: validation.error.errors,
+        details: validation.error.issues,
       });
     }
 

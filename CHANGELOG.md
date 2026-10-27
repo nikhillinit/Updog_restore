@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security (2026-10-27)
+
+- Upgrade `body-parser` to 2.4.0, lock `follow-redirects` to 1.16.2, and migrate
+  the application to Zod 4.6.7 for CVE-2026-111181, CVE-2026-111755,
+  CVE-2026-111756, and CVE-2023-54404. Production imports cannot use the bundled
+  `zod/v3` parser. Bounded arrays reject oversized input before parsing
+  elements; liquidity forecast months now share the existing integer 3-60
+  cashflow horizon.
+- Validation `details` and default messages use Zod 4's issue format. Preserve
+  existing GUID acceptance, sparse records, parsed defaults, omitted PATCH
+  fields, reserve function guards, and selected-source financial refusal codes.
+  This source change supersedes Dependabot #1661 only for these three packages;
+  deployment and credential execution remain separate actions.
+
 ### Changed (2026-10-21)
 
 - Add owner-approved ADR-110 and a credential-only procedure for one Railway

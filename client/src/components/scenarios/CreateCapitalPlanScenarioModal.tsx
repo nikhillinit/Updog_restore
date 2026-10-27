@@ -63,7 +63,7 @@ const STEPS = [
 const CONTROL =
   'w-full min-w-0 rounded-md border border-presson-borderSubtle bg-presson-surface px-3 py-2 text-presson-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-presson-accent';
 type Path = (string | number)[];
-const sourceIdentityShape = CapitalSourceProjectionV1Schema.innerType().shape;
+const sourceIdentityShape = CapitalSourceProjectionV1Schema.shape;
 const SourceConflictDetailsSchema = z
   .object({
     suppliedSourceConfigId: sourceIdentityShape.sourceConfigId,

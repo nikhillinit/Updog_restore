@@ -140,7 +140,7 @@ const CompanyListQuerySchema = z
       .string()
       .regex(/^\d+$/)
       .transform(Number)
-      .default('50')
+      .prefault('50')
       .refine((val) => val >= 1 && val <= 200, {
         message: 'Limit must be between 1 and 200',
       }),
@@ -148,7 +148,7 @@ const CompanyListQuerySchema = z
     status: z.enum(['active', 'exited', 'written-off']).optional(),
     sector: z.string().max(100).optional(),
     stage: z.string().max(50).optional(), // Investment stage (will be normalized)
-    sortBy: CompanyListSortBySchema.default('exit_moic_desc'),
+    sortBy: CompanyListSortBySchema.prefault('exit_moic_desc'),
   })
   .superRefine((query, context) => {
     if (query.cursor && !isCompanyListCursorCompatible(query.cursor, query.sortBy)) {

@@ -76,8 +76,8 @@ const formSchema = z.object({
   valuation: z.string().optional(),
   status: z
     .enum(['lead', 'qualified', 'pitch', 'dd', 'committee', 'term_sheet', 'closed', 'passed'])
-    .default('lead'),
-  priority: z.enum(['high', 'medium', 'low']).default('medium'),
+    .prefault('lead'),
+  priority: z.enum(['high', 'medium', 'low']).prefault('medium'),
   foundedYear: z.string().optional(),
   employeeCount: z.string().optional(),
   revenue: z.string().optional(),

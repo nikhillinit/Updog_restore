@@ -96,7 +96,7 @@ export const ScenarioComparisonDriftReasonV1Schema = z.enum([
 
 export const ScenarioComparisonScenarioSetV1Schema = z
   .object({
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     sourceConfigId: z.number().int().positive(),
     sourceConfigVersion: z.number().int().positive(),
@@ -125,7 +125,7 @@ export const ScenarioComparisonMetricDeltaV1Schema = z
 
 export const ScenarioComparisonVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.enum(['fee_profile', 'allocation', 'sector_profile', 'methodology']),
     metrics: ScenarioComparisonMetricMapV1Schema,
@@ -364,7 +364,7 @@ export const CapitalChangedInputV1Schema = z
 
 export const CapitalComparisonVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     overrideType: z.literal('capital_plan'),
     memo: CapitalPlanningMemoV1Schema,
@@ -379,10 +379,10 @@ export const FundScenarioCapitalComparisonV1Schema = z
     contractVersion: z.literal('fund-scenario-capital-comparison/1.0.0'),
     representation: CapitalPlanRepresentationV1Schema,
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     comparisonStatus: z.enum(['no_scenario_results', 'comparable']),
     snapshotId: z.number().int().positive().nullable(),
-    baselineVariantId: z.string().uuid(),
+    baselineVariantId: z.string().guid(),
     baseline: CapitalPlanningMemoV1Schema.nullable(),
     variants: z.array(CapitalComparisonVariantV1Schema).max(4),
     readState: CapitalReadStateV1Schema,
@@ -475,15 +475,16 @@ export type FundScenarioCapitalComparisonV2 = Omit<
   baseline: CapitalPlanningMemoV2 | null;
   variants: CapitalComparisonVariantV2[];
 };
-export const FundScenarioCapitalComparisonV2Schema: z.ZodType<FundScenarioCapitalComparisonV2> =
-  FundScenarioCapitalComparisonV1Schema.innerType()
-    .extend({
-      contractVersion: z.literal('fund-scenario-capital-comparison/2.0.0'),
-      representation: z.literal('capital-plan-v2'),
-      baseline: CapitalPlanningMemoV2Schema.nullable(),
-      variants: z.array(CapitalComparisonVariantV2Schema).max(4),
-    })
-    .superRefine(refineCapitalComparison);
+export const FundScenarioCapitalComparisonV2Schema: z.ZodType<FundScenarioCapitalComparisonV2> = z
+  .object(FundScenarioCapitalComparisonV1Schema.shape)
+  .strict()
+  .extend({
+    contractVersion: z.literal('fund-scenario-capital-comparison/2.0.0'),
+    representation: z.literal('capital-plan-v2'),
+    baseline: CapitalPlanningMemoV2Schema.nullable(),
+    variants: z.array(CapitalComparisonVariantV2Schema).max(4),
+  })
+  .superRefine(refineCapitalComparison);
 export const FundScenarioCapitalComparisonSchema: z.ZodType<FundScenarioCapitalComparison> =
   z.union([FundScenarioCapitalComparisonV1Schema, FundScenarioCapitalComparisonV2Schema]);
 export type FundScenarioCapitalComparison =

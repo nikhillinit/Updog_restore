@@ -26,7 +26,7 @@ import { z } from 'zod';
  *
  * Example: `id: DbIdentifierSchema`
  */
-export const DbIdentifierSchema = z.string().uuid();
+export const DbIdentifierSchema = z.string().guid();
 
 /**
  * Database version field schema (bigint for optimistic locking)

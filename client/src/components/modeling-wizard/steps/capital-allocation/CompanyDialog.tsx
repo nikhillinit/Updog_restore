@@ -32,7 +32,7 @@ const companySchema = z.object({
   name: z.string().min(1, 'Company name is required').max(100, 'Name too long'),
   sector: z.string().min(1, 'Sector is required'),
   stage: z.enum(['seed', 'series-a', 'series-b', 'series-c', 'growth'], {
-    errorMap: () => ({ message: 'Invalid investment stage' }),
+    error: 'Invalid investment stage',
   }),
   initialInvestment: z
     .number()

@@ -102,7 +102,7 @@ export const PerformanceQuerySchema = z.object({
     }),
   startDate: isoDateString.optional(),
   endDate: isoDateString.optional(),
-  granularity: z.enum(['daily', 'weekly', 'monthly', 'quarterly']).optional().default('monthly'),
+  granularity: z.enum(['daily', 'weekly', 'monthly', 'quarterly']).optional().prefault('monthly'),
   includeBenchmarks: stringToBoolean,
   skipCache: stringToBoolean,
 });
@@ -121,11 +121,7 @@ export const ReportConfigSchema = z
       startDate: isoDateString,
       endDate: isoDateString,
     }),
-    fundIds: z
-      .array(z.number().int().positive())
-      .min(1)
-      .max(MAX_FUND_IDS)
-      .optional(),
+    fundIds: z.array(z.number().int().positive()).min(1).max(MAX_FUND_IDS).optional(),
     sections: z
       .array(
         z.enum([
@@ -138,9 +134,9 @@ export const ReportConfigSchema = z
         ])
       )
       .optional(),
-    format: z.enum(['pdf', 'xlsx', 'csv']).optional().default('pdf'),
+    format: z.enum(['pdf', 'xlsx', 'csv']).optional().prefault('pdf'),
     templateId: z.number().int().positive().optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((data) => new Date(data.dateRange.startDate) <= new Date(data.dateRange.endDate), {
     message: 'startDate must be before or equal to endDate',

@@ -157,8 +157,9 @@ export const WaterfallAssumptionsV1Schema = z
 export const GPCommitmentAssumptionsV1Schema = z
   .object({
     commitmentPct: RatioSchema.optional(),
-    commitmentAmount: NonNegativeMoneySchema.optional(),
-    participatesInInvestmentReturns: z.boolean().default(true),
+    // Keep selected nonfinite amounts on the domain-refusal path, without accepting negative values.
+    commitmentAmount: z.union([NonNegativeMoneySchema, z.literal(Infinity)]).optional(),
+    participatesInInvestmentReturns: z.boolean().prefault(true),
     callSchedule: z.array(RatioSchema).optional(),
   })
   .strict();

@@ -56,7 +56,7 @@ export const FundModelInputsSchema = z
       .number()
       .int()
       .positive()
-      .default(10)
+      .prefault(10)
       .describe('Number of years to charge management fees (typically 10)'),
 
     // Stage allocations
@@ -74,23 +74,23 @@ export const FundModelInputsSchema = z
 
     // Investment parameters
     averageCheckSizes: z
-      .record(StageSchema, z.number().positive())
+      .partialRecord(StageSchema, z.number().positive())
       .describe('Average initial check size per stage in dollars'),
 
     graduationRates: z
-      .record(StageSchema, z.number().min(0).max(1))
+      .partialRecord(StageSchema, z.number().min(0).max(1))
       .describe('Per-period graduation rate to next stage (0.0 to 1.0)'),
 
     exitRates: z
-      .record(StageSchema, z.number().min(0).max(1))
+      .partialRecord(StageSchema, z.number().min(0).max(1))
       .describe('Per-period exit rate (0.0 to 1.0)'),
 
     monthsToGraduate: z
-      .record(StageSchema, z.number().int().positive())
+      .partialRecord(StageSchema, z.number().int().positive())
       .describe('Average months to graduate to next stage'),
 
     monthsToExit: z
-      .record(StageSchema, z.number().int().positive())
+      .partialRecord(StageSchema, z.number().int().positive())
       .describe('Average months to exit from stage'),
   })
   .superRefine((inputs, ctx) => {

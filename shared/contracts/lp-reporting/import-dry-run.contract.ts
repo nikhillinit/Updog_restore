@@ -42,7 +42,7 @@ export const ImportErrorSchema = z
     column: z.string().max(64).optional(),
     code: z.string().max(64),
     message: z.string().max(500),
-    severity: ImportSeveritySchema.default('error'),
+    severity: ImportSeveritySchema.prefault('error'),
   })
   .strict();
 
@@ -67,8 +67,8 @@ export const ImportPreviewRowSchema = z
     eventDate: z.string().optional(),
     asOfDate: z.string().optional(),
     confidenceLevel: z.string().max(16).optional(),
-    duplicate: z.boolean().default(false),
-    excluded: z.boolean().default(false),
+    duplicate: z.boolean().prefault(false),
+    excluded: z.boolean().prefault(false),
     excludedReason: z.string().max(256).optional(),
   })
   .strict();
@@ -82,7 +82,7 @@ export const ReconciliationSummarySchema = z
     distributionsImported: MoneyStringSchema,
     latestNavImported: MoneyStringSchema,
     difference: DecimalStringSchema.optional(),
-    explanations: z.array(z.string().max(500)).default([]),
+    explanations: z.array(z.string().max(500)).prefault([]),
   })
   .strict();
 
@@ -90,17 +90,17 @@ export type ReconciliationSummary = z.infer<typeof ReconciliationSummarySchema>;
 
 export const ImportDryRunResponseSchema = z
   .object({
-    importId: z.string().uuid(),
+    importId: z.string().guid(),
     sourceType: SourceTypeSchema,
     previewHash: PreviewHashSchema,
     parsedRows: z.number().int().nonnegative(),
     validRows: z.number().int().nonnegative(),
     invalidRows: z.number().int().nonnegative(),
     duplicateRows: z.number().int().nonnegative(),
-    warnings: z.array(ImportWarningSchema).default([]),
-    errors: z.array(ImportErrorSchema).default([]),
+    warnings: z.array(ImportWarningSchema).prefault([]),
+    errors: z.array(ImportErrorSchema).prefault([]),
     reconciliation: ReconciliationSummarySchema,
-    preview: z.array(ImportPreviewRowSchema).default([]),
+    preview: z.array(ImportPreviewRowSchema).prefault([]),
   })
   .strict();
 

@@ -192,7 +192,7 @@ const LedgerCorrectionRequestSchema = z
           })
           .strict()
       )
-      .default([]),
+      .prefault([]),
   })
   .strict();
 

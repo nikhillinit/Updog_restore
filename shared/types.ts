@@ -167,7 +167,7 @@ export const ApiErrorSchema = z.object({
   error: z.string(),
   message: z.string(),
   code: z.number().int().optional(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const ApiSuccessSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
@@ -189,10 +189,10 @@ export type ApiSuccess<T> = {
 // =============================================================================
 
 export const EngineConfigSchema = z.object({
-  ALG_RESERVE: z.boolean().default(false),
-  ALG_PACING: z.boolean().default(false),
-  ALG_COHORT: z.boolean().default(false),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  ALG_RESERVE: z.boolean().prefault(false),
+  ALG_PACING: z.boolean().prefault(false),
+  ALG_COHORT: z.boolean().prefault(false),
+  NODE_ENV: z.enum(['development', 'production', 'test']).prefault('development'),
 });
 
 export type EngineConfig = z.infer<typeof EngineConfigSchema>;
@@ -206,13 +206,13 @@ export const ChartDataPointSchema = z.object({
   label: z.string(),
   value: z.number(),
   color: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const TimeSeriesPointSchema = z.object({
   x: z.union([z.string(), z.number(), z.date()]),
   y: z.number(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ChartDataPoint = z.infer<typeof ChartDataPointSchema>;
@@ -266,18 +266,18 @@ export const InvestmentStrategySchema = z.object({
 
 // Exit Recycling Types
 export const ExitRecyclingSchema = z.object({
-  enabled: z.boolean().default(false),
-  recyclePercentage: z.number().min(0).max(100).default(0), // percentage of exit proceeds to recycle
+  enabled: z.boolean().prefault(false),
+  recyclePercentage: z.number().min(0).max(100).prefault(0), // percentage of exit proceeds to recycle
   maxRecycleAmount: z.number().min(0).optional(), // max dollar amount to recycle
-  recycleWindowMonths: z.number().int().min(1).max(120).default(24), // time window for recycling
-  restrictToSameSector: z.boolean().default(false),
-  restrictToSameStage: z.boolean().default(false),
+  recycleWindowMonths: z.number().int().min(1).max(120).prefault(24), // time window for recycling
+  restrictToSameSector: z.boolean().prefault(false),
+  restrictToSameStage: z.boolean().prefault(false),
 });
 
 // Waterfall Types
 const CarryVestingSchema = z.object({
-  cliffYears: z.number().int().min(0).max(10).default(0),
-  vestingYears: z.number().int().min(1).max(10).default(4),
+  cliffYears: z.number().int().min(0).max(10).prefault(0),
+  vestingYears: z.number().int().min(1).max(10).prefault(4),
 });
 
 // American waterfall (deal-by-deal) - carry distributed on each exit
@@ -297,7 +297,7 @@ export const CompleteFundSetupSchema = z.object({
   vintageYear: z.number().int().min(2000).max(2030),
 
   // Evergreen and fund life fields
-  isEvergreen: z.boolean().default(false),
+  isEvergreen: z.boolean().prefault(false),
   lifeYears: z.number().int().min(3).max(20).optional(),
   investmentHorizonYears: z.number().int().min(1).max(30),
 
@@ -402,21 +402,21 @@ export const CoverageSummarySchema = z.object({
 // Advanced Cohort Analysis Request
 export const CohortAnalyzeRequestSchema = z.object({
   fundId: z.number().int().positive(),
-  cohortDefinitionId: z.string().uuid().optional(),
+  cohortDefinitionId: z.string().guid().optional(),
   dateRange: z
     .object({
       start: z.string().optional(),
       end: z.string().optional(),
     })
     .optional(),
-  sectorIds: z.array(z.string().uuid()).optional(),
+  sectorIds: z.array(z.string().guid()).optional(),
   stages: z.array(z.string()).optional(),
 });
 
 // Cohort row with performance and provenance
 export const CohortRowSchema = z.object({
   cohortKey: z.string(),
-  sectorId: z.string().uuid(),
+  sectorId: z.string().guid(),
   sectorName: z.string(),
   counts: z.object({
     companies: z.number().int().min(0),
@@ -436,7 +436,7 @@ export const CohortRowSchema = z.object({
     .optional(),
   coverage: CoverageSummarySchema,
   provenance: z.object({
-    sectorSourceBreakdown: z.record(
+    sectorSourceBreakdown: z.partialRecord(
       z.enum(['company_override', 'mapping', 'unmapped']),
       z.number()
     ),
@@ -457,7 +457,7 @@ export const UnmappedSectorSchema = z.object({
 // Advanced Cohort Analysis Response
 export const CohortAnalyzeResponseSchema = z.object({
   cohortDefinition: z.object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     fundId: z.number().int().positive(),
     name: z.string(),
     vintageGranularity: z.enum(['year', 'quarter']),
@@ -491,7 +491,7 @@ export const ResolvedInvestmentSchema = z.object({
   companyName: z.string(),
   rawSector: z.string().nullable(),
   rawSectorNormalized: z.string(),
-  canonicalSectorId: z.string().uuid(),
+  canonicalSectorId: z.string().guid(),
   canonicalSectorName: z.string(),
   sectorSource: z.enum(['company_override', 'mapping', 'unmapped']),
   companyExcluded: z.boolean(),
@@ -509,9 +509,9 @@ export const CashFlowEventSchema = z.object({
   amount: z.number(), // negative = paid-in, positive = distribution
   investmentId: z.number().int().positive(),
   companyId: z.number().int().positive(),
-  lotId: z.string().uuid().optional(),
+  lotId: z.string().guid().optional(),
   cohortKey: z.string(),
-  sectorId: z.string().uuid(),
+  sectorId: z.string().guid(),
   eventType: z.enum(['paid_in', 'distribution', 'residual']),
 });
 

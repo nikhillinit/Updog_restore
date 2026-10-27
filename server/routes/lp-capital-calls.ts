@@ -60,7 +60,7 @@ const capitalCallsLimiter = rateLimit({
 const CapitalCallsQuerySchema = z.object({
   status: z.enum(['pending', 'due', 'overdue', 'paid', 'partial']).optional(),
   fundId: z.coerce.number().positive().optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  limit: z.coerce.number().min(1).max(100).prefault(50),
   cursor: z.string().optional(),
 });
 
@@ -216,7 +216,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
@@ -662,7 +662,7 @@ router.post(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'POST', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
