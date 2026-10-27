@@ -59,7 +59,7 @@ const distributionsLimiter = rateLimit({
 const DistributionsQuerySchema = z.object({
   fundId: z.coerce.number().positive().optional(),
   year: z.coerce.number().min(2000).max(new Date().getFullYear()).optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  limit: z.coerce.number().min(1).max(100).prefault(50),
   cursor: z.string().optional(),
 });
 
@@ -218,7 +218,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         const duration = endTimer();
         recordLPRequest(endpoint, 'GET', 400, duration);
         recordError(endpoint, 'VALIDATION_ERROR', 400);
@@ -359,7 +359,7 @@ router.get(
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(createErrorResponse('VALIDATION_ERROR', firstError?.message || 'Invalid query'));

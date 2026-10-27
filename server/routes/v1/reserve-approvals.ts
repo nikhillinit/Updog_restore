@@ -65,7 +65,7 @@ router['use'](requireAuth());
 const createApprovalSchema = z.object({
   strategyId: z.string(),
   action: z.enum(['create', 'update', 'delete']),
-  strategyData: z.record(z.unknown()),
+  strategyData: z.record(z.string(), z.unknown()),
   reason: z.string().min(10, 'Reason must be at least 10 characters'),
   impact: z.object({
     affectedFunds: z.array(z.string()),
@@ -260,146 +260,153 @@ const signApprovalSchema = z.object({
   verificationCode: z.string().optional(),
 });
 
-router['post']('/:id/sign', requireCapability('reserve_admin'), async (req: Request, res: Response) => {
-  try {
-    const userEmail = getRequestUserEmail(req);
-    if (!userEmail) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+router['post'](
+  '/:id/sign',
+  requireCapability('reserve_admin'),
+  async (req: Request, res: Response) => {
+    try {
+      const userEmail = getRequestUserEmail(req);
+      if (!userEmail) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
 
-    const id = req.params['id'] as string;
-    const { verificationCode } = signApprovalSchema.parse(req.body);
+      const id = req.params['id'] as string;
+      const { verificationCode } = signApprovalSchema.parse(req.body);
 
-    // Check if partner is authorized
-    const [partner] = await db
-      .select()
-      .from(approvalPartners)
-      .where(eq(approvalPartners.email, userEmail));
+      // Check if partner is authorized
+      const [partner] = await db
+        .select()
+        .from(approvalPartners)
+        .where(eq(approvalPartners.email, userEmail));
 
-    if (!partner || partner.deactivated) {
-      return res.status(403).json({ error: 'Not authorized as partner' });
-    }
+      if (!partner || partner.deactivated) {
+        return res.status(403).json({ error: 'Not authorized as partner' });
+      }
 
-    // Check if approval exists and is valid
-    const [approval] = await db.select().from(reserveApprovals).where(eq(reserveApprovals.id, id));
-
-    if (!approval) {
-      return res.status(404).json({ error: 'Approval not found' });
-    }
-
-    if (approval.status !== 'pending') {
-      return res.status(400).json({ error: `Approval is ${approval.status}` });
-    }
-
-    if (approval.expiresAt < new Date()) {
-      // Mark as expired
-      await db
-        .update(reserveApprovals)
-        .set({ status: 'expired', updatedAt: new Date() })
+      // Check if approval exists and is valid
+      const [approval] = await db
+        .select()
+        .from(reserveApprovals)
         .where(eq(reserveApprovals.id, id));
 
-      return res.status(400).json({ error: 'Approval has expired' });
-    }
+      if (!approval) {
+        return res.status(404).json({ error: 'Approval not found' });
+      }
 
-    // Check if already signed
-    const [existingSignature] = await db
-      .select()
-      .from(approvalSignatures)
-      .where(
-        and(eq(approvalSignatures.approvalId, id), eq(approvalSignatures.partnerEmail, userEmail))
+      if (approval.status !== 'pending') {
+        return res.status(400).json({ error: `Approval is ${approval.status}` });
+      }
+
+      if (approval.expiresAt < new Date()) {
+        // Mark as expired
+        await db
+          .update(reserveApprovals)
+          .set({ status: 'expired', updatedAt: new Date() })
+          .where(eq(reserveApprovals.id, id));
+
+        return res.status(400).json({ error: 'Approval has expired' });
+      }
+
+      // Check if already signed
+      const [existingSignature] = await db
+        .select()
+        .from(approvalSignatures)
+        .where(
+          and(eq(approvalSignatures.approvalId, id), eq(approvalSignatures.partnerEmail, userEmail))
+        );
+
+      if (existingSignature) {
+        return res.status(400).json({ error: 'Already signed this approval' });
+      }
+
+      // Generate signature
+      const signatureData = {
+        approvalId: id,
+        partnerEmail: userEmail,
+        timestamp: Date.now(),
+        calculationHash: approval.calculationHash,
+      };
+
+      const cfg = getConfig();
+      const signature = jwt.sign(
+        signatureData,
+        (cfg as Record<string, unknown>)['JWT_SECRET'] as string,
+        {
+          algorithm: 'HS256' as jwt.Algorithm,
+          expiresIn: '7d',
+          issuer: (cfg as Record<string, unknown>)['JWT_ISSUER'] as string,
+          audience: (cfg as Record<string, unknown>)['JWT_AUDIENCE'] as string,
+        }
       );
 
-    if (existingSignature) {
-      return res.status(400).json({ error: 'Already signed this approval' });
-    }
+      // Record signature
+      await db.insert(approvalSignatures).values({
+        approvalId: id,
+        partnerEmail: userEmail,
+        signature,
+        ipAddress: req.ip ?? 'unknown',
+        userAgent: req.headers['user-agent'],
+        sessionId: getRequestSessionId(req),
+        twoFactorVerified: verificationCode ? new Date() : null,
+        verificationCode: verificationCode
+          ? crypto.createHash('sha256').update(verificationCode).digest('hex')
+          : null,
+      });
 
-    // Generate signature
-    const signatureData = {
-      approvalId: id,
-      partnerEmail: userEmail,
-      timestamp: Date.now(),
-      calculationHash: approval.calculationHash,
-    };
-
-    const cfg = getConfig();
-    const signature = jwt.sign(
-      signatureData,
-      (cfg as Record<string, unknown>)['JWT_SECRET'] as string,
-      {
-        algorithm: 'HS256' as jwt.Algorithm,
-        expiresIn: '7d',
-        issuer: (cfg as Record<string, unknown>)['JWT_ISSUER'] as string,
-        audience: (cfg as Record<string, unknown>)['JWT_AUDIENCE'] as string,
-      }
-    );
-
-    // Record signature
-    await db.insert(approvalSignatures).values({
-      approvalId: id,
-      partnerEmail: userEmail,
-      signature,
-      ipAddress: req.ip ?? 'unknown',
-      userAgent: req.headers['user-agent'],
-      sessionId: getRequestSessionId(req),
-      twoFactorVerified: verificationCode ? new Date() : null,
-      verificationCode: verificationCode
-        ? crypto.createHash('sha256').update(verificationCode).digest('hex')
-        : null,
-    });
-
-    // Log the signing
-    await db.insert(approvalAuditLog).values({
-      approvalId: id,
-      action: 'signed',
-      actor: userEmail,
-      details: { verified2FA: !!verificationCode },
-      ipAddress: req.ip ?? 'unknown',
-      userAgent: req.headers['user-agent'],
-    });
-
-    // Check if this completes the approval.
-    const signatureCount = await db.$count(
-      approvalSignatures,
-      eq(approvalSignatures.approvalId, id)
-    );
-
-    if (signatureCount >= DEFAULT_MIN_APPROVALS) {
-      // Mark as approved and execute
-      await db
-        .update(reserveApprovals)
-        .set({ status: 'approved', updatedAt: new Date() })
-        .where(eq(reserveApprovals.id, id));
-
+      // Log the signing
       await db.insert(approvalAuditLog).values({
         approvalId: id,
-        action: 'executed',
-        actor: 'system',
-        systemGenerated: new Date(),
-        details: { signatureCount },
+        action: 'signed',
+        actor: userEmail,
+        details: { verified2FA: !!verificationCode },
+        ipAddress: req.ip ?? 'unknown',
+        userAgent: req.headers['user-agent'],
       });
 
-      // TODO: Execute the actual reserve strategy change
-      await executeReserveStrategyChange(approval);
+      // Check if this completes the approval.
+      const signatureCount = await db.$count(
+        approvalSignatures,
+        eq(approvalSignatures.approvalId, id)
+      );
 
-      res.json({
-        success: true,
-        message: 'Approval signed and executed',
-        status: 'approved',
-        executed: true,
-      });
-    } else {
-      res.json({
-        success: true,
-        message: 'Approval signed successfully',
-        remainingApprovals: DEFAULT_MIN_APPROVALS - signatureCount,
-        status: 'pending',
-      });
+      if (signatureCount >= DEFAULT_MIN_APPROVALS) {
+        // Mark as approved and execute
+        await db
+          .update(reserveApprovals)
+          .set({ status: 'approved', updatedAt: new Date() })
+          .where(eq(reserveApprovals.id, id));
+
+        await db.insert(approvalAuditLog).values({
+          approvalId: id,
+          action: 'executed',
+          actor: 'system',
+          systemGenerated: new Date(),
+          details: { signatureCount },
+        });
+
+        // TODO: Execute the actual reserve strategy change
+        await executeReserveStrategyChange(approval);
+
+        res.json({
+          success: true,
+          message: 'Approval signed and executed',
+          status: 'approved',
+          executed: true,
+        });
+      } else {
+        res.json({
+          success: true,
+          message: 'Approval signed successfully',
+          remainingApprovals: DEFAULT_MIN_APPROVALS - signatureCount,
+          status: 'pending',
+        });
+      }
+    } catch (error) {
+      routeLog.error('Error signing approval:', error);
+      res.status(500).json({ error: 'Failed to sign approval' });
     }
-  } catch (error) {
-    routeLog.error('Error signing approval:', error);
-    res.status(500).json({ error: 'Failed to sign approval' });
   }
-});
+);
 
 /**
  * POST /api/v1/reserve-approvals/:id/reject - Reject an approval
@@ -409,52 +416,56 @@ const rejectionSchema = z.object({
   reason: z.string().min(10),
 });
 
-router['post']('/:id/reject', requireCapability('reserve_admin'), async (req: Request, res: Response) => {
-  try {
-    const userEmail = getRequestUserEmail(req);
-    if (!userEmail) {
-      return res.status(401).json({ error: 'Authentication required' });
+router['post'](
+  '/:id/reject',
+  requireCapability('reserve_admin'),
+  async (req: Request, res: Response) => {
+    try {
+      const userEmail = getRequestUserEmail(req);
+      if (!userEmail) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const id = req.params['id'] as string;
+      const { reason } = rejectionSchema.parse(req.body);
+
+      // Check authorization
+      const [partner] = await db
+        .select()
+        .from(approvalPartners)
+        .where(eq(approvalPartners.email, userEmail));
+
+      if (!partner || partner.deactivated) {
+        return res.status(403).json({ error: 'Not authorized as partner' });
+      }
+
+      // Update approval status
+      await db
+        .update(reserveApprovals)
+        .set({ status: 'rejected', updatedAt: new Date() })
+        .where(eq(reserveApprovals.id, id));
+
+      // Log rejection
+      await db.insert(approvalAuditLog).values({
+        approvalId: id,
+        action: 'rejected',
+        actor: userEmail,
+        details: { reason },
+        ipAddress: req.ip ?? 'unknown',
+        userAgent: req.headers['user-agent'],
+      });
+
+      res.json({
+        success: true,
+        message: 'Approval rejected',
+        rejectedBy: userEmail,
+      });
+    } catch (error) {
+      routeLog.error('Error rejecting approval:', error);
+      res.status(500).json({ error: 'Failed to reject approval' });
     }
-
-    const id = req.params['id'] as string;
-    const { reason } = rejectionSchema.parse(req.body);
-
-    // Check authorization
-    const [partner] = await db
-      .select()
-      .from(approvalPartners)
-      .where(eq(approvalPartners.email, userEmail));
-
-    if (!partner || partner.deactivated) {
-      return res.status(403).json({ error: 'Not authorized as partner' });
-    }
-
-    // Update approval status
-    await db
-      .update(reserveApprovals)
-      .set({ status: 'rejected', updatedAt: new Date() })
-      .where(eq(reserveApprovals.id, id));
-
-    // Log rejection
-    await db.insert(approvalAuditLog).values({
-      approvalId: id,
-      action: 'rejected',
-      actor: userEmail,
-      details: { reason },
-      ipAddress: req.ip ?? 'unknown',
-      userAgent: req.headers['user-agent'],
-    });
-
-    res.json({
-      success: true,
-      message: 'Approval rejected',
-      rejectedBy: userEmail,
-    });
-  } catch (error) {
-    routeLog.error('Error rejecting approval:', error);
-    res.status(500).json({ error: 'Failed to reject approval' });
   }
-});
+);
 
 // Helper functions
 
@@ -594,7 +605,10 @@ async function executeReserveStrategyChange(approval: ReserveApproval): Promise<
     switch (approval.action) {
       case 'create':
         // Insert new reserve decisions based on strategy
-        routeLog.warn(`[executeReserveStrategyChange] Creating new reserve strategy:`, strategyData);
+        routeLog.warn(
+          `[executeReserveStrategyChange] Creating new reserve strategy:`,
+          strategyData
+        );
         // Future: await reserveEngine.createStrategy(strategyData, affectedFunds);
         break;
 

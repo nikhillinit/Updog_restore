@@ -77,13 +77,13 @@ const DocumentListQuerySchema = z.object({
     .optional(),
   fundId: z.coerce.number().positive().optional(),
   year: z.coerce.number().min(2000).max(new Date().getFullYear()).optional(),
-  limit: z.coerce.number().min(1).max(100).default(20),
+  limit: z.coerce.number().min(1).max(100).prefault(20),
   cursor: z.string().optional(),
 });
 
 const DocumentCursorSchema = z.object({
   publishedAt: z.string().datetime(),
-  id: z.string().uuid(),
+  id: z.string().guid(),
   limit: z.number().int().min(1).max(100),
   filters: z.object({
     type: DocumentListQuerySchema.shape.type.nullable(),
@@ -106,7 +106,7 @@ const SearchQuerySchema = z.object({
     ])
     .optional(),
   fundId: z.coerce.number().positive().optional(),
-  limit: z.coerce.number().min(1).max(50).default(20),
+  limit: z.coerce.number().min(1).max(50).prefault(20),
 });
 
 function formatFileSize(bytes: number): string {
@@ -141,7 +141,7 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
         .json(
           createErrorResponse(
             'VALIDATION_ERROR',
-            queryResult.error.errors[0]?.message ?? 'Invalid query parameters'
+            queryResult.error.issues[0]?.message ?? 'Invalid query parameters'
           )
         );
     }
@@ -310,7 +310,7 @@ router.get(
           .json(
             createErrorResponse(
               'VALIDATION_ERROR',
-              queryResult.error.errors[0]?.message ?? 'Invalid query parameters',
+              queryResult.error.issues[0]?.message ?? 'Invalid query parameters',
               'q'
             )
           );

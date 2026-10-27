@@ -37,7 +37,7 @@ const router = express.Router();
 /**
  * Type guard to check if error is a ZodError
  */
-function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
+function isZodError(error: unknown): error is { name: 'ZodError'; issues: unknown } {
   return (
     typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
@@ -68,7 +68,7 @@ function requireCohortFundAccessFrom(
       return res.status(400).json({
         error: 'validation_error',
         message: source === 'body' ? 'Invalid request fundId' : 'Invalid query parameter fundId',
-        details: parsed.error.errors,
+        details: parsed.error.issues,
       });
     }
 
@@ -268,7 +268,7 @@ router['post'](
         return res.status(400).json({
           error: 'validation_error',
           message: 'Invalid request',
-          details: error.errors,
+          details: error.issues,
         });
       }
 
@@ -287,7 +287,7 @@ router['post'](
 
 const UnmappedQuerySchema = z.object({
   fundId: z.coerce.number().int().positive(),
-  taxonomyVersion: z.string().default('v1'),
+  taxonomyVersion: z.string().prefault('v1'),
 });
 
 /**
@@ -367,7 +367,7 @@ router['get'](
         return res.status(400).json({
           error: 'validation_error',
           message: 'Invalid query parameters',
-          details: error.errors,
+          details: error.issues,
         });
       }
 
@@ -386,13 +386,13 @@ router['get'](
 
 const SectorMappingInputSchema = z.object({
   rawValue: z.string().min(1),
-  canonicalSectorId: z.string().uuid(),
-  confidenceScore: z.number().min(0).max(1).default(1.0),
+  canonicalSectorId: z.string().guid(),
+  confidenceScore: z.number().min(0).max(1).prefault(1.0),
 });
 
 const BulkSectorMappingsSchema = z.object({
   fundId: z.number().int().positive(),
-  taxonomyVersion: z.string().default('v1'),
+  taxonomyVersion: z.string().prefault('v1'),
   mappings: z.array(SectorMappingInputSchema),
 });
 
@@ -471,7 +471,7 @@ router['post'](
         return res.status(400).json({
           error: 'validation_error',
           message: 'Invalid request',
-          details: error.errors,
+          details: error.issues,
         });
       }
 
@@ -539,7 +539,7 @@ router['get'](
         return res.status(400).json({
           error: 'validation_error',
           message: 'Invalid query parameters',
-          details: error.errors,
+          details: error.issues,
         });
       }
 
@@ -555,10 +555,10 @@ router['get'](
 const CreateDefinitionSchema = z.object({
   fundId: z.number().int().positive(),
   name: z.string().min(1).max(100),
-  vintageGranularity: z.enum(['year', 'quarter']).default('year'),
-  sectorTaxonomyVersion: z.string().default('v1'),
-  unit: z.enum(['company', 'investment']).default('company'),
-  isDefault: z.boolean().default(false),
+  vintageGranularity: z.enum(['year', 'quarter']).prefault('year'),
+  sectorTaxonomyVersion: z.string().prefault('v1'),
+  unit: z.enum(['company', 'investment']).prefault('company'),
+  isDefault: z.boolean().prefault(false),
 });
 
 /**
@@ -602,7 +602,7 @@ router['post'](
         return res.status(400).json({
           error: 'validation_error',
           message: 'Invalid request',
-          details: error.errors,
+          details: error.issues,
         });
       }
 

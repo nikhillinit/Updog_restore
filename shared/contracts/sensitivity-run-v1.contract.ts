@@ -28,9 +28,9 @@ export const SensitivityRunV1Schema = z
     kind: SensitivityRunKindSchema,
     status: SensitivityRunStatusSchema,
     /** Caller-supplied parameters; opaque JSONB blob, validated upstream by kind-specific schemas. */
-    params: z.unknown(),
+    params: z.unknown().optional(),
     /** Calculation output; null until status transitions to completed. */
-    results: z.unknown().nullable(),
+    results: z.unknown().nullable().optional(),
     createdBy: z.number().int(),
     createdAt: z.string().datetime(),
     completedAt: z.string().datetime().nullable(),

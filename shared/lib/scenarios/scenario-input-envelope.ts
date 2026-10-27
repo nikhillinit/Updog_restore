@@ -55,13 +55,16 @@ export function capitalSchemaIssues(
 ): CapitalIssueV1[] {
   const limits = CAPITAL_PLANNING_PROVISIONAL_LIMITS;
   const leaves: z.ZodIssue[] = [];
-  const visit = (issue: z.ZodIssue): void => {
+  const visit = (issue: z.ZodIssue, parentPath: PropertyKey[] = []): void => {
     if (leaves.length >= limits.maxSourceFacts) return;
-    if (issue.code === 'invalid_union')
-      issue.unionErrors.forEach((error) => error.issues.forEach(visit));
-    else leaves.push(issue);
+    const path = [...parentPath, ...issue.path];
+    if (issue.code === 'invalid_union' && !('discriminator' in issue))
+      issue.errors.forEach((errors) => errors.forEach((child) => visit(child, path)));
+    else if (issue.code === 'invalid_key' || issue.code === 'invalid_element')
+      issue.issues.forEach((child) => visit(child, path));
+    else leaves.push({ ...issue, path });
   };
-  issues.forEach(visit);
+  issues.forEach((issue) => visit(issue));
   const safePrefix = CapitalPathV1Schema.safeParse(prefix).success ? prefix : 'input';
   const mapped = leaves.map((issue): CapitalIssueV1 => {
     const suffix = issue.path.reduce<string>(
@@ -72,7 +75,7 @@ export function capitalSchemaIssues(
     const value = issue.path.reduce<unknown>(
       (current, part) =>
         current !== null && typeof current === 'object'
-          ? (current as Record<string | number, unknown>)[part]
+          ? (current as Record<PropertyKey, unknown>)[part]
           : undefined,
       input
     );
@@ -82,7 +85,8 @@ export function capitalSchemaIssues(
       issue.message === 'TIME_ORIGIN_UNRESOLVED' ||
       issue.message === 'TIME_ORIGIN_UNRESOLVED: window boundaries must share a month origin';
     const unsupportedPolicy =
-      issue.code === 'invalid_union_discriminator' &&
+      issue.code === 'invalid_union' &&
+      'discriminator' in issue &&
       issue.path[issue.path.length - 2] === 'checkPolicy' &&
       issue.path[issue.path.length - 1] === 'type';
     const unsupportedMapping =
@@ -104,7 +108,7 @@ export function capitalSchemaIssues(
     const declarationPath = issue.path[issue.path.length - 1];
     const oversizedDeclarationPath =
       issue.code === 'too_big' &&
-      issue.type === 'string' &&
+      issue.origin === 'string' &&
       issue.path[issue.path.length - 2] === 'unitDeclarations' &&
       typeof declarationPath === 'string';
     let observed = oversizedDeclarationPath
@@ -310,7 +314,7 @@ const CAPITAL_ONLY_KEYS = [
 const capitalEnvelopeFields = {
   contractVersion: z.literal(FUND_SCENARIOS_CONTRACT_VERSION),
   fundId: z.number().int().positive(),
-  scenarioSetId: z.string().uuid(),
+  scenarioSetId: z.string().guid(),
   sourceConfigId: z.number().int().positive(),
   sourceConfigVersion: z.number().int().positive(),
   calculationDomain: z.literal('capital_plan'),
@@ -320,13 +324,13 @@ const capitalEnvelopeFields = {
   methodVersion: CapitalVersionV1Schema,
   interpretationVersion: CapitalVersionV1Schema,
   engineVersion: z.string().min(1).max(20),
-  baselineVariantId: z.string().uuid(),
+  baselineVariantId: z.string().guid(),
   sourceBundleHash: CapitalHashV1Schema,
   variants: z
     .array(
       z
         .object({
-          variantId: z.string().uuid(),
+          variantId: z.string().guid(),
           sortOrder: z.number().int().min(0).max(4),
           override: FundScenarioCapitalStoredOverrideSchema,
         })
@@ -344,7 +348,6 @@ type CapitalEnvelopeOutput = z.output<CapitalEnvelopeFieldsSchema> & CapitalEnve
 type CapitalEnvelopeInput = z.input<CapitalEnvelopeFieldsSchema> & CapitalEnvelopeVersion;
 const CapitalScenarioInputHashEnvelopeSchema: z.ZodType<
   CapitalEnvelopeOutput,
-  z.ZodTypeDef,
   CapitalEnvelopeInput
 > = z.discriminatedUnion('version', [
   z

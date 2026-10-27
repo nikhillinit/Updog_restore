@@ -10,7 +10,7 @@ export const FundSummarySchema = z.object({
   carryPercentage: z.number().finite(),
   vintageYear: z.number().int(),
   status: z.string().min(1),
-  engineResults: z.unknown().nullable(),
+  engineResults: z.unknown().nullable().optional(),
   createdAt: z.string().nullable(),
   updatedAt: z.string().nullable().optional(),
   establishmentDate: z.string().nullable(),

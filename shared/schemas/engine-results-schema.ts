@@ -40,7 +40,7 @@ export const engineScenarioResultSchema = z.object({
 
 export const engineResultsSchema = z.object({
   calculatedAt: z.string().datetime(),
-  engineVersion: z.string().default('1.0.0'),
+  engineVersion: z.string().prefault('1.0.0'),
   allocations: z.array(engineAllocationSchema),
   portfolioMetrics: enginePortfolioMetricsSchema,
   riskAnalysis: engineRiskAnalysisSchema,

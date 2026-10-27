@@ -58,8 +58,8 @@ const TransactionQueryParams = z.object({
   endDate: z.string().optional(),
   type: z.string().optional(),
   status: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(1000).default(100),
-  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(1000).prefault(100),
+  offset: z.coerce.number().int().min(0).prefault(0),
 });
 
 const CreateTransactionRequest = CashTransactionSchema.omit({
@@ -68,11 +68,18 @@ const CreateTransactionRequest = CashTransactionSchema.omit({
   updatedAt: true,
 });
 
-const UpdateTransactionRequest = CashTransactionSchema.partial().omit({
+const UpdateTransactionRequest = CashTransactionSchema.omit({
   id: true,
   fundId: true,
   createdAt: true,
-});
+})
+  .extend({
+    currency: CashTransactionSchema.shape.currency.unwrap(),
+    status: CashTransactionSchema.shape.status.unwrap(),
+    quarterEnd: CashTransactionSchema.shape.quarterEnd.unwrap(),
+    updatedAt: CashTransactionSchema.shape.updatedAt.unwrap(),
+  })
+  .partial();
 
 const CreateCapitalCallRequest = CapitalCallSchema.omit({
   id: true,

@@ -49,7 +49,7 @@ const PositionEventTypeSchema = z.enum([
 export const PositionEventLotReliefRequestSchema = z
   .object({
     investmentId: PositiveIntSchema,
-    investmentLotId: z.string().uuid(),
+    investmentLotId: z.string().guid(),
     relievedShares: SharesDecimalStringSchema.refine(
       (value) => new Decimal(value).gt(0),
       'Relieved shares must be greater than zero.'
@@ -71,7 +71,7 @@ export const RecordPositionEventRequestSchema = z
     companyIdentityId: PositiveIntSchema,
     eventType: z.enum(['acquisition', 'realization', 'write_off', 'adjustment']),
     effectiveDate: IsoDateSchema,
-    currency: CurrencySchema.default('USD'),
+    currency: CurrencySchema.prefault('USD'),
     sharesDelta: SharesDecimalStringSchema,
     costBasisDelta: MoneyDecimalStringSchema,
     proceeds: MoneyDecimalStringSchema,
@@ -154,7 +154,7 @@ export const RecordPositionEventRequestSchema = z
 export const CorrectPositionRequestSchema = z
   .object({
     positionEventId: PositiveIntSchema,
-    currency: CurrencySchema.default('USD'),
+    currency: CurrencySchema.prefault('USD'),
     sharesDelta: SharesDecimalStringSchema,
     costBasisDelta: MoneyDecimalStringSchema,
     proceeds: MoneyDecimalStringSchema,
@@ -165,7 +165,7 @@ export const CorrectPositionRequestSchema = z
 export const PositionConversionLotReliefRequestSchema = z
   .object({
     investmentId: PositiveIntSchema,
-    investmentLotId: z.string().uuid(),
+    investmentLotId: z.string().guid(),
     relievedShares: PositiveStoredPositionDecimalStringSchema,
     relievedCostBasis: MoneyDecimalStringSchema.refine(
       (value) => new Decimal(value).gt(0),
@@ -194,8 +194,8 @@ export const ConvertPositionRequestSchema = z
     effectiveDate: IsoDateSchema,
     resultingSharesAcquired: PositiveStoredPositionDecimalStringSchema,
     sourceLotReliefs: z.array(PositionConversionLotReliefRequestSchema).min(1).optional(),
-    accruedInterest: PositionConversionAccruedInterestSchema.default({ mode: 'excluded' }),
-    currency: z.literal('USD').default('USD'),
+    accruedInterest: PositionConversionAccruedInterestSchema.prefault({ mode: 'excluded' }),
+    currency: z.literal('USD').prefault('USD'),
   })
   .strict();
 
@@ -264,7 +264,7 @@ export const PositionSourceBasisReliefV1Schema = z
 export const PositionConversionLotReliefV1Schema = z
   .object({
     investmentId: PositiveIntSchema,
-    investmentLotId: z.string().uuid(),
+    investmentLotId: z.string().guid(),
     relievedShares: StoredPositionDecimalStringSchema,
     relievedCostBasis: MoneyDecimalStringSchema,
     allocatedProceeds: MoneyDecimalStringSchema,
@@ -281,7 +281,7 @@ export const PositionConversionV1Schema = z
     reliefMode: z.enum(['specific_lots', 'source_basis']),
     lotReliefs: z.array(PositionConversionLotReliefV1Schema),
     sourceBasisRelief: PositionSourceBasisReliefV1Schema,
-    resultConversionLotId: z.string().uuid(),
+    resultConversionLotId: z.string().guid(),
     conversionObservationId: PositiveIntSchema,
   })
   .strict();

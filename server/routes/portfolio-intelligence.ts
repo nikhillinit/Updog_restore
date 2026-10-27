@@ -70,13 +70,13 @@ const sendPrototypeBlocked = (
 // ============================================================================
 
 // Fund Strategy Model Schemas
-const CreateStrategySchema = z.object({
+const StrategySchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   modelType: z.enum(['strategic', 'tactical', 'opportunistic', 'defensive', 'balanced']),
-  targetPortfolioSize: positiveInt().default(25),
-  maxPortfolioSize: positiveInt().default(30),
-  targetDeploymentPeriodMonths: positiveInt().default(36),
+  targetPortfolioSize: positiveInt(),
+  maxPortfolioSize: positiveInt(),
+  targetDeploymentPeriodMonths: positiveInt(),
   checkSizeRange: z.object({
     min: nonNegative(),
     max: nonNegative(),
@@ -85,36 +85,45 @@ const CreateStrategySchema = z.object({
   sectorAllocation: z.record(z.string(), bounded01()),
   stageAllocation: z.record(z.string(), bounded01()),
   geographicAllocation: z.record(z.string(), bounded01()).optional(),
-  initialReservePercentage: bounded01().default(0.5),
-  followOnStrategy: z.record(z.any()),
-  concentrationLimits: z.record(z.any()),
-  riskTolerance: z.enum(['conservative', 'moderate', 'aggressive']).default('moderate'),
+  initialReservePercentage: bounded01(),
+  followOnStrategy: z.record(z.string(), z.any()),
+  concentrationLimits: z.record(z.string(), z.any()),
+  riskTolerance: z.enum(['conservative', 'moderate', 'aggressive']),
   targetIrr: bounded01().optional(),
   targetMultiple: nonNegative().optional(),
   targetDpi: nonNegative().optional(),
-  tags: z.array(z.string().max(50)).max(10).default([]),
+  tags: z.array(z.string().max(50)).max(10),
 });
 
-const UpdateStrategySchema = CreateStrategySchema.partial();
+const CreateStrategySchema = StrategySchema.extend({
+  targetPortfolioSize: StrategySchema.shape.targetPortfolioSize.prefault(25),
+  maxPortfolioSize: StrategySchema.shape.maxPortfolioSize.prefault(30),
+  targetDeploymentPeriodMonths: StrategySchema.shape.targetDeploymentPeriodMonths.prefault(36),
+  initialReservePercentage: StrategySchema.shape.initialReservePercentage.prefault(0.5),
+  riskTolerance: StrategySchema.shape.riskTolerance.prefault('moderate'),
+  tags: StrategySchema.shape.tags.prefault([]),
+});
+
+const UpdateStrategySchema = StrategySchema.partial();
 
 // Portfolio Scenario Schemas
 const CreateScenarioSchema = z.object({
-  strategyModelId: z.string().uuid(),
+  strategyModelId: z.string().guid(),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   scenarioType: z.enum(['base_case', 'optimistic', 'pessimistic', 'stress_test', 'custom']),
-  marketEnvironment: z.enum(['bull', 'normal', 'bear', 'recession']).default('normal'),
-  dealFlowAssumption: nonNegative().default(1.0),
-  valuationEnvironment: nonNegative().default(1.0),
-  exitEnvironment: nonNegative().default(1.0),
-  plannedInvestments: z.array(z.record(z.any())),
-  deploymentSchedule: z.record(z.any()),
+  marketEnvironment: z.enum(['bull', 'normal', 'bear', 'recession']).prefault('normal'),
+  dealFlowAssumption: nonNegative().prefault(1.0),
+  valuationEnvironment: nonNegative().prefault(1.0),
+  exitEnvironment: nonNegative().prefault(1.0),
+  plannedInvestments: z.array(z.record(z.string(), z.any())),
+  deploymentSchedule: z.record(z.string(), z.any()),
 });
 
 // Scenario Comparison Schema
 const CompareScenarioSchema = z.object({
-  baseScenarioId: z.string().uuid(),
-  comparisonScenarioIds: z.array(z.string().uuid()).min(1).max(5),
+  baseScenarioId: z.string().guid(),
+  comparisonScenarioIds: z.array(z.string().guid()).min(1).max(5),
   comparisonType: z.enum([
     'strategy_comparison',
     'scenario_analysis',
@@ -133,10 +142,10 @@ const RunSimulationSchema = z.object({
     'risk_analysis',
     'optimization',
   ]),
-  numberOfRuns: positiveInt().min(100, 'Minimum 100 simulation runs required').default(10000),
-  inputDistributions: z.record(z.any()),
-  correlationMatrix: z.record(z.any()).optional(),
-  constraints: z.record(z.any()).optional(),
+  numberOfRuns: positiveInt().min(100, 'Minimum 100 simulation runs required').prefault(10000),
+  inputDistributions: z.record(z.string(), z.any()),
+  correlationMatrix: z.record(z.string(), z.any()).optional(),
+  constraints: z.record(z.string(), z.any()).optional(),
 });
 
 // Reserve Optimization Schemas
@@ -149,16 +158,16 @@ const OptimizeReservesSchema = z.object({
     'hybrid',
   ]),
   totalReserveAmount: nonNegative(),
-  maxPerCompanyPct: bounded01().default(0.2),
-  allocationRules: z.record(z.any()),
+  maxPerCompanyPct: bounded01().prefault(0.2),
+  allocationRules: z.record(z.string(), z.any()),
   optimizationObjective: z
     .enum(['irr_maximization', 'risk_minimization', 'risk_adjusted_return', 'portfolio_balance'])
-    .default('risk_adjusted_return'),
-  monteCarloIterations: positiveInt().default(5000),
+    .prefault('risk_adjusted_return'),
+  monteCarloIterations: positiveInt().prefault(5000),
 });
 
 const BacktestReserveSchema = z.object({
-  strategyId: z.string().uuid(),
+  strategyId: z.string().guid(),
   backtestPeriodStart: z.string().datetime(),
   backtestPeriodEnd: z.string().datetime(),
   benchmarkStrategy: z.enum(['equal_weight', 'market_cap', 'custom']),
@@ -166,8 +175,8 @@ const BacktestReserveSchema = z.object({
 
 // Performance Forecast Schemas
 const CreateForecastSchema = z.object({
-  scenarioId: z.string().uuid().optional(),
-  baselineId: z.string().uuid().optional(),
+  scenarioId: z.string().guid().optional(),
+  baselineId: z.string().guid().optional(),
   forecastName: z.string().min(1).max(100),
   forecastType: z.enum(['fund_level', 'portfolio_level', 'company_level', 'sector_level']),
   forecastHorizonYears: positiveInt()
@@ -180,21 +189,21 @@ const CreateForecastSchema = z.object({
     'hybrid',
     'expert_judgment',
   ]),
-  assumptions: z.record(z.any()).optional(),
+  assumptions: z.record(z.string(), z.any()).optional(),
 });
 
 const ValidateForecastSchema = z.object({
-  forecastId: z.string().uuid(),
-  actualMetrics: z.record(z.any()),
+  forecastId: z.string().guid(),
+  actualMetrics: z.record(z.string(), z.any()),
   validationPeriod: z.string().datetime(),
 });
 
 // Quick Action Schemas
 const QuickScenarioSchema = z.object({
-  strategyModelId: z.string().uuid(),
-  marketCondition: z.enum(['bull', 'normal', 'bear']).default('normal'),
-  riskProfile: z.enum(['conservative', 'moderate', 'aggressive']).default('moderate'),
-  timeHorizon: positiveInt().default(10),
+  strategyModelId: z.string().guid(),
+  marketCondition: z.enum(['bull', 'normal', 'bear']).prefault('normal'),
+  riskProfile: z.enum(['conservative', 'moderate', 'aggressive']).prefault('moderate'),
+  timeHorizon: positiveInt().prefault(10),
 });
 
 // ============================================================================
@@ -1118,11 +1127,13 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
     ];
 
     const provenance = makeStaticTemplateProvenance('GET /api/portfolio/templates');
-    const filteredTemplates = templates.filter((t) => {
-      if (category && t.category !== category) return false;
-      if (riskProfile && t.riskProfile !== riskProfile) return false;
-      return true;
-    }).map((template) => ({ ...template, provenance }));
+    const filteredTemplates = templates
+      .filter((t) => {
+        if (category && t.category !== category) return false;
+        if (riskProfile && t.riskProfile !== riskProfile) return false;
+        return true;
+      })
+      .map((template) => ({ ...template, provenance }));
 
     res.json({
       success: true,

@@ -137,7 +137,7 @@ const RiskBandSchema = z.enum(['low', 'medium', 'high']);
 
 const DeterministicReserveAllocationValueSchema = z
   .object({
-    companyId: z.string().uuid(),
+    companyId: z.string().guid(),
     companyName: z.string(),
     recommendedAllocation: FiniteNumberSchema,
     allocationRationale: z.string(),

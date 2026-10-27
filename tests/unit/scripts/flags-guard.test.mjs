@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +9,98 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const guardScript = path.join(process.cwd(), 'scripts', 'flags-guard.mjs');
 const temporaryDirectories = [];
+
+// Immutable snapshots for the reviewed formatting-only circuit environment transition.
+const circuitEnvironmentPreimage = `import { z } from 'zod';
+
+const Env = z.object({
+  CB_CACHE_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  CB_HTTP_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  CB_DB_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+
+  CB_CACHE_FAILURE_THRESHOLD: z.coerce.number().default(5),
+  CB_CACHE_RESET_TIMEOUT_MS: z.coerce.number().default(10_000),
+  CB_CACHE_OP_TIMEOUT_MS: z.coerce.number().default(350),
+  CB_CACHE_SUCCESS_TO_CLOSE: z.coerce.number().default(2),
+  CB_CACHE_HALF_OPEN_MAX_CONC: z.coerce.number().default(3),
+
+  CB_HTTP_FAILURE_THRESHOLD: z.coerce.number().default(3),
+  CB_HTTP_RESET_TIMEOUT_MS: z.coerce.number().default(5_000),
+  CB_HTTP_OP_TIMEOUT_MS: z.coerce.number().default(500),
+  CB_HTTP_SUCCESS_TO_CLOSE: z.coerce.number().default(2),
+  CB_HTTP_HALF_OPEN_MAX_CONC: z.coerce.number().default(3),
+
+  CB_DB_FAILURE_THRESHOLD: z.coerce.number().default(4),
+  CB_DB_RESET_TIMEOUT_MS: z.coerce.number().default(8_000),
+  CB_DB_OP_TIMEOUT_MS: z.coerce.number().default(400),
+  CB_DB_MONITORING_PERIOD_MS: z.coerce.number().default(60_000),
+
+  CB_ADAPTIVE_ENABLED: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  CB_ADAPTIVE_MIN: z.coerce.number().default(3),
+  CB_ADAPTIVE_MAX: z.coerce.number().default(10),
+  CB_ADAPTIVE_RATE: z.coerce.number().default(0.1),
+}).passthrough();
+
+export const envCircuit = Env.parse(process.env);
+
+export const flags = {
+  cache: envCircuit.CB_CACHE_ENABLED,
+  http: envCircuit.CB_HTTP_ENABLED,
+  db: envCircuit.CB_DB_ENABLED,
+};
+`;
+const circuitEnvironmentFormatted = `import { z } from 'zod';
+
+const Env = z
+  .object({
+    CB_CACHE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    CB_HTTP_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    CB_DB_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+
+    CB_CACHE_FAILURE_THRESHOLD: z.coerce.number().default(5),
+    CB_CACHE_RESET_TIMEOUT_MS: z.coerce.number().default(10_000),
+    CB_CACHE_OP_TIMEOUT_MS: z.coerce.number().default(350),
+    CB_CACHE_SUCCESS_TO_CLOSE: z.coerce.number().default(2),
+    CB_CACHE_HALF_OPEN_MAX_CONC: z.coerce.number().default(3),
+
+    CB_HTTP_FAILURE_THRESHOLD: z.coerce.number().default(3),
+    CB_HTTP_RESET_TIMEOUT_MS: z.coerce.number().default(5_000),
+    CB_HTTP_OP_TIMEOUT_MS: z.coerce.number().default(500),
+    CB_HTTP_SUCCESS_TO_CLOSE: z.coerce.number().default(2),
+    CB_HTTP_HALF_OPEN_MAX_CONC: z.coerce.number().default(3),
+
+    CB_DB_FAILURE_THRESHOLD: z.coerce.number().default(4),
+    CB_DB_RESET_TIMEOUT_MS: z.coerce.number().default(8_000),
+    CB_DB_OP_TIMEOUT_MS: z.coerce.number().default(400),
+    CB_DB_MONITORING_PERIOD_MS: z.coerce.number().default(60_000),
+
+    CB_ADAPTIVE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    CB_ADAPTIVE_MIN: z.coerce.number().default(3),
+    CB_ADAPTIVE_MAX: z.coerce.number().default(10),
+    CB_ADAPTIVE_RATE: z.coerce.number().default(0.1),
+  })
+  .passthrough();
+
+export const envCircuit = Env.parse(process.env);
+
+export const flags = {
+  cache: envCircuit.CB_CACHE_ENABLED,
+  http: envCircuit.CB_HTTP_ENABLED,
+  db: envCircuit.CB_DB_ENABLED,
+};
+`;
 
 async function makeTemporaryDirectory() {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'flags-guard-'));
@@ -168,6 +261,57 @@ afterEach(async () => {
 });
 
 describe('feature flags approval guard', () => {
+
+  it('permits the exact circuit environment formatting transition', async () => {
+    expect(createHash('sha256').update(circuitEnvironmentPreimage).digest('hex')).toBe(
+      '8f5721ca104a0a4047afac5c6cbf02c5e5b726f7377ecd6a49f30ff37fa02faf'
+    );
+    expect(createHash('sha256').update(circuitEnvironmentFormatted).digest('hex')).toBe(
+      'ff163052a0ed68cba8aa4c6b97abc2a50ae370d09b64f86e4f3fc5a65b6d3813'
+    );
+    const repository = await makeRepository(
+      circuitEnvironmentPreimage,
+      circuitEnvironmentFormatted,
+      'shared/config/env.circuit.ts'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('No flag files changed');
+  });
+
+  it.each(['wrong path', 'changed candidate default', 'changed preimage'])(
+    'keeps circuit formatting compatibility closed for %s',
+    async (scenario) => {
+      const base =
+        scenario === 'changed preimage'
+          ? circuitEnvironmentPreimage + '\n'
+          : circuitEnvironmentPreimage;
+      const head =
+        scenario === 'changed candidate default'
+          ? circuitEnvironmentFormatted.replace(
+              'CB_CACHE_FAILURE_THRESHOLD: z.coerce.number().default(5)',
+              'CB_CACHE_FAILURE_THRESHOLD: z.coerce.number().default(6)'
+            )
+          : circuitEnvironmentFormatted;
+      const file =
+        scenario === 'wrong path' ? 'src/feature-flags.ts' : 'shared/config/env.circuit.ts';
+      const repository = await makeRepository(base, head, file);
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('failed closed');
+      expect(result.stdout).not.toContain('No flag files changed');
+    }
+  );
 
   it('permits removal of the exact legacy derived adapter snapshot', async () => {
     const base = await readFile(path.join(process.cwd(), 'tests/fixtures/governance/adapter-preimage.txt'), 'utf8');

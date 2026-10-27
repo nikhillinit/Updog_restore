@@ -20,7 +20,6 @@ const JsonNumericSchema = z.union([z.string().min(1), z.number().finite()]);
 
 const PersistedFactsSnapshotSchema: z.ZodType<
   PersistedFinancialFactsSnapshotV1,
-  z.ZodTypeDef,
   z.input<typeof PersistedFinancialFactsSnapshotV1Schema>
 > = PersistedFinancialFactsSnapshotV1Schema;
 
@@ -86,7 +85,7 @@ export const PinnedMarginalReservePublishedAssumptionsV1Schema = z
     configId: z.number().int().positive(),
     version: z.number().int(),
     publishedAt: z.string().datetime().nullable(),
-    config: z.unknown(),
+    config: z.unknown().optional(),
   })
   .strict();
 

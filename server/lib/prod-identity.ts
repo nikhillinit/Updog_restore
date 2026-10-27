@@ -1,7 +1,7 @@
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import { USER_ROLES } from '@shared/schema';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 import { DEV_SEED_PASSWORDS } from './seed-users';
 

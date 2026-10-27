@@ -174,7 +174,7 @@ const actualsRestatementReadQuerySchema = z
     limit: z
       .string()
       .regex(/^[1-9][0-9]{0,2}$/)
-      .default('50')
+      .prefault('50')
       .transform(Number),
     cursor: z
       .string()
@@ -184,7 +184,7 @@ const actualsRestatementReadQuerySchema = z
       .transform((value) => value ?? null),
   })
   .strict()
-  .pipe(ActualsRestatementReadRequestV1Schema);
+  .pipe(ActualsRestatementReadRequestV1Schema.required({ limit: true }));
 
 const valuationMarkImportBodySchema = ImportDryRunRequestSchema.extend({
   sourceType: z.literal('csv'),
@@ -332,7 +332,7 @@ function requestHeader(req: Request, name: string): string | undefined {
   return firstString(req.headers[name.toLowerCase()]);
 }
 
-function parseIdempotencyKey(req: Request): z.SafeParseReturnType<string, string> {
+function parseIdempotencyKey(req: Request): z.ZodSafeParseResult<string> {
   return idempotencyKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
 }
 

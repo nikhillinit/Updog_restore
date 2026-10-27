@@ -56,10 +56,10 @@ export const StageDefinitionSchema = z
     failureRate: ZodPercentage.optional(),
 
     /** Exit multiple for successful exits at this stage */
-    exitMultiple: ZodPositiveDecimal.default(new Decimal(3)),
+    exitMultiple: ZodPositiveDecimal.prefault(new Decimal(3)),
 
     /** Dilution per subsequent round */
-    dilutionPerRound: ZodPercentage.default(new Decimal(0.2)),
+    dilutionPerRound: ZodPercentage.prefault(new Decimal(0.2)),
   })
   .refine(
     (data) => {
@@ -93,19 +93,19 @@ export const StageProfileSchema = z
     initialPortfolioSize: ZodPositiveDecimal,
 
     /** Enable exit proceeds recycling */
-    recyclingEnabled: z.boolean().default(false),
+    recyclingEnabled: z.boolean().prefault(false),
 
     /** Global assumptions */
     assumptions: z
       .object({
         /** Average dilution per financing round */
-        dilutionPerRound: ZodPercentage.default(new Decimal(0.2)),
+        dilutionPerRound: ZodPercentage.prefault(new Decimal(0.2)),
 
         /** Follow-on investment multiplier (e.g., 2x initial check) */
-        followOnMultiplier: ZodPositiveDecimal.default(new Decimal(2)),
+        followOnMultiplier: ZodPositiveDecimal.prefault(new Decimal(2)),
 
         /** Reserve allocation strategy */
-        reserveStrategy: z.enum(['pro_rata', 'winner_picking', 'hybrid']).default('pro_rata'),
+        reserveStrategy: z.enum(['pro_rata', 'winner_picking', 'hybrid']).prefault('pro_rata'),
       })
       .optional(),
   })

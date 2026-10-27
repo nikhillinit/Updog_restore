@@ -45,7 +45,7 @@ export const ScenarioConfigSchema = z.object({
 
 export const PortfolioStrategySchema = z
   .object({
-    id: z.string().uuid().optional(),
+    id: z.string().guid().optional(),
     name: z.string().min(1, 'Strategy name is required'),
 
     // Fund size properties with backward compatibility
@@ -176,7 +176,7 @@ export const validatePortfolioStrategy = (
     return { success: true, data: validated };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`);
+      const errors = error.issues.map((err) => `${err.path.join('.')}: ${err.message}`);
       return { success: false, errors };
     }
     return { success: false, errors: ['Unknown validation error'] };

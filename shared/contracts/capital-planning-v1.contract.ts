@@ -1251,12 +1251,15 @@ export const CapitalBenchmarkSelectionV1Schema = z
 // financing may wait for source resolution; identity, share and pool checks remain.
 export const CapitalPlanningDraftV1Schema = z
   .object({
-    input: CapitalPlanningInputV1Schema.innerType().extend({
-      allocations: z
-        .array(CapitalAllocationInputV1Schema.innerType())
-        .min(1)
-        .max(limits.maxAllocations),
-    }),
+    input: z
+      .object(CapitalPlanningInputV1Schema.shape)
+      .strict()
+      .extend({
+        allocations: z
+          .array(z.object(CapitalAllocationInputV1Schema.shape).strict())
+          .min(1)
+          .max(limits.maxAllocations),
+      }),
     benchmarkSelections: z
       .array(CapitalBenchmarkSelectionV1Schema)
       .max(limits.maxAllocations * (limits.maxFollowOnRounds + 1))
@@ -1809,8 +1812,8 @@ export const CapitalPlanningMemoV1Schema: z.ZodType<CapitalPlanningMemoV1> = z
   .object({
     contractVersion: z.literal('capital-planning-memo/1.0.0'),
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
-    variantId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
+    variantId: z.string().guid(),
     scenarioSetName: CapitalScenarioNameV1Schema,
     variantName: CapitalScenarioNameV1Schema,
     result: CapitalPlanningResultV1Schema,

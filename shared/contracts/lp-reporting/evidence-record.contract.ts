@@ -74,11 +74,11 @@ export const EvidenceRecordCreateSchema = z
     sourceDate: z.string().date(),
     receivedDate: z.string().date().optional(),
     expirationDate: z.string().date().optional(),
-    confidenceLevel: ConfidenceLevelSchema.default('medium'),
-    materialityLevel: MaterialityLevelSchema.default('medium'),
+    confidenceLevel: ConfidenceLevelSchema.prefault('medium'),
+    materialityLevel: MaterialityLevelSchema.prefault('medium'),
 
-    confidentiality: ConfidentialitySchema.default('internal'),
-    redactionRequired: z.boolean().default(false),
+    confidentiality: ConfidentialitySchema.prefault('internal'),
+    redactionRequired: z.boolean().prefault(false),
     documentHash: z
       .string()
       .regex(/^[a-f0-9]{64}$/i)
@@ -88,7 +88,7 @@ export const EvidenceRecordCreateSchema = z
     description: z.string().max(2000).optional(),
     internalNotes: z.string().max(5000).optional(),
     lpObjection: z.string().max(2000).optional(),
-    attachments: z.array(EvidenceAttachmentSchema).default([]),
+    attachments: z.array(EvidenceAttachmentSchema).prefault([]),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -118,10 +118,10 @@ export const MetricRunEvidenceCreateRequestSchema = z
     sourceDate: z.string().date(),
     receivedDate: z.string().date().optional(),
     expirationDate: z.string().date().optional(),
-    confidenceLevel: ConfidenceLevelSchema.default('medium'),
-    materialityLevel: MaterialityLevelSchema.default('medium'),
-    confidentiality: ConfidentialitySchema.default('internal'),
-    redactionRequired: z.boolean().default(false),
+    confidenceLevel: ConfidenceLevelSchema.prefault('medium'),
+    materialityLevel: MaterialityLevelSchema.prefault('medium'),
+    confidentiality: ConfidentialitySchema.prefault('internal'),
+    redactionRequired: z.boolean().prefault(false),
     documentHash: z
       .string()
       .regex(/^[a-f0-9]{64}$/i)

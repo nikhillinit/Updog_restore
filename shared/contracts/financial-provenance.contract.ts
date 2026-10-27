@@ -34,7 +34,7 @@ export const FinancialProvenanceSchema = z
     sourceCommitSha: z.string().min(7).optional(),
     isFinanciallyActionable: z.boolean(),
     quarantineReason: z.string().min(1).optional(),
-    warnings: z.array(z.string()).default([]),
+    warnings: z.array(z.string()).prefault([]),
   })
   .strict()
   .superRefine((value, ctx) => {

@@ -10,7 +10,7 @@ export const FundWorkflowOperationSchema = z.enum([
 export type FundWorkflowOperation = z.infer<typeof FundWorkflowOperationSchema>;
 export const FundWorkflowKeySchema = z
   .string()
-  .uuid()
+  .guid()
   .transform((key) => key.toLowerCase());
 export const FundDraftETagSchema = z.string().regex(/^"[0-9a-f]{16}"$/);
 /**

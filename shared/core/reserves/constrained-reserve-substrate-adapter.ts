@@ -41,9 +41,9 @@
  *   an input collapses onto the sentinel, so two inputs differing only
  *   elsewhere while both pinning `maxPerCompany: Infinity` share one input
  *   identity - a disclosed consequence of raw hashing (as equivalent spellings
- *   were in Tranche 3). Hashing the parsed input would not help: Zod's
- *   `.partial()` suppresses the ConstraintsSchema `maxPerCompany` default, so
- *   the parsed input reintroduces no Infinity of its own.
+ *   were in Tranche 3). Hashing the parsed input would not help: the default-free
+ *   ConstraintsSchema leaves omitted fields absent, so the parsed input
+ *   reintroduces no Infinity of its own.
  *
  * Result semantics (identical to ADR-043/044/045): on -> available; shadow ->
  * indicative + SHADOW_ONLY; configured off -> unavailable + MODE_OFF; kill
@@ -84,10 +84,10 @@ export const CONSTRAINED_RESERVE_ASSUMPTIONS_HASH_DOMAIN =
  * constraint field is absent (ConstrainedReserveEngine.ts: `yearsToExit ?? 5`,
  * `exitProb ?? 0.5`, `disc ?? 0.12`); the characterization goldens keep them
  * honest (change one and the hand-derived allocations move). `constraintDefaults`
- * are the ConstraintsSchema-ADVERTISED defaults - restated as documented and
- * pinned by an introspection parity test. Note the honest subtlety: because
- * ConstraintsSchema is `.partial()`, its `graduationYears`/`graduationProb`
- * per-stage default maps never materialize on parse, so the engine's flat
+ * are the ConstraintDefaultsSchema-ADVERTISED defaults - restated as documented
+ * and pinned by a parse parity test. ConstraintsSchema omits these defaults, so
+ * its `graduationYears`/`graduationProb` per-stage maps never materialize on an
+ * omitted field, and the engine's flat
  * fallbacks (5, 0.5), not those maps, govern an omitted-constraints run. Both
  * are recorded here for completeness. `maxCompanyCapCents` mirrors the engine's
  * `MAX_COMPANY_CAP_CENTS = BigInt(Number.MAX_SAFE_INTEGER)` as an admissible

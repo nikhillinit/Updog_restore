@@ -186,7 +186,7 @@ export function loadFromStorage<T>(key: string, schema: z.ZodType<T>): T | null 
     // Validate data payload against schema
     const validation = schema.safeParse(obj.data);
     if (!validation.success) {
-      console.warn(`[Storage] Schema validation failed for key: ${key}`, validation.error.errors);
+      console.warn(`[Storage] Schema validation failed for key: ${key}`, validation.error.issues);
       localStorage.removeItem(k); // Remove invalid data
       return null;
     }
@@ -227,7 +227,7 @@ export function saveToStorage<T>(key: string, data: T, schema?: z.ZodType<T>): b
     if (!validation.success) {
       console.error(
         `[Storage] Refusing to save invalid data for key: ${key}`,
-        validation.error.errors
+        validation.error.issues
       );
       return false;
     }

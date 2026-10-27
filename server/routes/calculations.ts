@@ -13,7 +13,7 @@ const router = express.Router();
 /**
  * Type guard to check if error is a ZodError
  */
-function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown } {
+function isZodError(error: unknown): error is { name: 'ZodError'; issues: unknown } {
   return (
     typeof error === 'object' && error !== null && 'name' in error && error.name === 'ZodError'
   );
@@ -89,7 +89,7 @@ router['post']('/export-csv', async (req: Request, res: Response) => {
       return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
-        details: error.errors,
+        details: error.issues,
       });
     }
 
@@ -121,7 +121,7 @@ router['post']('/run', async (req: Request, res: Response) => {
       return res.status(400).json({
         error: 'validation_error',
         message: 'Invalid fund model inputs',
-        details: error.errors,
+        details: error.issues,
       });
     }
 

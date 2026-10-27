@@ -65,7 +65,7 @@ interface HttpError extends Error {
 const router = Router();
 
 const ScenarioSetIdParamSchema = z.object({
-  scenarioSetId: z.string().uuid(),
+  scenarioSetId: z.string().guid(),
 });
 
 function routeHandler(

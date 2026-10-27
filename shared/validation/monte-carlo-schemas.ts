@@ -27,7 +27,7 @@ const UserId = z.number().int().positive().optional();
 const SafeString = z.string().min(1).max(255).trim();
 const ShortString = z.string().min(1).max(50).trim();
 const LongString = z.string().min(1).max(1000).trim();
-const UUID = z.string().uuid();
+const UUID = z.string().guid();
 
 // Sector and stage enums for validation
 const SectorEnum = z.enum([
@@ -99,8 +99,8 @@ export const PortfolioInputsSchema = z
     fundSize: MonetaryAmount.min(1000000), // Min $1M fund
     deployedCapital: MonetaryAmount,
     reserveRatio: Percentage,
-    sectorWeights: z.record(SectorEnum, Percentage),
-    stageWeights: z.record(StageEnum, Percentage),
+    sectorWeights: z.partialRecord(SectorEnum, Percentage),
+    stageWeights: z.partialRecord(StageEnum, Percentage),
     averageInvestmentSize: MonetaryAmount.min(10000), // Min $10K investment
   })
   .strict()
@@ -155,14 +155,14 @@ export const DistributionParametersSchema = z
 
 export const PowerLawConfigSchema = z
   .object({
-    failureRate: Percentage.default(0.7),
-    modestReturnRate: Percentage.default(0.15),
-    goodOutcomeRate: Percentage.default(0.1),
-    homeRunRate: Percentage.default(0.04),
-    unicornRate: Percentage.default(0.01),
-    alpha: PositiveNumber.min(0.5).max(3.0).default(1.16),
-    xMin: PositiveNumber.min(1.0).max(10.0).default(3.0),
-    maxReturn: PositiveNumber.min(50.0).max(1000.0).default(200.0),
+    failureRate: Percentage.prefault(0.7),
+    modestReturnRate: Percentage.prefault(0.15),
+    goodOutcomeRate: Percentage.prefault(0.1),
+    homeRunRate: Percentage.prefault(0.04),
+    unicornRate: Percentage.prefault(0.01),
+    alpha: PositiveNumber.min(0.5).max(3.0).prefault(1.16),
+    xMin: PositiveNumber.min(1.0).max(10.0).prefault(3.0),
+    maxReturn: PositiveNumber.min(50.0).max(1000.0).prefault(200.0),
   })
   .strict()
   .refine(
@@ -228,7 +228,7 @@ export const PortfolioReturnDistributionSchema = z
     { message: 'Percentiles must be in ascending order' }
   );
 
-export const StageDistributionSchema = z.record(PowerLawStageEnum, PositiveNumber).refine(
+export const StageDistributionSchema = z.partialRecord(PowerLawStageEnum, PositiveNumber).refine(
   (data) => {
     const total = Object.values(data).reduce((sum, weight) => sum + weight, 0);
     return total > 0;
@@ -403,7 +403,7 @@ export const UserInputSchema = z
   .object({
     userId: UserId,
     sessionId: UUID.optional(),
-    ipAddress: z.string().ip().optional(),
+    ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
     userAgent: z.string().max(500).optional(),
     timestamp: z.date(),
   })
@@ -414,9 +414,9 @@ export const SearchQuerySchema = z
     query: z.string().min(1).max(100).trim(),
     filters: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
     sortBy: z.string().max(50).optional(),
-    sortOrder: z.enum(['asc', 'desc']).default('desc'),
-    page: PositiveInteger.max(1000).default(1),
-    limit: PositiveInteger.min(1).max(100).default(20),
+    sortOrder: z.enum(['asc', 'desc']).prefault('desc'),
+    page: PositiveInteger.max(1000).prefault(1),
+    limit: PositiveInteger.min(1).max(100).prefault(20),
   })
   .strict();
 
@@ -470,7 +470,7 @@ export const BulkInvestmentSchema = z
   .object({
     investments: z.array(InvestmentSchema).min(1).max(100),
     batchId: UUID.optional(),
-    validateOnly: z.boolean().default(false),
+    validateOnly: z.boolean().prefault(false),
     userContext: UserInputSchema,
   })
   .strict();
@@ -563,7 +563,7 @@ export const validateStageDistribution = (data: unknown) => {
 export const createValidationError = (error: z.ZodError) => {
   return {
     isValid: false,
-    errors: error.errors.map((err) => ({
+    errors: error.issues.map((err) => ({
       field: err.path.join('.'),
       message: err.message,
       code: err.code,

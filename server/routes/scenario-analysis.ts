@@ -76,7 +76,7 @@ const ScenarioCaseSchema = z.object({
 });
 
 const UpdateScenarioRequestSchema = z.object({
-  scenario_id: z.string().uuid(),
+  scenario_id: z.string().guid(),
   cases: z.array(ScenarioCaseSchema),
   normalize: z.boolean().optional(),
   version: z.number().int().optional(), // Optimistic locking
@@ -89,7 +89,7 @@ const CreateScenarioSchema = z.object({
 
 const CompanyScenarioSummarySchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     name: z.string(),
     version: z.number().int(),
     updatedAt: z.string().datetime(),
@@ -164,8 +164,8 @@ const CreateScenarioCaseFromSeedRequestSchema = z
 
 const CreateScenarioCaseFromSeedResponseSchema = z
   .object({
-    scenarioCaseId: z.string().uuid(),
-    scenarioId: z.string().uuid(),
+    scenarioCaseId: z.string().guid(),
+    scenarioId: z.string().guid(),
     scenarioVersion: z.number().int(),
     seededAt: z.string().datetime(),
     replay: z.boolean(),
@@ -255,7 +255,7 @@ function validateScenarioSeedFundId(req: Request, res: Response, next: NextFunct
 }
 
 function validateScenarioIdParam(req: Request, res: Response, next: NextFunction) {
-  const parsed = z.string().uuid().safeParse(req.params['scenarioId']);
+  const parsed = z.string().guid().safeParse(req.params['scenarioId']);
   if (!parsed.success) {
     return res.status(400).json({
       error: 'invalid_scenario_id',
@@ -432,7 +432,7 @@ router['post'](
   validateScenarioIdParam,
   async (req: Request, res: Response) => {
     const { fundId } = FundIdParamSchema.parse(req.params);
-    const scenarioId = z.string().uuid().parse(req.params['scenarioId']);
+    const scenarioId = z.string().guid().parse(req.params['scenarioId']);
     if (!FEATURES.scenarioSeedPicker) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -961,7 +961,7 @@ router['patch'](
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: 'Validation error',
-          details: error.errors,
+          details: error.issues,
         });
       }
 

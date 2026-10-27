@@ -93,11 +93,11 @@ function routeHandler(
 }
 
 const ScenarioIdParamSchema = z.object({
-  scenarioId: z.string().uuid(),
+  scenarioId: z.string().guid(),
 });
 
 const DecisionIdParamSchema = z.object({
-  decisionId: z.string().uuid(),
+  decisionId: z.string().guid(),
 });
 
 const AllocationScenarioSnapshotItemSchema = z.object({
@@ -165,7 +165,7 @@ const ApplyAllocationScenarioSchema = SyncAllocationScenarioSchema.extend({
 
 function parseWithSchema<T>(
   res: Response,
-  result: z.SafeParseReturnType<unknown, T>,
+  result: z.ZodSafeParseResult<T>,
   validationFailure: ValidationFailure
 ): T | null {
   if (!result.success) {
@@ -236,7 +236,7 @@ function parseDecisionRoute(req: Request, res: Response): DecisionRouteContext |
 
 function parseBody<TOutput>(
   res: Response,
-  schema: z.ZodType<TOutput, z.ZodTypeDef, unknown>,
+  schema: z.ZodType<TOutput, unknown>,
   payload: unknown,
   message: string
 ): TOutput | null {

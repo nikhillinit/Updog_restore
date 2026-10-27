@@ -101,10 +101,10 @@ export const FeeRecyclingPolicySchema = z
     recyclingTermMonths: z.number().int().positive(),
 
     /** Basis for fee recycling cap (capital-stock bases only) */
-    basis: FeeCapitalStockBasisSchema.default('committed_capital'),
+    basis: FeeCapitalStockBasisSchema.prefault('committed_capital'),
 
     /** Proactively assume recycling up to cap (for forecasting) */
-    anticipatedRecycling: z.boolean().default(false),
+    anticipatedRecycling: z.boolean().prefault(false),
   })
   .refine(
     (data) => !data.enabled || (data.recyclingCapPercent.gt(0) && data.recyclingTermMonths > 0),
@@ -147,10 +147,10 @@ export type FeeHoliday = z.infer<typeof FeeHolidaySchema>;
  */
 export const RetroactiveFeeCatchUpPolicySchema = z.object({
   /** Enable retroactive management fee catch-up */
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().prefault(false),
 
   /** Month from fund inception when fee accrual starts (inclusive) */
-  accrualStartMonth: z.number().int().min(0).default(0),
+  accrualStartMonth: z.number().int().min(0).prefault(0),
 
   /** Optional limit on the number of missed months that the catch-up charges */
   maxCatchUpMonths: z.number().int().positive().optional(),

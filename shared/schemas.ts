@@ -49,28 +49,47 @@ export const CompanySchema = z.object({
 export const StagePolicySchema = z.object({
   stage: StageSchema,
   reserveMultiple: z.number().positive(),
-  weight: z.number().positive().default(1),
+  weight: z.number().positive().prefault(1),
 });
 
+export const ConstraintDefaultsSchema = z.object({
+  minCheck: nonNegative().prefault(0),
+  maxPerCompany: z
+    .preprocess(
+      (value) => {
+        try {
+          return Number(value);
+        } catch {
+          return NaN;
+        }
+      },
+      z.union([z.number().nonnegative(), z.literal(Infinity)])
+    )
+    .prefault(Number.POSITIVE_INFINITY),
+  maxPerStage: z.partialRecord(StageSchema, nonNegative()).prefault({}),
+  discountRateAnnual: bounded01().prefault(0.12),
+  graduationYears: z
+    .partialRecord(StageSchema, z.number().positive())
+    .prefault({ preseed: 8, seed: 7, series_a: 6, series_b: 5, series_c: 4, series_dplus: 3 }),
+  graduationProb: z.partialRecord(StageSchema, bounded01()).prefault({
+    preseed: 0.1,
+    seed: 0.2,
+    series_a: 0.35,
+    series_b: 0.5,
+    series_c: 0.65,
+    series_dplus: 0.8,
+  }),
+});
+
+// Optional updates must not inject create-time defaults.
 export const ConstraintsSchema = z
   .object({
-    minCheck: nonNegative().default(0),
-    maxPerCompany: nonNegative().default(Number.POSITIVE_INFINITY),
-    maxPerStage: z.record(StageSchema, nonNegative()).default({}),
-    discountRateAnnual: bounded01().default(0.12),
-    graduationYears: z
-      .record(StageSchema, z.number().positive())
-      .default({ preseed: 8, seed: 7, series_a: 6, series_b: 5, series_c: 4, series_dplus: 3 }),
-    graduationProb: z
-      .record(StageSchema, bounded01())
-      .default({
-        preseed: 0.1,
-        seed: 0.2,
-        series_a: 0.35,
-        series_b: 0.5,
-        series_c: 0.65,
-        series_dplus: 0.8,
-      }),
+    minCheck: ConstraintDefaultsSchema.shape.minCheck.unwrap(),
+    maxPerCompany: ConstraintDefaultsSchema.shape.maxPerCompany.unwrap(),
+    maxPerStage: ConstraintDefaultsSchema.shape.maxPerStage.unwrap(),
+    discountRateAnnual: ConstraintDefaultsSchema.shape.discountRateAnnual.unwrap(),
+    graduationYears: ConstraintDefaultsSchema.shape.graduationYears.unwrap(),
+    graduationProb: ConstraintDefaultsSchema.shape.graduationProb.unwrap(),
   })
   .partial();
 
@@ -110,13 +129,13 @@ export function validateReserveInput(raw: unknown) {
 
 // Dual approval system for reserve strategy changes
 export const ReserveStrategyApprovalSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   strategyId: z.string(),
   requestedBy: z.string().email(),
   requestedAt: z.date(),
   changes: z.object({
     action: z.enum(['create', 'update', 'delete']),
-    strategyData: z.record(z.unknown()),
+    strategyData: z.record(z.string(), z.unknown()),
     reason: z.string().min(10),
     impact: z.object({
       affectedFunds: z.array(z.string()),
@@ -129,7 +148,7 @@ export const ReserveStrategyApprovalSchema = z.object({
       partnerEmail: z.string().email(),
       approvedAt: z.date(),
       signature: z.string(), // Digital signature or approval token
-      ipAddress: z.string().ip(),
+      ipAddress: z.union([z.ipv4(), z.ipv6()]),
       userAgent: z.string().optional(),
     })
   ),
@@ -142,7 +161,7 @@ export const ReserveStrategyApprovalSchema = z.object({
         timestamp: z.date(),
         action: z.string(),
         actor: z.string().email(),
-        details: z.record(z.unknown()),
+        details: z.record(z.string(), z.unknown()),
       })
     ),
   }),

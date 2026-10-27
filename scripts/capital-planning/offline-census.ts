@@ -51,13 +51,13 @@ const Row = z
             id: Identity,
             version: Identity,
             publishedAt: z.string().datetime({ offset: true }),
-            raw: z.unknown(),
+            raw: z.unknown().optional(),
           })
           .passthrough(),
       })
       .strict(),
     inputs: z.array(z.unknown()),
-    unitDeclarations: z.unknown(),
+    unitDeclarations: z.unknown().optional(),
   })
   .strict();
 

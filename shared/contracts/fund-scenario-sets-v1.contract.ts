@@ -241,7 +241,7 @@ export const ArchiveFundScenarioSetV1Schema = z
 
 export const FundScenarioSetSummaryV1Schema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     fundId: z.number().int().positive(),
     name: z.string(),
     description: z.string().nullable(),
@@ -262,8 +262,8 @@ export const FundScenarioSetSummaryV1Schema = z
 
 export const FundScenarioVariantV1Schema = z
   .object({
-    id: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    id: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     description: z.string().nullable(),
     sortOrder: z.number().int().min(0),
@@ -362,7 +362,7 @@ export const ScenarioReserveResultSummaryV1Schema = z
 
 export const ScenarioSetFeeProfileVariantResultSummaryV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('fee_profile'),
     economicsSummary: EconomicsSummaryV1Schema,
@@ -371,7 +371,7 @@ export const ScenarioSetFeeProfileVariantResultSummaryV1Schema = z
 
 export const ScenarioSetAllocationVariantResultSummaryV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('allocation'),
     economicsSummary: EconomicsSummaryV1Schema,
@@ -380,7 +380,7 @@ export const ScenarioSetAllocationVariantResultSummaryV1Schema = z
 
 export const ScenarioSetSectorProfileVariantResultSummaryV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('sector_profile'),
     economicsSummary: EconomicsSummaryV1Schema,
@@ -389,7 +389,7 @@ export const ScenarioSetSectorProfileVariantResultSummaryV1Schema = z
 
 export const ScenarioSetReserveVariantResultSummaryV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('reserve_allocation'),
     reserveSummary: ScenarioReserveResultSummaryV1Schema,
@@ -398,7 +398,7 @@ export const ScenarioSetReserveVariantResultSummaryV1Schema = z
 
 export const ScenarioSetMethodologyVariantResultSummaryV1Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('methodology'),
     economicsSummary: EconomicsSummaryV1Schema,
@@ -440,7 +440,7 @@ function overrideTypeForCalculationMode(
 
 export const ScenarioSetResultSummaryV1Schema = z
   .object({
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     calculationMode: FundScenarioCalculationModeV1Schema,
     sourceConfigId: z.number().int().positive(),
@@ -484,8 +484,8 @@ export const ScenariosSectionPayloadV1Schema = z
 
 export const FundScenarioFeeProfileCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('fee_profile'),
     economics: EconomicsResultV1Schema,
@@ -494,8 +494,8 @@ export const FundScenarioFeeProfileCalculationVariantV1Schema = z
 
 export const FundScenarioAllocationCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('allocation'),
     economics: EconomicsResultV1Schema,
@@ -504,8 +504,8 @@ export const FundScenarioAllocationCalculationVariantV1Schema = z
 
 export const FundScenarioSectorProfileCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('sector_profile'),
     economics: EconomicsResultV1Schema,
@@ -514,8 +514,8 @@ export const FundScenarioSectorProfileCalculationVariantV1Schema = z
 
 export const FundScenarioReserveCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('reserve_allocation'),
     reserve: ScenarioReserveSummaryV1Schema,
@@ -524,8 +524,8 @@ export const FundScenarioReserveCalculationVariantV1Schema = z
 
 export const FundScenarioMethodologyCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: z.string(),
     overrideType: z.literal('methodology'),
     economics: EconomicsResultV1Schema,
@@ -545,7 +545,7 @@ export const FundScenarioCalculationPayloadV1Schema = z
     version: z.literal('fund-scenarios-v1'),
     calculationMode: FundScenarioCalculationModeV1Schema,
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     sourceConfigId: z.number().int().positive(),
     sourceConfigVersion: z.number().int().positive(),
     staleness: FundScenarioCalculationStalenessV1Schema,
@@ -570,7 +570,7 @@ export const FundScenarioCalculationPayloadV1Schema = z
 export const FundScenarioCalculationResponseV1Schema = z
   .object({
     snapshotId: z.number().int().positive(),
-    correlationId: z.string().uuid(),
+    correlationId: z.string().guid(),
     source: z.literal('fund_snapshots'),
     payload: FundScenarioCalculationPayloadV1Schema,
   })
@@ -585,25 +585,25 @@ export const FundScenarioReserveCalculationRequestV1Schema = z
 export const FundScenarioReserveCalculationQueuedV1Schema = z
   .object({
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     calculationMode: z.literal('async_reserve_allocation'),
     status: z.literal('queued'),
     jobId: z.string(),
-    correlationId: z.string().uuid(),
+    correlationId: z.string().guid(),
   })
   .strict();
 
 export const FundScenarioCalculationStatusV1Schema = z
   .object({
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     calculationMode: FundScenarioCalculationModeV1Schema.nullable(),
     status: z.enum(['not_requested', 'queued', 'calculating', 'succeeded', 'failed']),
     jobId: z.string().nullable(),
-    correlationId: z.string().uuid().nullable(),
+    correlationId: z.string().guid().nullable(),
     snapshotId: z.number().int().positive().nullable(),
     calculationStartedAt: DateTimeStringSchema.optional(),
-    failureCode: z.literal('HARD_TIMEOUT').nullable().default(null),
+    failureCode: z.literal('HARD_TIMEOUT').nullable().prefault(null),
     lastEventAt: DateTimeStringSchema.nullable(),
     lastError: z.string().nullable(),
   })
@@ -681,7 +681,7 @@ export const FundScenarioCapitalOverrideV1Schema = z
 
 export const CreateFundScenarioCapitalVariantV3Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     description: z.string().trim().max(4000).nullable().optional(),
     override: FundScenarioCapitalOverrideV1Schema,
@@ -694,7 +694,7 @@ export const CreateFundScenarioSetV3Schema = z
     name: CapitalScenarioNameV1Schema,
     description: z.string().trim().max(4000).nullable().optional(),
     variants: z.array(CreateFundScenarioCapitalVariantV3Schema).min(1).max(5),
-    baselineVariantId: z.string().uuid(),
+    baselineVariantId: z.string().guid(),
     expectedSourceConfigId: z.number().int().positive(),
     expectedSourceConfigVersion: z.number().int().positive(),
     expectedSourceBundleHash: CapitalHashV1Schema,
@@ -823,7 +823,7 @@ export const FundScenarioCapitalSetSummaryV1Schema = FundScenarioSetSummaryV1Sch
   overrideType: z.literal('capital_plan'),
   name: CapitalScenarioNameV1Schema,
   variantCount: z.number().int().min(1).max(5),
-  baselineVariantId: z.string().uuid(),
+  baselineVariantId: z.string().guid(),
   sourceBundleHash: CapitalHashV1Schema,
   interpretationVersion: CapitalVersionV1Schema,
   readState: CapitalReadStateV1Schema,
@@ -843,8 +843,8 @@ export const FundScenarioCapitalListResponseV1Schema = z
 
 export const FundScenarioCapitalVariantV1Schema = z
   .object({
-    id: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    id: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     description: z.string().max(4000).nullable(),
     sortOrder: z.number().int().min(0).max(4),
@@ -918,8 +918,8 @@ export const CapitalScenarioLineageV1Schema = z.discriminatedUnion('hashKind', [
 
 export const FundScenarioCapitalCalculationVariantV1Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     overrideType: z.literal('capital_plan'),
     result: CapitalPlanningResultV1Schema,
@@ -938,8 +938,8 @@ export const FundScenarioCapitalCalculationPayloadV1Schema = z
     inputHash: CapitalHashV1Schema,
     lineage: CapitalScenarioLineageV1Schema,
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
-    baselineVariantId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
+    baselineVariantId: z.string().guid(),
     sourceConfigId: z.number().int().positive(),
     sourceConfigVersion: z.number().int().positive(),
     sourceBundleHash: CapitalHashV1Schema,
@@ -983,7 +983,7 @@ export const FundScenarioCapitalCreateResponseV1Schema = z
   .object({
     contractVersion: z.literal('fund-scenario-capital-create/1.0.0'),
     representation: CapitalPlanRepresentationV1Schema,
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
   })
   .strict();
 
@@ -992,7 +992,7 @@ export const FundScenarioCapitalCalculateResponseV1Schema = z
     contractVersion: z.literal('fund-scenario-capital-calculate/1.0.0'),
     representation: CapitalPlanRepresentationV1Schema,
     snapshotId: z.number().int().positive(),
-    correlationId: z.string().uuid(),
+    correlationId: z.string().guid(),
     source: z.literal('fund_snapshots'),
     payload: FundScenarioCapitalCalculationPayloadV1Schema,
   })
@@ -1002,11 +1002,11 @@ export const FundScenarioCapitalResultsResponseV1Schema = z
   .object({
     contractVersion: z.literal('fund-scenario-capital-results/1.0.0'),
     representation: CapitalPlanRepresentationV1Schema,
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     savedResult: z
       .object({
         snapshotId: z.number().int().positive(),
-        correlationId: z.string().uuid(),
+        correlationId: z.string().guid(),
         source: z.literal('fund_snapshots'),
         payload: FundScenarioCapitalCalculationPayloadV1Schema,
       })
@@ -1090,7 +1090,7 @@ export const FundScenarioCapitalOverrideV2Schema = z
 
 export const CreateFundScenarioCapitalVariantV4Schema = z
   .object({
-    variantId: z.string().uuid(),
+    variantId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     description: z.string().trim().max(4000).nullable().optional(),
     override: FundScenarioCapitalOverrideV2Schema,
@@ -1103,7 +1103,7 @@ export const CreateFundScenarioSetV4Schema = z
     name: CapitalScenarioNameV1Schema,
     description: z.string().trim().max(4000).nullable().optional(),
     variants: z.array(CreateFundScenarioCapitalVariantV4Schema).min(1).max(5),
-    baselineVariantId: z.string().uuid(),
+    baselineVariantId: z.string().guid(),
     expectedSourceConfigId: z.number().int().positive(),
     expectedSourceConfigVersion: z.number().int().positive(),
     expectedSourceBundleHash: CapitalHashV1Schema,
@@ -1209,8 +1209,8 @@ export const FundScenarioCapitalStoredOverrideV2Schema = z
 
 export const FundScenarioCapitalRecordedVariantV1Schema = z
   .object({
-    id: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    id: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     description: z.string().max(4000).nullable(),
     sortOrder: z.number().int().min(0).max(4),
@@ -1267,8 +1267,8 @@ export const FundScenarioCapitalRecordedDetailResponseV1Schema =
 
 export const FundScenarioCapitalVariantV2Schema = z
   .object({
-    id: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    id: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     description: z.string().max(4000).nullable(),
     sortOrder: z.number().int().min(0).max(4),
@@ -1325,8 +1325,8 @@ export const FundScenarioCapitalDetailResponseV2Schema =
 
 export const FundScenarioCapitalCalculationVariantV2Schema = z
   .object({
-    variantId: z.string().uuid(),
-    scenarioSetId: z.string().uuid(),
+    variantId: z.string().guid(),
+    scenarioSetId: z.string().guid(),
     name: CapitalScenarioNameV1Schema,
     overrideType: z.literal('capital_plan'),
     result: CapitalPlanningStoredResultV2Schema,
@@ -1345,8 +1345,8 @@ export const FundScenarioCapitalCalculationPayloadV2Schema = z
     inputHash: CapitalHashV1Schema,
     lineage: CapitalScenarioLineageV1Schema,
     fundId: z.number().int().positive(),
-    scenarioSetId: z.string().uuid(),
-    baselineVariantId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
+    baselineVariantId: z.string().guid(),
     sourceConfigId: z.number().int().positive(),
     sourceConfigVersion: z.number().int().positive(),
     sourceBundleHash: CapitalHashV1Schema,
@@ -1390,7 +1390,7 @@ export const FundScenarioCapitalCreateResponseV2Schema = z
   .object({
     contractVersion: z.literal('fund-scenario-capital-create/2.0.0'),
     representation: z.literal('capital-plan-v2'),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
   })
   .strict();
 
@@ -1399,7 +1399,7 @@ export const FundScenarioCapitalCalculateResponseV2Schema = z
     contractVersion: z.literal('fund-scenario-capital-calculate/2.0.0'),
     representation: z.literal('capital-plan-v2'),
     snapshotId: z.number().int().positive(),
-    correlationId: z.string().uuid(),
+    correlationId: z.string().guid(),
     source: z.literal('fund_snapshots'),
     payload: FundScenarioCapitalCalculationPayloadV2Schema,
   })
@@ -1409,11 +1409,11 @@ export const FundScenarioCapitalResultsResponseV2Schema = z
   .object({
     contractVersion: z.literal('fund-scenario-capital-results/2.0.0'),
     representation: z.literal('capital-plan-v2'),
-    scenarioSetId: z.string().uuid(),
+    scenarioSetId: z.string().guid(),
     savedResult: z
       .object({
         snapshotId: z.number().int().positive(),
-        correlationId: z.string().uuid(),
+        correlationId: z.string().guid(),
         source: z.literal('fund_snapshots'),
         payload: FundScenarioCapitalCalculationPayloadV2Schema,
       })
@@ -1466,7 +1466,6 @@ export type FundScenarioCapitalDetailResponseV2 = z.infer<
 >;
 export const FundScenarioCapitalCalculationPayloadSchema: z.ZodType<
   FundScenarioCapitalCalculationPayload,
-  z.ZodTypeDef,
   | z.input<typeof FundScenarioCapitalCalculationPayloadV1Schema>
   | z.input<typeof FundScenarioCapitalCalculationPayloadV2Schema>
 > = z.union([
@@ -1490,7 +1489,6 @@ export type FundScenarioCapitalCreateResponseV2 = z.infer<
 >;
 export const FundScenarioCapitalCalculateResponseSchema: z.ZodType<
   FundScenarioCapitalCalculateResponse,
-  z.ZodTypeDef,
   | z.input<typeof FundScenarioCapitalCalculateResponseV1Schema>
   | z.input<typeof FundScenarioCapitalCalculateResponseV2Schema>
 > = z.union([
@@ -1504,7 +1502,6 @@ export type FundScenarioCapitalCalculateResponseV2 = z.infer<
 >;
 export const FundScenarioCapitalResultsResponseSchema: z.ZodType<
   FundScenarioCapitalResultsResponse,
-  z.ZodTypeDef,
   | z.input<typeof FundScenarioCapitalResultsResponseV1Schema>
   | z.input<typeof FundScenarioCapitalResultsResponseV2Schema>
 > = z.union([

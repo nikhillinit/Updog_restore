@@ -25,7 +25,7 @@ export const SourceTypeEnum = z.enum([
   'Other',
 ]);
 
-export const CreateDealSchema = z.object({
+const DealSchema = z.object({
   // Required: a fundless deal would be unreachable by the fund-scoped
   // mutation guards (update/archive/stage/diligence resolve fund ownership).
   fundId: z.number().int().positive(),
@@ -35,8 +35,8 @@ export const CreateDealSchema = z.object({
   sourceType: SourceTypeEnum,
   dealSize: z.number().positive().optional(),
   valuation: z.number().positive().optional(),
-  status: DealStatusEnum.default('lead'),
-  priority: DealPriorityEnum.default('medium'),
+  status: DealStatusEnum,
+  priority: DealPriorityEnum,
   foundedYear: z.number().int().min(1900).max(2100).optional(),
   employeeCount: z.number().int().positive().optional(),
   revenue: z.number().optional(),
@@ -49,16 +49,21 @@ export const CreateDealSchema = z.object({
   nextAction: z.string().max(500).optional(),
 });
 
-export const UpdateDealSchema = CreateDealSchema.partial();
+export const CreateDealSchema = DealSchema.extend({
+  status: DealStatusEnum.prefault('lead'),
+  priority: DealPriorityEnum.prefault('medium'),
+});
+
+export const UpdateDealSchema = DealSchema.partial();
 
 const SortByEnum = z
   .enum(['updatedAt', 'companyName', 'dealSize', 'createdAt'])
-  .default('createdAt');
-const SortDirEnum = z.enum(['asc', 'desc']).default('desc');
+  .prefault('createdAt');
+const SortDirEnum = z.enum(['asc', 'desc']).prefault('desc');
 
 export const PaginationSchema = z.object({
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(100).prefault(20),
   status: DealStatusEnum.optional(),
   priority: DealPriorityEnum.optional(),
   fundId: z.coerce.number().int().positive().optional(),
@@ -80,8 +85,8 @@ export const CreateDDItemSchema = z.object({
   category: z.enum(['Financial', 'Legal', 'Technical', 'Market', 'Team']),
   item: z.string().min(1).max(255),
   description: z.string().max(2000).optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'not_applicable']).default('pending'),
-  priority: DealPriorityEnum.default('medium'),
+  status: z.enum(['pending', 'in_progress', 'completed', 'not_applicable']).prefault('pending'),
+  priority: DealPriorityEnum.prefault('medium'),
   assignedTo: z.string().max(255).optional(),
   dueDate: z.string().datetime().optional(),
 });
@@ -108,7 +113,7 @@ export const ImportRowSchema = z.object({
 });
 
 export const ImportPreviewSchema = z.object({
-  rows: z.array(z.record(z.unknown())).max(1000),
+  rows: z.array(z.record(z.string(), z.unknown())).max(1000),
   fundId: z.number().int().positive().optional(),
 });
 
@@ -116,7 +121,7 @@ export const ImportConfirmSchema = z.object({
   rows: z.array(ImportRowSchema).min(1).max(1000),
   // Required for the same reason as CreateDealSchema.fundId.
   fundId: z.number().int().positive(),
-  mode: z.enum(['skip_duplicates', 'import_all']).default('skip_duplicates'),
+  mode: z.enum(['skip_duplicates', 'import_all']).prefault('skip_duplicates'),
 });
 
 export const BulkStatusSchema = z.object({

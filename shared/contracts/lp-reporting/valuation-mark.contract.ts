@@ -39,7 +39,7 @@ export const ValuationMarkCreateSchema = z
     markDate: z.string().date(),
     asOfDate: z.string().date(),
     fairValue: DecimalStringSchema,
-    currency: z.literal('USD').default('USD'),
+    currency: z.literal('USD').prefault('USD'),
     costBasis: DecimalStringSchema.optional(),
     markSource: MarkSourceSchema,
     confidenceLevel: ConfidenceLevelSchema,

@@ -54,7 +54,7 @@ const BaseCashFlowEventSchema = z
     companyId: z.number().int().positive().optional(),
     lpId: z.number().int().positive().optional(),
     amount: DecimalStringSchema,
-    currency: z.literal('USD').default('USD'),
+    currency: z.literal('USD').prefault('USD'),
     eventDate: z.string().datetime(),
     description: z.string().max(1000).optional(),
     perspective: CashFlowPerspectiveSchema,
@@ -70,7 +70,7 @@ export const LpCapitalCallSchema = BaseCashFlowEventSchema.extend({
       purpose: z.string().max(500).optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const LpDistributionSchema = BaseCashFlowEventSchema.extend({
@@ -81,7 +81,7 @@ export const LpDistributionSchema = BaseCashFlowEventSchema.extend({
       recallable: z.boolean().optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const PortfolioInvestmentSchema = BaseCashFlowEventSchema.extend({
@@ -95,7 +95,7 @@ export const PortfolioInvestmentSchema = BaseCashFlowEventSchema.extend({
       ownershipPercent: DecimalStringSchema.optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const RealizedProceedsSchema = BaseCashFlowEventSchema.extend({
@@ -107,7 +107,7 @@ export const RealizedProceedsSchema = BaseCashFlowEventSchema.extend({
       realizationType: z.enum(['exit', 'secondary', 'dividend', 'recap']).optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const FundExpenseSchema = BaseCashFlowEventSchema.extend({
@@ -130,7 +130,7 @@ export const RecallableDistributionSchema = BaseCashFlowEventSchema.extend({
       sourceCompanyId: z.number().int().positive().optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const ReversalSchema = BaseCashFlowEventSchema.extend({
@@ -141,7 +141,7 @@ export const ReversalSchema = BaseCashFlowEventSchema.extend({
       reason: z.string().max(500).optional(),
     })
     .strict()
-    .default({}),
+    .prefault({}),
 }).strict();
 
 export const CashFlowEventCreateSchema = z.discriminatedUnion('eventType', [
@@ -179,7 +179,7 @@ export const CashFlowEventResponseSchema = z
     eventDate: z.string().datetime(),
     perspective: CashFlowPerspectiveSchema,
     description: z.string().nullable(),
-    payload: z.record(z.unknown()),
+    payload: z.record(z.string(), z.unknown()),
     status: z.enum(['draft', 'approved', 'locked', 'reversed']),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),

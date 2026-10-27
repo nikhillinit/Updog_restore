@@ -155,7 +155,7 @@ export const ActualsRestatementTargetV1Schema = z
     sourceExternalRef: ActualsExternalRefSchema,
     originalPublication: ActualsOriginalPublicationV1Schema,
     predecessor: ActualsRecordIdentityV1Schema.nullable(),
-    correctionCommandId: z.string().uuid().nullable(),
+    correctionCommandId: z.string().guid().nullable(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -264,7 +264,7 @@ export const ActualsRestatementCursorV1Schema = z
 export const ActualsRestatementReadRequestV1Schema = z
   .object({
     expectedBasis: FinancialFactsBasisRefSchema,
-    limit: z.number().int().min(1).max(100).default(50),
+    limit: z.number().int().min(1).max(100).prefault(50),
     cursor: z.string().min(1).max(2048).nullable(),
   })
   .strict();

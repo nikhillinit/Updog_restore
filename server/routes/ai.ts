@@ -27,7 +27,7 @@ function respondWithRequestError(res: Response, error: unknown): boolean {
   res.status(400).json({
     success: false,
     error: 'Invalid request',
-    details: error.errors,
+    details: error.issues,
   });
   return true;
 }

@@ -21,6 +21,7 @@ import {
   CashPositionSchema,
   CashTransactionSchema,
   RecurringExpenseSchema,
+  ForecastHorizonMonthsSchema,
 } from '@shared/schemas/cashflow-schema';
 import {
   LiquidityEngine,
@@ -80,29 +81,29 @@ const capitalCallConstraintsSchema = z
   })
   .partial();
 
-const analyzeCashFlowsSchema = z.object({
+export const analyzeCashFlowsSchema = z.object({
   fundId: z.string(),
   fundSize: z.number(),
   transactions: z.array(CashTransactionSchema),
 });
 
-const liquidityForecastSchema = z.object({
+export const liquidityForecastSchema = z.object({
   fundId: z.string(),
   fundSize: z.number(),
   currentPosition: CashPositionSchema,
   transactions: z.array(CashTransactionSchema).optional(),
-  recurringExpenses: z.array(RecurringExpenseSchema).default([]),
-  months: z.number().default(12),
+  recurringExpenses: z.array(RecurringExpenseSchema).prefault([]),
+  months: ForecastHorizonMonthsSchema.prefault(12),
 });
 
-const stressTestSchema = z.object({
+export const stressTestSchema = z.object({
   fundId: z.string(),
   fundSize: z.number(),
   currentPosition: CashPositionSchema,
   stressFactors: stressTestFactorsSchema.optional(),
 });
 
-const optimizeCallsSchema = z.object({
+export const optimizeCallsSchema = z.object({
   fundId: z.string(),
   fundSize: z.number(),
   currentPosition: CashPositionSchema,

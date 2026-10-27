@@ -48,29 +48,20 @@ const ReallocationRequestBaseSchema = z.object({
   proposed_allocations: z
     .array(ProposedAllocationSchema)
     .min(1)
-    .refine(
-      (allocations) => {
-        const seen = new Set<number>();
-        return allocations.every((allocation) => {
-          if (seen.has(allocation.company_id)) return false;
-          seen.add(allocation.company_id);
-          return true;
-        });
-      },
-      (allocations) => {
-        const seen = new Set<number>();
-        const duplicates = new Set<number>();
-        for (const allocation of allocations) {
-          if (seen.has(allocation.company_id)) duplicates.add(allocation.company_id);
-          seen.add(allocation.company_id);
-        }
-        return {
-          message: `Duplicate company IDs in allocation update payload: ${[...duplicates].join(
-            ', '
-          )}`,
-        };
+    .superRefine((allocations, ctx) => {
+      const seen = new Set<number>();
+      const duplicates = new Set<number>();
+      for (const allocation of allocations) {
+        if (seen.has(allocation.company_id)) duplicates.add(allocation.company_id);
+        seen.add(allocation.company_id);
       }
-    ),
+      if (duplicates.size > 0) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Duplicate company IDs in allocation update payload: ${[...duplicates].join(', ')}`,
+        });
+      }
+    }),
 });
 
 const ReallocationPreviewRequestSchema = ReallocationRequestBaseSchema;

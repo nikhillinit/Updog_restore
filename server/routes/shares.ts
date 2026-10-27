@@ -91,11 +91,11 @@ const publicShareVerifyLimiter = rateLimit({
 const CreateShareRequestSchema = z
   .object({
     fundId: z.string().min(1),
-    accessLevel: z.enum(SHARE_ACCESS_LEVELS).default('view_only'),
-    requirePasskey: z.boolean().default(false),
+    accessLevel: z.enum(SHARE_ACCESS_LEVELS).prefault('view_only'),
+    requirePasskey: z.boolean().prefault(false),
     passkey: z.string().min(4).max(50).optional(),
     expiresInDays: z.number().min(1).max(365).optional(),
-    hiddenMetrics: z.array(z.string()).default([...LP_HIDDEN_METRICS]),
+    hiddenMetrics: z.array(z.string()).prefault([...LP_HIDDEN_METRICS]),
     customTitle: z.string().max(100).optional(),
     customMessage: z.string().max(500).optional(),
     clientRequestId: z.string().min(1).max(128).optional(),
@@ -448,7 +448,7 @@ managementRouter.post('/', async (req: Request, res: Response, next: NextFunctio
     if (error instanceof z.ZodError) {
       return res
         .status(400)
-        .json({ success: false, error: 'Validation error', details: error.errors });
+        .json({ success: false, error: 'Validation error', details: error.issues });
     }
     next(error);
   }
@@ -568,7 +568,7 @@ managementRouter.patch('/:shareId', async (req: Request, res: Response, next: Ne
     if (error instanceof z.ZodError) {
       return res
         .status(400)
-        .json({ success: false, error: 'Validation error', details: error.errors });
+        .json({ success: false, error: 'Validation error', details: error.issues });
     }
     next(error);
   }
@@ -724,7 +724,7 @@ publicRouter.post(
       if (error instanceof z.ZodError) {
         return res
           .status(400)
-          .json({ success: false, error: 'Validation error', details: error.errors });
+          .json({ success: false, error: 'Validation error', details: error.issues });
       }
       next(error);
     }

@@ -48,10 +48,10 @@ const BaseCapitalCallPolicySchema = z.object({
   name: z.string(),
 
   /** Notice period for capital calls (days) */
-  noticePeriodDays: z.number().int().min(0).default(30),
+  noticePeriodDays: z.number().int().min(0).prefault(30),
 
   /** Funding period (days from notice to payment due) */
-  fundingPeriodDays: z.number().int().min(0).default(60),
+  fundingPeriodDays: z.number().int().min(0).prefault(60),
 });
 
 /**
@@ -61,7 +61,7 @@ const UpfrontPolicySchema = BaseCapitalCallPolicySchema.extend({
   mode: z.literal('upfront'),
 
   /** Percentage of committed capital to call upfront */
-  percentage: ZodPercentage.default(new Decimal(1)),
+  percentage: ZodPercentage.prefault(new Decimal(1)),
 });
 
 /**
@@ -74,7 +74,7 @@ const PeriodicPolicySchema = BaseCapitalCallPolicySchema.extend({
   percentagePerPeriod: ZodPercentage,
 
   /** Start year */
-  startYear: z.number().int().positive().default(1),
+  startYear: z.number().int().positive().prefault(1),
 
   /** End year */
   endYear: z.number().int().positive(),
@@ -90,10 +90,10 @@ const AsNeededPolicySchema = BaseCapitalCallPolicySchema.extend({
   mode: z.literal('as_needed'),
 
   /** Minimum notice period (days) */
-  minimumNoticeDays: z.number().int().min(0).default(15),
+  minimumNoticeDays: z.number().int().min(0).prefault(15),
 
   /** Maximum call size as % of committed capital */
-  maxCallSizePercent: ZodPercentage.default(new Decimal(0.25)),
+  maxCallSizePercent: ZodPercentage.prefault(new Decimal(0.25)),
 });
 
 /**

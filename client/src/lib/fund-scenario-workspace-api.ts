@@ -23,7 +23,7 @@ const SCENARIO_SET_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 
 export const CompanyScenarioSummarySchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     name: z.string(),
     version: z.number().int().positive(),
     updatedAt: z.string().datetime(),

@@ -66,7 +66,7 @@ export const CreateVehicleFinancingParticipationRequestSchema = z
     proRataRightsPct: LedgerRateDecimalStringSchema.optional(),
     maturityDate: IsoDateSchema.optional(),
     descriptiveTerms: DescriptiveTermsSchema.optional(),
-    confirmedDuplicates: z.array(Sha256HexSchema).default([]),
+    confirmedDuplicates: z.array(Sha256HexSchema).prefault([]),
   })
   .strict()
   .superRefine((input, context) => {

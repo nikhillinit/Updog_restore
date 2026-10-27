@@ -13536,6 +13536,72 @@ is introduced, or the single action budget is consumed. This exception is not a
 standing credential-rotation exemption. Source admission does not certify the
 helper, clear provider recovery, or authorize release execution.
 
+## ADR-111: Zod 4 migration and security dependency remediation
+
+**Date:** 2026-10-27 **Status:** Proposed; source admission requires
+current-head CI.
+
+### Context and decision
+
+The reviewed dependency tree contained HIGH findings for body-parser 2.3.0
+(CVE-2026-111181), follow-redirects 1.16.0 (CVE-2026-111755 and
+CVE-2026-111756), and Zod 3.25.76 (CVE-2023-54404). Upgrade body-parser to
+2.4.0, lock follow-redirects to 1.16.2, and use the Zod 4.6.7 root runtime.
+Production imports of bundled `zod/v3` are forbidden: that runtime still parses
+bounded array elements before rejecting excess length.
+
+Use `.prefault()` for existing parsed defaults, `.guid()` for existing UUID
+acceptance, and `z.partialRecord()` for sparse enum-keyed records. PATCH schemas
+derive from default-free shapes so omitted fields do not overwrite stored
+values. Preserve optional opaque fields explicitly. These rules retain the
+existing contracts rather than introducing unrelated validation tightening.
+
+Zod 4 validation issue arrays and default message text are accepted wire and
+copy changes. Domain refusal codes, complete paths, and limit metadata remain
+stable: unwrap relative union and record-key issue paths in the existing capital
+mapper. Liquidity forecast `months` reuses the cashflow contract's integer 3-60
+horizon; no other unbounded route array receives an invented limit.
+
+### Compatibility decisions established during implementation
+
+- Zod 4.6.7 function schemas retain reserve `custom_fn` argument and return
+  checks through `.input()` and `.output()`, including the previous allowance
+  for extra arguments. The planned function-only custom predicate was rejected.
+- The wizard's former `.deepPartial()` stopped at refined step schemas. An outer
+  `.partial()` preserves omitted steps and validation of supplied steps;
+  recursively partializing their contents would change the contract.
+- `maxPerCompany` retains its +Infinity sentinel and prior coercion. Raw draft
+  fee percentage and monthly expense retain ±Infinity acceptance; raw GP
+  commitment amount retains +Infinity acceptance. Existing selected-source
+  domain checks still reject nonfinite financial values with precise 422
+  refusals. This preserves refusal classification, not calculation admission.
+- Object compositions that previously stripped refinements still reconstruct the
+  original strict shape before adding their own checks. Other refinements remain
+  in place. Drizzle column defaults are unchanged.
+- Numeric schemas use Zod 4's finite-number requirement except the explicit
+  nonfinite compatibility cases above. Circuit-breaker environment fields
+  therefore reject `Infinity` at startup; finite coercion and defaults are
+  unchanged. Their existing 21 `.default()` calls remain because the primitive
+  defaults already satisfy output schemas and outer boolean transforms still
+  execute. A 46-case restored-versus-migrated Zod 4 comparison found no changes.
+
+### Verification and limits
+
+Regression coverage imports production schemas and checks omitted PATCH fields,
+sparse records, function guards, wizard steps, nonfinite source refusals, and
+early bounded-array rejection. The early-bound test asserts zero element visits
+on the root parser and 500 visits through the explicit test-only v3 control.
+Parser tests cover installed patched resolutions and valid/invalid compressed
+JSON on both configured surfaces; they do not reproduce the exact advisory
+crash. Calculation truth, integration, built-runtime, lint, types, unit tests,
+web build, and vulnerability scans remain the composed candidate's gates.
+
+The out-of-tree credential helper revision receives separate synthetic tests and
+digest evidence. This ADR grants no credential, provider, deployment, merge, or
+recovery authority. ADR-110 and the protected-main policy still govern those
+actions. Rollback requires reverting the complete dependency/schema migration;
+reverting only the package would leave incompatible API calls.
+
 ## ADR-112: One-Time Guarded Vercel Git-Repository Disconnect
 
 **Date:** 2026-10-27 **Status:** Proposed; effective only after policy and route

@@ -29,12 +29,12 @@ export const StageSchema = z.object({
 
 // Core fund wire schema with optimistic locking
 const fundModelWireBaseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   version: z.number().int().nonnegative(), // Optimistic locking version
   name: z.string().min(1),
   currency: z.literal('USD'),
   waterfall: z.literal('american'),
-  model_version: z.number().int().default(1),
+  model_version: z.number().int().prefault(1),
   state: z.object({
     foundation: z.object({
       startDate: z.string(),

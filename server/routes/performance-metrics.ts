@@ -28,8 +28,8 @@ function resolveDefaultFundId(): number {
 
 // Request validation schema
 const performanceRunSchema = z.object({
-  runs: z.number().default(100),
-  fundId: z.coerce.number().int().positive().optional().default(resolveDefaultFundId()),
+  runs: z.number().prefault(100),
+  fundId: z.coerce.number().int().positive().optional().prefault(resolveDefaultFundId()),
 });
 
 /**

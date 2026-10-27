@@ -47,7 +47,7 @@ export const RoundsEvidenceCoverageSchema = z
     investmentCount: z.number().int().nonnegative(),
     activeRoundCount: z.number().int().nonnegative(),
     activeOverrideCount: z.number().int().nonnegative(),
-    warningsByCode: z.record(WarningCodeSchema, z.number().int().nonnegative()),
+    warningsByCode: z.partialRecord(WarningCodeSchema, z.number().int().nonnegative()),
   })
   .strict();
 

@@ -338,7 +338,7 @@ router.get(
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('timeseries', 'GET', 400, durationMs, fundId);
         recordError('timeseries', 'validation_error');
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(
@@ -471,7 +471,7 @@ router.get(
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('breakdown', 'GET', 400, durationMs, fundId);
         recordError('breakdown', 'validation_error');
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(
@@ -582,7 +582,7 @@ router.get(
       if (error instanceof z.ZodError) {
         recordPerformanceRequest('comparison', 'GET', 400, durationMs, fundId);
         recordError('comparison', 'validation_error');
-        const firstError = error.errors[0];
+        const firstError = error.issues[0];
         return res
           .status(400)
           .json(

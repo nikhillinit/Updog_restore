@@ -54,13 +54,13 @@ export const FundFinalizeV1Schema = z
      * Management fee as decimal ratio
      * @unit decimal ratio (0.02 = 2%)
      */
-    managementFee: z.number().min(0).max(0.1).default(0.02),
+    managementFee: z.number().min(0).max(0.1).prefault(0.02),
 
     /**
      * Carried interest as decimal ratio
      * @unit decimal ratio (0.20 = 20%)
      */
-    carryPercentage: z.number().min(0).max(0.5).default(0.2),
+    carryPercentage: z.number().min(0).max(0.5).prefault(0.2),
 
     /** Vintage year */
     vintageYear: z
@@ -68,7 +68,7 @@ export const FundFinalizeV1Schema = z
       .int()
       .min(2000)
       .max(2100)
-      .default(() => new Date().getFullYear()),
+      .prefault(() => new Date().getFullYear()),
 
     /** Optional model version tag for evolution tracking */
     modelVersion: z.string().optional(),
@@ -142,7 +142,7 @@ const FundFinalizeResponseV1BaseSchema = z.object({
   data: z.object({
     fundId: z.number().int().positive(),
     configVersion: z.number().int().positive(),
-    correlationId: z.string().uuid(),
+    correlationId: z.string().guid(),
     runId: z.number().int().positive().optional(),
     dispatchState: z.enum(['pending', 'dispatched', 'partial', 'failed']).optional(),
     published: z.boolean(),

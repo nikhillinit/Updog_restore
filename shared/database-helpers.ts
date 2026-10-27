@@ -50,11 +50,13 @@ export function typedJsonb<T>(data: T): JsonbColumn<T> {
 export const reservePayloadSchema = z.object({
   totalAllocation: z.number(),
   avgConfidence: z.number(),
-  byCompany: z.array(z.object({
-    companyId: z.string(),
-    allocation: z.number(),
-    confidence: z.number(),
-  })),
+  byCompany: z.array(
+    z.object({
+      companyId: z.string(),
+      allocation: z.number(),
+      confidence: z.number(),
+    })
+  ),
 });
 
 export type ReservePayload = z.infer<typeof reservePayloadSchema>;
@@ -64,34 +66,40 @@ export const pacingPayloadSchema = z.object({
   totalQuarters: z.number(),
   avgQuarterlyDeployment: z.number(),
   marketCondition: z.enum(['bull', 'bear', 'neutral']),
-  deployments: z.array(z.object({
-    quarter: z.number(),
-    deployment: z.number(),
-    cumulative: z.number(),
-  })),
+  deployments: z.array(
+    z.object({
+      quarter: z.number(),
+      deployment: z.number(),
+      cumulative: z.number(),
+    })
+  ),
 });
 
 export type PacingPayload = z.infer<typeof pacingPayloadSchema>;
 
 // Fund snapshot metadata schema
-export const snapshotMetadataSchema = z.object({
-  portfolioCount: z.number().optional(),
-  totalQuarters: z.number().optional(),
-  avgQuarterlyDeployment: z.number().optional(),
-  marketCondition: z.string().optional(),
-  engineRuntime: z.number().optional(),
-}).passthrough(); // Allow additional fields
+export const snapshotMetadataSchema = z
+  .object({
+    portfolioCount: z.number().optional(),
+    totalQuarters: z.number().optional(),
+    avgQuarterlyDeployment: z.number().optional(),
+    marketCondition: z.string().optional(),
+    engineRuntime: z.number().optional(),
+  })
+  .passthrough(); // Allow additional fields
 
 export type SnapshotMetadata = z.infer<typeof snapshotMetadataSchema>;
 
 // Fund config schema (simplified example)
-export const fundConfigSchema = z.object({
-  fundId: z.number(),
-  name: z.string(),
-  size: z.string(),
-  strategy: z.string().optional(),
-  // Add more fields as needed
-}).passthrough();
+export const fundConfigSchema = z
+  .object({
+    fundId: z.number(),
+    name: z.string(),
+    size: z.string(),
+    strategy: z.string().optional(),
+    // Add more fields as needed
+  })
+  .passthrough();
 
 export type FundConfigPayload = z.infer<typeof fundConfigSchema>;
 
@@ -108,7 +116,7 @@ export function validateJsonbPayload<T>(
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new Error(
-        `Invalid ${fieldName}: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        `Invalid ${fieldName}: ${error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
       );
     }
     throw error;
@@ -118,11 +126,7 @@ export function validateJsonbPayload<T>(
 /**
  * Helper to safely access nested JSONB properties
  */
-export function getJsonbProperty<T>(
-  obj: unknown,
-  path: string[],
-  defaultValue?: T
-): T | undefined {
+export function getJsonbProperty<T>(obj: unknown, path: string[], defaultValue?: T): T | undefined {
   let current = obj;
   for (const key of path) {
     if (current == null || typeof current !== 'object') {

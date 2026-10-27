@@ -423,11 +423,15 @@ export function duplicateCapitalDraft(detail: FundScenarioCapitalDetailResponse)
   };
 }
 
-export function capitalIssuePath(path: readonly (string | number)[]): string {
+export function capitalIssuePath(path: readonly PropertyKey[]): string {
   return (
     path.reduce<string>(
       (result, part) =>
-        typeof part === 'number' ? `${result}[${part}]` : result ? `${result}.${part}` : part,
+        typeof part === 'number'
+          ? `${result}[${part}]`
+          : result
+            ? `${result}.${String(part)}`
+            : String(part),
       ''
     ) || 'input'
   );

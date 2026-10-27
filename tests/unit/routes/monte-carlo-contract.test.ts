@@ -6,32 +6,7 @@
  * change the API contract.
  */
 import { describe, it, expect } from 'vitest';
-import { z } from 'zod';
-
-// Re-declare the schemas inline to test the contract shape without importing
-// internal route module state. If the real schemas diverge from these, the
-// route contract has changed and wave tests must be updated.
-
-const simulationConfigSchema = z.object({
-  fundId: z.number().int().positive(),
-  runs: z.number().int().min(100).max(50000).default(10000),
-  timeHorizonYears: z.number().min(1).max(15).default(8),
-  baselineId: z.string().uuid().optional(),
-  portfolioSize: z.number().int().positive().optional(),
-  deploymentScheduleMonths: z.number().int().min(12).max(120).optional(),
-  randomSeed: z.number().int().optional(),
-  batchSize: z.number().int().min(100).max(5000).default(1000),
-  maxConcurrentBatches: z.number().int().min(1).max(10).default(4),
-  enableResultStreaming: z.boolean().default(true),
-  memoryThresholdMB: z.number().min(50).max(2000).default(100),
-  enableGarbageCollection: z.boolean().default(true),
-  forceEngine: z.enum(['streaming', 'traditional', 'auto']).default('auto'),
-  performanceMode: z.enum(['speed', 'memory', 'balanced']).default('balanced'),
-  enableFallback: z.boolean().default(true),
-  stageDistribution: z
-    .array(z.object({ stage: z.string(), weight: z.number().min(0).max(1) }))
-    .optional(),
-});
+import { simulationConfigSchema } from '../../../server/routes/monte-carlo';
 
 describe('Monte Carlo API contract (Zod schemas)', () => {
   describe('simulationConfigSchema', () => {

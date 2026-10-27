@@ -56,12 +56,15 @@ export type FinancialFactsSelectionSetHashPreimage = z.infer<
 export const EMPTY_SELECTION_SET_HASH =
   'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230' as const;
 
-const VolatileStrippedFinancialProvenanceSchema = FinancialProvenanceSchema.innerType().omit({
-  generatedAt: true,
-});
+const VolatileStrippedFinancialProvenanceSchema = z
+  .object(FinancialProvenanceSchema.shape)
+  .strict()
+  .omit({
+    generatedAt: true,
+  });
 const VolatileStrippedProvenanceEnvelopeSchema = z
   .object({
-    ...ProvenanceEnvelopeSchema.innerType().shape,
+    ...ProvenanceEnvelopeSchema.shape,
     core: VolatileStrippedFinancialProvenanceSchema,
   })
   .strict();
@@ -339,7 +342,7 @@ export const EmbeddedFundAccountingStateSnapshotRefV1_1Schema = z
     const reparsed = FundAccountingStateSnapshotRefV1_1Schema.safeParse(candidate);
     if (!reparsed.success) {
       for (const issue of reparsed.error.issues) {
-        ctx.addIssue(issue);
+        ctx.addIssue({ ...issue });
       }
       return z.NEVER;
     }
@@ -545,7 +548,7 @@ export const AdmissionReceiptCoreV1Schema = z
           })
           .strict()
           .nullable(),
-        importBatchId: z.string().uuid(),
+        importBatchId: z.string().guid(),
       })
       .strict(),
     facts: z
@@ -609,7 +612,7 @@ export const ActualsReplacementLinkV1Schema = z
 
 export const ActualsCorrectionProvenanceV1Schema = z
   .object({
-    commandId: z.string().uuid(),
+    commandId: z.string().guid(),
     asOfDate: z.string().date(),
     reason: z.string().trim().min(1).max(500),
     actor: AdmissionReceiptCoreV1Schema.shape.actor,

@@ -30,7 +30,7 @@ export const CompanyStageSchema = z.enum([
 export type CompanyStage = z.infer<typeof CompanyStageSchema>;
 
 export const CompanyInputSchema = z.object({
-  companyId: z.string().uuid(),
+  companyId: z.string().guid(),
   companyName: z.string(),
   currentStage: CompanyStageSchema,
   currentValuation: z.number().positive(),
@@ -43,9 +43,9 @@ export const CompanyInputSchema = z.object({
   monthsToNextRound: z.number().int().positive().optional(),
 
   // Strategic flags
-  isStrategic: z.boolean().default(false), // High conviction
-  hasFollowOnRights: z.boolean().default(true),
-  maxDilutionTolerance: z.number().min(0).max(100).default(50), // Max ownership dilution %
+  isStrategic: z.boolean().prefault(false), // High conviction
+  hasFollowOnRights: z.boolean().prefault(true),
+  maxDilutionTolerance: z.number().min(0).max(100).prefault(50), // Max ownership dilution %
 });
 
 export type CompanyInput = z.infer<typeof CompanyInputSchema>;
@@ -62,7 +62,7 @@ export const GraduationMatrixSchema = z.object({
   'series-b': z.number().min(0).max(100),
   'series-c': z.number().min(0).max(100),
   'series-d-plus': z.number().min(0).max(100),
-  'late-stage': z.number().min(0).max(100).default(0), // Final stage
+  'late-stage': z.number().min(0).max(100).prefault(0), // Final stage
 });
 
 export type GraduationMatrix = z.infer<typeof GraduationMatrixSchema>;
@@ -77,7 +77,7 @@ export const StageStrategySchema = z.object({
 
   // Ownership targets
   targetOwnershipAtExit: z.number().min(0).max(100), // Desired final ownership %
-  proRataParticipation: z.number().min(0).max(100).default(100), // % of pro-rata to take
+  proRataParticipation: z.number().min(0).max(100).prefault(100), // % of pro-rata to take
 });
 
 export type StageStrategy = z.infer<typeof StageStrategySchema>;
@@ -87,8 +87,8 @@ export type StageStrategy = z.infer<typeof StageStrategySchema>;
 // ============================================================================
 
 export const ReserveOptimizationRequestSchema = z.object({
-  fundId: z.string().uuid(),
-  optimizationId: z.string().uuid().optional(), // For idempotency
+  fundId: z.string().guid(),
+  optimizationId: z.string().guid().optional(), // For idempotency
 
   // Portfolio snapshot
   portfolio: z.array(CompanyInputSchema).min(1),
@@ -99,12 +99,14 @@ export const ReserveOptimizationRequestSchema = z.object({
 
   // Constraints
   availableReserves: z.number().positive(),
-  minAllocationPerCompany: z.number().nonnegative().default(0),
+  minAllocationPerCompany: z.number().nonnegative().prefault(0),
   maxAllocationPerCompany: z.number().positive().optional(),
 
   // Optimization preferences
-  optimizationGoal: z.enum(['maximize-ownership', 'minimize-dilution', 'balanced']).default('balanced'),
-  prioritizeStrategic: z.boolean().default(true),
+  optimizationGoal: z
+    .enum(['maximize-ownership', 'minimize-dilution', 'balanced'])
+    .prefault('balanced'),
+  prioritizeStrategic: z.boolean().prefault(true),
 
   // Reproducibility
   randomSeed: z.number().int().optional(), // For deterministic Monte Carlo if needed
@@ -117,7 +119,7 @@ export type ReserveOptimizationRequest = z.infer<typeof ReserveOptimizationReque
 // ============================================================================
 
 export const CompanyAllocationSchema = z.object({
-  companyId: z.string().uuid(),
+  companyId: z.string().guid(),
   companyName: z.string(),
   currentStage: CompanyStageSchema,
 
@@ -142,8 +144,8 @@ export const CompanyAllocationSchema = z.object({
 export type CompanyAllocation = z.infer<typeof CompanyAllocationSchema>;
 
 export const ReserveOptimizationResponseSchema = z.object({
-  optimizationId: z.string().uuid(),
-  fundId: z.string().uuid(),
+  optimizationId: z.string().guid(),
+  fundId: z.string().guid(),
   timestamp: z.string().datetime(),
 
   // Allocation results
@@ -163,12 +165,16 @@ export const ReserveOptimizationResponseSchema = z.object({
   // Optimization metadata
   constraints: z.array(z.string()), // Global constraints applied
   warnings: z.array(z.string()).optional(), // Non-fatal issues
-  alternativeScenarios: z.array(z.object({
-    scenarioName: z.string(),
-    description: z.string(),
-    totalAllocated: z.number(),
-    projectedValue: z.number(),
-  })).optional(), // For scenario comparison
+  alternativeScenarios: z
+    .array(
+      z.object({
+        scenarioName: z.string(),
+        description: z.string(),
+        totalAllocated: z.number(),
+        projectedValue: z.number(),
+      })
+    )
+    .optional(), // For scenario comparison
 
   // Determinism proof
   seedUsed: z.number().int().optional(),
@@ -230,7 +236,7 @@ export const ReserveErrorSchema = z.object({
     'GRADUATION_MATRIX_INVALID',
   ]),
   message: z.string(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ReserveError = z.infer<typeof ReserveErrorSchema>;
