@@ -443,7 +443,7 @@ router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, r
     routeLog.error('[Reallocation Preview] Error:', error);
     return res.status(500).json({
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to preview reallocation',
     });
   }
 });
@@ -666,7 +666,7 @@ router['post'](
 
       return res.status(500).json({
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Failed to commit reallocation',
       });
     }
   }

@@ -12,6 +12,8 @@ const dbState = vi.hoisted(() => ({
   transaction: vi.fn(async (): Promise<unknown> => ({})),
 }));
 
+const routeLoggerState = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+
 vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
   enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
 }));
@@ -22,7 +24,7 @@ vi.mock('../../../server/db/index', () => ({
 }));
 
 vi.mock('../../../server/lib/route-logger.js', () => ({
-  createRouteLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+  createRouteLogger: () => routeLoggerState,
 }));
 
 import reallocationRouter from '../../../server/routes/reallocation';
@@ -63,6 +65,7 @@ describe('reallocation route contracts', () => {
     dbState.query.mockResolvedValue({ rows: [] });
     dbState.transaction.mockReset();
     dbState.transaction.mockResolvedValue({});
+    routeLoggerState.error.mockReset();
   });
 
   it('POST preview rejects non-canonical fundId before scope check and DB read', async () => {
@@ -179,6 +182,33 @@ describe('reallocation route contracts', () => {
     });
   });
 
+  it('POST preview does not expose database errors', async () => {
+    const databaseError = new Error(
+      'relation secret_allocations does not exist; SELECT * FROM users'
+    );
+    dbState.query.mockRejectedValueOnce(databaseError);
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/reallocation/preview')
+      .send({
+        proposed_allocations: [
+          { company_id: 11, planned_reserves_cents: 125, expected_version: 3 },
+        ],
+      });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Internal server error',
+      message: 'Failed to preview reallocation',
+    });
+    expect(JSON.stringify(response.body)).not.toContain('secret_allocations');
+    expect(JSON.stringify(response.body)).not.toContain('SELECT * FROM users');
+    expect(routeLoggerState.error).toHaveBeenCalledWith(
+      '[Reallocation Preview] Error:',
+      databaseError
+    );
+  });
+
   it('POST preview reports only sorted stale proposed companies', async () => {
     dbState.query.mockResolvedValueOnce({
       rows: [
@@ -263,4 +293,29 @@ describe('reallocation route contracts', () => {
       expect(dbState.transaction).toHaveBeenCalledTimes(1);
     }
   );
+
+  it('POST commit does not expose database errors', async () => {
+    const databaseError = new Error(
+      'column private_notes is missing; UPDATE users SET role = admin'
+    );
+    dbState.transaction.mockRejectedValueOnce(databaseError);
+
+    const response = await request(makeApp('partner'))
+      .post('/api/funds/1/reallocation/commit')
+      .send({
+        proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1, expected_version: 1 }],
+      });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Internal server error',
+      message: 'Failed to commit reallocation',
+    });
+    expect(JSON.stringify(response.body)).not.toContain('private_notes');
+    expect(JSON.stringify(response.body)).not.toContain('UPDATE users');
+    expect(routeLoggerState.error).toHaveBeenCalledWith(
+      '[Reallocation Commit] Error:',
+      databaseError
+    );
+  });
 });
