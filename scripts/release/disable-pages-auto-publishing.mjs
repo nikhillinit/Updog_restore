@@ -3,6 +3,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile } from 'node:fs/promises';
+import { request as httpsRequest } from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -365,13 +366,60 @@ export async function readExistingToken({
   }
 }
 
-export function createGitHubTransport({ token, fetchImpl = globalThis.fetch, now = Date.now }) {
+// One native ClientRequest, including its bounded response body. No redirect or retry layer.
+function requestOnce(url, { method, headers, body, signal }, requestImpl) {
+  return new Promise((resolve, reject) => {
+    const request = requestImpl(
+      url,
+      {
+        method,
+        headers: {
+          ...headers,
+          ...(body === undefined ? {} : { 'Content-Length': Buffer.byteLength(body) }),
+        },
+        signal,
+        agent: false,
+      },
+      (response) => {
+        const chunks = [];
+        let size = 0;
+        response.on('data', (chunk) => {
+          size += chunk.length;
+          if (size > 4 * 1024 * 1024) {
+            request.destroy(new Error('RESPONSE_BODY_TOO_LARGE'));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.once('error', reject);
+        response.once('aborted', () => reject(new Error('RESPONSE_ABORTED')));
+        response.once('end', () => {
+          const data = Buffer.concat(chunks).toString('utf8');
+          resolve({
+            ok: response.statusCode >= 200 && response.statusCode < 300,
+            json: async () => JSON.parse(data),
+          });
+        });
+      }
+    );
+    request.once('error', reject);
+    request.end(body);
+  });
+}
+
+export function createGitHubTransport({
+  token,
+  fetchImpl,
+  requestImpl = httpsRequest,
+  now = Date.now,
+}) {
+  const send = fetchImpl ?? ((url, options) => requestOnce(url, options, requestImpl));
   validateToken(token);
   async function request(method, suffix, deadlineAt) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), remaining(deadlineAt, now));
     try {
-      const response = await fetchImpl(`${API_REPOSITORY}${suffix}`, {
+      const response = await send(`${API_REPOSITORY}${suffix}`, {
         method,
         redirect: 'error',
         headers: {

@@ -13571,12 +13571,13 @@ replacement could be removed; the policy's narrow exception is conditional on
 that acceptance. Generic disconnect or implementation approval is insufficient,
 and acceptance is not claimed by this ADR.
 
-The stock Vercel CLI retries some network failures, 5xx and 429 responses. The
-route therefore uses native Node HTTPS requests with a fixed origin and path,
-bounded deadlines, redirects refused, and no retry. It uses only an existing
-Vercel token in memory, without creating, refreshing, logging, or passing a
-credential in command arguments. Public CLI source is contract evidence, not
-proof of undocumented provider behavior:
+The stock Vercel CLI retries some network failures, 5xx and 429 responses. Node
+22's bundled `fetch` also replays HTTP 421 internally. The route uses
+`node:https.request` with a fixed origin and path, bounded deadlines, redirects
+refused, and no retry. It uses only an existing Vercel token in memory, without
+creating, refreshing, logging, or passing a credential in command arguments.
+Public CLI source is contract evidence, not proof of undocumented provider
+behavior:
 
 - [Git link helper](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/util/git/connect-git-provider.ts)
 - [Git disconnect command](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/commands/git/disconnect.ts)
@@ -13666,12 +13667,13 @@ Existing queued work is not assumed cancelled by changing publishing mode.
 The helper binds a clean reviewed candidate and its own committed bytes to a
 fresh protected-main SHA, the matching open PR #1665, successful current-head
 `CI Gate Status`, exact repository/site identity, and a reviewed metadata
-digest. It rechecks source and target before writing. Transport fixes the HTTPS
-origin, refuses redirects, bounds requests and body reads, and does not retry
-writes. Credentials stay in memory. A fixed durable ledger records intent and
-consumes the single request budget before sending; a new process or label cannot
-reset it. An already observed workflow mode is an inventory-only zero-write
-outcome.
+digest. It rechecks source and target before writing. Core `node:https.request`
+transport fixes the HTTPS origin, refuses redirects, bounds requests and body
+reads, and does not retry writes. A real local HTTP 421 regression checks the
+request count; mocking the outer `fetch` call cannot detect its internal replay.
+Credentials stay in memory. A fixed durable ledger records intent and consumes
+the single request budget before sending; a new process or label cannot reset
+it. An already observed workflow mode is an inventory-only zero-write outcome.
 
 Tests cover authorization, source and plan drift, wrong scope, duplicates,
 deadline/transport failures, response loss, and secret handling. They do not

@@ -1,6 +1,8 @@
+import { createServer, request as httpRequest } from 'node:http';
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { URL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -23,6 +25,37 @@ The action \`vercel-git-disconnect-2026-10-27\` uses
 ## Next section
 `;
 const directories = [];
+
+// Only this test adapter rewrites the fixed provider URL to a local native HTTP server.
+async function withNativeServer(respond, run) {
+  const received = [];
+  const server = createServer((request, response) => {
+    const record = { method: request.method, url: request.url, body: '', complete: false };
+    received.push(record);
+    request.setEncoding('utf8');
+    request.on('data', (chunk) => {
+      record.body += chunk;
+    });
+    request.once('end', () => {
+      record.complete = true;
+      respond(response, record);
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const requestImpl = (url, options, callback) => {
+    const destination = new URL(url);
+    destination.protocol = 'http:';
+    destination.hostname = '127.0.0.1';
+    destination.port = String(server.address().port);
+    return httpRequest(destination, options, callback);
+  };
+  try {
+    await run({ requestImpl, received });
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
 
 function project() {
   return {
@@ -499,5 +532,89 @@ describe('fixed Vercel transport and durable ledger', { retry: 0 }, () => {
     expect((await stat(directory)).mode & 0o777).toBe(0o700);
     for (const name of await readdir(directory))
       expect((await stat(path.join(directory, name))).mode & 0o777).toBe(0o600);
+  });
+});
+
+describe('native DELETE transport has one wire attempt', { retry: 0 }, () => {
+  it('parses the complete native GET body for the fixed project read', async () => {
+    await withNativeServer(
+      (response) => {
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        const body = JSON.stringify(project());
+        response.write(body.slice(0, 5));
+        response.end(body.slice(5));
+      },
+      async ({ requestImpl, received }) => {
+        const transport = createVercelTransport({ token: SECRET, requestImpl });
+        expect(await transport.readProject({ deadlineAt: Date.now() + 1_000 })).toEqual(project());
+        expect(received).toHaveLength(1);
+        expect(received[0]).toMatchObject({ method: 'GET', complete: true });
+      }
+    );
+  });
+
+  it.each([421, 307])(
+    'sends one complete DELETE on HTTP %s and never follows a redirect',
+    async (status) => {
+      await withNativeServer(
+        (response) => {
+          response.writeHead(status, { Location: '/must-not-follow' });
+          response.end(SECRET);
+        },
+        async ({ requestImpl, received }) => {
+          const transport = createVercelTransport({ token: SECRET, requestImpl });
+          await expect(transport.deleteLink({ deadlineAt: Date.now() + 1_000 })).rejects.toThrow(
+            'PROVIDER_REQUEST_FAILED'
+          );
+          expect(received).toEqual([
+            {
+              method: 'DELETE',
+              url: `/v9/projects/${PROJECT_ID}/link?teamId=${TEAM_ID}`,
+              body: '',
+              complete: true,
+            },
+          ]);
+        }
+      );
+    }
+  );
+
+  it.each(['deleteLink', 'readProject'])(
+    'bounds the complete response body for %s without retry',
+    async (operation) => {
+      await withNativeServer(
+        (response) => {
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.write('{');
+        },
+        async ({ requestImpl, received }) => {
+          const transport = createVercelTransport({ token: SECRET, requestImpl });
+          const started = Date.now();
+          await expect(transport[operation]({ deadlineAt: started + 100 })).rejects.toThrow(
+            'PROVIDER_REQUEST_FAILED'
+          );
+          expect(Date.now() - started).toBeLessThan(1_500);
+          expect(received).toHaveLength(1);
+          expect(received[0].complete).toBe(true);
+        }
+      );
+    }
+  );
+
+  it('rejects a response body exceeding 4 MiB without retry or diagnostics', async () => {
+    await withNativeServer(
+      (response) => {
+        response.writeHead(200);
+        response.end('x'.repeat(4 * 1024 * 1024 + 1));
+      },
+      async ({ requestImpl, received }) => {
+        const transport = createVercelTransport({ token: SECRET, requestImpl });
+        await expect(transport.deleteLink({ deadlineAt: Date.now() + 1_000 })).rejects.toThrow(
+          'PROVIDER_REQUEST_FAILED'
+        );
+        expect(received).toHaveLength(1);
+        expect(received[0].complete).toBe(true);
+      }
+    );
   });
 });
