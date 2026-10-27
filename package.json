@@ -186,7 +186,7 @@
     "ajv-formats": "^3.0.1",
     "baseline-browser-mapping": "2.11.17",
     "bcryptjs": "3.0.3",
-    "body-parser": "^2.3.0",
+    "body-parser": "^2.4.0",
     "bullmq": "6.2.0",
     "chalk": "^6.0.0",
     "chart.js": "^4.5.0",
