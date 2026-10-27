@@ -13535,3 +13535,157 @@ Revisit if GitHub offers a documented conditional-write contract, another writer
 is introduced, or the single action budget is consumed. This exception is not a
 standing credential-rotation exemption. Source admission does not certify the
 helper, clear provider recovery, or authorize release execution.
+
+## ADR-112: One-Time Guarded Vercel Git-Repository Disconnect
+
+**Date:** 2026-10-27 **Status:** Proposed; effective only after policy and route
+admission through required current-head CI.
+
+### Context and decision
+
+The original `updog-restore` Vercel project remains linked to
+`nikhillinit/Updog_restore`. ADR-109 requires `git.deploymentEnabled: false`
+before repository pushes but leaves its coverage of every push UNDETERMINED. The
+owner authorized removing this Git connection, leaving Railway and Neon
+unchanged, before merging the security dependency remediation. ADR-111 is
+reserved by that separately reviewed migration; admission order need not match
+ADR numbering.
+
+Admit only `vercel-git-disconnect-2026-10-27`, executed through
+`scripts/release/disconnect-vercel-git.mjs`, against project
+`prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, team `team_BzOixmLqQ9VA2mTvFvzBLRWw`,
+repository `nikhillinit/Updog_restore`, branch `main`. The owner may appoint one
+delegated local executor after admission. This is a Git-repository unlink, not a
+Neon integration disconnect. It grants no deployment, integration, credential,
+Railway, Neon, or reconnection action.
+
+### Provider contract and limits
+
+Vercel's official CLI removes the link with
+`DELETE /v9/projects/{projectId}/link`, scoped by `teamId`. Its public OpenAPI
+does not publish this endpoint's conditional-delete or idempotency contract. The
+official client supplies no expected-link version. A fresh GET and link digest
+detect pre-existing drift but cannot exclude a concurrent replacement between
+that read and DELETE. Execution requires explicit owner acceptance that the
+replacement could be removed; the policy's narrow exception is conditional on
+that acceptance. Generic disconnect or implementation approval is insufficient,
+and acceptance is not claimed by this ADR.
+
+The stock Vercel CLI retries some network failures, 5xx and 429 responses. Node
+22's bundled `fetch` also replays HTTP 421 internally. The route uses
+`node:https.request` with a fixed origin and path, bounded deadlines, redirects
+refused, and no retry. It uses only an existing Vercel token in memory, without
+creating, refreshing, logging, or passing a credential in command arguments.
+Public CLI source is contract evidence, not proof of undocumented provider
+behavior:
+
+- [Git link helper](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/util/git/connect-git-provider.ts)
+- [Git disconnect command](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/commands/git/disconnect.ts)
+- [API command transport](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/commands/api/index.ts)
+- [Project readback](https://vercel.com/docs/rest-api/reference/endpoints/projects/find-a-project-by-id-or-name)
+
+### Execution, evidence, and recovery
+
+The plan is read-only and binds the exact observed link. Execute requires clean
+admitted protected source, explicit owner authorization and risk acceptance, the
+reviewed digest, fixed scope, and final freshness checks. A fixed durable local
+ledger consumes the single mutation budget before the request; neither another
+invocation nor a lost response replenishes it. This coordinates the appointed
+local executor, not uncoordinated provider writers. An already absent link is
+zero-write success. Unknown outcomes permit bounded readback only and remain
+unresolved unless exact disconnection is observed.
+
+Tests cover refusal, drift, duplicate execution, crash/response loss, timeout,
+and secrecy. They do not prove provider-side atomicity. Live readback must
+establish the absent link and unchanged unrelated project metadata, including
+production target and environment-variable metadata, without exposing values.
+Before the subsequent application merge, refresh CI and verify the absent Git
+link, deploy hooks, main-push workflows, and unchanged Railway trigger settings.
+The application's source merge remains separate from a release.
+
+Reconnection is a distinct POST whose restoration of branch settings, hooks, and
+deployment behavior is not established. Do not automatically reconnect or retry.
+Preserve the action receipt and current deployment; any needed recovery write
+requires a new scoped decision and route. Revisit if Vercel documents a
+conditional-delete contract or the fixed action's attempt is consumed.
+
+## ADR-113: One-Time GitHub Pages Publishing Containment Bootstrap
+
+**Date:** 2026-10-27 **Status:** Proposed; candidate text does not provide
+bootstrap authority.
+
+### Context and decision
+
+Read-only verification found GitHub Pages configured as `legacy`, public, with
+source `main:/`. GitHub-managed workflow `179328364` published protected main
+`41d7e1d8fddccf10f02680ee504d4338c026720c` in successful run `39607103156`,
+deployment `7227153211`, on October 21, 2026. It is a deployment path outside
+the tracked release workflows and Vercel/Railway triggers. Thus admission of the
+Vercel containment route can itself publish Pages.
+
+The owner authorized disabling automatic Pages publishing through a governed
+route. Inspection of protected main, available origin refs, and worktrees found
+no admitted Pages containment entrypoint. Existing policy requires admission
+before execution and retains optimistic locking. Those requirements create an
+ordering dependency; general authorization to disable Pages does not resolve it.
+A separate prospective owner instruction must expressly override, for one action
+only, pre-admission execution, named delegated-route admission, and the
+optimistic-locking requirement. Neither this ADR nor subsequent source admission
+supplies that instruction retroactively.
+
+The candidate route is `scripts/release/disable-pages-auto-publishing.mjs`,
+fixed action `github-pages-publishing-containment-2026-10-27`, repository
+`nikhillinit/Updog_restore` (ID `1023548405`). It sends only
+`PUT /repos/nikhillinit/Updog_restore/pages` with `{"build_type":"workflow"}`.
+No custom publishing workflow is introduced. Source branch/path, domain, HTTPS
+settings, and existing site metadata must remain unchanged. No site deletion,
+deployment, credential change, automatic rollback, or Railway/Neon/Vercel
+mutation is in this action's scope.
+
+### Provider evidence and limits
+
+GitHub documents `legacy` as publishing when branch changes are pushed, and
+`workflow` as custom-workflow publishing. The update returns HTTP 204. General
+REST guidance says conditional unsafe requests are unsupported unless the
+endpoint documents an exception; this endpoint provides none. A fresh digest and
+local lock cannot prevent another administrator from changing publishing mode
+between the final read and PUT. Execution requires explicit acceptance that this
+intervening change could be overwritten.
+
+- [Pages update contract](https://docs.github.com/en/rest/pages/pages#update-information-about-a-github-pages-site)
+- [Publishing-source behavior](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+- [Conditional-request limits](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#use-conditional-requests)
+
+Disabling the generated workflow was rejected because no documented guarantee
+was found that disabling this dynamic workflow persists across later pushes.
+Commit-message skip directives cover `push`/`pull_request` events, not the
+observed Pages `dynamic` event. Neither is used as an unverified bypass.
+Existing queued work is not assumed cancelled by changing publishing mode.
+
+### Executable boundaries and recovery
+
+The helper binds a clean reviewed candidate and its own committed bytes to a
+fresh protected-main SHA, the matching open PR #1665, successful current-head
+`CI Gate Status`, exact repository/site identity, and a reviewed metadata
+digest. It rechecks source and target before writing. Core `node:https.request`
+transport fixes the HTTPS origin, refuses redirects, bounds requests and body
+reads, and does not retry writes. A real local HTTP 421 regression checks the
+request count; mocking the outer `fetch` call cannot detect its internal replay.
+Credentials stay in memory. A fixed durable ledger records intent and consumes
+the single request budget before sending; a new process or label cannot reset
+it. An already observed workflow mode is an inventory-only zero-write outcome.
+
+Tests cover authorization, source and plan drift, wrong scope, duplicates,
+deadline/transport failures, response loss, and secret handling. They do not
+prove provider atomicity or undocumented retention behavior. Require no pending
+Pages publication, readback of workflow mode and unchanged unrelated metadata,
+and a bounded existing-site/deployment observation. Acknowledgement and observed
+state remain distinct. Unknown outcomes stop for read-only reconciliation; no
+second PUT, DELETE, or automatic rollback is permitted.
+
+Before execution, record the actual prospective owner exception. After
+execution, record its timestamp/reference, reviewed and protected SHAs, plan
+digest, single-attempt receipt, and readback in the PR evidence. Subsequent
+admission records that chronology and does not backdate authority. This is no
+standing bootstrap exception. Every Vercel gate remains separate; #1664 requires
+fresh merge checks and exclusion of all applicable automatic deployment paths.

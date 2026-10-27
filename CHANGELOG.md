@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-10-27)
+
+- Prepare ADR-113 and a guarded one-time Pages publishing-mode change to resolve
+  the policy-admission ordering dependency. Pre-admission execution requires a
+  separate prospective owner exception; candidate text does not supply it.
+  Existing site/source/domain retention and single-attempt readback remain
+  required. No custom publishing workflow is introduced, and neither helper
+  executes on merge.
+- Add ADR-112 and a guarded, one-time route to remove only the original Vercel
+  project's Git repository connection. Execution requires admitted protected
+  source, exact scope, explicit concurrent-writer risk acceptance, and a durable
+  single-attempt ledger. Railway, Neon, credentials, and deployments are outside
+  the mutation scope; source admission alone does not perform the disconnect.
+
 ### Changed (2026-10-21)
 
 - Add owner-approved ADR-110 and a credential-only procedure for one Railway

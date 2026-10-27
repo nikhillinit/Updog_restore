@@ -1004,6 +1004,133 @@ budget, then stop; an expired budget does not start a new reconciliation window.
   fresh receipt cannot reset a consumed budget. Any further credential attempt
   requires a new owner-scoped recovery decision under the then-current policy.
 
+## One-time Vercel Git-repository disconnect (ADR-112)
+
+This route removes only the GitHub repository connection of `updog-restore`. It
+does not disconnect the Neon integration. It is executable only after the
+matching ADR-112 policy amendment and this route are admitted to protected
+`main`. The owner may appoint one local executor for the fixed action
+`vercel-git-disconnect-2026-10-27`; earlier explicit authorization remains valid
+for unchanged scope. Execution additionally requires explicit owner acceptance
+that an uncoordinated administrator can replace the link after the final GET and
+the unconditional DELETE can remove that replacement. A local lock and readback
+do not provide atomic optimistic locking.
+
+1. Use a clean checkout of freshly fetched protected `main` and Node 22. The
+   route uses an existing `VERCEL_TOKEN` or the existing Vercel CLI session in
+   memory. It does not create, refresh, print, or rotate credentials. Its native
+   HTTPS transport fixes the origin and scope, refuses redirects, and never
+   retries a write; stock `vercel api` retries and must not replace it.
+2. Prepare the nonmutating plan:
+
+   ```bash
+   node scripts/release/disconnect-vercel-git.mjs --dry-run --expected-sha <protected-main-sha>
+   ```
+
+   Verify project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, team
+   `team_BzOixmLqQ9VA2mTvFvzBLRWw`, repository `nikhillinit/Updog_restore`, and
+   production branch `main`. Review the returned link digest and execution
+   eligibility. A plan from unadmitted source supplies no execution authority.
+
+3. After the owner's specific risk acceptance and review of the exact link,
+   invoke the admitted script with the returned digest:
+
+   ```bash
+   node scripts/release/disconnect-vercel-git.mjs --execute --expected-sha <protected-main-sha> --expected-link-sha256 <reviewed-link-digest> --owner-authorized --accept-concurrent-link-change-risk
+   ```
+
+   The flags acknowledge already supplied owner instructions; they are not a way
+   to manufacture authorization. The script rechecks source and link before
+   sending its single scoped DELETE. The durable ledger is fixed at
+   `~/.codex/task-artifacts/vercel-git-disconnect-2026-10-27`; never remove,
+   relocate, or replace it to retry. All participating executions share it.
+   Reservation is single-use even if a later prewrite check fails; this route
+   provides no automatic reservation reset or resumed write.
+
+4. Require observed `link: null` or absent link on the exact project, unchanged
+   project identity and unrelated configuration metadata, and a sanitized
+   receipt. Request acknowledgement alone is insufficient. An already absent
+   link is a zero-write observation, not proof that a previous action preserved
+   unrelated state. A lost response or attempted ledger permits only bounded
+   readback; an unresolved outcome stops the action. Do not retry DELETE or
+   reconnect automatically. Recovery that needs a provider write is a separate
+   scoped action under then-current policy.
+5. Before merging the application PR, refresh its head, protected main, required
+   CI/reviews, the absent Git link and deploy-hook inventory. Inspect reachable
+   main-push workflows for deployment commands and read Railway's existing
+   branch settings without changing them. No probe deployment is authorized.
+   Merge only when the applicable trigger paths are excluded.
+
+The official Vercel CLI's Git disconnect implementation uses
+`DELETE /v9/projects/{projectId}/link`; reconnect uses a separate POST. The
+public OpenAPI document does not publish a conditional-delete or restoration
+contract for this link endpoint. Tests prove local refusal, secrecy, deadline,
+and one-attempt behavior with fakes; live readback establishes observed provider
+state. Neither supplies an undocumented concurrency or rollback guarantee.
+Railway, Neon, database state, integrations, environment variables, deployments,
+aliases, and credentials are outside this mutation scope.
+
+## One-time GitHub Pages publishing containment (ADR-113)
+
+This proposed bootstrap changes the existing site's publishing mode from
+`legacy` to `workflow`, leaving source `main:/`, domain, HTTPS settings, and the
+site itself in place. Existing Pages branch publishing makes policy admission
+capable of publishing the site. There is no previously admitted Pages
+containment route. Candidate code or policy is not execution authority.
+
+1. Before execution require the separate prospective owner exception described
+   by ADR-113: pre-admission execution, one delegated local executor, and
+   explicit acceptance of an intervening administrator's publishing-mode change
+   being overwritten by an unconditional PUT. General Pages authorization is
+   insufficient. Record the actual instruction before executing; do not backdate
+   authority after source admission.
+2. Use the clean reviewed commit on PR #1665, fresh protected main, successful
+   current-head `CI Gate Status`, and Node 22. The helper reads an existing
+   GitHub credential into memory; it never logs in, refreshes, or stores one.
+   Prepare the nonmutating plan:
+
+   ```bash
+   node scripts/release/disable-pages-auto-publishing.mjs --dry-run --expected-reviewed-sha <reviewed-pr-head> --expected-main-sha <protected-main-sha>
+   ```
+
+   Review repository `nikhillinit/Updog_restore`, ID `1023548405`, public site,
+   `legacy` mode, source `main:/`, and returned digest. Independently require no
+   pending/in-progress runs of the GitHub-managed Pages workflow and no custom
+   Pages publishing workflow on either candidate or protected main. A mode
+   change does not cancel previously queued publication.
+
+3. Only after the explicit exception and exact plan review, invoke:
+
+   ```bash
+   node scripts/release/disable-pages-auto-publishing.mjs --execute --expected-reviewed-sha <reviewed-pr-head> --expected-main-sha <protected-main-sha> --expected-plan-sha256 <reviewed-pages-digest> --bootstrap-owner-exception --accept-concurrent-pages-change-risk
+   ```
+
+   These flags acknowledge existing owner instructions. They do not create
+   authority. The fixed action ledger is
+   `~/.codex/task-artifacts/github-pages-publishing-containment-2026-10-27`;
+   never remove or replace it to retry. Reservation is single-use, including
+   failure before sending. The complete action has a five-minute deadline and
+   each request has at most thirty seconds. Only one PUT of
+   `{"build_type":"workflow"}` is permitted; no automatic rollback.
+
+4. Require readback of workflow mode and unchanged unrelated Pages metadata.
+   Distinguish acknowledgement from observation. After an ambiguous response,
+   reconcile read-only and stop if unresolved. Check existing public-site
+   availability and deployment/run history without triggering publication.
+   Readback does not prove preservation of all undocumented provider internals.
+5. Record the actual authority, reviewed/protected SHAs, plan digest, receipt,
+   and outcome in PR #1665. After containment and fresh merge gates, admit it.
+   Run the separately authorized Vercel route from admitted protected main.
+   Before #1664 merges, recheck Pages workflow mode, absence of an applicable
+   publishing workflow, Vercel disconnection, and unchanged Railway triggers.
+
+GitHub's Pages API documents `legacy` as branch-triggered publishing and
+`workflow` as custom-workflow publishing. It does not document conditional
+writes for this operation. A fresh GET/digest and local ledger are not
+optimistic locking. This route does not delete the site or introduce a new
+publishing workflow. Any later restoration of automatic publishing requires a
+separate owner-scoped action.
+
 ## Railway worker deploy stage (release-production)
 
 `release-production.yml` is the only tracked provider-mutating caller. Its
