@@ -1004,6 +1004,72 @@ budget, then stop; an expired budget does not start a new reconciliation window.
   fresh receipt cannot reset a consumed budget. Any further credential attempt
   requires a new owner-scoped recovery decision under the then-current policy.
 
+## One-time Vercel Git-repository disconnect (ADR-112)
+
+This route removes only the GitHub repository connection of `updog-restore`. It
+does not disconnect the Neon integration. It is executable only after the
+matching ADR-112 policy amendment and this route are admitted to protected
+`main`. The owner may appoint one local executor for the fixed action
+`vercel-git-disconnect-2026-10-27`; earlier explicit authorization remains valid
+for unchanged scope. Execution additionally requires explicit owner acceptance
+that an uncoordinated administrator can replace the link after the final GET and
+the unconditional DELETE can remove that replacement. A local lock and readback
+do not provide atomic optimistic locking.
+
+1. Use a clean checkout of freshly fetched protected `main` and Node 22. The
+   route uses an existing `VERCEL_TOKEN` or the existing Vercel CLI session in
+   memory. It does not create, refresh, print, or rotate credentials. Its native
+   HTTPS transport fixes the origin and scope, refuses redirects, and never
+   retries a write; stock `vercel api` retries and must not replace it.
+2. Prepare the nonmutating plan:
+
+   ```bash
+   node scripts/release/disconnect-vercel-git.mjs --dry-run --expected-sha <protected-main-sha>
+   ```
+
+   Verify project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, team
+   `team_BzOixmLqQ9VA2mTvFvzBLRWw`, repository `nikhillinit/Updog_restore`, and
+   production branch `main`. Review the returned link digest and execution
+   eligibility. A plan from unadmitted source supplies no execution authority.
+
+3. After the owner's specific risk acceptance and review of the exact link,
+   invoke the admitted script with the returned digest:
+
+   ```bash
+   node scripts/release/disconnect-vercel-git.mjs --execute --expected-sha <protected-main-sha> --expected-link-sha256 <reviewed-link-digest> --owner-authorized --accept-concurrent-link-change-risk
+   ```
+
+   The flags acknowledge already supplied owner instructions; they are not a way
+   to manufacture authorization. The script rechecks source and link before
+   sending its single scoped DELETE. The durable ledger is fixed at
+   `~/.codex/task-artifacts/vercel-git-disconnect-2026-10-27`; never remove,
+   relocate, or replace it to retry. All participating executions share it.
+   Reservation is single-use even if a later prewrite check fails; this route
+   provides no automatic reservation reset or resumed write.
+
+4. Require observed `link: null` or absent link on the exact project, unchanged
+   project identity and unrelated configuration metadata, and a sanitized
+   receipt. Request acknowledgement alone is insufficient. An already absent
+   link is a zero-write observation, not proof that a previous action preserved
+   unrelated state. A lost response or attempted ledger permits only bounded
+   readback; an unresolved outcome stops the action. Do not retry DELETE or
+   reconnect automatically. Recovery that needs a provider write is a separate
+   scoped action under then-current policy.
+5. Before merging the application PR, refresh its head, protected main, required
+   CI/reviews, the absent Git link and deploy-hook inventory. Inspect reachable
+   main-push workflows for deployment commands and read Railway's existing
+   branch settings without changing them. No probe deployment is authorized.
+   Merge only when the applicable trigger paths are excluded.
+
+The official Vercel CLI's Git disconnect implementation uses
+`DELETE /v9/projects/{projectId}/link`; reconnect uses a separate POST. The
+public OpenAPI document does not publish a conditional-delete or restoration
+contract for this link endpoint. Tests prove local refusal, secrecy, deadline,
+and one-attempt behavior with fakes; live readback establishes observed provider
+state. Neither supplies an undocumented concurrency or rollback guarantee.
+Railway, Neon, database state, integrations, environment variables, deployments,
+aliases, and credentials are outside this mutation scope.
+
 ## Railway worker deploy stage (release-production)
 
 `release-production.yml` is the only tracked provider-mutating caller. Its

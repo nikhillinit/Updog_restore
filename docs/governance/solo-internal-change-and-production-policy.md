@@ -122,6 +122,52 @@ checks, or the other production-action requirements. Candidate text does not
 self-activate: admission requires the policy/ADR pull request and required
 current-head CI. Merge alone grants no credential-execution authority.
 
+## One-time Vercel Git-repository disconnect (ADR-112)
+
+The fixed action `vercel-git-disconnect-2026-10-27` admits only removal of the
+GitHub repository link from Vercel project `prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`
+(`updog-restore`), team `team_BzOixmLqQ9VA2mTvFvzBLRWw`, currently linked to
+`nikhillinit/Updog_restore` with production branch `main`. Its sole entrypoint
+is `scripts/release/disconnect-vercel-git.mjs --execute`, under the matching
+procedure in `docs/workflows/PRODUCTION_SCRIPTS.md`. For this action only, the
+owner's explicit instruction may appoint one delegated local executor. The owner
+remains the authority issuer; command-line acknowledgements record that
+instruction and cannot supply it. Authorization may precede admission and
+remains valid for unchanged scope, but execution requires protected-main
+admission and every applicable gate.
+
+Vercel's official CLI implements this operation as an unconditional DELETE of
+the project's Git link. No server-enforced conditional-delete contract is
+established. A fresh GET, link digest, metadata comparison, and local ledger are
+not optimistic locking: another administrator can replace the link between the
+final read and DELETE, and that replacement could be removed. Execution requires
+the owner's explicit acceptance of this exact concurrent-writer risk. Only after
+that acceptance, this amendment replaces the optimistic-locking mandate for this
+action's single DELETE. It does not waive idempotency or extend to any other
+provider update. The executor must not infer acceptance from a generic
+instruction to implement, admit, disconnect, merge, or deploy.
+
+Require fresh protected source, a clean executing checkout at that exact SHA,
+the admitted action and entrypoint, exact project/team/repository identity, the
+owner-reviewed link digest, bounded transport with no hidden write retry, and a
+final source and target recheck. Use the fixed durable action ledger outside the
+repository; persist the consumed mutation budget before sending the request. One
+local executor and ledger coordinate this action; they do not exclude other
+hosts or provider administrators. An absent link is an idempotent readback,
+never a reason to recreate it. An attempted or unknown outcome permits bounded
+read-only reconciliation, never a second DELETE, automatic reconnection, or a
+new receipt to replenish the budget. Bound the action to five minutes and each
+request to thirty seconds.
+
+Readback must distinguish request acknowledgement from observed disconnection
+and require unchanged project identity and unrelated configuration metadata.
+Source admission, tests, and a receipt do not prove undocumented provider
+behavior. This action does not authorize deployment, promotion, credentials,
+Neon integration changes, database changes, Railway changes, deploy-hook
+changes, or reconnection. ADR-109's Preview prohibition and every other floor
+remain in force. A later merge still requires fresh checks and verification that
+no applicable Git, workflow, or deploy-hook path triggers deployment.
+
 ## Proportional release-governance applicability
 
 Release governance separates source admission, immutable candidate
@@ -288,8 +334,10 @@ Precedence rules:
   instruction to one delegated local executor for the fixed action
   `railway-production-credential-repair-2026-10-21`, after explicit acceptance
   of that action's concurrent-writer risk and satisfaction of its admission
-  gates. This exception does not change the issuer: no agent, plan, or artifact
-  self-authorizes.
+  gates. ADR-112 separately permits one delegated local executor for its exact
+  Git-repository disconnect, after explicit concurrent-writer risk acceptance
+  and satisfaction of that route's gates. These exceptions do not change the
+  issuer: no agent, plan, or artifact self-authorizes.
 - Provider coupling: merge to `main` may causally trigger provider deployment
   under current topology (ADR-075). That coupling is a topology fact, not an
   authorization; a merge that would mutate production is production-affecting

@@ -13535,3 +13535,75 @@ Revisit if GitHub offers a documented conditional-write contract, another writer
 is introduced, or the single action budget is consumed. This exception is not a
 standing credential-rotation exemption. Source admission does not certify the
 helper, clear provider recovery, or authorize release execution.
+
+## ADR-112: One-Time Guarded Vercel Git-Repository Disconnect
+
+**Date:** 2026-10-27 **Status:** Proposed; effective only after policy and route
+admission through required current-head CI.
+
+### Context and decision
+
+The original `updog-restore` Vercel project remains linked to
+`nikhillinit/Updog_restore`. ADR-109 requires `git.deploymentEnabled: false`
+before repository pushes but leaves its coverage of every push UNDETERMINED. The
+owner authorized removing this Git connection, leaving Railway and Neon
+unchanged, before merging the security dependency remediation. ADR-111 is
+reserved by that separately reviewed migration; admission order need not match
+ADR numbering.
+
+Admit only `vercel-git-disconnect-2026-10-27`, executed through
+`scripts/release/disconnect-vercel-git.mjs`, against project
+`prj_z0tJGUCgjnmMOv5KG9cEP3ucJ7Xp`, team `team_BzOixmLqQ9VA2mTvFvzBLRWw`,
+repository `nikhillinit/Updog_restore`, branch `main`. The owner may appoint one
+delegated local executor after admission. This is a Git-repository unlink, not a
+Neon integration disconnect. It grants no deployment, integration, credential,
+Railway, Neon, or reconnection action.
+
+### Provider contract and limits
+
+Vercel's official CLI removes the link with
+`DELETE /v9/projects/{projectId}/link`, scoped by `teamId`. Its public OpenAPI
+does not publish this endpoint's conditional-delete or idempotency contract. The
+official client supplies no expected-link version. A fresh GET and link digest
+detect pre-existing drift but cannot exclude a concurrent replacement between
+that read and DELETE. Execution requires explicit owner acceptance that the
+replacement could be removed; the policy's narrow exception is conditional on
+that acceptance. Generic disconnect or implementation approval is insufficient,
+and acceptance is not claimed by this ADR.
+
+The stock Vercel CLI retries some network failures, 5xx and 429 responses. The
+route therefore uses native Node HTTPS requests with a fixed origin and path,
+bounded deadlines, redirects refused, and no retry. It uses only an existing
+Vercel token in memory, without creating, refreshing, logging, or passing a
+credential in command arguments. Public CLI source is contract evidence, not
+proof of undocumented provider behavior:
+
+- [Git link helper](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/util/git/connect-git-provider.ts)
+- [Git disconnect command](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/commands/git/disconnect.ts)
+- [API command transport](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/cli/src/commands/api/index.ts)
+- [Project readback](https://vercel.com/docs/rest-api/reference/endpoints/projects/find-a-project-by-id-or-name)
+
+### Execution, evidence, and recovery
+
+The plan is read-only and binds the exact observed link. Execute requires clean
+admitted protected source, explicit owner authorization and risk acceptance, the
+reviewed digest, fixed scope, and final freshness checks. A fixed durable local
+ledger consumes the single mutation budget before the request; neither another
+invocation nor a lost response replenishes it. This coordinates the appointed
+local executor, not uncoordinated provider writers. An already absent link is
+zero-write success. Unknown outcomes permit bounded readback only and remain
+unresolved unless exact disconnection is observed.
+
+Tests cover refusal, drift, duplicate execution, crash/response loss, timeout,
+and secrecy. They do not prove provider-side atomicity. Live readback must
+establish the absent link and unchanged unrelated project metadata, including
+production target and environment-variable metadata, without exposing values.
+Before the subsequent application merge, refresh CI and verify the absent Git
+link, deploy hooks, main-push workflows, and unchanged Railway trigger settings.
+The application's source merge remains separate from a release.
+
+Reconnection is a distinct POST whose restoration of branch settings, hooks, and
+deployment behavior is not established. Do not automatically reconnect or retry.
+Preserve the action receipt and current deployment; any needed recovery write
+requires a new scoped decision and route. Revisit if Vercel documents a
+conditional-delete contract or the fixed action's attempt is consumed.
