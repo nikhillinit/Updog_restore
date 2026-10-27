@@ -13578,6 +13578,12 @@ horizon; no other unbounded route array receives an invented limit.
 - Object compositions that previously stripped refinements still reconstruct the
   original strict shape before adding their own checks. Other refinements remain
   in place. Drizzle column defaults are unchanged.
+- Numeric schemas use Zod 4's finite-number requirement except the explicit
+  nonfinite compatibility cases above. Circuit-breaker environment fields
+  therefore reject `Infinity` at startup; finite coercion and defaults are
+  unchanged. Their existing 21 `.default()` calls remain because the primitive
+  defaults already satisfy output schemas and outer boolean transforms still
+  execute. A 46-case restored-versus-migrated Zod 4 comparison found no changes.
 
 ### Verification and limits
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,16 @@ import {
   type NavigationContext,
 } from '@/components/layout/navigation-config';
 import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
-import { FundConstructionKpiHeader } from '@/components/wizard/FundConstructionKpiHeader';
 import { useFundContext } from '@/contexts/FundContext';
 import { resolveDashboardView } from '@/lib/fund-routes';
 import { bindFundWorkspaceActor, unbindFundWorkspaceActor } from '@/stores/fundStore';
 import { clearPendingCreateCommands } from '@/hooks/useIdempotencyKey';
+
+const FundConstructionKpiHeader = lazy(() =>
+  import('@/components/wizard/FundConstructionKpiHeader').then((module) => ({
+    default: module.FundConstructionKpiHeader,
+  }))
+);
 
 const MOBILE_NAVIGATION_DISABLED_REASON = 'Complete fund setup to access this route.';
 
@@ -240,7 +245,9 @@ export function AppLayout({
       <header>
         {/* The account-wide Workspace owns its title and polls no fund KPIs. */}
         {isFundSetupRoute ? (
-          <FundConstructionKpiHeader />
+          <Suspense fallback={null}>
+            <FundConstructionKpiHeader />
+          </Suspense>
         ) : isWorkspaceView ? null : (
           <DynamicFundHeader />
         )}
