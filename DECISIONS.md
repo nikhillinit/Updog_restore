@@ -13607,3 +13607,83 @@ deployment behavior is not established. Do not automatically reconnect or retry.
 Preserve the action receipt and current deployment; any needed recovery write
 requires a new scoped decision and route. Revisit if Vercel documents a
 conditional-delete contract or the fixed action's attempt is consumed.
+
+## ADR-113: One-Time GitHub Pages Publishing Containment Bootstrap
+
+**Date:** 2026-10-27 **Status:** Proposed; candidate text does not provide
+bootstrap authority.
+
+### Context and decision
+
+Read-only verification found GitHub Pages configured as `legacy`, public, with
+source `main:/`. GitHub-managed workflow `179328364` published protected main
+`41d7e1d8fddccf10f02680ee504d4338c026720c` in successful run `39607103156`,
+deployment `7227153211`, on October 21, 2026. It is a deployment path outside
+the tracked release workflows and Vercel/Railway triggers. Thus admission of the
+Vercel containment route can itself publish Pages.
+
+The owner authorized disabling automatic Pages publishing through a governed
+route. Inspection of protected main, available origin refs, and worktrees found
+no admitted Pages containment entrypoint. Existing policy requires admission
+before execution and retains optimistic locking. Those requirements create an
+ordering dependency; general authorization to disable Pages does not resolve it.
+A separate prospective owner instruction must expressly override, for one action
+only, pre-admission execution, named delegated-route admission, and the
+optimistic-locking requirement. Neither this ADR nor subsequent source admission
+supplies that instruction retroactively.
+
+The candidate route is `scripts/release/disable-pages-auto-publishing.mjs`,
+fixed action `github-pages-publishing-containment-2026-10-27`, repository
+`nikhillinit/Updog_restore` (ID `1023548405`). It sends only
+`PUT /repos/nikhillinit/Updog_restore/pages` with `{"build_type":"workflow"}`.
+No custom publishing workflow is introduced. Source branch/path, domain, HTTPS
+settings, and existing site metadata must remain unchanged. No site deletion,
+deployment, credential change, automatic rollback, or Railway/Neon/Vercel
+mutation is in this action's scope.
+
+### Provider evidence and limits
+
+GitHub documents `legacy` as publishing when branch changes are pushed, and
+`workflow` as custom-workflow publishing. The update returns HTTP 204. General
+REST guidance says conditional unsafe requests are unsupported unless the
+endpoint documents an exception; this endpoint provides none. A fresh digest and
+local lock cannot prevent another administrator from changing publishing mode
+between the final read and PUT. Execution requires explicit acceptance that this
+intervening change could be overwritten.
+
+- [Pages update contract](https://docs.github.com/en/rest/pages/pages#update-information-about-a-github-pages-site)
+- [Publishing-source behavior](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+- [Conditional-request limits](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#use-conditional-requests)
+
+Disabling the generated workflow was rejected because no documented guarantee
+was found that disabling this dynamic workflow persists across later pushes.
+Commit-message skip directives cover `push`/`pull_request` events, not the
+observed Pages `dynamic` event. Neither is used as an unverified bypass.
+Existing queued work is not assumed cancelled by changing publishing mode.
+
+### Executable boundaries and recovery
+
+The helper binds a clean reviewed candidate and its own committed bytes to a
+fresh protected-main SHA, the matching open PR #1665, successful current-head
+`CI Gate Status`, exact repository/site identity, and a reviewed metadata
+digest. It rechecks source and target before writing. Transport fixes the HTTPS
+origin, refuses redirects, bounds requests and body reads, and does not retry
+writes. Credentials stay in memory. A fixed durable ledger records intent and
+consumes the single request budget before sending; a new process or label cannot
+reset it. An already observed workflow mode is an inventory-only zero-write
+outcome.
+
+Tests cover authorization, source and plan drift, wrong scope, duplicates,
+deadline/transport failures, response loss, and secret handling. They do not
+prove provider atomicity or undocumented retention behavior. Require no pending
+Pages publication, readback of workflow mode and unchanged unrelated metadata,
+and a bounded existing-site/deployment observation. Acknowledgement and observed
+state remain distinct. Unknown outcomes stop for read-only reconciliation; no
+second PUT, DELETE, or automatic rollback is permitted.
+
+Before execution, record the actual prospective owner exception. After
+execution, record its timestamp/reference, reviewed and protected SHAs, plan
+digest, single-attempt receipt, and readback in the PR evidence. Subsequent
+admission records that chronology and does not backdate authority. This is no
+standing bootstrap exception. Every Vercel gate remains separate; #1664 requires
+fresh merge checks and exclusion of all applicable automatic deployment paths.

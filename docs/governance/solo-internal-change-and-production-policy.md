@@ -168,6 +168,42 @@ changes, or reconnection. ADR-109's Preview prohibition and every other floor
 remain in force. A later merge still requires fresh checks and verification that
 no applicable Git, workflow, or deploy-hook path triggers deployment.
 
+## One-time GitHub Pages publishing containment (ADR-113)
+
+The fixed action `github-pages-publishing-containment-2026-10-27` scopes
+`scripts/release/disable-pages-auto-publishing.mjs` to one
+`PUT /repos/nikhillinit/Updog_restore/pages` with `{"build_type":"workflow"}`,
+for repository ID `1023548405`. It changes only the publishing mode of the
+existing public site. It excludes site deletion, source-branch/path or domain
+changes, deployment, rollback, and Railway, Neon, or Vercel mutations. No custom
+Pages publishing workflow is introduced.
+
+Candidate text grants no authority before admission. Bootstrap execution
+requires a separate explicit owner instruction prospectively overriding, for
+this fixed action only, admission before execution, the already-admitted named
+delegated-route requirement, and optimistic locking for this single PUT. The
+owner must expressly accept that an administrator's intervening publishing-mode
+change could be overwritten. Generic authorization to disable Pages through a
+governed route does not supply these exceptions. Command-line acknowledgements,
+tests, dry runs, and subsequent admission cannot supply that instruction or
+authorize an earlier action retroactively.
+
+Require a clean reviewed candidate and committed helper bytes, fresh protected
+main, matching PR #1665 and successful current-head `CI Gate Status`, exact
+repository/site identity and reviewed Pages digest, and final source/target
+rechecks. Use fixed-origin bounded transport without write retries and a fixed
+durable single-attempt ledger consumed before sending. An ambiguous response
+permits one readback, never another PUT, DELETE, rollback, or replenished
+budget. Already observed workflow mode is a zero-write observation, not proof
+that an earlier action preserved unrelated state. Verify retained
+site/source/domain metadata, observed workflow mode, and absence of pending
+Pages publication.
+
+Subsequent admission records the prospective owner instruction and observed
+result with their actual chronology in the PR evidence. It creates no standing
+bootstrap exception. Vercel's separate admission, risk acceptance, identity, and
+execution gates remain unchanged; neither action authorizes the other.
+
 ## Proportional release-governance applicability
 
 Release governance separates source admission, immutable candidate

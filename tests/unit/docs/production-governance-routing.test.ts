@@ -327,6 +327,28 @@ describe('production governance documentation routing', () => {
     expect(decisions).toContain('## ADR-112: One-Time Guarded Vercel Git-Repository Disconnect');
   });
 
+  it('keeps Pages bootstrap authority separate from candidate text and later admission', async () => {
+    const policy = await readRepositoryFile(policyPath);
+    const section = flattenWhitespace(
+      policy
+        .split('## One-time GitHub Pages publishing containment (ADR-113)')[1]
+        ?.split('\n## ')[0] ?? ''
+    );
+    const guide = await readRepositoryFile(canonicalGuidePath);
+    expect(section).toContain('`github-pages-publishing-containment-2026-10-27`');
+    expect(section).toContain('`scripts/release/disable-pages-auto-publishing.mjs`');
+    expect(section).toContain('`{"build_type":"workflow"}`');
+    expect(section).toContain('Candidate text grants no authority before admission');
+    expect(section).toContain('separate explicit owner instruction prospectively overriding');
+    expect(section).toContain('authorize an earlier action retroactively');
+    expect(section).toContain('It creates no standing bootstrap exception');
+    expect(section).toContain("Vercel's separate admission, risk acceptance, identity");
+    expect(guide).toContain('--bootstrap-owner-exception --accept-concurrent-pages-change-risk');
+    expect(flattenWhitespace(guide)).toContain(
+      'A mode change does not cancel previously queued publication'
+    );
+  });
+
   it('restricts the original project to no Preview-producing action and admits no write', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
