@@ -93,20 +93,29 @@ describe('Claude workflow security boundaries', () => {
       CLAUDE_CODE_OAUTH_TOKEN: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
       GH_ACTOR: '${{ github.actor }}',
     });
-    const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', preflight.run], {
-      encoding: 'utf8',
-      timeout: 5000,
-      env: {
-        PATH: process.env['PATH'] ?? '',
-        GH_ACTOR: actor,
-        CLAUDE_CODE_OAUTH_TOKEN: token,
-        GITHUB_OUTPUT: '/dev/stdout',
-        GITHUB_STEP_SUMMARY: '/dev/stderr',
-      },
-    });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe(`ready=${ready}\n`);
-    expect(result.stdout + result.stderr).not.toContain('test-oauth-token');
+    const directory = await fs.mkdtemp(path.join(tmpdir(), 'claude-preflight-'));
+    const outputFile = path.join(directory, 'output');
+    const summaryFile = path.join(directory, 'summary');
+    try {
+      await fs.writeFile(summaryFile, '');
+      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', preflight.run], {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: {
+          PATH: process.env['PATH'] ?? '',
+          GH_ACTOR: actor,
+          CLAUDE_CODE_OAUTH_TOKEN: token,
+          GITHUB_OUTPUT: outputFile,
+          GITHUB_STEP_SUMMARY: summaryFile,
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(await fs.readFile(outputFile, 'utf8')).toBe(`ready=${ready}\n`);
+      const summary = await fs.readFile(summaryFile, 'utf8');
+      expect(result.stdout + result.stderr + summary).not.toContain('test-oauth-token');
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
   });
 });
 
