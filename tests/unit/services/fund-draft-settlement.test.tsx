@@ -177,6 +177,18 @@ describe('fund draft command settlement', () => {
     expect(fundStore.getState().pendingCommand).toBeNull();
   });
 
+  it('clears an acknowledgement at the ETag a stale save proved outdated', async () => {
+    const { sessionId, draftETag } = fundStore.getState();
+    const signature = canonicalJson(fundStoreToDraftWriteV1(fundStore.getState(), options));
+    recordDraftSaveAcknowledgement(sessionId, 9, signature, draftETag);
+    mockSaveFundDraft.mockRejectedValueOnce(
+      new ApiError(412, 'Server says stale', 'STALE_REVISION')
+    );
+    await save();
+    expect(outcome()).toMatchObject({ kind: 'stale' });
+    expect(isDraftSaveAcknowledged(sessionId, 9, signature, draftETag)).toBe(false);
+  });
+
   it('keeps the key when the result is uncertain', async () => {
     mockSaveFundDraft.mockRejectedValueOnce(new FundWorkflowUncertainError('lost', false));
     await save();

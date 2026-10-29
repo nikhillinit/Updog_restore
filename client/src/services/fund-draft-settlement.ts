@@ -152,6 +152,8 @@ export async function saveDraftAndSettle(
     const message = error instanceof Error ? error.message : 'Could not save changes';
     if (isStaleRevisionError(error)) {
       current.resolveCommand();
+      // The acknowledged ETag is no longer the server head.
+      clearDraftSaveAcknowledgement();
       outcome = { kind: 'stale', message };
     } else {
       const classification = classifyWorkflowError(error);

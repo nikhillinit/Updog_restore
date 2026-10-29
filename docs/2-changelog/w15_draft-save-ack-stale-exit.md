@@ -39,7 +39,11 @@ stale bootstrap saves a durable recovery path. **Code review**:
   server-ready draft can no longer leave step 1 while the hook reports `error`.
 - `TODOS.md`: remove the fixed duplicate-autosave entry; add the deferred
   FundWorkspace dialog stale-handling entry.
-- Tests: 14 new regressions across the bootstrap, draft-sync, and settlement
+- A 412, whether from a save or a recovery fetch, clears the acknowledgement
+  record, because the acknowledged ETag is no longer the server head. Without
+  this, restoring acknowledged content after a stale revision and a failed load
+  reported `synced` without saving (PR review finding).
+- Tests: 16 new regressions across the bootstrap, draft-sync, and settlement
   suites; the acknowledgement record is cleared in `beforeEach` of the three
   hook suites that reuse one session id. One bootstrap test renamed and
   re-asserted for the gating change.

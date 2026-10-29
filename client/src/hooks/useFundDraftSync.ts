@@ -395,6 +395,7 @@ export function useFundDraftSync({
         }
         // Stale baseline: hold local values and require a deliberate choice.
         markVerified(draftFundId);
+        clearDraftSaveAcknowledgement();
         serverETagRef.current = snapshot.etag;
         setError(STALE_DRAFT_MESSAGE);
         setStatus('stale');

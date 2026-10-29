@@ -465,6 +465,37 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
   });
 
+  it('does not report synced from an acknowledgement that a later 412 made stale', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft
+      .mockResolvedValueOnce({ config: {}, etag: NEXT_ETAG, replayed: false })
+      .mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'))
+      .mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(500, 'Draft fetch failed'));
+    render(<FundSetup />);
+    const user = userEvent.setup();
+
+    await clickNextStep();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2'));
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Edited after bootstrap' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'), {
+      timeout: 2000,
+    });
+    const statuses: string[] = [];
+    const unsubscribe = fundStore.subscribe((state) => statuses.push(state.draftSyncStatus));
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Bootstrap Fund' }));
+    await user.click(await screen.findByRole('button', { name: 'Load server draft' }));
+
+    // The failed load leaves the restored content unacknowledged, so it is resubmitted
+    // against the stale ETag instead of being reported as synced.
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(3), { timeout: 2000 });
+    expect(mockSaveFundDraft.mock.calls[2]?.[2]).toMatchObject({ etag: NEXT_ETAG });
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    unsubscribe();
+    expect(statuses).not.toContain('synced');
+    expect(screen.getByTestId('next-step')).toBeDisabled();
+  });
+
   it('keeps Next blocked when overwriting after a direct 412 fails', async () => {
     fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
     mockSaveFundDraft

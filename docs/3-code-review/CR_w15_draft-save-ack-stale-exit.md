@@ -51,6 +51,19 @@ APPROVED. No blocking findings.
   `TODOS.md` separator was removed; the hook's three repeated stale/hydrating
   status checks were folded into `isRecoveryPending()`.
 
+## Post-review finding (PR #1669)
+
+- **P2, fixed**: after a bootstrap save acknowledged payload A, a later autosave
+  412 left the acknowledgement for A at the unchanged `draftETag`. Restoring A,
+  a failed "Load server draft", and then "Retry Sync" hit the acknowledgement
+  shortcut in `persistCurrentDraft` and reported `synced` without fetching or
+  saving, which re-enabled Fund Basics Next. Fix: `saveDraftAndSettle` clears
+  the record on a `stale` outcome, and the hook clears it at its fetch-detected
+  stale baseline. With the fix, the restored content is resubmitted with
+  `If-Match` at the stale ETag and returns to `stale`. Regressions: a mounted
+  bootstrap sequence (red without the fix: 2 PUTs instead of 3) and a settlement
+  unit test (red without the fix: record still matched).
+
 ## Gate
 
 - `npm run check`: 0 new TypeScript errors.
