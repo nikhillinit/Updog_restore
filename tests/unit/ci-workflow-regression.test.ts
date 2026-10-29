@@ -8,6 +8,117 @@ import { isFinancialPath } from '../../scripts/ci/classify-change-paths.mjs';
 
 const CHANGE_CLASSIFIER = path.join(process.cwd(), 'scripts', 'ci', 'classify-change-paths.mjs');
 
+describe('Claude workflow security boundaries', () => {
+  it.each([
+    ['claude-code-review.yml', 'claude-review'],
+    ['claude.yml', 'claude'],
+  ])('%s retains its scoped tokens and immutable action pin', async (file, jobName) => {
+    const workflow = YAML.parse(await fs.readFile(path.join('.github', 'workflows', file), 'utf8'));
+    const job = workflow.jobs[jobName];
+    const action = job.steps.find((step: { uses?: string }) =>
+      step.uses?.startsWith('anthropics/claude-code-action@')
+    );
+
+    expect(action.uses).toMatch(/^anthropics\/claude-code-action@[a-f0-9]{40}$/);
+    expect(job.permissions).toEqual({
+      contents: 'read',
+      'pull-requests': 'read',
+      issues: 'read',
+      'id-token': 'write',
+      ...(jobName === 'claude' ? { actions: 'read' } : {}),
+    });
+    expect(action.with).toEqual(
+      jobName === 'claude'
+        ? {
+            claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+            additional_permissions: 'actions: read\n',
+          }
+        : {
+            claude_code_oauth_token: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+            plugin_marketplaces: 'https://github.com/anthropics/claude-code.git',
+            plugins: 'code-review@claude-code-plugins',
+            claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"',
+            prompt:
+              '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment',
+          }
+    );
+  });
+
+  it('keeps review opt-in and mention triggers separate', async () => {
+    const review = YAML.parse(
+      await fs.readFile('.github/workflows/claude-code-review.yml', 'utf8')
+    );
+    const interactive = YAML.parse(await fs.readFile('.github/workflows/claude.yml', 'utf8'));
+    expect(review.on).toEqual({
+      pull_request: { types: ['opened', 'synchronize', 'ready_for_review', 'reopened'] },
+    });
+    expect(review.jobs.changes.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
+    expect(review.jobs['claude-review'].needs).toBe('changes');
+    expect(review.jobs['claude-review'].if.trim()).toBe(
+      "github.event.pull_request.draft == false &&\ncontains(github.event.pull_request.labels.*.name, 'run:claude-review') &&\nneeds.changes.outputs.claude_review_relevant == 'true'"
+    );
+    const reviewAction = review.jobs['claude-review'].steps.find(
+      (step: { id?: string }) => step.id === 'claude-review'
+    );
+    expect(reviewAction.if).toBe("steps.claude-preflight.outputs.ready == 'true'");
+    expect(interactive.on).toEqual({
+      issue_comment: { types: ['created'] },
+      pull_request_review_comment: { types: ['created'] },
+      issues: { types: ['opened', 'assigned'] },
+      pull_request_review: { types: ['submitted'] },
+    });
+    expect(interactive.jobs.claude.if.trim()).toBe(
+      "(github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||\n" +
+        "(github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||\n" +
+        "(github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||\n" +
+        "(github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))"
+    );
+    expect(reviewAction.uses).toBe(
+      interactive.jobs.claude.steps.find((step: { id?: string }) => step.id === 'claude').uses
+    );
+  });
+
+  it.each([
+    ['dependabot[bot]', 'test-oauth-token', 'false'],
+    ['maintainer', '', 'false'],
+    ['maintainer', 'test-oauth-token', 'true'],
+  ])('review preflight gates actor %s with token %j', async (actor, token, ready) => {
+    const workflow = YAML.parse(
+      await fs.readFile('.github/workflows/claude-code-review.yml', 'utf8')
+    );
+    const preflight = workflow.jobs['claude-review'].steps.find(
+      (step: { id?: string }) => step.id === 'claude-preflight'
+    );
+    expect(preflight.env).toEqual({
+      CLAUDE_CODE_OAUTH_TOKEN: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
+      GH_ACTOR: '${{ github.actor }}',
+    });
+    const directory = await fs.mkdtemp(path.join(tmpdir(), 'claude-preflight-'));
+    const outputFile = path.join(directory, 'output');
+    const summaryFile = path.join(directory, 'summary');
+    try {
+      await fs.writeFile(summaryFile, '');
+      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', preflight.run], {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: {
+          PATH: process.env['PATH'] ?? '',
+          GH_ACTOR: actor,
+          CLAUDE_CODE_OAUTH_TOKEN: token,
+          GITHUB_OUTPUT: outputFile,
+          GITHUB_STEP_SUMMARY: summaryFile,
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(await fs.readFile(outputFile, 'utf8')).toBe(`ready=${ready}\n`);
+      const summary = await fs.readFile(summaryFile, 'utf8');
+      expect(result.stdout + result.stderr + summary).not.toContain('test-oauth-token');
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
 type ChangeClassification = {
   autoDocsOnly: boolean;
   changeCount: number;
