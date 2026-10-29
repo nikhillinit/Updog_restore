@@ -6,6 +6,7 @@ import { fundStore, hasFundWorkspaceSession, resetFundWorkspace } from '@/stores
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { ApiError } from '@/lib/queryClient';
 import { FundWorkflowUncertainError } from '@/services/fund-workflow';
+import { clearDraftSaveAcknowledgement } from '@/services/fund-draft-settlement';
 
 const SERVER_ETAG = '"0000000000000001"';
 const NEXT_ETAG = '"0000000000000002"';
@@ -111,6 +112,7 @@ function expectProgress(currentStep: number) {
 
 describe('FundSetup draft sync', () => {
   beforeEach(() => {
+    clearDraftSaveAcknowledgement();
     vi.useRealTimers();
     mockLocation.value = '/fund-setup?step=1';
     mockSetLocation.mockReset();
@@ -648,6 +650,48 @@ describe('FundSetup draft sync', () => {
       );
     });
     expect(fundStore.getState().draftETag).toBe('"0000000000000003"');
+  });
+
+  it('overwrites a newer server revision when local content was acknowledged at an older ETag', async () => {
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Local Edits',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+      });
+    });
+    mockFetchFundDraft
+      .mockResolvedValueOnce({
+        config: fundStoreToDraftWriteV1(fundStore.getState()),
+        etag: SERVER_ETAG,
+      })
+      .mockResolvedValueOnce({
+        config: { fundName: 'Server Revision' },
+        etag: '"0000000000000003"',
+      });
+    mockSaveFundDraft.mockResolvedValue({
+      config: {},
+      etag: NEXT_ETAG,
+      replayed: false,
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
+    act(() => fundStore.setState({ draftSyncStatus: 'stale' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
+
+    await waitFor(() =>
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'Local Edits' }),
+        expect.objectContaining({ etag: '"0000000000000003"' })
+      )
+    );
   });
 
   it('autosaves the routed wizard to the server after draft identity bootstrap', async () => {

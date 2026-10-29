@@ -53,7 +53,10 @@ vi.mock('@/services/funds', () => ({
 }));
 
 const mockSaveFundDraft = vi.fn();
+const mockFetchFundDraft = vi.fn();
 vi.mock('@/services/fund-drafts', () => ({
+  fetchFundDraft: (...args: unknown[]) => mockFetchFundDraft(...args),
+  isMissingDraftError: () => false,
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
 
@@ -141,6 +144,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockSaveFundDraft
       .mockReset()
       .mockResolvedValue({ config: {}, etag: '"0123456789abcdf0"', replayed: false });
+    mockFetchFundDraft.mockReset().mockRejectedValue(new Error('No draft fetch expected'));
     mockHandleCredentialRenewalMarker.mockReset().mockReturnValue(false);
   });
 
@@ -293,6 +297,71 @@ describe('FundBasicsStep bootstrap identity', () => {
     view.rerender(<BootstrapWithDraftSync stepKey="2" />);
     expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
     expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('does not repeat an acknowledged direct save when the debounce expires', async () => {
+    vi.useFakeTimers();
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: '"new-etag"', replayed: false });
+    render(<BootstrapWithDraftSync />);
+
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Edited before Next' }));
+    await act(async () => fireEvent.click(screen.getByTestId('next-step')));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+
+    await act(async () => vi.advanceTimersByTimeAsync(600));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat an acknowledged direct save when a step change flushes the debounce', async () => {
+    vi.useFakeTimers();
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    mockSaveFundDraft.mockResolvedValue({ config: {}, etag: '"new-etag"', replayed: false });
+    const view = render(<BootstrapWithDraftSync />);
+
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Edited before Next' }));
+    await act(async () => fireEvent.click(screen.getByTestId('next-step')));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+
+    view.rerender(<BootstrapWithDraftSync stepKey="2" />);
+    await act(async () => Promise.resolve());
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a superseded acknowledgement suppress the next session save', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false });
+    const finishSave = holdDraftSave();
+    render(<BootstrapWithDraftSync />);
+
+    await clickNextStep();
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    replaceDraftSession();
+    await act(async () => {
+      finishSave({ config: {}, etag: '"old-session-etag"', replayed: false });
+    });
+
+    fundStore.setState({
+      ...fundStore.getInitialState(),
+      sessionId: fundStore.getState().sessionId,
+      hydrated: true,
+      fundName: 'Bootstrap Fund',
+      fundSize: 50_000_000,
+      managementFeeRate: 2,
+      carriedInterest: 20,
+      vintageYear: 2026,
+      establishmentDate: '2026-01-15',
+      modelInputsAsOfDate: '2026-09-12',
+      gpCommitment: 2_500_000,
+      stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      followOnChecks: { A: 1, B: 2, C: 3 },
+      creationKey: CREATION_KEY,
+      draftFundId: 77,
+      draftServerReady: false,
+    });
+    await clickNextStep();
+
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(2));
+    expect(mockSaveFundDraft.mock.calls[1]?.[1]).toMatchObject({ fundName: 'Bootstrap Fund' });
   });
 
   it.each([

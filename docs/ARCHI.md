@@ -488,7 +488,8 @@ plain `ls` will show more if untracked files are present) includes:
   `vi.mock('@/services/fund-drafts')` keep their mock shape. The module-local
   live-save registry distinguishes recovery from an active PUT and supplies the
   hook and Next handler's shared dispatch guard; direct callers write
-  `uncertain` themselves when the outcome is unknown.
+  `uncertain` themselves when the outcome is unknown. The module also holds the
+  ETag-bound acknowledgement record shared with the autosave hook.
 
 ### Three routing surfaces (`client/src/App.tsx` → `app/app-router.tsx` → `app/app-routes.tsx`)
 

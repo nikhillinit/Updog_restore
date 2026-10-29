@@ -3,6 +3,7 @@ import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
+import { clearDraftSaveAcknowledgement } from '@/services/fund-draft-settlement';
 import {
   bindFundWorkspaceActor,
   FUND_WORKSPACE_STORAGE_KEY,
@@ -46,6 +47,7 @@ function Harness() {
 
 describe('useFundDraftSync canonical snapshot equality', () => {
   beforeEach(() => {
+    clearDraftSaveAcknowledgement();
     vi.useFakeTimers();
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();

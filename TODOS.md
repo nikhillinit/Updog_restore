@@ -184,30 +184,6 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
-## Duplicate autosave after a fast direct bootstrap save
-
-- **What:** A direct Fund Basics save that finishes before the 600 ms debounce
-  expires can leave the autosave timer pending. The next step change flushes it
-  with a new key, producing a redundant PUT and revision advance.
-- **Evidence:** The 2026-09-24 F_1.15.1 review probe reproduced two PUTs both on
-  the repaired candidate and with all four production files restored to
-  `origin/main` at `9e552f0ace`. Local evidence:
-  `fast-debounce-current-red.log`, `fast-debounce-main-red.log`, and
-  `fast-debounce-diagnostic.patch`.
-- **Reproduction:** Use the bootstrap suite's `BootstrapWithDraftSync` harness
-  with draft 77 and `draftServerReady: false`. Edit to queue autosave, click
-  Next, acknowledge the held direct save before advancing the fake clock, then
-  rerender with step key 2. The one-PUT assertion receives two calls.
-- **Scope:** Pre-existing settled-save scheduling defect. F_1.15.1 fixes the
-  separate case where the debounce expires while the direct PUT is still live;
-  it does not promise deduplication after every direct save completes.
-- **Acceptance:** Prove one PUT when direct save settles before debounce expiry
-  and the step changes. Preserve later edits, uncertain same-key replay, and the
-  existing held-save timing control. Investigate timer ownership and direct-save
-  acknowledgement in `client/src/hooks/useFundDraftSync.ts`.
-
----
-
 ## Reallocation route 500 envelopes still echo the raw error message
 
 - **What:** `server/routes/reallocation.ts` preview and commit return
