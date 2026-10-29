@@ -491,8 +491,10 @@ plain `ls` will show more if untracked files are present) includes:
   `uncertain` themselves when the outcome is unknown. The module also holds the
   ETag-bound acknowledgement record shared with the autosave hook. A 412 from
   the Fund Basics bootstrap save or autosave hook sets `draftServerReady` and
-  `stale`, so the setup shell owns recovery; FundWorkspace's dialog keeps its
-  local stale handling until the deferred fix in `TODOS.md`.
+  `stale`, so the setup shell owns recovery; FundWorkspace's dialog makes the
+  same two store writes on a 412 (`setDraftServerReady(true)`,
+  `setDraftSyncStatus('stale')`) and offers only discard or Keep editing, so the
+  wizard shell still owns Load and Overwrite.
 
 ### Three routing surfaces (`client/src/App.tsx` → `app/app-router.tsx` → `app/app-routes.tsx`)
 

@@ -189,12 +189,15 @@ function FundRow({ fund, read, canWrite, selected, onRetry }: FundRowProps) {
   );
 }
 
+type NewFundDiscardReason = 'stale' | 'missing' | null;
+
 interface NewFundDialogProps {
   open: boolean;
   fundName: string;
   canSave: boolean;
   saving: boolean;
   blocked: boolean;
+  discardReason: NewFundDiscardReason;
   error: string | null;
   onKeepEditing: () => void;
   onConfirm: () => void;
@@ -202,19 +205,33 @@ interface NewFundDialogProps {
 }
 
 function NewFundDialog(props: NewFundDialogProps) {
-  const { open, fundName, canSave, saving, blocked, error, onKeepEditing, onConfirm, onClose } =
-    props;
+  const {
+    open,
+    fundName,
+    canSave,
+    saving,
+    blocked,
+    discardReason,
+    error,
+    onKeepEditing,
+    onConfirm,
+    onClose,
+  } = props;
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent aria-describedby="new-fund-dialog-description">
         <DialogHeader>
           <DialogTitle>Start another fund?</DialogTitle>
-          <DialogDescription id="new-fund-dialog-description">
+          <DialogDescription id="new-fund-dialog-description" aria-live="polite">
             {blocked
               ? 'Check the pending command status before starting another fund.'
-              : canSave
-                ? `Save changes to ${fundName} before starting a separate fund.`
-                : `${fundName} has not been saved to the server yet. Starting a separate fund discards its local values.`}
+              : discardReason === 'stale'
+                ? `A newer version of ${fundName} is saved on the server, so your changes were not saved. Discard them and start a new fund, or keep editing this draft.`
+                : discardReason === 'missing'
+                  ? `${fundName} has no active draft on the server, so your changes cannot be saved. Discard them and start a new fund, or keep editing.`
+                  : canSave
+                    ? `Save changes to ${fundName} before starting a separate fund.`
+                    : `${fundName} has not been saved to the server yet. Starting a separate fund discards its local values.`}
           </DialogDescription>
         </DialogHeader>
         {error && (
@@ -228,9 +245,9 @@ function NewFundDialog(props: NewFundDialogProps) {
           </Button>
           <Button
             type="button"
-            variant={canSave ? 'default' : 'outline'}
+            variant={canSave && !discardReason ? 'default' : 'outline'}
             className={
-              canSave
+              canSave && !discardReason
                 ? 'bg-presson-accent text-presson-accentOn hover:bg-presson-accent/90'
                 : 'border-error-dark text-error-dark hover:bg-error/10'
             }
@@ -239,9 +256,11 @@ function NewFundDialog(props: NewFundDialogProps) {
           >
             {saving
               ? 'Saving draft…'
-              : canSave
-                ? 'Save draft and start new'
-                : 'Discard and start new'}
+              : discardReason
+                ? 'Discard my changes and start new'
+                : canSave
+                  ? 'Save draft and start new'
+                  : 'Discard and start new'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -284,6 +303,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogSaving, setDialogSaving] = React.useState(false);
   const [dialogError, setDialogError] = React.useState<string | null>(null);
+  const [missingDraftFundId, setMissingDraftFundId] = React.useState<number | null>(null);
 
   const fundsQuery = useQuery<Fund[]>({ queryKey: FUNDS_QUERY_KEY, queryFn: fetchFundSummaries });
   const funds = React.useMemo(() => fundsQuery.data ?? [], [fundsQuery.data]);
@@ -305,6 +325,14 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
   // Only a confirmed save is settled; 'idle' after reload can hold unsaved restored edits.
   const localSettled = !pendingCommand && draftSyncStatus === 'synced';
   const blockedCommand = pendingCommand != null && pendingCommand.operation !== 'save_draft';
+  const discardReason: NewFundDiscardReason =
+    pendingCommand != null || draftFundId == null
+      ? null
+      : draftSyncStatus === 'stale'
+        ? 'stale'
+        : missingDraftFundId === draftFundId
+          ? 'missing'
+          : null;
 
   const startNewFund = React.useCallback(() => {
     fundStore.getState().startNewFundSession();
@@ -321,6 +349,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       return;
     }
     setDialogError(null);
+    setMissingDraftFundId(null);
     setDialogOpen(true);
   }, [
     draftFundId,
@@ -336,6 +365,11 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
 
   const confirmNewFund = React.useCallback(async () => {
     if (blockedCommand) return;
+    if (discardReason) {
+      setDialogOpen(false);
+      startNewFund();
+      return;
+    }
     if (!canSaveLocalDraft) {
       startNewFund();
       return;
@@ -388,7 +422,18 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
               );
               return;
             case 'stale':
+              fundStore.getState().setDraftServerReady(true);
+              fundStore.getState().setDraftSyncStatus('stale');
+              setDialogError(null);
+              return;
             case 'rejected':
+              if (outcome.missingDraft) {
+                setMissingDraftFundId(targetFundId);
+                setDialogError(null);
+                return;
+              }
+              setDialogError(outcome.message);
+              return;
             case 'retry_same_key':
               setDialogError(outcome.message);
               return;
@@ -402,7 +447,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
     } finally {
       setDialogSaving(false);
     }
-  }, [blockedCommand, canSaveLocalDraft, economicsEnabled, startNewFund]);
+  }, [blockedCommand, canSaveLocalDraft, discardReason, economicsEnabled, startNewFund]);
 
   return (
     <div className="min-h-screen bg-pov-gray" data-testid="fund-workspace">
@@ -568,6 +613,7 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
         canSave={canSaveLocalDraft}
         saving={dialogSaving}
         blocked={blockedCommand}
+        discardReason={discardReason}
         error={dialogError}
         onKeepEditing={() => {
           setDialogOpen(false);
