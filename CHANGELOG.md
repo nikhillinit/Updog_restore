@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-29)
+
+- Fund draft saves (F_1.15.2): a direct `save_draft` acknowledged before the
+  autosave debounce expires no longer sends a second, redundant PUT, because the
+  settlement module now keeps one ETag-bound acknowledgement record shared with
+  the autosave hook. A 412 on the Fund Basics bootstrap save now enters the
+  setup shell's stale recovery ("Load server draft" / "Overwrite saved draft")
+  and survives a reload instead of leaving a step-local error with no exit. Fund
+  Basics Next stays disabled while the draft is `uncertain`, `stale`,
+  `hydrating`, or `error`.
+
 ### Security (2026-10-27)
 
 - Upgrade `body-parser` to 2.4.0, lock `follow-redirects` to 1.16.2, and migrate
