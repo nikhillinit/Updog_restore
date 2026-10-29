@@ -271,6 +271,18 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
+## Workspace: stale draft dialog needs durable recovery
+
+- **What:** The FundWorkspace "Save draft and start new" dialog handles `stale`
+  only locally (`client/src/components/workspace/FundWorkspace.tsx:395-399`);
+  adopt the durable stale transition used by Fund Basics and autosave.
+- **Context:** Deferred beside the fence-dialog dead end in
+  `docs/3-code-review/CR_w10_draft-recovery-fence.md` (Minor 1) for the next
+  FundWorkspace change.
+- **Effort:** S.
+
+---
+
 ## Release: allowlist-only candidates carry no `test-full` evidence
 
 - **What:** A `main` push that changed only files on the three-file `auto_docs`

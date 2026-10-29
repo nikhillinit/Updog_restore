@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
+  FUND_WORKSPACE_STORAGE_KEY,
   bindFundWorkspaceActor,
   fundStore,
   resetFundWorkspace,
@@ -12,9 +13,12 @@ import { ApiError } from '@/lib/queryClient';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { FUND_COMMAND_STORAGE_MESSAGE } from '@/stores/fundStore';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
+import { clearDraftSaveAcknowledgement } from '@/services/fund-draft-settlement';
 
 const FULL_SUITE_WAIT_OPTIONS = { timeout: 10_000 };
 const TEST_ACTOR_ID = 'fund-basics-bootstrap-user';
+const SERVER_ETAG = '"0000000000000001"';
+const NEXT_ETAG = '"0000000000000002"';
 // Command identities as identifiers, not literals, so secret scanners see no key-shaped value.
 const CREATION_KEY = ['reserved', 'creation', '1'].join('-');
 
@@ -54,9 +58,9 @@ vi.mock('@/services/funds', () => ({
 
 const mockSaveFundDraft = vi.fn();
 const mockFetchFundDraft = vi.fn();
-vi.mock('@/services/fund-drafts', () => ({
+vi.mock('@/services/fund-drafts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/fund-drafts')>()),
   fetchFundDraft: (...args: unknown[]) => mockFetchFundDraft(...args),
-  isMissingDraftError: () => false,
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
 }));
 
@@ -364,6 +368,161 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockSaveFundDraft.mock.calls[1]?.[1]).toMatchObject({ fundName: 'Bootstrap Fund' });
   });
 
+  it('sends a direct bootstrap 412 to shell stale recovery and blocks Next', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    render(<FundSetup />);
+
+    await clickNextStep();
+
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    expect(fundStore.getState().draftServerReady).toBe(true);
+    expect(screen.getByTestId('draft-stale')).toBeInTheDocument();
+    expect(screen.getByTestId('next-step')).toBeDisabled();
+    await userEvent.setup().click(screen.getByTestId('next-step'));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not fire a debounce armed before a direct 412', async () => {
+    vi.useFakeTimers();
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    render(<FundSetup />);
+
+    act(() => fundStore.getState().updateFundBasics({ fundName: 'Edited before Next' }));
+    await act(async () => fireEvent.click(screen.getByTestId('next-step')));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(600));
+
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the server draft after a direct 412 and then advances', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    render(<FundSetup />);
+
+    await clickNextStep();
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Load server draft' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('synced'));
+    await clickNextStep();
+
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+  });
+
+  it('overwrites the server draft after a direct 412 and then advances', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft
+      .mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'))
+      .mockResolvedValueOnce({ config: {}, etag: '"0000000000000003"', replayed: false });
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    render(<FundSetup />);
+
+    await clickNextStep();
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Keep my changes' }));
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('synced'));
+    await clickNextStep();
+
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps Next blocked when loading after a direct 412 fails', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(500, 'Draft fetch failed'));
+    render(<FundSetup />);
+
+    await clickNextStep();
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Load server draft' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('error'));
+
+    expect(screen.getByTestId('next-step')).toBeDisabled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    await userEvent.setup().click(screen.getByTestId('next-step'));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Next blocked when overwriting after a direct 412 fails', async () => {
+    fundStore.setState({ draftFundId: 77, draftServerReady: false, draftETag: SERVER_ETAG });
+    mockSaveFundDraft
+      .mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'))
+      .mockRejectedValueOnce(new ApiError(400, 'Overwrite failed'));
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    render(<FundSetup />);
+
+    await clickNextStep();
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Keep my changes' }));
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('error'));
+
+    expect(screen.getByTestId('next-step')).toBeDisabled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    await userEvent.setup().click(screen.getByTestId('next-step'));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it('restores server readiness and rebuilds stale after a five-step reload', async () => {
+    fundStore.setState({
+      draftFundId: 77,
+      draftServerReady: false,
+      draftETag: SERVER_ETAG,
+      creationKey: null,
+    });
+    mockSaveFundDraft.mockRejectedValueOnce(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    mockFetchFundDraft.mockResolvedValue({
+      config: fundStoreToDraftWriteV1(fundStore.getState(), { includeEconomicsAssumptions: false }),
+      etag: NEXT_ETAG,
+    });
+    const view = render(<FundSetup />);
+
+    await clickNextStep();
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+    const storedEnvelope = window.sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY);
+    expect(fundStore.getState()).toMatchObject({ draftServerReady: true, draftETag: SERVER_ETAG });
+    expect(storedEnvelope).not.toBeNull();
+    view.unmount();
+    fundStore.setState(fundStore.getInitialState());
+    clearDraftSaveAcknowledgement();
+    window.sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, storedEnvelope!);
+    await act(async () => bindFundWorkspaceActor(TEST_ACTOR_ID));
+    await waitFor(() =>
+      expect(fundStore.getState()).toMatchObject({ draftServerReady: true, draftETag: SERVER_ETAG })
+    );
+    render(<FundSetup />);
+
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledWith(77));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+  });
+
   it.each([
     ['stale', new ApiError(412, 'Old revision', 'STALE_REVISION'), 'A newer draft is available'],
     ['error', new ApiError(400, 'Draft rejected'), 'Draft sync failed'],
@@ -504,7 +663,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockCreateFund).not.toHaveBeenCalled();
   });
 
-  it('reenables Next without navigating when a save belongs to a replaced session', async () => {
+  it('resets the bootstrap stage without navigating when a save belongs to a replaced session', async () => {
     fundStore.setState({ draftFundId: 77, draftServerReady: false });
     const finishSave = holdDraftSave();
     render(<FundBasicsStep />);
@@ -523,7 +682,9 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(fundStore.getState().draftServerReady).toBe(false);
     expect(fundStore.getState().draftSyncStatus).toBe('error');
-    expect(screen.getByTestId('next-step')).toBeEnabled();
+    // The replacement session's unresolved error keeps Next disabled (F_1.15.2).
+    expect(screen.getByTestId('next-step')).toHaveTextContent('Next Step');
+    expect(screen.getByTestId('next-step')).toBeDisabled();
   });
 
   it('navigates once before a replacement queued after the save resolution', async () => {

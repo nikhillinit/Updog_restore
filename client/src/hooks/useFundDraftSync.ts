@@ -42,6 +42,12 @@ function readErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+// Stale and hydrating are resolved by explicit recovery actions, never by a timer or flush.
+function isRecoveryPending(): boolean {
+  const status = fundStore.getState().draftSyncStatus;
+  return status === 'stale' || status === 'hydrating';
+}
+
 export function useFundDraftSync({
   stepKey,
   debounceMs = 600,
@@ -172,6 +178,7 @@ export function useFundDraftSync({
               setStatus('synced');
               return;
             case 'stale':
+              fundStore.getState().setDraftServerReady(true);
               setError(STALE_DRAFT_MESSAGE);
               setStatus('stale');
               return;
@@ -328,6 +335,10 @@ export function useFundDraftSync({
     setStatus('idle');
   }, [clearPendingSave, draftFundId, hydrated, markVerified, setStatus]);
 
+  React.useEffect(() => {
+    if (status === 'stale') clearPendingSave();
+  }, [clearPendingSave, status]);
+
   // Server-ready identity not yet verified this mount: load it (resume, reload, explicit ID).
   React.useEffect(() => {
     if (!hydrated || draftFundId == null) return;
@@ -372,7 +383,11 @@ export function useFundDraftSync({
           if (!isDraftSaveAcknowledged(sessionId, draftFundId, localSignature(), state.draftETag)) {
             // Restored edits are not on the server yet; they are not settled.
             setStatus('saving');
-            pendingSaveTimerRef.current = setTimeout(() => void persistCurrentDraft(), debounceMs);
+            pendingSaveTimerRef.current = setTimeout(() => {
+              pendingSaveTimerRef.current = null;
+              if (isRecoveryPending()) return;
+              void persistCurrentDraft();
+            }, debounceMs);
           } else {
             setStatus('synced');
           }
@@ -446,6 +461,8 @@ export function useFundDraftSync({
       setError(null);
       setStatus('saving');
       pendingSaveTimerRef.current = setTimeout(() => {
+        pendingSaveTimerRef.current = null;
+        if (isRecoveryPending()) return;
         void persistCurrentDraft();
       }, debounceMs);
     });
@@ -474,9 +491,13 @@ export function useFundDraftSync({
     if (previousStepKeyRef.current === stepKey) return;
     previousStepKeyRef.current = stepKey;
     if (pendingSaveTimerRef.current != null) {
+      if (isRecoveryPending()) {
+        clearPendingSave();
+        return;
+      }
       void persistCurrentDraft();
     }
-  }, [persistCurrentDraft, stepKey]);
+  }, [clearPendingSave, persistCurrentDraft, stepKey]);
 
   return {
     status,

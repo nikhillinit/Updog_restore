@@ -489,7 +489,10 @@ plain `ls` will show more if untracked files are present) includes:
   live-save registry distinguishes recovery from an active PUT and supplies the
   hook and Next handler's shared dispatch guard; direct callers write
   `uncertain` themselves when the outcome is unknown. The module also holds the
-  ETag-bound acknowledgement record shared with the autosave hook.
+  ETag-bound acknowledgement record shared with the autosave hook. A 412 from
+  the Fund Basics bootstrap save or autosave hook sets `draftServerReady` and
+  `stale`, so the setup shell owns recovery; FundWorkspace's dialog keeps its
+  local stale handling until the deferred fix in `TODOS.md`.
 
 ### Three routing surfaces (`client/src/App.tsx` → `app/app-router.tsx` → `app/app-routes.tsx`)
 
