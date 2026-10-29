@@ -23,6 +23,7 @@ import { NumericInput } from '@/components/ui/NumericInput';
 import { WizardCard } from '@/components/wizard/WizardCard';
 
 type BootstrapStage = 'idle' | 'creating' | 'saving';
+const BLOCKED_DRAFT_SYNC_STATUSES = new Set(['uncertain', 'stale', 'hydrating', 'error']);
 
 const UNCERTAIN_CREATE_MESSAGE =
   'Could not confirm fund creation; it may have completed. Retry to check.';
@@ -129,6 +130,7 @@ export default function FundBasicsStep() {
       return;
     }
     const liveSave = fundStore.getState();
+    if (BLOCKED_DRAFT_SYNC_STATUSES.has(liveSave.draftSyncStatus)) return;
     if (
       liveSave.pendingCommand?.operation === 'save_draft' &&
       isDraftSaveInFlight(liveSave.sessionId, liveSave.pendingCommand)
@@ -260,6 +262,10 @@ export default function FundBasicsStep() {
               setBootstrapStage('idle');
               return;
             case 'stale':
+              setDraftServerReady(true);
+              fundStore.getState().setDraftSyncStatus('stale');
+              setBootstrapStage('idle');
+              return;
             case 'rejected':
             case 'retry_same_key':
               setBootstrapError(outcome.message);
@@ -491,7 +497,7 @@ export default function FundBasicsStep() {
               onClick={() => {
                 void handleNext();
               }}
-              disabled={isBootstrapping || draftSyncStatus === 'uncertain'}
+              disabled={isBootstrapping || BLOCKED_DRAFT_SYNC_STATUSES.has(draftSyncStatus)}
               className="flex items-center gap-2 bg-pov-charcoal hover:bg-charcoal-700 text-pov-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
             >
               {bootstrapStage === 'creating'

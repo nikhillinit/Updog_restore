@@ -2,7 +2,10 @@ import React from 'react';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import {
   applyDraftSnapshot,
+  clearDraftSaveAcknowledgement,
+  isDraftSaveAcknowledged,
   isDraftSaveInFlight,
+  recordDraftSaveAcknowledgement,
   saveDraftAndSettle,
 } from '@/services/fund-draft-settlement';
 import { fetchFundDraft, isMissingDraftError, type DraftSnapshot } from '@/services/fund-drafts';
@@ -37,6 +40,12 @@ export const MISSING_DRAFT_MESSAGE = 'No active draft exists for this fund';
 
 function readErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+// Stale and hydrating are resolved by explicit recovery actions, never by a timer or flush.
+function isRecoveryPending(): boolean {
+  const status = fundStore.getState().draftSyncStatus;
+  return status === 'stale' || status === 'hydrating';
 }
 
 export function useFundDraftSync({
@@ -79,7 +88,6 @@ export function useFundDraftSync({
   const saveInFlightRef = React.useRef(false);
   const queuedSaveRef = React.useRef(false);
   const pendingSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedSignatureRef = React.useRef<string | null>(null);
   // Payload signature at the last store notification; status writes to the store
   // must not re-trigger the autosave subscription.
   const lastObservedSignatureRef = React.useRef<string | null>(null);
@@ -127,7 +135,15 @@ export function useFundDraftSync({
     const currentPayload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
-    if (!state.pendingCommand && canonicalJson(currentPayload) === lastSavedSignatureRef.current) {
+    if (
+      !state.pendingCommand &&
+      isDraftSaveAcknowledged(
+        state.sessionId,
+        targetFundId,
+        canonicalJson(currentPayload),
+        state.draftETag
+      )
+    ) {
       setStatus('synced');
       return;
     }
@@ -158,11 +174,11 @@ export function useFundDraftSync({
                 return;
               }
               markVerified(targetFundId);
-              lastSavedSignatureRef.current = outcome.dispatchedSignature;
               queuedSaveRef.current = outcome.newerEdits;
               setStatus('synced');
               return;
             case 'stale':
+              fundStore.getState().setDraftServerReady(true);
               setError(STALE_DRAFT_MESSAGE);
               setStatus('stale');
               return;
@@ -211,7 +227,12 @@ export function useFundDraftSync({
   const applyServerSnapshot = React.useCallback(
     (fundId: number, config: DraftSnapshot['config'], etag: string | null) => {
       applyDraftSnapshot(fundId, { config, etag });
-      lastSavedSignatureRef.current = localSignature();
+      recordDraftSaveAcknowledgement(
+        fundStore.getState().sessionId,
+        fundId,
+        localSignature(),
+        etag
+      );
       markVerified(fundId);
       serverETagRef.current = null;
       setError(null);
@@ -308,11 +329,15 @@ export function useFundDraftSync({
     clearPendingSave();
     markVerified(null);
     serverETagRef.current = null;
-    lastSavedSignatureRef.current = null;
+    clearDraftSaveAcknowledgement();
     setMissingDraftFundId(null);
     setError(null);
     setStatus('idle');
   }, [clearPendingSave, draftFundId, hydrated, markVerified, setStatus]);
+
+  React.useEffect(() => {
+    if (status === 'stale') clearPendingSave();
+  }, [clearPendingSave, status]);
 
   // Server-ready identity not yet verified this mount: load it (resume, reload, explicit ID).
   React.useEffect(() => {
@@ -353,11 +378,16 @@ export function useFundDraftSync({
         if (state.draftETag === snapshot.etag) {
           // Local values are at or ahead of the acknowledged revision; keep them.
           markVerified(draftFundId);
-          lastSavedSignatureRef.current = canonicalJson(snapshot.config);
-          if (localSignature() !== lastSavedSignatureRef.current) {
+          const signature = canonicalJson(snapshot.config);
+          recordDraftSaveAcknowledgement(sessionId, draftFundId, signature, snapshot.etag);
+          if (!isDraftSaveAcknowledged(sessionId, draftFundId, localSignature(), state.draftETag)) {
             // Restored edits are not on the server yet; they are not settled.
             setStatus('saving');
-            pendingSaveTimerRef.current = setTimeout(() => void persistCurrentDraft(), debounceMs);
+            pendingSaveTimerRef.current = setTimeout(() => {
+              pendingSaveTimerRef.current = null;
+              if (isRecoveryPending()) return;
+              void persistCurrentDraft();
+            }, debounceMs);
           } else {
             setStatus('synced');
           }
@@ -365,6 +395,7 @@ export function useFundDraftSync({
         }
         // Stale baseline: hold local values and require a deliberate choice.
         markVerified(draftFundId);
+        clearDraftSaveAcknowledgement();
         serverETagRef.current = snapshot.etag;
         setError(STALE_DRAFT_MESSAGE);
         setStatus('stale');
@@ -419,7 +450,9 @@ export function useFundDraftSync({
       );
       if (signature === lastObservedSignatureRef.current) return;
       lastObservedSignatureRef.current = signature;
-      if (signature === lastSavedSignatureRef.current) return;
+      if (isDraftSaveAcknowledged(state.sessionId, draftFundId, signature, state.draftETag)) {
+        return;
+      }
       if (state.pendingCommand) {
         queuedSaveRef.current = state.pendingCommand.operation === 'save_draft';
         return;
@@ -429,6 +462,8 @@ export function useFundDraftSync({
       setError(null);
       setStatus('saving');
       pendingSaveTimerRef.current = setTimeout(() => {
+        pendingSaveTimerRef.current = null;
+        if (isRecoveryPending()) return;
         void persistCurrentDraft();
       }, debounceMs);
     });
@@ -457,9 +492,13 @@ export function useFundDraftSync({
     if (previousStepKeyRef.current === stepKey) return;
     previousStepKeyRef.current = stepKey;
     if (pendingSaveTimerRef.current != null) {
+      if (isRecoveryPending()) {
+        clearPendingSave();
+        return;
+      }
       void persistCurrentDraft();
     }
-  }, [persistCurrentDraft, stepKey]);
+  }, [clearPendingSave, persistCurrentDraft, stepKey]);
 
   return {
     status,

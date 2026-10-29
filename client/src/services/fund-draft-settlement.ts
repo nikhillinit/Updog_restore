@@ -24,6 +24,41 @@ export type SaveDraftAndSettleOptions = { includeEconomicsAssumptions: boolean }
 // A reload clears live ownership; same-session envelope hydration must retain it.
 const inFlightSaves = new Set<{ sessionId: string; command: PendingFundCommand }>();
 
+// A reload clears the acknowledged draft signature.
+let draftSaveAcknowledgement: {
+  sessionId: string;
+  fundId: number;
+  signature: string;
+  etag: string | null;
+} | null = null;
+
+export function recordDraftSaveAcknowledgement(
+  sessionId: string,
+  fundId: number,
+  signature: string,
+  etag: string | null
+): void {
+  draftSaveAcknowledgement = { sessionId, fundId, signature, etag };
+}
+
+export function clearDraftSaveAcknowledgement(): void {
+  draftSaveAcknowledgement = null;
+}
+
+export function isDraftSaveAcknowledged(
+  sessionId: string,
+  fundId: number,
+  signature: string,
+  etag: string | null
+): boolean {
+  return (
+    draftSaveAcknowledgement?.sessionId === sessionId &&
+    draftSaveAcknowledgement.fundId === fundId &&
+    draftSaveAcknowledgement.signature === signature &&
+    draftSaveAcknowledgement.etag === etag
+  );
+}
+
 export function isDraftSaveInFlight(sessionId: string, command: PendingFundCommand): boolean {
   return [...inFlightSaves].some(
     (save) =>
@@ -98,6 +133,12 @@ export async function saveDraftAndSettle(
   } else if ('saved' in result) {
     current.setDraftETag(result.saved.etag ?? current.draftETag);
     current.resolveCommand();
+    recordDraftSaveAcknowledgement(
+      capturedSession,
+      fundId,
+      dispatchedSignature,
+      fundStore.getState().draftETag
+    );
     outcome = {
       kind: 'saved',
       dispatchedSignature,
@@ -111,6 +152,8 @@ export async function saveDraftAndSettle(
     const message = error instanceof Error ? error.message : 'Could not save changes';
     if (isStaleRevisionError(error)) {
       current.resolveCommand();
+      // The acknowledged ETag is no longer the server head.
+      clearDraftSaveAcknowledgement();
       outcome = { kind: 'stale', message };
     } else {
       const classification = classifyWorkflowError(error);

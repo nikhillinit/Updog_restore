@@ -7,6 +7,7 @@ import {
 } from '@shared/contracts/fund-draft-write-v1.contract';
 import FundSetup from '@/pages/fund-setup';
 import { fundStore } from '@/stores/fundStore';
+import { clearDraftSaveAcknowledgement } from '@/services/fund-draft-settlement';
 import { TestQueryClientProvider } from '../../utils/test-query-client';
 
 const draftServer = vi.hoisted(() => {
@@ -112,6 +113,7 @@ async function advanceTimers(milliseconds: number) {
 
 describe('routed fund draft autosave debounce behavior', () => {
   beforeEach(() => {
+    clearDraftSaveAcknowledgement();
     vi.useRealTimers();
     draftServer.reset();
     sessionStorage.setItem('wizard-visited-steps', JSON.stringify([1, 2, 3, 4, 5]));

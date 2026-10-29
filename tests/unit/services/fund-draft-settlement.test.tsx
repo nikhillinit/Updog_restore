@@ -13,6 +13,9 @@ import { FundWorkflowUncertainError } from '@/services/fund-workflow';
 import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 import {
   applyDraftSnapshot,
+  clearDraftSaveAcknowledgement,
+  isDraftSaveAcknowledged,
+  recordDraftSaveAcknowledgement,
   saveDraftAndSettle,
   type DraftSaveOutcome,
 } from '@/services/fund-draft-settlement';
@@ -103,6 +106,50 @@ describe('fund draft command settlement', () => {
       needsHydration: false,
     });
     expect(fundStore.getState()).toMatchObject({ draftETag: nextETag, pendingCommand: null });
+    expect(
+      isDraftSaveAcknowledged(fundStore.getState().sessionId, 9, canonicalJson(payload), nextETag)
+    ).toBe(true);
+  });
+
+  it('records the dispatched signature and resulting ETag when newer edits arrived in flight', async () => {
+    const transport = holdTransport();
+    const signature = canonicalJson(fundStoreToDraftWriteV1(fundStore.getState(), options));
+    const saving = save();
+    fundStore.setState({ fundName: 'Newer' });
+    transport.resolve(savedResult());
+    await saving;
+
+    expect(outcome()).toMatchObject({ kind: 'saved', newerEdits: true });
+    expect(isDraftSaveAcknowledged(fundStore.getState().sessionId, 9, signature, nextETag)).toBe(
+      true
+    );
+  });
+
+  it('does not record a superseded save acknowledgement', async () => {
+    const transport = holdTransport();
+    const saving = save();
+    const signature = fundStore.getState().pendingCommand!.bodySignature;
+    const supersededSession = fundStore.getState().sessionId;
+    fundStore.getState().startNewFundSession();
+    transport.resolve(savedResult());
+    await saving;
+
+    expect(outcome()).toEqual({ kind: 'superseded' });
+    expect(isDraftSaveAcknowledged(supersededSession, 9, signature, nextETag)).toBe(false);
+    expect(isDraftSaveAcknowledged(fundStore.getState().sessionId, 9, signature, nextETag)).toBe(
+      false
+    );
+  });
+
+  it('matches every acknowledgement identity field and clears the slot', () => {
+    recordDraftSaveAcknowledgement('session-a', 9, 'signature-a', nextETag);
+    expect(isDraftSaveAcknowledged('session-a', 9, 'signature-a', nextETag)).toBe(true);
+    expect(isDraftSaveAcknowledged('session-b', 9, 'signature-a', nextETag)).toBe(false);
+    expect(isDraftSaveAcknowledged('session-a', 10, 'signature-a', nextETag)).toBe(false);
+    expect(isDraftSaveAcknowledged('session-a', 9, 'signature-b', nextETag)).toBe(false);
+    expect(isDraftSaveAcknowledged('session-a', 9, 'signature-a', 'older-etag')).toBe(false);
+    clearDraftSaveAcknowledgement();
+    expect(isDraftSaveAcknowledged('session-a', 9, 'signature-a', nextETag)).toBe(false);
   });
 
   it('detects newer edits while the transport is pending', async () => {
@@ -128,6 +175,18 @@ describe('fund draft command settlement', () => {
     await save();
     expect(outcome()).toEqual({ kind: 'stale', message: 'Server says stale' });
     expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('clears an acknowledgement at the ETag a stale save proved outdated', async () => {
+    const { sessionId, draftETag } = fundStore.getState();
+    const signature = canonicalJson(fundStoreToDraftWriteV1(fundStore.getState(), options));
+    recordDraftSaveAcknowledgement(sessionId, 9, signature, draftETag);
+    mockSaveFundDraft.mockRejectedValueOnce(
+      new ApiError(412, 'Server says stale', 'STALE_REVISION')
+    );
+    await save();
+    expect(outcome()).toMatchObject({ kind: 'stale' });
+    expect(isDraftSaveAcknowledged(sessionId, 9, signature, draftETag)).toBe(false);
   });
 
   it('keeps the key when the result is uncertain', async () => {
