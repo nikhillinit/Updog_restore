@@ -13,8 +13,7 @@ import { buildDashboardHref, type FundIdParam } from '@/lib/fund-routes';
 import { formatUSDShort } from '@/lib/formatting';
 import { hasFundWorkspaceSession, fundStore } from '@/stores/fundStore';
 import { useFundSelector, useFundTuple } from '@/stores/useFundSelector';
-import { fetchFundDraft } from '@/services/fund-drafts';
-import { applyDraftSnapshot, saveDraftAndSettle } from '@/services/fund-draft-settlement';
+import { saveDraftAndSettle } from '@/services/fund-draft-settlement';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { PARTNER_WRITE_ROLES, effectiveRoleOf } from '@shared/auth/effective-roles';
 import {
@@ -258,18 +257,26 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
   const [, navigate] = useLocation();
   const search = useSearch();
   const economicsEnabled = useFlag('enable_gp_economics_engine', { withDependencies: true });
-  const [draftFundId, draftServerReady, draftSyncStatus, localFundName, actorRole, pendingCommand] =
-    useFundTuple(
-      (s) =>
-        [
-          s.draftFundId,
-          s.draftServerReady,
-          s.draftSyncStatus,
-          s.fundName,
-          s.workspaceActorRole,
-          s.pendingCommand,
-        ] as const
-    );
+  const [
+    draftFundId,
+    draftServerReady,
+    draftSyncStatus,
+    localFundName,
+    actorRole,
+    pendingCommand,
+    needsServerHydration,
+  ] = useFundTuple(
+    (s) =>
+      [
+        s.draftFundId,
+        s.draftServerReady,
+        s.draftSyncStatus,
+        s.fundName,
+        s.workspaceActorRole,
+        s.pendingCommand,
+        s.needsServerHydration,
+      ] as const
+  );
   const hasLocalSession = useFundSelector(hasFundWorkspaceSession);
   // Early guidance only; the server checks permission on every create, save and publish.
   const role = effectiveRoleOf(actorRole);
@@ -309,9 +316,21 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       startNewFund();
       return;
     }
+    if (needsServerHydration && !pendingCommand) {
+      startNewFund();
+      return;
+    }
     setDialogError(null);
     setDialogOpen(true);
-  }, [draftFundId, draftServerReady, hasLocalSession, localSettled, startNewFund]);
+  }, [
+    draftFundId,
+    draftServerReady,
+    hasLocalSession,
+    localSettled,
+    needsServerHydration,
+    pendingCommand,
+    startNewFund,
+  ]);
 
   const canSaveLocalDraft = draftFundId != null;
 
@@ -327,29 +346,9 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
       startNewFund();
       return;
     }
-    const sameSession = () =>
-      fundStore.getState().sessionId === state.sessionId &&
-      fundStore.getState().draftFundId === targetFundId;
-    const hydrateThenStartNew = async () => {
-      const snapshot = await fetchFundDraft(targetFundId);
-      if (!sameSession()) return;
-      applyDraftSnapshot(targetFundId, snapshot);
-      fundStore.getState().setDraftSyncStatus('synced');
+    if (state.needsServerHydration && !state.pendingCommand) {
       setDialogOpen(false);
       startNewFund();
-    };
-    if (state.needsServerHydration && !state.pendingCommand) {
-      setDialogSaving(true);
-      setDialogError(null);
-      try {
-        await hydrateThenStartNew();
-      } catch (error) {
-        if (sameSession()) {
-          setDialogError(error instanceof Error ? error.message : 'Could not recover saved draft');
-        }
-      } finally {
-        setDialogSaving(false);
-      }
       return;
     }
     setDialogSaving(true);
@@ -368,13 +367,9 @@ export function FundWorkspace({ selection }: FundWorkspaceProps) {
             case 'saved':
               fundStore.getState().setDraftServerReady(true);
               if (outcome.needsHydration) {
-                return hydrateThenStartNew().catch(() => {
-                  if (sameSession()) {
-                    setDialogError(
-                      'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
-                    );
-                  }
-                });
+                setDialogOpen(false);
+                startNewFund();
+                return;
               }
               if (outcome.newerEdits) {
                 setDialogError(
