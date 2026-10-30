@@ -24,6 +24,14 @@ and this project adheres to
 
 ### Fixed (2026-10-30)
 
+- Variance exact-baseline analysis state (F_1.17.0 PR 2b). The variance
+  dashboard reads the default baseline directly and dates the last analysis from
+  the newest report for that exact baseline, so an older default baseline or a
+  newer report for another baseline no longer mislabels it. Fund-wide recent
+  reports, risk level, and trend are unchanged. The current-baseline empty
+  alerts copy now says "No baseline", "Not analyzed", or "No open alerts for the
+  current baseline. Last analyzed <date>." and never claims acceptable variance.
+  The overview analysis stats say they describe the current baseline.
 - Client reliability and accessibility (F_1.17.0 PR 2a). Pipeline: with no fund
   selected, the page asks for a fund, sends no deals request, and disables
   Add/Import. Performance: a failed time series or breakdown shows its own error
