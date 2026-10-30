@@ -47,8 +47,7 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "approved",
-    "decision_evidence": "Independent scoped review at source 13ab102f5d4503b63385ab11268cb551f9e4e45a; notes /Users/nikhil/f1211-probes/notes/matrix-1636-evidence-2026-10-11/independent-scoped-review.md. Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b (last changed 60af02ff6) and listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 unchanged; listener sites remain lines 43 and 47. seed-matrix.mjs lines 1580-1598 force this listener to proposed on every reseed. railway.toml absent; railway.worker.toml:23 and railway.capital-call-status.worker.toml:22 bind Dockerfile.worker; DECISIONS.md:10647 ADR-080 (Accepted) retires the legacy Railway API config. Source classification only; no provider, deployment, production, merge, or release authority asserted. owner-approval=direct-user-Approved-2026-10-11T22:01Z-in-chat;owner-verdict=transaction-fallback-in-contract-accepted."
+    "decision_status": "proposed"
   },
   {
     "candidate_path": "Dockerfile.simple",
