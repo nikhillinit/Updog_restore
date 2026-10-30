@@ -47,7 +47,8 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "proposed"
+    "decision_status": "approved",
+    "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe. Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b (last changed 60af02ff6) and listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 unchanged; listener sites remain lines 43 and 47. seed-matrix.mjs mergeListenerDispositions forces this listener to proposed on every reseed. railway.toml absent; worker TOMLs bind Dockerfile.worker; ADR-080 (Accepted) retires the legacy Railway API config. Source classification only; no provider, deployment, production, merge, or release authority asserted."
   },
   {
     "candidate_path": "Dockerfile.simple",
