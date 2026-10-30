@@ -274,6 +274,10 @@ export function useSetDefaultBaseline() {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-dashboard'],
       });
+      // Current-scope alerts are resolved against the default baseline.
+      queryClient.invalidateQueries({
+        queryKey: ['/api/funds', variables.fundId, 'alerts'],
+      });
     },
   });
 }

@@ -119,6 +119,21 @@ type ReconciliationAttempt =
     }
   | null;
 
+// A failed alerts request must never read as "no alerts".
+function AlertsUnavailable({ onRetry, className }: { onRetry: () => void; className?: string }) {
+  return (
+    <div role="alert" className={cn('text-center', className)}>
+      <AlertCircle className="w-8 h-8 text-error mx-auto mb-3" />
+      <h3 className="text-lg font-medium text-pov-charcoal mb-2">Alerts unavailable</h3>
+      <p className="text-presson-textMuted mb-4">Open alerts could not be loaded.</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="w-4 h-4 mr-2" />
+        Retry
+      </Button>
+    </div>
+  );
+}
+
 function getInitialVarianceTab(): VarianceTab {
   if (typeof window === 'undefined') {
     return 'overview';
@@ -219,7 +234,7 @@ export default function VarianceTrackingPage() {
   const {
     data: alertsData,
     isLoading: alertsLoading,
-    error: _alertsError,
+    error: alertsError,
     refetch: refetchAlerts,
   } = useActiveAlerts(currentFund?.id || 0, {
     baselineScope: alertBaselineScope,
@@ -1174,7 +1189,9 @@ export default function VarianceTrackingPage() {
                 <CardDescription>Latest variance alerts and notifications</CardDescription>
               </CardHeader>
               <CardContent>
-                {alertsData?.data?.length ? (
+                {alertsError ? (
+                  <AlertsUnavailable onRetry={() => void refetchAlerts()} className="py-4" />
+                ) : alertsData?.data?.length ? (
                   <div className="space-y-3">
                     {alertsData.data.slice(0, 5).map((alert: Alert) => (
                       <div
@@ -1687,6 +1704,8 @@ export default function VarianceTrackingPage() {
                     </div>
                   ))}
                 </div>
+              ) : alertsError ? (
+                <AlertsUnavailable onRetry={() => void refetchAlerts()} className="py-8" />
               ) : alertsData?.data?.length ? (
                 <div className="space-y-4">
                   {alertsData.data.map((alert: Alert) => (
@@ -1776,7 +1795,7 @@ export default function VarianceTrackingPage() {
                   </h3>
                   <p className="text-charcoal-600">
                     {alertBaselineScope === 'current'
-                      ? 'The current default baseline is within acceptable variance ranges.'
+                      ? 'No open alerts returned for this scope.'
                       : 'There are no open incidents across current or historical baselines.'}
                   </p>
                 </div>

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   currentFundId: 1,
@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   performAnalysisMutateAsync: vi.fn(),
   createBaselineMutateAsync: vi.fn(),
   toast: vi.fn(),
+  alertsError: null as Error | null,
+  refetchAlerts: vi.fn(),
 }));
 
 vi.mock('@/contexts/FundContext', () => ({
@@ -103,10 +105,10 @@ vi.mock('@/hooks/useVarianceData', () => ({
     refetch: vi.fn(),
   }),
   useActiveAlerts: () => ({
-    data: { success: true, data: [] },
+    data: mocks.alertsError ? undefined : { success: true, data: [], count: 0 },
     isLoading: false,
-    error: null,
-    refetch: vi.fn(),
+    error: mocks.alertsError,
+    refetch: mocks.refetchAlerts,
   }),
   useVarianceReports: () => ({ data: { success: true, data: [] }, isLoading: false, error: null }),
   useVarianceReport: () => ({ data: { success: true, data: null }, isLoading: false }),
@@ -135,6 +137,25 @@ vi.mock('@/hooks/useCurrentPlanVersions', () => ({
 }));
 
 describe('VarianceTrackingPage', () => {
+  beforeAll(() => {
+    // Radix Select needs pointer-capture and scroll APIs that jsdom lacks.
+    for (const name of [
+      'hasPointerCapture',
+      'setPointerCapture',
+      'releasePointerCapture',
+    ] as const) {
+      if (!Element.prototype[name]) {
+        Object.defineProperty(Element.prototype, name, { value: () => false, configurable: true });
+      }
+    }
+    if (!Element.prototype.scrollIntoView) {
+      Object.defineProperty(Element.prototype, 'scrollIntoView', {
+        value: () => undefined,
+        configurable: true,
+      });
+    }
+  });
+
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
@@ -148,6 +169,8 @@ describe('VarianceTrackingPage', () => {
     mocks.createBaselineMutateAsync.mockReset();
     mocks.createBaselineMutateAsync.mockResolvedValue({ success: true });
     mocks.toast.mockReset();
+    mocks.alertsError = null;
+    mocks.refetchAlerts.mockReset();
   });
 
   it('places tab navigation before overview metric rows', async () => {
@@ -187,5 +210,54 @@ describe('VarianceTrackingPage', () => {
     expect(mocks.toast).not.toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Settings saved' })
     );
+  });
+
+  it('shows Alerts unavailable with a retry instead of empty-state copy in both alert scopes', async () => {
+    mocks.alertsError = new Error('500: alerts failed');
+    window.history.replaceState(null, '', '/?tab=alerts');
+    const user = userEvent.setup();
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    render(<VarianceTrackingPage />);
+
+    expect(screen.getByText('Alerts unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('No Current-Baseline Alerts')).not.toBeInTheDocument();
+    expect(screen.queryByText('No open alerts returned for this scope.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/acceptable variance/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(mocks.refetchAlerts).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'All open incidents' }));
+
+    expect(screen.getByText('Alerts unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('No Open Alerts')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('There are no open incidents across current or historical baselines.')
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(mocks.refetchAlerts).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not read a failed alerts request as no recent alerts on the overview', async () => {
+    mocks.alertsError = new Error('500: alerts failed');
+    const user = userEvent.setup();
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    render(<VarianceTrackingPage />);
+
+    expect(screen.getByText('Alerts unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('No recent alerts')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(mocks.refetchAlerts).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the neutral current-scope sentence only after a successful empty alerts response', async () => {
+    window.history.replaceState(null, '', '/?tab=alerts');
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    render(<VarianceTrackingPage />);
+
+    expect(screen.getByText('No Current-Baseline Alerts')).toBeInTheDocument();
+    expect(screen.getByText('No open alerts returned for this scope.')).toBeInTheDocument();
+    expect(screen.queryByText(/acceptable variance/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Alerts unavailable')).not.toBeInTheDocument();
   });
 });
