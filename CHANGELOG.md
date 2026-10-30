@@ -24,6 +24,12 @@ and this project adheres to
 
 ### Fixed (2026-10-29)
 
+- Fund workspace "Start another fund?" dialog (F_1.15.3): a 412 now records
+  durable stale state and offers "Discard my changes and start new" or Keep
+  editing, which opens the setup shell's stale recovery, instead of a save that
+  returns 412 on every retry. A missing server draft offers the same discard
+  exit. A fenced session with no pending command starts the new fund directly,
+  without a recovery fetch that could block it.
 - Fund draft saves (F_1.15.2): a direct `save_draft` acknowledged before the
   autosave debounce expires no longer sends a second, redundant PUT, because the
   settlement module now keeps one ETag-bound acknowledgement record shared with
