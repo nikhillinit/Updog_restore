@@ -201,25 +201,6 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
-## QA closure PR C: C5 exact-baseline analysis state (F_1.17.0 PR 2b)
-
-- **What:** The client half of the September 2026 QA closure, now F_1.17.0
-  (`docs/1-plans/F_1.17.0_qa-closure-client-reliability.plan.md`). Delivered: C3
-  and C8 by PR 1 (#1583); C2 by #1584 and PR 1b (#1585); C1, C4, C6, C7, C9, C10
-  and the C5 client half (alerts-unavailable retry in both scopes, alerts
-  invalidation on a default-baseline change, and the neutral current-scope
-  sentence) by PR 2a. Remaining: PR 2b, the C5 exact-baseline analysis state
-  (`No baseline`, `Not analyzed`, and the dated `Last analyzed` copy), Task 6b.
-- **Why:** The dashboard reads the newest five baselines and the newest report
-  for any baseline, so the client cannot yet say which baseline was analyzed or
-  when.
-- **Acceptance:** Task 6b of the plan. PR 2b changes
-  `server/routes/variance.ts`, a pinned matrix source, so it needs a matrix
-  reseed and an owner-authorized reapproval before merge.
-- **Effort:** M.
-
----
-
 ## Stabilize-and-qualify PR3b (PR2 and PR3a delivered)
 
 - **PR2, fund workspace journey qualification: delivered by F_1.19.0.** Batch B
