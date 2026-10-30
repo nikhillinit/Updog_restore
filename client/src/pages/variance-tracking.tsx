@@ -1219,7 +1219,7 @@ export default function VarianceTrackingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-charcoal-500">No recent alerts</div>
+                  <div className="text-center py-4 text-presson-textMuted">No recent alerts</div>
                 )}
               </CardContent>
             </Card>
@@ -1252,7 +1252,9 @@ export default function VarianceTrackingPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-charcoal-500">No baselines configured</div>
+                  <div className="text-center py-4 text-presson-textMuted">
+                    No baselines configured
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1392,7 +1394,7 @@ export default function VarianceTrackingPage() {
                           <Badge variant="outline">{baseline.baselineType}</Badge>
                         </div>
                         <p className="text-sm text-charcoal-600 mb-2">{baseline.description}</p>
-                        <div className="text-xs text-charcoal-500">
+                        <div className="text-xs text-presson-textMuted">
                           {format(parseISO(baseline.periodStart), 'MMM dd, yyyy')} -{' '}
                           {format(parseISO(baseline.periodEnd), 'MMM dd, yyyy')}
                         </div>
@@ -1502,7 +1504,7 @@ export default function VarianceTrackingPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="mt-1 text-xs text-charcoal-500">
+                      <p className="mt-1 text-xs text-presson-textMuted">
                         Alert rules currently support threshold checks over the canonical fund-level
                         variance metrics only.
                       </p>
@@ -1570,7 +1572,7 @@ export default function VarianceTrackingPage() {
                         }
                         placeholder="Upper or lower bound"
                       />
-                      <p className="mt-1 text-xs text-charcoal-500">
+                      <p className="mt-1 text-xs text-presson-textMuted">
                         The alert triggers only when the selected metric falls between the primary
                         and secondary thresholds.
                       </p>
@@ -1670,7 +1672,7 @@ export default function VarianceTrackingPage() {
                   </CardDescription>
                 </div>
                 <div className="w-full md:w-56">
-                  <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-charcoal-500">
+                  <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-presson-textMuted">
                     Alert Scope
                   </Label>
                   <Select
@@ -1726,7 +1728,7 @@ export default function VarianceTrackingPage() {
                         <div>
                           <div className="font-medium text-pov-charcoal">{alert.ruleName}</div>
                           <div className="text-sm text-charcoal-600">{alert.message}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-charcoal-500">
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-presson-textMuted">
                             <span>{format(parseISO(alert.triggeredAt), 'MMM dd, yyyy HH:mm')}</span>
                             {alertBaselineScope === 'all' && alert.baselineName ? (
                               <span>Baseline: {alert.baselineName}</span>
@@ -1916,7 +1918,7 @@ export default function VarianceTrackingPage() {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-charcoal-500">
+                        <div className="text-xs text-presson-textMuted">
                           Generated {format(parseISO(report.generatedAt), 'MMM dd, yyyy')}
                         </div>
                       </div>
@@ -1959,19 +1961,19 @@ export default function VarianceTrackingPage() {
               ) : reportDetail ? (
                 <div className="space-y-6 mt-6">
                   <div className="space-y-2">
-                    <div className="text-sm font-medium text-charcoal-500">Report Name</div>
+                    <div className="text-sm font-medium text-presson-textMuted">Report Name</div>
                     <div className="text-pov-charcoal">{reportDetail.reportName}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-charcoal-500">Type</div>
+                      <div className="text-sm font-medium text-presson-textMuted">Type</div>
                       <Badge variant="outline" className="mt-1">
                         {reportDetail.reportType}
                       </Badge>
                     </div>
                     {reportDetail.reportPeriod && (
                       <div>
-                        <div className="text-sm font-medium text-charcoal-500">Period</div>
+                        <div className="text-sm font-medium text-presson-textMuted">Period</div>
                         <Badge variant="outline" className="mt-1">
                           {reportDetail.reportPeriod}
                         </Badge>
@@ -1980,13 +1982,13 @@ export default function VarianceTrackingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-charcoal-500">As Of Date</div>
+                      <div className="text-sm font-medium text-presson-textMuted">As Of Date</div>
                       <div className="text-pov-charcoal">
                         {format(parseISO(reportDetail.asOfDate), 'MMM dd, yyyy')}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-charcoal-500">Generated At</div>
+                      <div className="text-sm font-medium text-presson-textMuted">Generated At</div>
                       <div className="text-pov-charcoal">
                         {format(parseISO(reportDetail.generatedAt), 'MMM dd, yyyy HH:mm')}
                       </div>
@@ -2007,25 +2009,25 @@ export default function VarianceTrackingPage() {
 
                   {/* Summary cards */}
                   <div>
-                    <div className="text-sm font-medium text-charcoal-500 mb-2">Summary</div>
+                    <div className="text-sm font-medium text-presson-textMuted mb-2">Summary</div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="rounded-lg border p-3 text-center">
                         <div className="text-lg font-semibold text-pov-charcoal">
                           {reportDetail.summary.totalVariances}
                         </div>
-                        <div className="text-xs text-charcoal-500">Total</div>
+                        <div className="text-xs text-presson-textMuted">Total</div>
                       </div>
                       <div className="rounded-lg border p-3 text-center">
                         <div className="text-lg font-semibold text-warning-dark">
                           {reportDetail.summary.significantVariances}
                         </div>
-                        <div className="text-xs text-charcoal-500">Significant</div>
+                        <div className="text-xs text-presson-textMuted">Significant</div>
                       </div>
                       <div className="rounded-lg border p-3 text-center">
                         <div className="text-lg font-semibold text-error-dark">
                           {reportDetail.summary.criticalVariances}
                         </div>
-                        <div className="text-xs text-charcoal-500">Critical</div>
+                        <div className="text-xs text-presson-textMuted">Critical</div>
                       </div>
                     </div>
                   </div>
@@ -2033,7 +2035,7 @@ export default function VarianceTrackingPage() {
                   {/* Supplemental variance analysis */}
                   {reportHasSupplementalAnalysis && (
                     <div>
-                      <div className="text-sm font-medium text-charcoal-500 mb-2">
+                      <div className="text-sm font-medium text-presson-textMuted mb-2">
                         Portfolio Analysis
                       </div>
                       {showHistoricalPortfolioAnalysisNotice && (
@@ -2052,7 +2054,7 @@ export default function VarianceTrackingPage() {
                         {reportDetail.portfolioVariances && (
                           <>
                             <div className="p-2 bg-pov-gray rounded">
-                              <span className="text-charcoal-500">Portfolio Count Change</span>
+                              <span className="text-presson-textMuted">Portfolio Count Change</span>
                               <span className="block font-medium">
                                 {formatSignedNumber(
                                   reportDetail.portfolioVariances.portfolioCountVariance
@@ -2060,14 +2062,14 @@ export default function VarianceTrackingPage() {
                               </span>
                             </div>
                             <div className="p-2 bg-pov-gray rounded">
-                              <span className="text-charcoal-500">Companies Analyzed</span>
+                              <span className="text-presson-textMuted">Companies Analyzed</span>
                               <span className="block font-medium">{companyVariances.length}</span>
                             </div>
                           </>
                         )}
                         {reportDetail.sectorVariances && (
                           <div className="p-2 bg-pov-gray rounded">
-                            <span className="text-charcoal-500">Sectors Tracked</span>
+                            <span className="text-presson-textMuted">Sectors Tracked</span>
                             <span className="block font-medium">
                               {Object.keys(reportDetail.sectorVariances).length}
                             </span>
@@ -2075,7 +2077,7 @@ export default function VarianceTrackingPage() {
                         )}
                         {reportDetail.stageVariances && (
                           <div className="p-2 bg-pov-gray rounded">
-                            <span className="text-charcoal-500">Stages Tracked</span>
+                            <span className="text-presson-textMuted">Stages Tracked</span>
                             <span className="block font-medium">
                               {Object.keys(reportDetail.stageVariances).length}
                             </span>
@@ -2083,7 +2085,7 @@ export default function VarianceTrackingPage() {
                         )}
                         {reportDetail.reserveVariances && (
                           <div className="p-2 bg-pov-gray rounded">
-                            <span className="text-charcoal-500">Reserve Metrics Changed</span>
+                            <span className="text-presson-textMuted">Reserve Metrics Changed</span>
                             <span className="block font-medium">
                               {reserveMetricEntries.length + reserveChangeEntries.length}
                             </span>
@@ -2091,7 +2093,7 @@ export default function VarianceTrackingPage() {
                         )}
                         {reportDetail.pacingVariances && (
                           <div className="p-2 bg-pov-gray rounded">
-                            <span className="text-charcoal-500">Pacing Metrics Changed</span>
+                            <span className="text-presson-textMuted">Pacing Metrics Changed</span>
                             <span className="block font-medium">
                               {pacingMetricEntries.length + pacingChangeEntries.length}
                             </span>
@@ -2101,7 +2103,7 @@ export default function VarianceTrackingPage() {
 
                       {companyVariances.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-charcoal-500 mb-2">
+                          <div className="text-sm font-medium text-presson-textMuted mb-2">
                             Company Variances
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
@@ -2140,7 +2142,7 @@ export default function VarianceTrackingPage() {
                                       <div className="font-medium text-pov-charcoal">
                                         {company.companyName}
                                       </div>
-                                      <div className="text-xs text-charcoal-500">
+                                      <div className="text-xs text-presson-textMuted">
                                         {[company.sector, company.stage]
                                           .filter(Boolean)
                                           .join(' • ') || 'Unclassified'}
@@ -2189,7 +2191,7 @@ export default function VarianceTrackingPage() {
                                     </td>
                                     <td className="p-2 text-right text-charcoal-700">
                                       <div>{formatCurrency(company.currentInvestedCapital)}</div>
-                                      <div className="text-xs text-charcoal-500">
+                                      <div className="text-xs text-presson-textMuted">
                                         base {formatCurrency(company.baselineInvestedCapital)}
                                       </div>
                                     </td>
@@ -2209,7 +2211,7 @@ export default function VarianceTrackingPage() {
 
                       {sectorVarianceEntries.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-charcoal-500 mb-2">
+                          <div className="text-sm font-medium text-presson-textMuted mb-2">
                             Sector Distribution
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
@@ -2265,7 +2267,7 @@ export default function VarianceTrackingPage() {
 
                       {stageVarianceEntries.length > 0 && (
                         <div className="mt-4">
-                          <div className="text-sm font-medium text-charcoal-500 mb-2">
+                          <div className="text-sm font-medium text-presson-textMuted mb-2">
                             Stage Distribution
                           </div>
                           <div className="border rounded-lg overflow-x-auto">
@@ -2323,7 +2325,7 @@ export default function VarianceTrackingPage() {
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           {reportDetail.reserveVariances && (
                             <div>
-                              <div className="text-sm font-medium text-charcoal-500 mb-2">
+                              <div className="text-sm font-medium text-presson-textMuted mb-2">
                                 Reserve Variances
                               </div>
                               <div className="space-y-2">
@@ -2358,7 +2360,7 @@ export default function VarianceTrackingPage() {
 
                           {reportDetail.pacingVariances && (
                             <div>
-                              <div className="text-sm font-medium text-charcoal-500 mb-2">
+                              <div className="text-sm font-medium text-presson-textMuted mb-2">
                                 Pacing Variances
                               </div>
                               <div className="space-y-2">
@@ -2398,7 +2400,9 @@ export default function VarianceTrackingPage() {
                   {/* Variances table */}
                   {reportDetail.variances.length > 0 && (
                     <div>
-                      <div className="text-sm font-medium text-charcoal-500 mb-2">Variances</div>
+                      <div className="text-sm font-medium text-presson-textMuted mb-2">
+                        Variances
+                      </div>
                       <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead>
@@ -2443,7 +2447,7 @@ export default function VarianceTrackingPage() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-charcoal-500">Report not found.</div>
+                <div className="text-center py-12 text-presson-textMuted">Report not found.</div>
               )}
             </SheetContent>
           </Sheet>

@@ -135,13 +135,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'stress', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-charcoal-500">Loading history...</p>;
+    return <p className="text-xs text-presson-textMuted">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-charcoal-500" data-testid="stress-history-empty">
+      <p className="text-xs text-presson-textMuted" data-testid="stress-history-empty">
         No previous stress tests
       </p>
     );
@@ -235,7 +235,7 @@ function ResultsSection({ result }: { result: StressAnalysisResultV1 }) {
                     </span>
                   </div>
                   {scenario && (
-                    <div className="text-xs text-charcoal-500">{scenario.description}</div>
+                    <div className="text-xs text-presson-textMuted">{scenario.description}</div>
                   )}
                   <div className="flex items-center gap-2">
                     <div className="h-2 flex-1 overflow-hidden rounded bg-pov-gray">
@@ -370,7 +370,9 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                     />
                     <div className="flex-1">
                       <div className="text-xs font-medium text-pov-charcoal">{scenario.label}</div>
-                      <div className="text-[10px] text-charcoal-500">{scenario.description}</div>
+                      <div className="text-[10px] text-presson-textMuted">
+                        {scenario.description}
+                      </div>
                     </div>
                   </label>
                 );
@@ -436,7 +438,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
                     Running stress test...
                   </span>
                 </div>
-                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-presson-textMuted">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -462,7 +464,7 @@ export function StressPanel({ fundId }: StressPanelProps): JSX.Element {
             className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="stress-idle"
           >
-            <p className="text-sm text-charcoal-400">
+            <p className="text-sm text-presson-textMuted">
               Select scenarios and run a stress test to see results
             </p>
           </div>

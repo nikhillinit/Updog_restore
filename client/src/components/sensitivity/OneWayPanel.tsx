@@ -137,13 +137,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'one_way', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-charcoal-500">Loading history...</p>;
+    return <p className="text-xs text-presson-textMuted">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-charcoal-500" data-testid="one-way-history-empty">
+      <p className="text-xs text-presson-textMuted" data-testid="one-way-history-empty">
         No previous one-way analyses
       </p>
     );
@@ -240,7 +240,12 @@ function ResultsSection({ result }: { result: OneWayAnalysisResultV1 }) {
                   y={result.baselineValue}
                   stroke={CHART_AXIS_COLOR}
                   strokeDasharray="4 4"
-                  label={{ value: 'Baseline', fill: CHART_AXIS_COLOR, fontSize: 10, position: 'right' }}
+                  label={{
+                    value: 'Baseline',
+                    fill: CHART_AXIS_COLOR,
+                    fontSize: 10,
+                    position: 'right',
+                  }}
                 />
                 <Line
                   type="monotone"
@@ -354,7 +359,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-charcoal-500">{variableDefinition.description}</p>
+              <p className="text-xs text-presson-textMuted">{variableDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -453,7 +458,7 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
                   <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
                   <span className="text-sm font-medium text-charcoal-700">Running sweep...</span>
                 </div>
-                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-presson-textMuted">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -479,7 +484,9 @@ export function OneWayPanel({ fundId }: OneWayPanelProps) {
             className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="one-way-idle"
           >
-            <p className="text-sm text-charcoal-400">Configure and run a sweep to see results</p>
+            <p className="text-sm text-presson-textMuted">
+              Configure and run a sweep to see results
+            </p>
           </div>
         )}
       </div>

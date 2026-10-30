@@ -107,7 +107,7 @@ export function MoicRankabilityBadge({ basis }: MoicRankabilityBadgeProps) {
 function EvidenceField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs uppercase text-charcoal-500">{label}</div>
+      <div className="text-xs uppercase text-presson-textMuted">{label}</div>
       <div className="mt-1 text-pov-charcoal">{children}</div>
     </div>
   );
@@ -118,12 +118,12 @@ export function MoicBasisDisclosure({ basis, investmentName }: MoicBasisDisclosu
     return (
       <section
         aria-label={`${investmentName} MOIC facts basis`}
-        className="space-y-3 border-y border-beige-200 bg-pov-gray/40 px-4 py-4 text-sm text-charcoal-500"
+        className="space-y-3 border-y border-beige-200 bg-pov-gray/40 px-4 py-4 text-sm text-presson-textMuted"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-semibold text-pov-charcoal">Facts basis</h3>
-            <p className="text-xs text-charcoal-500">{investmentName}</p>
+            <p className="text-xs text-presson-textMuted">{investmentName}</p>
           </div>
           <MoicRankabilityBadge basis={null} />
         </div>
@@ -139,19 +139,19 @@ export function MoicBasisDisclosure({ basis, investmentName }: MoicBasisDisclosu
   return (
     <section
       aria-label={`${investmentName} MOIC facts basis`}
-      className="space-y-4 border-y border-beige-200 bg-pov-gray/40 px-4 py-4 text-sm text-charcoal-500"
+      className="space-y-4 border-y border-beige-200 bg-pov-gray/40 px-4 py-4 text-sm text-presson-textMuted"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="font-semibold text-pov-charcoal">Facts basis</h3>
-          <p className="text-xs text-charcoal-500">{investmentName}</p>
+          <p className="text-xs text-presson-textMuted">{investmentName}</p>
         </div>
         <MoicRankabilityBadge basis={basis} />
       </div>
 
       <div>
-        <div className="text-xs uppercase text-charcoal-500">Why this state</div>
-        <ul className="mt-1 list-disc space-y-1 pl-5 text-charcoal-500">
+        <div className="text-xs uppercase text-presson-textMuted">Why this state</div>
+        <ul className="mt-1 list-disc space-y-1 pl-5 text-presson-textMuted">
           {reasons.map((reason) => (
             <li key={reason}>{reason}</li>
           ))}
@@ -211,7 +211,7 @@ export function MoicBasisDisclosure({ basis, investmentName }: MoicBasisDisclosu
               </Button>
             </div>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-charcoal-500">
+            <span className="inline-flex items-center gap-1.5 text-presson-textMuted">
               <span
                 aria-hidden="true"
                 className="h-2 w-2 rounded-full border border-charcoal-400 bg-transparent"
@@ -223,15 +223,15 @@ export function MoicBasisDisclosure({ basis, investmentName }: MoicBasisDisclosu
       </div>
 
       <div className="border-t border-beige-200 pt-3">
-        <div className="text-xs uppercase text-charcoal-500">Warnings</div>
+        <div className="text-xs uppercase text-presson-textMuted">Warnings</div>
         {basis.warnings.length > 0 ? (
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-charcoal-500">
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-presson-textMuted">
             {basis.warnings.map((warning, index) => (
               <li key={`${warning.code}-${index}`}>{warning.message}</li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-xs text-charcoal-500">None</p>
+          <p className="mt-1 text-xs text-presson-textMuted">None</p>
         )}
       </div>
     </section>

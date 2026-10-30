@@ -241,7 +241,9 @@ function WorkspaceErrorState({
     <div className="mx-auto max-w-3xl px-6 py-16">
       <Alert className="border-beige-200">
         <AlertTitle>{title}</AlertTitle>
-        <AlertDescription className="font-poppins text-charcoal-500">{message}</AlertDescription>
+        <AlertDescription className="font-poppins text-presson-textMuted">
+          {message}
+        </AlertDescription>
         {onRetry && (
           <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onRetry}>
             Try again
@@ -259,7 +261,7 @@ function ScenarioSectionEmpty({ results }: { results: FundResultsReadV1 | undefi
   return (
     <Alert className="border-beige-200 bg-beige-50">
       <AlertTitle>Scenario results unavailable</AlertTitle>
-      <AlertDescription className="font-poppins text-charcoal-500">
+      <AlertDescription className="font-poppins text-presson-textMuted">
         {scenarios.reason}
       </AlertDescription>
     </Alert>
@@ -274,7 +276,9 @@ function ScenarioComparisonWorkspace({
   isLoading: boolean;
 }) {
   if (isLoading && comparisons.length === 0) {
-    return <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparisons…</p>;
+    return (
+      <p className="text-sm text-presson-textMuted font-poppins">Loading scenario comparisons…</p>
+    );
   }
 
   if (comparisons.length === 0) {
@@ -285,7 +289,7 @@ function ScenarioComparisonWorkspace({
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-medium text-charcoal">Comparisons</h2>
-        <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+        <p className="mt-1 text-sm text-presson-textMuted font-poppins">
           Hypothetical variant deltas against the baseline for each pinned source configuration.
         </p>
       </div>
@@ -606,7 +610,7 @@ export function FundScenarioWorkspacePage({
               </div>
               <div>
                 <h1 className="text-2xl font-semibold text-charcoal">Scenario Workspace</h1>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-charcoal-500 font-poppins">
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-presson-textMuted font-poppins">
                   {fund ? (
                     <>
                       <span>{fund.name}</span>
@@ -696,7 +700,7 @@ export function FundScenarioWorkspacePage({
             <section className="space-y-4">
               <div>
                 <h2 className="text-lg font-medium text-charcoal">Calculated Results</h2>
-                <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+                <p className="mt-1 text-sm text-presson-textMuted font-poppins">
                   Hypothetical scenario outputs from the latest calculated results; these are not
                   verified actuals.
                 </p>

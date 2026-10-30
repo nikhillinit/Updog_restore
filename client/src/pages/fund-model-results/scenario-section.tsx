@@ -32,18 +32,22 @@ function ScenarioComparisonPanel({ state }: { state: ScenarioComparisonState }) 
   return (
     <div className="space-y-4">
       {state.kind === 'loading' && !hasContent && (
-        <p className="text-sm text-charcoal-500 font-poppins">Loading scenario comparison...</p>
+        <p className="text-sm text-presson-textMuted font-poppins">
+          Loading scenario comparison...
+        </p>
       )}
 
       {state.kind === 'loading' && hasContent && (
-        <p className="text-xs text-charcoal-400 font-poppins">Refreshing scenario comparison...</p>
+        <p className="text-xs text-presson-textMuted font-poppins">
+          Refreshing scenario comparison...
+        </p>
       )}
 
       {state.kind === 'error' && (
         <Alert className="border-beige-200 bg-beige-50">
           <AlertCircle className="h-4 w-4 text-charcoal-400" />
           <AlertTitle>Scenario comparison unavailable</AlertTitle>
-          <AlertDescription className="font-poppins text-charcoal-500">
+          <AlertDescription className="font-poppins text-presson-textMuted">
             {state.message}
           </AlertDescription>
         </Alert>

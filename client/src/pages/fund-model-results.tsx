@@ -207,7 +207,7 @@ function FundModelResultsPage() {
       {/* Fund identity header */}
       <div>
         <h1 className="text-2xl font-semibold text-charcoal">{results.fund.name}</h1>
-        <p className="text-charcoal-500 font-poppins">
+        <p className="text-presson-textMuted font-poppins">
           Vintage {results.fund.vintageYear} | Fund size: $
           {(results.fund.size / 1_000_000).toFixed(0)}M
         </p>

@@ -192,11 +192,11 @@ function MetricCard({ metric }: { metric: PublicMetricValue }) {
       </CardHeader>
       <CardContent>
         <div
-          className={`text-2xl font-bold ${unavailable ? 'text-charcoal-500' : 'text-pov-charcoal'}`}
+          className={`text-2xl font-bold ${unavailable ? 'text-presson-textMuted' : 'text-pov-charcoal'}`}
         >
           {formatMetric(metric)}
         </div>
-        <p className="mt-2 text-xs text-charcoal-500">
+        <p className="mt-2 text-xs text-presson-textMuted">
           {unavailable
             ? (metric.unavailableReason ?? 'Source data unavailable')
             : `${metric.source} as of ${new Date(metric.asOfDate).toLocaleDateString()}`}
@@ -272,7 +272,7 @@ const SharedDashboard: React.FC = () => {
               <AlertCircle className="h-12 w-12 text-error mx-auto mb-4" />
               <h1 className="text-xl font-semibold text-pov-charcoal mb-2">Access Error</h1>
               <p className="text-charcoal-600 mb-4">{error}</p>
-              <p className="text-sm text-charcoal-500">
+              <p className="text-sm text-presson-textMuted">
                 Please check your link or contact the fund manager for assistance.
               </p>
             </div>
@@ -328,7 +328,7 @@ const SharedDashboard: React.FC = () => {
               </Button>
             </form>
             {shareConfig?.customMessage && (
-              <p className="text-sm text-charcoal-500 mt-4 text-center">
+              <p className="text-sm text-presson-textMuted mt-4 text-center">
                 {shareConfig.customMessage}
               </p>
             )}
@@ -361,8 +361,8 @@ const SharedDashboard: React.FC = () => {
                 <Printer className="h-4 w-4" />
                 Print
               </Button>
-              <div className="flex items-center gap-2 text-sm text-charcoal-500">
-                <Eye className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm text-presson-textMuted">
+                <Eye className="h-4 w-4 text-charcoal-500" />
                 Read-only Access
               </div>
             </div>
@@ -415,14 +415,14 @@ const SharedDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-12 pt-8 border-t text-center text-sm text-charcoal-500">
+        <div className="mt-12 pt-8 border-t text-center text-sm text-presson-textMuted">
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4 text-success" />
               Server-authorized Snapshot
             </div>
             <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
+              <Clock className="h-4 w-4 text-charcoal-500" />
               As of {new Date(snapshot.asOfDate).toLocaleDateString()}
             </div>
           </div>

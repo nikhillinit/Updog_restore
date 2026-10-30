@@ -234,7 +234,7 @@ export function CrossSetScenarioComparisonTable({
               <p className="text-sm text-charcoal-600 font-poppins">
                 No comparable scenario variants to compare.
               </p>
-              <p className="text-xs text-charcoal-500 font-poppins">
+              <p className="text-xs text-presson-textMuted font-poppins">
                 Calculate a scenario set to compare.
               </p>
             </div>
@@ -252,11 +252,11 @@ export function CrossSetScenarioComparisonTable({
     <section className="space-y-3" data-testid="cross-set-scenario-comparison-table">
       <div className="space-y-1">
         <h3 className="font-inter text-base font-semibold text-charcoal">Scenario Comparison</h3>
-        <p className="text-sm text-charcoal-500 font-poppins">
-          Showing {columns.length} comparable {columns.length === 1 ? 'variant' : 'variants'}{' '}
-          across {groups.length} scenario {groups.length === 1 ? 'set' : 'sets'}.
+        <p className="text-sm text-presson-textMuted font-poppins">
+          Showing {columns.length} comparable {columns.length === 1 ? 'variant' : 'variants'} across{' '}
+          {groups.length} scenario {groups.length === 1 ? 'set' : 'sets'}.
         </p>
-        <p className="text-xs text-charcoal-400 font-poppins">
+        <p className="text-xs text-presson-textMuted font-poppins">
           Direction labels show arithmetic movement. They do not imply a universal good/bad judgment
           across LP and GP perspectives.
         </p>
@@ -283,7 +283,7 @@ export function CrossSetScenarioComparisonTable({
             <tr className="border-b border-beige-200">
               <th
                 className={cn(
-                  'p-3 text-left text-xs uppercase text-charcoal-400 font-poppins',
+                  'p-3 text-left text-xs uppercase text-presson-textMuted font-poppins',
                   isWide && 'sticky left-0 bg-white'
                 )}
               >
@@ -293,7 +293,7 @@ export function CrossSetScenarioComparisonTable({
                 <th
                   key={group.scenarioSetId}
                   colSpan={group.columns.length}
-                  className="p-3 text-left text-xs uppercase text-charcoal-400 font-poppins"
+                  className="p-3 text-left text-xs uppercase text-presson-textMuted font-poppins"
                 >
                   <span className="align-middle">{group.scenarioSetName}</span>
                   <Badge
@@ -305,16 +305,16 @@ export function CrossSetScenarioComparisonTable({
                   >
                     {group.evidenceState}
                   </Badge>
-                  <span className="ml-2 normal-case text-charcoal-400">
+                  <span className="ml-2 normal-case text-presson-textMuted">
                     Source config v{group.sourceConfigVersion}
                   </span>
                   {group.publishedConfigVersion != null && (
-                    <span className="ml-2 normal-case text-charcoal-400">
+                    <span className="ml-2 normal-case text-presson-textMuted">
                       Published config v{group.publishedConfigVersion}
                     </span>
                   )}
                   {group.calculatedAt && (
-                    <span className="ml-2 normal-case text-charcoal-400">
+                    <span className="ml-2 normal-case text-presson-textMuted">
                       {scenarioCalculatedTimestamp(group.calculatedAt)}
                     </span>
                   )}
@@ -327,7 +327,7 @@ export function CrossSetScenarioComparisonTable({
                 <th
                   key={column.key}
                   className={cn(
-                    'p-3 text-right text-xs text-charcoal-500 font-poppins',
+                    'p-3 text-right text-xs text-presson-textMuted font-poppins',
                     isWide && 'whitespace-nowrap'
                   )}
                 >
@@ -344,7 +344,7 @@ export function CrossSetScenarioComparisonTable({
               <tr key={metric}>
                 <td
                   className={cn(
-                    'p-3 text-xs uppercase text-charcoal-400 font-poppins',
+                    'p-3 text-xs uppercase text-presson-textMuted font-poppins',
                     isWide && 'sticky left-0 bg-white whitespace-nowrap'
                   )}
                 >
@@ -361,7 +361,7 @@ export function CrossSetScenarioComparisonTable({
                         {formatValue(metric, column.metrics[metric])}
                       </p>
                       {delta && (
-                        <p className="text-xs font-poppins text-charcoal-500">
+                        <p className="text-xs font-poppins text-presson-textMuted">
                           {scenarioDeltaCopy(metric, delta)}
                         </p>
                       )}

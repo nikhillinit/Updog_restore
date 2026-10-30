@@ -94,7 +94,7 @@ function ScenarioSetsHeader({
 }: ScenarioSetsSummaryProps & { aggregateEvidence: ScenarioEvidenceSourceV1 | null }) {
   return (
     <div className="space-y-3">
-      <span className="font-poppins text-sm text-charcoal-500">
+      <span className="font-poppins text-sm text-presson-textMuted">
         {payload.sets.length === 1 ? '1 scenario set' : `${payload.sets.length} scenario sets`}
       </span>
       {aggregateEvidence ? (
@@ -113,14 +113,14 @@ function EconomicsScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) 
   return (
     <div className="mt-5 grid grid-cols-2 gap-3">
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">Best TVPI</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">Best TVPI</p>
         <p className="mt-1 font-inter text-2xl font-semibold text-charcoal">
           {formatMultiple(topVariant.economicsSummary.finalTvpi)}
         </p>
-        <p className="mt-1 font-poppins text-xs text-charcoal-500">{topVariant.name}</p>
+        <p className="mt-1 font-poppins text-xs text-presson-textMuted">{topVariant.name}</p>
       </div>
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">Calculated</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">Calculated</p>
         <p className="mt-1 font-poppins text-sm text-charcoal">{formatDate(set.calculatedAt)}</p>
       </div>
     </div>
@@ -144,7 +144,7 @@ function ReserveScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) {
   return (
     <div className="mt-5 grid grid-cols-2 gap-3">
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">
           Total scenario allocation
         </p>
         <p className="mt-1 font-inter text-2xl font-semibold text-charcoal">
@@ -152,25 +152,27 @@ function ReserveScenarioMetrics({ set }: { set: ScenarioSetResultSummaryV1 }) {
         </p>
       </div>
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">Allocation delta</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">Allocation delta</p>
         <p className="mt-1 font-inter text-2xl font-semibold text-charcoal">
           {formatCurrencyFromCents(reserveVariant.reserveSummary.totalAllocationDeltaCents)}
         </p>
       </div>
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">Avg confidence</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">Avg confidence</p>
         <p className="mt-1 font-poppins text-sm text-charcoal">
           {(reserveVariant.reserveSummary.avgConfidence * 100).toFixed(0)}%
         </p>
       </div>
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">High-confidence count</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">
+          High-confidence count
+        </p>
         <p className="mt-1 font-poppins text-sm text-charcoal">
           {reserveVariant.reserveSummary.highConfidenceCount}
         </p>
       </div>
       <div>
-        <p className="font-poppins text-xs uppercase text-charcoal-400">Warnings</p>
+        <p className="font-poppins text-xs uppercase text-presson-textMuted">Warnings</p>
         <p className="mt-1 font-poppins text-sm text-charcoal">
           {reserveVariant.reserveSummary.warningCount}
         </p>
@@ -189,7 +191,7 @@ function ScenarioSetCard({ set }: ScenarioSetCardProps) {
       <div className="space-y-3">
         <div>
           <h3 className="font-inter text-base font-semibold text-charcoal">{set.name}</h3>
-          <p className="mt-1 font-poppins text-sm text-charcoal-500">
+          <p className="mt-1 font-poppins text-sm text-presson-textMuted">
             {variantCountLabel(set.variantCount)} · Source config v{set.sourceConfigVersion}
           </p>
         </div>

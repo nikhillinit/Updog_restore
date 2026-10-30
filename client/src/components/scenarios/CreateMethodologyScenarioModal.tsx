@@ -259,7 +259,7 @@ export function CreateMethodologyScenarioModal({
           </div>
 
           <div className="space-y-3 rounded-md border border-beige-200 p-3">
-            <p className="font-poppins text-xs uppercase text-charcoal-400">
+            <p className="font-poppins text-xs uppercase text-presson-textMuted">
               At least one override required
             </p>
 
@@ -310,7 +310,7 @@ export function CreateMethodologyScenarioModal({
                   aria-label="Management fee rate"
                   {...register('managementFeeRate', { valueAsNumber: true })}
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-charcoal-400">
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-presson-textMuted">
                   %
                 </span>
               </div>

@@ -183,13 +183,13 @@ function HistoryPanel({
   const { data, isLoading } = useSensitivityHistory(fundId, 'two_way', 10);
 
   if (isLoading) {
-    return <p className="text-xs text-charcoal-500">Loading history...</p>;
+    return <p className="text-xs text-presson-textMuted">Loading history...</p>;
   }
 
   const runs = data?.runs ?? [];
   if (runs.length === 0) {
     return (
-      <p className="text-xs text-charcoal-500" data-testid="two-way-history-empty">
+      <p className="text-xs text-presson-textMuted" data-testid="two-way-history-empty">
         No previous two-way analyses
       </p>
     );
@@ -277,7 +277,7 @@ function ResultsSection({ result }: { result: TwoWayAnalysisResultV1 }) {
                 <tr>
                   <th
                     scope="col"
-                    className="border border-beige-200 bg-pov-gray px-2 py-1 text-left font-medium text-charcoal-500"
+                    className="border border-beige-200 bg-pov-gray px-2 py-1 text-left font-medium text-presson-textMuted"
                   >
                     {`${variableY.label} \\ ${variableX.label}`}
                   </th>
@@ -482,7 +482,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-charcoal-500">{variableXDefinition.description}</p>
+              <p className="text-xs text-presson-textMuted">{variableXDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -535,7 +535,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-charcoal-500">{variableYDefinition.description}</p>
+              <p className="text-xs text-presson-textMuted">{variableYDefinition.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -634,7 +634,7 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
                   <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />
                   <span className="text-sm font-medium text-charcoal-700">Running sweep...</span>
                 </div>
-                <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>
+                <span className="tabular-nums text-xs text-presson-textMuted">{elapsed}s</span>
               </div>
             </CardContent>
           </Card>
@@ -660,7 +660,9 @@ export function TwoWayPanel({ fundId }: TwoWayPanelProps): JSX.Element {
             className="flex h-48 items-center justify-center rounded-lg border border-dashed border-charcoal-300"
             data-testid="two-way-idle"
           >
-            <p className="text-sm text-charcoal-400">Configure and run a sweep to see results</p>
+            <p className="text-sm text-presson-textMuted">
+              Configure and run a sweep to see results
+            </p>
           </div>
         )}
       </div>
