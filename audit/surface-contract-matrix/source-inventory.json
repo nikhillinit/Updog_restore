@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:1b2e74640f6d5fbae29d0767bae9f167e935d970c959a299b9e3fab999484a47",
+  "snapshot_id": "snapshot:0ba27b8909bcd05aaac9c509274933f8b743708248193f7662514b275338afff",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -504,7 +504,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "705d398058621dad63b11b4741029d0e0558be6dea846b398900f9ccfde7b4b6",
+    "audit/surface-contract-matrix/boot-proofs.json": "e7ff7b793a85a5a82b067ddc37a95f7881afe5a14b6276c1a7e4bf4977611105",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
@@ -633,7 +633,7 @@
     "server/routes/timeline.ts": "b64b57c637ab8e8a84707c6e7673733fa8f05463816e7442e45ee162211e18cb",
     "server/routes/v1/reserve-approvals.ts": "ee548dd79d89a4c7f6a30e4c3b1be3a462621f1bc2488d9033dee98e80e471af",
     "server/routes/v1/reserves.ts": "8e916ae785b1edb3fe47626a853e3c241a312d583e3ff407219934bd3a7286e2",
-    "server/routes/variance.ts": "d68444da544104fd7a37adf4b246a84634db782868ae7d06fe6c30f758cddfe4",
+    "server/routes/variance.ts": "d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
     "server/routes/variance/response-adapters.ts": "44e52dda21c7b440a5553f6eb619b4d1c71975e3dc33f8fe52ba3e21add8fe26",
     "server/server.ts": "07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
     "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
@@ -11554,7 +11554,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:1b2e74640f6d5fbae29d0767bae9f167e935d970c959a299b9e3fab999484a47"
+      "snapshot:0ba27b8909bcd05aaac9c509274933f8b743708248193f7662514b275338afff"
     ]
   },
   "kg_counts": {

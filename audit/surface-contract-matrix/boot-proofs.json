@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "source_sha": "fb357451b01efb5b383a592affd31ee85e485991",
+  "source_sha": "b488bc45dda472994cf58fd940791d850121f6fe",
   "proofs": [
     {
       "deployment": "local-process",
@@ -34,7 +34,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "fb357451b01efb5b383a592affd31ee85e485991",
+        "commit": "b488bc45dda472994cf58fd940791d850121f6fe",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -50,7 +50,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "fb357451b01efb5b383a592affd31ee85e485991",
+        "commit": "b488bc45dda472994cf58fd940791d850121f6fe",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -66,7 +66,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "fb357451b01efb5b383a592affd31ee85e485991",
+        "commit": "b488bc45dda472994cf58fd940791d850121f6fe",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -82,7 +82,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "fb357451b01efb5b383a592affd31ee85e485991",
+        "commit": "b488bc45dda472994cf58fd940791d850121f6fe",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },

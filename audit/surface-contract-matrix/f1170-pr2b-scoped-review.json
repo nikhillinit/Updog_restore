@@ -1,0 +1,690 @@
+{
+  "schema_version": "1.0.0",
+  "review_id": "f1170-pr2b-c5-exact-baseline-scoped-review-2026-10-30",
+  "snapshot_id": "snapshot:0ba27b8909bcd05aaac9c509274933f8b743708248193f7662514b275338afff",
+  "source_fingerprints": {
+    ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
+    ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
+    "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
+    "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
+    "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
+    "audit/surface-contract-matrix/boot-proofs.json": "e7ff7b793a85a5a82b067ddc37a95f7881afe5a14b6276c1a7e4bf4977611105",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
+    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "2c10e9b03c8fe2cd31e50da596a92ec279d8737d35cdce716fcd9093c38995f0",
+    "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
+    "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
+    "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "c86a881d617a3e52b795cd024c53c92f4e70d93a962c6a2c8deaab02f2e623d6",
+    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
+    "client/index.html": "6267a8686b906ba4480f99255fb3b3dbea859c46004737eac7718f95f64c8698",
+    "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
+    "client/src/app/app-router.tsx": "edefaccac0c7b3f11c27829470c6a904fee40954f7c9821e3ce111e28b2a815d",
+    "client/src/main.tsx": "2be1496402b1cb8550e760c0703a1e01893e713fcc50e6401b0c731204435071",
+    "client/src/pages/v2/cash.tsx": "af0441819b330da326f652d90e48d64bf0e865ff822873f08212c126e094dd78",
+    "client/src/pages/v2/company.tsx": "9308f0355f0ef5949b86acf25b52ece84bef06a73768250cb18fa9c345c2efe4",
+    "client/src/pages/v2/exits.tsx": "dc8f8aacb8e250a4924e7167f7b97261690c28312a2cc2906bc47b9e50384b82",
+    "client/src/pages/v2/insights.tsx": "c939aa5f6b9974b4ee6f5b3c6dde7715f44eb409b90de1cfb6799249180ae67f",
+    "client/src/pages/v2/partners.tsx": "c6595a2e192d1cf952cc5b1cc2b8a476d3224a43fd027d56ade8eb3d3884a5e2",
+    "client/src/pages/v2/portfolio.tsx": "442e18560a3ad25c8c461ef37cf748b05d494c7f2f302f170852957240b8d4c2",
+    "client/src/pages/v2/scenarios.tsx": "f783378ab9ef3b1783eca2ff30087788ddeca81ea558433098c7f6ad7063c187",
+    "client/src/pages/v2/today.tsx": "fb08a56d3bce71348145f524507d6ab1e9df84adefae7ac5e8feb2ecb8393116",
+    "Dockerfile": "a2d0e99cc95c7983e1eabed42af6f2b122ecb83341d65835b1f6de715240cdff",
+    "Dockerfile.railway": "76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b",
+    "Dockerfile.simple": "bfcbd376504c160cac0e5200b46db48579d65e857eba61a558fdc196919c34b7",
+    "Dockerfile.worker": "97dde98f194d12f1a9b523a90e395ab214946ba9ca6ca2f6dc674c3e10c15463",
+    "ml-service/app.py": "99f3c1b080d81b27297c2ab752ca3e8be25f37af5c1cd3b07d52712bde2a7739",
+    "ml-service/docker-compose.yml": "7b295e745eaf0e6a20924c1b50dd2f4eda3ad4bc2830b7db499e526a8821a600",
+    "ml-service/Dockerfile": "8ca23536edbf6d40989a24e2b7a1a192928674bc2ea02f2e759550b9d374d7df",
+    "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
+    "ml-service/test_app.py": "764c311665c4d24c79db1589374dbebb54b4c7055bc8e6c82b152bd1f3c4443b",
+    "package-lock.json": "fcebc1eb632e6150fa794377cd7a35df6add3b81acd67a67fb9e46353ad3a6f0",
+    "package.json": "87166e2ae87b14f593550e0df18aa4803f4121169537c6c94da5b6499e56916c",
+    "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
+    "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
+    "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
+    "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
+    "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
+    "server/app.ts": "98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+    "server/bootstrap.ts": "28926c17c63f023595057201f7108729e4df13b81b543d99a9b6cf7efa2f7ee1",
+    "server/lib/auth/jwt.ts": "914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+    "server/lib/auth/provided-fund-scope.ts": "62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+    "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+    "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+    "server/queues/backtesting-queue.ts": "98cc1a35de83be684cc4307d23b347e354c75d2207e39c0885c9eec9331bdd19",
+    "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
+    "server/queues/report-generation-queue.ts": "9c3792bb56f3849227c9f4cd33c7e5196abfdddd371b95833d48602d06a3947e",
+    "server/queues/simulation-queue.ts": "96e698444491fa4ab7118dccb17477a0c01ad4eeace6497789136d9b8ca8b980",
+    "server/route-policy/api-route-policy-registry.ts": "c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd",
+    "server/routes.ts": "a0d63d861318a77af77c14dc97183d7960a1ee41afb4358f5a13d3f69a2ac407",
+    "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
+    "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
+    "server/routes/admin/circuit-admin.ts": "5b88cb992610388ea3bee4676d9c65b74a62e8aab65a7f2880980e88f5d54429",
+    "server/routes/admin/engine.ts": "b5874846963439d288492513ceca4f2540024e33574a2817b525dc691d815058",
+    "server/routes/ai.ts": "76044ed0e2cc277a0d48f855df0321b2afe74b3ac829b2d31f3213986b412f0b",
+    "server/routes/allocation-scenarios.ts": "cafc8397f1191af1b9f8c8b3ecb039e5aa30e22d1befa492e31edb734da030c8",
+    "server/routes/allocations.ts": "2ae300a3f4fb3bd9d33f620a96acd00298c10f02899eabcc15640ed02a43bc95",
+    "server/routes/auth.ts": "4f38036fc9cf2c689f4490c816dea79f66625876c07e48524b2161b377c88605",
+    "server/routes/backtesting.ts": "152df9e7bff73572cd44a1a477890074e5908a34ee0c8f14754e20d82e468e78",
+    "server/routes/cache.ts": "75c4a05b460e29088bdf721bc55c8de47bc0c951a61077e1a73c95cc852a9103",
+    "server/routes/calculations.ts": "a4a6c4f68cfc7a98f214124eceefe86574f109fbfbb744de835922a49323382f",
+    "server/routes/capital-allocation.ts": "35fed0d9c79391a0aa97eaa4fc5c442a98c0279198960c2fc14685f879df193f",
+    "server/routes/cash-flow-events.ts": "839157bba7ff8b0096ea2a96449ce36e85ec69ee74cf46bb41435bc1a35d9dbe",
+    "server/routes/cashflow.ts": "cf19396555913b0dd69e54f3377bbe946d09f6723b12d12ae9654d1c16c46def",
+    "server/routes/cohort-analysis.ts": "aa5972cf1042c00215e1426c3ec6f726af9c39749aaf92e38637224a02a5c694",
+    "server/routes/construction-reconciliation.ts": "c9ce98b027b478d95493ca557831ce455e1eb6849560fd7f391b3e08faeebc0f",
+    "server/routes/current-forecast.ts": "152f6dd9610ff61f675fede1286495bfdc03007a27e3e78447916dc7de698ca1",
+    "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
+    "server/routes/deal-pipeline.ts": "441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
+    "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
+    "server/routes/dual-forecast.ts": "a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
+    "server/routes/engine-summaries.ts": "b17db5ceada8e2ad8b7ecfe3768b193d9badcbce398cc2c857f1aa48780221cb",
+    "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
+    "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
+    "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
+    "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
+    "server/routes/fund-config.ts": "fa7238de1289bcbbb5bf9c5744ee05973386f9acd4c72e4ee9b8b68053fed68f",
+    "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
+    "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
+    "server/routes/fund-moic.ts": "429a213a5c986627b0ceeb9ad89722f8466c86f6f437b8a5defc7ba5ea752d42",
+    "server/routes/fund-scenario-sets.ts": "507ffbbaafd9fe7b19acee339f8670fccd08802b27ff87171777b74ee7b1c879",
+    "server/routes/funds.ts": "0f45b734d146fb69e56712d5d50b9ccf5efcb587f82b6e3a9700cdb808eb5004",
+    "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
+    "server/routes/health.ts": "9610dff2b583eafe25acbf57c19570118fcbe5442c88717eedabb961bb8fe187",
+    "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
+    "server/routes/internal-economics.ts": "47372521fcf9c7bde371d66b8bf340ef40afe127879bbb0cd3f963a513e03dc8",
+    "server/routes/investment-ledger.ts": "68b56315d15faf54501540805dc855d6d01606a8e5dad2f8860aaac60a2bbe12",
+    "server/routes/investments.ts": "fc458b4d33ca23fe37182c1c3e668cc29365284ecde2a3cfe68437aab2088189",
+    "server/routes/kpi-observations.ts": "331f41c54cff66e8ac5f0805457466be9783f8b0e1a4a994d4714449450a9ef4",
+    "server/routes/liquidity.ts": "8382b981a3280c87006bc24374bf87c8b1d1f24e769d52787874349b7e6b14d2",
+    "server/routes/lp-api.schemas.ts": "954bde3a15bac8f8649b231da85fbb8f7ecbbdf3bc5ec8a8a5232d9beec2542d",
+    "server/routes/lp-api.ts": "145fee68e1d15db95a034e790ac01a64f51794663f80c109e26ae972bd7bff1c",
+    "server/routes/lp-capital-calls.ts": "c9535c4af3622251078546bfa86d25c821b59185157d5c6a6f60f96830aafdf9",
+    "server/routes/lp-distributions.ts": "ede4168e201349ff6cbff1627b0f715bd6c0c46f96f3a02699b4528b85ecf4c9",
+    "server/routes/lp-documents.ts": "67b0275d24e869fe3fdaefd5c29a25b9de0a23863b6cb5345ea29583cda9f9d5",
+    "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
+    "server/routes/lp-notifications.ts": "1ccd1408da04315f94d19959b6a81255157be2c38bae922f88ecba0058fcb70f",
+    "server/routes/lp-reporting/imports.ts": "472f5b8946e1842c90a6bcd5894ea1c1fcf299eef22b7268e5c35be393606c5e",
+    "server/routes/lp-reporting/metric-runs.ts": "c63c104b5aa4e214965455fe06a4b4d234f01444728698abdc780cd08be8da00",
+    "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
+    "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
+    "server/routes/metrics-rum-v2.ts": "43dd2e8316170cd54827f4205f4b797235d5d7b11c8a25bd6d2ca1e21ffb1e8c",
+    "server/routes/metrics-rum.guard.ts": "6b25c6e3b6baa551750dcb1691cbe731b15aed292d99d92883703dd50111a98b",
+    "server/routes/metrics-rum.ts": "c00b18bf4726972719fd24c37fe863d9624688eac62cfe0ec50b53399ad03743",
+    "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
+    "server/routes/monte-carlo.ts": "acb0aaa297186405d12df9cf104748dd00fd4280e1e81a71fc6b335154051201",
+    "server/routes/mount-common-routes.ts": "ef578b006cfb7e8819d92a1d86948c5568f4a893236f46d926f7a2cb6ca67feb",
+    "server/routes/operating-object-decisions.ts": "b3e08e9e169cd9d40c055f518f83f7ebd96c52c3a8669c1d088e257fb964da6c",
+    "server/routes/operating-object-tasks.ts": "8782ddb0c55ea6ce149d755373cda2f42a15707ec5450cceba53f4a6d0a04136",
+    "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
+    "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
+    "server/routes/performance-api.ts": "97d987cc02464e1864997f0d17eede035dc2579db5a98a07dab62a997bab38b8",
+    "server/routes/performance-metrics.ts": "08e48952687d2c567c61b7585b7e9d26afa9e3ab12d9f16c0ea5f840149557f8",
+    "server/routes/planning-fmv-overrides.ts": "9e77f4b580947d45bf60a0f5be2f28e11ec94563d8d94dabd59350405e77117d",
+    "server/routes/portfolio-companies.ts": "9f9b3c90779af4d01c3ad12ce071c953a17f8f6de16f30bc788ca4404c34144e",
+    "server/routes/portfolio-intelligence.ts": "0d1175c98d466324cf854f69a8433d15fc801cd97ccb9e2a3076053f306cc896",
+    "server/routes/portfolio-optimization.ts": "448d6dfb9e2beb56cbd04b2b10936c400ff24381678cd60d8b53f3d904d4439c",
+    "server/routes/portfolio-overview.ts": "ab7b5fc47c98f99d037cada18ecc7345189b320418e48b7b9939d09339bce34c",
+    "server/routes/portfolio/lots.ts": "db0eaca1dc888e5d5664d2b3f904f1390909ca35361d88ad4437f57a2930602c",
+    "server/routes/public/csp-report.ts": "713bfc382b8917dc9a5b98b1bb320cc628ef82f8a010412e01c6f66e631ba1f6",
+    "server/routes/readiness.ts": "7a5868f7e91cfd1f7b7cf7c11e723c14f678c619b2f386542e197668454e93ca",
+    "server/routes/reallocation.ts": "05e3e5a46057aa635255ac46e657d37f999b223359599776ccf0bec3239d1210",
+    "server/routes/scenario-analysis.ts": "a09a7028929866001e43972cb42c5842c2cc93b706d086765c7a9ff20382d80e",
+    "server/routes/sensitivity.ts": "0acf39656dedb669afcbbce73f3eef7842efce2e685db749b7f4c9ae2206a2e4",
+    "server/routes/shares.ts": "019fc94eddf9c188d35e95e9fd582a7a8d8a00a3cbbf3f22ae0dfc33afcd98d5",
+    "server/routes/simulations-guarded.example.ts": "8d9d6a70248266b63d476f8552e1f90966bd831558a328f84d13c9b28e9ff4cd",
+    "server/routes/sse-events.ts": "4a10d46d27bf98d8348494b2bb3c66c0583dd74928a6dc8429f53479b81c0f84",
+    "server/routes/timeline.ts": "b64b57c637ab8e8a84707c6e7673733fa8f05463816e7442e45ee162211e18cb",
+    "server/routes/v1/reserve-approvals.ts": "ee548dd79d89a4c7f6a30e4c3b1be3a462621f1bc2488d9033dee98e80e471af",
+    "server/routes/v1/reserves.ts": "8e916ae785b1edb3fe47626a853e3c241a312d583e3ff407219934bd3a7286e2",
+    "server/routes/variance.ts": "d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+    "server/routes/variance/response-adapters.ts": "44e52dda21c7b440a5553f6eb619b4d1c71975e3dc33f8fe52ba3e21add8fe26",
+    "server/server.ts": "07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+    "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
+    "server/websocket.ts": "2ed29caee85bd6ac49ab9eefab8fb04fe0da5b20796d2a213fa4c6845b14acca",
+    "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
+    "server/websocket/index.ts": "55338106c058f7703090bf9a14eaa23226fa60966a9e969b5a9e72c944328956",
+    "server/websocket/portfolio-metrics.ts": "5011233cb787d99c18d6c8661c7cb00247faf5e89a9469870453f2ad9dd4d3b4",
+    "server/workers/capital-call-status-worker.ts": "79e18217fd3c676b8ac86ce0815bcc4b50ba33bfb9b6ebbe8bed8d8f264a88a7",
+    "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
+    "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
+    "shared/auth/effective-roles.ts": "57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4",
+    "shared/routes/api-route-manifest.ts": "c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0",
+    "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
+    "shared/routes/app-route-definitions.ts": "b9a58c423aec1c3848ada861b3df4c395f8589c6ff4eed13ae9a302bc5855b1d",
+    "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
+    "vercel.json": "3ed364c08324cd0895ad58601dd6305b1a987f8653cf4a1013bc63e64ca183e3",
+    "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
+    "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
+    "workers/cohort-worker.ts": "8cbd7f1e4852b2fd4f5c4d92a4eece06c69340547eea8e89ca2f3f404e0dfb0e",
+    "workers/dlq.ts": "d69b5c08fc509a71da7e5df9435c0d88d871619888a099bda1424a2c0be3f054",
+    "workers/fund-scenario-calc-handler.ts": "9b8a2e076ab216db7d63ad7505f5795a51c8a156e367ea64a66c54a9c21e1170",
+    "workers/fund-scenario-calc-worker-harness.ts": "db610521a474e5e8c7747fff47e0f19d55197a1224911e47225c7cae7e1ddf7a",
+    "workers/fund-scenario-calc-worker.ts": "1f243d772de22953a4f62db9372f9347f97986b0b04d981a26082ef57830e8ad",
+    "workers/health-server.ts": "881023342c4eb7f7dd1b12b15f04da1eafef8887ccc3b3c7b1d20fcd85d16f1b",
+    "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
+    "workers/pacing-worker.ts": "a8ea047baf42baff18adf306533839b9ae8330bb882266d90fb53af9617eff26",
+    "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
+    "workers/reserve-worker.ts": "b54741aded0b8583ae3cc4398826cafd45dd7d0891dbbef9baee27499b2d38fd",
+    "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
+    "package.json#scripts": "443e65ac8301991bcd79dbcaffeac88a0d2e1ef8606e5d8092eaa56e0250b21c",
+    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "862dc89343ae59f9c80b20e4fb51bc091cc5054d7288c8e0f52881e156202c89",
+    "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
+    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "d6e82d5bb28b74d2667d80107ccd479406a28a4b76e9f0c57b0f75e97540538f",
+    "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
+    "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
+  },
+  "rows": {
+    "api:DELETE:/api/funds/:id/baselines/:baselineId": {
+      "row_id": "api:DELETE:/api/funds/:id/baselines/:baselineId",
+      "contract_fingerprint": "8c5c33b03ef5583e73e6cd99ed0565f87aaf5839326025e2b04917031148db85",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "8c5c33b03ef5583e73e6cd99ed0565f87aaf5839326025e2b04917031148db85",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "8c5c33b03ef5583e73e6cd99ed0565f87aaf5839326025e2b04917031148db85",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/funds/:id/alerts": {
+      "row_id": "api:GET:/api/funds/:id/alerts",
+      "contract_fingerprint": "82730ee70c816d19eaf7ad3d64d4cee91d2083cd347a0673117d93e9ed6fb8e7",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "82730ee70c816d19eaf7ad3d64d4cee91d2083cd347a0673117d93e9ed6fb8e7",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "82730ee70c816d19eaf7ad3d64d4cee91d2083cd347a0673117d93e9ed6fb8e7",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/funds/:id/baselines": {
+      "row_id": "api:GET:/api/funds/:id/baselines",
+      "contract_fingerprint": "b410137f96500e76e58febd52c42fcbae53485c877329ed3df591b389fcd54ae",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b410137f96500e76e58febd52c42fcbae53485c877329ed3df591b389fcd54ae",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b410137f96500e76e58febd52c42fcbae53485c877329ed3df591b389fcd54ae",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/funds/:id/variance-dashboard": {
+      "row_id": "api:GET:/api/funds/:id/variance-dashboard",
+      "contract_fingerprint": "677e38f14c4f69ad3cf0ab9d04635b610e860a18ed51bad4014a7d814cf89ad8",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). Changed semantics (read-only): the handler now reads the default baseline with getBaselines(fundId, { isDefault: true, limit: 1 }) and sources summary.lastAnalysisDate only from getLatestVarianceReportForBaseline(fundId, defaultBaseline.id) (variance_reports filtered by fund_id and baseline_id, newest created_at first, no fallback), returning null when no default baseline or no matching report exists. Recent baselines, recent reports, risk level, and trend stay fund-wide. Response shape unchanged (VarianceDashboardResponseSchema parses in the API test). No new persistence, mutation, or fund-scope change; same fund-scoped team read (A1 universal read test still passes). Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "677e38f14c4f69ad3cf0ab9d04635b610e860a18ed51bad4014a7d814cf89ad8",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). Changed semantics (read-only): the handler now reads the default baseline with getBaselines(fundId, { isDefault: true, limit: 1 }) and sources summary.lastAnalysisDate only from getLatestVarianceReportForBaseline(fundId, defaultBaseline.id) (variance_reports filtered by fund_id and baseline_id, newest created_at first, no fallback), returning null when no default baseline or no matching report exists. Recent baselines, recent reports, risk level, and trend stay fund-wide. Response shape unchanged (VarianceDashboardResponseSchema parses in the API test). No new persistence, mutation, or fund-scope change; same fund-scoped team read (A1 universal read test still passes). Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "677e38f14c4f69ad3cf0ab9d04635b610e860a18ed51bad4014a7d814cf89ad8",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). Changed semantics (read-only): the handler now reads the default baseline with getBaselines(fundId, { isDefault: true, limit: 1 }) and sources summary.lastAnalysisDate only from getLatestVarianceReportForBaseline(fundId, defaultBaseline.id) (variance_reports filtered by fund_id and baseline_id, newest created_at first, no fallback), returning null when no default baseline or no matching report exists. Recent baselines, recent reports, risk level, and trend stay fund-wide. Response shape unchanged (VarianceDashboardResponseSchema parses in the API test). No new persistence, mutation, or fund-scope change; same fund-scoped team read (A1 universal read test still passes). Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/funds/:id/variance-reports": {
+      "row_id": "api:GET:/api/funds/:id/variance-reports",
+      "contract_fingerprint": "f2887bcb4495e5b73632ea8cd0f513ca63e368ccfc52f323b96128d7aa9b5708",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "f2887bcb4495e5b73632ea8cd0f513ca63e368ccfc52f323b96128d7aa9b5708",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "f2887bcb4495e5b73632ea8cd0f513ca63e368ccfc52f323b96128d7aa9b5708",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/funds/:id/variance-reports/:reportId": {
+      "row_id": "api:GET:/api/funds/:id/variance-reports/:reportId",
+      "contract_fingerprint": "15f814b6e115312e56434ce4421f46a71aceca10ec787f11fcf0d62789a432ae",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "15f814b6e115312e56434ce4421f46a71aceca10ec787f11fcf0d62789a432ae",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "15f814b6e115312e56434ce4421f46a71aceca10ec787f11fcf0d62789a432ae",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:GET:/api/internal/alert-automation/health": {
+      "row_id": "api:GET:/api/internal/alert-automation/health",
+      "contract_fingerprint": "66ccdb45af96d6331ac06f1482276b672edc90e7d0c472e020ef830ab595f8cb",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "66ccdb45af96d6331ac06f1482276b672edc90e7d0c472e020ef830ab595f8cb",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "66ccdb45af96d6331ac06f1482276b672edc90e7d0c472e020ef830ab595f8cb",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/alerts/:alertId/acknowledge": {
+      "row_id": "api:POST:/api/alerts/:alertId/acknowledge",
+      "contract_fingerprint": "b9cea15d233fef09121a0390144ff7bde0ddeced25143da1e14549db894a37d6",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b9cea15d233fef09121a0390144ff7bde0ddeced25143da1e14549db894a37d6",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b9cea15d233fef09121a0390144ff7bde0ddeced25143da1e14549db894a37d6",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/alerts/:alertId/resolve": {
+      "row_id": "api:POST:/api/alerts/:alertId/resolve",
+      "contract_fingerprint": "e8a25df9d4b8c11995cd8d0395431b16e644fc761af0bc875b3eeb03e764a81f",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "e8a25df9d4b8c11995cd8d0395431b16e644fc761af0bc875b3eeb03e764a81f",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "e8a25df9d4b8c11995cd8d0395431b16e644fc761af0bc875b3eeb03e764a81f",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/alert-rules": {
+      "row_id": "api:POST:/api/funds/:id/alert-rules",
+      "contract_fingerprint": "4528fcd965e84a0bb19b174aef5bd91a68045cc211de0fda6768d525deb90ecd",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "4528fcd965e84a0bb19b174aef5bd91a68045cc211de0fda6768d525deb90ecd",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "4528fcd965e84a0bb19b174aef5bd91a68045cc211de0fda6768d525deb90ecd",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/alerts/cleanup-superseded": {
+      "row_id": "api:POST:/api/funds/:id/alerts/cleanup-superseded",
+      "contract_fingerprint": "2eb4a56afc356eb4cf45fae99c6f9739659810fe41224d8526d0e6e6c649428f",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "2eb4a56afc356eb4cf45fae99c6f9739659810fe41224d8526d0e6e6c649428f",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "2eb4a56afc356eb4cf45fae99c6f9739659810fe41224d8526d0e6e6c649428f",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/baselines": {
+      "row_id": "api:POST:/api/funds/:id/baselines",
+      "contract_fingerprint": "2ceb75e89c0f882e6acd0f1f906749763928a536d8af7428653d37791de302d8",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "2ceb75e89c0f882e6acd0f1f906749763928a536d8af7428653d37791de302d8",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "2ceb75e89c0f882e6acd0f1f906749763928a536d8af7428653d37791de302d8",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/baselines/:baselineId/set-default": {
+      "row_id": "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "contract_fingerprint": "ee6595e78c621a831aa7bede7e7a16936fb6ce81ad13a16d6cca8c4be6aac5ad",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "ee6595e78c621a831aa7bede7e7a16936fb6ce81ad13a16d6cca8c4be6aac5ad",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "ee6595e78c621a831aa7bede7e7a16936fb6ce81ad13a16d6cca8c4be6aac5ad",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/variance-analysis": {
+      "row_id": "api:POST:/api/funds/:id/variance-analysis",
+      "contract_fingerprint": "ebc2ab92181d85d4436628d8f34422d4b057f2692129618c77aad442d5f1c0b0",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "ebc2ab92181d85d4436628d8f34422d4b057f2692129618c77aad442d5f1c0b0",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "ebc2ab92181d85d4436628d8f34422d4b057f2692129618c77aad442d5f1c0b0",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    },
+    "api:POST:/api/funds/:id/variance-reports": {
+      "row_id": "api:POST:/api/funds/:id/variance-reports",
+      "contract_fingerprint": "b6d272e6bedabafc2b408b90671e8a3589fffee52d2a309fcab107b5d7193a38",
+      "source_fingerprints": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/variance.ts=d87d9bc44cf359f39ef56102642af9c2d6d98997960c28614cd7b9a062f13aae",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
+      "reviewed_fields": {
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      },
+      "exposure_attestations": {
+        "local-process|create_server": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b6d272e6bedabafc2b408b90671e8a3589fffee52d2a309fcab107b5d7193a38",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        },
+        "vercel-api|make_app": {
+          "test_coverage": "none-reviewed",
+          "contract_fingerprint": "b6d272e6bedabafc2b408b90671e8a3589fffee52d2a309fcab107b5d7193a38",
+          "evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe (base 7377bcd46). git diff 7377bcd46..b488bc45dda472994cf58fd940791d850121f6fe -- server/routes/variance.ts has two hunks, both inside the GET /api/funds/:id/variance-dashboard handler body (old lines 1014-1044); registration at line 1000, enforceProvidedFundScope at line 1012, and every other route in the file are byte-unchanged and keep their line numbers (the dashboard is the last route). This route handler is unchanged. Contract fingerprint, exposures, auth_roles, auth evidence, and mount evidence are unchanged from the approved state; the reseed changed only the source hash, approved_source_hashes, and derived test_evidence (test files changed). Targeted tests at b488bc45dda472994cf58fd940791d850121f6fe: tests/unit/services/variance-tracking.test.ts, tests/unit/api/variance-tracking-api.test.ts, tests/unit/pages/variance-tracking.test.tsx, tests/unit/hooks/use-set-default-baseline.test.tsx 162 passed. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+        }
+      }
+    }
+  },
+  "persona_mappings": {
+    "admin": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "partner": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "analyst": {
+      "persona": "analyst",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "lp": {
+      "persona": "lp",
+      "decided": true,
+      "evidence": "server/middleware/requireLPAccess.ts role guard"
+    },
+    "operator": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "viewer": {
+      "persona": "analyst",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "service": {
+      "persona": "service",
+      "decided": true,
+      "evidence": "shared/auth/effective-roles.ts USER_ROLES"
+    },
+    "flag_read": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "flag_admin": {
+      "persona": "admin",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "reserve_admin": {
+      "persona": "gp",
+      "decided": true,
+      "evidence": "G1 review 2026-08-06; shared/auth/effective-roles.ts"
+    },
+    "lpId": {
+      "persona": "lp",
+      "decided": true,
+      "evidence": "lpId identity boundary"
+    },
+    "public": {
+      "persona": "public",
+      "decided": true,
+      "evidence": "signed public identity boundary"
+    }
+  },
+  "off_row_dispositions": {
+    "listeners": {
+      "legacy-dockerfile-railway": {
+        "listener_id": "legacy-dockerfile-railway",
+        "fingerprint": "ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4",
+        "disposition": "non-product-tooling",
+        "decision_status": "approved",
+        "decision_evidence": "F_1.17.0 PR 2b scoped review at source b488bc45dda472994cf58fd940791d850121f6fe. Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b (last changed 60af02ff6) and listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 unchanged; listener sites remain lines 43 and 47. seed-matrix.mjs mergeListenerDispositions forces this listener to proposed on every reseed. railway.toml absent; worker TOMLs bind Dockerfile.worker; ADR-080 (Accepted) retires the legacy Railway API config. Source classification only; no provider, deployment, production, merge, or release authority asserted."
+      }
+    }
+  },
+  "approver_id": "nikhillinit",
+  "evidence_ref": "f1170-pr2b-scoped-review;source=b488bc45dda472994cf58fd940791d850121f6fe;base=7377bcd4642e6298cc21c5abe4735f46f8b9012f;rows=15-variance-ts;route-tests=4-files-162-tests-passed"
+}
