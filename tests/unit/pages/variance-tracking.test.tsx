@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +13,45 @@ const mocks = vi.hoisted(() => ({
   alertsError: null as Error | null,
   alertsAwaitingResponse: false,
   refetchAlerts: vi.fn(),
+  dashboardResponse: undefined as unknown,
+  dashboardError: null as Error | null,
+  varianceReports: [] as unknown[],
 }));
+
+const DEFAULT_BASELINE = {
+  id: '00000000-0000-0000-0000-000000000121',
+  fundId: 1,
+  name: 'Q4 2024 Quarterly Baseline',
+  isDefault: true,
+};
+
+function dashboardResponse({
+  defaultBaseline = null,
+  lastAnalysisDate = null,
+  overallRiskLevel = 'low',
+}: {
+  defaultBaseline?: typeof DEFAULT_BASELINE | null;
+  lastAnalysisDate?: string | null;
+  overallRiskLevel?: 'low' | 'medium' | 'high' | 'critical';
+} = {}) {
+  return {
+    success: true,
+    data: {
+      defaultBaseline,
+      recentBaselines: defaultBaseline ? [defaultBaseline] : [],
+      activeAlerts: [],
+      alertsBySeverity: { critical: 0, warning: 0, info: 0, urgent: 0 },
+      summary: {
+        totalActiveAlerts: 0,
+        totalBaselines: defaultBaseline ? 1 : 0,
+        lastAnalysisDate,
+        overallRiskLevel,
+        trendDirection: 'stable',
+      },
+      recentReports: [],
+    },
+  };
+}
 
 vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({
@@ -84,19 +122,9 @@ vi.mock('@/hooks/useVarianceData', () => ({
     run: createMutation(),
   }),
   useVarianceDashboard: () => ({
-    data: {
-      success: true,
-      data: {
-        summary: {
-          totalActiveAlerts: 0,
-          totalBaselines: 0,
-          lastAnalysisDate: null,
-        },
-        alertsBySeverity: { critical: 0, warning: 0, info: 0, urgent: 0 },
-      },
-    },
+    data: mocks.dashboardResponse,
     isLoading: false,
-    error: null,
+    error: mocks.dashboardError,
     refetch: vi.fn(),
   }),
   useBaselines: () => ({
@@ -114,7 +142,11 @@ vi.mock('@/hooks/useVarianceData', () => ({
     error: mocks.alertsError,
     refetch: mocks.refetchAlerts,
   }),
-  useVarianceReports: () => ({ data: { success: true, data: [] }, isLoading: false, error: null }),
+  useVarianceReports: () => ({
+    data: { success: true, data: mocks.varianceReports },
+    isLoading: false,
+    error: null,
+  }),
   useVarianceReport: () => ({ data: { success: true, data: null }, isLoading: false }),
   useCreateBaseline: () =>
     createMutation({ mutateAsync: mocks.createBaselineMutateAsync as () => Promise<unknown> }),
@@ -176,6 +208,9 @@ describe('VarianceTrackingPage', () => {
     mocks.alertsError = null;
     mocks.alertsAwaitingResponse = false;
     mocks.refetchAlerts.mockReset();
+    mocks.dashboardResponse = dashboardResponse();
+    mocks.dashboardError = null;
+    mocks.varianceReports = [];
   });
 
   it('places tab navigation before overview metric rows', async () => {
@@ -255,13 +290,19 @@ describe('VarianceTrackingPage', () => {
     expect(mocks.refetchAlerts).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the neutral current-scope sentence only after a successful empty alerts response', async () => {
+  it('keeps the neutral current-scope sentence when the dashboard has not answered', async () => {
+    // A paused dashboard query has neither data nor an error. A dashboard error
+    // replaces the whole page, so this is the reachable non-success state.
+    mocks.dashboardResponse = undefined;
     window.history.replaceState(null, '', '/?tab=alerts');
     const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
     render(<VarianceTrackingPage />);
 
     expect(screen.getByText('No Current-Baseline Alerts')).toBeInTheDocument();
     expect(screen.getByText('No open alerts returned for this scope.')).toBeInTheDocument();
+    expect(screen.queryByText('No baseline')).not.toBeInTheDocument();
+    expect(screen.queryByText('Not analyzed')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
     expect(screen.queryByText(/acceptable variance/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Alerts unavailable')).not.toBeInTheDocument();
   });
@@ -274,6 +315,7 @@ describe('VarianceTrackingPage', () => {
 
     expect(screen.queryByText('No Current-Baseline Alerts')).not.toBeInTheDocument();
     expect(screen.queryByText('No open alerts returned for this scope.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No baseline')).not.toBeInTheDocument();
     expect(screen.queryByText('Alerts unavailable')).not.toBeInTheDocument();
   });
 
@@ -283,5 +325,144 @@ describe('VarianceTrackingPage', () => {
     render(<VarianceTrackingPage />);
 
     expect(screen.queryByText('No recent alerts')).not.toBeInTheDocument();
+  });
+
+  describe('current-baseline analysis state (exact default baseline)', () => {
+    async function renderAlertsTab() {
+      window.history.replaceState(null, '', '/?tab=alerts');
+      const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+      render(<VarianceTrackingPage />);
+    }
+
+    function expectNoAnalysisClaims() {
+      expect(screen.queryByText('No open alerts returned for this scope.')).not.toBeInTheDocument();
+      expect(screen.queryByText(/acceptable variance/i)).not.toBeInTheDocument();
+    }
+
+    it('renders No baseline when the dashboard has no default baseline', async () => {
+      mocks.dashboardResponse = dashboardResponse({ defaultBaseline: null });
+      await renderAlertsTab();
+
+      expect(screen.getByText('No Current-Baseline Alerts')).toBeInTheDocument();
+      expect(screen.getByText('No baseline')).toBeInTheDocument();
+      expect(screen.queryByText('Not analyzed')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+      expectNoAnalysisClaims();
+    });
+
+    it('renders Not analyzed when no report matches the current default baseline', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: null,
+      });
+      await renderAlertsTab();
+
+      expect(screen.getByText('Not analyzed')).toBeInTheDocument();
+      expect(screen.queryByText('No baseline')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+      expectNoAnalysisClaims();
+    });
+
+    it('ignores newer client-list reports for other baselines', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: null,
+      });
+      mocks.varianceReports = [
+        {
+          id: 'report-other-baseline',
+          baselineId: '00000000-0000-0000-0000-000000000199',
+          reportName: 'Other Baseline Report',
+          reportType: 'periodic',
+          generatedAt: '2026-03-31T12:00:00.000Z',
+          summary: { totalVariances: 3, significantVariances: 1, criticalVariances: 0 },
+        },
+      ];
+      await renderAlertsTab();
+
+      expect(screen.getByText('Not analyzed')).toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+    });
+
+    it('renders the dated factual sentence when the current baseline was analyzed', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: '2025-01-15T12:00:00.000Z',
+      });
+      const user = userEvent.setup();
+      await renderAlertsTab();
+
+      expect(
+        screen.getByText('No open alerts for the current baseline. Last analyzed Jan 15, 2025.')
+      ).toBeInTheDocument();
+      expect(screen.queryByText('No baseline')).not.toBeInTheDocument();
+      expect(screen.queryByText('Not analyzed')).not.toBeInTheDocument();
+      expectNoAnalysisClaims();
+
+      await user.click(screen.getByRole('combobox'));
+      await user.click(await screen.findByRole('option', { name: 'All open incidents' }));
+
+      expect(
+        screen.getByText('There are no open incidents across current or historical baselines.')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+    });
+
+    it('states facts only for a resolved high-risk analysis', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: '2025-01-15T12:00:00.000Z',
+        overallRiskLevel: 'high',
+      });
+      await renderAlertsTab();
+
+      expect(
+        screen.getByText('No open alerts for the current baseline. Last analyzed Jan 15, 2025.')
+      ).toBeInTheDocument();
+      expectNoAnalysisClaims();
+      expect(screen.queryByText(/within (tolerance|threshold)/i)).not.toBeInTheDocument();
+    });
+
+    it('never reads a failed alerts query as no alerts for an analyzed baseline', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: '2025-01-15T12:00:00.000Z',
+      });
+      mocks.alertsError = new Error('500: alerts failed');
+      await renderAlertsTab();
+
+      expect(screen.getByText('Alerts unavailable')).toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Not analyzed')).not.toBeInTheDocument();
+    });
+
+    it('shows the dashboard error and no analysis-state copy when the dashboard fails', async () => {
+      mocks.dashboardResponse = undefined;
+      mocks.dashboardError = new Error('500: dashboard failed');
+      await renderAlertsTab();
+
+      expect(screen.getByText('Unable to load variance dashboard')).toBeInTheDocument();
+      expect(screen.queryByText('No baseline')).not.toBeInTheDocument();
+      expect(screen.queryByText('Not analyzed')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Last analyzed/)).not.toBeInTheDocument();
+    });
+
+    it('labels the overview analysis stats as current-baseline values', async () => {
+      mocks.dashboardResponse = dashboardResponse({
+        defaultBaseline: DEFAULT_BASELINE,
+        lastAnalysisDate: null,
+      });
+      const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+      render(<VarianceTrackingPage />);
+
+      const lastAnalysis = screen.getByTestId('stat-Last Analysis');
+      expect(within(lastAnalysis).getByText('Never')).toBeInTheDocument();
+      expect(
+        within(lastAnalysis).getByText('Latest analysis for the current baseline')
+      ).toBeInTheDocument();
+      const status = screen.getByTestId('stat-Analysis Status');
+      expect(within(status).getByText('Not Run')).toBeInTheDocument();
+      expect(within(status).getByText('No report for the current baseline')).toBeInTheDocument();
+    });
   });
 });
