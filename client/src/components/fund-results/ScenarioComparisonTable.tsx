@@ -193,7 +193,12 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
       )}
 
       {hasComparablePayload && baseline && (
-        <div className="overflow-x-auto rounded-md border border-beige-200 bg-white">
+        <div
+          role="region"
+          aria-label="Scenario comparison table"
+          tabIndex={0}
+          className="overflow-x-auto rounded-md border border-beige-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2"
+        >
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-beige-200">

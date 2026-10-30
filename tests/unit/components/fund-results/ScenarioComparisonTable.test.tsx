@@ -34,6 +34,20 @@ describe('ScenarioComparisonTable', () => {
     expect(table).not.toHaveTextContent('Risk Level');
   });
 
+  it('exposes the horizontal-scroll wrapper as a named keyboard-focusable region', () => {
+    render(<ScenarioComparisonTable comparison={comparableComparison()} />);
+
+    const region = screen.getByRole('region', { name: 'Scenario comparison table' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).toHaveClass(
+      'overflow-x-auto',
+      'focus-visible:outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-charcoal/40'
+    );
+    expect(within(region).getByRole('table')).toBeInTheDocument();
+  });
+
   it('keeps the frontend metric list fixed to the backend comparison contract', () => {
     expect(SCENARIO_COMPARISON_METRIC_KEYS).toEqual([
       'lpNetIrr',

@@ -7,7 +7,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { getActiveNavigationId, getNavigationItems } from '@/components/layout/navigation-config';
+import {
+  getActiveNavigationId,
+  getFooterNavigationItems,
+  getNavigationItems,
+  isNavigationItemEnabled,
+} from '@/components/layout/navigation-config';
 
 describe('navigation-config sensitivity item', () => {
   it('exposes the sensitivity-analysis sidebar item with the new label', () => {
@@ -68,5 +73,28 @@ describe('navigation-config variance item', () => {
   it('matches variance tracking routes back to the stable navigation id', () => {
     expect(getActiveNavigationId('/variance-tracking')).toBe('variance-tracking');
     expect(getActiveNavigationId('/variance-tracking?tab=reports')).toBe('variance-tracking');
+  });
+});
+
+describe('navigation-config setup gating', () => {
+  const setupContext = { location: '/dashboard', currentFundId: null, needsSetup: true };
+  const allItems = () => [...getNavigationItems(), ...getFooterNavigationItems()];
+  const findItem = (id: string) => {
+    const item = allItems().find((i) => i.id === id);
+    expect(item).toBeDefined();
+    return item!;
+  };
+
+  it('keeps Dashboard and Help enabled while fund setup is incomplete', () => {
+    expect(isNavigationItemEnabled(findItem('dashboard'), setupContext)).toBe(true);
+    expect(isNavigationItemEnabled(findItem('help'), setupContext)).toBe(true);
+  });
+
+  it('keeps every other destination disabled while fund setup is incomplete', () => {
+    expect(isNavigationItemEnabled(findItem('portfolio'), setupContext)).toBe(false);
+    const enabled = allItems()
+      .filter((item) => isNavigationItemEnabled(item, setupContext))
+      .map((item) => item.id);
+    expect(enabled.sort()).toEqual(['dashboard', 'help']);
   });
 });
