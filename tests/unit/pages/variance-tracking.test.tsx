@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createBaselineMutateAsync: vi.fn(),
   toast: vi.fn(),
   alertsError: null as Error | null,
+  alertsAwaitingResponse: false,
   refetchAlerts: vi.fn(),
 }));
 
@@ -105,7 +106,10 @@ vi.mock('@/hooks/useVarianceData', () => ({
     refetch: vi.fn(),
   }),
   useActiveAlerts: () => ({
-    data: mocks.alertsError ? undefined : { success: true, data: [], count: 0 },
+    data:
+      mocks.alertsError || mocks.alertsAwaitingResponse
+        ? undefined
+        : { success: true, data: [], count: 0 },
     isLoading: false,
     error: mocks.alertsError,
     refetch: mocks.refetchAlerts,
@@ -170,6 +174,7 @@ describe('VarianceTrackingPage', () => {
     mocks.createBaselineMutateAsync.mockResolvedValue({ success: true });
     mocks.toast.mockReset();
     mocks.alertsError = null;
+    mocks.alertsAwaitingResponse = false;
     mocks.refetchAlerts.mockReset();
   });
 
@@ -259,5 +264,24 @@ describe('VarianceTrackingPage', () => {
     expect(screen.getByText('No open alerts returned for this scope.')).toBeInTheDocument();
     expect(screen.queryByText(/acceptable variance/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Alerts unavailable')).not.toBeInTheDocument();
+  });
+
+  it('shows no empty-alert copy before any alerts response arrives', async () => {
+    mocks.alertsAwaitingResponse = true;
+    window.history.replaceState(null, '', '/?tab=alerts');
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    render(<VarianceTrackingPage />);
+
+    expect(screen.queryByText('No Current-Baseline Alerts')).not.toBeInTheDocument();
+    expect(screen.queryByText('No open alerts returned for this scope.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Alerts unavailable')).not.toBeInTheDocument();
+  });
+
+  it('shows no recent-alerts empty copy on the overview before any alerts response arrives', async () => {
+    mocks.alertsAwaitingResponse = true;
+    const { default: VarianceTrackingPage } = await import('@/pages/variance-tracking');
+    render(<VarianceTrackingPage />);
+
+    expect(screen.queryByText('No recent alerts')).not.toBeInTheDocument();
   });
 });

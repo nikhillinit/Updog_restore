@@ -233,7 +233,6 @@ export default function VarianceTrackingPage() {
 
   const {
     data: alertsData,
-    isLoading: alertsLoading,
     error: alertsError,
     refetch: refetchAlerts,
   } = useActiveAlerts(currentFund?.id || 0, {
@@ -1218,9 +1217,9 @@ export default function VarianceTrackingPage() {
                       </div>
                     ))}
                   </div>
-                ) : (
+                ) : alertsData ? (
                   <div className="text-center py-4 text-presson-textMuted">No recent alerts</div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
 
@@ -1691,7 +1690,7 @@ export default function VarianceTrackingPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {alertsLoading ? (
+              {!alertsData && !alertsError ? (
                 <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i: number) => (
                     <div
