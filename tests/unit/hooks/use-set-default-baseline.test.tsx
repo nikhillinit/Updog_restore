@@ -13,7 +13,7 @@ vi.mock('@/lib/queryClient', async (orig) => {
 vi.mock('@/hooks/use-toast', () => ({ toast: vi.fn() }));
 
 describe('useSetDefaultBaseline', () => {
-  it("invalidates the fund's alerts queries after a successful default-baseline change", async () => {
+  it('invalidates baselines and the dashboard after a successful default-baseline change', async () => {
     vi.mocked(apiRequest).mockResolvedValue({ success: true, data: { id: 'baseline-2' } });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -32,12 +32,11 @@ describe('useSetDefaultBaseline', () => {
       {}
     );
     const invalidatedKeys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
-    expect(invalidatedKeys).toContainEqual(['/api/funds', 7, 'alerts']);
     expect(invalidatedKeys).toContainEqual(['/api/funds', 7, 'baselines']);
     expect(invalidatedKeys).toContainEqual(['/api/funds', 7, 'variance-dashboard']);
   });
 
-  it('marks both alert-scope queries stale so they refetch against the new default', async () => {
+  it("clears the fund's alert results so the previous default's result cannot show while refetching", async () => {
     vi.mocked(apiRequest).mockResolvedValue({ success: true, data: { id: 'baseline-2' } });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -63,12 +62,11 @@ describe('useSetDefaultBaseline', () => {
 
     for (const baselineScope of ['current', 'all'] as const) {
       expect(
-        queryClient.getQueryState(['/api/funds', 7, 'alerts', { baselineScope }])?.isInvalidated
-      ).toBe(true);
+        queryClient.getQueryData(['/api/funds', 7, 'alerts', { baselineScope }])
+      ).toBeUndefined();
     }
     expect(
-      queryClient.getQueryState(['/api/funds', 8, 'alerts', { baselineScope: 'current' }])
-        ?.isInvalidated
-    ).toBe(false);
+      queryClient.getQueryData(['/api/funds', 8, 'alerts', { baselineScope: 'current' }])
+    ).toEqual({ success: true, data: [], count: 0 });
   });
 });

@@ -274,8 +274,9 @@ export function useSetDefaultBaseline() {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-dashboard'],
       });
-      // Current-scope alerts are resolved against the default baseline.
-      queryClient.invalidateQueries({
+      // Current-scope alerts are resolved against the default baseline; reset (not
+      // invalidate) so the previous default's result is never shown while refetching.
+      queryClient.resetQueries({
         queryKey: ['/api/funds', variables.fundId, 'alerts'],
       });
     },
