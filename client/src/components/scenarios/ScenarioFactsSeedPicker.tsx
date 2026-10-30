@@ -125,7 +125,7 @@ function SeedValue({ field }: { field: SeedMoneyField }) {
   if (field.status === 'seeded') {
     return <span className="tabular-nums text-charcoal">{field.value}</span>;
   }
-  return <span className="text-charcoal-500">{unavailableCopy(field)}</span>;
+  return <span className="text-presson-textMuted">{unavailableCopy(field)}</span>;
 }
 
 function trustLabel(seed: ScenarioCaseSeedV1): string {
@@ -206,28 +206,28 @@ function SeedDisclosureCard({
 
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-charcoal-500">Observed investment</dt>
+          <dt className="text-presson-textMuted">Observed investment</dt>
           <dd>
             <SeedValue field={seed.fields.investment} />
           </dd>
         </div>
         <div>
-          <dt className="text-charcoal-500">Follow-ons</dt>
+          <dt className="text-presson-textMuted">Follow-ons</dt>
           <dd>
             <SeedValue field={seed.fields.followOns} />
           </dd>
         </div>
         <div>
-          <dt className="text-charcoal-500">Active FMV</dt>
+          <dt className="text-presson-textMuted">Active FMV</dt>
           <dd>
             <SeedValue field={seed.fields.fmv} />
           </dd>
         </div>
         <div>
-          <dt className="text-charcoal-500">Latest-round market reference — not seeded</dt>
+          <dt className="text-presson-textMuted">Latest-round market reference — not seeded</dt>
           <dd>
             {seed.fields.exitValuation.marketReference === null ? (
-              <span className="text-charcoal-500">facts unavailable</span>
+              <span className="text-presson-textMuted">facts unavailable</span>
             ) : (
               <span className="tabular-nums text-charcoal">
                 {seed.fields.exitValuation.marketReference}
@@ -237,11 +237,11 @@ function SeedDisclosureCard({
         </div>
       </dl>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-charcoal-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-presson-textMuted">
         <span>As of {seed.asOfDate}</span>
         <span>Facts hash {seed.factsInputHash.slice(0, 8)}…</span>
       </div>
-      <p className="text-xs text-charcoal-500">
+      <p className="text-xs text-presson-textMuted">
         This seed is a snapshot of recorded actuals as of {seed.asOfDate}. It will not update
         automatically.
       </p>
@@ -594,7 +594,7 @@ export function ScenarioFactsSeedPicker({
           </Alert>
         )}
 
-        {isLoading && <p className="text-sm text-charcoal-500">Loading portfolio actuals…</p>}
+        {isLoading && <p className="text-sm text-presson-textMuted">Loading portfolio actuals…</p>}
         {error && (
           <Alert className="border-error/20 bg-error/5">
             <AlertDescription className="text-error-dark">
@@ -633,7 +633,7 @@ export function ScenarioFactsSeedPicker({
                   <h3 className="font-inter text-sm font-semibold text-charcoal">
                     Company scenarios
                   </h3>
-                  <p className="text-xs text-charcoal-500">
+                  <p className="text-xs text-presson-textMuted">
                     Select the scenario that will own the new case.
                   </p>
                 </div>
@@ -652,7 +652,7 @@ export function ScenarioFactsSeedPicker({
               </div>
 
               {scenarioListPending && (
-                <p className="text-sm text-charcoal-500">Loading company scenarios…</p>
+                <p className="text-sm text-presson-textMuted">Loading company scenarios…</p>
               )}
               {companyScenariosQuery.error && (
                 <Alert className="border-error/20 bg-error/5">
@@ -695,7 +695,7 @@ export function ScenarioFactsSeedPicker({
                             {companyScenario.name}
                           </Label>
                         </div>
-                        <span className="text-xs text-charcoal-500">
+                        <span className="text-xs text-presson-textMuted">
                           {companyScenario.isLocked
                             ? 'Locked'
                             : `${companyScenario.caseCount} ${

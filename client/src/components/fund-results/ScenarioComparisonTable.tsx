@@ -111,7 +111,7 @@ function ScenarioComparisonEvidenceBand({ comparison }: { comparison: FundScenar
 
   return (
     <div
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-poppins uppercase text-charcoal-500"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-poppins uppercase text-presson-textMuted"
       data-testid="scenario-comparison-evidence"
     >
       <Badge
@@ -156,9 +156,9 @@ function MetricDeltaText({
       : null;
 
   return (
-    <p className="text-xs font-poppins text-charcoal-500">
+    <p className="text-xs font-poppins text-presson-textMuted">
       {copy}
-      {percent && <span className="text-charcoal-400"> · {percent}</span>}
+      {percent && <span className="text-presson-textMuted"> · {percent}</span>}
     </p>
   );
 }
@@ -177,7 +177,7 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
         <h3 className="font-inter text-base font-semibold text-charcoal">Scenario Comparison</h3>
         <ScenarioComparisonEvidenceBand comparison={comparison} />
         {hasComparablePayload && (
-          <p className="text-xs text-charcoal-400 font-poppins">
+          <p className="text-xs text-presson-textMuted font-poppins">
             Direction labels show arithmetic movement. They do not imply a universal good/bad
             judgment across LP and GP perspectives.
           </p>
@@ -193,20 +193,25 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
       )}
 
       {hasComparablePayload && baseline && (
-        <div className="overflow-x-auto rounded-md border border-beige-200 bg-white">
+        <div
+          role="region"
+          aria-label="Scenario comparison table"
+          tabIndex={0}
+          className="overflow-x-auto rounded-md border border-beige-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2"
+        >
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-beige-200">
-                <th className="p-3 text-left text-xs uppercase text-charcoal-400 font-poppins">
+                <th className="p-3 text-left text-xs uppercase text-presson-textMuted font-poppins">
                   Metric
                 </th>
-                <th className="p-3 text-right text-xs uppercase text-charcoal-400 font-poppins">
+                <th className="p-3 text-right text-xs uppercase text-presson-textMuted font-poppins">
                   {baseline.label ?? 'Authoritative baseline'}
                 </th>
                 {comparison.variants.map((variant) => (
                   <th
                     key={variant.variantId}
-                    className="p-3 text-right text-xs uppercase text-charcoal-400 font-poppins"
+                    className="p-3 text-right text-xs uppercase text-presson-textMuted font-poppins"
                   >
                     <span className="align-middle">{variant.name}</span>
                     <Badge className="ml-2 border-0 bg-charcoal text-[10px] text-white">
@@ -219,7 +224,7 @@ export function ScenarioComparisonTable({ comparison }: ScenarioComparisonTableP
             <tbody className="divide-y divide-beige-200">
               {SCENARIO_COMPARISON_METRIC_KEYS.map((metric) => (
                 <tr key={metric}>
-                  <td className="p-3 text-xs uppercase text-charcoal-400 font-poppins">
+                  <td className="p-3 text-xs uppercase text-presson-textMuted font-poppins">
                     {METRIC_DEFINITIONS[metric].label}
                   </td>
                   <td className="p-3 text-right">

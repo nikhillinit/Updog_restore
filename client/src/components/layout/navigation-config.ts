@@ -145,7 +145,7 @@ export function resolveNavigationHref(
 
 export function isNavigationItemEnabled(item: NavigationItem, context: NavigationContext): boolean {
   if (context.needsSetup) {
-    return item.id === 'dashboard';
+    return item.id === 'dashboard' || item.id === 'help';
   }
 
   if (item.target.kind === 'fund-results') {

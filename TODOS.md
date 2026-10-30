@@ -184,52 +184,38 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ---
 
-## Reallocation route 500 envelopes still echo the raw error message
+## Owner decision: quarantined `tests/unit/reallocation-api.test.ts`
 
-- **What:** `server/routes/reallocation.ts` preview and commit return
-  `message: error.message` on the generic 500 path, so a database or driver
-  message can reach the wire. F_1.17.0 PR 1 fixed the same class on
-  `dual-forecast.ts` (C8) but its scope was that route only.
-- **Why it is not urgent:** `apiRequest` replaces every 5xx body with the
-  generic client message, so no user sees it today; the leak is only visible to
-  direct API callers and logs of the response body.
-- **Acceptance:** Generic 500 `message` on both reallocation endpoints, raw
-  error kept in `routeLog.error`, one contract test per endpoint asserting
-  hostile SQL/table text is absent from the body.
-- **Related:** `tests/unit/reallocation-api.test.ts` is an env-gated quarantine
+- **What:** `tests/unit/reallocation-api.test.ts` is an env-gated quarantine
   (`ENABLE_REALLOCATION_TESTS=true`) that still encodes the retired scalar
   `current_version` contract and the fund-wide all-equal expectation. The active
   gates are `tests/unit/routes/reallocation.contract.test.ts` and
-  `tests/integration/reallocation.pg.test.ts`; deleting or rewriting the
-  quarantined file is an owner decision.
+  `tests/integration/reallocation.pg.test.ts`.
+- **Decision needed:** delete the quarantined file or rewrite it against the
+  per-row `expected_version` contract. This is an owner decision; agents leave
+  the file as is.
+- **Context:** It was filed with the reallocation 500-envelope fix, which is
+  done: both 500 bodies are fixed messages and the contract test pins them
+  (#1667).
 - **Effort:** S.
 
 ---
 
-## QA closure PR C: client reliability (C1 to C10)
+## QA closure PR C: C5 exact-baseline analysis state (F_1.17.0 PR 2b)
 
-- **What:** The client half of the September 2026 QA closure. PR A (#1535,
-  #1536) and PR B (#1537) landed; PR C was never started. Items: C1
-  `pipeline.tsx` deals query disabled until a fund is selected; C2 one
-  `Idempotency-Key` per submit intent, reused on retry, in `AddDealModal.tsx`,
-  `AddCompanyDialog.tsx` and the import-confirm caller; C3 `ReallocationTab.tsx`
-  reads the real allocation version instead of the hard-coded
-  `currentVersion = 1` and refetches on a 409; C4 `PerformanceDashboard.tsx`
-  per-query error and retry blocks; C5 `variance-tracking.tsx` shows the
-  acceptable-variance sentence only when a baseline and a completed analysis
-  exist; C6 `shared-dashboard.tsx` passkey 401 as inline form error with label,
-  `aria-describedby` and `role="alert"`; C7 `ScenarioComparisonTable.tsx`
-  focusable labelled scroll region; C8 no raw SQL or table names in user-facing
-  blocker text; C9 Help stays enabled when `needsSetup` is true; C10 readable
-  muted text uses `text-presson-textMuted` on the axe-flagged routes (do not
-  remap the `charcoal` scale).
-- **Why:** C3 defeats optimistic locking on allocation commits. The others are
-  user-visible recovery, accessibility and contrast defects.
-- **Acceptance:** Each item has a focused test; `npm run check` 0 new errors;
-  `npm run test:unit` and `npm run build:web` green. A shifted visual baseline
-  after C10 is expected and must be reported as such.
-- **Context:** Queue item 7 of the September 24, 2026 refresh in
-  `docs/superpowers/plans/2026-09-03-updog-reconciled-program-plan.md`.
+- **What:** The client half of the September 2026 QA closure, now F_1.17.0
+  (`docs/1-plans/F_1.17.0_qa-closure-client-reliability.plan.md`). Delivered: C3
+  and C8 by PR 1 (#1583); C2 by #1584 and PR 1b (#1585); C1, C4, C6, C7, C9, C10
+  and the C5 client half (alerts-unavailable retry in both scopes, alerts
+  invalidation on a default-baseline change, and the neutral current-scope
+  sentence) by PR 2a. Remaining: PR 2b, the C5 exact-baseline analysis state
+  (`No baseline`, `Not analyzed`, and the dated `Last analyzed` copy), Task 6b.
+- **Why:** The dashboard reads the newest five baselines and the newest report
+  for any baseline, so the client cannot yet say which baseline was analyzed or
+  when.
+- **Acceptance:** Task 6b of the plan. PR 2b changes
+  `server/routes/variance.ts`, a pinned matrix source, so it needs a matrix
+  reseed and an owner-authorized reapproval before merge.
 - **Effort:** M.
 
 ---

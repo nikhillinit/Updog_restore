@@ -43,7 +43,7 @@ function renderRunSummary(summary: PublishedVersionSummary) {
         <Badge variant="outline" className={historyBadgeClasses(null)}>
           Not started
         </Badge>
-        <span className="text-sm text-charcoal-500 font-poppins">No calculation run</span>
+        <span className="text-sm text-presson-textMuted font-poppins">No calculation run</span>
       </div>
     );
   }
@@ -53,7 +53,9 @@ function renderRunSummary(summary: PublishedVersionSummary) {
       <Badge variant="outline" className={historyBadgeClasses(summary.calcRun.status)}>
         {formatLifecycleStatus(summary.calcRun.status)}
       </Badge>
-      <span className="text-sm text-charcoal-500 font-poppins">Run {summary.calcRun.runId}</span>
+      <span className="text-sm text-presson-textMuted font-poppins">
+        Run {summary.calcRun.runId}
+      </span>
     </div>
   );
 }
@@ -93,7 +95,7 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
               <History className="h-4 w-4 text-charcoal-500" />
               <h2 className="text-lg font-medium text-charcoal">Publish History</h2>
             </div>
-            <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+            <p className="mt-1 text-sm text-presson-textMuted font-poppins">
               {entryCount > 0
                 ? `${entryCount} published version${entryCount === 1 ? '' : 's'} with latest run status`
                 : 'No published versions recorded yet.'}
@@ -110,14 +112,14 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
 
         <CollapsibleContent className="space-y-3 pt-2">
           {historyState.kind === 'loading' && (
-            <p className="text-sm text-charcoal-500 font-poppins">Loading publish history…</p>
+            <p className="text-sm text-presson-textMuted font-poppins">Loading publish history…</p>
           )}
 
           {historyState.kind === 'error' && (
             <Alert className="border-beige-200">
               <AlertCircle className="h-4 w-4 text-charcoal-400" />
               <AlertTitle>Publish history unavailable</AlertTitle>
-              <AlertDescription className="font-poppins text-charcoal-500">
+              <AlertDescription className="font-poppins text-presson-textMuted">
                 {historyState.message}
               </AlertDescription>
             </Alert>
@@ -131,7 +133,7 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
               >
                 <div>
                   <p className="font-medium text-charcoal">Version v{entry.version}</p>
-                  <p className="text-sm text-charcoal-500 font-poppins">
+                  <p className="text-sm text-presson-textMuted font-poppins">
                     Published {formatDateOrFallback(entry.publishedAt)}
                   </p>
                 </div>
@@ -143,7 +145,7 @@ function PublishHistoryCard({ historyState }: { historyState: LifecycleHistorySt
                   >
                     {formatHistoryRunStatus(entry.calcRun?.status ?? null)}
                   </Badge>
-                  <span className="text-sm text-charcoal-500 font-poppins">
+                  <span className="text-sm text-presson-textMuted font-poppins">
                     {entry.calcRun?.runId != null
                       ? `Run ${entry.calcRun.runId}`
                       : 'No calculation run'}
@@ -165,20 +167,20 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
     >
       <div>
         <h2 className="text-lg font-medium text-charcoal">Publish Comparison</h2>
-        <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+        <p className="mt-1 text-sm text-presson-textMuted font-poppins">
           Compare the current published version with the immediately previous publication.
         </p>
       </div>
 
       {comparisonState.kind === 'loading' && (
-        <p className="text-sm text-charcoal-500 font-poppins">Loading publish comparison…</p>
+        <p className="text-sm text-presson-textMuted font-poppins">Loading publish comparison…</p>
       )}
 
       {comparisonState.kind === 'error' && (
         <Alert className="border-beige-200">
           <AlertCircle className="h-4 w-4 text-charcoal-400" />
           <AlertTitle>Comparison unavailable</AlertTitle>
-          <AlertDescription className="font-poppins text-charcoal-500">
+          <AlertDescription className="font-poppins text-presson-textMuted">
             {comparisonState.message}
           </AlertDescription>
         </Alert>
@@ -189,7 +191,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
           <Alert className="border-beige-200">
             <AlertCircle className="h-4 w-4 text-charcoal-400" />
             <AlertTitle>No published version yet</AlertTitle>
-            <AlertDescription className="font-poppins text-charcoal-500">
+            <AlertDescription className="font-poppins text-presson-textMuted">
               Publish a configuration to unlock publish-to-publish comparison.
             </AlertDescription>
           </Alert>
@@ -204,7 +206,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                 <p className="font-medium text-charcoal">
                   Current Published Version v{comparisonState.comparison.currentVersion.version}
                 </p>
-                <p className="text-sm text-charcoal-500 font-poppins">
+                <p className="text-sm text-presson-textMuted font-poppins">
                   Published{' '}
                   {formatDateOrFallback(comparisonState.comparison.currentVersion.publishedAt)}
                 </p>
@@ -215,7 +217,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
             <Alert className="border-beige-200">
               <AlertCircle className="h-4 w-4 text-charcoal-400" />
               <AlertTitle>Previous version unavailable</AlertTitle>
-              <AlertDescription className="font-poppins text-charcoal-500">
+              <AlertDescription className="font-poppins text-presson-textMuted">
                 Publish at least two versions to see metric deltas between releases.
               </AlertDescription>
             </Alert>
@@ -233,7 +235,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                   <p className="font-medium text-charcoal">
                     Current Published Version v{comparisonState.comparison.currentVersion.version}
                   </p>
-                  <p className="text-sm text-charcoal-500 font-poppins">
+                  <p className="text-sm text-presson-textMuted font-poppins">
                     Published{' '}
                     {formatDateOrFallback(comparisonState.comparison.currentVersion.publishedAt)}
                   </p>
@@ -246,7 +248,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                   <p className="font-medium text-charcoal">
                     Previous Published Version v{comparisonState.comparison.previousVersion.version}
                   </p>
-                  <p className="text-sm text-charcoal-500 font-poppins">
+                  <p className="text-sm text-presson-textMuted font-poppins">
                     Published{' '}
                     {formatDateOrFallback(comparisonState.comparison.previousVersion.publishedAt)}
                   </p>
@@ -261,11 +263,11 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                   key={delta.metric}
                   className="rounded-md border border-beige-200 bg-beige-50 p-4 space-y-2"
                 >
-                  <p className="text-xs text-charcoal-400 font-poppins">{delta.displayName}</p>
+                  <p className="text-xs text-presson-textMuted font-poppins">{delta.displayName}</p>
                   <p className="text-lg font-medium text-charcoal">
                     {formatComparisonMetricValue(delta.metric, delta.currentValue)}
                   </p>
-                  <p className="text-sm text-charcoal-500 font-poppins">
+                  <p className="text-sm text-presson-textMuted font-poppins">
                     Previous {formatComparisonMetricValue(delta.metric, delta.previousValue)}
                   </p>
                   {delta.driftCapable ? (
@@ -275,7 +277,7 @@ function PublishComparisonCard({ comparisonState }: { comparisonState: ResultsCo
                   ) : (
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-charcoal">Drift unavailable</p>
-                      <p className="text-xs text-charcoal-500 font-poppins">
+                      <p className="text-xs text-presson-textMuted font-poppins">
                         {formatDriftCapabilityReason(delta)}
                       </p>
                     </div>
@@ -337,7 +339,7 @@ function RecalcButton({
         />
         {recalculateState.kind === 'submitting' ? 'Starting Recalculation…' : 'Recalculate'}
       </Button>
-      <p className="text-xs text-charcoal-400 font-poppins">{helperText}</p>
+      <p className="text-xs text-presson-textMuted font-poppins">{helperText}</p>
     </div>
   );
 }
@@ -370,7 +372,7 @@ function LifecycleStatusCard({
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-medium text-charcoal">Lifecycle Status</h2>
-          <p className="text-sm text-charcoal-500 font-poppins mt-1">
+          <p className="text-sm text-presson-textMuted font-poppins mt-1">
             Server-backed publication, calculation, and run diagnostics for this fund.
           </p>
         </div>
@@ -395,7 +397,7 @@ function LifecycleStatusCard({
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="font-medium text-charcoal">Publish the fund configuration</p>
-              <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+              <p className="mt-1 text-sm text-presson-textMuted font-poppins">
                 Review the current setup, publish it, then return here to request lifecycle-backed
                 calculations.
               </p>
@@ -447,11 +449,11 @@ function LifecycleStatusCard({
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
-          <p className="text-xs text-charcoal-400 font-poppins">Available Snapshots</p>
+          <p className="text-xs text-presson-textMuted font-poppins">Available Snapshots</p>
           <p className="mt-1 text-sm text-charcoal font-medium">{availableSnapshotList}</p>
         </div>
         <div className="rounded-md border border-beige-200 bg-beige-50 p-4">
-          <p className="text-xs text-charcoal-400 font-poppins">Expected Snapshots</p>
+          <p className="text-xs text-presson-textMuted font-poppins">Expected Snapshots</p>
           <p className="mt-1 text-sm text-charcoal font-medium">{expectedSnapshotList}</p>
         </div>
       </div>
@@ -460,7 +462,7 @@ function LifecycleStatusCard({
         <Alert className="border-beige-200">
           <AlertCircle className="h-4 w-4 text-charcoal-400" />
           <AlertTitle>Latest calculation error</AlertTitle>
-          <AlertDescription className="font-poppins text-charcoal-500">
+          <AlertDescription className="font-poppins text-presson-textMuted">
             {calculationState.lastError}
           </AlertDescription>
         </Alert>
@@ -470,7 +472,7 @@ function LifecycleStatusCard({
         <Alert className="border-beige-200">
           <AlertCircle className="h-4 w-4 text-charcoal-400" />
           <AlertTitle>Recalculation failed</AlertTitle>
-          <AlertDescription className="font-poppins text-charcoal-500">
+          <AlertDescription className="font-poppins text-presson-textMuted">
             {recalculateState.message}
           </AlertDescription>
         </Alert>

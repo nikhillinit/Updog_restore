@@ -271,6 +271,32 @@ describe('sidebar results navigation', () => {
     );
   });
 
+  it('keeps Help reachable from desktop and mobile navigation during setup', async () => {
+    mockFundContext = { currentFund: null, needsSetup: true };
+
+    const { Sidebar, MobileNavigation } = await loadNavigationModules();
+    const { Wrapper } = createWouterWrapper('/dashboard');
+    const { container, unmount } = render(
+      <Wrapper>
+        <Sidebar activeModule="dashboard" />
+      </Wrapper>
+    );
+
+    hoverSidebar(container);
+    expect(screen.getByRole('link', { name: /help/i })).toHaveAttribute('href', '/help');
+    expect(screen.getByRole('button', { name: /portfolio/i })).toBeDisabled();
+    unmount();
+
+    render(
+      <Wrapper>
+        <MobileNavigation activeModule="dashboard" onNavigate={vi.fn()} />
+      </Wrapper>
+    );
+
+    expect(screen.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
+    expect(screen.queryByRole('link', { name: 'Portfolio' })).not.toBeInTheDocument();
+  });
+
   it('does not render legacy chart-category controls in the navigation rail', async () => {
     const { Sidebar } = await loadNavigationModules();
     const { Wrapper } = createWouterWrapper('/dashboard');

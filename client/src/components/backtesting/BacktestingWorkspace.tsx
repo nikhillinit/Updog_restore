@@ -79,7 +79,7 @@ function RunnerHeader({
         {isActive && <div className="h-2 w-2 animate-pulse rounded-full bg-presson-info" />}
         <span className="text-sm font-medium text-charcoal-700">{statusText}</span>
       </div>
-      {isActive && <span className="tabular-nums text-xs text-charcoal-500">{elapsed}s</span>}
+      {isActive && <span className="tabular-nums text-xs text-presson-textMuted">{elapsed}s</span>}
     </div>
   );
 }
@@ -115,7 +115,7 @@ function ErrorDisplay({
     <div className="text-sm">
       <p className="font-medium text-error-dark">{config.title}</p>
       <p className="mt-0.5 text-xs text-charcoal-600">{errorMessage}</p>
-      <p className="mt-1 text-xs text-charcoal-500">{config.guidance}</p>
+      <p className="mt-1 text-xs text-presson-textMuted">{config.guidance}</p>
     </div>
   );
 }
@@ -182,7 +182,7 @@ function RunnerPanel(props: RunnerPanelProps) {
           {...(props.onRetry ? { onRetry: props.onRetry } : {})}
         />
         {correlationId && (
-          <p className="mt-1 font-mono text-[10px] text-charcoal-400">{correlationId}</p>
+          <p className="mt-1 font-mono text-[10px] text-presson-textMuted">{correlationId}</p>
         )}
       </CardContent>
     </Card>
@@ -203,7 +203,7 @@ function SubmitErrorPanel({
       <CardContent className="px-4 py-3">
         <ErrorDisplay errorCode={error.errorCode} errorMessage={error.errorMessage} />
         {error.status && (
-          <p className="mt-1 font-mono text-[10px] text-charcoal-400">HTTP {error.status}</p>
+          <p className="mt-1 font-mono text-[10px] text-presson-textMuted">HTTP {error.status}</p>
         )}
         {error.isRetryable && onRetry && (
           <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
@@ -226,7 +226,7 @@ function SummaryCard({
 }) {
   return (
     <div className="rounded-lg border border-beige-200 p-3">
-      <p className="text-xs text-charcoal-500">{label}</p>
+      <p className="text-xs text-presson-textMuted">{label}</p>
       <p className={cn('text-lg font-semibold text-pov-charcoal', highlight && 'text-warning')}>
         {value}
       </p>
@@ -306,7 +306,7 @@ function ScenarioComparisons({
               <p className="text-sm font-medium text-pov-charcoal">
                 {formatScenarioLabel(comparison.scenario)}
               </p>
-              <p className="text-xs text-charcoal-500">{comparison.description}</p>
+              <p className="text-xs text-presson-textMuted">{comparison.description}</p>
               {comparison.keyInsights.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {comparison.keyInsights.map((insight, index) => (
@@ -360,7 +360,7 @@ function HistoryPanel({
   const { data, isLoading, isError, refetch } = useBacktestHistory(fundId);
 
   if (isLoading) {
-    return <p className="text-xs text-charcoal-500">Loading history...</p>;
+    return <p className="text-xs text-presson-textMuted">Loading history...</p>;
   }
 
   if (isError) {
@@ -375,7 +375,7 @@ function HistoryPanel({
   }
 
   if (!data?.history?.length) {
-    return <p className="text-xs text-charcoal-500">No previous backtests</p>;
+    return <p className="text-xs text-presson-textMuted">No previous backtests</p>;
   }
 
   return (
@@ -390,7 +390,7 @@ function HistoryPanel({
           <span className="text-pov-charcoal">
             {new Date(result.timestamp).toLocaleDateString()}
           </span>
-          <span className="ml-2 text-charcoal-500">
+          <span className="ml-2 text-presson-textMuted">
             {result.simulationSummary.runs.toLocaleString()} runs
           </span>
         </button>
@@ -516,7 +516,9 @@ function BacktestingMainPanel({
       {state.displayedResult && <ResultsSection result={state.displayedResult} />}
       {!state.displayedResult && !state.submitError && state.jobStatus.phase === 'idle' && (
         <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-beige-200">
-          <p className="text-sm text-charcoal-400">Configure and run a backtest to see results</p>
+          <p className="text-sm text-presson-textMuted">
+            Configure and run a backtest to see results
+          </p>
         </div>
       )}
     </div>
@@ -546,10 +548,10 @@ export function BacktestingWorkspace({
         {showHeader && (
           <>
             <h1 className="mb-1 text-xl font-semibold text-pov-charcoal">{title}</h1>
-            <p className="mb-6 text-sm text-charcoal-500">{description}</p>
+            <p className="mb-6 text-sm text-presson-textMuted">{description}</p>
           </>
         )}
-        <p className="text-sm text-charcoal-500">Please select a fund to begin backtesting.</p>
+        <p className="text-sm text-presson-textMuted">Please select a fund to begin backtesting.</p>
       </div>
     );
   }
@@ -559,7 +561,7 @@ export function BacktestingWorkspace({
       {showHeader && (
         <>
           <h1 className="mb-1 text-xl font-semibold text-pov-charcoal">{title}</h1>
-          <p className="mb-6 text-sm text-charcoal-500">{description}</p>
+          <p className="mb-6 text-sm text-presson-textMuted">{description}</p>
         </>
       )}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

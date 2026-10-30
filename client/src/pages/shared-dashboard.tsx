@@ -18,6 +18,9 @@ type ShareResponseState =
   | { kind: 'passkey'; share: ShareData }
   | { kind: 'snapshot'; share: ShareData; snapshot: PublicShareSnapshotPayload };
 
+export type PasskeyVerification =
+  { status: 'verified' } | { status: 'failed'; message: string } | { status: 'superseded' };
+
 function shareResponseError(body: unknown, fallback: string): string {
   if (body && typeof body === 'object') {
     const record = body as Record<string, unknown>;
@@ -51,28 +54,21 @@ export const useSharedDashboard = (shareId: string) => {
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [snapshot, setSnapshot] = useState<PublicShareSnapshotPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiresPasskey, setRequiresPasskey] = useState(false);
   const requestSequence = useRef(0);
 
-  const applyShareResponse = useCallback((body: unknown) => {
-    const state = classifyShareResponse(body);
-
-    if (state.kind === 'error') {
-      setError(state.message);
-      return false;
-    }
-
+  const applyShareState = useCallback((state: Exclude<ShareResponseState, { kind: 'error' }>) => {
     setShareData(state.share);
     if (state.kind === 'passkey') {
       setRequiresPasskey(true);
       setSnapshot(null);
-      return true;
+      return;
     }
 
     setRequiresPasskey(false);
     setSnapshot(state.snapshot);
-    return true;
   }, []);
 
   useEffect(() => {
@@ -81,6 +77,7 @@ export const useSharedDashboard = (shareId: string) => {
     const fetchShare = async () => {
       try {
         setIsLoading(true);
+        setIsVerifying(false);
         setError(null);
         const response = await fetch(`/api/public/shares/${shareId}`, {
           signal: controller.signal,
@@ -94,7 +91,12 @@ export const useSharedDashboard = (shareId: string) => {
           return;
         }
 
-        applyShareResponse(body);
+        const state = classifyShareResponse(body);
+        if (state.kind === 'error') {
+          setError(state.message);
+          return;
+        }
+        applyShareState(state);
       } catch {
         if (controller.signal.aborted || requestId !== requestSequence.current) return;
         setError('Failed to connect to server');
@@ -107,14 +109,14 @@ export const useSharedDashboard = (shareId: string) => {
       fetchShare();
     }
     return () => controller.abort();
-  }, [applyShareResponse, shareId]);
+  }, [applyShareState, shareId]);
 
+  // Verification failures are returned to the form; they never write the share-load error.
   const verifyPasskey = useCallback(
-    async (passkey: string): Promise<boolean> => {
+    async (passkey: string): Promise<PasskeyVerification> => {
       const requestId = ++requestSequence.current;
       try {
-        setIsLoading(true);
-        setError(null);
+        setIsVerifying(true);
 
         const response = await fetch(`/api/public/shares/${shareId}/verify`, {
           method: 'POST',
@@ -124,29 +126,36 @@ export const useSharedDashboard = (shareId: string) => {
 
         const body: unknown = await response.json();
 
-        if (requestId !== requestSequence.current) return false;
+        if (requestId !== requestSequence.current) return { status: 'superseded' };
 
         if (!response.ok) {
-          setError(shareResponseError(body, 'Verification failed'));
-          return false;
+          return { status: 'failed', message: shareResponseError(body, 'Verification failed') };
         }
 
-        return applyShareResponse(body);
+        const state = classifyShareResponse(body);
+        if (state.kind !== 'snapshot') {
+          return {
+            status: 'failed',
+            message: state.kind === 'error' ? state.message : 'Verification failed',
+          };
+        }
+        applyShareState(state);
+        return { status: 'verified' };
       } catch {
-        if (requestId !== requestSequence.current) return false;
-        setError('Failed to verify passkey');
-        return false;
+        if (requestId !== requestSequence.current) return { status: 'superseded' };
+        return { status: 'failed', message: 'Failed to verify passkey' };
       } finally {
-        if (requestId === requestSequence.current) setIsLoading(false);
+        if (requestId === requestSequence.current) setIsVerifying(false);
       }
     },
-    [applyShareResponse, shareId]
+    [applyShareState, shareId]
   );
 
   return {
     shareConfig: shareData,
     snapshot,
     isLoading,
+    isVerifying,
     error,
     requiresPasskey,
     verifyPasskey,
@@ -183,11 +192,11 @@ function MetricCard({ metric }: { metric: PublicMetricValue }) {
       </CardHeader>
       <CardContent>
         <div
-          className={`text-2xl font-bold ${unavailable ? 'text-charcoal-500' : 'text-pov-charcoal'}`}
+          className={`text-2xl font-bold ${unavailable ? 'text-presson-textMuted' : 'text-pov-charcoal'}`}
         >
           {formatMetric(metric)}
         </div>
-        <p className="mt-2 text-xs text-charcoal-500">
+        <p className="mt-2 text-xs text-presson-textMuted">
           {unavailable
             ? (metric.unavailableReason ?? 'Source data unavailable')
             : `${metric.source} as of ${new Date(metric.asOfDate).toLocaleDateString()}`}
@@ -197,13 +206,17 @@ function MetricCard({ metric }: { metric: PublicMetricValue }) {
   );
 }
 
+const PASSKEY_INPUT_ID = 'shared-dashboard-passkey';
+const PASSKEY_ERROR_ID = 'shared-dashboard-passkey-error';
+
 const SharedDashboard: React.FC = () => {
   const [, params] = useRoute('/shared/:shareId');
   const shareId = params?.shareId ?? '';
   const [enteredPasskey, setEnteredPasskey] = useState('');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const passkeyInputRef = useRef<HTMLInputElement>(null);
 
-  const { shareConfig, snapshot, isLoading, error, requiresPasskey, verifyPasskey } =
+  const { shareConfig, snapshot, isLoading, isVerifying, error, requiresPasskey, verifyPasskey } =
     useSharedDashboard(shareId);
 
   useEffect(() => {
@@ -224,12 +237,14 @@ const SharedDashboard: React.FC = () => {
 
     if (enteredPasskey.length === 0) {
       setPasskeyError('Please enter a passkey');
+      passkeyInputRef.current?.focus();
       return;
     }
 
-    const success = await verifyPasskey(enteredPasskey);
-    if (!success) {
-      setPasskeyError('Invalid passkey. Please try again.');
+    const verification = await verifyPasskey(enteredPasskey);
+    if (verification.status === 'failed') {
+      setPasskeyError(verification.message);
+      passkeyInputRef.current?.focus();
     }
   };
 
@@ -257,7 +272,7 @@ const SharedDashboard: React.FC = () => {
               <AlertCircle className="h-12 w-12 text-error mx-auto mb-4" />
               <h1 className="text-xl font-semibold text-pov-charcoal mb-2">Access Error</h1>
               <p className="text-charcoal-600 mb-4">{error}</p>
-              <p className="text-sm text-charcoal-500">
+              <p className="text-sm text-presson-textMuted">
                 Please check your link or contact the fund manager for assistance.
               </p>
             </div>
@@ -281,10 +296,15 @@ const SharedDashboard: React.FC = () => {
           <CardContent>
             <form onSubmit={handlePasskeySubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                <label
+                  htmlFor={PASSKEY_INPUT_ID}
+                  className="block text-sm font-medium text-charcoal-700 mb-2"
+                >
                   Enter Passkey
                 </label>
                 <Input
+                  id={PASSKEY_INPUT_ID}
+                  ref={passkeyInputRef}
                   type="password"
                   value={enteredPasskey}
                   onChange={(e) => {
@@ -293,16 +313,22 @@ const SharedDashboard: React.FC = () => {
                   }}
                   placeholder="Enter the passkey provided by your fund manager"
                   className={passkeyError ? 'border-error' : ''}
+                  aria-invalid={passkeyError ? true : undefined}
+                  aria-describedby={passkeyError ? PASSKEY_ERROR_ID : undefined}
                   required
                 />
-                {passkeyError && <p className="text-sm text-error-dark mt-1">{passkeyError}</p>}
+                {passkeyError && (
+                  <p id={PASSKEY_ERROR_ID} role="alert" className="text-sm text-error-dark mt-1">
+                    {passkeyError}
+                  </p>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Verifying...' : 'Access Dashboard'}
+              <Button type="submit" className="w-full" disabled={isVerifying}>
+                {isVerifying ? 'Verifying...' : 'Access Dashboard'}
               </Button>
             </form>
             {shareConfig?.customMessage && (
-              <p className="text-sm text-charcoal-500 mt-4 text-center">
+              <p className="text-sm text-presson-textMuted mt-4 text-center">
                 {shareConfig.customMessage}
               </p>
             )}
@@ -335,8 +361,8 @@ const SharedDashboard: React.FC = () => {
                 <Printer className="h-4 w-4" />
                 Print
               </Button>
-              <div className="flex items-center gap-2 text-sm text-charcoal-500">
-                <Eye className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm text-presson-textMuted">
+                <Eye className="h-4 w-4 text-charcoal-500" />
                 Read-only Access
               </div>
             </div>
@@ -389,14 +415,14 @@ const SharedDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-12 pt-8 border-t text-center text-sm text-charcoal-500">
+        <div className="mt-12 pt-8 border-t text-center text-sm text-presson-textMuted">
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-1">
               <CheckCircle className="h-4 w-4 text-success" />
               Server-authorized Snapshot
             </div>
             <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
+              <Clock className="h-4 w-4 text-charcoal-500" />
               As of {new Date(snapshot.asOfDate).toLocaleDateString()}
             </div>
           </div>

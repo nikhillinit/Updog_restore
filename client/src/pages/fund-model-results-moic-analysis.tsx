@@ -423,7 +423,7 @@ function RankingsTable({
                 <TableHead
                   scope="rowgroup"
                   colSpan={6}
-                  className="h-auto py-2 text-xs font-semibold uppercase text-charcoal-500"
+                  className="h-auto py-2 text-xs font-semibold uppercase text-presson-textMuted"
                 >
                   {group.label}
                 </TableHead>

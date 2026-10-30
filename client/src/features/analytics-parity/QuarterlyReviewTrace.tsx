@@ -25,7 +25,7 @@ const STATUS_CLASSES: Record<AnalyticsTraceStatus, string> = {
   pending: 'border-warning/50 bg-warning/10 text-warning-dark',
   unavailable: 'border-beige-200 bg-pov-gray text-charcoal-600',
   linked: 'border-presson-info/30 bg-presson-info/10 text-presson-info',
-  deferred: 'border-beige-200 bg-pov-gray text-charcoal-500',
+  deferred: 'border-beige-200 bg-pov-gray text-presson-textMuted',
 };
 
 interface QuarterlyReviewTraceProps {
@@ -72,13 +72,13 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
           <h2 id="quarterly-review-trace-title" className="text-lg font-medium text-charcoal">
             Quarterly Analytics Trace
           </h2>
-          <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+          <p className="mt-1 text-sm text-presson-textMuted font-poppins">
             Source-labeled answers for the mounted quarterly review workflow.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 md:mt-1">
           <TraceActionLink action={workflowAction} />
-          <Badge variant="outline" className="border-beige-200 text-charcoal-500">
+          <Badge variant="outline" className="border-beige-200 text-presson-textMuted">
             Tranche 6
           </Badge>
         </div>
@@ -95,7 +95,7 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
                 <h3 className="text-sm font-semibold text-charcoal">{item.question}</h3>
                 <TraceStatusBadge status={item.status} />
               </div>
-              <p className="text-xs font-semibold uppercase tracking-normal text-charcoal-500">
+              <p className="text-xs font-semibold uppercase tracking-normal text-presson-textMuted">
                 {item.sourceLabel}
               </p>
               <p className="text-sm text-charcoal-600 font-poppins">{item.description}</p>
@@ -118,7 +118,7 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
                 {item.label}
                 <TraceStatusBadge status={item.status} />
               </dt>
-              <dd className="text-sm text-charcoal-500 font-poppins">{item.reason}</dd>
+              <dd className="text-sm text-presson-textMuted font-poppins">{item.reason}</dd>
               {item.href ? (
                 <dd>
                   <Link className="text-sm font-medium text-charcoal underline" href={item.href}>

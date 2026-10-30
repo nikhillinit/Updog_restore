@@ -32,7 +32,7 @@ export function LatestErrorState() {
       <Alert className="mb-8 border-beige-200">
         <AlertCircle className="h-5 w-5 text-charcoal-400" />
         <AlertTitle>Invalid results route</AlertTitle>
-        <AlertDescription className="font-poppins text-charcoal-500">
+        <AlertDescription className="font-poppins text-presson-textMuted">
           No fund ID specified. Please complete the modeling wizard to view results.
         </AlertDescription>
       </Alert>
@@ -55,7 +55,9 @@ export function ErrorState({ message }: { message: string }) {
       <Alert className="mb-8 border-beige-200">
         <AlertCircle className="h-5 w-5 text-charcoal-400" />
         <AlertTitle>Error loading results</AlertTitle>
-        <AlertDescription className="font-poppins text-charcoal-500">{message}</AlertDescription>
+        <AlertDescription className="font-poppins text-presson-textMuted">
+          {message}
+        </AlertDescription>
       </Alert>
       <Button
         variant="outline"

@@ -86,12 +86,12 @@ function WaterfallSetupCard({ payload }: { payload: WaterfallSetupSection }) {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="font-medium text-charcoal">{tier.name}</p>
-                <p className="text-sm text-charcoal-500 font-poppins">
+                <p className="text-sm text-presson-textMuted font-poppins">
                   GP {tier.gpSplit}% / LP {tier.lpSplit}%
                 </p>
               </div>
               {tier.condition && tier.condition !== 'none' && tier.conditionValue != null && (
-                <p className="text-sm text-charcoal-500 font-poppins">
+                <p className="text-sm text-presson-textMuted font-poppins">
                   {tier.condition.toUpperCase()} hurdle {tier.conditionValue}
                 </p>
               )}
@@ -200,7 +200,7 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         {series.map((item) => (
-          <div key={item.key} className="flex items-center gap-2 text-xs text-charcoal-500">
+          <div key={item.key} className="flex items-center gap-2 text-xs text-presson-textMuted">
             <span className={cn('h-2.5 w-2.5 rounded-sm', item.color)} />
             {item.label}
           </div>
@@ -209,7 +209,7 @@ function EconomicsCashflowChart({ rows }: { rows: EconomicsResultV1['annual'] })
       <div className="space-y-3">
         {rows.map((row) => (
           <div key={row.year} className="grid grid-cols-[3rem_1fr] items-center gap-3">
-            <div className="text-xs font-medium text-charcoal-500">Y{row.year}</div>
+            <div className="text-xs font-medium text-presson-textMuted">Y{row.year}</div>
             <div className="grid h-14 grid-cols-7 items-end gap-1 rounded-md bg-beige-50 px-2 py-1">
               {series.map((item) => {
                 const value = row[item.key];
@@ -243,18 +243,18 @@ function EconomicsJCurveChart({ rows }: { rows: EconomicsResultV1['annual'] }) {
     <div className="space-y-3">
       {rows.map((row) => (
         <div key={row.year} className="grid grid-cols-[3rem_1fr] gap-3">
-          <div className="text-xs font-medium text-charcoal-500">Y{row.year}</div>
+          <div className="text-xs font-medium text-presson-textMuted">Y{row.year}</div>
           <div className="space-y-1.5">
             {metrics.map((metric) => (
               <div key={metric.key} className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2">
-                <span className="text-xs text-charcoal-400">{metric.label}</span>
+                <span className="text-xs text-presson-textMuted">{metric.label}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-beige-100">
                   <div
                     className={cn('h-full rounded-full', metric.color)}
                     style={{ width: `${Math.max(1, (row[metric.key] / maxMultiple) * 100)}%` }}
                   />
                 </div>
-                <span className="text-right text-xs text-charcoal-500">
+                <span className="text-right text-xs text-presson-textMuted">
                   {formatMultiple(row[metric.key])}
                 </span>
               </div>
@@ -270,7 +270,7 @@ function EconomicsCarryTable({ rows }: { rows: EconomicsResultV1['annual'] }) {
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-left text-sm">
-        <thead className="border-b border-beige-200 text-xs text-charcoal-400">
+        <thead className="border-b border-beige-200 text-xs text-presson-textMuted">
           <tr>
             <th className="py-2 pr-4 font-medium">Year</th>
             <th className="py-2 pr-4 font-medium">LP Dist.</th>
@@ -287,26 +287,26 @@ function EconomicsCarryTable({ rows }: { rows: EconomicsResultV1['annual'] }) {
           {rows.map((row) => (
             <tr key={row.year}>
               <td className="py-2 pr-4 font-medium text-charcoal">Y{row.year}</td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.lpDistributions)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.gpInvestmentDistributions)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.gpCarryDistributed)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.gpCarryEscrowed)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.gpCarryReleasedFromEscrow)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">
+              <td className="py-2 pr-4 text-presson-textMuted">
                 {formatCompactMoney(row.clawbackPaid)}
               </td>
-              <td className="py-2 pr-4 text-charcoal-500">{formatMultiple(row.dpi)}</td>
-              <td className="py-2 pr-4 text-charcoal-500">{formatMultiple(row.tvpi)}</td>
+              <td className="py-2 pr-4 text-presson-textMuted">{formatMultiple(row.dpi)}</td>
+              <td className="py-2 pr-4 text-presson-textMuted">{formatMultiple(row.tvpi)}</td>
             </tr>
           ))}
         </tbody>
@@ -318,7 +318,7 @@ function EconomicsCarryTable({ rows }: { rows: EconomicsResultV1['annual'] }) {
 function FactTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-beige-50 rounded-md p-3">
-      <p className="text-xs text-charcoal-400 font-poppins">{label}</p>
+      <p className="text-xs text-presson-textMuted font-poppins">{label}</p>
       <p className="text-lg font-medium text-charcoal">{value}</p>
     </div>
   );

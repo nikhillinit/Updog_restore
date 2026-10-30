@@ -22,6 +22,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-10-30)
+
+- Client reliability and accessibility (F_1.17.0 PR 2a). Pipeline: with no fund
+  selected, the page asks for a fund, sends no deals request, and disables
+  Add/Import. Performance: a failed time series or breakdown shows its own error
+  and retry while the other dataset stays usable. Variance tracking: a failed
+  alerts request shows "Alerts unavailable" with a retry instead of "no alerts",
+  the current-scope empty copy no longer claims acceptable variance, and setting
+  a default baseline refreshes alerts. Shared dashboard: passkey failures stay
+  on the form with the server's message, the form stays mounted while verifying,
+  and the field is linked to its label and error. Help stays reachable during
+  fund setup; the scenario comparison table is a focusable, named scroll region;
+  readable muted copy on model-results, scenario, MOIC, sensitivity, variance,
+  and shared-dashboard surfaces uses the muted text token.
+
 ### Fixed (2026-10-29)
 
 - Fund workspace "Start another fund?" dialog (F_1.15.3): a 412 now records

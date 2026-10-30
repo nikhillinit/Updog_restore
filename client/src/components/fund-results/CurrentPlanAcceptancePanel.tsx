@@ -26,7 +26,7 @@ function formatRatioAsPercent(value: string): string {
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-      <dt className="text-sm font-medium text-charcoal-500">{label}</dt>
+      <dt className="text-sm font-medium text-presson-textMuted">{label}</dt>
       <dd className="text-sm text-charcoal sm:text-right">{value}</dd>
     </div>
   );
@@ -60,7 +60,7 @@ function HeadPlanReview({ headVersion }: { headVersion: CurrentPlanVersionV1 }) 
       </dl>
 
       <div className="rounded-md border border-beige-200 bg-beige-50 p-4 font-poppins">
-        <p className="text-xs font-medium uppercase tracking-wide text-charcoal-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-presson-textMuted">
           Compiled annual fee drag
         </p>
         <p className="mt-1 text-2xl font-semibold text-charcoal">
@@ -70,23 +70,23 @@ function HeadPlanReview({ headVersion }: { headVersion: CurrentPlanVersionV1 }) 
 
       <dl className="grid gap-3 font-poppins sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-md border border-beige-200 p-3">
-          <dt className="text-xs text-charcoal-500">Deployment quarters</dt>
+          <dt className="text-xs text-presson-textMuted">Deployment quarters</dt>
           <dd className="mt-1 font-medium text-charcoal">
             {headVersion.pacingAssumptions.deploymentQuarters}
           </dd>
         </div>
         <div className="rounded-md border border-beige-200 p-3">
-          <dt className="text-xs text-charcoal-500">Allocations</dt>
+          <dt className="text-xs text-presson-textMuted">Allocations</dt>
           <dd className="mt-1 font-medium text-charcoal">{headVersion.allocations.length}</dd>
         </div>
         <div className="rounded-md border border-beige-200 p-3">
-          <dt className="text-xs text-charcoal-500">Portfolio stages</dt>
+          <dt className="text-xs text-presson-textMuted">Portfolio stages</dt>
           <dd className="mt-1 font-medium text-charcoal">
             {headVersion.cohortAssumptions.stageDistribution.length}
           </dd>
         </div>
         <div className="rounded-md border border-beige-200 p-3">
-          <dt className="text-xs text-charcoal-500">Exit assumptions</dt>
+          <dt className="text-xs text-presson-textMuted">Exit assumptions</dt>
           <dd className="mt-1 font-medium text-charcoal">
             {headVersion.cohortAssumptions.exitAssumptions.length}
           </dd>
@@ -108,12 +108,14 @@ function CurrentPlanAcceptanceContent({ fundId }: { fundId: number }) {
         <h2 id="current-plan-review-heading" className="font-inter text-lg font-bold text-charcoal">
           Current Plan Review
         </h2>
-        <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+        <p className="mt-1 text-sm text-presson-textMuted font-poppins">
           Review the assumptions and source evidence compiled into the current plan.
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-charcoal-500 font-poppins">Loading current plan…</p>}
+      {isLoading && (
+        <p className="text-sm text-presson-textMuted font-poppins">Loading current plan…</p>
+      )}
       {error && (
         <p
           role="alert"
@@ -138,7 +140,7 @@ function CurrentPlanAcceptanceContent({ fundId }: { fundId: number }) {
       )}
       {!isLoading && !error && headVersion === null && (
         <div className="space-y-3 font-poppins">
-          <p className="text-sm text-charcoal-500">
+          <p className="text-sm text-presson-textMuted">
             No current plan has been derived from the published configuration yet.
           </p>
           <Button type="button" onClick={() => mint.mutate()} disabled={mint.isPending}>

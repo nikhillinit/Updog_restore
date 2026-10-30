@@ -78,7 +78,7 @@ function ScenarioSetActionCard({
         <div className="min-w-0 space-y-2">
           <div>
             <h3 className="font-inter text-base font-semibold text-charcoal">{summary.name}</h3>
-            <p className="mt-1 flex flex-wrap items-center gap-2 font-poppins text-sm text-charcoal-500">
+            <p className="mt-1 flex flex-wrap items-center gap-2 font-poppins text-sm text-presson-textMuted">
               <span>
                 {summary.variantCount === 1 ? '1 variant' : `${summary.variantCount} variants`}
               </span>
@@ -159,7 +159,7 @@ export function ScenarioActionList({
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-medium text-charcoal">Scenario Sets</h2>
-        <p className="mt-1 text-sm text-charcoal-500 font-poppins">
+        <p className="mt-1 text-sm text-presson-textMuted font-poppins">
           Latest scenario sets for the published fund configuration.
         </p>
       </div>
