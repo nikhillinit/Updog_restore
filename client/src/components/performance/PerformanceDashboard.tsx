@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ErrorState } from '@/components/analytics';
+import { ErrorState } from '@/components/analytics/ErrorState';
 import { TrendingUp, RefreshCw, Calendar } from 'lucide-react';
 import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
 import { colors as brandColors } from '@/lib/brand-tokens';
