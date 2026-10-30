@@ -190,6 +190,19 @@ export class VarianceCalculationService {
   }
 
   /**
+   * Get the newest variance report for one baseline of a fund, or undefined.
+   */
+  async getLatestVarianceReportForBaseline(
+    fundId: number,
+    baselineId: string
+  ): Promise<VarianceReport | undefined> {
+    return await db.query.varianceReports.findFirst({
+      where: and(eq(varianceReports.fundId, fundId), eq(varianceReports.baselineId, baselineId)),
+      orderBy: desc(varianceReports.createdAt),
+    });
+  }
+
+  /**
    * Get a specific variance report owned by a fund.
    */
   async getVarianceReportById(
