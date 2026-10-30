@@ -217,6 +217,77 @@ describe('PerformanceDashboard', () => {
     expect(screen.getAllByTestId('performance-chart-empty-state')).toHaveLength(2);
   });
 
+  it('shows a time-series failure with its own retry while the breakdown stays usable', async () => {
+    const user = userEvent.setup();
+    const refetchTimeseries = vi.fn();
+    const refetchBreakdown = vi.fn();
+    mockUsePerformanceTimeseries.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('500: timeseries failed'),
+      refetch: refetchTimeseries,
+    });
+    mockUsePerformanceBreakdown.mockReturnValue({
+      data: makeBreakdownData(),
+      isLoading: false,
+      error: null,
+      refetch: refetchBreakdown,
+    });
+
+    render(<PerformanceDashboard />);
+
+    expect(screen.getByText('Time series unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('IRR history pending')).not.toBeInTheDocument();
+    expect(screen.queryByText('Multiple history pending')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    expect(refetchTimeseries).toHaveBeenCalledTimes(1);
+    expect(refetchBreakdown).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('tab', { name: 'Breakdown' }));
+    await waitFor(() => {
+      expect(screen.getByText('SaaS')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Breakdown unavailable')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Refresh performance' }));
+    expect(refetchTimeseries).toHaveBeenCalledTimes(2);
+    expect(refetchBreakdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a breakdown failure with its own retry while the time series stays usable', async () => {
+    const user = userEvent.setup();
+    const refetchTimeseries = vi.fn();
+    const refetchBreakdown = vi.fn();
+    mockUsePerformanceTimeseries.mockReturnValue({
+      data: makeTimeseriesData(['database']),
+      isLoading: false,
+      error: null,
+      refetch: refetchTimeseries,
+    });
+    mockUsePerformanceBreakdown.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('500: breakdown failed'),
+      refetch: refetchBreakdown,
+    });
+
+    render(<PerformanceDashboard />);
+
+    expect(screen.queryByText('Time series unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText('IRR history pending')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Breakdown' }));
+    await waitFor(() => {
+      expect(screen.getByText('Breakdown unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Breakdown pending')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    expect(refetchBreakdown).toHaveBeenCalledTimes(1);
+    expect(refetchTimeseries).not.toHaveBeenCalled();
+  });
+
   it('shows an explicit breakdown empty state when there are no portfolio rows', async () => {
     const user = userEvent.setup();
     mockUsePerformanceBreakdown.mockReturnValue({

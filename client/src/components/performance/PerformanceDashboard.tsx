@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ErrorState } from '@/components/analytics';
 import { TrendingUp, RefreshCw, Calendar } from 'lucide-react';
 import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
 import { colors as brandColors } from '@/lib/brand-tokens';
@@ -157,6 +158,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
   const {
     data: timeseriesData,
     isLoading: timeseriesLoading,
+    error: timeseriesError,
     refetch: refetchTimeseries,
   } = usePerformanceTimeseries({
     startDate: dateRange.startDate,
@@ -167,6 +169,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
   const {
     data: breakdownData,
     isLoading: breakdownLoading,
+    error: breakdownError,
     refetch: refetchBreakdown,
   } = usePerformanceBreakdown({
     groupBy,
@@ -298,146 +301,157 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
 
         {/* Time Series Tab */}
         <TabsContent value="timeseries" className="space-y-6">
-          {hasDerivedPoints && (
-            <Card
-              className="bg-warning/10 border border-warning/50 shadow-sm"
-              data-testid="timeseries-source-note"
-            >
-              <CardContent className="pt-4">
-                <div className="flex flex-wrap items-center gap-2 text-sm text-warning-dark">
-                  <Badge variant="secondary">Data quality note</Badge>
-                  {sourceSummary.interpolated > 0 && (
-                    <span>
-                      {sourceSummary.interpolated} point
-                      {sourceSummary.interpolated === 1 ? '' : 's'}{' '}
-                      {sourceSummary.interpolated === 1 ? 'is' : 'are'} interpolated between
-                      persisted metric snapshots.
-                    </span>
+          {timeseriesError ? (
+            <ErrorState
+              title="Time series unavailable"
+              message="Performance history could not be loaded."
+              onRetry={() => void refetchTimeseries()}
+              className="bg-pov-white rounded-xl border border-beige-200 shadow-md"
+            />
+          ) : (
+            <>
+              {hasDerivedPoints && (
+                <Card
+                  className="bg-warning/10 border border-warning/50 shadow-sm"
+                  data-testid="timeseries-source-note"
+                >
+                  <CardContent className="pt-4">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-warning-dark">
+                      <Badge variant="secondary">Data quality note</Badge>
+                      {sourceSummary.interpolated > 0 && (
+                        <span>
+                          {sourceSummary.interpolated} point
+                          {sourceSummary.interpolated === 1 ? '' : 's'}{' '}
+                          {sourceSummary.interpolated === 1 ? 'is' : 'are'} interpolated between
+                          persisted metric snapshots.
+                        </span>
+                      )}
+                      {sourceSummary.unavailable > 0 && (
+                        <span>
+                          {sourceSummary.unavailable} date
+                          {sourceSummary.unavailable === 1 ? '' : 's'}{' '}
+                          {sourceSummary.unavailable === 1 ? 'has' : 'have'} no persisted metric
+                          snapshot yet and are shown as unavailable rather than inferred from
+                          mutable current state.
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* IRR Chart */}
+              <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+                <CardHeader>
+                  <CardTitle className="font-inter text-lg text-pov-charcoal">
+                    Internal Rate of Return (IRR)
+                  </CardTitle>
+                  <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
+                    Annualized return over persisted metric snapshots
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {hasIrrValues ? (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={chartData}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                          <YAxis
+                            tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <Tooltip
+                            formatter={(value) => [
+                              value !== undefined ? `${Number(value).toFixed(2)}%` : '',
+                              'IRR',
+                            ]}
+                            labelFormatter={(label) => `Date: ${label}`}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="irr"
+                            stroke={CHART_COLORS.irr}
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <EmptyChartState
+                      title="IRR history pending"
+                      description="Persisted dated cash flows are required before the app can draw an IRR trend."
+                    />
                   )}
-                  {sourceSummary.unavailable > 0 && (
-                    <span>
-                      {sourceSummary.unavailable} date
-                      {sourceSummary.unavailable === 1 ? '' : 's'}{' '}
-                      {sourceSummary.unavailable === 1 ? 'has' : 'have'} no persisted metric
-                      snapshot yet and are shown as unavailable rather than inferred from mutable
-                      current state.
-                    </span>
+                </CardContent>
+              </Card>
+
+              {/* TVPI & DPI Chart */}
+              <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+                <CardHeader>
+                  <CardTitle className="font-inter text-lg text-pov-charcoal">
+                    Fund Multiples (TVPI & DPI)
+                  </CardTitle>
+                  <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
+                    Total Value and Distributions to Paid-In Capital over persisted metric snapshots
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {hasMultipleValues ? (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={chartData}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                          <YAxis
+                            tickFormatter={(v) => `${Number(v).toFixed(1)}x`}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <Tooltip
+                            formatter={(value, name) => [
+                              value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                              String(name ?? '').toUpperCase(),
+                            ]}
+                            labelFormatter={(label) => `Date: ${label}`}
+                          />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="tvpi"
+                            stroke={CHART_COLORS.tvpi}
+                            strokeWidth={2}
+                            dot={false}
+                            name="TVPI"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="dpi"
+                            stroke={CHART_COLORS.dpi}
+                            strokeWidth={2}
+                            dot={false}
+                            name="DPI"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <EmptyChartState
+                      title="Multiple history pending"
+                      description="Persisted TVPI or DPI snapshots are required before the app can draw fund multiple trends."
+                    />
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </>
           )}
-
-          {/* IRR Chart */}
-          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
-            <CardHeader>
-              <CardTitle className="font-inter text-lg text-pov-charcoal">
-                Internal Rate of Return (IRR)
-              </CardTitle>
-              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
-                Annualized return over persisted metric snapshots
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {hasIrrValues ? (
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={chartData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                      <YAxis
-                        tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [
-                          value !== undefined ? `${Number(value).toFixed(2)}%` : '',
-                          'IRR',
-                        ]}
-                        labelFormatter={(label) => `Date: ${label}`}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="irr"
-                        stroke={CHART_COLORS.irr}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <EmptyChartState
-                  title="IRR history pending"
-                  description="Persisted dated cash flows are required before the app can draw an IRR trend."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* TVPI & DPI Chart */}
-          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
-            <CardHeader>
-              <CardTitle className="font-inter text-lg text-pov-charcoal">
-                Fund Multiples (TVPI & DPI)
-              </CardTitle>
-              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
-                Total Value and Distributions to Paid-In Capital over persisted metric snapshots
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {hasMultipleValues ? (
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={chartData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                      <YAxis
-                        tickFormatter={(v) => `${Number(v).toFixed(1)}x`}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip
-                        formatter={(value, name) => [
-                          value !== undefined ? `${Number(value).toFixed(2)}x` : '',
-                          String(name ?? '').toUpperCase(),
-                        ]}
-                        labelFormatter={(label) => `Date: ${label}`}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="tvpi"
-                        stroke={CHART_COLORS.tvpi}
-                        strokeWidth={2}
-                        dot={false}
-                        name="TVPI"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="dpi"
-                        stroke={CHART_COLORS.dpi}
-                        strokeWidth={2}
-                        dot={false}
-                        name="DPI"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <EmptyChartState
-                  title="Multiple history pending"
-                  description="Persisted TVPI or DPI snapshots are required before the app can draw fund multiple trends."
-                />
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Breakdown Tab */}
@@ -467,7 +481,15 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
               </div>
             </CardHeader>
             <CardContent>
-              {breakdownData && hasBreakdownRows && (
+              {breakdownError && (
+                <ErrorState
+                  title="Breakdown unavailable"
+                  message="Performance breakdown could not be loaded."
+                  onRetry={() => void refetchBreakdown()}
+                  className="border-dashed border-beige-200 shadow-none"
+                />
+              )}
+              {!breakdownError && breakdownData && hasBreakdownRows && (
                 <>
                   {/* Summary Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -614,7 +636,7 @@ export default function PerformanceDashboard({ className }: PerformanceDashboard
                   </div>
                 </>
               )}
-              {breakdownData && !hasBreakdownRows && (
+              {!breakdownError && breakdownData && !hasBreakdownRows && (
                 <EmptyChartState
                   title="Breakdown pending"
                   description="Add portfolio companies or import a demo profile to show sector, stage, and company performance."
