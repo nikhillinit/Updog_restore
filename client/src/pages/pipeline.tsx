@@ -130,14 +130,38 @@ function KanbanColumnSkeleton() {
   );
 }
 
+const PIPELINE_FUND_REQUIRED_ID = 'pipeline-fund-required';
+
 // Empty state component
-function EmptyPipelineState({
-  onAddDeal,
-  onImportDeals,
-}: {
-  onAddDeal: () => void;
-  onImportDeals: () => void;
-}) {
+type EmptyPipelineStateProps =
+  | { fundSelected: false }
+  | { fundSelected: true; onAddDeal: () => void; onImportDeals: () => void };
+
+function EmptyPipelineState(props: EmptyPipelineStateProps) {
+  if (!props.fundSelected) {
+    return (
+      <Card
+        className="border-dashed border-2 border-pov-beige bg-white/50"
+        data-testid="pipeline-empty-state"
+      >
+        <CardHeader className="text-center pb-2">
+          <h3 className="font-inter text-xl font-bold text-pov-charcoal">
+            Select a fund to view its pipeline
+          </h3>
+        </CardHeader>
+        <CardContent className="text-center">
+          <p
+            id={PIPELINE_FUND_REQUIRED_ID}
+            className="font-poppins text-sm text-presson-textMuted max-w-md mx-auto"
+          >
+            Deals belong to a fund. Select a fund to view, add, or import its deals.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { onAddDeal, onImportDeals } = props;
   return (
     <Card
       className="border-dashed border-2 border-pov-beige bg-white/50"
@@ -402,6 +426,7 @@ function useFilterState() {
 export default function PipelinePage() {
   const { toast } = useToast();
   const { fundId } = useFundContext();
+  const hasFund = fundId != null;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -450,6 +475,7 @@ export default function PipelinePage() {
       if (!res.ok) throw new Error('Failed to fetch deals');
       return res.json() as Promise<DealsResponse>;
     },
+    enabled: hasFund,
   });
 
   // Fetch pipeline stages (for future use when custom stages are supported)
@@ -557,6 +583,8 @@ export default function PipelinePage() {
               variant="outline"
               className="border-pov-beige hover:bg-pov-beige/20"
               onClick={() => setIsImportModalOpen(true)}
+              disabled={!hasFund}
+              aria-describedby={hasFund ? undefined : PIPELINE_FUND_REQUIRED_ID}
             >
               <Upload className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Import deals</span>
@@ -565,6 +593,8 @@ export default function PipelinePage() {
             <Button
               className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white"
               onClick={() => setIsAddModalOpen(true)}
+              disabled={!hasFund}
+              aria-describedby={hasFund ? undefined : PIPELINE_FUND_REQUIRED_ID}
             >
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Add deal</span>
@@ -764,7 +794,9 @@ export default function PipelinePage() {
           id={PIPELINE_VIEW_REGION_ID}
           aria-label={viewMode === 'kanban' ? 'Kanban pipeline view' : 'List pipeline view'}
         >
-          {dealsError ? (
+          {!hasFund ? (
+            <EmptyPipelineState fundSelected={false} />
+          ) : dealsError ? (
             <ErrorState onRetry={() => refetchDeals()} />
           ) : isLoadingDeals ? (
             <div className="flex gap-4 overflow-x-auto pb-4">
@@ -774,6 +806,7 @@ export default function PipelinePage() {
             </div>
           ) : !hasDeals && !hasFilters ? (
             <EmptyPipelineState
+              fundSelected
               onAddDeal={() => setIsAddModalOpen(true)}
               onImportDeals={() => setIsImportModalOpen(true)}
             />
@@ -838,18 +871,17 @@ export default function PipelinePage() {
         )}
       </div>
 
-      {/* Modals */}
-      <AddDealModal
-        open={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        {...(fundId != null && { fundId })}
-      />
-
-      <ImportDealsModal
-        open={isImportModalOpen}
-        onOpenChange={setIsImportModalOpen}
-        {...(fundId != null && { fundId })}
-      />
+      {/* Write modals mount only for a selected fund */}
+      {fundId != null && (
+        <>
+          <AddDealModal open={isAddModalOpen} onOpenChange={setIsAddModalOpen} fundId={fundId} />
+          <ImportDealsModal
+            open={isImportModalOpen}
+            onOpenChange={setIsImportModalOpen}
+            fundId={fundId}
+          />
+        </>
+      )}
     </div>
   );
 }
