@@ -16,6 +16,7 @@ import { Decimal } from '../../../shared/lib/decimal-utils';
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 import { db } from '../../../server/db';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_USERNAME } from '../../../shared/constants/system-actor';
 
 // Mock metrics functions
@@ -932,6 +933,48 @@ describe('VarianceCalculationService', () => {
 
       expect(result).toEqual([]);
       expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('getLatestVarianceReportForBaseline', () => {
+    it('filters by both fund and baseline and orders newest first', async () => {
+      const matchingReport = {
+        id: 'report-older-match',
+        fundId: 1,
+        baselineId: 'baseline-default',
+        createdAt: new Date('2025-01-15T12:00:00.000Z'),
+      };
+      mockDb.query.varianceReports.findFirst.mockResolvedValue(matchingReport);
+
+      const result = await service.getLatestVarianceReportForBaseline(1, 'baseline-default');
+
+      expect(result).toEqual(matchingReport);
+      expect(mockDb.query.varianceReports.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockDb.query.varianceReports.findMany).not.toHaveBeenCalled();
+      const [{ where, orderBy }] = mockDb.query.varianceReports.findFirst.mock.calls[0];
+      const dialect = new PgDialect();
+      const whereQuery = dialect.sqlToQuery(where);
+      expect(whereQuery.sql).toContain('"fund_id" = $1');
+      expect(whereQuery.sql).toContain('"baseline_id" = $2');
+      expect(whereQuery.params).toEqual([1, 'baseline-default']);
+      const orderSql = [orderBy]
+        .flat()
+        .map((part) => dialect.sqlToQuery(part).sql)
+        .join(', ');
+      expect(orderSql).toBe('"variance_reports"."created_at" desc');
+    });
+
+    it('returns undefined instead of falling back to another baseline', async () => {
+      mockDb.query.varianceReports.findFirst.mockResolvedValue(undefined);
+      mockDb.query.varianceReports.findMany.mockResolvedValue([
+        { id: 'other-baseline-report', fundId: 1, baselineId: 'baseline-other' },
+      ]);
+
+      const result = await service.getLatestVarianceReportForBaseline(1, 'baseline-default');
+
+      expect(result).toBeUndefined();
+      expect(mockDb.query.varianceReports.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockDb.query.varianceReports.findMany).not.toHaveBeenCalled();
     });
   });
 

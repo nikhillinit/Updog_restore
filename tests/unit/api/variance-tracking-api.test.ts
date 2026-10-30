@@ -71,6 +71,7 @@ vi.mock('../../../server/services/variance-tracking', () => ({
       generateVarianceReport: vi.fn(),
       getVarianceReports: vi.fn(),
       getVarianceReportById: vi.fn(),
+      getLatestVarianceReportForBaseline: vi.fn(),
     },
     alerts: {
       createAlertRule: vi.fn(),
@@ -1536,9 +1537,15 @@ describe('Variance Tracking API', () => {
           },
         ];
 
-        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
+        mockVarianceTrackingService.baselines.getBaselines.mockImplementation(
+          async (_fundId: number, options?: { isDefault?: boolean }) =>
+            options?.isDefault ? [mockBaselines[0]] : mockBaselines
+        );
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
         mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue(latestReport);
+        mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline.mockResolvedValue(
+          latestReport[0]
+        );
 
         const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
 
@@ -1590,6 +1597,10 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
           limit: 5,
         });
+        expect(mockVarianceTrackingService.baselines.getBaselines).toHaveBeenCalledWith(1, {
+          isDefault: true,
+          limit: 1,
+        });
         expect(mockVarianceTrackingService.alerts.getActiveAlerts).toHaveBeenCalledWith(1, {
           limit: 10,
           currentBaselineOnly: true,
@@ -1600,6 +1611,121 @@ describe('Variance Tracking API', () => {
             limit: 5,
           }
         );
+        expect(
+          mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline
+        ).toHaveBeenCalledWith(1, '00000000-0000-0000-0000-000000000121');
+      });
+
+      it('sources lastAnalysisDate from the exact default baseline, not the fund-wide newest report', async () => {
+        const defaultBaseline = buildBaselineResponse({
+          id: '00000000-0000-0000-0000-000000000130',
+          name: 'Older Default Baseline',
+          isDefault: true,
+          createdAt: '2023-01-31T12:00:00.000Z',
+        });
+        // The newest five baselines are all newer than the default baseline.
+        const newestFive = Array.from({ length: 5 }, (_, index) =>
+          buildBaselineResponse({
+            id: `00000000-0000-0000-0000-00000000014${index}`,
+            name: `Newer Baseline ${index}`,
+            isDefault: false,
+          })
+        );
+        // Fund-wide reports belong to another baseline and are newer than the match.
+        const fundWideReports = [
+          {
+            id: '00000000-0000-0000-0000-000000000511',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000140',
+            reportName: 'Other Baseline Report',
+            createdAt: new Date('2026-03-31T18:00:00Z'),
+            riskLevel: 'high',
+            overallVarianceScore: '0.42',
+          },
+          {
+            id: '00000000-0000-0000-0000-000000000512',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000140',
+            reportName: 'Earlier Other Baseline Report',
+            createdAt: new Date('2026-03-30T18:00:00Z'),
+            riskLevel: 'medium',
+            overallVarianceScore: '0.55',
+          },
+        ];
+        const olderMatchingReport = {
+          id: '00000000-0000-0000-0000-000000000513',
+          fundId: 1,
+          baselineId: '00000000-0000-0000-0000-000000000130',
+          reportName: 'Default Baseline Report',
+          createdAt: new Date('2025-01-15T12:00:00Z'),
+          riskLevel: 'low',
+          overallVarianceScore: '0.90',
+        };
+
+        mockVarianceTrackingService.baselines.getBaselines.mockImplementation(
+          async (_fundId: number, options?: { isDefault?: boolean }) =>
+            options?.isDefault ? [defaultBaseline] : newestFive
+        );
+        mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue([]);
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue(
+          fundWideReports
+        );
+        mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline.mockResolvedValue(
+          olderMatchingReport
+        );
+
+        const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
+        const data = VarianceDashboardResponseSchema.parse(response.body.data);
+
+        expect(response.body.data.defaultBaseline).toEqual(defaultBaseline);
+        expect(response.body.data.recentBaselines).toEqual(newestFive);
+        expect(data.summary.lastAnalysisDate).toBe('2025-01-15T12:00:00.000Z');
+        expect(data.summary.overallRiskLevel).toBe('high');
+        expect(data.summary.trendDirection).toBe('improving');
+        expect(data.recentReports.map((report) => report.id)).toEqual([
+          '00000000-0000-0000-0000-000000000511',
+          '00000000-0000-0000-0000-000000000512',
+        ]);
+        expect(
+          mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline
+        ).toHaveBeenCalledWith(1, '00000000-0000-0000-0000-000000000130');
+        expect(mockVarianceTrackingService.calculations.getVarianceReports).toHaveBeenCalledWith(
+          1,
+          { limit: 5 }
+        );
+      });
+
+      it('returns null lastAnalysisDate when only other baselines have reports', async () => {
+        const defaultBaseline = buildBaselineResponse({
+          id: '00000000-0000-0000-0000-000000000131',
+          isDefault: true,
+        });
+        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue([defaultBaseline]);
+        mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue([]);
+        mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue([
+          {
+            id: '00000000-0000-0000-0000-000000000521',
+            fundId: 1,
+            baselineId: '00000000-0000-0000-0000-000000000149',
+            reportName: 'Other Baseline Report',
+            createdAt: new Date('2026-03-31T18:00:00Z'),
+            riskLevel: 'critical',
+            overallVarianceScore: '0.20',
+          },
+        ]);
+        mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline.mockResolvedValue(
+          undefined
+        );
+
+        const response = await request(app).get('/api/funds/1/variance-dashboard').expect(200);
+
+        expect(response.body.data.defaultBaseline).toEqual(defaultBaseline);
+        expect(response.body.data.summary.lastAnalysisDate).toBeNull();
+        expect(response.body.data.summary.overallRiskLevel).toBe('critical');
+        expect(response.body.data.recentReports).toHaveLength(1);
+        expect(
+          mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline
+        ).toHaveBeenCalledWith(1, '00000000-0000-0000-0000-000000000131');
       });
 
       it('should return null lastAnalysisDate when no reports exist', async () => {
@@ -1617,7 +1743,10 @@ describe('Variance Tracking API', () => {
         ]; // No default
         const mockAlerts: any[] = [];
 
-        mockVarianceTrackingService.baselines.getBaselines.mockResolvedValue(mockBaselines);
+        mockVarianceTrackingService.baselines.getBaselines.mockImplementation(
+          async (_fundId: number, options?: { isDefault?: boolean }) =>
+            options?.isDefault ? [] : mockBaselines
+        );
         mockVarianceTrackingService.alerts.getActiveAlerts.mockResolvedValue(mockAlerts);
         mockVarianceTrackingService.calculations.getVarianceReports.mockResolvedValue([]);
 
@@ -1629,6 +1758,9 @@ describe('Variance Tracking API', () => {
         expect(response.body.data.summary.overallRiskLevel).toBe('low');
         expect(response.body.data.summary.trendDirection).toBe('stable');
         expect(response.body.data.recentReports).toEqual([]);
+        expect(
+          mockVarianceTrackingService.calculations.getLatestVarianceReportForBaseline
+        ).not.toHaveBeenCalled();
       });
     });
   });

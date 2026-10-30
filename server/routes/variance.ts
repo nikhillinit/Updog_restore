@@ -1014,16 +1014,23 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
     }
 
     // Get summary data for dashboard
-    const [baselines, activeAlerts, latestReports] = await Promise.all([
+    const [baselines, activeAlerts, latestReports, defaults] = await Promise.all([
       varianceTrackingService.baselines.getBaselines(fundId, { limit: 5 }),
       varianceTrackingService.alerts.getActiveAlerts(fundId, {
         limit: 10,
         currentBaselineOnly: true,
       }),
       varianceTrackingService.calculations.getVarianceReports(fundId, { limit: 5 }),
+      varianceTrackingService.baselines.getBaselines(fundId, { isDefault: true, limit: 1 }),
     ]);
 
-    const defaultBaseline = baselines.find((b) => b.isDefault) ?? null;
+    const defaultBaseline = defaults[0] ?? null;
+    const matchingReport = defaultBaseline
+      ? await varianceTrackingService.calculations.getLatestVarianceReportForBaseline(
+          fundId,
+          defaultBaseline.id
+        )
+      : undefined;
     const latestReport = latestReports[0];
     const clientAlerts = activeAlerts.map((alert) => toClientAlert(alert, fundId));
     const alertsBySeverity = buildAlertCounts(clientAlerts);
@@ -1041,7 +1048,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
         summary: {
           totalBaselines: baselines.length,
           totalActiveAlerts: activeAlerts.length,
-          lastAnalysisDate: toIsoTimestamp(latestReport?.createdAt) ?? null,
+          lastAnalysisDate: toIsoTimestamp(matchingReport?.createdAt) ?? null,
           overallRiskLevel:
             latestReport?.riskLevel === 'medium' ||
             latestReport?.riskLevel === 'high' ||
