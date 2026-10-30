@@ -38,13 +38,16 @@ defect.
   `server/routes/variance.ts` source-hash mismatch caused by the route change.
   The non-fresh reseed in `ac2750f69` updated the inventory hash, and the audit
   suite then reported no hash error.
-- **Round 2 gate observation, open and owner-gated:** the 15
+- **Round 2 gate observation, owner-gated, since closed:** the 15
   `server/routes/variance.ts` rows and the `legacy-dockerfile-railway` listener
   remain proposed. The scoped review file
   `audit/surface-contract-matrix/f1170-pr2b-scoped-review.json` supplies the
   approval evidence; the approval run belongs to the owner. Before that run, the
   ignored knowledge graph must be rebuilt at the current `HEAD`
-  (`audit/surface-contract-matrix/README.md`, non-fresh sequence).
+  (`audit/surface-contract-matrix/README.md`, non-fresh sequence). After review,
+  the owner authorized the scoped approval: after a knowledge-graph rebuild at
+  `830e6632f`, approval, validation, and render passed, and `tests/unit/audit`
+  passes.
 
 Checklist: functional requirements, code quality, architectural compliance,
 error handling, security, and performance all passed.

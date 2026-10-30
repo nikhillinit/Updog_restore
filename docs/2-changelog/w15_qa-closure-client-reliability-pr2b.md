@@ -7,15 +7,14 @@ owner: '@nikhillinit'
 
 # Changelog - Week 15, 30-10-2026, QA Closure C5 Exact-Baseline Analysis State (F_1.17.0 PR 2b)
 
-**Release status**: source and matrix changes committed on branch
-`fix/f1170-pr2b-c5-exact-baseline`; the matrix reapproval, push, pull request,
-and merge are owner-gated, with merge behind `CI Gate Status`. **Package
-version**: 1.6.0, unchanged; no new application version or release tag.
-**Object**: fix(variance): C5 exact-baseline analysis state, Task 6b. **Code
-review**:
+**Release status**: source, matrix, and owner-authorized matrix reapproval
+committed on branch `fix/f1170-pr2b-c5-exact-baseline`; the pull request and
+merge are owner-gated, with merge behind `CI Gate Status`. **Package version**:
+1.6.0, unchanged; no new application version or release tag. **Object**:
+fix(variance): C5 exact-baseline analysis state, Task 6b. **Code review**:
 [Code review](../3-code-review/CR_w15_qa-closure-client-reliability-pr2b.md)
-(Codex loop, 2 rounds, no findings; approval waits only on the owner matrix
-reapproval). **Plan**:
+(Codex loop, 2 rounds, no findings; the owner matrix reapproval has since been
+applied). **Plan**:
 `docs/1-plans/F_1.17.0_qa-closure-client-reliability.plan.md` (PR 2b;
 codex-plan-review round 1 APPROVED at `ee0a81dda`).
 
@@ -57,4 +56,8 @@ codex-plan-review round 1 APPROVED at `ee0a81dda`).
 - Targeted variance service, API, page, and set-default hook tests: 162 passed.
 - `approve-matrix.mjs --dry-run` with the scoped review file: 15 rows, 1
   off-row, phase closed, closure passed, 0 coverage gaps.
-- Hosted `CI Gate Status` and `Financial Truth` evidence requires a push.
+- Owner-authorized approval (no `--close-g1`), `validate-matrix.mjs`, and
+  `render-matrix.mjs` pass: 0 proposed or unresolved items, `g1_closure`
+  byte-identical, `MATRIX.md` fresh; `tests/unit/audit` 178 passed.
+- Hosted `CI Gate Status` and `Financial Truth` evidence comes from the pushed
+  head.
