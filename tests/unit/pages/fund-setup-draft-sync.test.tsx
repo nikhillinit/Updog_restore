@@ -652,6 +652,50 @@ describe('FundSetup draft sync', () => {
     expect(fundStore.getState().draftETag).toBe('"0000000000000003"');
   });
 
+  it('rebuilds the stale choice from ETags for the state a workspace 412 leaves behind', async () => {
+    mockFetchFundDraft.mockResolvedValue({
+      config: { fundName: 'Server Fund' },
+      etag: NEXT_ETAG,
+    });
+    mockSaveFundDraft.mockResolvedValue({
+      config: {},
+      etag: '"0000000000000003"',
+      replayed: false,
+    });
+
+    act(() => {
+      fundStore.setState({
+        ...fundStore.getState(),
+        fundName: 'Local Edits',
+        draftFundId: 88,
+        draftServerReady: true,
+        draftETag: SERVER_ETAG,
+        draftSyncStatus: 'stale',
+        pendingCommand: null,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    // The preset status already renders the banner; wait for the recovery read first.
+    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledWith(88));
+    expect(mockFetchFundDraft).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByTestId('draft-stale')).toBeInTheDocument());
+    expect(fundStore.getState().fundName).toBe('Local Edits');
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Overwrite saved draft' }));
+
+    await waitFor(() =>
+      expect(mockSaveFundDraft).toHaveBeenCalledWith(
+        88,
+        expect.objectContaining({ fundName: 'Local Edits' }),
+        expect.objectContaining({ etag: NEXT_ETAG })
+      )
+    );
+  });
+
   it('overwrites a newer server revision when local content was acknowledged at an older ETag', async () => {
     act(() => {
       fundStore.setState({

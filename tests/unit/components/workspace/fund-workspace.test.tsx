@@ -604,7 +604,8 @@ describe('FundWorkspace', () => {
     }
   });
 
-  it('replays and hydrates an identity-only recovered save before starting another fund', async () => {
+  it('replays an identity-only recovered save and starts another fund without a fetch', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
     const key = crypto.randomUUID();
     fundStore.setState({
       fundName: 'Placeholder',
@@ -627,25 +628,11 @@ describe('FundWorkspace', () => {
       etag: '"0000000000000002"',
       replayed: true,
     });
-    mockFetchFundDraft
-      .mockRejectedValueOnce(new Error('Recovery read failed'))
-      .mockResolvedValueOnce({
-        config: { fundName: 'Dispatched draft' },
-        etag: '"0000000000000002"',
-      });
+    mockFetchFundDraft.mockRejectedValue(new ApiError(404, 'No active draft', 'NO_ACTIVE_DRAFT'));
 
     renderWorkspace();
     await userEvent.click(screen.getByTestId('workspace-new-fund'));
     const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
-    await waitFor(() => expect(mockFetchFundDraft).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(within(dialog).getByRole('alert')).toHaveTextContent(
-        'Draft saved. Could not refresh the latest draft before starting a new fund; try again.'
-      )
-    );
-    expect(within(dialog).getByRole('alert')).not.toHaveTextContent('Could not confirm the save');
-    expect(fundStore.getState().needsServerHydration).toBe(true);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
@@ -655,9 +642,293 @@ describe('FundWorkspace', () => {
       { fundName: 'Dispatched draft' },
       { key, etag: '"0000000000000001"' }
     );
-    expect(mockFetchFundDraft).toHaveBeenCalledTimes(2);
-    expect(mockFetchFundDraft).toHaveBeenCalledWith(2);
-    expect(fundStore.getState().needsServerHydration).toBe(false);
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(fundStore.getState()).toMatchObject({
+      draftFundId: null,
+      pendingCommand: null,
+      needsServerHydration: false,
+    });
+    expect(fundStore.getState().fundName).toBeUndefined();
+  });
+
+  it('starts a new fund directly from a fenced session with no pending command', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Placeholder',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'idle',
+      needsServerHydration: true,
+    });
+    mockFetchFundDraft.mockRejectedValue(new ApiError(404, 'No active draft', 'NO_ACTIVE_DRAFT'));
+    renderWorkspace();
+    await screen.findByTestId('workspace-fund-2');
+
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1');
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(fundStore.getState()).toMatchObject({
+      draftFundId: null,
+      needsServerHydration: false,
+    });
+  });
+
+  it('starts a new fund without a fetch after a fenced replay is rejected', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    const key = crypto.randomUUID();
+    fundStore.setState({
+      fundName: 'Placeholder',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'uncertain',
+      needsServerHydration: true,
+      pendingCommand: {
+        operation: 'save_draft',
+        key,
+        targetFundId: 2,
+        bodySignature: '{"fundName":"Dispatched draft"}',
+        expectedETag: '"0000000000000001"',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    mockSaveFundDraft.mockRejectedValue(new ApiError(400, 'Invalid draft', 'VALIDATION_ERROR'));
+    mockFetchFundDraft.mockRejectedValue(new ApiError(404, 'No active draft', 'NO_ACTIVE_DRAFT'));
+
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Invalid draft')
+    );
+    expect(fundStore.getState()).toMatchObject({
+      pendingCommand: null,
+      needsServerHydration: true,
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1'));
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(fundStore.getState()).toMatchObject({
+      draftFundId: null,
+      needsServerHydration: false,
+    });
+  });
+
+  it('writes durable stale state when a dialog save gets 412 and offers only discard', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: false,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'error',
+    });
+    mockSaveFundDraft.mockRejectedValue(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+
+    await waitFor(() =>
+      expect(dialog).toHaveTextContent(
+        'A newer version of Local Draft is saved on the server, so your changes were not saved.'
+      )
+    );
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'stale',
+      pendingCommand: null,
+    });
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Save draft and start new' })
+    ).not.toBeInTheDocument();
+    expect(dialog.querySelector('#new-fund-dialog-description')).toHaveAttribute(
+      'aria-live',
+      'polite'
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Discard my changes and start new' })
+    );
+
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1');
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState().draftFundId).toBeNull();
+    expect(fundStore.getState().fundName).toBeUndefined();
+  });
+
+  it('keeps the stale draft identity for the wizard banner after a 412 and Keep editing', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: false,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'error',
+    });
+    mockSaveFundDraft.mockRejectedValue(new ApiError(412, 'Old revision', 'STALE_REVISION'));
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('stale'));
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1');
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'stale',
+    });
+  });
+
+  it('offers discard without a save when the session is already stale', async () => {
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'stale',
+    });
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(dialog).toHaveTextContent('A newer version of Local Draft is saved on the server');
+    expect(
+      within(dialog).queryByRole('button', { name: 'Save draft and start new' })
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Discard my changes and start new' })
+    );
+
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1');
+    expect(fundStore.getState().draftFundId).toBeNull();
+  });
+
+  it('replays a pending save instead of discarding when the session is stale', async () => {
+    const key = crypto.randomUUID();
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'stale',
+      pendingCommand: {
+        operation: 'save_draft',
+        key,
+        targetFundId: 2,
+        bodySignature: '{"fundName":"Dispatched draft"}',
+        expectedETag: '"0000000000000001"',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+    mockSaveFundDraft.mockResolvedValue({
+      config: {},
+      etag: '"0000000000000002"',
+      replayed: true,
+    });
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(dialog).toHaveTextContent(
+      'Save changes to Local Draft before starting a separate fund.'
+    );
+    expect(
+      within(dialog).queryByRole('button', { name: 'Discard my changes and start new' })
+    ).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+
+    await waitFor(() => expect(mockSaveFundDraft).toHaveBeenCalledTimes(1));
+    expect(mockSaveFundDraft).toHaveBeenCalledWith(
+      2,
+      { fundName: 'Dispatched draft' },
+      { key, etag: '"0000000000000001"' }
+    );
+  });
+
+  it('offers discard when the dialog save finds no active draft', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'error',
+    });
+    mockSaveFundDraft.mockRejectedValue(new ApiError(409, 'No active draft', 'NO_ACTIVE_DRAFT'));
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+
+    await waitFor(() =>
+      expect(dialog).toHaveTextContent(
+        'Local Draft has no active draft on the server, so your changes cannot be saved.'
+      )
+    );
+    expect(fundStore.getState()).toMatchObject({
+      draftFundId: 2,
+      draftSyncStatus: 'error',
+      pendingCommand: null,
+    });
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Discard my changes and start new' })
+    );
+
+    expect(mockSaveFundDraft).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=1');
+    expect(fundStore.getState().draftFundId).toBeNull();
+  });
+
+  it('asks to save again when New Fund reopens after a missing draft', async () => {
+    const { ApiError } = await import('@/lib/queryClient');
+    fundStore.setState({
+      fundName: 'Local Draft',
+      draftFundId: 2,
+      draftServerReady: true,
+      draftETag: '"0000000000000001"',
+      draftSyncStatus: 'error',
+    });
+    mockSaveFundDraft.mockRejectedValue(new ApiError(409, 'No active draft', 'NO_ACTIVE_DRAFT'));
+    renderWorkspace();
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    let dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save draft and start new' }));
+    await within(dialog).findByRole('button', { name: 'Discard my changes and start new' });
+
+    // The fund may get a new draft later, so a new click starts from the save variant.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('workspace-new-fund'));
+    dialog = await screen.findByRole('dialog');
+
+    expect(dialog).toHaveTextContent(
+      'Save changes to Local Draft before starting a separate fund.'
+    );
+    expect(within(dialog).getByRole('button', { name: 'Save draft and start new' })).toBeEnabled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('asks before starting another fund when a restored session is only idle', async () => {

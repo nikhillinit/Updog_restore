@@ -89,8 +89,10 @@ None.
    when `draftFundId` is null, which a fenced session never is. The wizard page
    does offer an exit for this state (`fund-setup.tsx:346-367`, "Start a new
    fund" under the missing-draft alert), so the user is not stuck, only
-   misdirected. Disposition: open. Suggested fix: treat `isMissingDraftError` in
-   the fence branch as "nothing to save" and start the new session.
+   misdirected. Disposition: closed by F_1.15.3; a fenced session with no
+   pending command now starts a new fund directly. Suggested fix: treat
+   `isMissingDraftError` in the fence branch as "nothing to save" and start the
+   new session.
 
 2. **No changelog or architecture note for the fence.** `CHANGELOG.md` has no
    entry for #1567, #1568 or #1569, and the F_1.15.0 paragraph in
@@ -116,7 +118,8 @@ None.
    round trip and a failure path that can block starting a new fund when there
    are no local edits to lose. Going straight to `startNewFund` after the save
    is confirmed would also remove Minor 1. Kept as a suggestion because the
-   current shape is tested and the extra read is cheap at this scale.
+   current shape is tested and the extra read is cheap at this scale. Adopted by
+   F_1.15.3; `hydrateThenStartNew` was deleted.
 
 2. **Adjacent open item, not introduced here.** #1567 moved `pendingCommand`
    from a `getState()` read into the hook's selector tuple and added it to the
