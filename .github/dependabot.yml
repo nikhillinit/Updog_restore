@@ -30,10 +30,18 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@types/node'
         versions: ['>=19']
-      # Keep @hookform/resolvers on 5.4.x: >=5.5.0 pins peer ajv-formats ^2.1.1,
+      # Keep @hookform/resolvers on 5.4.0: >=5.4.1 pins peer ajv-formats ^2.1.1,
       # conflicting with root ajv-formats ^3.0.1 (npm ci ERESOLVE)
       - dependency-name: '@hookform/resolvers'
-        versions: ['>=5.5.0']
+        versions: ['>5.4.0']
+      # Keep OpenTelemetry on v2 until API, core, resources, SDK, and
+      # instrumentation can migrate to v3 together.
+      - dependency-name: '@opentelemetry/auto-instrumentations-node'
+        versions: ['>=0.82.0']
+      - dependency-name: '@opentelemetry/exporter-metrics-otlp-http'
+        versions: ['>=0.300.0']
+      - dependency-name: '@opentelemetry/sdk-node'
+        versions: ['>=0.300.0']
       # Keep ml-levenberg-marquardt on 5.0.1: 5.1.0 changes optimizer
       # convergence and shifts NAV curve-fit outputs by last-ULP, breaking the
       # byte-identical legacy-composer contract (PLAN_61 Task 13.2). Upgrading

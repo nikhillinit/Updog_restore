@@ -218,7 +218,7 @@ paths = [
 description = "Allow PR 1667 historical scoped-review source digests verified against tracked files; exact commit, file, and path/digest pairs only"
 targetRules = ["generic-api-key"]
 condition = "AND"
-commits = ["0e7378a739dbb38d6b1b860a3dd662bce16eda26"]
+commits = ["0e7378a739dbb38d6b1b860a3dd662bce16eda26", "aded7aaeb740d6040654237bd3b7e445015deaa7"]
 regexTarget = "line"
 regexes = [
   '''^\s*"scripts/build\-vercel\-api\.mjs":\s*"256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",\s*$''',
@@ -233,4 +233,24 @@ regexes = [
 ]
 paths = [
   '''^audit/surface\-contract\-matrix/r01\-r02\-reallocation\-scoped\-review\.json$''',
+]
+
+[[allowlists]]
+description = "Allow PR 1666 historical scoped-review source digests verified against tracked files; exact commit, file, and path/digest pairs only"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["df49fa559811618ccf5d55b60105a6b6e846605a"]
+regexTarget = "line"
+regexes = [
+  '''^\s*"scripts/build\-vercel\-api\.mjs":\s*"256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",\s*$''',
+  '''^\s*"server/lib/public\-api\-boundary\.ts":\s*"47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",\s*$''',
+  '''^\s*"server/routes/auth\.ts":\s*"4f38036fc9cf2c689f4490c816dea79f66625876c07e48524b2161b377c88605",\s*$''',
+  '''^\s*"server/routes/lp\-api\.schemas\.ts":\s*"954bde3a15bac8f8649b231da85fbb8f7ecbbdf3bc5ec8a8a5232d9beec2542d",\s*$''',
+  '''^\s*"server/routes/lp\-api\.ts":\s*"145fee68e1d15db95a034e790ac01a64f51794663f80c109e26ae972bd7bff1c",\s*$''',
+  '''^\s*"server/routes/performance\-api\.schemas\.ts":\s*"f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",\s*$''',
+  '''^\s*"server/routes/performance\-api\.ts":\s*"97d987cc02464e1864997f0d17eede035dc2579db5a98a07dab62a997bab38b8",\s*$''',
+  '''^\s*"shared/routes/api\-route\-manifest\.ts":\s*"c960d2ec93fba084097a25323bb1ac42aa6c521769adc026a8ab950f9d7ad2f0",\s*$''',
+]
+paths = [
+  '''^audit/surface\-contract\-matrix/pr1666\-dependency\-cohort\-scoped\-review\.json$''',
 ]
