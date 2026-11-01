@@ -295,6 +295,13 @@ export default function VarianceTrackingPage() {
   });
   const totalActiveAlerts = alertSummary.state === 'LIVE' ? alertSummary.count : 0;
   const lastAnalysisDate = dashboardData?.data?.summary?.lastAnalysisDate;
+  const currentScopeEmptyAlertsCopy = !dashboardData?.data
+    ? 'No open alerts returned for this scope.'
+    : !dashboardData.data.defaultBaseline
+      ? 'No baseline'
+      : !lastAnalysisDate
+        ? 'Not analyzed'
+        : `No open alerts for the current baseline. Last analyzed ${format(parseISO(lastAnalysisDate), 'MMM dd, yyyy')}.`;
   const alertCounts =
     dashboardData?.data?.alertsBySeverity ?? dashboardData?.data?.alertsByseverity;
   const isAnalysisRunning = performAnalysisMutation.isPending;
@@ -330,7 +337,7 @@ export default function VarianceTrackingPage() {
             : !lastAnalysisDate
               ? {
                   value: 'Not Run',
-                  description: 'Run analysis to generate the first report',
+                  description: 'No report for the current baseline',
                   badgeText: 'No report',
                   badgeVariant: 'secondary' as const,
                 }
@@ -749,7 +756,7 @@ export default function VarianceTrackingPage() {
               : 'Never'
           }
           icon={Clock}
-          description="Most recent variance analysis"
+          description="Latest analysis for the current baseline"
         />
         <StatCard
           title="Analysis Status"
@@ -1796,7 +1803,7 @@ export default function VarianceTrackingPage() {
                   </h3>
                   <p className="text-charcoal-600">
                     {alertBaselineScope === 'current'
-                      ? 'No open alerts returned for this scope.'
+                      ? currentScopeEmptyAlertsCopy
                       : 'There are no open incidents across current or historical baselines.'}
                   </p>
                 </div>
