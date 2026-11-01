@@ -22,6 +22,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Planned (2026-11-01)
+
+- F_1.3.7 plan: Railway incident credential recovery and ninth release vehicle.
+  Railway's 2026-10-21 security incident invalidated the production Railway
+  project token that the release workflows use, and Railway advised rotating
+  credentials stored in Railway. The plan sequences read-only recovery readings,
+  a governance pull request (ADR-114 for a one-time owner-manual rotation, plus
+  a conditional ADR-110 amendment), the ADR-110 token repair, a ninth docs-only
+  F_1.21.1 vehicle, and release steps 1 to 11 with the credential reset placed
+  immediately before phase A. It grants no merge, credential, provider, or
+  release authority.
+
 ### Fixed (2026-10-30)
 
 - Variance exact-baseline analysis state (F_1.17.0 PR 2b). The variance
