@@ -219,7 +219,7 @@ paths = [
 description = "Allow PR 1667 historical scoped-review source digests verified against tracked files; exact commit, file, and path/digest pairs only"
 targetRules = ["generic-api-key"]
 condition = "AND"
-commits = ["0e7378a739dbb38d6b1b860a3dd662bce16eda26"]
+commits = ["0e7378a739dbb38d6b1b860a3dd662bce16eda26", "aded7aaeb740d6040654237bd3b7e445015deaa7"]
 regexTarget = "line"
 regexes = [
   '''^\s*"scripts/build\-vercel\-api\.mjs":\s*"256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",\s*$''',
