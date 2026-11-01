@@ -5284,7 +5284,7 @@ describe('required CI fails closed', () => {
     const setupNode = workflow.jobs?.recover?.steps?.find((step) =>
       step.uses?.startsWith('actions/setup-node@')
     );
-    expect(setupNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+    expect(setupNode?.uses).toBe('actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
     expect(setupNode?.with?.['node-version']).toBe('22.23.2');
     expect(scripts).toContain('npm install -g npm@10.9.2');
     expect(scripts).toContain('npm ci --prefer-offline --no-audit');
@@ -5616,7 +5616,7 @@ describe('required CI fails closed', () => {
       const stageNode = stageProduction?.steps?.find((step) =>
         step.uses?.startsWith('actions/setup-node@')
       );
-      expect(stageNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+      expect(stageNode?.uses).toBe('actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
       expect(stageNode?.with?.['node-version']).toBe('22.23.2');
       expect(stageNode?.with?.cache).toBeUndefined();
       const deployStep = stageProduction?.steps?.find(
@@ -5738,7 +5738,7 @@ describe('required CI fails closed', () => {
         step.uses?.startsWith('actions/setup-node@')
       );
       expect(railwayWorkerNode?.uses).toBe(
-        'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020'
+        'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1'
       );
       expect(railwayWorkerNode?.with?.['node-version']).toBe('22.23.2');
       const railwayWorkerScripts = allRunScripts({

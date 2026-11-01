@@ -50,7 +50,7 @@ jobs:
 
       # Node.js setup with built-in npm cache.
       - name: Setup Node.js 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: '22.23.2'
           cache: 'npm'
