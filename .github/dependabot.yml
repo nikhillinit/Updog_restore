@@ -30,6 +30,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@types/node'
         versions: ['>=19']
+      # Keep the browser and test harness paired at 1.62.1 until the C6
+      # virtual-clock draft-save regression observed on 1.64.1 is resolved.
+      - dependency-name: '@playwright/test'
+        versions: ['>1.62.1']
+      - dependency-name: 'playwright'
+        versions: ['>1.62.1']
       # Keep @hookform/resolvers on 5.4.0: >=5.4.1 pins peer ajv-formats ^2.1.1,
       # conflicting with root ajv-formats ^3.0.1 (npm ci ERESOLVE)
       - dependency-name: '@hookform/resolvers'

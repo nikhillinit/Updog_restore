@@ -85,14 +85,31 @@ describe('Dev memory mode', () => {
     const cfg = loadEnv();
     providers = await buildProviders(cfg);
     app = await createServer(cfg, providers);
+
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error) => reject(error);
+      app.once('error', onError);
+      app.listen(0, '127.0.0.1', () => {
+        app.off('error', onError);
+        resolve();
+      });
+    });
   });
 
   afterAll(async () => {
     try {
-      await providers?.teardown?.();
+      if (app?.listening) {
+        await new Promise<void>((resolve, reject) => {
+          app.close((error) => (error ? reject(error) : resolve()));
+        });
+      }
     } finally {
-      restoreEnv();
-      vi.resetModules();
+      try {
+        await providers?.teardown?.();
+      } finally {
+        restoreEnv();
+        vi.resetModules();
+      }
     }
   });
 
