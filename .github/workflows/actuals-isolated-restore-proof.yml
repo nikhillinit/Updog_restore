@@ -198,7 +198,7 @@ jobs:
 
       - name: Attest final ZIP using exact custom predicate
         id: attest
-        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0; proposed dependency
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2; proposed dependency
         with:
           subject-name: ${{ steps.generate.outputs.artifact_name }}.zip
           subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
@@ -429,7 +429,7 @@ jobs:
               ghVersion: execFileSync('gh', ['--version'], { timeout: 10_000, maxBuffer: 256 * 1024, encoding: 'utf8' }).trim(),
               ghSha256: await sha256(fs.realpathSync(ghPath)),
               actions: { uploadArtifact: { version: '7.0.1', ref: 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' },
-                attest: { version: '3.0.0', ref: 'actions/attest@daf44fb950173508f38bd2406030372c1d1162b1' } },
+                attest: { version: '4.2.2', ref: 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6' } },
               trustRoot: 'GitHub CLI platform default', finalAttemptSnapshotRequired: true, files };
             fs.writeFileSync(path.join(e.WITNESS_DIR, 'provenance.json'), JSON.stringify(provenance, null, 2) + '\n',
               { flag: 'wx', mode: 0o600 });
