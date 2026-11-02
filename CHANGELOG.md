@@ -22,6 +22,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-11-02)
+
+- ADR-114 now records the production database and Redis credential rotation
+  executed on 2026-11-02 for Railway incident QH8L8B3E, instead of admitting a
+  rotation route. The rotation ran before any route was admitted, by a delegated
+  session; the record lists the actions, outcomes, policy deviations, and open
+  items, and grants no authority. The F_1.3.7 plan gains a revision block that
+  retires its in-release rotation window; the ADR-110 Railway token repair
+  remains the release blocker. The record scopes authentication rejection to
+  tested production endpoints and notes the Node 22.x runtime change. The plan
+  retains fresh dependency probes for new worker deployments, binds rollback to
+  verified post-rotation snapshots, and separates record publication from open
+  incident follow-ups.
+
 ### Planned (2026-11-01)
 
 - F_1.3.7 plan: Railway incident credential recovery and ninth release vehicle.

@@ -799,6 +799,14 @@ It neither revokes child-branch credentials nor removes copied data; deleting a
 child branch does both. Rotation is a production credential change on its own
 route, after Step 2 shows how integration-managed Production variables behave.
 
+Dated observation, 2026-11-02 (ADR-114): the production owner role was rotated
+before Step 2 ran, outside an admitted route. The original project was removed
+from the integration's project access, and its Production `DATABASE_URL` and
+`DATABASE_URL_UNPOOLED` were recreated as sensitive manual entries, so the
+integration-managed variable identifiers above may no longer exist. The reset
+was branch-scoped: whether the children and Preview snapshots still accept the
+old password stays UNDETERMINED.
+
 Handling, each needing separate owner authorization:
 
 - Delete the four child branches when they no longer serve as restore

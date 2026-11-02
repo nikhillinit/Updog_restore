@@ -13755,3 +13755,100 @@ digest, single-attempt receipt, and readback in the PR evidence. Subsequent
 admission records that chronology and does not backdate authority. This is no
 standing bootstrap exception. Every Vercel gate remains separate; #1664 requires
 fresh merge checks and exclusion of all applicable automatic deployment paths.
+
+## ADR-114: Post-Incident Production Credential Rotation Record
+
+**Date:** 2026-11-02 **Status:** Recorded. Documents actions already executed;
+admits no route, grants no authority, and does not backdate authority.
+
+### Context
+
+Railway incident QH8L8B3E (2026-10-21 to 2026-10-23) invalidated every Railway
+token created before it, and Railway advised rotating every variable stored in
+Railway. Both production workers (`fund-scenario-calc`, `capital-call-status`)
+held the production database and Redis connection strings there. The governing
+policy's ADR-109 paragraph requires a separately admitted route for any
+production credential rotation. Plan
+`docs/1-plans/F_1.3.7_railway-incident-credential-recovery-and-ninth-vehicle.plan.md`
+drafted such a route and an in-release rotation window. Before that draft was
+admitted, the rotation was executed.
+
+### Executed actions (2026-11-02, UTC)
+
+A delegated Codex session executed the actions below. The owner's private
+evidence records that the owner approved delegated execution and stated a
+one-time exception before the first reset, and explicitly authorized the Upstash
+support request. That evidence (per-action single-attempt ledger, receipts,
+readbacks, independent audit) stays private; this entry cites no provider
+identifiers.
+
+1. 00:06 to 00:20, preparation. An attempt to seal the integration-managed
+   Vercel database entries was rejected, with readback unchanged. Existing
+   Railway worker credentials were sealed. A pre-reset source build of one
+   worker and a fresh-source Vercel upload checked the recovery paths.
+2. 00:30 to 00:32, Redis. The production Upstash credential was reset. The new
+   value was written to Railway `REDIS_URL` on both workers and to Vercel
+   `REDIS_URL` and `RATE_LIMIT_REDIS_URL`. Both workers and Vercel production
+   were redeployed.
+3. 00:33 to 00:36, Neon integration. The original Vercel project was removed
+   from the legacy Neon integration's project access; other projects keep their
+   access. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` were recreated as
+   sensitive manual entries. This is the ADR-109 Disconnect class of action,
+   executed without the isolated demonstration that ADR-109 calls for.
+4. 00:41 to 00:48, database. The production database owner role password was
+   reset on the production branch. The new value was written to Railway
+   `DATABASE_URL` on both workers, Vercel `DATABASE_URL` and
+   `DATABASE_URL_UNPOOLED`, and two GitHub production database secrets. Both
+   workers and Vercel production were redeployed, and the secondary production
+   alias moved to the new Vercel deployment.
+5. 02:49 to 03:13, session revocation. A controlled Upstash session termination
+   was refused (`CLIENT KILL` is not available). The production Neon compute was
+   restarted, and sessions opened before the restart ended. Both workers were
+   restarted on their existing deployments. A request for provider-wide session
+   termination was sent to Upstash support. A fresh Vercel production deployment
+   of canonical source `068430726` now serves both production aliases.
+
+### Recorded outcomes
+
+The old credentials were rejected on fresh authentication to the tested
+production database and Redis endpoints. This does not establish rejection on
+Neon child branches or Preview snapshots. Both workers passed a database
+`SELECT 1`, a Redis `PING`, and health and readiness checks. Vercel returned
+health 200 and database 200 on both aliases. Worker variables are sealed and the
+Vercel entries are sensitive. No credential value appeared in chat or artifacts,
+and no application source changed: workers still run `5c0c0d906` and canonical
+web still runs `068430726` (1.3.2). The fresh Vercel deployment changed the
+runtime to Node 22.x; preserving source did not preserve runtime. Queue health
+503/degraded and cache degraded predate the rotation and remain.
+
+### Deviations from the governing policy
+
+- Executed before any admitted route, by a delegated executor.
+- Vercel production deployments outside Release Production, which ADR-109 names
+  as the only production path for the original project.
+- Neon integration removal without the ADR-109 isolated demonstration.
+- No optimistic-locking contract exists for these provider writes; the
+  single-attempt ledger was the duplicate-write control.
+
+This record does not authorize any of these actions retroactively and creates no
+standing exception. The ADR-109 requirement of an admitted route for any
+production credential rotation stays in force.
+
+### Consequences and open items
+
+- The current worker deployments were created during the rotation from source
+  `5c0c0d906` and carry the rotated variables. A Railway rollback restores the
+  selected deployment's image and variable snapshot. The F_1.21.1 step 2 capture
+  must bind the current web deployment and verified post-rotation worker
+  deployment IDs, with their variable provenance and rollback eligibility kept
+  in private evidence. A pre-rotation snapshot can restore rejected credentials;
+  an unverified snapshot is not a safe rollback target. Source SHA or deployment
+  age alone does not establish credential state.
+- The GitHub `RAILWAY_TOKEN` is still invalid; the ADR-110 repair remains the
+  release blocker.
+- Open: Upstash confirmation of provider-wide session termination, then consumer
+  connectivity checks; an access-anomaly review since 2026-10-21 (not
+  evidenced); and child branches and Preview snapshots of the production branch,
+  which may still accept the old password because a Neon reset is branch-scoped
+  (ADR-109 Step 3, UNDETERMINED). Each disposition needs separate owner
+  authorization.
