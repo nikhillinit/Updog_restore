@@ -13810,12 +13810,15 @@ identifiers.
 
 ### Recorded outcomes
 
-The old credentials were rejected on fresh authentication. Both workers passed a
-database `SELECT 1`, a Redis `PING`, and health and readiness checks. Vercel
-returned health 200 and database 200 on both aliases. Worker variables are
-sealed and the Vercel entries are sensitive. No credential value appeared in
-chat or artifacts, and no application source changed: workers still run
-`5c0c0d906` and canonical web still runs `068430726` (1.3.2). Queue health
+The old credentials were rejected on fresh authentication to the tested
+production database and Redis endpoints. This does not establish rejection on
+Neon child branches or Preview snapshots. Both workers passed a database
+`SELECT 1`, a Redis `PING`, and health and readiness checks. Vercel returned
+health 200 and database 200 on both aliases. Worker variables are sealed and the
+Vercel entries are sensitive. No credential value appeared in chat or artifacts,
+and no application source changed: workers still run `5c0c0d906` and canonical
+web still runs `068430726` (1.3.2). The fresh Vercel deployment changed the
+runtime to Node 22.x; preserving source did not preserve runtime. Queue health
 503/degraded and cache degraded predate the rotation and remain.
 
 ### Deviations from the governing policy
@@ -13834,11 +13837,13 @@ production credential rotation stays in force.
 ### Consequences and open items
 
 - The current worker deployments were created during the rotation from source
-  `5c0c0d906` and carry the rotated variables. A Railway rollback restores a
-  deployment's image and variables, so rollback to these deployments keeps the
-  rotated values; rollback to any older deployment restores rejected
-  credentials. The F_1.21.1 step 2 capture must bind the current web and worker
-  deployments.
+  `5c0c0d906` and carry the rotated variables. A Railway rollback restores the
+  selected deployment's image and variable snapshot. The F_1.21.1 step 2 capture
+  must bind the current web deployment and verified post-rotation worker
+  deployment IDs, with their variable provenance and rollback eligibility kept
+  in private evidence. A pre-rotation snapshot can restore rejected credentials;
+  an unverified snapshot is not a safe rollback target. Source SHA or deployment
+  age alone does not establish credential state.
 - The GitHub `RAILWAY_TOKEN` is still invalid; the ADR-110 repair remains the
   release blocker.
 - Open: Upstash confirmation of provider-wide session termination, then consumer

@@ -30,7 +30,11 @@ and this project adheres to
   session; the record lists the actions, outcomes, policy deviations, and open
   items, and grants no authority. The F_1.3.7 plan gains a revision block that
   retires its in-release rotation window; the ADR-110 Railway token repair
-  remains the release blocker.
+  remains the release blocker. The record scopes authentication rejection to
+  tested production endpoints and notes the Node 22.x runtime change. The plan
+  retains fresh dependency probes for new worker deployments, binds rollback to
+  verified post-rotation snapshots, and separates record publication from open
+  incident follow-ups.
 
 ### Planned (2026-11-01)
 
