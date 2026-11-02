@@ -349,6 +349,25 @@ describe('production governance documentation routing', () => {
     );
   });
 
+  it('records the 2026-11-02 rotation without admitting a rotation route', async () => {
+    const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const guide = await readRepositoryFile(canonicalGuidePath);
+    const record = flattenWhitespace(
+      (await readRepositoryFile('DECISIONS.md'))
+        .split('## ADR-114: Post-Incident Production Credential Rotation Record')[1]
+        ?.split('\n## ADR-')[0] ?? ''
+    );
+
+    expect(record).toContain(
+      'admits no route, grants no authority, and does not backdate authority'
+    );
+    expect(record).toContain('creates no standing exception');
+    // ADR-109 keeps every production credential rotation behind its own admitted route.
+    expect(flatPolicy).toContain('and any production credential rotation.');
+    expect(flatPolicy).not.toContain('(ADR-114)');
+    expect(guide).not.toContain('## One-time post-incident credential rotation');
+  });
+
   it('restricts the original project to no Preview-producing action and admits no write', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
