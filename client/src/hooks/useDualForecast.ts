@@ -10,23 +10,47 @@ interface UseDualForecastOptions {
   enabled?: boolean;
   refetchInterval?: number;
   retry?: number | false;
+  asOfDate?: string;
+  baselineSnapshotId?: number;
+  baselineStartMonth?: string;
 }
 
 export function useDualForecast(
   fundId: number | null,
   options: UseDualForecastOptions = {}
 ): UseQueryResult<DualForecastResponse, Error> {
-  const { enabled = true, refetchInterval = 300_000, retry = 3 } = options;
+  const {
+    enabled = true,
+    refetchInterval = 300_000,
+    retry = 3,
+    asOfDate,
+    baselineSnapshotId,
+    baselineStartMonth,
+  } = options;
+  const requestIdentity = {
+    ...(asOfDate ? { asOfDate } : {}),
+    ...(baselineSnapshotId ? { baselineSnapshotId } : {}),
+    ...(baselineStartMonth ? { baselineStartMonth } : {}),
+  };
+  const hasRequestOptions = Object.keys(requestIdentity).length > 0;
 
   return useQuery<DualForecastResponse, Error>({
-    queryKey: ['dual-forecast', fundId],
+    queryKey: hasRequestOptions
+      ? ['dual-forecast', fundId, requestIdentity]
+      : ['dual-forecast', fundId],
     queryFn: async () => {
       if (fundId == null) {
         throw new Error('No fund ID available');
       }
 
-      const response = await fetch(`/api/funds/${fundId}/dual-forecast`, {
+      const search = new URLSearchParams();
+      if (asOfDate) search.set('asOfDate', asOfDate);
+      if (baselineSnapshotId) search.set('baselineSnapshotId', String(baselineSnapshotId));
+      if (baselineStartMonth) search.set('baselineStartMonth', baselineStartMonth);
+      const suffix = search.size > 0 ? `?${search.toString()}` : '';
+      const response = await fetch(`/api/funds/${fundId}/dual-forecast${suffix}`, {
         credentials: 'include',
+        cache: 'no-store',
       });
 
       if (!response.ok) {

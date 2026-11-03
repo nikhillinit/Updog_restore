@@ -86,6 +86,7 @@ export function useActualsPublish(fundId: number | null) {
         return parsed.data;
       },
       onSuccess: (receipt) => {
+        void queryClient.invalidateQueries({ queryKey: ['dual-forecast', receipt.fundId] });
         queryClient.invalidateQueries({
           queryKey: ['lp-reporting', 'financial-facts-latest-reference', fundId],
         });

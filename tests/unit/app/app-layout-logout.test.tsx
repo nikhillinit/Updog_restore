@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   bindFundWorkspaceActor: vi.fn(),
   unbindFundWorkspaceActor: vi.fn(),
   fundConstructionHeader: vi.fn(),
+  dynamicFundHeader: vi.fn(),
 }));
 
 vi.mock('@/lib/queryClient', async (importOriginal) => {
@@ -18,17 +19,22 @@ vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({ currentFund: null, needsSetup: false, isLoading: false }),
 }));
 vi.mock('@/components/layout/sidebar', () => ({ default: () => null }));
-vi.mock('@/components/layout/dynamic-fund-header', () => ({ default: () => null }));
+vi.mock('@/components/layout/dynamic-fund-header', () => ({
+  default: () => mocks.dynamicFundHeader(),
+}));
 vi.mock('@/components/wizard/FundConstructionKpiHeader', () => ({
   FundConstructionKpiHeader: () => mocks.fundConstructionHeader(),
 }));
-vi.mock('@/components/layout/navigation-config', () => ({
-  getActiveNavigationId: () => 'dashboard',
-  getFooterNavigationItems: () => [],
-  getNavigationItems: () => [],
-  isNavigationItemEnabled: () => true,
-  resolveNavigationHref: () => '/dashboard',
-}));
+vi.mock('@/components/layout/navigation-config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/navigation-config')>();
+  return {
+    ...actual,
+    getFooterNavigationItems: () => [],
+    getNavigationItems: () => [],
+    isNavigationItemEnabled: () => true,
+    resolveNavigationHref: () => '/dashboard',
+  };
+});
 vi.mock('@/stores/fundStore', () => ({
   bindFundWorkspaceActor: mocks.bindFundWorkspaceActor,
   unbindFundWorkspaceActor: mocks.unbindFundWorkspaceActor,
@@ -61,12 +67,33 @@ describe('AppLayout logout', () => {
     mocks.bindFundWorkspaceActor.mockReset().mockResolvedValue(undefined);
     mocks.unbindFundWorkspaceActor.mockReset();
     mocks.fundConstructionHeader.mockReset().mockReturnValue(null);
+    mocks.dynamicFundHeader.mockReset().mockReturnValue(<div>Legacy fund metrics</div>);
     window.history.pushState({}, '', '/dashboard');
   });
 
   afterEach(() => {
     cleanup();
     window.history.pushState({}, '', '/');
+  });
+
+  it.each(['/forecasting', '/financial-modeling'])(
+    'leaves investment metrics to the evidence-backed forecast view at %s',
+    async (path) => {
+      window.history.pushState({}, '', `${path}?fundId=101`);
+      renderLayout();
+
+      expect(await screen.findByText('Protected Content')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Log out' })).toBeEnabled();
+      expect(screen.queryByText('Legacy fund metrics')).not.toBeInTheDocument();
+      expect(mocks.dynamicFundHeader).not.toHaveBeenCalled();
+    }
+  );
+
+  it('retains the shared fund metrics header outside forecast routes', async () => {
+    window.history.pushState({}, '', '/portfolio?fundId=101');
+    renderLayout();
+
+    expect(await screen.findByText('Legacy fund metrics')).toBeVisible();
   });
 
   it('keeps content and logout available while the fund construction header is suspended', async () => {

@@ -14,6 +14,11 @@
  */
 
 import { storage } from '../storage';
+import { readPublishedInvestmentComparison } from './published-investment-comparison';
+import type {
+  InvestmentComparison,
+  InvestmentComparisonOptions,
+} from '@shared/contracts/dual-forecast/investment-comparison.contract';
 import type {
   ActualMetrics,
   MetricsCalculationError,
@@ -493,11 +498,18 @@ export class MetricsAggregator {
    * post-cutover to the pinned pointer head; `held` serves exactly that head
    * (P1) and by construction never invokes the legacy PMC lane.
    */
-  async getDualForecast(fundId: number): Promise<DualForecastResponse> {
+  async getDualForecast(
+    fundId: number,
+    options: InvestmentComparisonOptions = {}
+  ): Promise<DualForecastResponse> {
     try {
+      const comparison = await readPublishedInvestmentComparison(fundId, options);
       const resolution = await this.currentForecastServing.resolveMode(fundId);
-      return await dispatchCurrentForecastServing<DualForecastResponse>(resolution, {
-        runLegacy: () => this.buildLegacyDualForecast(fundId),
+      const response = await dispatchCurrentForecastServing<DualForecastResponse>(resolution, {
+        runLegacy: () =>
+          comparison
+            ? this.buildPublishedInvestmentForecast(fundId, comparison)
+            : this.buildLegacyDualForecast(fundId),
         runV2: () => this.buildV2ServedDualForecast(fundId),
         serveHeld: (referenceId) =>
           this.buildHeldDualForecast(
@@ -508,6 +520,22 @@ export class MetricsAggregator {
               : (resolution.heldReason ?? 'configured_off')
           ),
       });
+      if (!comparison) return response;
+      // Governed future V2 points retain their served basis. The legacy actual
+      // anchor is never reused as a published cash/NAV observation. A historical
+      // investment slice also never masquerades as a historical V2 recompute.
+      return {
+        ...response,
+        asOfDate: comparison.asOfDate,
+        series:
+          response.currentForecastV2 && !options.asOfDate
+            ? response.series.filter((point) => point.currentMode === 'forecast')
+            : [],
+        sources: { ...response.sources, actual: 'published_investment_facts' },
+        actualsFacts: null,
+        navAnchoring: null,
+        investmentComparison: comparison,
+      };
     } catch (error) {
       console.error('Dual forecast aggregation failed:', error);
 
@@ -526,6 +554,36 @@ export class MetricsAggregator {
         error
       );
     }
+  }
+
+  private async buildPublishedInvestmentForecast(
+    fundId: number,
+    comparison: InvestmentComparison
+  ): Promise<DualForecastResponse> {
+    const fund = await this.getFundForMetrics(fundId);
+    if (!fund)
+      throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
+    const { metadata, warnings } = await this.resolveFundConfig(fundId);
+    return {
+      fundId,
+      fundName: fund.name,
+      asOfDate: comparison.asOfDate,
+      series: [],
+      sources: {
+        construction: comparison.baseline ? 'saved_capital_scenario' : 'unavailable',
+        current: 'unavailable',
+        actual: 'published_investment_facts',
+      },
+      config: metadata,
+      actualsFacts: null,
+      navAnchoring: null,
+      currentProjection: { status: 'projected', fallbackReason: null },
+      investmentComparison: comparison,
+      warnings: [
+        ...warnings,
+        'Published investments support deployment and cadence. They do not supply NAV, capital-call, or return projections.',
+      ],
+    };
   }
 
   /**

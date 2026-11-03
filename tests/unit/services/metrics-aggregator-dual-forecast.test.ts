@@ -6,6 +6,7 @@ const {
   projectedCalculateMock,
   varianceCalculateMock,
   buildFundCompanyActualsFactsMock,
+  readPublishedInvestmentComparisonMock,
 } = vi.hoisted(() => ({
   storageMock: {
     getFund: vi.fn(),
@@ -16,6 +17,11 @@ const {
   projectedCalculateMock: vi.fn(),
   varianceCalculateMock: vi.fn(),
   buildFundCompanyActualsFactsMock: vi.fn(),
+  readPublishedInvestmentComparisonMock: vi.fn(),
+}));
+
+vi.mock('../../../server/services/published-investment-comparison', () => ({
+  readPublishedInvestmentComparison: readPublishedInvestmentComparisonMock,
 }));
 
 vi.mock('../../../server/storage', () => ({
@@ -211,8 +217,43 @@ function trustCounts(
 }
 
 describe('MetricsAggregator dual forecast', () => {
+  it('reads published deployment at the requested cutoff without invoking legacy actuals', async () => {
+    const comparison = {
+      status: 'available',
+      asOfDate: '2025-03-31',
+      basis: {
+        snapshotId: 31,
+        snapshotInputHash: 'a'.repeat(64),
+        snapshotAsOfDate: '2026-11-03',
+        knowledgeCutoff: '2026-11-03T00:00:00.000Z',
+      },
+      actual: {
+        deployedCapital: '1577330',
+        initialCapital: '1577330',
+        followOnCapital: '0',
+        transactionCount: 5,
+        companyCount: 5,
+      },
+      periods: [],
+      baseline: null,
+      reason: null,
+      baselineReason: 'Select a saved forecast.',
+      disclosures: [],
+    };
+    readPublishedInvestmentComparisonMock.mockResolvedValue(comparison);
+    const response = await new MetricsAggregator().getDualForecast(1, { asOfDate: '2025-03-31' });
+    expect(response.investmentComparison).toEqual(comparison);
+    expect(response.asOfDate).toBe('2025-03-31');
+    expect(response.series).toEqual([]);
+    expect(response.sources.actual).toBe('published_investment_facts');
+    expect(actualCalculateMock).not.toHaveBeenCalled();
+    expect(projectedCalculateMock).not.toHaveBeenCalled();
+    expect(DualForecastResponseSchema.parse(response)).toEqual(response);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    readPublishedInvestmentComparisonMock.mockResolvedValue(null);
 
     storageMock.getFund.mockResolvedValue({
       id: 1,
@@ -1110,6 +1151,55 @@ describe('MetricsAggregator dual forecast', () => {
         ...overrides,
       };
     }
+
+    it.each(['on', 'held'])(
+      'published investments retain the %s served basis and future points without the legacy actual anchor',
+      async (mode) => {
+        const deps = servingDeps({
+          resolveMode: vi.fn(async () => ({
+            mode,
+            cutoverReferenceId: 41,
+            heldReason: 'configured_off',
+          })),
+        });
+        const original = await new MetricsAggregator(undefined, deps).getDualForecast(1);
+        vi.clearAllMocks();
+        readPublishedInvestmentComparisonMock.mockResolvedValue({
+          status: 'available',
+          asOfDate: '2026-11-03',
+          basis: null,
+          actual: {
+            deployedCapital: '100',
+            initialCapital: '100',
+            followOnCapital: '0',
+            transactionCount: 1,
+            companyCount: 1,
+          },
+          periods: [],
+          baseline: null,
+          reason: null,
+          baselineReason: null,
+          disclosures: [],
+        });
+        const result = await new MetricsAggregator(undefined, deps).getDualForecast(1);
+        expect(result.series).toEqual(
+          original.series.filter((point) => point.currentMode === 'forecast')
+        );
+        expect(result.currentForecastV2).toEqual(original.currentForecastV2);
+        expect(result.navAnchoring).toBeNull();
+        expect(projectedCalculateMock).not.toHaveBeenCalled();
+        if (mode === 'on') expect(deps.runV2).toHaveBeenCalledTimes(1);
+        else {
+          expect(deps.runV2).not.toHaveBeenCalled();
+          expect(deps.loadHeld).toHaveBeenCalledWith(1, 41);
+        }
+        const historical = await new MetricsAggregator(undefined, deps).getDualForecast(1, {
+          asOfDate: '2025-03-31',
+        });
+        expect(historical.series).toEqual([]);
+        expect(historical.currentForecastV2).toEqual(original.currentForecastV2);
+      }
+    );
 
     it('off: the response is byte-identical to the legacy composer when no mode row exists', async () => {
       const aggregator = new MetricsAggregator();
