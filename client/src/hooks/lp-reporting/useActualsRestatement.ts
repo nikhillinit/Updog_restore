@@ -402,6 +402,7 @@ export function useActualsRestatementPublish(fundId: number) {
     },
     onSuccess: (receipt) => {
       void queryClient.invalidateQueries({ queryKey: ['dual-forecast', receipt.fundId] });
+      void queryClient.invalidateQueries({ queryKey: ['fund-metrics', receipt.fundId] });
       void queryClient.invalidateQueries({
         queryKey: ['lp-reporting', 'financial-facts-latest-reference', fundId],
       });

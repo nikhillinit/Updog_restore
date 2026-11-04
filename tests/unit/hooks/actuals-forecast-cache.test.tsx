@@ -22,7 +22,9 @@ describe('publication refreshes forecast comparisons', () => {
       const current = ['dual-forecast', 7];
       const historical = ['dual-forecast', 7, { asOfDate: '2025-03-31', baselineSnapshotId: 51 }];
       const otherFund = ['dual-forecast', 8];
-      for (const key of [current, historical, otherFund])
+      const currentMetrics = ['fund-metrics', 7];
+      const otherFundMetrics = ['fund-metrics', 8];
+      for (const key of [current, historical, otherFund, currentMetrics, otherFundMetrics])
         client.setQueryData(key, { value: 'old' });
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -38,6 +40,8 @@ describe('publication refreshes forecast comparisons', () => {
       expect(client.getQueryState(current)?.isInvalidated).toBe(true);
       expect(client.getQueryState(historical)?.isInvalidated).toBe(true);
       expect(client.getQueryState(otherFund)?.isInvalidated).toBe(false);
+      expect(client.getQueryState(currentMetrics)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(otherFundMetrics)?.isInvalidated).toBe(false);
       client.clear();
     }
   );

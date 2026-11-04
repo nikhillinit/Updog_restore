@@ -86,7 +86,9 @@ describe('useFundMetrics', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics?skipProjections=true');
+    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics?skipProjections=true', {
+      cache: 'no-store',
+    });
     expect(result.current.data).toEqual(unifiedMetrics);
   });
 
@@ -131,7 +133,9 @@ describe('useFundMetrics', () => {
     await waitFor(() => expect(projected.result.current.data).toBe(unifiedMetrics.projected));
     await waitFor(() => expect(target.result.current.data).toBe(unifiedMetrics.target));
 
-    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics?skipProjections=true');
-    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics');
+    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics?skipProjections=true', {
+      cache: 'no-store',
+    });
+    expect(fetch).toHaveBeenCalledWith('/api/funds/7/metrics', { cache: 'no-store' });
   });
 });
