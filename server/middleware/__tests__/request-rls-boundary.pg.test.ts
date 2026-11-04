@@ -64,6 +64,29 @@ let auditLoggerModule: AuditLoggerModule;
 let app: express.Express;
 let server: Server;
 let baseUrl = '';
+let lateReadOutcome: Promise<string> | undefined;
+
+function startAbortableRequest(
+  path: string,
+  method = 'GET'
+): {
+  abort: () => void;
+  settled: Promise<void>;
+} {
+  let requestHandle!: ReturnType<typeof http.request>;
+  const settled = new Promise<void>((resolve, reject) => {
+    requestHandle = http.request(`${baseUrl}${path}`, { method }, (response) => {
+      response.resume();
+      response.once('end', resolve);
+    });
+    requestHandle.once('error', reject);
+    requestHandle.end();
+  });
+  return {
+    abort: () => requestHandle.destroy(new Error('test request disconnected')),
+    settled,
+  };
+}
 
 const suffix = `${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
 const schemaName = `rls_req_${suffix}`;
@@ -71,6 +94,12 @@ const roleName = `rls_role_${suffix}`;
 const applicationName = `rls_boundary_${suffix}`;
 const tenantA = 'org-a';
 const tenantB = 'org-b';
+const boundedReadBurstSize = 10;
+let boundedReadArrivals = 0;
+let releaseBoundedReadBurst!: () => void;
+const boundedReadBurstReady = new Promise<void>((resolve) => {
+  releaseBoundedReadBurst = resolve;
+});
 
 function restoreEnvironment(): void {
   for (const [key, value] of Object.entries(originalEnvironment)) {
@@ -307,6 +336,71 @@ function registerRoutes(): void {
         );
       });
       next(new Error('rollback outer after owned transaction'));
+    })
+  );
+
+  app.get(
+    '/read-burst/:tenant/:id',
+    contextMiddleware,
+    transactionMiddleware,
+    asyncRoute(async (req, res) => {
+      const outer = await req.pgClient!.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+      boundedReadArrivals += 1;
+      if (boundedReadArrivals === boundedReadBurstSize) releaseBoundedReadBurst();
+      await boundedReadBurstReady;
+      const nested = await pgCircuitModule.readTransaction((client) =>
+        client.query<{ pid: number; org: string }>(
+          `SELECT pg_backend_pid() AS pid, current_setting('app.current_org', true) AS org`
+        )
+      );
+      res.json({
+        id: req.params['id'],
+        sameClient: nested.rows[0]!.pid === outer.rows[0]!.pid,
+        org: nested.rows[0]!.org,
+      });
+    })
+  );
+
+  app.get(
+    '/read-disconnect/:tenant',
+    contextMiddleware,
+    transactionMiddleware,
+    asyncRoute(async (_req, res) => {
+      lateReadOutcome = pgCircuitModule
+        .readTransaction(async (client) => {
+          try {
+            await client.query('SELECT pg_sleep(0.4)');
+          } catch {
+            // Disconnect destroys the request connection while this read is active.
+          }
+          try {
+            await client.query('SELECT 1');
+            return 'unexpected-query-success';
+          } catch {
+            return 'late-query-rejected';
+          }
+        })
+        .catch(() => 'late-transaction-rejected');
+      await lateReadOutcome;
+      res.status(200).json({ completed: true });
+    })
+  );
+
+  app.post(
+    '/read-error/:tenant',
+    contextMiddleware,
+    transactionMiddleware,
+    asyncRoute(async (_req, res) => {
+      await databaseModule.db.execute(
+        sql.raw(
+          `INSERT INTO "${schemaName}".items (id, organization_id, note)
+           VALUES ('read-error-outer', current_setting('app.current_org', true), 'outer')`
+        )
+      );
+      await pgCircuitModule.readTransaction((client) =>
+        client.query(`SELECT * FROM "${schemaName}".missing_read_relation`)
+      );
+      res.status(201).json({ committed: true });
     })
   );
 
@@ -587,14 +681,42 @@ describe.skipIf(skipRealDatabase)('request-scoped RLS boundary with real Postgre
     expect(persisted.rows.map((row) => row.id)).toEqual(['owned-commit']);
   });
 
+  it('reuses bounded request clients for concurrent read transactions', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: boundedReadBurstSize }, (_, index) =>
+        request(app).get(`/read-burst/a/${index}`)
+      )
+    );
+
+    for (const [index, response] of responses.entries()) {
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ id: String(index), sameClient: true, org: tenantA });
+    }
+    const applicationPool = databaseModule.pool as Pool;
+    expect(applicationPool.waitingCount).toBe(0);
+    expect(applicationPool.totalCount).toBeLessThanOrEqual(boundedReadBurstSize);
+  });
+
+  it('uses an owned transaction for reads outside a request scope', async () => {
+    const result = await pgCircuitModule.readTransaction((client) =>
+      client.query<{ value: number }>('SELECT 1 AS value')
+    );
+    expect(result.rows).toEqual([{ value: 1 }]);
+  });
+
+  it('propagates request read failures to the outer transaction rollback', async () => {
+    await request(app).post('/read-error/a').expect(500, { error: 'route_error' });
+
+    const persisted = await adminPool.query(
+      `SELECT 1 FROM "${schemaName}".items WHERE id = 'read-error-outer'`
+    );
+    expect(persisted.rowCount).toBe(0);
+  });
+
   it('rolls back and releases the request client after disconnect', async () => {
-    const controller = new AbortController();
-    const responsePromise = fetch(`${baseUrl}/disconnect/a`, {
-      method: 'POST',
-      signal: controller.signal,
-    });
-    setTimeout(() => controller.abort(), 75);
-    await expect(responsePromise).rejects.toThrow();
+    const requestHandle = startAbortableRequest('/disconnect/a', 'POST');
+    setTimeout(requestHandle.abort, 75);
+    await expect(requestHandle.settled).rejects.toThrow('test request disconnected');
     await new Promise((resolve) => setTimeout(resolve, 600));
 
     const persisted = await adminPool.query(
@@ -613,5 +735,17 @@ describe.skipIf(skipRealDatabase)('request-scoped RLS boundary with real Postgre
       [applicationName]
     );
     expect(openTransactions.rows[0]!.count).toBe('0');
+  });
+
+  it('destroys a disconnected read client before delayed work can reuse it', async () => {
+    lateReadOutcome = undefined;
+    const requestHandle = startAbortableRequest('/read-disconnect/a');
+    await vi.waitFor(() => expect(lateReadOutcome).toBeDefined());
+    requestHandle.abort();
+    await expect(requestHandle.settled).rejects.toThrow('test request disconnected');
+    await expect(lateReadOutcome).resolves.toMatch(/rejected$/);
+
+    const tenantBResponse = await request(app).get('/probe/b').expect(200);
+    expect(tenantBResponse.body.orgs).toEqual([tenantB, tenantB, tenantB, tenantB]);
   });
 });

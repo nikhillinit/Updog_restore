@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { transaction } from '../db/pg-circuit.js';
+import { readTransaction, transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
   FundScenarioCapitalResultsResponseSchema,
@@ -790,7 +790,7 @@ export async function getScenarioResults(
   scenarioSetId: string,
   representation?: ScenarioRepresentation
 ): Promise<FundScenarioCalculationResponseV1 | FundScenarioCapitalResultsResponse | null> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     if (representation) {
       const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);

@@ -7,7 +7,7 @@ const { query, transaction, rawSet, detail } = vi.hoisted(() => ({
   rawSet: vi.fn(),
   detail: vi.fn(),
 }));
-vi.mock('../../../server/db/pg-circuit.js', () => ({ transaction }));
+vi.mock('../../../server/db/pg-circuit.js', () => ({ readTransaction: transaction, transaction }));
 vi.mock('../../../server/services/fund-scenario-set-service.js', () => ({
   fetchRawScenarioSet: rawSet,
   fetchCapitalScenarioSetDetailFromRaw: detail,

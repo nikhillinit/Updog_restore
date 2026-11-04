@@ -1,7 +1,7 @@
 import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
 import { capitalSavedExecutionIssues } from '@shared/lib/scenarios/scenario-input-envelope';
 import type { PoolClient } from 'pg';
-import { transaction } from '../db/pg-circuit.js';
+import { readTransaction, transaction } from '../db/pg-circuit.js';
 import {
   CAPITAL_PLAN_REPRESENTATION,
   FundScenarioCapitalArchiveResponseV1Schema,
@@ -526,7 +526,7 @@ export async function listFundScenarioSets(
   fundId: number,
   options: { includeArchived?: boolean } = {}
 ): Promise<FundScenarioSetSummaryV1[]> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     const sets = await fetchRawScenarioSets(client, fundId, options);
     return sets
@@ -713,7 +713,7 @@ export async function fetchCapitalScenarioSetDetailFromRaw(
 export async function getFundScenarioCapitalSourceConfig(
   fundId: number
 ): Promise<FundScenarioCapitalSourceResponseV1> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     const source = await loadCurrentCapitalRawSource(client, fundId);
     if (!source) {
@@ -763,7 +763,7 @@ export async function listFundScenarioCapitalSets(
   fundId: number,
   options: { includeArchived?: boolean; representation?: ScenarioRepresentation } = {}
 ): Promise<FundScenarioCapitalListResponse> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     const rawSets = await fetchRawScenarioSets(client, fundId, options);
     const correctedList = options.representation === 'capital-plan-v2';
@@ -797,7 +797,7 @@ export async function getFundScenarioCapitalSet(
   scenarioSetId: string,
   representation?: ScenarioRepresentation
 ): Promise<FundScenarioCapitalDetailResponse> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     return fetchCapitalScenarioSetDetailFromRaw(
       client,
