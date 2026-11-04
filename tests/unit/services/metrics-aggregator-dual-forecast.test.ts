@@ -7,6 +7,7 @@ const {
   varianceCalculateMock,
   buildFundCompanyActualsFactsMock,
   readPublishedInvestmentComparisonMock,
+  readPublishedFundActualsMock,
 } = vi.hoisted(() => ({
   storageMock: {
     getFund: vi.fn(),
@@ -18,10 +19,12 @@ const {
   varianceCalculateMock: vi.fn(),
   buildFundCompanyActualsFactsMock: vi.fn(),
   readPublishedInvestmentComparisonMock: vi.fn(),
+  readPublishedFundActualsMock: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../../../server/services/published-investment-comparison', () => ({
   readPublishedInvestmentComparison: readPublishedInvestmentComparisonMock,
+  readPublishedFundActuals: readPublishedFundActualsMock,
 }));
 
 vi.mock('../../../server/storage', () => ({

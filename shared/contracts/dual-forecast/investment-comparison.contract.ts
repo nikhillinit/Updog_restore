@@ -77,7 +77,30 @@ export const InvestmentComparisonSchema = z
   })
   .strict();
 
+export const PublishedFundActualsSchema = z
+  .object({
+    contractVersion: z.literal('published-fund-actuals/1.0.0'),
+    status: z.enum(['available', 'unavailable']),
+    asOfDate: z.string().date(),
+    basis: z
+      .object({
+        snapshotId: z.number().int().positive(),
+        snapshotInputHash: z.string(),
+        snapshotAsOfDate: z.string().date(),
+        knowledgeCutoff: z.string().datetime(),
+      })
+      .strict()
+      .nullable(),
+    vehicleScope: z.literal('main_fund'),
+    investments: PublishedInvestmentTotalsSchema.nullable(),
+    reason: z.string().nullable(),
+    unsupportedReason: z.string(),
+    disclosures: z.array(z.string()),
+  })
+  .strict();
+
 export type InvestmentComparison = z.infer<typeof InvestmentComparisonSchema>;
+export type PublishedFundActuals = z.infer<typeof PublishedFundActualsSchema>;
 export type PublishedInvestmentTotals = z.infer<typeof PublishedInvestmentTotalsSchema>;
 export type PublishedInvestmentPeriod = z.infer<typeof PublishedInvestmentPeriodSchema>;
 export type ForecastInvestmentBaseline = z.infer<typeof ForecastInvestmentBaselineSchema>;

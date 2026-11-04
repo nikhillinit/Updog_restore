@@ -10,10 +10,15 @@ const state = vi.hoisted(() => ({
   },
   actualCalculate: vi.fn(),
   varianceCalculate: vi.fn(),
+  readPublishedFundActuals: vi.fn(),
 }));
 
 vi.mock('../../../server/db', () => ({ db: state }));
 vi.mock('../../../server/storage', () => ({ storage: state.storage }));
+vi.mock('../../../server/services/published-investment-comparison', () => ({
+  readPublishedFundActuals: state.readPublishedFundActuals,
+  readPublishedInvestmentComparison: vi.fn(),
+}));
 vi.mock('../../../server/services/actual-metrics-calculator', () => ({
   ActualMetricsCalculator: class {
     calculate = state.actualCalculate;
@@ -114,6 +119,8 @@ describe('MetricsAggregator financial-facts cache fingerprint', () => {
     });
     state.varianceCalculate.mockReset();
     state.varianceCalculate.mockReturnValue({});
+    state.readPublishedFundActuals.mockReset();
+    state.readPublishedFundActuals.mockResolvedValue(null);
   });
 
   it('changes with head id or hash, stays stable otherwise, and uses facts:none', async () => {

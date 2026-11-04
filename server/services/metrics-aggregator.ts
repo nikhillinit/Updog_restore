@@ -14,7 +14,10 @@
  */
 
 import { storage } from '../storage';
-import { readPublishedInvestmentComparison } from './published-investment-comparison';
+import {
+  readPublishedFundActuals,
+  readPublishedInvestmentComparison,
+} from './published-investment-comparison';
 import type {
   InvestmentComparison,
   InvestmentComparisonOptions,
@@ -275,6 +278,18 @@ export class MetricsAggregator {
       skipCache?: boolean;
       skipProjections?: boolean;
     } = {}
+  ): Promise<UnifiedFundMetrics> {
+    const metrics = await this.getUnifiedMetricsWithoutPublishedActuals(fundId, options);
+    const publishedActuals = await readPublishedFundActuals(fundId);
+    return publishedActuals === null ? metrics : { ...metrics, publishedActuals };
+  }
+
+  private async getUnifiedMetricsWithoutPublishedActuals(
+    fundId: number,
+    options: {
+      skipCache?: boolean;
+      skipProjections?: boolean;
+    }
   ): Promise<UnifiedFundMetrics> {
     const projectionFlag = options.skipProjections ? 'no-proj' : 'with-proj';
     const cacheKeys = await this.buildUnifiedMetricsCacheKeys(fundId);
