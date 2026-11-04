@@ -28,6 +28,9 @@ type FundStateSlice = Pick<
   | 'fundLife'
   | 'investmentPeriod'
   | 'gpCommitment'
+  | 'gpCommitmentSource'
+  | 'gpCommitmentTopLevelSource'
+  | 'managementFeeExemptsGp'
   | 'fundedFromFeesPct'
   | 'lpClasses'
   | 'lps'
@@ -50,6 +53,7 @@ type FundStateSlice = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'expenseHorizonMonths'
   | 'targetMetrics'
   | 'draftFundId'
   | 'draftServerReady'
@@ -77,6 +81,7 @@ type DraftHydrationDefaults = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'managementFeeExemptsGp'
   | 'fundedFromFeesPct'
 >;
 
@@ -90,6 +95,17 @@ type DraftFundExpense = NonNullable<FundDraftWriteV1['fundExpenses']>[number];
 
 interface EconomicsAdapterOptions {
   includeEconomicsAssumptions?: boolean;
+}
+
+function pipelineProfilesForWire(
+  profiles: FundStateSlice['pipelineProfiles']
+): NonNullable<FundDraftWriteV1['pipelineProfiles']> {
+  return profiles.map((profile) => ({
+    ...profile,
+    stages: profile.stages.map(({ roundSize, ...stage }) =>
+      roundSize === undefined ? stage : { ...stage, roundSize }
+    ),
+  }));
 }
 
 function percentToRatio(value: number | undefined): number {
@@ -130,7 +146,37 @@ function buildEconomicsAssumptionsFromState(
   state: FundStateSlice
 ): EconomicsAssumptionsV1 | undefined {
   if (state.economicsAssumptions != null) {
-    return state.economicsAssumptions;
+    const feeModel =
+      state.managementFeeExemptsGp === undefined
+        ? state.economicsAssumptions.feeModel
+        : {
+            ...state.economicsAssumptions.feeModel,
+            source: state.economicsAssumptions.feeModel?.source ?? 'legacy_fee_profiles',
+            gpCommitmentExempt: state.managementFeeExemptsGp,
+          };
+    const gpCommitmentModel =
+      state.gpCommitmentSource !== undefined || state.gpCommitment === undefined
+        ? state.economicsAssumptions.gpCommitmentModel
+        : {
+            ...state.economicsAssumptions.gpCommitmentModel,
+            commitmentAmount: state.gpCommitment,
+            participatesInInvestmentReturns:
+              state.economicsAssumptions.gpCommitmentModel?.participatesInInvestmentReturns ?? true,
+          };
+    const expenseModel =
+      state.expenseHorizonMonths === undefined
+        ? state.economicsAssumptions.expenseModel
+        : {
+            ...state.economicsAssumptions.expenseModel,
+            source: state.economicsAssumptions.expenseModel?.source ?? 'legacy_fund_expenses',
+            horizonMonths: state.expenseHorizonMonths,
+          };
+    return {
+      ...state.economicsAssumptions,
+      ...spreadIfDefined('feeModel', feeModel),
+      ...spreadIfDefined('expenseModel', expenseModel),
+      ...spreadIfDefined('gpCommitmentModel', gpCommitmentModel),
+    };
   }
   if (state.fundSize == null || state.fundSize <= 0) {
     return undefined;
@@ -155,9 +201,11 @@ function buildEconomicsAssumptionsFromState(
       source: 'legacy_fee_profiles',
       defaultRate: percentToRatio(state.managementFeeRate),
       defaultBasis: 'committed_capital',
+      ...spreadIfDefined('gpCommitmentExempt', state.managementFeeExemptsGp),
     },
     expenseModel: {
       source: 'legacy_fund_expenses',
+      ...spreadIfDefined('horizonMonths', state.expenseHorizonMonths),
     },
     exitModel: {
       mode: 'cohort',
@@ -192,7 +240,7 @@ function buildEconomicsAssumptionsFromState(
       feeOffsetTreatment: 'none',
     },
     gpCommitmentModel: {
-      commitmentAmount: state.gpCommitment ?? 0,
+      ...spreadIfDefined('commitmentAmount', state.gpCommitment),
       participatesInInvestmentReturns: true,
     },
   };
@@ -349,7 +397,9 @@ export function fundStoreToDraftWriteV1(
   if (state.isEvergreen != null) draft.isEvergreen = state.isEvergreen;
   if (state.fundLife != null) draft.fundLife = state.fundLife;
   if (state.investmentPeriod != null) draft.investmentPeriod = state.investmentPeriod;
-  if (state.gpCommitment != null) draft.gpCommitment = state.gpCommitment;
+  const topLevelGpCommitment =
+    state.gpCommitmentSource === undefined ? state.gpCommitment : state.gpCommitmentTopLevelSource;
+  if (topLevelGpCommitment != null) draft.gpCommitment = topLevelGpCommitment;
   if (state.fundedFromFeesPct !== 0) {
     draft.fundedFromFeesPct = state.fundedFromFeesPct;
   }
@@ -371,7 +421,9 @@ export function fundStoreToDraftWriteV1(
     draft.capitalPlanAllocations = state.capitalPlanAllocations;
 
   // Investment Pipeline
-  if (state.pipelineProfiles.length > 0) draft.pipelineProfiles = state.pipelineProfiles;
+  if (state.pipelineProfiles.length > 0) {
+    draft.pipelineProfiles = pipelineProfilesForWire(state.pipelineProfiles);
+  }
 
   // Distributions & Carry
   if (state.waterfallType != null) draft.waterfallType = state.waterfallType;
@@ -410,6 +462,19 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
   draft: FundDraftWriteV1,
   defaults: DraftHydrationDefaults
 ): Partial<FundState> {
+  const gpCommitmentModel = draft.economicsAssumptions?.gpCommitmentModel;
+  const gpCommitmentSource =
+    gpCommitmentModel?.commitmentAmount !== undefined
+      ? 'nested_amount'
+      : gpCommitmentModel?.commitmentPct !== undefined
+        ? 'nested_pct'
+        : 'top_level';
+  const hydratedGpCommitment =
+    gpCommitmentSource === 'nested_amount'
+      ? gpCommitmentModel?.commitmentAmount
+      : gpCommitmentSource === 'nested_pct'
+        ? undefined
+        : draft.gpCommitment;
   return {
     fundName: draft.fundName,
     lpClasses: draft.lpClasses ? hydrateLPClasses(draft.lpClasses) : defaults.lpClasses,
@@ -431,6 +496,7 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
       ? hydrateFundExpenses(draft.fundExpenses)
       : defaults.fundExpenses,
     economicsAssumptions: draft.economicsAssumptions ?? defaults.economicsAssumptions,
+    expenseHorizonMonths: draft.economicsAssumptions?.expenseModel?.horizonMonths,
     // Explicit undefined clears a previous draft's value on hydration.
     targetMetrics: draft.targetMetrics,
     ...spreadIfDefined('fundSize', draft.fundSize),
@@ -442,7 +508,10 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
     ...spreadIfDefined('isEvergreen', draft.isEvergreen ?? defaults.isEvergreen),
     ...spreadIfDefined('fundLife', draft.fundLife),
     ...spreadIfDefined('investmentPeriod', draft.investmentPeriod),
-    ...spreadIfDefined('gpCommitment', draft.gpCommitment),
+    gpCommitment: hydratedGpCommitment,
+    gpCommitmentSource,
+    gpCommitmentTopLevelSource: draft.gpCommitment,
+    managementFeeExemptsGp: draft.economicsAssumptions?.feeModel?.gpCommitmentExempt,
     fundedFromFeesPct: draft.fundedFromFeesPct ?? defaults.fundedFromFeesPct,
     ...spreadIfDefined('waterfallType', draft.waterfallType ?? defaults.waterfallType),
     ...spreadIfDefined('recyclingEnabled', draft.recyclingEnabled ?? defaults.recyclingEnabled),
@@ -501,7 +570,9 @@ export function fundStoreToFinalizeV1(
   if (state.isEvergreen != null) result.isEvergreen = state.isEvergreen;
   if (state.fundLife != null) result.fundLife = state.fundLife;
   if (state.investmentPeriod != null) result.investmentPeriod = state.investmentPeriod;
-  if (state.gpCommitment != null) result.gpCommitment = state.gpCommitment;
+  const topLevelGpCommitment =
+    state.gpCommitmentSource === undefined ? state.gpCommitment : state.gpCommitmentTopLevelSource;
+  if (topLevelGpCommitment != null) result.gpCommitment = topLevelGpCommitment;
   if (state.fundedFromFeesPct !== 0) {
     result.fundedFromFeesPct = state.fundedFromFeesPct;
   }
@@ -523,7 +594,9 @@ export function fundStoreToFinalizeV1(
     result.capitalPlanAllocations = state.capitalPlanAllocations;
 
   // Investment Pipeline
-  if (state.pipelineProfiles.length > 0) result.pipelineProfiles = state.pipelineProfiles;
+  if (state.pipelineProfiles.length > 0) {
+    result.pipelineProfiles = pipelineProfilesForWire(state.pipelineProfiles);
+  }
 
   // Distributions & Carry
   if (state.waterfallType != null) result.waterfallType = state.waterfallType;

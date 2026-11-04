@@ -412,6 +412,39 @@ describe('fund workspace envelope', () => {
     expect(next.etag).toBe('"0000000000000002"');
   });
 
+  it('persists a published revision command separately from an ordinary draft save', async () => {
+    fundStore.setState({
+      draftFundId: 42,
+      draftETag: null,
+      draftServerReady: true,
+    });
+    const original = prepareFundCommand(
+      'save_draft',
+      42,
+      { sourceConfigId: 9, sourceConfigVersion: 3 },
+      '"0000000000000003"',
+      'published'
+    );
+    const envelope = sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!;
+    fundStore.setState({ pendingCommand: null });
+    sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, envelope);
+    await bindFundWorkspaceActor(ACTOR);
+
+    expect(
+      prepareFundCommand(
+        'save_draft',
+        42,
+        { sourceConfigId: 99, sourceConfigVersion: 8 },
+        '"0000000000000008"',
+        'published'
+      )
+    ).toEqual(original);
+    expect(fundStore.getState().pendingCommand?.source).toBe('published');
+    expect(() => prepareFundCommand('save_draft', 42, { fundName: 'Ordinary save' }, null)).toThrow(
+      /pending/i
+    );
+  });
+
   it('blocks fresh writes during identity-only recovery but permits the exact pending replay', () => {
     fundStore.setState({
       draftFundId: 42,

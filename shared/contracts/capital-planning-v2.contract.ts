@@ -133,6 +133,18 @@ export const CapitalParticipationPolicyV2Schema = z.discriminatedUnion('type', [
     })
     .strict(),
 ]);
+// Entry ownership needs check / post-money, even when the whole round is unknown.
+// Follow-on financing still requires primary capital to update ownership and size checks.
+export const CapitalEntryFinancingV2Schema = z.union([
+  CapitalFinancingV2Schema,
+  z
+    .object({
+      valuationUsd: CapitalPositiveMoneyV1Schema,
+      valuationBasis: z.literal('post_money'),
+      primaryCapital: z.object({ basis: z.literal('not_supplied') }).strict(),
+    })
+    .strict(),
+]);
 export const CapitalEligibilityV2Schema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('all') }).strict(),
   z
@@ -154,6 +166,8 @@ export const CapitalFollowOnRoundV2Schema = z
     eligibility: CapitalEligibilityV2Schema,
     participationPolicy: CapitalParticipationPolicyV2Schema,
     checkPolicy: CapitalCheckPolicyV1Schema,
+    // Old saved inputs retain after-pool sizing; never insert a default into their bytes.
+    proRataOwnershipBasis: z.enum(['before_pool_dilution', 'after_pool_dilution']).optional(),
     lagMonthsFromPreviousRound: z.number().int().min(0).max(limits.maxRoundLagMonths),
     timingBasis: z.literal('interval_from_previous_round'),
     poolBasis: z.literal('incremental_pre_money'),
@@ -164,6 +178,12 @@ export const CapitalFollowOnRoundV2Schema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (v.proRataOwnershipBasis !== undefined && v.checkPolicy.type !== 'pro_rata')
+      ctx.addIssue({
+        code: 'custom',
+        path: ['proRataOwnershipBasis'],
+        message: 'Ownership sizing basis applies only to pro-rata checks',
+      });
     if (
       v.checkPolicy.type === 'fixed_check' &&
       v.financing.primaryCapital.basis === 'total_primary_including_fund_check' &&
@@ -187,11 +207,20 @@ export const CapitalAllocationInputV2Schema = z
     plannedCompanyCount: z.number().int().min(0).max(limits.maxPlannedCompanies).optional(),
     scheduleAnchor: z.literal('entry_deployment_month'),
     deploymentCadence: z.literal('uniform_monthly_over_deployment_period'),
-    entryFinancing: CapitalFinancingV2Schema,
+    entryFinancing: CapitalEntryFinancingV2Schema,
     followOnRounds: z.array(CapitalFollowOnRoundV2Schema).max(limits.maxFollowOnRounds),
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (
+      v.entryFinancing.primaryCapital.basis === 'not_supplied' &&
+      decimal(v.initialCheckUsd)?.gte(decimal(v.entryFinancing.valuationUsd) ?? 0) === true
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['initialCheckUsd'],
+        message: 'Entry check must be less than post-money valuation',
+      });
     if (
       new Set(v.followOnRounds.map((r) => r.roundId)).size !== v.followOnRounds.length ||
       new Set([v.entryStageId, ...v.followOnRounds.map((r) => r.stageId)]).size !==

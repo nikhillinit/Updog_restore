@@ -134,8 +134,16 @@ export default function FundSetup() {
     params.set('step', '7');
     setLocation(`/fund-setup?${params.toString()}`, { replace: true });
   }, [pendingFinalize, requestedKey, search, setLocation]);
-  const { status, error, retry, isHydrating, loadServerDraft, keepLocalDraft, missingDraftFundId } =
-    useFundDraftSync({ stepKey: key });
+  const {
+    status,
+    error,
+    retry,
+    isHydrating,
+    loadServerDraft,
+    keepLocalDraft,
+    missingDraftFundId,
+    startRevision,
+  } = useFundDraftSync({ stepKey: key });
   // Stamp only a save this tab confirmed; hydrating an old draft must not claim "saved now".
   const [savedAt, setSavedAt] = React.useState<Date | null>(null);
   const previousStatus = React.useRef(status);
@@ -353,8 +361,20 @@ export default function FundSetup() {
                     <AlertTitle>No active draft</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>
-                        This fund has no active draft to edit. Open its model, or start a new fund.
+                        This fund has no active draft to edit. Start a revision from its latest
+                        published configuration, open its model, or start a new fund.
                       </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        data-testid="start-fund-revision"
+                        disabled={status === 'saving'}
+                        onClick={startRevision}
+                      >
+                        {pendingCommand?.source === 'published'
+                          ? 'Retry revision'
+                          : 'Start revision'}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"

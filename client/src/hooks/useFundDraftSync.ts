@@ -5,8 +5,10 @@ import {
   clearDraftSaveAcknowledgement,
   isDraftSaveAcknowledged,
   isDraftSaveInFlight,
+  isRevisionStartInFlight,
   recordDraftSaveAcknowledgement,
   saveDraftAndSettle,
+  startRevisionAndSettle,
 } from '@/services/fund-draft-settlement';
 import { fetchFundDraft, isMissingDraftError, type DraftSnapshot } from '@/services/fund-drafts';
 import { useFlag } from '@/hooks/useUnifiedFlag';
@@ -32,6 +34,8 @@ export interface UseFundDraftSyncResult {
   keepLocalDraft: () => void;
   /** The routed fund has no active draft; nothing can be saved for it. */
   missingDraftFundId: number | null;
+  /** Clone the latest published configuration into a new active draft. */
+  startRevision: () => void;
 }
 
 export const STALE_DRAFT_MESSAGE = 'A newer draft is available';
@@ -125,13 +129,19 @@ export function useFundDraftSync({
     }
     if (
       state.pendingCommand?.operation === 'save_draft' &&
+      state.pendingCommand.source === undefined &&
       isDraftSaveInFlight(state.sessionId, state.pendingCommand)
     ) {
       queuedSaveRef.current = true;
       return;
     }
 
-    if (state.pendingCommand && state.pendingCommand.operation !== 'save_draft') return;
+    if (
+      state.pendingCommand &&
+      (state.pendingCommand.operation !== 'save_draft' ||
+        state.pendingCommand.source === 'published')
+    )
+      return;
     const currentPayload = fundStoreToDraftWriteV1(state, {
       includeEconomicsAssumptions: economicsEnabled,
     });
@@ -303,8 +313,48 @@ export function useFundDraftSync({
     void persistCurrentDraft();
   }, [markVerified, persistCurrentDraft, setStatus]);
 
+  const startRevision = React.useCallback(() => {
+    const state = fundStore.getState();
+    const fundId = state.draftFundId;
+    if (fundId == null || (state.pendingCommand && state.pendingCommand.source !== 'published')) {
+      return;
+    }
+    setStatus('saving');
+    setError(null);
+    void startRevisionAndSettle(fundId, (outcome) => {
+      switch (outcome.kind) {
+        case 'superseded':
+          return;
+        case 'started':
+          setMissingDraftFundId(null);
+          markVerified(fundId);
+          setStatus('synced');
+          return;
+        case 'uncertain':
+          setError('Could not confirm the revision; it may have completed');
+          setStatus('uncertain');
+          return;
+        case 'retry_same_key':
+        case 'not_dispatched':
+        case 'rejected':
+        case 'stale':
+          setError(outcome.message);
+          setStatus('error');
+          return;
+        default: {
+          const exhaustive: never = outcome;
+          return exhaustive;
+        }
+      }
+    });
+  }, [markVerified, setStatus]);
+
   const retry = React.useCallback(() => {
     const state = fundStore.getState();
+    if (state.pendingCommand?.source === 'published') {
+      startRevision();
+      return;
+    }
     if (state.needsServerHydration && !state.pendingCommand) {
       markVerified(null);
       setError(null);
@@ -321,7 +371,7 @@ export function useFundDraftSync({
       return;
     }
     void persistCurrentDraft();
-  }, [markVerified, persistCurrentDraft]);
+  }, [markVerified, persistCurrentDraft, startRevision]);
 
   // Identity cleared: nothing to sync.
   React.useEffect(() => {
@@ -347,7 +397,13 @@ export function useFundDraftSync({
     if (pendingCommand) {
       // Recovery must settle the exact dispatched command before fetching over it.
       markVerified(draftFundId);
-      if (pendingCommand.operation === 'save_draft') {
+      if (pendingCommand.source === 'published') {
+        setMissingDraftFundId(draftFundId);
+        if (!isRevisionStartInFlight(sessionId, pendingCommand)) {
+          setError('Could not confirm the revision; it may have completed');
+          setStatus('uncertain');
+        }
+      } else if (pendingCommand.operation === 'save_draft') {
         if (!isDraftSaveInFlight(sessionId, pendingCommand)) {
           setError(UNCERTAIN_SAVE_MESSAGE);
           setStatus('uncertain');
@@ -454,7 +510,9 @@ export function useFundDraftSync({
         return;
       }
       if (state.pendingCommand) {
-        queuedSaveRef.current = state.pendingCommand.operation === 'save_draft';
+        queuedSaveRef.current =
+          state.pendingCommand.operation === 'save_draft' &&
+          state.pendingCommand.source === undefined;
         return;
       }
 
@@ -508,5 +566,6 @@ export function useFundDraftSync({
     loadServerDraft,
     keepLocalDraft,
     missingDraftFundId,
+    startRevision,
   };
 }

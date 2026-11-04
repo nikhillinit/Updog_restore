@@ -7,10 +7,13 @@ import { ApiError } from '@/lib/queryClient';
 import { startInFlight } from '@/lib/inflight';
 import { FundWorkflowUncertainError, workflowRequest, type WorkflowResult } from './fund-workflow';
 
-type DraftRecordResponse = {
+type DraftRecord = {
+  id?: number;
+  version?: number;
   config?: FundDraftWriteV1;
-  data?: { config?: FundDraftWriteV1 };
 };
+
+type DraftRecordResponse = DraftRecord & { data?: DraftRecord };
 
 export interface DraftSnapshot {
   config: FundDraftWriteV1;
@@ -25,6 +28,16 @@ export interface SaveDraftOptions {
 
 export interface SaveDraftResult extends DraftSnapshot {
   replayed: boolean;
+}
+
+export interface RevisionSourceSnapshot extends DraftSnapshot {
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+}
+
+export interface StartFundRevisionBody {
+  sourceConfigId: number;
+  sourceConfigVersion: number;
 }
 
 /** GET /api/funds/:id/draft answered 404: the fund has no active draft. */
@@ -77,4 +90,39 @@ export async function fetchFundDraft(fundId: number): Promise<DraftSnapshot> {
     undefined
   );
   return draftSnapshotFrom(result);
+}
+
+export async function fetchFundRevisionSource(fundId: number): Promise<RevisionSourceSnapshot> {
+  const result = await workflowRequest<DraftRecordResponse | null>(
+    'GET',
+    `/api/funds/${fundId}/revision-source`,
+    undefined
+  );
+  const snapshot = draftSnapshotFrom(result);
+  const sourceConfigId = result.body?.id;
+  const sourceConfigVersion = result.body?.version;
+  if (!Number.isSafeInteger(sourceConfigId) || !Number.isSafeInteger(sourceConfigVersion)) {
+    throw new Error('Revision source response is missing its published identity');
+  }
+  return {
+    ...snapshot,
+    sourceConfigId: sourceConfigId!,
+    sourceConfigVersion: sourceConfigVersion!,
+  };
+}
+
+export async function startFundRevision(
+  fundId: number,
+  payload: StartFundRevisionBody,
+  options: SaveDraftOptions
+): Promise<SaveDraftResult> {
+  const result = await startInFlight(`start_revision:${fundId}:${options.key}`, ({ signal }) =>
+    workflowRequest<DraftRecordResponse | null>('POST', `/api/funds/${fundId}/draft`, payload, {
+      key: options.key,
+      etag: options.etag,
+      signal,
+    })
+  );
+  const snapshot = draftSnapshotFrom(result);
+  return { ...snapshot, replayed: result.replayed };
 }

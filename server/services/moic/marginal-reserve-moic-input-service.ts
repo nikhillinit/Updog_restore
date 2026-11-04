@@ -186,7 +186,7 @@ function prospectiveStages(
   for (let index = 0; index < assumedStages.length; index += 1) {
     const assumedStage = assumedStages[index];
     const priorStage = orderedStages[currentProfileIndex + index];
-    if (!assumedStage || !priorStage) return null;
+    if (!assumedStage || !priorStage || assumedStage.stage.roundSize === undefined) return null;
     const roundSize = new Decimal(assumedStage.stage.roundSize).times(USD_PER_MILLION);
     const statedValuation = new Decimal(assumedStage.stage.valuation).times(USD_PER_MILLION);
     const preMoneyValuation =

@@ -21,6 +21,32 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 describe('CashflowManagementStep', () => {
+  it('displays modeled costs over the explicit horizon and returns to fund term when cleared', async () => {
+    act(() =>
+      fundStore.setState({
+        fundLife: 10,
+        expenseHorizonMonths: 150,
+        fundExpenses: [
+          {
+            id: 'org',
+            category: 'Organization',
+            monthlyAmount: 100000,
+            startMonth: 1,
+            endMonth: 1,
+          },
+          { id: 'op', category: 'Operating', monthlyAmount: 6250, startMonth: 1, endMonth: 150 },
+        ],
+      })
+    );
+    render(<CashflowManagementStep />);
+    expect(screen.getByText('Modeled Expenses')).toBeInTheDocument();
+    expect(screen.getByText('$1,037,500')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('30 months beyond');
+    await userEvent.clear(screen.getByLabelText('Modeled expense coverage (months)'));
+    expect(screen.getByText('$850,000')).toBeInTheDocument();
+    expect(fundStore.getState().expenseHorizonMonths).toBeUndefined();
+  });
+
   beforeEach(() => {
     mockNavigate.mockReset();
 

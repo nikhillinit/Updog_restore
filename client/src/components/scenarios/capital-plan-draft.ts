@@ -108,7 +108,18 @@ export function emptyCorrectedCapitalFinancing(): RawCapitalInputV2['allocations
       totalPrimaryAmountUsd: '',
       primary_only_excludes_secondary: false,
     },
-  };
+  } as RawCapitalInputV2['allocations'][number]['entryFinancing'];
+}
+function emptyCorrectedFollowOnFinancing(): RawCapitalInputV2['allocations'][number]['followOnRounds'][number]['financing'] {
+  return {
+    valuationUsd: '',
+    valuationBasis: '',
+    primaryCapital: {
+      basis: '',
+      totalPrimaryAmountUsd: '',
+      primary_only_excludes_secondary: false,
+    },
+  } as RawCapitalInputV2['allocations'][number]['followOnRounds'][number]['financing'];
 }
 export function emptyCorrectedCapitalRound(): RawCapitalInputV2['allocations'][number]['followOnRounds'][number] {
   return {
@@ -123,7 +134,7 @@ export function emptyCorrectedCapitalRound(): RawCapitalInputV2['allocations'][n
     timingBasis: '',
     poolBasis: '',
     incrementalPreMoneyPoolDilutionRatio: '',
-    financing: emptyCorrectedCapitalFinancing(),
+    financing: emptyCorrectedFollowOnFinancing(),
   };
 }
 export function emptyCorrectedCapitalAllocation(): RawCapitalInputV2['allocations'][number] {

@@ -232,6 +232,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     options?: {
       choices?: readonly (readonly [string, string])[];
       type?: string;
+      testId?: string;
       errorPath?: string;
       onChange?: (value: string) => void;
     }
@@ -249,6 +250,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         options?.onChange ? options.onChange(event.target.value) : edit(path, event.target.value),
       className: CONTROL,
+      'data-testid': options?.testId,
     };
     return (
       <div className="min-w-0 space-y-1" key={id}>
@@ -366,7 +368,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
       </div>
     );
   }
-  function correctedFinancing(path: Path) {
+  function correctedFinancing(path: Path, allowNotSupplied = false) {
     const capitalPath = [...path, 'primaryCapital'];
     const basis = readPath(draft, [...capitalPath, 'basis']);
     return (
@@ -393,17 +395,29 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                 'external_primary_excluding_fund_check',
                 'Fixed external primary capital; fund check adds to total',
               ],
+              ...(allowNotSupplied
+                ? ([
+                    [
+                      'not_supplied',
+                      'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership',
+                    ],
+                  ] as const)
+                : []),
             ],
+            ...(allowNotSupplied ? { testId: 'entry-primary-capital-basis' } : {}),
             onChange: (value) =>
               edit(capitalPath, {
                 basis: value,
-                [value === 'external_primary_excluding_fund_check'
-                  ? 'externalPrimaryAmountUsd'
-                  : 'totalPrimaryAmountUsd']: '',
-                primary_only_excludes_secondary: false,
+                ...(value === 'external_primary_excluding_fund_check'
+                  ? { externalPrimaryAmountUsd: '' }
+                  : value === 'total_primary_including_fund_check'
+                    ? { totalPrimaryAmountUsd: '' }
+                    : {}),
+                ...(value === 'not_supplied' ? {} : { primary_only_excludes_secondary: false }),
               }),
           })}
           {Boolean(basis) &&
+            basis !== 'not_supplied' &&
             field(
               basis === 'external_primary_excluding_fund_check'
                 ? 'External primary capital (USD)'
@@ -416,17 +430,27 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
               ]
             )}
         </div>
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            disabled={hasUnconfirmedSave}
-            checked={readPath(draft, [...capitalPath, 'primary_only_excludes_secondary']) === true}
-            onChange={(event) =>
-              edit([...capitalPath, 'primary_only_excludes_secondary'], event.target.checked)
-            }
-          />
-          Primary capital only; excludes all secondary sales
-        </label>
+        {basis !== 'not_supplied' && (
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              disabled={hasUnconfirmedSave}
+              checked={
+                readPath(draft, [...capitalPath, 'primary_only_excludes_secondary']) === true
+              }
+              onChange={(event) =>
+                edit([...capitalPath, 'primary_only_excludes_secondary'], event.target.checked)
+              }
+            />
+            Primary capital only; excludes all secondary sales
+          </label>
+        )}
+        {basis === 'not_supplied' && (
+          <p className="text-sm text-presson-textMuted">
+            Entry ownership uses fund check divided by post-money valuation. No whole-round amount
+            is inferred.
+          </p>
+        )}
       </fieldset>
     );
   }
@@ -568,7 +592,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     if (corrected)
       return (
         <div className="space-y-3">
-          {correctedFinancing(financingPath)}
+          {correctedFinancing(financingPath, roundIndex === undefined)}
           <details>
             <summary>Benchmark catalog evidence (not applied)</summary>
             <p className="text-sm">
@@ -1249,13 +1273,20 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                                 ['fixed_check', 'Fixed check'],
                                 ['pro_rata', 'Pro-rata'],
                               ],
-                              onChange: (value) =>
-                                edit(
+                              onChange: (value) => {
+                                const next = structuredClone(draft);
+                                writePath(
+                                  next,
                                   [...path, 'checkPolicy'],
                                   value === 'pro_rata'
                                     ? { type: 'pro_rata', proRataExerciseRatio: '' }
                                     : { type: value, checkUsd: '' }
-                                ),
+                                );
+                                if (value !== 'pro_rata') {
+                                  writePath(next, [...path, 'proRataOwnershipBasis'], undefined);
+                                }
+                                replace(next);
+                              },
                             })}
                             {round.checkPolicy.type === 'pro_rata'
                               ? field('Pro-rata exercise (ratio)', [
@@ -1264,6 +1295,25 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                                   'proRataExerciseRatio',
                                 ])
                               : field('Check (USD)', [...path, 'checkPolicy', 'checkUsd'])}
+                            {corrected &&
+                              round.checkPolicy.type === 'pro_rata' &&
+                              field(
+                                'Pro-rata ownership basis',
+                                [...path, 'proRataOwnershipBasis'],
+                                {
+                                  choices: [
+                                    [
+                                      'after_pool_dilution',
+                                      'After incremental option-pool dilution (legacy application default)',
+                                    ],
+                                    [
+                                      'before_pool_dilution',
+                                      'Before incremental option-pool dilution (workbook convention)',
+                                    ],
+                                  ],
+                                  testId: 'pro-rata-ownership-basis',
+                                }
+                              )}
                             {field('Months after previous round', [
                               ...path,
                               corrected ? 'lagMonthsFromPreviousRound' : 'monthsAfterPreviousRound',
@@ -1287,7 +1337,9 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                           </div>
                           <p className="text-sm">
                             Time origin: previous round. Total pool size is not incremental
-                            dilution.
+                            dilution. Pro-rata ownership basis states whether check sizing occurs
+                            before or after that dilution; ownership updates still apply the
+                            declared pool dilution.
                           </p>
                           {benchmark(ai, ri)}
                           <Button
@@ -1732,6 +1784,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             <Button
               type="button"
               variant="outline"
+              data-testid="review-capital-plan"
               disabled={
                 busy === 'review' || sourceChanged || sourceQuery.isError || saveIntent !== null
               }
@@ -1741,6 +1794,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
             </Button>
             <Button
               type="button"
+              data-testid="save-capital-scenario"
               disabled={
                 (!reviewed && !saveIntent) ||
                 (sourceChanged && !saveIntent) ||

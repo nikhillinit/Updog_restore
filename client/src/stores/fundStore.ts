@@ -88,7 +88,7 @@ export type FundExpense = {
 export type PipelineStage = {
   id: string;
   name: string;
-  roundSize: number; // $M
+  roundSize?: number | undefined; // $M; absent when whole-round financing is not supplied
   valuation: number; // $M
   valuationType: 'pre' | 'post';
   esopPct: number; // %
@@ -138,6 +138,8 @@ export type PendingFundCommand = {
   key: string;
   targetFundId: number | null;
   expectedETag: string | null;
+  /** Revision creation reuses the persisted save_draft operation with a distinct source. */
+  source?: 'published' | undefined;
   /** Exact JSON of the dispatched body, replayed with its original key and revision. */
   bodySignature: string;
   dispatchedAt: string;
@@ -196,7 +198,13 @@ export type FundState = {
   carriedInterest?: number;
 
   // Capital Structure
-  gpCommitment?: number;
+  gpCommitment?: number | undefined;
+  /** Hydrated GP source; cleared by an explicit mounted GP amount edit. */
+  gpCommitmentSource?: 'top_level' | 'nested_amount' | 'nested_pct' | undefined;
+  /** Original top-level value retained while nested economics is authoritative. */
+  gpCommitmentTopLevelSource?: number | undefined;
+  /** Whether the fixed GP commitment remains investment capital but is excluded from fee basis. */
+  managementFeeExemptsGp?: boolean | undefined;
   /** Ratio from 0 to 1 of GP commitment satisfied through non-cash fee offsets. */
   fundedFromFeesPct: number;
   lpClasses: LPClass[];
@@ -232,6 +240,8 @@ export type FundState = {
 
   // Experimental GP economics assumptions
   economicsAssumptions?: EconomicsAssumptionsV1 | undefined;
+  /** Explicit modeled expense coverage; independent of owner fund term. */
+  expenseHorizonMonths?: number | undefined;
 
   // No editor yet; carried so full-replace draft writes never drop server values.
   targetMetrics?: FundDraftWriteV1['targetMetrics'] | undefined;
@@ -251,14 +261,13 @@ export type FundState = {
         | 'fundSize'
         | 'managementFeeRate'
         | 'carriedInterest'
+        | 'expenseHorizonMonths'
       >
     >
   ) => void;
 
   // Capital Structure actions
-  updateCapitalStructure: (
-    patch: Partial<Pick<FundState, 'gpCommitment' | 'fundedFromFeesPct'>>
-  ) => void;
+  updateCapitalStructure: (patch: CapitalStructurePatch) => void;
   addLPClass: (lpClass: LPClass) => void;
   updateLPClass: (id: string, patch: Partial<LPClass>) => void;
   removeLPClass: (id: string) => void;
@@ -310,6 +319,7 @@ export type FundState = {
 
   // Experimental GP economics actions
   updateEconomicsAssumptions: (economicsAssumptions?: EconomicsAssumptionsV1) => void;
+  updateExpenseHorizonMonths: (expenseHorizonMonths?: number) => void;
 
   // Capital Plan actions (Step 3)
   setCapitalStageAllocations: (rows: CapitalStageAllocation[]) => void;
@@ -377,9 +387,14 @@ type FundBasicsPatch = Partial<
     | 'fundSize'
     | 'managementFeeRate'
     | 'carriedInterest'
+    | 'expenseHorizonMonths'
   >
 >;
-type CapitalStructurePatch = Partial<Pick<FundState, 'gpCommitment' | 'fundedFromFeesPct'>>;
+type CapitalStructurePatch = {
+  gpCommitment?: number | undefined;
+  managementFeeExemptsGp?: boolean | undefined;
+  fundedFromFeesPct?: number;
+};
 type DistributionsPatch = Partial<
   Pick<
     FundState,
@@ -541,6 +556,9 @@ type FundData = Pick<
   | 'managementFeeRate'
   | 'carriedInterest'
   | 'gpCommitment'
+  | 'gpCommitmentSource'
+  | 'gpCommitmentTopLevelSource'
+  | 'managementFeeExemptsGp'
   | 'fundedFromFeesPct'
   | 'lpClasses'
   | 'lps'
@@ -563,6 +581,7 @@ type FundData = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'expenseHorizonMonths'
   | 'targetMetrics'
 >;
 
@@ -578,6 +597,9 @@ const FUND_DATA_KEYS = [
   'managementFeeRate',
   'carriedInterest',
   'gpCommitment',
+  'gpCommitmentSource',
+  'gpCommitmentTopLevelSource',
+  'managementFeeExemptsGp',
   'fundedFromFeesPct',
   'lpClasses',
   'lps',
@@ -600,6 +622,7 @@ const FUND_DATA_KEYS = [
   'feeProfiles',
   'fundExpenses',
   'economicsAssumptions',
+  'expenseHorizonMonths',
   'targetMetrics',
 ] as const satisfies readonly (keyof FundData)[];
 
@@ -929,11 +952,64 @@ function createFundStore() {
           ...createDefaultData(),
 
           // Fund Basics actions
-          updateFundBasics: (patch: FundBasicsPatch) => set((state) => ({ ...state, ...patch })),
+          updateFundBasics: (patch: FundBasicsPatch) =>
+            set((state) => {
+              if (!Object.prototype.hasOwnProperty.call(patch, 'expenseHorizonMonths')) {
+                return { ...state, ...patch };
+              }
+              const expenseModel = state.economicsAssumptions?.expenseModel;
+              if (patch.expenseHorizonMonths !== undefined || expenseModel === undefined) {
+                return { ...state, ...patch };
+              }
+              const { horizonMonths: _horizonMonths, ...remainingExpenseModel } = expenseModel;
+              return {
+                ...state,
+                ...patch,
+                economicsAssumptions: state.economicsAssumptions
+                  ? {
+                      ...state.economicsAssumptions,
+                      expenseModel: remainingExpenseModel,
+                    }
+                  : undefined,
+              };
+            }),
 
           // Capital Structure actions
           updateCapitalStructure: (patch: CapitalStructurePatch) =>
-            set((state) => ({ ...state, ...patch })),
+            set((state) => {
+              if (!Object.prototype.hasOwnProperty.call(patch, 'gpCommitment')) {
+                return { ...state, ...patch };
+              }
+              const gpModel = state.economicsAssumptions?.gpCommitmentModel;
+              const {
+                commitmentAmount: _commitmentAmount,
+                commitmentPct: _commitmentPct,
+                ...remainingGpModel
+              } = gpModel ?? {};
+              const clearedGpModel = {
+                ...remainingGpModel,
+                participatesInInvestmentReturns: gpModel?.participatesInInvestmentReturns ?? true,
+              };
+              const economicsAssumptions = state.economicsAssumptions
+                ? {
+                    ...state.economicsAssumptions,
+                    gpCommitmentModel:
+                      patch.gpCommitment === undefined
+                        ? clearedGpModel
+                        : {
+                            ...clearedGpModel,
+                            commitmentAmount: patch.gpCommitment,
+                          },
+                  }
+                : undefined;
+              return {
+                ...state,
+                ...patch,
+                economicsAssumptions,
+                gpCommitmentSource: undefined,
+                gpCommitmentTopLevelSource: patch.gpCommitment,
+              };
+            }),
 
           addLPClass: (lpClass: LPClass) =>
             set((state) => ({
@@ -1071,6 +1147,8 @@ function createFundStore() {
 
           updateEconomicsAssumptions: (economicsAssumptions?: EconomicsAssumptionsV1) =>
             set({ economicsAssumptions }),
+          updateExpenseHorizonMonths: (expenseHorizonMonths?: number) =>
+            get().updateFundBasics({ expenseHorizonMonths } as FundBasicsPatch),
 
           // Capital Plan actions (Step 3)
           setCapitalStageAllocations: (rows: CapitalStageAllocation[]) =>
@@ -1402,11 +1480,17 @@ export function prepareFundCommand<T>(
   operation: FundWorkflowOperation,
   targetFundId: number | null,
   payload: T,
-  etag: string | null
+  etag: string | null,
+  source?: 'published'
 ): { payload: T; key: string; etag: string | null } {
   const state = fundStore.getState();
   const pending = state.pendingCommand;
-  if (pending && (pending.operation !== operation || pending.targetFundId !== targetFundId)) {
+  if (
+    pending &&
+    (pending.operation !== operation ||
+      pending.targetFundId !== targetFundId ||
+      pending.source !== source)
+  ) {
     throw new Error('Check the pending command status before starting another command.');
   }
   if (state.needsServerHydration && !pending) {
@@ -1420,7 +1504,14 @@ export function prepareFundCommand<T>(
       : fundCommandKey(operation, targetFundId, bodySignature, etag));
   const expectedETag = pending ? pending.expectedETag : etag;
   const originalPayload = JSON.parse(bodySignature) as T;
-  state.beginCommand({ operation, targetFundId, key, expectedETag, bodySignature });
+  state.beginCommand({
+    operation,
+    targetFundId,
+    key,
+    expectedETag,
+    bodySignature,
+    ...(source === undefined ? {} : { source }),
+  });
   if (fundStore.getState().persistenceFailed) {
     // Never dispatched and never stored: release it. A pre-existing command was
     // stored when first dispatched, so its outcome stays unsettled.

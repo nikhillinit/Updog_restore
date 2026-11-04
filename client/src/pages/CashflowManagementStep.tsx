@@ -22,6 +22,8 @@ import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { FundExpense } from '@/stores/fundStore';
 import type { ExpenseCategory } from '@shared/types';
 
+type SetupExpenseCategory = ExpenseCategory | 'Organization' | 'Operating';
+
 // Default expense categories for VC funds
 const DEFAULT_EXPENSE_CATEGORIES: Array<{
   category: ExpenseCategory;
@@ -114,12 +116,16 @@ export default function CashflowManagementStep() {
   const { currentFund } = useFundContext();
   const fundSize = currentFund?.size ? currentFund.size / 1000000 : 50; // Convert to millions for calculations
   const fundExpenses = useFundSelector((s) => s.fundExpenses);
+  const expenseHorizonMonths = useFundSelector((s) => s.expenseHorizonMonths);
+  const fundLife = useFundSelector((s) => s.fundLife);
+  const fundTermMonths = fundLife === undefined ? undefined : fundLife * 12;
   const suggestedExpenses = React.useMemo(() => buildSuggestedFundExpenses(fundSize), [fundSize]);
 
   // Actions
-  const { addFundExpense, removeFundExpense } = useFundActions((s) => ({
+  const { addFundExpense, removeFundExpense, updateFundBasics } = useFundActions((s) => ({
     addFundExpense: s.addFundExpense,
     removeFundExpense: s.removeFundExpense,
+    updateFundBasics: s.updateFundBasics,
   }));
 
   // Local state for cashflow settings
@@ -135,26 +141,31 @@ export default function CashflowManagementStep() {
 
   // Local state for new expense form
   const [newExpense, setNewExpense] = React.useState({
-    category: 'legal' as ExpenseCategory,
+    category: 'legal' as SetupExpenseCategory,
     monthlyAmount: 0,
     startMonth: 1,
     endMonth: undefined as number | undefined,
     isRecurring: true,
   });
 
-  // Calculate total annual expenses
-  const totalAnnualExpenses = React.useMemo(() => {
+  // Expense coverage is distinct from the contractual fund term.
+  const modeledExpenses = React.useMemo(() => {
+    const horizon = expenseHorizonMonths ?? fundTermMonths;
+    if (horizon === undefined) return null;
     return fundExpenses.reduce((total, expense) => {
-      const months = expense.endMonth ? Math.max(expense.endMonth - expense.startMonth + 1, 0) : 12;
+      const months = Math.max(
+        Math.min(expense.endMonth ?? horizon, horizon) - expense.startMonth + 1,
+        0
+      );
       return total + expense.monthlyAmount * months;
     }, 0);
-  }, [fundExpenses]);
+  }, [fundExpenses, expenseHorizonMonths, fundTermMonths]);
 
   // Calculate as percentage of fund size
   const expenseRatio = React.useMemo(() => {
-    if (!fundSize || fundSize === 0) return 0;
-    return (totalAnnualExpenses / (fundSize * 1000000)) * 100;
-  }, [totalAnnualExpenses, fundSize]);
+    if (!fundSize || modeledExpenses === null) return null;
+    return (modeledExpenses / (fundSize * 1000000)) * 100;
+  }, [modeledExpenses, fundSize]);
 
   const canAddExpense =
     newExpense.monthlyAmount > 0 &&
@@ -240,17 +251,53 @@ export default function CashflowManagementStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="expense-horizon-months">Modeled expense coverage (months)</Label>
+                <Input
+                  id="expense-horizon-months"
+                  data-testid="expense-horizon-months"
+                  type="number"
+                  min={1}
+                  max={840}
+                  step={1}
+                  value={expenseHorizonMonths ?? ''}
+                  placeholder={
+                    fundTermMonths === undefined ? 'Fund term required' : String(fundTermMonths)
+                  }
+                  onChange={(event) =>
+                    updateFundBasics({
+                      expenseHorizonMonths:
+                        event.target.value === '' ? undefined : Number(event.target.value),
+                    })
+                  }
+                />
+                <p className="text-sm text-pov-charcoal/70">
+                  Blank uses the fund term. An explicit horizon preserves modeled expense coverage;
+                  it does not authorize an extension of the fund term or management fees.
+                </p>
+                {expenseHorizonMonths !== undefined &&
+                  fundTermMonths !== undefined &&
+                  expenseHorizonMonths > fundTermMonths && (
+                    <p role="status" className="text-sm text-pov-charcoal">
+                      This expense model includes {expenseHorizonMonths - fundTermMonths} months
+                      beyond the fund term. Review these costs separately from investment demand
+                      beyond term.
+                    </p>
+                  )}
+              </div>
               {/* Summary */}
               <div className="grid grid-cols-1 gap-4 p-4 bg-pov-gray rounded-xl sm:grid-cols-3">
                 <div className="text-center">
                   <div className="text-2xl font-inter font-bold text-pov-charcoal">
-                    ${totalAnnualExpenses.toLocaleString()}
+                    {modeledExpenses === null
+                      ? 'Not available'
+                      : `$${modeledExpenses.toLocaleString()}`}
                   </div>
-                  <div className="text-sm text-pov-charcoal/60 font-poppins">Annual Expenses</div>
+                  <div className="text-sm text-pov-charcoal/60 font-poppins">Modeled Expenses</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-inter font-bold text-pov-charcoal">
-                    {expenseRatio.toFixed(1)}%
+                    {expenseRatio === null ? 'Not available' : `${expenseRatio.toFixed(1)}%`}
                   </div>
                   <div className="text-sm text-pov-charcoal/60 font-poppins">of Fund Size</div>
                 </div>
@@ -342,13 +389,15 @@ export default function CashflowManagementStep() {
                     <Select
                       value={newExpense.category}
                       onValueChange={(v) =>
-                        setNewExpense((prev) => ({ ...prev, category: v as ExpenseCategory }))
+                        setNewExpense((prev) => ({ ...prev, category: v as SetupExpenseCategory }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Expense category">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Organization">Organization</SelectItem>
+                        <SelectItem value="Operating">Operating</SelectItem>
                         {DEFAULT_EXPENSE_CATEGORIES.map((cat) => (
                           <SelectItem key={cat.category} value={cat.category}>
                             {cat.label}
@@ -420,7 +469,7 @@ export default function CashflowManagementStep() {
                         type="number"
                         placeholder="End month"
                         min={newExpense.startMonth}
-                        max="120"
+                        max={expenseHorizonMonths ?? fundTermMonths ?? 840}
                         value={newExpense.endMonth || ''}
                         onChange={(e) =>
                           setNewExpense((prev) => ({

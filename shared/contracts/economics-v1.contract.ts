@@ -50,6 +50,8 @@ export const FeeModelAssumptionsV1Schema = z
     tiers: z.array(EconomicsFeeTierV1Schema).optional(),
     defaultRate: RatioSchema.optional(),
     defaultBasis: EconomicsFeeBasisSchema.optional(),
+    // Absent preserves the historical full-fund fee population.
+    gpCommitmentExempt: z.boolean().optional(),
   })
   .strict();
 
@@ -76,6 +78,8 @@ export const EconomicsExpenseV1Schema = z
 export const ExpenseModelAssumptionsV1Schema = z
   .object({
     source: z.enum(['legacy_fund_expenses', 'economics_override']),
+    /** Modeled expense coverage only; does not authorize a longer fund term. */
+    horizonMonths: z.number().int().positive().max(840).optional(),
     annualExpenses: z.array(EconomicsExpenseV1Schema).optional(),
     orgExpenseCap: NonNegativeMoneySchema.optional(),
     orgExpenseCapType: z.enum(['absolute', 'pct_of_commitments']).optional(),

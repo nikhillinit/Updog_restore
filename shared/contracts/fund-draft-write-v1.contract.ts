@@ -127,7 +127,7 @@ const PipelineStageSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    roundSize: z.number(),
+    roundSize: z.number().optional(),
     valuation: z.number(),
     valuationType: z.enum(['pre', 'post']),
     esopPct: z.number(),

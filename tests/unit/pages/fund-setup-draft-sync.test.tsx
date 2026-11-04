@@ -18,6 +18,8 @@ const mockSetLocation = vi.fn((next: string) => {
 const mockMarkStepVisited = vi.fn();
 const mockFetchFundDraft = vi.fn();
 const mockSaveFundDraft = vi.fn();
+const mockFetchFundRevisionSource = vi.fn();
+const mockStartFundRevision = vi.fn();
 
 vi.mock('wouter', () => ({
   useLocation: () => [mockLocation.value.split('?')[0] ?? mockLocation.value, mockSetLocation],
@@ -55,6 +57,8 @@ vi.mock('@/services/fund-drafts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/fund-drafts')>()),
   fetchFundDraft: (...args: unknown[]) => mockFetchFundDraft(...args),
   saveFundDraft: (...args: unknown[]) => mockSaveFundDraft(...args),
+  fetchFundRevisionSource: (...args: unknown[]) => mockFetchFundRevisionSource(...args),
+  startFundRevision: (...args: unknown[]) => mockStartFundRevision(...args),
 }));
 
 const stepTitles = [
@@ -119,6 +123,8 @@ describe('FundSetup draft sync', () => {
     mockMarkStepVisited.mockReset();
     mockFetchFundDraft.mockReset();
     mockSaveFundDraft.mockReset();
+    mockFetchFundRevisionSource.mockReset();
+    mockStartFundRevision.mockReset();
     localStorage.clear();
     sessionStorage.clear();
 
@@ -1002,5 +1008,106 @@ describe('FundSetup draft sync', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Open model' }));
     expect(mockSetLocation).toHaveBeenCalledWith('/fund-model-results/91');
+  });
+
+  it('starts a same-fund revision and hydrates the acknowledged cloned draft', async () => {
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(404, 'No draft found'));
+    mockFetchFundRevisionSource.mockResolvedValueOnce({
+      sourceConfigId: 701,
+      sourceConfigVersion: 4,
+      config: { fundName: 'Published baseline', fundSize: 20_000_000 },
+      etag: SERVER_ETAG,
+    });
+    mockStartFundRevision.mockResolvedValueOnce({
+      config: { fundName: 'Published baseline', fundSize: 20_000_000 },
+      etag: NEXT_ETAG,
+      replayed: false,
+    });
+    act(() => {
+      fundStore.setState({
+        draftFundId: 91,
+        draftServerReady: true,
+        fundName: 'Local stale cache',
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+
+    await waitFor(() => expect(mockStartFundRevision).toHaveBeenCalledTimes(1));
+    expect(mockStartFundRevision).toHaveBeenCalledWith(
+      91,
+      { sourceConfigId: 701, sourceConfigVersion: 4 },
+      expect.objectContaining({ etag: SERVER_ETAG })
+    );
+    await waitFor(() => expect(screen.getByText('Fund Basics Step')).toBeInTheDocument());
+    expect(fundStore.getState()).toMatchObject({
+      draftFundId: 91,
+      draftServerReady: true,
+      draftETag: NEXT_ETAG,
+      pendingCommand: null,
+      fundName: 'Published baseline',
+      fundSize: 20_000_000,
+    });
+  });
+
+  it('replays an uncertain revision with its original source body, key, and ETag', async () => {
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(404, 'No draft found'));
+    mockFetchFundRevisionSource.mockResolvedValueOnce({
+      sourceConfigId: 701,
+      sourceConfigVersion: 4,
+      config: { fundName: 'Published baseline' },
+      etag: SERVER_ETAG,
+    });
+    mockStartFundRevision
+      .mockRejectedValueOnce(new FundWorkflowUncertainError('Lost acknowledgement', false))
+      .mockResolvedValueOnce({
+        config: { fundName: 'Published baseline' },
+        etag: NEXT_ETAG,
+        replayed: true,
+      });
+    act(() => fundStore.setState({ draftFundId: 91, draftServerReady: true }));
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+    await waitFor(() => expect(fundStore.getState().pendingCommand?.source).toBe('published'));
+    const first = mockStartFundRevision.mock.calls[0];
+
+    await userEvent.click(screen.getByTestId('start-fund-revision'));
+    await waitFor(() => expect(mockStartFundRevision).toHaveBeenCalledTimes(2));
+    expect(mockStartFundRevision.mock.calls[1]).toEqual(first);
+    expect(mockFetchFundRevisionSource).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('does not dispatch a revision after the workspace changes during source load', async () => {
+    let resolveSource!: (value: unknown) => void;
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(404, 'No draft found'));
+    mockFetchFundRevisionSource.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSource = resolve;
+        })
+    );
+    act(() => fundStore.setState({ draftFundId: 91, draftServerReady: true }));
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+    act(() => fundStore.getState().resumeServerDraft(92));
+    await act(async () => {
+      resolveSource({
+        sourceConfigId: 701,
+        sourceConfigVersion: 4,
+        config: { fundName: 'Old published source' },
+        etag: SERVER_ETAG,
+      });
+    });
+
+    expect(mockStartFundRevision).not.toHaveBeenCalled();
+    expect(fundStore.getState().draftFundId).toBe(92);
+    expect(fundStore.getState().pendingCommand).toBeNull();
   });
 });

@@ -90,6 +90,11 @@ describe('corrected capital UI', () => {
       })
     ).toBeInTheDocument();
     expect(
+      screen.getByRole('option', {
+        name: 'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership',
+      })
+    ).toBeInTheDocument();
+    expect(
       screen.getByLabelText('Primary capital only; excludes all secondary sales')
     ).not.toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: '3. Follow-ons', exact: true }));
@@ -98,6 +103,22 @@ describe('corrected capital UI', () => {
     expect(screen.getByLabelText('Follow-on eligibility')).toHaveValue('');
     expect(screen.getByLabelText('Timing basis')).toHaveValue('');
     expect(screen.getByLabelText('Pool basis')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+    expect(screen.getByLabelText('Pro-rata ownership basis')).toHaveValue('');
+    expect(
+      screen.getByRole('option', {
+        name: 'Before incremental option-pool dilution (workbook convention)',
+      })
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Pro-rata ownership basis'), {
+      target: { value: 'before_pool_dilution' },
+    });
+    fireEvent.change(screen.getByLabelText('Check policy'), {
+      target: { value: 'fixed_check' },
+    });
+    expect(screen.queryByLabelText('Pro-rata ownership basis')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+    expect(screen.getByLabelText('Pro-rata ownership basis')).toHaveValue('');
     await waitFor(() => expect(api.fetchCapitalScenarioSource).toHaveBeenCalled());
   });
   it('normalizes 43/43/14 as initial dollars and refuses missing corrected declarations', () => {

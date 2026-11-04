@@ -8,6 +8,8 @@ import {
 } from '../../contracts/capital-planning-v2.contract';
 import {
   CAPITAL_FEE_METHOD_VERSION,
+  CAPITAL_GP_EXEMPT_FEE_METHOD_VERSION,
+  CAPITAL_EXPENSE_HORIZON_METHOD_VERSION,
   CAPITAL_GP_METHOD_VERSION,
   CAPITAL_PLANNING_PROVISIONAL_LIMITS as limits,
   CAPITAL_SOURCE_INTERPRETATION_VERSION,
@@ -637,6 +639,8 @@ function normalizeSource(
   const timeline = raw.economicsAssumptions?.timeline;
   const lifePath = timeline ? 'economicsAssumptions.timeline.fundLifeYears' : 'fundLife';
   const life = year(timeline?.fundLifeYears ?? raw.fundLife, lifePath, 'FUND_TERM_UNRESOLVED');
+  const expenseModel = raw.economicsAssumptions?.expenseModel;
+  const expenseHorizonMonths = expenseModel?.horizonMonths ?? life * 12;
   const investmentPeriod = year(
     raw.investmentPeriod,
     'investmentPeriod',
@@ -750,6 +754,11 @@ function normalizeSource(
     path: string,
     fee: boolean
   ): CapitalSourcePeriodV1 {
+    const horizonMonths = fee ? life * 12 : expenseHorizonMonths;
+    const endDefaultReason =
+      !fee && expenseModel?.horizonMonths !== undefined
+        ? ('EXPLICIT_EXPENSE_HORIZON_END' as const)
+        : ('FINITE_FUND_HORIZON_END' as const);
     if ('startYear' in item) {
       const start = year(item.startYear, `${path}.startYear`, 'FEE_PERIOD_NOT_REPRESENTABLE');
       const end =
@@ -780,8 +789,8 @@ function normalizeSource(
                 provenanceOrigin: 'contract_resolved',
               },
         normalizedStartMonth: (start - 1) * 12,
-        normalizedEndMonth: (end ?? life) * 12 - 1,
-        endDefaultReason: end === null ? 'FINITE_FUND_HORIZON_END' : null,
+        normalizedEndMonth: end === null ? horizonMonths - 1 : end * 12 - 1,
+        endDefaultReason: end === null ? endDefaultReason : null,
       };
     }
     const boundary = (value: number, field: 'startMonth' | 'endMonth') => {
@@ -820,7 +829,7 @@ function normalizeSource(
         `${path}.endMonth`,
         'Explicit period end precedes start'
       );
-    const normalizedEndMonth = end?.normalizedValue ?? life * 12 - 1;
+    const normalizedEndMonth = end?.normalizedValue ?? horizonMonths - 1;
     if (fee && (start.normalizedValue % 12 !== 0 || (normalizedEndMonth + 1) % 12 !== 0))
       refuse(
         'FEE_PERIOD_NOT_REPRESENTABLE',
@@ -835,14 +844,25 @@ function normalizeSource(
         state: 'absent',
         path: `${path}.endMonth`,
         effectiveValue: normalizedEndMonth,
-        defaultReason: 'FINITE_FUND_HORIZON_END',
+        defaultReason: endDefaultReason,
       },
       normalizedStartMonth: start.normalizedValue,
       normalizedEndMonth,
     };
   }
 
-  const expenseModel = raw.economicsAssumptions?.expenseModel;
+  const gpExempt = feeModel?.gpCommitmentExempt === true;
+  if (gpExempt && resolved.source === 'zero_fallback')
+    refuse(
+      'GP_COMMITMENT_UNRESOLVED',
+      'economicsAssumptions.feeModel.gpCommitmentExempt',
+      'GP fee exemption requires an explicit GP commitment, including an explicit zero',
+      'incomplete'
+    );
+  const feePopulation = gpExempt
+    ? ('committed_capital_excluding_gp' as const)
+    : ('full_fund_committed_capital' as const);
+  const feePayingCommitments = gpExempt ? exactCommitments.minus(exactGp) : exactCommitments;
   const explicitExpenses = usesExplicitExpenses(raw);
   const shadowedPaths: string[] = [];
   const annotations: CapitalFeeExpenseSourceFactsV1['annotations'] = [];
@@ -868,7 +888,7 @@ function normalizeSource(
         path,
         rate: rate(tier.rate, `${path}.rate`, 'ratio', 'FEE_RATE_INVALID'),
         basis: feeBasis(tier.basis, `${path}.basis`),
-        population: 'full_fund_committed_capital',
+        population: feePopulation,
         period: period(tier, path, true),
         recyclingAnnotation: sourceFact(`${path}.recyclingEligiblePct`, tier.recyclingEligiblePct),
       };
@@ -900,7 +920,7 @@ function normalizeSource(
         path,
         rate: rate(tier.percentage, `${path}.percentage`, undefined, 'FEE_RATE_INVALID'),
         basis: feeBasis(tier.feeBasis, `${path}.feeBasis`),
-        population: 'full_fund_committed_capital',
+        population: feePopulation,
         period: period(tier, path, true),
         recyclingAnnotation: sourceFact(`${path}.recyclingPercentage`, tier.recyclingPercentage),
       };
@@ -992,7 +1012,7 @@ function normalizeSource(
   const lifetimeExpenses = expenses.reduce((total, expense) => {
     const months = Math.max(
       0,
-      Math.min(expense.period.normalizedEndMonth, life * 12 - 1) -
+      Math.min(expense.period.normalizedEndMonth, expenseHorizonMonths - 1) -
         expense.period.normalizedStartMonth +
         1
     );
@@ -1003,9 +1023,30 @@ function normalizeSource(
         .div(expense.frequency === 'annual' ? 12 : 1)
     );
   }, new Decimal(0));
-  const lifetimeFees = computeCapitalLifetimeFees(exactCommitments, life, feeTiers);
+  const lifetimeFees = computeCapitalLifetimeFees(feePayingCommitments, life, feeTiers);
   const feeExpense: CapitalFeeExpenseSourceFactsV1 = {
-    methodVersion: CAPITAL_FEE_METHOD_VERSION,
+    methodVersion:
+      expenseModel?.horizonMonths !== undefined
+        ? CAPITAL_EXPENSE_HORIZON_METHOD_VERSION
+        : gpExempt
+          ? CAPITAL_GP_EXEMPT_FEE_METHOD_VERSION
+          : CAPITAL_FEE_METHOD_VERSION,
+    ...(expenseModel?.horizonMonths === undefined
+      ? {}
+      : {
+          expenseHorizon: {
+            path: 'economicsAssumptions.expenseModel.horizonMonths' as const,
+            rawValue: expenseModel.horizonMonths,
+          },
+        }),
+    ...(feeModel?.gpCommitmentExempt === undefined
+      ? {}
+      : {
+          gpExemption: {
+            path: 'economicsAssumptions.feeModel.gpCommitmentExempt' as const,
+            rawValue: feeModel.gpCommitmentExempt,
+          },
+        }),
     feeSelection: explicit ? 'explicit_tiers' : 'legacy_profile',
     expenseSelection: explicitExpenses ? 'explicit_annual' : 'legacy_monthly',
     rawPresence: {
@@ -1023,7 +1064,7 @@ function normalizeSource(
     expenses,
     shadowedPaths,
     annotations,
-    feeBasisUsd: fundSize.normalizedValue,
+    feeBasisUsd: fixed(feePayingCommitments, 6, 'economicsAssumptions.feeModel.gpCommitmentExempt'),
     lifetimeFeesUsd: fixed(lifetimeFees, 6, 'economicsAssumptions.feeModel'),
     lifetimeExpensesUsd: fixed(lifetimeExpenses, 6, 'fundExpenses'),
   };

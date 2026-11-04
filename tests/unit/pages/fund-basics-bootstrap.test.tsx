@@ -640,6 +640,33 @@ describe('FundBasicsStep bootstrap identity', () => {
     expect(fundStore.getState().fundedFromFeesPct).toBe(0.4);
   });
 
+  it('records fixed GP capital and management-fee exemption as separate policies', async () => {
+    const user = userEvent.setup();
+    render(<FundBasicsStep />);
+
+    const amount = screen.getByLabelText('GP Commitment Amount ($)');
+    await user.clear(amount);
+    await user.type(amount, '400000');
+    await user.click(
+      screen.getByRole('switch', { name: 'Exclude GP commitment from management fee basis' })
+    );
+
+    expect(fundStore.getState().gpCommitment).toBe(400_000);
+    expect(fundStore.getState().managementFeeExemptsGp).toBe(true);
+    expect(fundStore.getState().fundedFromFeesPct).toBe(0);
+  });
+
+  it('records the visible establishment date as the fund timing anchor', () => {
+    render(<FundBasicsStep />);
+
+    fireEvent.change(screen.getByTestId('establishment-date'), {
+      target: { value: '2024-03-01' },
+    });
+
+    expect(fundStore.getState().establishmentDate).toBe('2024-03-01');
+    expect(fundStore.getState().vintageYear).toBe(2024);
+  });
+
   it.each([
     // F_1.3.6 5a: the release-canary unit boundary (1 in the $M field is one million dollars).
     ['1', 1_000_000],
