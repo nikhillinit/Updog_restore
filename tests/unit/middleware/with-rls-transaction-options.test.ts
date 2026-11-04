@@ -20,10 +20,6 @@ vi.mock('../../../server/db/request-context.js', () => ({
   getRequestDatabaseScope: () => mocks.scope,
 }));
 
-vi.mock('../../../server/lib/database-backed-idempotency-routes.js', () => ({
-  isFundWorkflowCommandRoute: (_method: string, url: string) => url === '/workflow',
-}));
-
 vi.mock('../../../server/lib/logger.js', () => ({
   logger: { child: () => ({ error: vi.fn() }) },
 }));
@@ -67,12 +63,15 @@ describe('withRLSTransaction database context options', () => {
     expect(options).not.toHaveProperty('timeoutMs');
   });
 
-  it('retains the workflow deadline with the disconnect cancellation signal', async () => {
-    await request(appFor('post', '/workflow')).post('/workflow').expect(200, { ok: true });
+  it.each(['/api/funds/1/publish', '/api/funds/1/draft'])(
+    'retains the workflow deadline with the disconnect cancellation signal for %s',
+    async (path) => {
+      await request(appFor('post', path)).post(path).expect(200, { ok: true });
 
-    expect(mocks.runWithDatabaseContext.mock.calls[0]![2]).toEqual({
-      timeoutMs: 60_000,
-      signal: expect.any(AbortSignal),
-    });
-  });
+      expect(mocks.runWithDatabaseContext.mock.calls[0]![2]).toEqual({
+        timeoutMs: 60_000,
+        signal: expect.any(AbortSignal),
+      });
+    }
+  );
 });
