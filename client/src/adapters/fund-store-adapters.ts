@@ -246,6 +246,54 @@ function buildEconomicsAssumptionsFromState(
   };
 }
 
+function buildCapitalSourcePoliciesFromState(
+  state: FundStateSlice
+): EconomicsAssumptionsV1 | undefined {
+  const existing = state.economicsAssumptions;
+  if (existing != null) {
+    // Published capital-source semantics must survive independently of whether
+    // the experimental annual economics calculation is enabled.
+    return buildEconomicsAssumptionsFromState(state);
+  }
+
+  const gpCommitmentExempt = state.managementFeeExemptsGp;
+  const horizonMonths = state.expenseHorizonMonths;
+  const hasMountedPolicy = gpCommitmentExempt !== undefined || horizonMonths !== undefined;
+  if (!hasMountedPolicy) return undefined;
+
+  const gpCommitmentModel: EconomicsAssumptionsV1['gpCommitmentModel'] =
+    state.gpCommitmentSource !== undefined || state.gpCommitment === undefined
+      ? undefined
+      : {
+          commitmentAmount: state.gpCommitment,
+          participatesInInvestmentReturns: true,
+        };
+  const hasGpPolicy =
+    gpCommitmentModel?.commitmentAmount !== undefined ||
+    gpCommitmentModel?.commitmentPct !== undefined;
+
+  return {
+    version: 'v1',
+    ...(gpCommitmentExempt === undefined
+      ? {}
+      : {
+          feeModel: {
+            source: 'legacy_fee_profiles' as const,
+            gpCommitmentExempt,
+          },
+        }),
+    ...(horizonMonths === undefined
+      ? {}
+      : {
+          expenseModel: {
+            source: 'legacy_fund_expenses' as const,
+            horizonMonths,
+          },
+        }),
+    ...(hasGpPolicy ? { gpCommitmentModel } : {}),
+  };
+}
+
 function hydrateLPClasses(
   lpClasses: NonNullable<FundDraftWriteV1['lpClasses']>
 ): FundState['lpClasses'] {
@@ -441,11 +489,12 @@ export function fundStoreToDraftWriteV1(
   if (state.fundExpenses.length > 0) draft.fundExpenses = state.fundExpenses;
   // PUT /draft replaces the whole config; omitting this would erase it.
   if (state.targetMetrics != null) draft.targetMetrics = state.targetMetrics;
-  if (options.includeEconomicsAssumptions === true) {
-    const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
-    if (economicsAssumptions != null) {
-      draft.economicsAssumptions = economicsAssumptions;
-    }
+  const economicsAssumptions =
+    options.includeEconomicsAssumptions === true
+      ? buildEconomicsAssumptionsFromState(state)
+      : buildCapitalSourcePoliciesFromState(state);
+  if (economicsAssumptions != null) {
+    draft.economicsAssumptions = economicsAssumptions;
   }
 
   return draft;
@@ -613,11 +662,12 @@ export function fundStoreToFinalizeV1(
   if (state.feeProfiles.length > 0) result.feeProfiles = state.feeProfiles;
   if (state.fundExpenses.length > 0) result.fundExpenses = state.fundExpenses;
   if (state.targetMetrics != null) result.targetMetrics = state.targetMetrics;
-  if (options.includeEconomicsAssumptions === true) {
-    const economicsAssumptions = buildEconomicsAssumptionsFromState(state);
-    if (economicsAssumptions != null) {
-      result.economicsAssumptions = economicsAssumptions;
-    }
+  const economicsAssumptions =
+    options.includeEconomicsAssumptions === true
+      ? buildEconomicsAssumptionsFromState(state)
+      : buildCapitalSourcePoliciesFromState(state);
+  if (economicsAssumptions != null) {
+    result.economicsAssumptions = economicsAssumptions;
   }
 
   return result;

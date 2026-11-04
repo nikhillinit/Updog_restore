@@ -211,6 +211,101 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(hydrated.managementFeeExemptsGp).toBe(true);
   });
 
+  it('persists capital source policies while annual economics are disabled', () => {
+    const state = {
+      ...baseState,
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    };
+
+    const draft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: false });
+    const finalized = fundStoreToFinalizeV1(state, { includeEconomicsAssumptions: false });
+
+    for (const payload of [draft, finalized]) {
+      expect(payload.economicsAssumptions).toEqual({
+        version: 'v1',
+        feeModel: {
+          source: 'legacy_fee_profiles',
+          gpCommitmentExempt: true,
+        },
+        expenseModel: {
+          source: 'legacy_fund_expenses',
+          horizonMonths: 150,
+        },
+        gpCommitmentModel: {
+          commitmentAmount: 400_000,
+          participatesInInvestmentReturns: true,
+        },
+      });
+      expect(payload.economicsAssumptions).not.toHaveProperty('timeline');
+      expect(payload.economicsAssumptions).not.toHaveProperty('exitModel');
+      expect(payload.economicsAssumptions).not.toHaveProperty('recyclingModel');
+      expect(payload.economicsAssumptions).not.toHaveProperty('waterfallModel');
+    }
+
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated).toMatchObject({
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    });
+  });
+
+  it('preserves existing explicit capital source semantics while annual economics are disabled', () => {
+    const economicsAssumptions = {
+      version: 'v1' as const,
+      timeline: { fundLifeYears: 10, period: 'annual' as const, vintageYear: 2026 },
+      feeModel: {
+        source: 'economics_override' as const,
+        tiers: [
+          {
+            id: 'fee-1',
+            name: 'Committed fee',
+            rate: 0.02,
+            basis: 'committed_capital' as const,
+            startYear: 1,
+            endYear: 10,
+          },
+        ],
+      },
+      expenseModel: {
+        source: 'economics_override' as const,
+        annualExpenses: [
+          {
+            id: 'admin',
+            category: 'administration',
+            amount: 75_000,
+            startYear: 1,
+            endYear: 10,
+          },
+        ],
+      },
+      gpCommitmentModel: {
+        commitmentAmount: 400_000,
+        participatesInInvestmentReturns: true,
+      },
+    };
+
+    const state = {
+      ...baseState,
+      gpCommitment: 400_000,
+      gpCommitmentSource: 'nested_amount' as const,
+      economicsAssumptions,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    };
+    const draft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: false });
+    const enabledDraft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: true });
+
+    expect(draft.economicsAssumptions).toEqual({
+      ...economicsAssumptions,
+      feeModel: { ...economicsAssumptions.feeModel, gpCommitmentExempt: true },
+      expenseModel: { ...economicsAssumptions.expenseModel, horizonMonths: 150 },
+    });
+    expect(draft.economicsAssumptions).toEqual(enabledDraft.economicsAssumptions);
+  });
+
   it('keeps omitted GP fee exemption backward-compatible with full-fund fee basis', () => {
     const draft = fundStoreToDraftWriteV1(
       { ...baseState, managementFeeExemptsGp: undefined },

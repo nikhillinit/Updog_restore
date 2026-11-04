@@ -378,6 +378,7 @@ function expectedInputHashFor(
 
 describe('fund scenario calculation service', () => {
   beforeEach(() => {
+    process.env['ENABLE_GP_ECONOMICS_ENGINE'] = 'true';
     queryMock.mockReset();
     transactionMock.mockReset();
     runEconomicsModelMock.mockReset();
@@ -389,9 +390,21 @@ describe('fund scenario calculation service', () => {
   });
 
   afterEach(() => {
+    delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
     queryMock.mockReset();
     transactionMock.mockReset();
     runEconomicsModelMock.mockReset();
+  });
+
+  it('refuses legacy annual scenario calculation while economics execution is disabled', async () => {
+    delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
+
+    await expect(calculateFundScenarioSet(1, scenarioSetId)).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'ECONOMICS_DISABLED',
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(runEconomicsModelMock).not.toHaveBeenCalled();
   });
 
   it.each([

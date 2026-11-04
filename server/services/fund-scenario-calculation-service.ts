@@ -40,6 +40,7 @@ import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import { fetchCapitalSavedSnapshot } from './fund-scenario-capital-read-service.js';
 import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import { isFlagEnabled } from '@shared/flags/getFlag';
 import {
   acquireScenarioCalculationRun,
   findCompletedScenarioRun,
@@ -577,6 +578,11 @@ export async function calculateFundScenarioSet(
   scenarioSetId: string,
   actorInput: FundScenarioMutationActor = {}
 ): Promise<FundScenarioCalculationResponseV1> {
+  if (!isFlagEnabled('enable_gp_economics_engine')) {
+    throw createHttpError(409, 'GP economics engine is disabled', {
+      code: 'ECONOMICS_DISABLED',
+    });
+  }
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId, {
