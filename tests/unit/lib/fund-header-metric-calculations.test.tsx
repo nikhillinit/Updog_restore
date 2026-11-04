@@ -4,6 +4,8 @@ import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import {
   buildCompactHeaderViewModel,
   buildFundHeaderViewModel,
+  headerMetricsBasis,
+  PORTFOLIO_METRICS_BASIS,
   resolveCommittedCapital,
 } from '@/lib/fund-header-metric-calculations';
 
@@ -68,6 +70,23 @@ describe('resolveCommittedCapital - committed-capital provenance', () => {
 });
 
 describe('published actuals in fund header view models', () => {
+  it('labels the header source with the publication basis or the legacy estimate basis', () => {
+    expect(headerMetricsBasis(undefined)).toBe(PORTFOLIO_METRICS_BASIS);
+    expect(headerMetricsBasis(publishedActuals('available'))).toBe(unsupportedReason);
+    const withBasis: PublishedFundActuals = {
+      ...publishedActuals('available'),
+      basis: {
+        snapshotId: 9,
+        snapshotInputHash: 'synthetic-hash',
+        snapshotAsOfDate: '2026-10-31',
+        knowledgeCutoff: '2026-11-01T00:00:00.000Z',
+      },
+    };
+    expect(headerMetricsBasis(withBasis)).toBe(
+      `Published facts snapshot #9, data through 2026-10-31. ${unsupportedReason}`
+    );
+  });
+
   it('uses published deployment and cash-invested company count when available', () => {
     const metrics = metricsWithPublishedActuals(publishedActuals('available'));
     const header = buildFundHeaderViewModel(headerFund, metrics, false, false);

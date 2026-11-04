@@ -36,6 +36,14 @@ const COMPACT_KPI_KEYS: CompactKpiKey[] = ['deployed', 'remaining', 'nav', 'tvpi
 export const PORTFOLIO_METRICS_BASIS =
   'Portfolio estimates from investment and valuation records; not reconciled LP returns. Source freshness unavailable.';
 
+/** Header source line: the publication basis when one applies, else the legacy estimate basis. */
+export function headerMetricsBasis(publishedActuals?: PublishedFundActuals | null): string {
+  if (!publishedActuals) return PORTFOLIO_METRICS_BASIS;
+  if (!publishedActuals.basis) return publishedActuals.reason ?? publishedActuals.unsupportedReason;
+  const { snapshotId, snapshotAsOfDate } = publishedActuals.basis;
+  return `Published facts snapshot #${snapshotId}, data through ${snapshotAsOfDate}. ${publishedActuals.reason ?? publishedActuals.unsupportedReason}`;
+}
+
 const COMPACT_KPI_DEFINITIONS: Record<CompactKpiKey, CompactKpiDefinition> = {
   deployed: {
     key: 'deployed',
