@@ -63,6 +63,7 @@ function PublishedFactsSource({ actuals }: { actuals: PublishedFundActuals }) {
       ) : (
         <p>{actuals.reason ?? actuals.unsupportedReason}</p>
       )}
+      {actuals.basis && actuals.reason && <p>{actuals.reason}</p>}
       {actuals.basis && actuals.disclosures.length > 0 && (
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
           {actuals.disclosures.map((disclosure) => (

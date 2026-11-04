@@ -325,6 +325,39 @@ describe('ModernDashboard', () => {
     expect(screen.queryByText('Published facts snapshot')).not.toBeInTheDocument();
   });
 
+  it('shows the publication failure reason beside its basis on the performance tab', () => {
+    window.history.pushState({}, '', '/dashboard?tab=performance&fundId=42');
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: { totalCommitted: 50_000_000, totalDeployed: 12_500_000, irr: 0.18, tvpi: 1.25 },
+        publishedActuals: {
+          contractVersion: 'published-fund-actuals/1.0.0',
+          status: 'unavailable',
+          asOfDate: '2026-11-03',
+          basis: {
+            snapshotId: 735,
+            snapshotInputHash: 'synthetic-hash',
+            snapshotAsOfDate: '2026-10-31',
+            knowledgeCutoff: '2026-11-01T12:00:00.000Z',
+          },
+          vehicleScope: 'main_fund',
+          investments: null,
+          reason: 'Synthetic reader failure.',
+          unsupportedReason: 'Synthetic non-investment metrics unavailable.',
+          disclosures: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<ModernDashboard />);
+
+    expect(screen.getByText(/Published facts snapshot #735/)).toBeInTheDocument();
+    expect(screen.getByText('Synthetic reader failure.')).toBeInTheDocument();
+    expect(screen.queryByText('18.0%')).not.toBeInTheDocument();
+  });
+
   it('keeps the legacy overview values when no publication is present', () => {
     render(<ModernDashboard />);
 
