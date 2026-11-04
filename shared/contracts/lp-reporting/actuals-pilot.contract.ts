@@ -23,6 +23,7 @@ import {
   GovernedRatioV1Schema,
 } from '../financial-facts-snapshot-v1.contract';
 import { MoneyDecimalStringSchema } from '../../lib/decimal-string';
+import { ConsumerEvaluationV3Schema } from '../financial-facts-consumer-policies';
 
 const INT32_MAX = 2_147_483_647;
 
@@ -470,6 +471,7 @@ const FinancialFactsConsumerEvaluationSchema = z
     consumer: z.string().min(1).max(64),
     status: z.enum(['accepted', 'blocked']),
     reasons: z.array(z.string().min(1).max(128)).max(32),
+    details: ConsumerEvaluationV3Schema.shape.details,
   })
   .strict();
 

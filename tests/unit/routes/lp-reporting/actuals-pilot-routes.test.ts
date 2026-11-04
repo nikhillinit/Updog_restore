@@ -3,6 +3,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VerifiedRequestCredential } from '../../../../server/lib/auth/request-credentials';
 import actualsFixture from '../../../e2e/fixtures/actuals-publish.json';
+import { ConsumerEvaluationV3Schema } from '../../../../shared/contracts/financial-facts-consumer-policies';
 
 const state = vi.hoisted(() => ({
   pilotFundId: null as number | null,
@@ -345,11 +346,13 @@ describe('actuals pilot route registration and command boundary', () => {
   });
 
   it.each([
-    ['financial-facts-policy/1.4.0', 'financial-facts-payload/5'],
-    ['financial-facts-policy/1.5.0', 'financial-facts-payload/6'],
+    ['financial-facts-policy/1.4.0', 'financial-facts-payload/5', true],
+    ['financial-facts-policy/1.5.0', 'financial-facts-payload/6', true],
+    ['financial-facts-policy/1.4.0', 'financial-facts-payload/5', false],
+    ['financial-facts-policy/1.5.0', 'financial-facts-payload/6', false],
   ])(
-    'binds %s latest-reference and metrics ETags to the same snapshot',
-    async (policyVersion, payloadSchemaId) => {
+    'returns %s / %s latest-reference with diagnostic details %s and matching metrics ETags',
+    async (policyVersion, payloadSchemaId, includeDetails) => {
       const row = {
         id: 17,
         fundId: 7,
@@ -363,7 +366,16 @@ describe('actuals pilot route registration and command boundary', () => {
         payloadSchemaId,
         asOfDate: '2026-09-04',
         knowledgeCutoff: '2026-09-04T12:00:00.000Z',
-        consumerEvaluations: [{ consumer: 'current_forecast_v2', status: 'accepted', reasons: [] }],
+        consumerEvaluations: [
+          ConsumerEvaluationV3Schema.parse({
+            consumer: 'forecast',
+            status: 'blocked',
+            reasons: ['company_monetary_facts_unavailable'],
+            ...(includeDetails
+              ? { details: [{ code: 'company_monetary_facts_unavailable', companyIds: [101] }] }
+              : {}),
+          }),
+        ],
       };
       state.head = { kind: 'head', row };
       state.selectedRows = [row];
@@ -393,6 +405,17 @@ describe('actuals pilot route registration and command boundary', () => {
           sourceFactsInputHash: 'b'.repeat(64),
         },
       });
+
+      expect(latest.body.head.consumerEvaluations).toEqual([
+        {
+          consumer: 'forecast',
+          status: 'blocked',
+          reasons: ['company_monetary_facts_unavailable'],
+          ...(includeDetails
+            ? { details: [{ code: 'company_monetary_facts_unavailable', companyIds: [101] }] }
+            : {}),
+        },
+      ]);
 
       const metrics = await request(app).get('/api/funds/7/actuals/metrics?factsSnapshotId=17');
       expect(metrics.status).toBe(200);
