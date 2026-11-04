@@ -43,7 +43,8 @@ export default function HeaderKpis() {
     metrics?.actual,
     'dpi',
     isLoading,
-    error != null
+    error != null,
+    metrics?.publishedActuals
   );
 
   return (

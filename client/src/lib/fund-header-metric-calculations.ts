@@ -3,6 +3,8 @@ import type {
   MetricAvailabilityDetail,
   UnifiedFundMetrics,
 } from '@shared/types/metrics';
+import Decimal from '@shared/lib/decimal-config';
+import type { PublishedFundActuals } from '@shared/contracts/dual-forecast/investment-comparison.contract';
 import type {
   CompactHeaderViewModel,
   CompactKpiDefinition,
@@ -107,7 +109,11 @@ export function buildFundHeaderViewModel(
     lastUpdatedText: getLastUpdatedText(metricsLoading, metricUnavailable, metrics?.lastUpdated),
     statusIndicatorClassName: getStatusIndicatorClassName(metricUnavailable),
     statusIndicatorText: getStatusIndicatorText(metricsLoading, metricUnavailable),
-    cards: buildHeaderMetricCards(displayMetrics, metricDisplayUnavailable),
+    cards: buildHeaderMetricCards(
+      displayMetrics,
+      metricDisplayUnavailable,
+      metrics?.publishedActuals != null
+    ),
   };
 }
 
@@ -117,10 +123,11 @@ export function buildCompactHeaderViewModel(
   actual: ActualMetrics | undefined,
   selectedKpi: CompactKpiKey,
   isLoading: boolean,
-  hasError: boolean
+  hasError: boolean,
+  publishedActuals?: PublishedFundActuals | null
 ): CompactHeaderViewModel {
   const displayMetrics = actual
-    ? actualHeaderMetrics(currentFundSize, actual)
+    ? actualHeaderMetrics(currentFundSize, actual, publishedActuals)
     : emptyHeaderMetrics(currentFundSize);
 
   return {
@@ -136,7 +143,7 @@ export function buildCompactHeaderViewModel(
 function toHeaderMetrics(currentFundSize: number, metrics: UnifiedFundMetrics | undefined) {
   const actual = metrics?.actual;
   if (!actual) return emptyHeaderMetrics(currentFundSize);
-  return actualHeaderMetrics(currentFundSize, actual);
+  return actualHeaderMetrics(currentFundSize, actual, metrics?.publishedActuals);
 }
 
 /**
@@ -176,8 +183,45 @@ function emptyHeaderMetrics(currentFundSize: number): HeaderMetrics {
   };
 }
 
-function actualHeaderMetrics(currentFundSize: number, actual: ActualMetrics): HeaderMetrics {
+function actualHeaderMetrics(
+  currentFundSize: number,
+  actual: ActualMetrics,
+  publishedActuals?: PublishedFundActuals | null
+): HeaderMetrics {
   const totalCommitted = resolveCommittedCapital(currentFundSize, actual);
+  if (publishedActuals) {
+    const investments =
+      publishedActuals.status === 'available' ? publishedActuals.investments : null;
+    const totalInvested = investments ? new Decimal(investments.deployedCapital).toNumber() : null;
+    const deploymentRate =
+      investments && actual.totalCommitted > 0
+        ? new Decimal(investments.deployedCapital).div(actual.totalCommitted).times(100).toNumber()
+        : null;
+    const unsupportedReason = publishedActuals.unsupportedReason;
+
+    return {
+      totalCommitted,
+      totalInvested,
+      currentNAV: null,
+      totalValue: null,
+      irr: null,
+      moic: null,
+      dpi: null,
+      tvpi: null,
+      activeInvestments: investments?.companyCount ?? null,
+      exited: numberWithFallback(actual.exitedCompanies, 0),
+      // Legacy average divides legacy deployment by registry companies.
+      avgCheckSize: null,
+      deploymentRate,
+      remainingDeployableCapital: null,
+      availability: {
+        nav: unavailableMetric('portfolio_nav', unsupportedReason),
+        irr: unavailableMetric('cashflows', unsupportedReason),
+        dpi: unavailableMetric('distributions', unsupportedReason),
+      },
+    };
+  }
+
   const totalInvested = nullableNumber(actual.totalDeployed);
   const navAvailability = getNavAvailability(actual, totalInvested);
   const currentNAV =
@@ -295,7 +339,8 @@ function isMetricDisplayUnavailable(metricsLoading: boolean, metricUnavailable: 
 
 function buildHeaderMetricCards(
   metrics: HeaderMetrics,
-  metricDisplayUnavailable: boolean
+  metricDisplayUnavailable: boolean,
+  hasPublishedActuals: boolean
 ): HeaderMetricCardModel[] {
   return [
     {
@@ -327,7 +372,7 @@ function buildHeaderMetricCards(
     },
     {
       key: 'activeInvestments',
-      title: 'Active',
+      title: hasPublishedActuals ? 'Cash-invested companies' : 'Active',
       displayValue: formatMetricCount(metrics.activeInvestments, metricDisplayUnavailable),
       theme: 'beige',
       icon: 'activity',
