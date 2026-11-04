@@ -30,6 +30,11 @@ const ACTUALS_RESTATEMENT_PUBLISH_PATH =
 const DEAL_CREATE_PATH = /^\/api\/deals\/opportunities\/?$/i;
 const DEAL_IMPORT_PATH = /^\/api\/deals\/opportunities\/import\/?$/i;
 const PORTFOLIO_COMPANY_CREATE_PATH = /^\/api\/portfolio-companies\/?$/i;
+const VEHICLE_ONBOARDING_PATH = /^\/api\/funds\/[^/?#]+\/imports\/actuals\/main-fund\/?$/i;
+
+export function isVehicleOnboardingCommandRoute(method: string, path: string): boolean {
+  return method === 'POST' && VEHICLE_ONBOARDING_PATH.test(path.split(/[?#]/, 1)[0] ?? '');
+}
 
 export function isFundWorkflowCommandRoute(method: string, path: string): boolean {
   const pathname = path.split(/[?#]/, 1)[0] ?? '';
@@ -64,6 +69,7 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
       ACTUALS_RESTATEMENT_PUBLISH_PATH.test(pathname) ||
       DEAL_CREATE_PATH.test(pathname) ||
       DEAL_IMPORT_PATH.test(pathname) ||
-      PORTFOLIO_COMPANY_CREATE_PATH.test(pathname))
+      PORTFOLIO_COMPANY_CREATE_PATH.test(pathname) ||
+      VEHICLE_ONBOARDING_PATH.test(pathname))
   );
 }

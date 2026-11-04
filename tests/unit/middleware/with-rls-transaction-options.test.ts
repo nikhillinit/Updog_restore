@@ -63,6 +63,15 @@ describe('withRLSTransaction database context options', () => {
     expect(options).not.toHaveProperty('timeoutMs');
   });
 
+  it('bounds onboarding to ten seconds without classifying it as a configuration workflow', async () => {
+    const path = '/api/funds/1/imports/actuals/main-fund';
+    await request(appFor('post', path)).post(path).expect(200, { ok: true });
+    expect(mocks.runWithDatabaseContext.mock.calls[0]![2]).toEqual({
+      timeoutMs: 10_000,
+      signal: expect.any(AbortSignal),
+    });
+  });
+
   it.each(['/api/funds/1/publish', '/api/funds/1/draft'])(
     'retains the workflow deadline with the disconnect cancellation signal for %s',
     async (path) => {

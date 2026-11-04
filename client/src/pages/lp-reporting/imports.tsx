@@ -44,6 +44,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ImportPreviewPanel } from '@/components/lp-reporting/ImportPreviewPanel';
 import { ImportWarningsList } from '@/components/lp-reporting/ImportWarningsList';
 import { ActualsPublicationPanel } from '@/components/lp-reporting/ActualsPublicationPanel';
+import { MainFundOnboardingPanel } from '@/components/lp-reporting/MainFundOnboardingPanel';
 import { useFundContext } from '@/contexts/FundContext';
 import {
   reconciliationErrorEnvelope,
@@ -777,6 +778,9 @@ export default function LpReportingImportsPage() {
         </Alert>
       ) : null}
 
+      {fundId !== null ? (
+        <MainFundOnboardingPanel key={`onboarding:${fundId}`} fundId={fundId} />
+      ) : null}
       {fundId !== null ? <ActualsPublicationPanel key={fundId} fundId={fundId} /> : null}
 
       <StagePanel fundId={fundId} onStaged={handleStaged} />

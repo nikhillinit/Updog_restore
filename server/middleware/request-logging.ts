@@ -11,9 +11,10 @@ interface RequestLogger {
 
 const internalEconomicsResponsePath =
   /^\/api\/funds\/[^/]+\/internal-economics\/runs(?:\/[^/]+)?\/?$/i;
+const vehicleOnboardingResponsePath = /^\/api\/funds\/[^/]+\/imports\/actuals\/main-fund\/?$/i;
 
 export function isSensitiveFinancialResponsePath(path: string): boolean {
-  return internalEconomicsResponsePath.test(path);
+  return internalEconomicsResponsePath.test(path) || vehicleOnboardingResponsePath.test(path);
 }
 
 export function requestLoggingMiddleware(

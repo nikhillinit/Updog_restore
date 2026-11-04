@@ -23,3 +23,4 @@ export * from './import-commit.contract';
 export * from './planning-fmv-override.contract';
 export * from './actuals-pilot.contract';
 export * from './actuals-restatement.contract';
+export * from './vehicle-onboarding.contract';

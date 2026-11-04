@@ -40,6 +40,8 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/financial-facts-payload5-consumers.pg.test.ts',
   'tests/integration/lp-reporting-actuals-pilot-publish.pg.test.ts',
   'tests/integration/actuals-draft-revisions.pg.test.ts',
+  'tests/integration/vehicle-onboarding.pg.test.ts',
+  'tests/integration/vehicle-onboarding-storage.pg.test.ts',
   'tests/integration/financial-facts-terminal-head.pg.test.ts',
   'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
   'tests/integration/internal-economics/economics-schema.pg.test.ts',

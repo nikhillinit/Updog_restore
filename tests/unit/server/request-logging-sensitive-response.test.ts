@@ -36,6 +36,8 @@ describe('request logging sensitive-response boundary', () => {
     ['post', '/api/funds/1/draft'],
     ['post', '/api/FUNDS/1/DRAFT/'],
     ['post', '/api/funds/1/publish'],
+    ['post', '/api/funds/1/imports/actuals/main-fund'],
+    ['post', '/api/FUNDS/1/IMPORTS/ACTUALS/MAIN-FUND/'],
   ] as const)('omits workflow credentials and inputs for %s %s', async (method, path) => {
     const info = vi.fn();
     const app = express();

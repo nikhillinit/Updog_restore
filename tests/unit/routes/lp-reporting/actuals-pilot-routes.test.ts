@@ -15,6 +15,20 @@ const preview = vi.hoisted(() => ({ run: vi.fn() }));
 const publisher = vi.hoisted(() => ({ run: vi.fn() }));
 const codec = vi.hoisted(() => ({ parse: vi.fn() }));
 const metricsProjector = vi.hoisted(() => ({ project: vi.fn() }));
+const onboarding = vi.hoisted(() => ({ run: vi.fn() }));
+
+vi.mock('../../../../server/services/lp-reporting/vehicle-onboarding-service', () => {
+  class VehicleOnboardingError extends Error {
+    constructor(
+      readonly statusCode: number,
+      readonly code: string,
+      message: string
+    ) {
+      super(message);
+    }
+  }
+  return { VehicleOnboardingError, onboardMainFundVehicle: onboarding.run };
+});
 
 vi.mock('../../../../server/config/actuals-pilot-env', () => ({
   readActualsPilotFundId: () => state.pilotFundId,
@@ -156,6 +170,81 @@ beforeEach(() => {
   publisher.run.mockReset();
   codec.parse.mockReset();
   metricsProjector.project.mockReset();
+  onboarding.run.mockReset();
+});
+
+describe('main-fund onboarding HTTP boundary', () => {
+  const key = 'c9ce5d2a-a51f-4146-8458-9b8f01d60368';
+  const body = {
+    contractVersion: 'vehicle-onboarding/1.0.0',
+    vehicleSlug: 'main-fund',
+    name: 'Main Fund',
+    committedCapital: '1000000.00',
+    source: { sourceType: 'manual', content: 'Approved USD commitment: 1,000,000.' },
+    sourceLocator: 'Commitment schedule',
+    attestation: 'source-supports-commitment/1.0.0',
+  };
+  const path = '/api/funds/7/imports/actuals/main-fund';
+
+  it.each([201, 200])('preserves canonical response bytes and status %s', async (status) => {
+    const responseBody = '{"commandId":3,"outcome":"created"}';
+    onboarding.run.mockResolvedValue({ status, responseBody });
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(status);
+    expect(response.text).toBe(responseBody);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(onboarding.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 9,
+        idempotencyKey: key,
+        request: body,
+      })
+    );
+  });
+
+  it('does not register onboarding when the pilot is disabled', async () => {
+    await request(await makeApp(null))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body)
+      .expect(404);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('denies a different fund before invoking the command', async () => {
+    await request(await makeApp(7))
+      .post('/api/funds/8/imports/actuals/main-fund')
+      .set('Idempotency-Key', key)
+      .send(body)
+      .expect(404);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing key and unsupported fields without invoking the command', async () => {
+    const app = await makeApp(7);
+    await request(app).post(path).send(body).expect(400);
+    await request(app)
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send({ ...body, currency: 'EUR' })
+      .expect(400);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('maps bounded lock failure to retry-same-command semantics', async () => {
+    onboarding.run.mockRejectedValue(Object.assign(new Error('lock timeout'), { code: '55P03' }));
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('REQUEST_IN_PROGRESS');
+    expect(response.headers['retry-after']).toBe('2');
+  });
 });
 
 describe('actuals pilot route registration and command boundary', () => {

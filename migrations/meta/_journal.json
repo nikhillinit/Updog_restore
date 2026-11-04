@@ -442,6 +442,13 @@
       "when": 1790380800000,
       "tag": "0061_durable_create_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1793750400000,
+      "tag": "0062_vehicle_onboarding_commands",
+      "breakpoints": true
     }
   ]
 }

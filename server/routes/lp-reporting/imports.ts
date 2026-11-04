@@ -68,7 +68,18 @@ import {
   StageImportBatchRequestSchema,
 } from '@shared/contracts/financial-observations';
 import { requireIfMatch, type PreconditionRequest } from '../../lib/http-preconditions';
-import { IdempotentCommandError } from '../../lib/idempotent-command';
+import {
+  IdempotentCommandError,
+  sendIdempotentCommandLockError,
+} from '../../lib/idempotent-command';
+import {
+  VehicleOnboardingKeySchema,
+  VehicleOnboardingRequestSchema,
+} from '@shared/contracts/lp-reporting/vehicle-onboarding.contract';
+import {
+  onboardMainFundVehicle,
+  VehicleOnboardingError,
+} from '../../services/lp-reporting/vehicle-onboarding-service';
 import { stageImportBatch } from '../../services/financial-observations/import-batch-staging-service';
 import {
   bulkResolveCases,
@@ -1350,6 +1361,57 @@ if (actualsPilotFundId !== null) {
         return res.status(200).json(metrics);
       } catch (error) {
         return sendActualsError(req, res, error);
+      }
+    }
+  );
+}
+
+if (actualsPilotFundId !== null) {
+  router.post(
+    '/api/funds/:fundId/imports/actuals/main-fund',
+    setActualsPrivateCache,
+    requireAuth(),
+    requireVerifiedActualsCredential,
+    requireActualsPilotGrant(() => actualsPilotFundId),
+    requireFundAccess,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const key = VehicleOnboardingKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
+      if (!key.success) {
+        return res.status(400).json({
+          error: 'Idempotency-Key must be a lowercase UUID.',
+          code: 'INVALID_IDEMPOTENCY_KEY',
+        });
+      }
+      const body = VehicleOnboardingRequestSchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({
+          error: 'Main-fund declaration is invalid.',
+          code: 'INVALID_BODY',
+        });
+      }
+      try {
+        const result = await onboardMainFundVehicle({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: key.data,
+          request: body.data,
+          ...(req.context && { context: req.context }),
+        });
+        return res.status(result.status).type('application/json').send(result.responseBody);
+      } catch (error) {
+        if (sendIdempotentCommandLockError(res, error)) return res;
+        if (error instanceof VehicleOnboardingError) {
+          return res.status(error.statusCode).json({ error: error.message, code: error.code });
+        }
+        if (error instanceof IdempotentCommandError) {
+          return res.status(error.status).json({ error: error.message, code: error.code });
+        }
+        return res.status(500).json({
+          error: 'Main-fund declaration failed. Retry the same request and key.',
+          code: 'VEHICLE_ONBOARDING_FAILED',
+        });
       }
     }
   );

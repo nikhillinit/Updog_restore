@@ -22,6 +22,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-11-04)
+
+- Main-fund onboarding in LP reporting imports: an explicitly granted pilot
+  administrator declares an active USD vehicle, cent-exact commitment, source
+  evidence, location and attestation. Vehicle, evidence and immutable receipt
+  commit atomically; retries recover the same receipt. Existing mismatches are
+  refused. Declaration evidence has exclusive ownership and conditional payload
+  retention. The declaration does not change fund-model commitments or publish
+  actuals. Migration 0062 and the configured actuals pilot are required.
+
 ### Changed (2026-11-02)
 
 - ADR-114 now records the production database and Redis credential rotation

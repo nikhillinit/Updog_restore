@@ -777,6 +777,7 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
       '/api/funds/:fundId/imports/actuals/restatements/publish',
       '/api/funds/:fundId/financial-facts/latest-reference',
       '/api/funds/:fundId/actuals/metrics',
+      '/api/funds/:fundId/imports/actuals/main-fund',
     ]);
   });
 

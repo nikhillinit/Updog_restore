@@ -46,6 +46,7 @@ import {
 } from '../../../shared/schema/financial-observations';
 import { normalizeCsvObservations } from './csv-adapter';
 import { ReconciliationApiError } from './reconciliation-errors';
+import { assertArtifactNotVehicleOnboardingOwned } from './vehicle-onboarding-artifact-ownership';
 import {
   classifyStagedObservation,
   type IdentityClassification,
@@ -362,6 +363,8 @@ async function stageInsert(
         'Source artifact not found in fund.'
       );
     }
+
+    await assertArtifactNotVehicleOnboardingOwned(tx, input.fundId, input.sourceArtifactId);
 
     const [profile] = await tx
       .select()
