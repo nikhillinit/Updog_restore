@@ -156,17 +156,27 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     setSourceConflict(null);
     return true;
   }
-  function edit(path: Path, value: unknown) {
-    const next = structuredClone(draft);
-    if (path[path.length - 1] === 'allocationId') {
-      const previous = readPath(draft, path);
-      for (const selection of next.variants[variantIndex]!.benchmarkSelections) {
-        if (selection.target.allocationId === previous && typeof value === 'string')
-          selection.target.allocationId = value;
-      }
+  function update(updater: (current: CapitalPlanDraft) => CapitalPlanDraft) {
+    if (!draftState.update(updater)) {
+      setNotice('A prior save is unconfirmed. Retry capital save before editing this draft.');
+      return false;
     }
-    writePath(next, path, value);
-    replace(next);
+    setSourceConflict(null);
+    return true;
+  }
+  function edit(path: Path, value: unknown) {
+    update((current) => {
+      const next = structuredClone(current);
+      if (path[path.length - 1] === 'allocationId') {
+        const previous = readPath(current, path);
+        for (const selection of next.variants[variantIndex]!.benchmarkSelections) {
+          if (selection.target.allocationId === previous && typeof value === 'string')
+            selection.target.allocationId = value;
+        }
+      }
+      writePath(next, path, value);
+      return next;
+    });
   }
   useEffect(() => {
     attachSource(sourceQuery.data);
@@ -740,7 +750,8 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
   }
   async function review() {
     if (busy === 'save' || saveIntent) return;
-    const parsed = capitalDraftRequest(draft);
+    const currentDraft = draftState.currentDraft();
+    const parsed = capitalDraftRequest(currentDraft);
     if (!parsed.ok) {
       refuse(parsed.issues);
       return;
@@ -752,7 +763,7 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
     try {
       const result = await reviewCapitalPlanDraft({
         fundId: Number(fundId),
-        source: draft.source,
+        source: currentDraft.source,
         request: parsed.request,
       });
       if (!draftState.isCurrent(captured)) return;

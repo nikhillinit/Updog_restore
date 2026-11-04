@@ -219,6 +219,7 @@ export function replaceCapitalDraft(fundId: string, draft: CapitalPlanDraft): bo
 export function useCapitalPlanDraft(fundId: string) {
   const [draft, setDraft] = useState(() => getCapitalDraft(fundId));
   const [reviewed, setReviewed] = useState<ReviewedCapitalPlan | null>(null);
+  const reviewedRef = useRef<ReviewedCapitalPlan | null>(null);
   const [busy, setBusy] = useState<'review' | 'save' | null>(null);
   const generation = useRef(0);
   const intent = useRef(getCapitalSaveIntent(fundId));
@@ -235,6 +236,7 @@ export function useCapitalPlanDraft(fundId: string) {
 
   const invalidateReview = useCallback(() => {
     generation.current += 1;
+    reviewedRef.current = null;
     setReviewed(null);
     setBusy((current) => (current === 'review' ? null : current));
     return generation.current;
@@ -249,6 +251,17 @@ export function useCapitalPlanDraft(fundId: string) {
     }
     invalidateReview();
     setDraft(next);
+    return true;
+  }
+  function update(updater: (current: CapitalPlanDraft) => CapitalPlanDraft) {
+    if (intent.current || getCapitalSaveIntent(fundId)) {
+      intent.current ??= getCapitalSaveIntent(fundId);
+      return false;
+    }
+    invalidateReview();
+    const next = updater(getCapitalDraft(fundId));
+    retainCapitalDraft(fundId, next);
+    setDraft(() => next);
     return true;
   }
   const attachSource = useCallback(
@@ -292,6 +305,7 @@ export function useCapitalPlanDraft(fundId: string) {
   }
   function completeReview(captured: number, result: ReviewedCapitalPlan) {
     if (!isCurrent(captured)) return;
+    reviewedRef.current = result;
     setReviewed(result);
   }
   function finishReview(captured: number) {
@@ -299,13 +313,16 @@ export function useCapitalPlanDraft(fundId: string) {
   }
   function beginSave(source: FundScenarioCapitalSourceResponseV1 | undefined) {
     if (
-      (!reviewed && !intent.current) ||
+      (!reviewedRef.current && !intent.current) ||
       (sourceChanged(source) && !intent.current) ||
       submitting.current
     )
       return null;
     const recovering = intent.current !== null;
-    const command = intent.current ?? { request: reviewed!.request, key: crypto.randomUUID() };
+    const command = intent.current ?? {
+      request: reviewedRef.current!.request,
+      key: crypto.randomUUID(),
+    };
     const operation = { command, generation: generation.current, recovering };
     intent.current = command;
     retainCapitalSaveIntent(fundId, command);
@@ -325,6 +342,7 @@ export function useCapitalPlanDraft(fundId: string) {
     if (!ownsSave(operation)) return;
     intent.current = null;
     retainCapitalSaveIntent(fundId, null);
+    reviewedRef.current = null;
     setReviewed(null);
   }
   function finishSave(operation: CapitalSaveOperation) {
@@ -360,13 +378,18 @@ export function useCapitalPlanDraft(fundId: string) {
     busy,
     saveIntent: intent.current,
     replace,
+    update,
+    currentDraft: () => getCapitalDraft(fundId),
     attachSource,
     sourceChanged,
     invalidateChangedSource,
     beginReview,
     isCurrent,
     completeReview,
-    clearReview: () => setReviewed(null),
+    clearReview: () => {
+      reviewedRef.current = null;
+      setReviewed(null);
+    },
     finishReview,
     beginSave,
     ownsSave,
