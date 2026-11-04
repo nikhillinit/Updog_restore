@@ -231,6 +231,18 @@ detection since v1.5.0: exact-match pin on the driver error plus a loud
 near-match failure on driver-message drift; usage fenced by the
 `guard:transaction-support:check` lint guardrail per ADR-073).
 
+**Published investment overlay (F_1.24.0)**: `GET /api/funds/:fundId/metrics`
+keeps the cached legacy `actual` block unchanged and attaches a fresh, never
+cached `publishedActuals` block (`PublishedFundActualsSchema`) read from the
+terminal financial-facts publication by `readPublishedFundActuals`
+(`server/services/published-investment-comparison.ts`, shared provenance reader
+with the `/forecasting` comparison). It counts only the active `main_fund`
+vehicle. Absent means no actuals publication applies; the analytics dashboard
+and fund header then render the legacy lane. When present, they show published
+deployment and cash-invested companies and mark called, uncalled, NAV,
+distribution and return metrics unavailable. Variance, target snapshot,
+investment editor, and share snapshots still read the legacy lane.
+
 ### Route mounting mechanism
 
 `server/routes/mount-common-routes.ts` exports:
