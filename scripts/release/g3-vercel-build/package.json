@@ -1,0 +1,8 @@
+{
+  "name": "updog-g3-vercel-build",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "vercel": "55.0.0"
+  }
+}
