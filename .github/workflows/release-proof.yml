@@ -216,40 +216,102 @@ jobs:
     needs: [proof-contract, full-release-proof]
     if: ${{ needs.proof-contract.outputs.proof_mode == 'certifying' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: Production
+    permissions:
+      contents: read
     steps:
-      - name: Validate required credentials configured
+      - name: Admit protected main candidate
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
         run: |
           set -euo pipefail
-          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
-          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
-          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
-
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "Protected boot requires refs/heads/main" >&2; exit 1; }
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid protected boot candidate SHA" >&2; exit 1; }
+          LIVE_MAIN="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          [[ "$LIVE_MAIN" == "$CANDIDATE_SHA" ]] || {
+            echo "Protected boot candidate drift: expected $CANDIDATE_SHA, found $LIVE_MAIN" >&2
+            exit 1
+          }
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
+          persist-credentials: false
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run strict Vercel boot proof
+      - name: Prepare exact candidate archive
         env:
           CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          : "${VERCEL_TOKEN:?VERCEL_TOKEN required strict Vercel build proof}"
-          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID required strict Vercel build proof}"
-          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID required strict Vercel build proof}"
-          node audit/surface-contract-matrix/scripts/boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"
+          [[ "$(git rev-parse HEAD)" == "$CANDIDATE_SHA" ]] || { echo "Checked-out candidate SHA mismatch" >&2; exit 1; }
+          umask 077
+          G3_BUILD_ROOT="$(mktemp -d "$RUNNER_TEMP/g3-build.XXXXXX")"
+          mkdir "$G3_BUILD_ROOT/context" "$G3_BUILD_ROOT/docker-config" "$G3_BUILD_ROOT/proof"
+          git archive --format=tar "$CANDIDATE_SHA" > "$G3_BUILD_ROOT/candidate.tar"
+          tar -xf "$G3_BUILD_ROOT/candidate.tar" -C "$G3_BUILD_ROOT/context" \
+            package.json package-lock.json \
+            scripts/release/g3-vercel-build/Dockerfile \
+            scripts/release/g3-vercel-build/package.json \
+            scripts/release/g3-vercel-build/package-lock.json
+          chmod 444 "$G3_BUILD_ROOT/candidate.tar"
+          chmod 777 "$G3_BUILD_ROOT/proof"
+          printf 'G3_BUILD_ROOT=%s\n' "$G3_BUILD_ROOT" >> "$GITHUB_ENV"
+      - name: Collect local boot proof
+        run: node audit/surface-contract-matrix/scripts/boot-proof.mjs --output "$RUNNER_TEMP/g3-local-boot.json"
+      - name: Build isolated collector image
+        run: |
+          set -euo pipefail
+          DOCKER_CONFIG="$G3_BUILD_ROOT/docker-config" docker build \
+            --platform linux/amd64 --iidfile "$G3_BUILD_ROOT/image-id" \
+            --file "$G3_BUILD_ROOT/context/scripts/release/g3-vercel-build/Dockerfile" \
+            "$G3_BUILD_ROOT/context"
+      - name: Collect generated function proof offline
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          IMAGE_ID="$(cat "$G3_BUILD_ROOT/image-id")"
+          [[ "$IMAGE_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Invalid collector image ID" >&2; exit 1; }
+          DOCKER_CONFIG="$G3_BUILD_ROOT/docker-config" docker run --rm \
+            --platform linux/amd64 --network none --cap-drop ALL \
+            --security-opt no-new-privileges --user node \
+            --mount "type=bind,source=$G3_BUILD_ROOT/candidate.tar,target=/input/candidate.tar,readonly" \
+            --mount "type=bind,source=$G3_BUILD_ROOT/proof,target=/proof" \
+            "$IMAGE_ID" "$CANDIDATE_SHA"
+      - name: Take ownership of function proof
+        run: |
+          set -euo pipefail
+          PROOF="$G3_BUILD_ROOT/proof/g3-vercel-function.json"
+          [[ -f "$PROOF" && ! -L "$PROOF" ]] || { echo "Invalid generated function proof file" >&2; exit 1; }
+          sudo chown --no-dereference -- "$(id -u):$(id -g)" "$PROOF"
+          [[ -r "$PROOF" ]] || { echo "Generated function proof is unreadable" >&2; exit 1; }
+      - name: Recheck protected main candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "Protected boot requires refs/heads/main" >&2; exit 1; }
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid protected boot candidate SHA" >&2; exit 1; }
+          LIVE_MAIN="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          [[ "$LIVE_MAIN" == "$CANDIDATE_SHA" ]] || {
+            echo "Protected boot candidate drift: expected $CANDIDATE_SHA, found $LIVE_MAIN" >&2
+            exit 1
+          }
+      - name: Compose strict boot proof
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          node scripts/release/compose-g3-boot-proofs.mjs \
+            --local "$RUNNER_TEMP/g3-local-boot.json" \
+            --function "$G3_BUILD_ROOT/proof/g3-vercel-function.json" \
+            --expected-sha "$CANDIDATE_SHA" \
+            --output "$RUNNER_TEMP/g3-boot-proofs.json"
       - name: Verify strict boot proof
         env:
           CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}

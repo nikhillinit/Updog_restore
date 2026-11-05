@@ -43,17 +43,18 @@ and write this file directly.
 ## Boot-proof table
 
 `boot-proof.mjs` writes a schema-1.1 document with the exact source commit. Its
-default authoring output is tracked `boot-proofs.json`; closure runs must pass
-`--output` with a temporary file and `--require-g3`, so verification never
-changes the approved snapshot. Railway worker evidence includes structured
-`worker_identity` rather than parsing identity from prose.
+default authoring output is tracked `boot-proofs.json`; protected runs use
+`--output` with a temporary file, then compose separate function evidence before
+strict verification, so verification never changes the approved snapshot.
+Railway worker evidence includes structured `worker_identity` rather than
+parsing identity from prose.
 
 Local boot proof is provider-isolated. It never runs Vercel CLI, reads cached
 Vercel authentication, links a project, or pulls provider environment values.
 The `vercel-api|vercel_function` record therefore remains `unproven` until a
-separate provider-authorized proof route supplies real build-output evidence.
-`--require-g3` intentionally rejects local output while that proof is absent;
-the protected certifying job stays fail-closed.
+separate isolated collector supplies real build-output evidence. `--require-g3`
+intentionally rejects the local wrapper output; it does not accept external
+evidence or acquire provider access.
 
 Normal invocation snapshots original `package.json`, `package-lock.json`, and
 every non-output workspace path, including dirty and untracked generated files.
@@ -66,14 +67,38 @@ executing provider-isolated wrapper before dependency installation. Dependency
 installation and local npm proof scripts use `--ignore-scripts`; reviewed main
 scripts still run, but automatic lifecycle hooks do not.
 
-| Deployment                           | Artifact / command                                      | Probe and success condition                                                                                        |
-| ------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `railway-worker-fund-scenario-calc`  | `Dockerfile.worker` with isolated Redis/PostgreSQL      | Fund consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`; identity SHA equals source SHA |
-| `railway-worker-capital-call-status` | `Dockerfile.worker` with isolated Redis/PostgreSQL      | Capital worker registration plus matching health probes after schema preparation; identity SHA equals source SHA   |
-| `vercel-api`                         | `scripts/build-vercel-api.mjs`; import built bundle     | `makeApp()` constructs without listening                                                                           |
-| `vercel-function`                    | Provider-backed build output unavailable locally        | Local proof records `unproven`; strict G3 requires a separately authorized provider proof                          |
-| `vercel-web`                         | `npm run --ignore-scripts build:web`                    | `dist/public/index.html` references emitted JavaScript bundle                                                      |
-| `ml-service-local`                   | `ml-service/Dockerfile` when Docker daemon is available | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result                           |
+| Deployment                           | Artifact / command                                      | Probe and success condition                                                                                            |
+| ------------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `railway-worker-fund-scenario-calc`  | `Dockerfile.worker` with isolated Redis/PostgreSQL      | Fund consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`; identity SHA equals source SHA     |
+| `railway-worker-capital-call-status` | `Dockerfile.worker` with isolated Redis/PostgreSQL      | Capital worker registration plus matching health probes after schema preparation; identity SHA equals source SHA       |
+| `vercel-api`                         | `scripts/build-vercel-api.mjs`; import built bundle     | `makeApp()` constructs without listening                                                                               |
+| `vercel-function`                    | Separate pinned, offline Vercel builder container       | Local wrapper records `unproven`; protected composition requires real generated functions and canonical exact HTTP 200 |
+| `vercel-web`                         | `npm run --ignore-scripts build:web`                    | `dist/public/index.html` references emitted JavaScript bundle                                                          |
+| `ml-service-local`                   | `ml-service/Dockerfile` when Docker daemon is available | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result                               |
+
+The certifying `protected-boot-proof` job remains Production-protected and
+admits only the current protected-main SHA before checkout. It collects local
+proof into `$RUNNER_TEMP/g3-local-boot.json`, archives that exact Git object,
+and prepares the pinned image using only its Dockerfile and dependency
+manifests. The normal collector runs with networking disabled, no provider
+credentials, and only a read-only source archive plus a fresh writable proof
+directory. Synthetic project settings support the offline build; they do not
+attest a hosted deployment or provider identity.
+
+After another live-main check, `compose-g3-boot-proofs.mjs` combines those
+fixed, same-job inputs into `$RUNNER_TEMP/g3-boot-proofs.json`. Both documents
+must name the candidate SHA. Exactly one unproven local function placeholder is
+replaced with exactly one proven function row; other rows are preserved.
+Duplicate proof IDs, source SHA mismatch, an already-proven local function,
+invalid worker identity, and an existing output path fail closed. The unchanged
+strict verifier must accept all four required proofs and both worker identities.
+No previous-run artifact, staged deployment, or hosted response substitutes for
+this evidence.
+
+A local offline success proves only its recorded source archive and build.
+Closing G3 still requires a separately authorized protected run at the admitted
+SHA. Provider identity and staging remain separate downstream requirements;
+staging still requires successful Release Proof.
 
 `Dockerfile.railway` remains legacy inventory evidence, not production
 deployment topology. `railway.toml` was deleted under ADR-080; its declared
@@ -230,7 +255,7 @@ SEED_REGENERATION
 
 This authoring recipe runs only provider-isolated local boot proof. It records
 Vercel function evidence as `unproven`; it cannot satisfy `--require-g3` or the
-protected certifying job without a separate authorized provider-proof route.
+protected certifying job without the separate generated-function collector.
 
 ## Sanctioned non-fresh maintenance sequence (closed phase, changed route sources)
 
