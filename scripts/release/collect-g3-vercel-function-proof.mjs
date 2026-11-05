@@ -136,7 +136,7 @@ export async function collectG3VercelFunctionProof({
         npm_config_audit: 'false',
         npm_config_fund: 'false',
         npm_config_userconfig: '/dev/null',
-        npm_config_globalconfig: '/dev/null',
+        npm_config_globalconfig: path.join(home, 'global.npmrc'),
       }).filter(([, value]) => value !== undefined)
     );
     let build;

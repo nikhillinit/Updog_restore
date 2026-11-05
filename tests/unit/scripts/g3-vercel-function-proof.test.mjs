@@ -103,6 +103,7 @@ describe('isolated Vercel function collector', () => {
       'HTTPS_PROXY',
     ])
       expect(build.env).not.toHaveProperty(key);
+    expect(build.env.npm_config_userconfig).not.toBe(build.env.npm_config_globalconfig);
     expect(build.env.HOME).not.toBe(process.env.HOME);
     expect(fs.existsSync(build.env.HOME)).toBe(false);
     const project = JSON.parse(
