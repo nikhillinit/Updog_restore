@@ -5,6 +5,7 @@ import process from 'node:process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   collectG3VercelFunctionProof,
+  classifyVercelBuildFailure,
   writeG3VercelFunctionProof,
 } from '../../../scripts/release/collect-g3-vercel-function-proof.mjs';
 
@@ -51,6 +52,16 @@ afterEach(() => {
 });
 
 describe('isolated Vercel function collector', () => {
+  it('classifies builder errors without forwarding raw logs', () => {
+    expect(
+      classifyVercelBuildFailure({ stderr: 'npm error double-loading config /dev/null SECRET' })
+    ).toBe('NPM_CONFIG_COLLISION');
+    expect(classifyVercelBuildFailure({ stderr: 'npm error code ENOTCACHED SECRET' })).toBe(
+      'OFFLINE_CACHE_MISS'
+    );
+    expect(classifyVercelBuildFailure({ stderr: 'unknown SECRET' })).toBe('BUILD_EXIT_NONZERO');
+  });
+
   it('uses fixed build args, synthetic settings and an isolated allowlisted environment', async () => {
     const input = setup();
     vi.stubEnv('VERCEL_TOKEN', 'ambient-token');

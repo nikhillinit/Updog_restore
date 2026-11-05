@@ -45,15 +45,41 @@ const realPath = (filename, type) => {
   return absolute;
 };
 
+const BUILD_FAILURE_CODES = Object.freeze([
+  'NPM_CONFIG_COLLISION',
+  'OFFLINE_CACHE_MISS',
+  'NETWORK_UNAVAILABLE',
+  'PROVIDER_AUTH_REQUIRED',
+  'BUILD_TIMEOUT',
+  'BUILD_INPUT_MISSING',
+  'BUILD_EXIT_NONZERO',
+]);
+export const classifyVercelBuildFailure = (result) => {
+  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  if (/double-loading config/.test(output)) return 'NPM_CONFIG_COLLISION';
+  if (/ENOTCACHED/.test(output)) return 'OFFLINE_CACHE_MISS';
+  if (/ENETUNREACH|EAI_AGAIN|ENOTFOUND/.test(output)) return 'NETWORK_UNAVAILABLE';
+  if (/No existing credentials|requires? (?:an? )?(?:auth|token)|not logged in/i.test(output))
+    return 'PROVIDER_AUTH_REQUIRED';
+  if (result.error?.code === 'ETIMEDOUT') return 'BUILD_TIMEOUT';
+  if (/ENOENT|Cannot find module/.test(output)) return 'BUILD_INPUT_MISSING';
+  return 'BUILD_EXIT_NONZERO';
+};
+
 const runInstalledBuilder = ({ cwd, argv, env, timeoutMs }) => {
   const result = spawnSync(process.execPath, [CLI, ...argv], {
     cwd,
     env,
     timeout: timeoutMs,
     killSignal: 'SIGKILL',
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+    maxBuffer: 4 * 1024 * 1024,
   });
-  return { status: result.error ? null : result.status };
+  return {
+    status: result.error ? null : result.status,
+    failureCode: classifyVercelBuildFailure(result),
+  };
 };
 
 export async function collectG3VercelFunctionProof({
@@ -131,7 +157,10 @@ export async function collectG3VercelFunctionProof({
     } finally {
       clearTimeout(timer);
     }
-    if (build?.status !== 0) throw new Error('Vercel build failed');
+    if (build?.status !== 0) {
+      const code = BUILD_FAILURE_CODES.includes(build?.failureCode) ? `: ${build.failureCode}` : '';
+      throw new Error(`Vercel build failed${code}`);
+    }
     const functionsRoot = path.join(vercelRoot, 'output/functions');
     if (!exists(functionsRoot)) throw new Error('Build emitted no Vercel functions');
     realPath(functionsRoot, 'directory');
@@ -229,8 +258,11 @@ async function main() {
   console.log('G3_FUNCTION_PROOF_PUBLISHED');
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  main().catch(() => {
-    console.error('G3_FUNCTION_PROOF_FAILED');
+  main().catch((error) => {
+    const code = BUILD_FAILURE_CODES.find(
+      (value) => error.message === `Vercel build failed: ${value}`
+    );
+    console.error(code ? `G3_FUNCTION_PROOF_FAILED ${code}` : 'G3_FUNCTION_PROOF_FAILED');
     process.exitCode = 1;
   });
 }
