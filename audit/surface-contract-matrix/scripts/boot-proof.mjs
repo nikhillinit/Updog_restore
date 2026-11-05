@@ -37,7 +37,6 @@ const VERCEL_BUILD_ENV_KEYS = Object.freeze([
   'VERCEL_ORG_ID',
   'VERCEL_PROJECT_ID',
 ]);
-const VERCEL_BUILD_RESULT_MARKER = 'SURFACE_BOOT_PROOF_VERCEL_BUILD_RESULT';
 const CLEAN_ROOM_ENV_KEYS = Object.freeze([
   'PATH', 'TMPDIR', 'TMP', 'TEMP', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY',
   'NPM_CONFIG_REGISTRY', 'npm_config_registry', 'NPM_CONFIG_CAFILE', 'NODE_EXTRA_CA_CERTS',
@@ -127,14 +126,6 @@ export const dockerProofEnvironment = (overrides = {}, environment = process.env
     : {}),
 });
 
-export const vercelBuildEnvironment = (
-  environment = process.env,
-  credentials = requiredVercelBuildCredentials(environment)
-) => ({
-  ...proofEnv({}, environment),
-  ...credentials,
-});
-
 export const vercelFunctionProofEnvironment = (environment = process.env) => proofEnv({
   VERCEL: '1',
   VERCEL_ENV: 'production',
@@ -148,14 +139,6 @@ export const vercelFunctionProofEnvironment = (environment = process.env) => pro
   METRICS_KEY: syntheticRuntimeSecret,
   FUND_SCENARIO_HARD_TIMEOUT_MS: '30000',
 }, environment);
-
-export const assertStrictVercelBuildCredentials = (environment = process.env) => {
-  const credentials = requiredVercelBuildCredentials(environment);
-  for (const key of VERCEL_BUILD_ENV_KEYS) {
-    if (!credentials[key]) throw new Error(`${key} is required for strict Vercel build proof`);
-  }
-  return credentials;
-};
 
 export const redactChildOutput = (value, environment = process.env) => {
   let redacted = String(value);
@@ -184,7 +167,8 @@ const commandResult = (command, args, env, timeout = 180_000) => {
   };
 };
 
-const npmResult = (script, env, timeout = 180_000) => commandResult('npm', ['run', script], env, timeout);
+export const npmScriptInvocation = (script) => ['run', '--ignore-scripts', script];
+const npmResult = (script, env, timeout = 180_000) => commandResult('npm', npmScriptInvocation(script), env, timeout);
 
 const tcpReachable = (host, port) => new Promise((resolve) => {
   const socket = net.createConnection({ host, port });
@@ -612,21 +596,16 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
-const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler';
-const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once; probe api/[...slug] through canonical GET /api/version with exact 200';
+const VERCEL_FUNCTION_COMMAND = 'Vercel build output unavailable during provider-isolated local verification';
+const VERCEL_FUNCTION_PROBE = 'requires separately authorized provider proof of generated Vercel functions and callable handlers';
 
-export const vercelBuildInvocation = () => ({
-  command: 'npx',
-  args: ['--yes', 'vercel@55.0.0', 'build', '--prod', '--yes'],
-});
-
-export const vercelFunctionBuildFailureEvidence = (build) => evidence({
+export const vercelFunctionUnavailableEvidence = () => evidence({
   deployment: 'vercel-api',
   runtime: 'vercel_function',
-  boot_status: bootStatusForCommandResult(build),
+  boot_status: 'unproven',
   command_or_artifact: VERCEL_FUNCTION_COMMAND,
   probe: VERCEL_FUNCTION_PROBE,
-  result: dockerFailure('Vercel build-output generation', build),
+  result: 'Vercel CLI and provider-backed build were not executed; local cached output and ambient credentials are not proof',
 });
 
 const functionDirectoriesUnder = (root) => {
@@ -971,32 +950,16 @@ export const invokeVercelFunctionInIsolatedChild = ({
   }
 };
 
-const vercelFunctionProof = async ({ prebuiltBuild } = {}) => {
-  const command_or_artifact = VERCEL_FUNCTION_COMMAND;
-  const probe = VERCEL_FUNCTION_PROBE;
-  const invocation = vercelBuildInvocation();
-  const build = prebuiltBuild ?? commandResult(invocation.command, invocation.args, vercelBuildEnvironment(), 600_000);
-  if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
-  const functions = vercelBuildOutputFunctions();
-  if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
-  const redactionEnvironment = requiredVercelBuildCredentials();
-  const invocations = functions.map((functionEntry) => invokeVercelFunctionInIsolatedChild({
-    ...functionEntry,
-    redactionEnvironment,
-  }));
-  const failed = invocations.filter((invocation) => !invocation.ok);
-  const result = `invoked ${invocations.length} build-output function(s): ${invocations.map((invocation) => `${invocation.name}=${invocation.ok ? 'ok' : 'failed'}`).join(', ')}${failed.length > 0 ? `; ${failed.map((invocation) => invocation.result).join('; ')}` : ''}`;
-  return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });
-};
+export const vercelFunctionProof = async () => vercelFunctionUnavailableEvidence();
 
-const VERCEL_WEB_COMMAND = 'npm run build:web; dist/public/index.html';
+const VERCEL_WEB_COMMAND = 'npm run --ignore-scripts build:web; dist/public/index.html';
 const VERCEL_WEB_PROBE = 'emitted SPA entry HTML references its actual hashed JavaScript bundle';
 
 export const vercelWebBuildFailureEvidence = (build) => commandFailureEvidence({
   deployment: 'vercel-web',
   command_or_artifact: VERCEL_WEB_COMMAND,
   probe: VERCEL_WEB_PROBE,
-  label: 'npm run build:web',
+  label: 'npm run --ignore-scripts build:web',
   result: build,
 });
 
@@ -1086,7 +1049,7 @@ export const assertRequiredG3Proofs = (document) => {
 
 const sourceSha = (repositoryRoot = repoRoot) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 
-const collectBootProofs = async ({ sourceSha: currentSourceSha, vercelFunctionBuild }) => {
+const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
   const fundWorkerProof = await railwayWorkerProof({
     workerType: 'fund-scenario-calc',
     deployment: 'railway-worker-fund-scenario-calc',
@@ -1108,7 +1071,7 @@ const collectBootProofs = async ({ sourceSha: currentSourceSha, vercelFunctionBu
     ...workerRuntimeProofs(fundWorkerProof),
     ...workerRuntimeProofs(capitalWorkerProof),
     await vercelApiProof(),
-    await vercelFunctionProof({ prebuiltBuild: vercelFunctionBuild }),
+    await vercelFunctionProof(),
     await vercelWebProof(),
     await mlServiceProof(),
   ];
@@ -1119,7 +1082,6 @@ export const runBootProofInner = async ({
   requireG3 = false,
   collectProofs = collectBootProofs,
   sourceSha: expectedSourceSha,
-  environment = process.env,
   repositoryRoot = repoRoot,
   filesystem = fs,
   readSourceSha = sourceSha,
@@ -1129,10 +1091,8 @@ export const runBootProofInner = async ({
   if (expectedSourceSha && actualSourceSha !== expectedSourceSha) {
     throw new Error(`Boot-proof clean-room HEAD does not match expected source SHA: expected ${expectedSourceSha}, received ${actualSourceSha}`);
   }
-  const vercelFunctionBuild = prebuiltVercelBuildResult(environment);
-  if (requireG3 && !vercelFunctionBuild) assertStrictVercelBuildCredentials(environment);
   const currentSourceSha = actualSourceSha;
-  const proofs = (await collectProofs({ sourceSha: currentSourceSha, vercelFunctionBuild }))
+  const proofs = (await collectProofs({ sourceSha: currentSourceSha }))
     .sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
   const document = BootProofDocumentSchema.parse({ schema_version: '1.1.0', source_sha: currentSourceSha, proofs });
   if (requireG3) assertRequiredG3Proofs(document);
@@ -1142,33 +1102,6 @@ export const runBootProofInner = async ({
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const CLEAN_ROOM_MARKER = 'SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM';
-const prebuiltVercelBuildResult = (environment) => {
-  const serialized = environment[VERCEL_BUILD_RESULT_MARKER];
-  if (serialized === undefined) return undefined;
-  let result;
-  try {
-    result = JSON.parse(serialized);
-  } catch {
-    throw new Error('Boot-proof clean-room Vercel build result invalid');
-  }
-  if (
-    !result ||
-    typeof result !== 'object' ||
-    (result.status !== null && (!Number.isSafeInteger(result.status) || result.status < 0)) ||
-    (result.signal !== null && typeof result.signal !== 'string') ||
-    (result.errorCode !== null && typeof result.errorCode !== 'string')
-  ) {
-    throw new Error('Boot-proof clean-room Vercel build result invalid');
-  }
-  return {
-    ok: result.status === 0,
-    status: result.status,
-    signal: result.signal,
-    error: result.errorCode ? { code: result.errorCode } : undefined,
-    stdout: '',
-    stderr: '',
-  };
-};
 const CLEAN_ROOM_IGNORED_NAMES = new Set(['.git', 'node_modules']);
 
 const fileSha256 = (filename, filesystem = fs) => createHash('sha256').update(filesystem.readFileSync(filename)).digest('hex');
@@ -1234,6 +1167,24 @@ const defaultRunCommand = (command, args, options) => spawnSync(command, args, {
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 
+export const assertCompatibleCandidateWrapper = (
+  cleanRoom,
+  { filesystem = fs, currentWrapper = thisFile } = {}
+) => {
+  const candidateWrapper = path.join(cleanRoom, 'audit/surface-contract-matrix/scripts/boot-proof.mjs');
+  let currentHash;
+  let candidateHash;
+  try {
+    currentHash = fileSha256(currentWrapper, filesystem);
+    candidateHash = fileSha256(candidateWrapper, filesystem);
+  } catch {
+    throw new Error('Boot-proof candidate wrapper is incompatible with provider-isolated local verification');
+  }
+  if (candidateHash !== currentHash) {
+    throw new Error('Boot-proof candidate wrapper is incompatible with provider-isolated local verification');
+  }
+};
+
 export const runBootProofCleanRoom = async ({
   output,
   requireG3 = false,
@@ -1243,6 +1194,7 @@ export const runBootProofCleanRoom = async ({
   filesystem = fs,
   makeTempDir = (prefix) => filesystem.mkdtempSync(prefix),
   runCommand = defaultRunCommand,
+  verifyCandidateWrapper = assertCompatibleCandidateWrapper,
   snapshot = originalWorkspaceSnapshot,
   stdout = process.stdout,
 } = {}) => {
@@ -1266,24 +1218,12 @@ export const runBootProofCleanRoom = async ({
   });
     if (add.status !== 0) throw commandFailure('Boot-proof clean-room worktree add', add);
     worktreeAdded = true;
-    const install = runCommand('npm', ['ci'], {
+    verifyCandidateWrapper(cleanRoom, { filesystem });
+    const install = runCommand('npm', ['ci', '--ignore-scripts'], {
       cwd: cleanRoom,
       env: cleanRoomEnvironment(environment, npmCache),
     });
     if (install.status !== 0) throw commandFailure('Boot-proof clean-room dependency install', install);
-    const invocation = vercelBuildInvocation();
-    const vercelBuild = runCommand(invocation.command, invocation.args, {
-      cwd: cleanRoom,
-      env: vercelBuildEnvironment(
-        cleanRoomEnvironment(environment, npmCache),
-        requireG3 ? assertStrictVercelBuildCredentials(environment) : requiredVercelBuildCredentials(environment)
-      ),
-    });
-    const vercelBuildResult = JSON.stringify({
-      status: Number.isSafeInteger(vercelBuild.status) ? vercelBuild.status : null,
-      signal: typeof vercelBuild.signal === 'string' ? vercelBuild.signal : null,
-      errorCode: typeof vercelBuild.error?.code === 'string' ? vercelBuild.error.code : null,
-    });
     const inner = runCommand(process.execPath, [
       path.join(cleanRoom, 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
       '--internal-clean-room',
@@ -1295,7 +1235,6 @@ export const runBootProofCleanRoom = async ({
       env: {
         ...cleanRoomEnvironment(environment, npmCache),
         [CLEAN_ROOM_MARKER]: '1',
-        [VERCEL_BUILD_RESULT_MARKER]: vercelBuildResult,
       },
     });
     if (inner.status !== 0) throw commandFailure('Boot-proof clean-room execution', inner);
