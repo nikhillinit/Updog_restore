@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "source_sha": "8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e",
+  "source_sha": "c53634af425e84b251f3c902dee6433255813640",
   "proofs": [
     {
       "deployment": "local-process",
@@ -34,7 +34,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e",
+        "commit": "c53634af425e84b251f3c902dee6433255813640",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -50,7 +50,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e",
+        "commit": "c53634af425e84b251f3c902dee6433255813640",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -66,7 +66,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e",
+        "commit": "c53634af425e84b251f3c902dee6433255813640",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -82,7 +82,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e",
+        "commit": "c53634af425e84b251f3c902dee6433255813640",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -102,20 +102,20 @@
       "runtime": "vercel_function",
       "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler",
-        "probe": "enumerate every real Vercel build-output function and invoke its callable handler once; probe api/[...slug] through canonical GET /api/version with exact 200",
-        "result": "invoked 2 build-output function(s): api/[...slug]=ok, api/telemetry/wizard=ok",
-        "observed_at": "proof:f8340c77085d615a51aa1c982d39477b340c9820661451e399ee503b79d01ed8"
+        "command_or_artifact": "vercel@55.0.0 build --prod; fresh .vercel/output/functions",
+        "probe": "invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204",
+        "result": "invoked 2 generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204",
+        "observed_at": "proof:452a56b42a72d41aeb9dd271287153ab6c3f6177090133eddc8eeea7a76d95ef"
       }
     },
     {
       "deployment": "vercel-web",
       "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "npm run build:web; dist/public/index.html",
+        "command_or_artifact": "npm run --ignore-scripts build:web; dist/public/index.html",
         "probe": "emitted SPA entry HTML references its actual hashed JavaScript bundle",
         "result": "SPA entry references emitted bundle",
-        "observed_at": "proof:9dd9af602e23b702aa20a1418845f77e79f69f973c3ff83788a7b50e23aa26e0"
+        "observed_at": "proof:83a997fd942b45dc91e2c86a52b53550458d00eb49a6e9876d794dcc93d8be40"
       }
     }
   ]

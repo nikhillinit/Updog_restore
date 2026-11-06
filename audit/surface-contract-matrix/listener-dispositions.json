@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent native Codex scoped review by /root/matrix_reviewer on 2026-11-01 at source 8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e, protected base 1c63f06a66280b510543fe8e8778812d75b9b9e5, snapshot snapshot:698b0a4411ec3af36aac488b971feffb447bfd75a3ddf210bcbe14f84cfe91f6. Reviewed only unresolved listeners:legacy-dockerfile-railway; zero matrix rows are demoted. Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b and listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 are unchanged from protected base; direct source scan independently reproduces health-check and application entrypoint sites at Dockerfile.railway:43 and :47. railway.toml is absent. Both worker TOMLs bind Dockerfile.worker; QUEUE_CATALOG productionDisposition names only the fund-scenario-calc and capital-call-status Railway workers. ADR-080 records retirement of the legacy Railway API config. seed-matrix.mjs mergeListenerDispositions deliberately proposes this legacy listener on every reseed, so status loss does not establish topology drift. Existing non-product-tooling source classification is supported. Matrix rows, coverage_review, and historical g1_closure are byte-identical to source HEAD; g1_closure also matches protected base. This is native review evidence, not human-equivalent approval, current provider inventory proof, or merge, release, deployment, or production authorization; owner approval remains separate."
+    "decision_evidence": "Independent automated source review by /root/momus_review at exact source c53634af425e84b251f3c902dee6433255813640. Dockerfile.railway remains a legacy undeployed Railway API container artifact. railway.toml is absent; both active Railway worker TOMLs bind Dockerfile.worker; supported worker identities remain fund-scenario-calc and capital-call-status. Forced reseed re-proposal is not topology drift. Classified non-product-tooling. Review supports governed dry run only; no provider inventory, deployment, owner approval, merge, or release authority."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -189,6 +189,30 @@
     ],
     "decision_status": "approved",
     "decision_evidence": "UNAPPROVED proposal for listeners:tooling-scripts-orchestrate-ts; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
+  },
+  {
+    "candidate_path": "scripts/release/g3-vercel-build/Dockerfile",
+    "listener_id": "tooling-scripts-release-g3-vercel-build-Dockerfile",
+    "fingerprint": "c3453afb0a4ab85e4051f6a7e5fc3bfd8994dfa096468ed30a7260cc5d569cd1",
+    "evidence": [
+      {
+        "file": "scripts/release/g3-vercel-build/Dockerfile",
+        "line": 29,
+        "pattern": "container-http-entrypoint",
+        "text": "ENTRYPOINT [\"timeout\", \"--signal=KILL\", \"660s\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar --extract --file=/input/candidate.tar --directory=/candidate --no-same-owner; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+      }
+    ],
+    "disposition": "non-product-tooling",
+    "rationale": "Local development or orchestration listener; not a product deployment surface.",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 29,
+        "text": "ENTRYPOINT [\"timeout\", \"--signal=KILL\", \"660s\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar --extract --file=/input/candidate.tar --directory=/candidate --no-same-owner; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+      }
+    ],
+    "decision_status": "approved",
+    "decision_evidence": "Independent automated source review by /root/momus_review at exact source c53634af425e84b251f3c902dee6433255813640. Fingerprint identifies bounded one-shot offline Release Proof collector image. ENTRYPOINT extracts exact candidate, invokes collect-g3-vercel-function-proof.mjs, writes proof, and exits under timeout. It exposes no port and creates no persistent product listener or product route. Classified non-product-tooling. Review supports governed dry run only; no owner approval, provider evidence, merge, release, or protected-execution authority."
   },
   {
     "candidate_path": "scripts/run-f115-capital-planning-e2e.mjs",
