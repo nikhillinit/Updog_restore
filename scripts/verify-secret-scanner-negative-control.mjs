@@ -34,6 +34,7 @@ try {
   // A scoped evidence exception must not suppress credentials in that file or elsewhere.
   const genericControlPaths = [
     'audit/surface-contract-matrix/g3-c53634-scoped-review.json',
+    'audit/surface-contract-matrix/g3-durable-ci-scoped-review.json',
     'unrelated-secret.json',
   ];
   for (const relativePath of genericControlPaths) {
@@ -95,7 +96,7 @@ try {
     }
   }
 
-  console.log('[PASS] Gitleaks detected the custom and both generic negative controls.');
+  console.log('[PASS] Gitleaks detected the custom and all generic negative controls.');
 } catch (error) {
   console.error(`[FAIL] Secret-scanner negative control failed: ${error.message}`);
   process.exitCode = 1;
