@@ -13,12 +13,12 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 58,
+        "line": 59,
         "text": "CMD [\"node\", \"-e\", \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\"]"
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 67,
+        "line": 68,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent automated source review by /root/momus_review at exact source c53634af425e84b251f3c902dee6433255813640. Dockerfile.railway remains a legacy undeployed Railway API container artifact. railway.toml is absent; both active Railway worker TOMLs bind Dockerfile.worker; supported worker identities remain fund-scenario-calc and capital-call-status. Forced reseed re-proposal is not topology drift. Classified non-product-tooling. Review supports governed dry run only; no provider inventory, deployment, owner approval, merge, or release authority."
+    "decision_evidence": "Independent automated source review by /root/durable_independent_review at exact source d3b349b6ccac05791e210ccb37435c7073926c88, under direct user-authorized local reconciliation. Dockerfile.railway remains unchanged legacy API-container evidence; railway.toml is absent; both current Railway worker TOMLs select Dockerfile.worker; ADR-080 records legacy API-config retirement. Retain non-product-tooling for repository inventory only. Review is limited to this single re-proposed listener; no matrix rows or exposure assertions are newly reviewed. Report SHA-256 1882546573eb9f3528b4a29331316e10b1135914790a29e246d14e0920e40adb. Scanner remains blocked by 119 HIGH/CRITICAL findings, 35 unfixed. Proof is local S-only; final hosted/protected proof is absent. G1 closure preserved; G3 OPEN. This automated review is not human owner approval, source admission, merge authority, production readiness, or provider authorization."
   },
   {
     "candidate_path": "Dockerfile.simple",

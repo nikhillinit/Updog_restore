@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "source_sha": "c53634af425e84b251f3c902dee6433255813640",
+  "source_sha": "d3b349b6ccac05791e210ccb37435c7073926c88",
   "proofs": [
     {
       "deployment": "local-process",
@@ -34,7 +34,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "c53634af425e84b251f3c902dee6433255813640",
+        "commit": "d3b349b6ccac05791e210ccb37435c7073926c88",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -50,7 +50,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "c53634af425e84b251f3c902dee6433255813640",
+        "commit": "d3b349b6ccac05791e210ccb37435c7073926c88",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -66,7 +66,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "c53634af425e84b251f3c902dee6433255813640",
+        "commit": "d3b349b6ccac05791e210ccb37435c7073926c88",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -82,7 +82,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "c53634af425e84b251f3c902dee6433255813640",
+        "commit": "d3b349b6ccac05791e210ccb37435c7073926c88",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -105,7 +105,7 @@
         "command_or_artifact": "vercel@55.0.0 build --prod; fresh .vercel/output/functions",
         "probe": "invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204",
         "result": "invoked 2 generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204",
-        "observed_at": "proof:452a56b42a72d41aeb9dd271287153ab6c3f6177090133eddc8eeea7a76d95ef"
+        "observed_at": "proof:c78319a1e26ac1ab3c3c3723faa5786e0907d4148f7908339b5d8a5f614891df"
       }
     },
     {
