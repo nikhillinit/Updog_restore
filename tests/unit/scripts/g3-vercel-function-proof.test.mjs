@@ -18,16 +18,24 @@ const temporary = () => {
 };
 const setup = () => {
   const candidateRoot = temporary();
-  fs.writeFileSync(
-    path.join(candidateRoot, 'vercel.json'),
-    JSON.stringify({
-      framework: 'vite',
-      buildCommand: 'npm run build:web && node scripts/build-vercel-api.mjs',
-      installCommand: 'npm ci --include=dev',
-      outputDirectory: 'dist/public',
-    })
-  );
-  return { candidateRoot, sourceSha: SHA };
+  const preparedRoot = temporary();
+  const packageJson = `${JSON.stringify({ name: 'g3-candidate', private: true })}\n`;
+  const packageLock = `${JSON.stringify({ name: 'g3-candidate', lockfileVersion: 3 })}\n`;
+  for (const root of [candidateRoot, preparedRoot]) {
+    fs.writeFileSync(path.join(root, 'package.json'), packageJson);
+    fs.writeFileSync(path.join(root, 'package-lock.json'), packageLock);
+  }
+  const vercelConfig = {
+    framework: 'vite',
+    buildCommand: 'npm run build:web && node scripts/build-vercel-api.mjs',
+    installCommand: 'npm ci --include=dev',
+    outputDirectory: 'dist/public',
+    deploymentEnabled: false,
+    headers: [{ source: '/api/(.*)', headers: [{ key: 'x-proof', value: 'preserved' }] }],
+    rewrites: [{ source: '/health', destination: '/api/health' }],
+  };
+  fs.writeFileSync(path.join(candidateRoot, 'vercel.json'), JSON.stringify(vercelConfig));
+  return { candidateRoot, preparedRoot, sourceSha: SHA };
 };
 const emit = (
   root,
@@ -80,11 +88,18 @@ describe('isolated Vercel function collector', () => {
     vi.stubEnv('VERCEL_TOKEN', 'ambient-token');
     vi.stubEnv('NODE_OPTIONS', '--require=ambient');
     vi.stubEnv('HTTPS_PROXY', 'ambient-proxy');
-    const runBuild = runner(input.candidateRoot, [
-      'api/[...slug]',
-      'api/health',
-      'api/telemetry/wizard',
-    ]);
+    const names = ['api/[...slug]', 'api/health', 'api/telemetry/wizard'];
+    const trackedConfigPath = path.join(input.candidateRoot, 'vercel.json');
+    const trackedConfigBytes = fs.readFileSync(trackedConfigPath);
+    let localConfigPath;
+    let localConfig;
+    const runBuild = vi.fn(async ({ argv }) => {
+      const localConfigArgument = argv.find((argument) => argument.startsWith('--local-config='));
+      localConfigPath = localConfigArgument?.slice('--local-config='.length);
+      if (localConfigPath) localConfig = JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
+      names.forEach((name) => emit(input.candidateRoot, name));
+      return { status: 0 };
+    });
     const invokeFunction = vi.fn((entry) => ({
       name: entry.name,
       ok: true,
@@ -104,7 +119,7 @@ describe('isolated Vercel function collector', () => {
       'api/telemetry/wizard',
     ]);
     const [build] = runBuild.mock.calls[0];
-    expect(build.argv).toEqual(['build', '--prod']);
+    expect(build.argv).toEqual(['build', '--prod', `--local-config=${localConfigPath}`]);
     expect(build.cwd).toBe(input.candidateRoot);
     expect(build.timeoutMs).toBe(480000);
     expect(build.env).toMatchObject({
@@ -125,6 +140,18 @@ describe('isolated Vercel function collector', () => {
     expect(build.env.npm_config_userconfig).not.toBe(build.env.npm_config_globalconfig);
     expect(build.env.HOME).not.toBe(process.env.HOME);
     expect(fs.existsSync(build.env.HOME)).toBe(false);
+    expect(localConfigPath).toBe(path.join(build.env.HOME, 'vercel.json'));
+    expect(fs.existsSync(localConfigPath)).toBe(false);
+    expect(localConfig).toEqual({
+      framework: 'vite',
+      buildCommand: 'npm run build:web && node scripts/build-vercel-api.mjs',
+      installCommand: 'npm ls --all --offline',
+      outputDirectory: 'dist/public',
+      deploymentEnabled: false,
+      headers: [{ source: '/api/(.*)', headers: [{ key: 'x-proof', value: 'preserved' }] }],
+      rewrites: [{ source: '/health', destination: '/api/health' }],
+    });
+    expect(fs.readFileSync(trackedConfigPath)).toEqual(trackedConfigBytes);
     const project = JSON.parse(
       fs.readFileSync(path.join(input.candidateRoot, '.vercel/project.json'))
     );
@@ -133,9 +160,70 @@ describe('isolated Vercel function collector', () => {
       nodeVersion: '22.x',
       framework: 'vite',
       buildCommand: 'npm run build:web && node scripts/build-vercel-api.mjs',
-      installCommand: 'npm ci --include=dev',
+      installCommand: 'npm ls --all --offline',
       outputDirectory: 'dist/public',
     });
+  });
+
+  it('removes the derivative local config after builder failure', async () => {
+    const input = setup();
+    const trackedConfigPath = path.join(input.candidateRoot, 'vercel.json');
+    const trackedConfigBytes = fs.readFileSync(trackedConfigPath);
+    let localConfigPath;
+    let localConfigExisted = false;
+    const runBuild = vi.fn(async ({ argv }) => {
+      const localConfigArgument = argv.find((argument) => argument.startsWith('--local-config='));
+      localConfigPath = localConfigArgument?.slice('--local-config='.length);
+      localConfigExisted = localConfigPath ? fs.existsSync(localConfigPath) : false;
+      return { status: 1 };
+    });
+    await expect(collectG3VercelFunctionProof({ ...input, runBuild })).rejects.toThrow(
+      /Vercel build failed/
+    );
+    expect(runBuild).toHaveBeenCalledOnce();
+    expect(localConfigPath).toBeTypeOf('string');
+    expect(localConfigExisted).toBe(true);
+    expect(fs.existsSync(localConfigPath)).toBe(false);
+    expect(fs.readFileSync(trackedConfigPath)).toEqual(trackedConfigBytes);
+  });
+
+  it.each(['package.json', 'package-lock.json'])(
+    'rejects candidate %s bytes that differ from prepared dependencies before building',
+    async (manifest) => {
+      const input = setup();
+      fs.appendFileSync(path.join(input.candidateRoot, manifest), 'mismatch');
+      const runBuild = runner(input.candidateRoot);
+      await expect(collectG3VercelFunctionProof({ ...input, runBuild })).rejects.toThrow(
+        /Prepared dependency manifest mismatch/
+      );
+      expect(runBuild).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(input.candidateRoot, '.vercel'))).toBe(false);
+    }
+  );
+
+  it.each(['package.json', 'package-lock.json'])(
+    'rejects missing prepared %s before building',
+    async (manifest) => {
+      const input = setup();
+      fs.rmSync(path.join(input.preparedRoot, manifest));
+      const runBuild = runner(input.candidateRoot);
+      await expect(collectG3VercelFunctionProof({ ...input, runBuild })).rejects.toThrow();
+      expect(runBuild).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(input.candidateRoot, '.vercel'))).toBe(false);
+    }
+  );
+
+  it('rejects symlinked prepared manifests before building', async () => {
+    const input = setup();
+    const preparedPackage = path.join(input.preparedRoot, 'package.json');
+    const outsidePackage = path.join(temporary(), 'package.json');
+    fs.copyFileSync(preparedPackage, outsidePackage);
+    fs.rmSync(preparedPackage);
+    fs.symlinkSync(outsidePackage, preparedPackage);
+    const runBuild = runner(input.candidateRoot);
+    await expect(collectG3VercelFunctionProof({ ...input, runBuild })).rejects.toThrow(/symlinks/);
+    expect(runBuild).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(input.candidateRoot, '.vercel'))).toBe(false);
   });
 
   it.each(['directory', 'dangling symlink'])(

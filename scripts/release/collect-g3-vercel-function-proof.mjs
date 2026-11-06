@@ -82,8 +82,21 @@ const runInstalledBuilder = ({ cwd, argv, env, timeoutMs }) => {
   };
 };
 
+const verifyPreparedDependencyManifests = (candidateRoot, preparedRoot) => {
+  if (fs.lstatSync(preparedRoot).isSymbolicLink()) throw new Error('Invalid prepared root');
+  preparedRoot = realPath(fs.realpathSync(preparedRoot), 'directory');
+  for (const manifest of ['package.json', 'package-lock.json']) {
+    const candidate = fs.readFileSync(realPath(path.join(candidateRoot, manifest), 'file'));
+    const prepared = fs.readFileSync(realPath(path.join(preparedRoot, manifest), 'file'));
+    if (!candidate.equals(prepared)) {
+      throw new Error(`Prepared dependency manifest mismatch: ${manifest}`);
+    }
+  }
+};
+
 export async function collectG3VercelFunctionProof({
   candidateRoot,
+  preparedRoot = '/opt/app',
   sourceSha,
   runBuild = runInstalledBuilder,
   invokeFunction = invokeVercelFunctionInIsolatedChild,
@@ -95,21 +108,34 @@ export async function collectG3VercelFunctionProof({
   candidateRoot = realPath(fs.realpathSync(candidateRoot), 'directory');
   const vercelRoot = path.join(candidateRoot, '.vercel');
   if (exists(vercelRoot)) throw new Error('Expected a fresh build directory without .vercel');
+  verifyPreparedDependencyManifests(candidateRoot, preparedRoot);
   const config = JSON.parse(
     fs.readFileSync(realPath(path.join(candidateRoot, 'vercel.json'), 'file'), 'utf8')
   );
-  const settings = { rootDirectory: null, nodeVersion: '22.x' };
   for (const key of ['framework', 'buildCommand', 'installCommand', 'outputDirectory']) {
     if (typeof config[key] !== 'string' || !config[key].trim())
       throw new Error('Invalid tracked Vercel configuration');
-    settings[key] = config[key];
   }
+  const settings = {
+    rootDirectory: null,
+    nodeVersion: '22.x',
+    framework: config.framework,
+    buildCommand: config.buildCommand,
+    installCommand: 'npm ls --all --offline',
+    outputDirectory: config.outputDirectory,
+  };
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'g3-vercel-home-'));
   const deadline = Date.now() + COLLECTOR_TIMEOUT_MS;
   let timer;
   try {
     fs.mkdirSync(path.join(home, 'config'));
     fs.mkdirSync(path.join(home, 'cache'));
+    const localConfigPath = path.join(home, 'vercel.json');
+    fs.writeFileSync(
+      localConfigPath,
+      JSON.stringify({ ...config, installCommand: 'npm ls --all --offline' }),
+      { flag: 'wx', mode: 0o600 }
+    );
     fs.mkdirSync(vercelRoot);
     fs.writeFileSync(
       path.join(vercelRoot, 'project.json'),
@@ -144,7 +170,7 @@ export async function collectG3VercelFunctionProof({
       build = await Promise.race([
         runBuild({
           cwd: candidateRoot,
-          argv: ['build', '--prod'],
+          argv: ['build', '--prod', `--local-config=${localConfigPath}`],
           env,
           timeoutMs: BUILD_TIMEOUT_MS,
         }),
@@ -211,7 +237,8 @@ export async function collectG3VercelFunctionProof({
     if (invocations.get('api/telemetry/wizard')?.status !== 204)
       throw new Error('Telemetry function probe failed');
     const bootEvidence = {
-      command_or_artifact: 'vercel@55.0.0 build --prod; fresh .vercel/output/functions',
+      command_or_artifact:
+        'exact package.json/package-lock.json bytes matched prepared dependencies; vercel@55.0.0 build --prod with npm ls --all --offline; fresh .vercel/output/functions',
       probe:
         'invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204',
       result: `invoked ${functions.length} generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204`,
