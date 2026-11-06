@@ -24,8 +24,9 @@ describe('collector image security and prepared dependencies', () => {
       /^FROM --platform=linux\/amd64 node:22\.23\.4-alpine3\.24@sha256:[a-f0-9]{64}$/m
     );
     expect(dockerfile).toMatch(
-      /^FROM --platform=\$BUILDPLATFORM golang:1\.27\.3-alpine3\.24@sha256:[a-f0-9]{64} AS esbuild-build$/m
+      /^FROM --platform=\$BUILDPLATFORM golang:1\.26\.10-alpine3\.24@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS esbuild-build$/m
     );
+    expect(dockerfile).toMatch(/^ENV .*GOAMD64=v1(?:\s|$)/m);
     expect(dockerfile).toContain('npm install --global npm@11.21.2 --ignore-scripts');
     expect(dockerfile).toMatch(/^USER node$/m);
     expect(dockerfile).toContain('npm_config_offline=true');
@@ -55,6 +56,14 @@ describe('collector image security and prepared dependencies', () => {
     expect(installation.indexOf('npm cache clean --force')).toBeGreaterThan(
       installation.lastIndexOf('cp /rebuilt-esbuild/')
     );
+    expect(installation).toContain('Array.from({ length: 128 }');
+    expect(installation).toContain('await Promise.all(transforms)');
+    expect(installation).toContain('e.transform(source, { loader, define, supported })');
+    expect(installation).toContain('["js", "jsx", "ts", "tsx"]');
+    expect(installation).toContain(`[{ arrow: false }, { "template-literal": false }]`);
+    expect(installation).toContain('runInNewContext(code, context)');
+    expect(installation).toContain('context.result !== index * 2');
+    expect(installation).toContain('process.exit(1)');
   });
 
   it.skipIf(process.platform === 'win32').each([null, 'package.json', 'package-lock.json'])(

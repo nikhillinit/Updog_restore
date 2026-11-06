@@ -1,7 +1,7 @@
 # Rebuild the locked esbuild versions: upstream binaries still embed vulnerable Go.
 # Native compiler cross-compiles amd64; both official images are digest-pinned.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS esbuild-build
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOTOOLCHAIN=local
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine3.24@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS esbuild-build
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v1 GOTOOLCHAIN=local
 RUN go mod download github.com/evanw/esbuild@v0.25.12 github.com/evanw/esbuild@v0.27.0 \
     && cd /go/pkg/mod/github.com/evanw/esbuild@v0.25.12 \
     && go build -trimpath -ldflags="-s -w" -o /out/app/esbuild ./cmd/esbuild \
@@ -31,7 +31,7 @@ RUN --mount=type=bind,from=esbuild-build,source=/out,target=/rebuilt-esbuild \
     && npm ci --include=dev --ignore-scripts \
     && cp /rebuilt-esbuild/app/esbuild /opt/app/node_modules/@esbuild/linux-x64/bin/esbuild \
     && cp /rebuilt-esbuild/g3/esbuild /opt/g3/node_modules/@esbuild/linux-x64/bin/esbuild \
-    && node -e 'for (const root of ["/opt/app", "/opt/g3"]) { const e = require(root + "/node_modules/esbuild"); const {execFileSync} = require("node:child_process"); if (execFileSync(root + "/node_modules/@esbuild/linux-x64/bin/esbuild", ["--version"], {encoding:"utf8"}).trim() !== e.version) throw new Error("esbuild version mismatch"); e.transformSync("const x: number = 1", {loader:"ts"}); }' \
+    && node -e '(async () => { const loaders = ["js", "jsx", "ts", "tsx"]; const supportedOptions = [{ arrow: false }, { "template-literal": false }]; const { runInNewContext } = require("node:vm"); for (const root of ["/opt/app", "/opt/g3"]) { const e = require(root + "/node_modules/esbuild"); const { execFileSync } = require("node:child_process"); if (execFileSync(root + "/node_modules/@esbuild/linux-x64/bin/esbuild", ["--version"], { encoding: "utf8" }).trim() !== e.version) throw new Error("esbuild version mismatch"); const transforms = Array.from({ length: 128 }, (_, index) => { const loader = loaders[index % loaders.length]; const supported = supportedOptions[index % supportedOptions.length]; const define = { FLAG: String(index) }; const source = loader === "ts" || loader === "tsx" ? `const value${index}: number = FLAG + ${index}; globalThis.result = value${index}` : `const value${index} = FLAG + ${index}; globalThis.result = value${index}`; return e.transform(source, { loader, define, supported }).then(({ code }) => { const context = {}; runInNewContext(code, context); if (context.result !== index * 2) throw new Error(`esbuild concurrent transform mismatch: ${root}:${index}`); }); }); await Promise.all(transforms); e.stop(); } })().catch((error) => { console.error(error); process.exit(1); })' \
     && npm ls --all --prefix /opt/g3 \
     && npm ls --all \
     && npm cache clean --force \
