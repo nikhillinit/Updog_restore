@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent automated source review by /root/durable_independent_review at exact source d3b349b6ccac05791e210ccb37435c7073926c88, under direct user-authorized local reconciliation. Dockerfile.railway remains unchanged legacy API-container evidence; railway.toml is absent; both current Railway worker TOMLs select Dockerfile.worker; ADR-080 records legacy API-config retirement. Retain non-product-tooling for repository inventory only. Review is limited to this single re-proposed listener; no matrix rows or exposure assertions are newly reviewed. Report SHA-256 1882546573eb9f3528b4a29331316e10b1135914790a29e246d14e0920e40adb. Scanner remains blocked by 119 HIGH/CRITICAL findings, 35 unfixed. Proof is local S-only; final hosted/protected proof is absent. G1 closure preserved; G3 OPEN. This automated review is not human owner approval, source admission, merge authority, production readiness, or provider authorization."
+    "decision_evidence": "Independent automated review by /root/collector_independent_review at exact source e4c7ec8115d678f493a2b87a39ca55869de22f68. Dockerfile.railway and its two detected entrypoint patterns are unchanged. No railway.toml is tracked; railway.worker.toml and railway.capital-call-status.worker.toml select Dockerfile.worker. DECISIONS.md ADR-080 records the prior inventory-gated retirement of the legacy API config. Retain non-product-tooling for this unchanged legacy file; this local source review does not refresh live provider inventory or authorize retirement, deployment, provider mutation, or G3 closure."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -193,13 +193,13 @@
   {
     "candidate_path": "scripts/release/g3-vercel-build/Dockerfile",
     "listener_id": "tooling-scripts-release-g3-vercel-build-Dockerfile",
-    "fingerprint": "c3453afb0a4ab85e4051f6a7e5fc3bfd8994dfa096468ed30a7260cc5d569cd1",
+    "fingerprint": "5c3efeeef1bbace89052a267fa762883896aab1a18ee720d1b192e9c1bc40548",
     "evidence": [
       {
         "file": "scripts/release/g3-vercel-build/Dockerfile",
-        "line": 29,
+        "line": 47,
         "pattern": "container-http-entrypoint",
-        "text": "ENTRYPOINT [\"timeout\", \"--signal=KILL\", \"660s\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar --extract --file=/input/candidate.tar --directory=/candidate --no-same-owner; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+        "text": "ENTRYPOINT [\"timeout\", \"-s\", \"KILL\", \"660\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar -xof /input/candidate.tar -C /candidate; cmp /opt/app/package.json /candidate/package.json; cmp /opt/app/package-lock.json /candidate/package-lock.json; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
       }
     ],
     "disposition": "non-product-tooling",
@@ -207,12 +207,12 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 29,
-        "text": "ENTRYPOINT [\"timeout\", \"--signal=KILL\", \"660s\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar --extract --file=/input/candidate.tar --directory=/candidate --no-same-owner; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+        "line": 47,
+        "text": "ENTRYPOINT [\"timeout\", \"-s\", \"KILL\", \"660\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar -xof /input/candidate.tar -C /candidate; cmp /opt/app/package.json /candidate/package.json; cmp /opt/app/package-lock.json /candidate/package-lock.json; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent automated source review by /root/momus_review at exact source c53634af425e84b251f3c902dee6433255813640. Fingerprint identifies bounded one-shot offline Release Proof collector image. ENTRYPOINT extracts exact candidate, invokes collect-g3-vercel-function-proof.mjs, writes proof, and exits under timeout. It exposes no port and creates no persistent product listener or product route. Classified non-product-tooling. Review supports governed dry run only; no owner approval, provider evidence, merge, release, or protected-execution authority."
+    "decision_evidence": "Independent automated review by /root/collector_independent_review at exact source e4c7ec8115d678f493a2b87a39ca55869de22f68. Current Dockerfile line 47 defines a bounded one-shot offline proof collector: empty candidate/proof directories, archive extraction, exact root manifest comparison, prepared dependency copy, collector invocation, and a 660-second kill timeout. It declares no exposed port and creates no persistent product listener or product route. Refreshed evidence matches the exact S3 entrypoint. Exact image sha256:373047a2c01fe00c5dd3a53f4c4cfd322bf3e8779345b9343f06a2396ba4e1e9 completed the normal restricted offline collector and both generated handler probes; strict HIGH/CRITICAL scan with ignore-unfixed=false reports zero across OS, Node, and both Go binaries. Retain non-product-tooling. This supports local governed reconciliation only; G3 remains OPEN and no provider, merge, release, or protected-execution authority is transferred."
   },
   {
     "candidate_path": "scripts/run-f115-capital-planning-e2e.mjs",

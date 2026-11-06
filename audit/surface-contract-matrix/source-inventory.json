@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:3c10eaf58877ee33d6fc79031510aa273d4855110ac508dfcb68270c65de62a9",
+  "snapshot_id": "snapshot:14147ffb94e4f35d5b0a4121e6fb9e7e072fdbc07dc799c42eb639710efc013b",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -504,7 +504,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "92e69591202d1a5d97c0444c8c50ffdde851640beb6a8667f190a20479b97a8f",
+    "audit/surface-contract-matrix/boot-proofs.json": "78d154a6987df34837f56dd5a5efcdb6f23809cf72e897d8d674c2cee3fdcbb8",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
@@ -534,8 +534,8 @@
     "ml-service/Dockerfile": "8ca23536edbf6d40989a24e2b7a1a192928674bc2ea02f2e759550b9d374d7df",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
     "ml-service/test_app.py": "764c311665c4d24c79db1589374dbebb54b4c7055bc8e6c82b152bd1f3c4443b",
-    "package-lock.json": "e65fc5642307b6070e5b96bb578f0a92466a0bce03a665aef6dfd0c0d607c8e9",
-    "package.json": "e8a67b20c4416536766f16b8a731319c650f1acb7a9fa73f684f049bcb31baaf",
+    "package-lock.json": "660f132b130df623138e4848c381d4e2b8d9fe445eeacadf6946712b231ee9fd",
+    "package.json": "70702ad8ad6b27f2b51e90cd52d72720c22b1928124cb9e8526b8bcdd8f3a5f6",
     "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
     "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
@@ -11554,7 +11554,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:3c10eaf58877ee33d6fc79031510aa273d4855110ac508dfcb68270c65de62a9"
+      "snapshot:14147ffb94e4f35d5b0a4121e6fb9e7e072fdbc07dc799c42eb639710efc013b"
     ]
   },
   "kg_counts": {

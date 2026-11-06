@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "d3b349b6ccac05791e210ccb37435c7073926c88",
-    "snapshot_id": "snapshot:3c10eaf58877ee33d6fc79031510aa273d4855110ac508dfcb68270c65de62a9"
+    "git_head": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+    "snapshot_id": "snapshot:14147ffb94e4f35d5b0a4121e6fb9e7e072fdbc07dc799c42eb639710efc013b"
   },
   "rows": [
     {
@@ -38,10 +38,10 @@
           "auth_evidence": [],
           "boot_status": "proven",
           "boot_evidence": {
-            "command_or_artifact": "vercel@55.0.0 build --prod; fresh .vercel/output/functions",
+            "command_or_artifact": "exact package.json/package-lock.json bytes matched prepared dependencies; vercel@55.0.0 build --prod with npm ls --all --offline; fresh .vercel/output/functions",
             "probe": "invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204",
             "result": "invoked 2 generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204",
-            "observed_at": "proof:452a56b42a72d41aeb9dd271287153ab6c3f6177090133eddc8eeea7a76d95ef"
+            "observed_at": "proof:8014501c15bd3a7cfcb5e2491eb8d11641715e80c290f3039c7e7d69efd294ce"
           }
         }
       ],
@@ -95,11 +95,11 @@
       "decision_suggestion": "in-contract",
       "decision_override": "keep-and-prove",
       "decision_status": "approved",
-      "decision_evidence": "Independent automated review by /root/momus_review at exact source c53634af425e84b251f3c902dee6433255813640. Unit assertion confirms source handler completes valid step_loaded POST with 204. Separate provider-isolated local normal collector proves generated api/telemetry/wizard POST 204 and catch-all GET /api/version 200 at the same SHA; composed strict verification passes. Decision remains keep-and-prove because source admission, applicable provider identity, separately authorized protected Release Proof, and final G3 aggregate remain open. Evidence supports governed dry run only; it transfers no owner approval, source-admission, provider, merge, release, or protected-execution authority.",
+      "decision_evidence": "Independent automated review by /root/collector_independent_review at exact source e4c7ec8115d678f493a2b87a39ca55869de22f68. Unchanged api/telemetry/wizard.ts and its source-module unit assertion retain the valid step_loaded POST completed-204 contract. The separately verified exact-image, network-none local collector generated and invoked api/telemetry/wizard POST 204 and api/[...slug] GET /api/version 200; the governed composition preserves that function proof and exact source. The row is re-reviewed because current boot evidence changes its contract fingerprint. Keep-and-prove remains in effect: protected source admission, applicable provider identity, separately authorized protected Release Proof, and final G3 aggregate remain open. This scoped local review transfers no owner approval, source-admission, provider, merge, release, or protected-execution authority.",
       "closure_owner": "platform",
-      "closure_gate": "Blocking gate remains: admit exact source SHA c53634af425e84b251f3c902dee6433255813640 through required protected source and CI process, then separately authorize and run protected Release Proof under applicable provider identity at that same SHA. Proof must name generated api/telemetry/wizard and api/[...slug] functions, invoke POST /api/telemetry/wizard with a valid step_loaded body to an exact completed 204 response, invoke canonical GET /api/version to exact 200, preserve the admitted source SHA, and pass the unchanged strict G3 verifier.",
+      "closure_gate": "Blocking gate remains: admit exact source SHA e4c7ec8115d678f493a2b87a39ca55869de22f68 through required protected source and CI process, then separately authorize and run protected Release Proof under applicable provider identity at that same SHA. Proof must name generated api/telemetry/wizard and api/[...slug] functions, invoke POST /api/telemetry/wizard with a valid step_loaded body to an exact completed 204 response, invoke canonical GET /api/version to exact 200, preserve the admitted source SHA, and pass the unchanged strict G3 verifier.",
       "closure_acceptance": "Acceptance requires a protected source-admission receipt, applicable provider-identity binding, protected exact-SHA generated-function receipt for both named functions and invocations, composed evidence accepted by the strict G3 verifier, and final G3 aggregate PASS. Current provider-isolated local green proof supports behavior only and does not close G3.",
-      "contract_fingerprint": "eeb73fedf4d3f11caf5467e5c5f6de7ce500116d3d715a80835e23192fea072e",
+      "contract_fingerprint": "0edd8f377e69e0bd7225f1659ca588d1213e07bfe1e8cf23de892f301e14fc32",
       "approved_source_hashes": [
         "api/telemetry/wizard.ts=60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f"
       ],
@@ -117370,7 +117370,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:3c10eaf58877ee33d6fc79031510aa273d4855110ac508dfcb68270c65de62a9",
+      "snapshot_id": "snapshot:14147ffb94e4f35d5b0a4121e6fb9e7e072fdbc07dc799c42eb639710efc013b",
       "counts": {
         "APIEndpoint": 413,
         "ClientRoute": 44,
