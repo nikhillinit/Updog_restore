@@ -35,6 +35,7 @@ try {
   const genericControlPaths = [
     'audit/surface-contract-matrix/g3-c53634-scoped-review.json',
     'audit/surface-contract-matrix/g3-durable-ci-scoped-review.json',
+    'audit/surface-contract-matrix/g3-collector-security-scoped-review.json',
     'unrelated-secret.json',
   ];
   for (const relativePath of genericControlPaths) {
