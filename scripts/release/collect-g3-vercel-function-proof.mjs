@@ -170,6 +170,9 @@ export async function collectG3VercelFunctionProof({
       throw new Error('Invalid Vercel function output');
     if (!functions.some((entry) => entry.name === 'api/[...slug]'))
       throw new Error('Missing canonical catch-all');
+    if (!functions.some((entry) => entry.name === 'api/telemetry/wizard'))
+      throw new Error('Missing telemetry function');
+    const invocations = new Map();
     for (const entry of functions) {
       realPath(entry.entry, 'file');
       const relative = path.relative(functionsRoot, entry.entry);
@@ -195,13 +198,23 @@ export async function collectG3VercelFunctionProof({
         invocation.ok !== true ||
         invocation.result !== 'handler-response-completed'
       ) {
-        throw new Error('Vercel function probe failed');
+        throw new Error(
+          entry.name === 'api/telemetry/wizard'
+            ? 'Telemetry function probe failed'
+            : 'Vercel function probe failed'
+        );
       }
+      invocations.set(entry.name, invocation);
     }
+    if (invocations.get('api/[...slug]')?.status !== 200)
+      throw new Error('Canonical catch-all probe failed');
+    if (invocations.get('api/telemetry/wizard')?.status !== 204)
+      throw new Error('Telemetry function probe failed');
     const bootEvidence = {
       command_or_artifact: 'vercel@55.0.0 build --prod; fresh .vercel/output/functions',
-      probe: 'invoke every generated callable handler; api/[...slug]: GET /api/version exact 200',
-      result: `invoked ${functions.length} generated functions; catch-all GET /api/version=200`,
+      probe:
+        'invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204',
+      result: `invoked ${functions.length} generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204`,
     };
     return BootProofDocumentSchema.parse({
       schema_version: '1.1.0',

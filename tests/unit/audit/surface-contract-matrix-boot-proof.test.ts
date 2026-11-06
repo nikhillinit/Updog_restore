@@ -366,15 +366,24 @@ describe('surface contract matrix boot proof completion gates', () => {
 
   it('uses the canonical version route only for the Vercel catch-all function', () => {
     expect(vercelFunctionProbeRequest('api/[...slug]')).toEqual({
+      method: 'GET',
       path: '/api/version',
       expected_status: 200,
+      body: {},
     });
     expect(vercelFunctionProbeRequest('api/telemetry/wizard')).toEqual({
+      method: 'POST',
       path: '/api/telemetry/wizard',
+      expected_status: 204,
+      body: { type: 'step_loaded', step: 'g3-proof' },
     });
     expect(vercelFunctionResponseIsAcceptable('api/[...slug]', 200)).toBe(true);
     for (const status of [404, 405, 500, 503]) {
       expect(vercelFunctionResponseIsAcceptable('api/[...slug]', status)).toBe(false);
+    }
+    expect(vercelFunctionResponseIsAcceptable('api/telemetry/wizard', 204)).toBe(true);
+    for (const status of [200, 400, 405, 500]) {
+      expect(vercelFunctionResponseIsAcceptable('api/telemetry/wizard', status)).toBe(false);
     }
   });
 

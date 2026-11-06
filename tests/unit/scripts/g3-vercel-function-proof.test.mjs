@@ -29,7 +29,11 @@ const setup = () => {
   );
   return { candidateRoot, sourceSha: SHA };
 };
-const emit = (root, name = 'api/[...slug]', status = 200) => {
+const emit = (
+  root,
+  name = 'api/[...slug]',
+  status = name === 'api/telemetry/wizard' ? 204 : 200
+) => {
   const directory = path.join(root, '.vercel/output/functions', `${name}.func`);
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(
@@ -38,10 +42,19 @@ const emit = (root, name = 'api/[...slug]', status = 200) => {
   );
   fs.writeFileSync(
     path.join(directory, 'index.mjs'),
-    `export default (req, res) => { res.statusCode = ${status}; res.end(); };`
+    name === 'api/telemetry/wizard'
+      ? `export default (req, res) => {
+          if (req.method !== 'POST' || req.body?.type !== 'step_loaded') {
+            res.statusCode = 400;
+          } else {
+            res.statusCode = ${status};
+          }
+          res.end();
+        };`
+      : `export default (req, res) => { res.statusCode = ${status}; res.end(); };`
   );
 };
-const runner = (root, names = ['api/[...slug]']) =>
+const runner = (root, names = ['api/[...slug]', 'api/telemetry/wizard']) =>
   vi.fn(async () => {
     names.forEach((name) => emit(root, name));
     return { status: 0 };
@@ -67,11 +80,16 @@ describe('isolated Vercel function collector', () => {
     vi.stubEnv('VERCEL_TOKEN', 'ambient-token');
     vi.stubEnv('NODE_OPTIONS', '--require=ambient');
     vi.stubEnv('HTTPS_PROXY', 'ambient-proxy');
-    const runBuild = runner(input.candidateRoot, ['api/[...slug]', 'api/health']);
+    const runBuild = runner(input.candidateRoot, [
+      'api/[...slug]',
+      'api/health',
+      'api/telemetry/wizard',
+    ]);
     const invokeFunction = vi.fn((entry) => ({
       name: entry.name,
       ok: true,
       result: 'handler-response-completed',
+      status: entry.name === 'api/telemetry/wizard' ? 204 : 200,
     }));
     const proof = await collectG3VercelFunctionProof({ ...input, runBuild, invokeFunction });
     expect(proof).toMatchObject({
@@ -83,6 +101,7 @@ describe('isolated Vercel function collector', () => {
     expect(invokeFunction.mock.calls.map(([entry]) => entry.name)).toEqual([
       'api/[...slug]',
       'api/health',
+      'api/telemetry/wizard',
     ]);
     const [build] = runBuild.mock.calls[0];
     expect(build.argv).toEqual(['build', '--prod']);
@@ -158,9 +177,78 @@ describe('isolated Vercel function collector', () => {
     await expect(
       collectG3VercelFunctionProof({
         ...input,
-        runBuild: runner(input.candidateRoot, ['api/health']),
+        runBuild: runner(input.candidateRoot, ['api/health', 'api/telemetry/wizard']),
       })
     ).rejects.toThrow(/canonical catch-all/);
+  });
+
+  it('rejects catch-all-only output without the telemetry function', async () => {
+    const input = setup();
+    await expect(
+      collectG3VercelFunctionProof({
+        ...input,
+        runBuild: runner(input.candidateRoot, ['api/[...slug]']),
+      })
+    ).rejects.toThrow(/telemetry function/);
+  });
+
+  it('rejects otherwise callable output when the telemetry function is missing', async () => {
+    const input = setup();
+    await expect(
+      collectG3VercelFunctionProof({
+        ...input,
+        runBuild: runner(input.candidateRoot, ['api/[...slug]', 'api/health']),
+      })
+    ).rejects.toThrow(/telemetry function/);
+  });
+
+  it('rejects unsuccessful telemetry invocation', async () => {
+    const input = setup();
+    await expect(
+      collectG3VercelFunctionProof({
+        ...input,
+        runBuild: runner(input.candidateRoot),
+        invokeFunction: (entry) => ({
+          name: entry.name,
+          ok: entry.name !== 'api/telemetry/wizard',
+          result:
+            entry.name === 'api/telemetry/wizard'
+              ? 'handler-response-invalid'
+              : 'handler-response-completed',
+          status: entry.name === 'api/telemetry/wizard' ? 400 : 200,
+        }),
+      })
+    ).rejects.toThrow(/Telemetry function probe failed/);
+  });
+
+  it('rejects a completed telemetry invocation with the wrong success status', async () => {
+    const input = setup();
+    await expect(
+      collectG3VercelFunctionProof({
+        ...input,
+        runBuild: runner(input.candidateRoot),
+        invokeFunction: (entry) => ({
+          name: entry.name,
+          ok: true,
+          result: 'handler-response-completed',
+          status: 200,
+        }),
+      })
+    ).rejects.toThrow(/Telemetry function probe failed/);
+  });
+
+  it.each([200, 405])('rejects actual telemetry status %s', async (status) => {
+    const input = setup();
+    await expect(
+      collectG3VercelFunctionProof({
+        ...input,
+        runBuild: async () => {
+          emit(input.candidateRoot, 'api/[...slug]', 200);
+          emit(input.candidateRoot, 'api/telemetry/wizard', status);
+          return { status: 0 };
+        },
+      })
+    ).rejects.toThrow(/Telemetry function probe failed/);
   });
 
   it.each([201, 404, 503])('rejects actual catch-all status %s', async (status) => {
@@ -170,13 +258,14 @@ describe('isolated Vercel function collector', () => {
         ...input,
         runBuild: async () => {
           emit(input.candidateRoot, 'api/[...slug]', status);
+          emit(input.candidateRoot, 'api/telemetry/wizard');
           return { status: 0 };
         },
       })
     ).rejects.toThrow(/Vercel function probe failed/);
   });
 
-  it('accepts the actual generated callable catch-all at 200', async () => {
+  it('accepts actual generated callable catch-all at 200 and telemetry at 204', async () => {
     const input = setup();
     const result = await collectG3VercelFunctionProof({
       ...input,
@@ -240,6 +329,7 @@ describe('isolated Vercel function collector', () => {
     const runBuild = async () => {
       emit(input.candidateRoot);
       emit(input.candidateRoot, 'api/health');
+      emit(input.candidateRoot, 'api/telemetry/wizard');
       fs.writeFileSync(
         path.join(input.candidateRoot, '.vercel/output/functions/api/health.func/index.mjs'),
         'export default {};'

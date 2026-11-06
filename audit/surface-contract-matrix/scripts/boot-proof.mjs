@@ -707,9 +707,20 @@ export const vercelBuildOutputFunctions = (functionsRoot = path.join(repoRoot, '
   ...(error ? { entry: undefined, error } : resolveVercelFunctionHandler(directory)),
  }));
 
-export const vercelFunctionProbeRequest = (name) => name === 'api/[...slug]'
- ? { path: '/api/version', expected_status: 200 }
- : { path: `/${name}` };
+export const vercelFunctionProbeRequest = (name) => {
+  if (name === 'api/[...slug]') {
+    return { method: 'GET', path: '/api/version', expected_status: 200, body: {} };
+  }
+  if (name === 'api/telemetry/wizard') {
+    return {
+      method: 'POST',
+      path: '/api/telemetry/wizard',
+      expected_status: 204,
+      body: { type: 'step_loaded', step: 'g3-proof' },
+    };
+  }
+  return { method: 'GET', path: `/${name}`, body: {} };
+};
 
 export const vercelFunctionResponseIsAcceptable = (name, status) => {
  if (!Number.isInteger(status)) return false;
@@ -753,12 +764,12 @@ export const invokeVercelFunction = async ({ name, entry, error: entryError, res
  if (typeof handler !== 'function') return { name, ok: false, result: 'handler-export-missing' };
  const probeRequest = vercelFunctionProbeRequest(name);
  const request = {
-  method: 'GET',
+  method: probeRequest.method,
   url: probeRequest.path,
   originalUrl: probeRequest.path,
       headers: { host: '127.0.0.1' },
       query: {},
-      body: {},
+      body: probeRequest.body,
       socket: { remoteAddress: '127.0.0.1' },
       on() { return this; },
       once() { return this; },
@@ -788,7 +799,7 @@ export const invokeVercelFunction = async ({ name, entry, error: entryError, res
         result: 'handler-response-invalid',
       };
     }
-    return { name, ok: true, result: 'handler-response-completed' };
+    return { name, ok: true, result: 'handler-response-completed', status: response.statusCode };
   } catch {
     return { name, ok: false, result: 'handler-invocation-failed' };
   }
@@ -798,7 +809,8 @@ const VERCEL_FUNCTION_CHILD_CODE = String.raw`
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const [name, entry, requestPath, expectedStatusArgument, timeoutArgument] = process.argv.slice(1);
+const [name, entry, requestMethod, requestPath, requestBodyArgument, expectedStatusArgument, timeoutArgument] = process.argv.slice(1);
+const requestBody = JSON.parse(requestBodyArgument);
 const expectedStatus = expectedStatusArgument === '' ? undefined : Number(expectedStatusArgument);
 const responseTimeout = Number(timeoutArgument);
 const report = (result) => {
@@ -823,12 +835,12 @@ const response = {
   once() { return this; },
 };
 const request = {
- method: 'GET',
+ method: requestMethod,
  url: requestPath,
  originalUrl: requestPath,
   headers: { host: '127.0.0.1' },
   query: {},
-  body: {},
+  body: requestBody,
   socket: { remoteAddress: '127.0.0.1' },
   on() { return this; },
   once() { return this; },
@@ -861,8 +873,8 @@ try {
     ? response.statusCode >= 200 && response.statusCode < 500
     : response.statusCode === expectedStatus);
     report(completed && acceptableStatus
-      ? { name, ok: true, result: 'handler-response-completed' }
-      : { name, ok: false, result: 'handler-response-invalid' });
+      ? { name, ok: true, result: 'handler-response-completed', status: response.statusCode }
+      : { name, ok: false, result: 'handler-response-invalid', status: response.statusCode });
   }
 } catch {
   report({ name, ok: false, result: 'handler-invocation-failed' });
@@ -879,7 +891,8 @@ const validChildInvocation = (value, name) => value
   && typeof value === 'object'
   && value.name === name
   && typeof value.ok === 'boolean'
-  && typeof value.result === 'string';
+  && typeof value.result === 'string'
+  && (!value.ok || Number.isInteger(value.status));
 
 const isolatedFunctionCwd = (directory, entry) => {
   const cwd = directory ?? path.dirname(entry);
@@ -917,7 +930,9 @@ export const invokeVercelFunctionInIsolatedChild = ({
   '--',
   name,
   entry,
+  probeRequest.method,
   probeRequest.path,
+  JSON.stringify(probeRequest.body),
   String(probeRequest.expected_status ?? ''),
   String(responseTimeout),
   ], {

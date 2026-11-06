@@ -25,6 +25,23 @@ describe('wizard telemetry input and resource bounds', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
+  it('accepts a valid step-loaded POST with a completed 204 response', () => {
+    const res = response();
+    handler(
+      {
+        method: 'POST',
+        headers: {},
+        body: { type: 'step_loaded', step: 'g3-proof' },
+        socket: { remoteAddress: '127.0.0.1' },
+      } as never,
+      res as never
+    );
+
+    expect(res.status).toHaveBeenCalledExactlyOnceWith(204);
+    expect(res.end).toHaveBeenCalledExactlyOnceWith();
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
   it('logs only bounded client fields', () => {
     expect(
       sanitizeWizardTelemetry({
