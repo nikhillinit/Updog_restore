@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { runInNewContext } from 'node:vm';
 
+import picomatch from 'picomatch';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
@@ -25,6 +26,7 @@ type WorkflowStep = {
   name?: string;
   run?: string;
   shell?: string;
+  ['working-directory']?: string;
   ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
@@ -117,6 +119,55 @@ const AUTOMATION_SOURCE_EXTENSIONS = new Set([
 async function readWorkflow(name: string): Promise<Workflow> {
   const contents = await readFile(path.join(workflowsDir, name), 'utf8');
   return YAML.parse(contents) as Workflow;
+}
+
+async function readPathFilters(): Promise<Record<string, string[]>> {
+  const contents = await readFile(path.join(process.cwd(), '.github', 'path-filters.yml'), 'utf8');
+  return YAML.parse(contents) as Record<string, string[]>;
+}
+
+function matchesPathFilter(filters: Record<string, string[]>, filter: string, file: string): boolean {
+  return picomatch(filters[filter] ?? [], { dot: true })(file);
+}
+
+async function executeStepWithStubNpm(step: WorkflowStep, exitCode = 0): Promise<string> {
+  if (!step.run) throw new Error(`Workflow step has no run script: ${step.name ?? '(unnamed)'}`);
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-ci-npm-stub-'));
+  const npmPath = path.join(tempDir, 'npm');
+  const invocationPath = path.join(tempDir, 'invocations');
+  await writeFile(invocationPath, '');
+  await writeFile(
+    npmPath,
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'printf "%s\\t%s\\n" "$PWD" "$*" >> "$NPM_INVOCATIONS"',
+      'exit "${NPM_STUB_EXIT:-0}"',
+      '',
+    ].join('\n'),
+    { mode: 0o755 }
+  );
+
+  try {
+    await execFileAsync(
+      'bash',
+      ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run],
+      {
+        cwd: path.join(process.cwd(), step['working-directory'] ?? '.'),
+        env: {
+          ...process.env,
+          NPM_INVOCATIONS: invocationPath,
+          NPM_STUB_EXIT: String(exitCode),
+          PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
+        },
+        encoding: 'utf8',
+      }
+    );
+    return await readFile(invocationPath, 'utf8');
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 function allRunScripts(workflow: Workflow): string[] {
@@ -2816,6 +2867,10 @@ type GateEvaluatorScenario = {
   heavyCiRelevant?: boolean;
   affectedTestResult?: string;
   fullTestResult?: string;
+  dependencyRelevant?: boolean;
+  dependencyResult?: string;
+  g3VercelBuildCollector?: boolean | string;
+  prSecurityResult?: string;
   // Optional: isolate the surface-projection-audit require_result pairing
   // from every other gate feeder. Defaults reproduce the pre-existing
   // interpolation fallbacks (not expected, skipped) so scenarios that omit
@@ -2858,6 +2913,18 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   }
   if (normalized === 'needs.changes.outputs.heavy_ci_relevant') {
     return heavy ? 'true' : 'false';
+  }
+  if (normalized === 'needs.changes.outputs.g3_vercel_build_collector') {
+    if (typeof scenario.g3VercelBuildCollector === 'string') {
+      return scenario.g3VercelBuildCollector;
+    }
+    return scenario.g3VercelBuildCollector ? 'true' : 'false';
+  }
+  if (normalized === 'needs.pr-light-security.result') {
+    return scenario.prSecurityResult ?? 'skipped';
+  }
+  if (normalized === 'needs.dependency-validation.result') {
+    return scenario.dependencyResult ?? 'skipped';
   }
   if (
     ['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)
@@ -2902,6 +2969,20 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   if (normalized === 'needs.release-baseline.result') {
     return scenario.releaseBaselineResult ?? 'skipped';
   }
+  if (
+    normalized ===
+    "github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.pr_security == 'true' || needs.changes.outputs.g3_vercel_build_collector == 'true'))"
+  ) {
+    return scenario.g3VercelBuildCollector === true || scenario.g3VercelBuildCollector === 'true'
+      ? 'true'
+      : 'false';
+  }
+  if (
+    normalized ===
+    "github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true')"
+  ) {
+    return scenario.dependencyRelevant ? 'true' : 'false';
+  }
   if (normalized === 'needs.test-affected.result') return scenario.affectedTestResult ?? 'skipped';
   if (normalized.endsWith('.result')) return 'skipped';
   return 'false';
@@ -2934,6 +3015,57 @@ async function evaluateCiGateStatus(scenario: GateEvaluatorScenario): Promise<'p
       },
       encoding: 'utf8',
       maxBuffer: 2 * 1024 * 1024,
+    });
+    return 'passed';
+  } catch {
+    return 'failed';
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+type DeepSecurityGateScenario = {
+  changesResult?: string;
+  collectorRelevant?: string;
+  collectorResult?: string;
+  requiredResult?: string;
+  securityRelevant?: string;
+};
+
+async function evaluateDeepSecurityGate(
+  scenario: DeepSecurityGateScenario
+): Promise<'passed' | 'failed'> {
+  const workflow = await readWorkflow('security-scan.yml');
+  const gate = (workflow.jobs?.['security-scan']?.steps ?? []).find(
+    (step) => step.name === 'Determine security scan status'
+  );
+  if (!gate?.run) throw new Error('Security Deep Scan evaluator not found');
+
+  const requiredResult = scenario.requiredResult ?? 'success';
+  const substitutions: Record<string, string> = {
+    'needs.changes.result': scenario.changesResult ?? 'success',
+    'needs.changes.outputs.security_relevant': scenario.securityRelevant ?? 'true',
+    'needs.changes.outputs.g3_vercel_build_collector': scenario.collectorRelevant ?? 'false',
+    'needs.filesystem-scan.result': requiredResult,
+    'needs.container-scan.result': requiredResult,
+    'needs.collector-container-scan.result': scenario.collectorResult ?? 'skipped',
+    'needs.license-check.result': requiredResult,
+    'needs.dependency-check.result': requiredResult,
+    'needs.sbom.result': requiredResult,
+  };
+  const evaluator = gate.run.replace(
+    /\$\{\{([\s\S]*?)\}\}/g,
+    (_match, expression: string) => substitutions[expression.trim()] ?? ''
+  );
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-security-gate-'));
+  const summaryPath = path.join(tempDir, 'summary.md');
+  await writeFile(summaryPath, '');
+
+  try {
+    await execFileAsync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', evaluator], {
+      cwd: process.cwd(),
+      env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath },
+      encoding: 'utf8',
     });
     return 'passed';
   } catch {
@@ -4555,6 +4687,93 @@ describe('required CI fails closed', () => {
     expect(hasBoundedRetries(commentPrStatus)).toBe(true);
   });
 
+  it('routes every G3 collector toolchain input through dependency and security filters', async () => {
+    const filters = await readPathFilters();
+    const nestedInputs = [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ];
+
+    for (const file of nestedInputs) {
+      for (const filter of [
+        'dependency',
+        'pr_security',
+        'security_relevant',
+        'g3_vercel_build_collector',
+      ]) {
+        expect(matchesPathFilter(filters, filter, file), `${filter}:${file}`).toBe(true);
+      }
+    }
+
+    for (const file of ['package.json', 'package-lock.json', '.dockerignore']) {
+      expect(matchesPathFilter(filters, 'g3_vercel_build_collector', file), file).toBe(true);
+    }
+    const explicitCollectorEntries = (filters['g3_vercel_build_collector'] ?? []).filter(
+      (file) => !file.split('').some((character) => '?*[]{}()'.includes(character))
+    );
+    expect(explicitCollectorEntries.length).toBeGreaterThan(0);
+    for (const file of explicitCollectorEntries) {
+      expect(matchesPathFilter(filters, 'pr_security', file), `pr_security:${file}`).toBe(true);
+      expect(
+        matchesPathFilter(filters, 'security_relevant', file),
+        `security_relevant:${file}`
+      ).toBe(true);
+    }
+    expect(matchesPathFilter(filters, 'g3_vercel_build_collector', 'docs/collector.md')).toBe(
+      false
+    );
+  });
+
+  it('keeps root and G3 collector npm manifests under separate Dependabot ownership', async () => {
+    const config = YAML.parse(
+      await readFile(path.join(process.cwd(), '.github', 'dependabot.yml'), 'utf8')
+    ) as { updates?: { directory?: string; ['package-ecosystem']?: string }[] };
+    const npmDirectories = (config.updates ?? [])
+      .filter((entry) => entry['package-ecosystem'] === 'npm')
+      .map((entry) => entry.directory);
+
+    expect(npmDirectories).toContain('/');
+    expect(npmDirectories).toContain('/scripts/release/g3-vercel-build');
+  });
+
+  it('executes nested install, tree validation, and critical audit in the collector directory', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const steps = workflow.jobs?.['dependency-validation']?.steps ?? [];
+    const expected = [
+      ['Install G3 Vercel build dependencies', 'ci --ignore-scripts'],
+      ['Validate G3 Vercel build dependency tree', 'ls --all'],
+      [
+        'Audit G3 Vercel build production dependencies',
+        'audit --omit=dev --audit-level=critical',
+      ],
+    ] as const;
+    const nestedDirectory = path.join(process.cwd(), 'scripts/release/g3-vercel-build');
+
+    for (const [name, args] of expected) {
+      const step = steps.find((candidate) => candidate.name === name);
+      expect(step?.['working-directory'], name).toBe('scripts/release/g3-vercel-build');
+      expect(await executeStepWithStubNpm(step as WorkflowStep), name).toBe(
+        `${nestedDirectory}\t${args}\n`
+      );
+    }
+  });
+
+  it.each([
+    'Install G3 Vercel build dependencies',
+    'Validate G3 Vercel build dependency tree',
+    'Audit G3 Vercel build production dependencies',
+  ])('keeps nested dependency step blocking: %s', async (name) => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const step = workflow.jobs?.['dependency-validation']?.steps?.find(
+      (candidate) => candidate.name === name
+    );
+
+    await expect(executeStepWithStubNpm(step as WorkflowStep, 17)).rejects.toMatchObject({
+      code: 17,
+    });
+  });
+
   it('makes critical and high Trivy findings blocking', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const requiredSecurityJob = workflow.jobs?.['pr-light-security'];
@@ -4562,15 +4781,46 @@ describe('required CI fails closed', () => {
       step.uses?.includes('aquasecurity/trivy-action')
     );
 
-    expect(trivySteps).toHaveLength(2);
-    expect(trivySteps.map((step) => step.with?.['scan-type'])).toEqual(['fs', 'image']);
+    expect(trivySteps).toHaveLength(3);
+    expect(
+      trivySteps.map((step) => ({
+        image: step.with?.['image-ref'],
+        name: step.name,
+        scanRef: step.with?.['scan-ref'],
+        scanType: step.with?.['scan-type'],
+      }))
+    ).toEqual([
+      { image: undefined, name: 'Trivy filesystem scan', scanRef: '.', scanType: 'fs' },
+      {
+        image: 'updog-pr:${{ github.sha }}',
+        name: 'Trivy container scan',
+        scanRef: undefined,
+        scanType: 'image',
+      },
+      {
+        image: 'updog-g3-vercel-build-pr:${{ github.sha }}',
+        name: 'Trivy G3 Vercel build collector container scan',
+        scanRef: undefined,
+        scanType: 'image',
+      },
+    ]);
     for (const step of trivySteps) {
       expect(String(step.with?.severity)).toBe('CRITICAL,HIGH');
       expect(String(step.with?.['exit-code'])).toBe('1');
     }
 
+    const collectorBuild = requiredSecurityJob?.steps?.find(
+      (step) => step.name === 'Build G3 Vercel build collector image'
+    );
+    expect(collectorBuild?.run).toContain('docker build');
+    expect(collectorBuild?.run).toContain('--platform linux/amd64');
+    expect(collectorBuild?.run).toContain(
+      '--file scripts/release/g3-vercel-build/Dockerfile'
+    );
+    expect(collectorBuild?.run?.trim().endsWith('.')).toBe(true);
+
     const deepScanWorkflow = await readWorkflow('security-scan.yml');
-    for (const jobName of ['filesystem-scan', 'container-scan']) {
+    for (const jobName of ['filesystem-scan', 'container-scan', 'collector-container-scan']) {
       const sarifStep = deepScanWorkflow.jobs?.[jobName]?.steps?.find((step) =>
         step.uses?.includes('aquasecurity/trivy-action')
       );
@@ -4579,6 +4829,13 @@ describe('required CI fails closed', () => {
       expect(String(sarifStep?.with?.['limit-severities-for-sarif'])).toBe('true');
       expect(String(sarifStep?.with?.['exit-code'])).toBe('1');
     }
+    const collectorSarif = deepScanWorkflow.jobs?.['collector-container-scan']?.steps?.find(
+      (step) => step.uses?.includes('aquasecurity/trivy-action')
+    );
+    expect(collectorSarif?.with?.['image-ref']).toBe('updog-g3-vercel-build:latest');
+    expect(collectorSarif?.with?.output).toBe(
+      'trivy-g3-vercel-build-container-results.sarif'
+    );
 
     const gateNeeds = workflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
@@ -4612,6 +4869,9 @@ describe('required CI fails closed', () => {
     expect(changes?.outputs?.security_relevant).toBe(
       "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}"
     );
+    expect(changes?.outputs?.g3_vercel_build_collector).toBe(
+      "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.g3_vercel_build_collector == 'true' }}"
+    );
     for (const jobName of [
       'filesystem-scan',
       'container-scan',
@@ -4623,6 +4883,9 @@ describe('required CI fails closed', () => {
         "needs.changes.outputs.security_relevant == 'true'"
       );
     }
+    expect(workflow.jobs?.['collector-container-scan']?.if).toBe(
+      "needs.changes.outputs.g3_vercel_build_collector == 'true'"
+    );
     const aggregate = workflow.jobs?.['security-scan'];
     expect(aggregate?.if).toBe('always()');
     expect(normalizeNeeds(aggregate?.needs)).toEqual(
@@ -4630,6 +4893,7 @@ describe('required CI fails closed', () => {
         'changes',
         'filesystem-scan',
         'container-scan',
+        'collector-container-scan',
         'license-check',
         'dependency-check',
         'sbom',
@@ -4640,6 +4904,59 @@ describe('required CI fails closed', () => {
       .join('\n');
     expect(aggregateScript).toContain('Change detection failed');
     expect(aggregateScript).toContain('security deep scan skipped');
+  });
+
+  it('passes Deep aggregation for every collector input only after its scan succeeds', async () => {
+    const filters = await readPathFilters();
+    for (const file of [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ]) {
+      const collectorRelevant = String(
+        matchesPathFilter(filters, 'g3_vercel_build_collector', file)
+      );
+      const securityRelevant = String(matchesPathFilter(filters, 'security_relevant', file));
+      await expect(
+        evaluateDeepSecurityGate({
+          collectorRelevant,
+          collectorResult: 'success',
+          securityRelevant,
+        }),
+        file
+      ).resolves.toBe('passed');
+    }
+  });
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails Deep aggregation when required collector scan is %j',
+    async (collectorResult) => {
+      await expect(
+        evaluateDeepSecurityGate({
+          collectorRelevant: 'true',
+          collectorResult,
+          securityRelevant: 'true',
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['', 'missing', 'TRUE'])(
+    'fails Deep aggregation before fast path on malformed collector classification %j',
+    async (collectorRelevant) => {
+      await expect(
+        evaluateDeepSecurityGate({ collectorRelevant, securityRelevant: 'false' })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it('fails Deep aggregation before fast path on collector/security classification mismatch', async () => {
+    await expect(
+      evaluateDeepSecurityGate({ collectorRelevant: 'true', securityRelevant: 'false' })
+    ).resolves.toBe('failed');
+    await expect(
+      evaluateDeepSecurityGate({ collectorRelevant: 'false', securityRelevant: 'false' })
+    ).resolves.toBe('passed');
   });
 
   it('runs secret scanning inside the required CI aggregator', async () => {
@@ -7445,6 +7762,81 @@ describe('required CI fails closed', () => {
           financialTruthResult: 'success',
         })
       ).resolves.toBe(expected);
+    }
+  );
+
+  it('requires both nested dependency and PR security feeders for every collector input', async () => {
+    const filters = await readPathFilters();
+    const nestedInputs = [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ];
+
+    for (const file of nestedInputs) {
+      const dependencyRelevant = matchesPathFilter(filters, 'dependency', file);
+      const prSecurityRelevant = matchesPathFilter(filters, 'pr_security', file);
+      const collectorRelevant = matchesPathFilter(filters, 'g3_vercel_build_collector', file);
+      expect({ collectorRelevant, dependencyRelevant, prSecurityRelevant }, file).toEqual({
+        collectorRelevant: true,
+        dependencyRelevant: true,
+        prSecurityRelevant: true,
+      });
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant,
+          dependencyResult: 'success',
+          fullTestResult: 'success',
+          g3VercelBuildCollector: collectorRelevant,
+          heavyCiRelevant: true,
+          prSecurityResult: 'success',
+        }),
+        file
+      ).resolves.toBe('passed');
+    }
+  });
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails the collector gate when dependency validation is %j',
+    async (dependencyResult) => {
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant: true,
+          dependencyResult,
+          fullTestResult: 'success',
+          g3VercelBuildCollector: true,
+          heavyCiRelevant: true,
+          prSecurityResult: 'success',
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails the collector gate when PR light security is %j',
+    async (prSecurityResult) => {
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant: true,
+          dependencyResult: 'success',
+          fullTestResult: 'success',
+          g3VercelBuildCollector: true,
+          heavyCiRelevant: true,
+          prSecurityResult,
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['', 'missing', 'TRUE'])(
+    'fails the CI gate on malformed collector classification %j',
+    async (g3VercelBuildCollector) => {
+      await expect(
+        evaluateCiGateStatus({ g3VercelBuildCollector })
+      ).resolves.toBe('failed');
     }
   );
 

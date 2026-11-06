@@ -77,6 +77,31 @@ updates:
       prefix-development: 'chore(deps-dev)'
       include: 'scope'
 
+  # G3 Vercel build collector dependencies - weekly updates
+  - package-ecosystem: npm
+    directory: '/scripts/release/g3-vercel-build'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: America/New_York
+    open-pull-requests-limit: 10
+    groups:
+      production-dependencies:
+        dependency-type: 'production'
+        update-types:
+          - 'minor'
+          - 'patch'
+    reviewers:
+      - 'nikhillinit'
+    labels:
+      - 'dependencies'
+      - 'automated'
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: 'scope'
+
   # GitHub Actions - daily security updates
   - package-ecosystem: github-actions
     directory: '/'
