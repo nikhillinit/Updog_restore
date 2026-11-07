@@ -9,6 +9,120 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 describe('build-vercel-api', () => {
+  it.skipIf(process.platform === 'win32')(
+    'keeps the Linux Node-builder hook to API prebundling after Vercel owns frontend preparation',
+    () => {
+      const scenario = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          String.raw`
+          import { spawnSync } from 'node:child_process';
+          import {
+            copyFileSync,
+            existsSync,
+            mkdirSync,
+            mkdtempSync,
+            readFileSync,
+            rmSync,
+            symlinkSync,
+            writeFileSync,
+          } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
+
+          const sourceRoot = process.argv[1];
+          const fixtureRoot = mkdtempSync(join(tmpdir(), 'vercel-build-contract-'));
+          const fixtureBin = join(fixtureRoot, 'bin');
+          try {
+            const packageJson = JSON.parse(readFileSync(join(sourceRoot, 'package.json'), 'utf8'));
+            const vercel = JSON.parse(readFileSync(join(sourceRoot, 'vercel.json'), 'utf8'));
+            mkdirSync(join(fixtureRoot, 'scripts'), { recursive: true });
+            mkdirSync(join(fixtureRoot, 'server'), { recursive: true });
+            mkdirSync(join(fixtureRoot, 'api'), { recursive: true });
+            mkdirSync(join(fixtureRoot, 'dist', 'public'), { recursive: true });
+            mkdirSync(join(fixtureRoot, 'node_modules'), { recursive: true });
+            mkdirSync(fixtureBin, { recursive: true });
+            copyFileSync(
+              join(sourceRoot, 'scripts', 'clean-spa-dist.mjs'),
+              join(fixtureRoot, 'scripts', 'clean-spa-dist.mjs')
+            );
+            copyFileSync(
+              join(sourceRoot, 'scripts', 'build-vercel-api.mjs'),
+              join(fixtureRoot, 'scripts', 'build-vercel-api.mjs')
+            );
+            symlinkSync(
+              join(sourceRoot, 'node_modules', 'esbuild'),
+              join(fixtureRoot, 'node_modules', 'esbuild'),
+              'dir'
+            );
+            writeFileSync(
+              join(fixtureRoot, 'package.json'),
+              JSON.stringify({
+                type: 'module',
+                scripts: {
+                  'clean:spa-dist': packageJson.scripts['clean:spa-dist'],
+                  'build:web': packageJson.scripts['build:web'],
+                  'vercel-build': packageJson.scripts['vercel-build'],
+                },
+              })
+            );
+            writeFileSync(join(fixtureRoot, 'vercel.json'), JSON.stringify(vercel));
+            writeFileSync(join(fixtureRoot, 'tsconfig.server.json'), '{}');
+            writeFileSync(join(fixtureRoot, 'server', 'app.ts'), 'export const makeApp = () => ({});');
+            writeFileSync(join(fixtureRoot, 'dist', 'index.html'), 'stale SPA output');
+            writeFileSync(
+              join(fixtureBin, 'npx'),
+              '#!/bin/sh\nset -eu\ntest "$1" = vite\ntest "$2" = build\nmode=react\nif test "\${3:-}" = --mode; then\n  test "$4" = preact\n  mode=preact\nfi\necho "$mode" >> "$VERCEL_BUILD_CONTRACT_LOG"\nmkdir -p dist/public\nprintf "%s" "$mode" > dist/public/frontend-mode\n'
+            );
+            const chmod = spawnSync('chmod', ['755', join(fixtureBin, 'npx')]);
+            if (chmod.status !== 0) throw new Error(chmod.stderr);
+            const log = join(fixtureRoot, 'frontend.log');
+            const env = {
+              PATH: fixtureBin + ':' + process.env.PATH,
+              HOME: fixtureRoot,
+              TZ: 'UTC',
+              npm_config_offline: 'true',
+              npm_config_userconfig: '/dev/null',
+              npm_config_globalconfig: join(fixtureRoot, 'global.npmrc'),
+              npm_config_update_notifier: 'false',
+              VERCEL_BUILD_CONTRACT_LOG: log,
+            };
+            const run = (command, args = []) => {
+              const result = spawnSync(command, args, { cwd: fixtureRoot, env, encoding: 'utf8', timeout: 15000 });
+              if (result.status !== 0) throw new Error(result.stderr || result.stdout || command + ' failed');
+            };
+            run('/bin/sh', ['-c', vercel.buildCommand]);
+            // Pinned @vercel/node runs the hook separately for each API entrypoint.
+            run('npm', ['run', 'vercel-build']);
+            run('npm', ['run', 'vercel-build']);
+            console.log('RESULT:' + JSON.stringify({
+              frontendRuns: readFileSync(log, 'utf8').trim().split(String.fromCharCode(10)).length,
+              frontendMode: readFileSync(join(fixtureRoot, 'dist', 'public', 'frontend-mode'), 'utf8'),
+              apiBundleExists: existsSync(join(fixtureRoot, 'api', '_app.generated.mjs')),
+            }));
+          } finally {
+            rmSync(fixtureRoot, { recursive: true, force: true });
+          }
+        `,
+          root,
+        ],
+        { cwd: root, encoding: 'utf8', timeout: 45000 }
+      );
+
+      expect(scenario.status, scenario.stderr || scenario.stdout).toBe(0);
+      const line = scenario.stdout
+        .trim()
+        .split('\n')
+        .find((output) => output.startsWith('RESULT:'));
+      expect(line).toBeDefined();
+      const result = JSON.parse(line.slice('RESULT:'.length));
+
+      expect(result).toEqual({ frontendRuns: 1, frontendMode: 'preact', apiBundleExists: true });
+    }
+  );
+
   it('excludes test helpers from the deployed API function', () => {
     const inspect = spawnSync(
       process.execPath,

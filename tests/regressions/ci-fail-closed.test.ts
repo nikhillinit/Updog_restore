@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { runInNewContext } from 'node:vm';
 
+import picomatch from 'picomatch';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
@@ -25,6 +26,7 @@ type WorkflowStep = {
   name?: string;
   run?: string;
   shell?: string;
+  ['working-directory']?: string;
   ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
@@ -117,6 +119,55 @@ const AUTOMATION_SOURCE_EXTENSIONS = new Set([
 async function readWorkflow(name: string): Promise<Workflow> {
   const contents = await readFile(path.join(workflowsDir, name), 'utf8');
   return YAML.parse(contents) as Workflow;
+}
+
+async function readPathFilters(): Promise<Record<string, string[]>> {
+  const contents = await readFile(path.join(process.cwd(), '.github', 'path-filters.yml'), 'utf8');
+  return YAML.parse(contents) as Record<string, string[]>;
+}
+
+function matchesPathFilter(filters: Record<string, string[]>, filter: string, file: string): boolean {
+  return picomatch(filters[filter] ?? [], { dot: true })(file);
+}
+
+async function executeStepWithStubNpm(step: WorkflowStep, exitCode = 0): Promise<string> {
+  if (!step.run) throw new Error(`Workflow step has no run script: ${step.name ?? '(unnamed)'}`);
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-ci-npm-stub-'));
+  const npmPath = path.join(tempDir, 'npm');
+  const invocationPath = path.join(tempDir, 'invocations');
+  await writeFile(invocationPath, '');
+  await writeFile(
+    npmPath,
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'printf "%s\\t%s\\n" "$PWD" "$*" >> "$NPM_INVOCATIONS"',
+      'exit "${NPM_STUB_EXIT:-0}"',
+      '',
+    ].join('\n'),
+    { mode: 0o755 }
+  );
+
+  try {
+    await execFileAsync(
+      'bash',
+      ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run],
+      {
+        cwd: path.join(process.cwd(), step['working-directory'] ?? '.'),
+        env: {
+          ...process.env,
+          NPM_INVOCATIONS: invocationPath,
+          NPM_STUB_EXIT: String(exitCode),
+          PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
+        },
+        encoding: 'utf8',
+      }
+    );
+    return await readFile(invocationPath, 'utf8');
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 function allRunScripts(workflow: Workflow): string[] {
@@ -2816,6 +2867,10 @@ type GateEvaluatorScenario = {
   heavyCiRelevant?: boolean;
   affectedTestResult?: string;
   fullTestResult?: string;
+  dependencyRelevant?: boolean;
+  dependencyResult?: string;
+  g3VercelBuildCollector?: boolean | string;
+  prSecurityResult?: string;
   // Optional: isolate the surface-projection-audit require_result pairing
   // from every other gate feeder. Defaults reproduce the pre-existing
   // interpolation fallbacks (not expected, skipped) so scenarios that omit
@@ -2858,6 +2913,18 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   }
   if (normalized === 'needs.changes.outputs.heavy_ci_relevant') {
     return heavy ? 'true' : 'false';
+  }
+  if (normalized === 'needs.changes.outputs.g3_vercel_build_collector') {
+    if (typeof scenario.g3VercelBuildCollector === 'string') {
+      return scenario.g3VercelBuildCollector;
+    }
+    return scenario.g3VercelBuildCollector ? 'true' : 'false';
+  }
+  if (normalized === 'needs.pr-light-security.result') {
+    return scenario.prSecurityResult ?? 'skipped';
+  }
+  if (normalized === 'needs.dependency-validation.result') {
+    return scenario.dependencyResult ?? 'skipped';
   }
   if (
     ['needs.check.result', 'needs.build.result', 'needs.release-static.result'].includes(normalized)
@@ -2902,6 +2969,20 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   if (normalized === 'needs.release-baseline.result') {
     return scenario.releaseBaselineResult ?? 'skipped';
   }
+  if (
+    normalized ===
+    "github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.pr_security == 'true' || needs.changes.outputs.g3_vercel_build_collector == 'true'))"
+  ) {
+    return scenario.g3VercelBuildCollector === true || scenario.g3VercelBuildCollector === 'true'
+      ? 'true'
+      : 'false';
+  }
+  if (
+    normalized ===
+    "github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true')"
+  ) {
+    return scenario.dependencyRelevant ? 'true' : 'false';
+  }
   if (normalized === 'needs.test-affected.result') return scenario.affectedTestResult ?? 'skipped';
   if (normalized.endsWith('.result')) return 'skipped';
   return 'false';
@@ -2934,6 +3015,57 @@ async function evaluateCiGateStatus(scenario: GateEvaluatorScenario): Promise<'p
       },
       encoding: 'utf8',
       maxBuffer: 2 * 1024 * 1024,
+    });
+    return 'passed';
+  } catch {
+    return 'failed';
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+type DeepSecurityGateScenario = {
+  changesResult?: string;
+  collectorRelevant?: string;
+  collectorResult?: string;
+  requiredResult?: string;
+  securityRelevant?: string;
+};
+
+async function evaluateDeepSecurityGate(
+  scenario: DeepSecurityGateScenario
+): Promise<'passed' | 'failed'> {
+  const workflow = await readWorkflow('security-scan.yml');
+  const gate = (workflow.jobs?.['security-scan']?.steps ?? []).find(
+    (step) => step.name === 'Determine security scan status'
+  );
+  if (!gate?.run) throw new Error('Security Deep Scan evaluator not found');
+
+  const requiredResult = scenario.requiredResult ?? 'success';
+  const substitutions: Record<string, string> = {
+    'needs.changes.result': scenario.changesResult ?? 'success',
+    'needs.changes.outputs.security_relevant': scenario.securityRelevant ?? 'true',
+    'needs.changes.outputs.g3_vercel_build_collector': scenario.collectorRelevant ?? 'false',
+    'needs.filesystem-scan.result': requiredResult,
+    'needs.container-scan.result': requiredResult,
+    'needs.collector-container-scan.result': scenario.collectorResult ?? 'skipped',
+    'needs.license-check.result': requiredResult,
+    'needs.dependency-check.result': requiredResult,
+    'needs.sbom.result': requiredResult,
+  };
+  const evaluator = gate.run.replace(
+    /\$\{\{([\s\S]*?)\}\}/g,
+    (_match, expression: string) => substitutions[expression.trim()] ?? ''
+  );
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-security-gate-'));
+  const summaryPath = path.join(tempDir, 'summary.md');
+  await writeFile(summaryPath, '');
+
+  try {
+    await execFileAsync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', evaluator], {
+      cwd: process.cwd(),
+      env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath },
+      encoding: 'utf8',
     });
     return 'passed';
   } catch {
@@ -4555,6 +4687,93 @@ describe('required CI fails closed', () => {
     expect(hasBoundedRetries(commentPrStatus)).toBe(true);
   });
 
+  it('routes every G3 collector toolchain input through dependency and security filters', async () => {
+    const filters = await readPathFilters();
+    const nestedInputs = [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ];
+
+    for (const file of nestedInputs) {
+      for (const filter of [
+        'dependency',
+        'pr_security',
+        'security_relevant',
+        'g3_vercel_build_collector',
+      ]) {
+        expect(matchesPathFilter(filters, filter, file), `${filter}:${file}`).toBe(true);
+      }
+    }
+
+    for (const file of ['package.json', 'package-lock.json', '.dockerignore']) {
+      expect(matchesPathFilter(filters, 'g3_vercel_build_collector', file), file).toBe(true);
+    }
+    const explicitCollectorEntries = (filters['g3_vercel_build_collector'] ?? []).filter(
+      (file) => !file.split('').some((character) => '?*[]{}()'.includes(character))
+    );
+    expect(explicitCollectorEntries.length).toBeGreaterThan(0);
+    for (const file of explicitCollectorEntries) {
+      expect(matchesPathFilter(filters, 'pr_security', file), `pr_security:${file}`).toBe(true);
+      expect(
+        matchesPathFilter(filters, 'security_relevant', file),
+        `security_relevant:${file}`
+      ).toBe(true);
+    }
+    expect(matchesPathFilter(filters, 'g3_vercel_build_collector', 'docs/collector.md')).toBe(
+      false
+    );
+  });
+
+  it('keeps root and G3 collector npm manifests under separate Dependabot ownership', async () => {
+    const config = YAML.parse(
+      await readFile(path.join(process.cwd(), '.github', 'dependabot.yml'), 'utf8')
+    ) as { updates?: { directory?: string; ['package-ecosystem']?: string }[] };
+    const npmDirectories = (config.updates ?? [])
+      .filter((entry) => entry['package-ecosystem'] === 'npm')
+      .map((entry) => entry.directory);
+
+    expect(npmDirectories).toContain('/');
+    expect(npmDirectories).toContain('/scripts/release/g3-vercel-build');
+  });
+
+  it('executes nested install, tree validation, and critical audit in the collector directory', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const steps = workflow.jobs?.['dependency-validation']?.steps ?? [];
+    const expected = [
+      ['Install G3 Vercel build dependencies', 'ci --ignore-scripts'],
+      ['Validate G3 Vercel build dependency tree', 'ls --all'],
+      [
+        'Audit G3 Vercel build production dependencies',
+        'audit --omit=dev --audit-level=critical',
+      ],
+    ] as const;
+    const nestedDirectory = path.join(process.cwd(), 'scripts/release/g3-vercel-build');
+
+    for (const [name, args] of expected) {
+      const step = steps.find((candidate) => candidate.name === name);
+      expect(step?.['working-directory'], name).toBe('scripts/release/g3-vercel-build');
+      expect(await executeStepWithStubNpm(step as WorkflowStep), name).toBe(
+        `${nestedDirectory}\t${args}\n`
+      );
+    }
+  });
+
+  it.each([
+    'Install G3 Vercel build dependencies',
+    'Validate G3 Vercel build dependency tree',
+    'Audit G3 Vercel build production dependencies',
+  ])('keeps nested dependency step blocking: %s', async (name) => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const step = workflow.jobs?.['dependency-validation']?.steps?.find(
+      (candidate) => candidate.name === name
+    );
+
+    await expect(executeStepWithStubNpm(step as WorkflowStep, 17)).rejects.toMatchObject({
+      code: 17,
+    });
+  });
+
   it('makes critical and high Trivy findings blocking', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const requiredSecurityJob = workflow.jobs?.['pr-light-security'];
@@ -4562,15 +4781,46 @@ describe('required CI fails closed', () => {
       step.uses?.includes('aquasecurity/trivy-action')
     );
 
-    expect(trivySteps).toHaveLength(2);
-    expect(trivySteps.map((step) => step.with?.['scan-type'])).toEqual(['fs', 'image']);
+    expect(trivySteps).toHaveLength(3);
+    expect(
+      trivySteps.map((step) => ({
+        image: step.with?.['image-ref'],
+        name: step.name,
+        scanRef: step.with?.['scan-ref'],
+        scanType: step.with?.['scan-type'],
+      }))
+    ).toEqual([
+      { image: undefined, name: 'Trivy filesystem scan', scanRef: '.', scanType: 'fs' },
+      {
+        image: 'updog-pr:${{ github.sha }}',
+        name: 'Trivy container scan',
+        scanRef: undefined,
+        scanType: 'image',
+      },
+      {
+        image: 'updog-g3-vercel-build-pr:${{ github.sha }}',
+        name: 'Trivy G3 Vercel build collector container scan',
+        scanRef: undefined,
+        scanType: 'image',
+      },
+    ]);
     for (const step of trivySteps) {
       expect(String(step.with?.severity)).toBe('CRITICAL,HIGH');
       expect(String(step.with?.['exit-code'])).toBe('1');
     }
 
+    const collectorBuild = requiredSecurityJob?.steps?.find(
+      (step) => step.name === 'Build G3 Vercel build collector image'
+    );
+    expect(collectorBuild?.run).toContain('docker build');
+    expect(collectorBuild?.run).toContain('--platform linux/amd64');
+    expect(collectorBuild?.run).toContain(
+      '--file scripts/release/g3-vercel-build/Dockerfile'
+    );
+    expect(collectorBuild?.run?.trim().endsWith('.')).toBe(true);
+
     const deepScanWorkflow = await readWorkflow('security-scan.yml');
-    for (const jobName of ['filesystem-scan', 'container-scan']) {
+    for (const jobName of ['filesystem-scan', 'container-scan', 'collector-container-scan']) {
       const sarifStep = deepScanWorkflow.jobs?.[jobName]?.steps?.find((step) =>
         step.uses?.includes('aquasecurity/trivy-action')
       );
@@ -4579,6 +4829,13 @@ describe('required CI fails closed', () => {
       expect(String(sarifStep?.with?.['limit-severities-for-sarif'])).toBe('true');
       expect(String(sarifStep?.with?.['exit-code'])).toBe('1');
     }
+    const collectorSarif = deepScanWorkflow.jobs?.['collector-container-scan']?.steps?.find(
+      (step) => step.uses?.includes('aquasecurity/trivy-action')
+    );
+    expect(collectorSarif?.with?.['image-ref']).toBe('updog-g3-vercel-build:latest');
+    expect(collectorSarif?.with?.output).toBe(
+      'trivy-g3-vercel-build-container-results.sarif'
+    );
 
     const gateNeeds = workflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
@@ -4612,6 +4869,9 @@ describe('required CI fails closed', () => {
     expect(changes?.outputs?.security_relevant).toBe(
       "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}"
     );
+    expect(changes?.outputs?.g3_vercel_build_collector).toBe(
+      "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.g3_vercel_build_collector == 'true' }}"
+    );
     for (const jobName of [
       'filesystem-scan',
       'container-scan',
@@ -4623,6 +4883,9 @@ describe('required CI fails closed', () => {
         "needs.changes.outputs.security_relevant == 'true'"
       );
     }
+    expect(workflow.jobs?.['collector-container-scan']?.if).toBe(
+      "needs.changes.outputs.g3_vercel_build_collector == 'true'"
+    );
     const aggregate = workflow.jobs?.['security-scan'];
     expect(aggregate?.if).toBe('always()');
     expect(normalizeNeeds(aggregate?.needs)).toEqual(
@@ -4630,6 +4893,7 @@ describe('required CI fails closed', () => {
         'changes',
         'filesystem-scan',
         'container-scan',
+        'collector-container-scan',
         'license-check',
         'dependency-check',
         'sbom',
@@ -4640,6 +4904,59 @@ describe('required CI fails closed', () => {
       .join('\n');
     expect(aggregateScript).toContain('Change detection failed');
     expect(aggregateScript).toContain('security deep scan skipped');
+  });
+
+  it('passes Deep aggregation for every collector input only after its scan succeeds', async () => {
+    const filters = await readPathFilters();
+    for (const file of [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ]) {
+      const collectorRelevant = String(
+        matchesPathFilter(filters, 'g3_vercel_build_collector', file)
+      );
+      const securityRelevant = String(matchesPathFilter(filters, 'security_relevant', file));
+      await expect(
+        evaluateDeepSecurityGate({
+          collectorRelevant,
+          collectorResult: 'success',
+          securityRelevant,
+        }),
+        file
+      ).resolves.toBe('passed');
+    }
+  });
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails Deep aggregation when required collector scan is %j',
+    async (collectorResult) => {
+      await expect(
+        evaluateDeepSecurityGate({
+          collectorRelevant: 'true',
+          collectorResult,
+          securityRelevant: 'true',
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['', 'missing', 'TRUE'])(
+    'fails Deep aggregation before fast path on malformed collector classification %j',
+    async (collectorRelevant) => {
+      await expect(
+        evaluateDeepSecurityGate({ collectorRelevant, securityRelevant: 'false' })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it('fails Deep aggregation before fast path on collector/security classification mismatch', async () => {
+    await expect(
+      evaluateDeepSecurityGate({ collectorRelevant: 'true', securityRelevant: 'false' })
+    ).resolves.toBe('failed');
+    await expect(
+      evaluateDeepSecurityGate({ collectorRelevant: 'false', securityRelevant: 'false' })
+    ).resolves.toBe('passed');
   });
 
   it('runs secret scanning inside the required CI aggregator', async () => {
@@ -5057,9 +5374,7 @@ describe('required CI fails closed', () => {
       } as never).join('\n');
       expect(verdictScripts).toContain('[[ "$CHARACTERIZATION_RESULT" == success ]]');
       const proofScripts = allRunScripts(proofWorkflow).join('\n');
-      expect(proofScripts).toContain(
-        'boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"'
-      );
+      expect(proofScripts).toContain('boot-proof.mjs --output "$RUNNER_TEMP/g3-local-boot.json"');
       const bootProofImplementation = await readFile(
         path.join(process.cwd(), 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
         'utf8'
@@ -5089,15 +5404,11 @@ describe('required CI fails closed', () => {
       expect(proofScripts).not.toContain('backboard.railway.app');
       expect(proofScripts).not.toContain('me {');
       expect(proofWorkflow.jobs?.['full-release-proof']?.environment).toBeUndefined();
-      const strictBootStep = proofWorkflow.jobs?.['protected-boot-proof']?.steps?.find(
-        (step) => step.name === 'Run strict Vercel boot proof'
+      const localBootStep = proofWorkflow.jobs?.['protected-boot-proof']?.steps?.find(
+        (step) => step.name === 'Collect local boot proof'
       );
-      expect(strictBootStep?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
-      expect(strictBootStep?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
-      expect(strictBootStep?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
-      expect(strictBootStep?.run).toContain(
-        'VERCEL_TOKEN:?VERCEL_TOKEN required strict Vercel build proof'
-      );
+      expect(localBootStep?.run).not.toContain('--require-g3');
+      expect(localBootStep?.env ?? {}).not.toHaveProperty('VERCEL_TOKEN');
       const localEvidenceStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
         (step) => step.name === 'Run exact local and matrix evidence'
       );
@@ -7454,6 +7765,81 @@ describe('required CI fails closed', () => {
     }
   );
 
+  it('requires both nested dependency and PR security feeders for every collector input', async () => {
+    const filters = await readPathFilters();
+    const nestedInputs = [
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+    ];
+
+    for (const file of nestedInputs) {
+      const dependencyRelevant = matchesPathFilter(filters, 'dependency', file);
+      const prSecurityRelevant = matchesPathFilter(filters, 'pr_security', file);
+      const collectorRelevant = matchesPathFilter(filters, 'g3_vercel_build_collector', file);
+      expect({ collectorRelevant, dependencyRelevant, prSecurityRelevant }, file).toEqual({
+        collectorRelevant: true,
+        dependencyRelevant: true,
+        prSecurityRelevant: true,
+      });
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant,
+          dependencyResult: 'success',
+          fullTestResult: 'success',
+          g3VercelBuildCollector: collectorRelevant,
+          heavyCiRelevant: true,
+          prSecurityResult: 'success',
+        }),
+        file
+      ).resolves.toBe('passed');
+    }
+  });
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails the collector gate when dependency validation is %j',
+    async (dependencyResult) => {
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant: true,
+          dependencyResult,
+          fullTestResult: 'success',
+          g3VercelBuildCollector: true,
+          heavyCiRelevant: true,
+          prSecurityResult: 'success',
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['failure', 'skipped', 'cancelled', ''])(
+    'fails the collector gate when PR light security is %j',
+    async (prSecurityResult) => {
+      await expect(
+        evaluateCiGateStatus({
+          affectedTestResult: 'success',
+          dependencyRelevant: true,
+          dependencyResult: 'success',
+          fullTestResult: 'success',
+          g3VercelBuildCollector: true,
+          heavyCiRelevant: true,
+          prSecurityResult,
+        })
+      ).resolves.toBe('failed');
+    }
+  );
+
+  it.each(['', 'missing', 'TRUE'])(
+    'fails the CI gate on malformed collector classification %j',
+    async (g3VercelBuildCollector) => {
+      await expect(
+        evaluateCiGateStatus({ g3VercelBuildCollector })
+      ).resolves.toBe('failed');
+    }
+  );
+
   it.each([
     ['success', 'success', 'passed'],
     ['success', 'skipped', 'failed'],
@@ -7919,17 +8305,254 @@ describe('required CI fails closed', () => {
     );
   });
 
+  it('isolates protected G3 collection and composes only fresh exact-SHA evidence', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const job = workflow.jobs?.['protected-boot-proof'];
+    const steps = job?.steps ?? [];
+    const scripts = allRunScripts({ jobs: { protected: job } }).join('\n');
+    const names = steps.map((step) => step.name);
+    expect(job?.if).toContain("needs.proof-contract.outputs.proof_mode == 'certifying'");
+    expect(job?.environment).toBe('Production');
+    expect(job?.permissions).toEqual({ contents: 'read' });
+    expect(job?.['timeout-minutes']).toBe(30);
+    expect(names[0]).toBe('Admit protected main candidate');
+    const checkout = steps.find((step) => step.uses?.startsWith('actions/checkout@'));
+    expect(checkout?.with).toMatchObject({
+      ref: '${{ needs.full-release-proof.outputs.candidate_sha }}',
+      'persist-credentials': false,
+    });
+    const ordered = [
+      'Admit protected main candidate',
+      'Checkout exact release commit',
+      'Prepare exact candidate archive',
+      'Collect local boot proof',
+      'Build isolated collector image',
+      'Collect generated function proof offline',
+      'Take ownership of function proof',
+      'Recheck protected main candidate',
+      'Compose strict boot proof',
+      'Verify strict boot proof',
+    ].map((name) => names.indexOf(name));
+    expect(ordered.every((index) => index >= 0)).toBe(true);
+    expect(ordered).toEqual([...ordered].sort((a, b) => a - b));
+    expect(JSON.stringify(job)).not.toMatch(
+      /secrets\.|VERCEL_TOKEN|VERCEL_ORG_ID|VERCEL_PROJECT_ID|RAILWAY_TOKEN/
+    );
+    expect(scripts).not.toMatch(/vercel\s+(deploy|pull|link|promote)|railway\s+(up|deploy)/);
+    expect(steps.every((step) => step['continue-on-error'] === undefined)).toBe(true);
+    expect(steps.filter((step) => step.env?.GH_TOKEN)).toHaveLength(2);
+    for (const step of steps.filter((step) => step.env?.GH_TOKEN)) {
+      expect(step.env?.GH_TOKEN).toBe('${{ github.token }}');
+      expect(step.run).toContain('commits/main');
+    }
+    const archive =
+      steps.find((step) => step.name === 'Prepare exact candidate archive')?.run ?? '';
+    expect(archive).toContain('git rev-parse HEAD');
+    expect(archive).toContain('git archive --format=tar "$CANDIDATE_SHA"');
+    expect(archive).toContain('mktemp -d');
+    expect(archive).toContain('umask 077');
+    const build = steps.find((step) => step.name === 'Build isolated collector image')?.run ?? '';
+    expect(build).toContain('DOCKER_CONFIG="$G3_BUILD_ROOT/docker-config"');
+    expect(build).toContain('--iidfile "$G3_BUILD_ROOT/image-id"');
+    const collect =
+      steps.find((step) => step.name === 'Collect generated function proof offline')?.run ?? '';
+    for (const required of [
+      '--network none',
+      '--cap-drop ALL',
+      '--security-opt no-new-privileges',
+      '--user node',
+      '--platform linux/amd64',
+    ]) {
+      expect(collect).toContain(required);
+    }
+    expect(collect.match(/--mount /g)).toHaveLength(2);
+    expect(collect).toContain('target=/input/candidate.tar,readonly');
+    expect(collect).toContain('target=/proof');
+    expect(collect).not.toMatch(/--env|-e |docker.sock/);
+    const compose = steps.find((step) => step.name === 'Compose strict boot proof')?.run ?? '';
+    expect(compose).toContain('compose-g3-boot-proofs.mjs');
+    expect(compose).toContain('--local "$RUNNER_TEMP/g3-local-boot.json"');
+    expect(compose).toContain('--function "$G3_BUILD_ROOT/proof/g3-vercel-function.json"');
+    expect(compose).toContain('--expected-sha "$CANDIDATE_SHA"');
+    expect(compose).toContain('--output "$RUNNER_TEMP/g3-boot-proofs.json"');
+    expect(
+      normalizeNeeds(
+        (await readWorkflow('release-production.yml')).jobs?.['stage-production']?.needs
+      )
+    ).toContain('release-proof');
+  });
+
+  it('archives committed source into a private minimal collector context', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const script = workflow.jobs?.['protected-boot-proof']?.steps?.find(
+      (step) => step.name === 'Prepare exact candidate archive'
+    )?.run;
+    expect(script).toBeTypeOf('string');
+    const fixture = await mkdtemp(path.join(os.tmpdir(), 'g3-archive-'));
+    const repo = path.join(fixture, 'repo');
+    const temporary = path.join(fixture, 'runner');
+    const environment = path.join(fixture, 'github-env');
+    const manifests = [
+      'package.json',
+      'package-lock.json',
+      'scripts/release/g3-vercel-build/Dockerfile',
+      'scripts/release/g3-vercel-build/package.json',
+      'scripts/release/g3-vercel-build/package-lock.json',
+    ];
+    try {
+      await execFileAsync('mkdir', [
+        '-p',
+        path.join(repo, 'scripts/release/g3-vercel-build'),
+        temporary,
+      ]);
+      for (const name of manifests) await writeFile(path.join(repo, name), 'committed\n');
+      const env = {
+        PATH: process.env['PATH'],
+        HOME: fixture,
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_AUTHOR_NAME: 'G3 fixture',
+        GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+        GIT_COMMITTER_NAME: 'G3 fixture',
+        GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+      };
+      await execFileAsync('git', ['init', '--quiet'], { cwd: repo, env });
+      await execFileAsync('git', ['add', '.'], { cwd: repo, env });
+      await execFileAsync(
+        'git',
+        ['-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', 'test: archive fixture'],
+        { cwd: repo, env }
+      );
+      const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repo, env });
+      await writeFile(path.join(repo, 'package.json'), 'dirty workspace\n');
+      await writeFile(path.join(repo, 'untracked-secret'), 'must stay outside archive\n');
+      await execFileAsync('/bin/bash', ['--noprofile', '--norc', '-c', script ?? 'exit 92'], {
+        cwd: repo,
+        env: {
+          ...env,
+          CANDIDATE_SHA: stdout.trim(),
+          RUNNER_TEMP: temporary,
+          GITHUB_ENV: environment,
+        },
+      });
+      const buildRoot = (await readFile(environment, 'utf8')).trim().replace('G3_BUILD_ROOT=', '');
+      expect(buildRoot.startsWith(temporary + path.sep)).toBe(true);
+      expect(await readFile(path.join(buildRoot, 'context/package.json'), 'utf8')).toBe(
+        'committed\n'
+      );
+      expect(await readdir(path.join(buildRoot, 'docker-config'))).toEqual([]);
+      expect(await readdir(path.join(buildRoot, 'proof'))).toEqual([]);
+      const archive = await execFileAsync('tar', ['-tf', path.join(buildRoot, 'candidate.tar')]);
+      expect(archive.stdout).not.toContain('untracked-secret');
+      await expect(
+        execFileAsync('/bin/bash', ['--noprofile', '--norc', '-c', script ?? 'exit 92'], {
+          cwd: repo,
+          env: {
+            ...env,
+            CANDIDATE_SHA: 'b'.repeat(40),
+            RUNNER_TEMP: temporary,
+            GITHUB_ENV: environment,
+          },
+        })
+      ).rejects.toThrow();
+      expect((await readdir(temporary)).length).toBe(1);
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('hands off only a regular generated proof file and rejects missing or linked output', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const script = workflow.jobs?.['protected-boot-proof']?.steps?.find(
+      (step) => step.name === 'Take ownership of function proof'
+    )?.run;
+    expect(script).toContain('chown --no-dereference --');
+    const fixture = await mkdtemp(path.join(os.tmpdir(), 'g3-ownership-'));
+    const proof = path.join(fixture, 'proof/g3-vercel-function.json');
+    const marker = path.join(fixture, 'chown-called');
+    try {
+      await execFileAsync('mkdir', ['-p', path.dirname(proof)]);
+      await writeFile(
+        path.join(fixture, 'sudo'),
+        '#!/bin/sh\n[ "$1" = chown ] && [ "$2" = --no-dereference ] && [ "$3" = -- ] && [ "$5" = "$G3_BUILD_ROOT/proof/g3-vercel-function.json" ] || exit 91\n: > "$G3_BUILD_ROOT/chown-called"\n',
+        { mode: 0o755 }
+      );
+      const execute = () =>
+        execFileAsync('/bin/bash', ['--noprofile', '--norc', '-c', script ?? 'exit 92'], {
+          env: {
+            PATH: `${fixture}:${process.env['PATH'] ?? ''}`,
+            HOME: fixture,
+            G3_BUILD_ROOT: fixture,
+          },
+        });
+      await expect(execute()).rejects.toThrow();
+      await expect(access(marker)).rejects.toThrow();
+      await writeFile(path.join(fixture, 'unrelated'), 'preserve');
+      await execFileAsync('ln', ['-s', path.join(fixture, 'unrelated'), proof]);
+      await expect(execute()).rejects.toThrow();
+      await expect(access(marker)).rejects.toThrow();
+      await rm(proof);
+      await writeFile(proof, '{}\n', { mode: 0o600 });
+      await execute();
+      await access(marker);
+      expect(await readFile(path.join(fixture, 'unrelated'), 'utf8')).toBe('preserve');
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('executes both protected main guards fail-closed before candidate work', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const steps = workflow.jobs?.['protected-boot-proof']?.steps ?? [];
+    const guards = ['Admit protected main candidate', 'Recheck protected main candidate'].map(
+      (name) => steps.find((step) => step.name === name)?.run
+    );
+    expect(guards.every((script) => typeof script === 'string')).toBe(true);
+    const fixture = await mkdtemp(path.join(os.tmpdir(), 'g3-admission-'));
+    const sha = 'a'.repeat(40);
+    try {
+      await writeFile(
+        path.join(fixture, 'gh'),
+        '#!/bin/sh\n[ "$*" = "api repos/example/repo/commits/main --jq .sha" ] || exit 91\nprintf "%s\n" "$TEST_LIVE_SHA"\nexit "$TEST_GH_EXIT"\n',
+        { mode: 0o755 }
+      );
+      for (const script of guards) {
+        for (const scenario of [
+          { ref: 'refs/heads/main', candidate: sha, live: sha, exit: '0', pass: true },
+          { ref: 'refs/heads/feature', candidate: sha, live: sha, exit: '0', pass: false },
+          { ref: 'refs/heads/main', candidate: sha, live: 'b'.repeat(40), exit: '0', pass: false },
+          { ref: 'refs/heads/main', candidate: sha, live: '', exit: '1', pass: false },
+          { ref: 'refs/heads/main', candidate: 'bad', live: 'bad', exit: '0', pass: false },
+        ]) {
+          let passed = true;
+          try {
+            await execFileAsync('/bin/bash', ['--noprofile', '--norc', '-c', script ?? 'exit 92'], {
+              cwd: fixture,
+              env: {
+                PATH: fixture,
+                HOME: fixture,
+                GITHUB_REF: scenario.ref,
+                GITHUB_REPOSITORY: 'example/repo',
+                CANDIDATE_SHA: scenario.candidate,
+                TEST_LIVE_SHA: scenario.live,
+                TEST_GH_EXIT: scenario.exit,
+                GH_TOKEN: 'hermetic-test-token',
+              },
+            });
+          } catch {
+            passed = false;
+          }
+          expect(passed, JSON.stringify(scenario)).toBe(scenario.pass);
+        }
+      }
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('preflights Production credentials and re-fences certifying proof to live main', async () => {
     const workflow = await readWorkflow('release-proof.yml');
     const productionCredentials = [
-      [
-        'protected-boot-proof',
-        {
-          VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
-          VERCEL_ORG_ID: '${{ vars.VERCEL_ORG_ID }}',
-          VERCEL_PROJECT_ID: '${{ vars.VERCEL_PROJECT_ID }}',
-        },
-      ],
       [
         'provider-identity',
         {

@@ -20,6 +20,7 @@ jobs:
     outputs:
       auto_docs_only: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
       security_relevant: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}
+      g3_vercel_build_collector: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.g3_vercel_build_collector == 'true' }}
     steps:
       - name: Checkout repository
         if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
@@ -89,6 +90,41 @@ jobs:
         with:
           sarif_file: trivy-container-results.sarif
           category: trivy-container
+
+  collector-container-scan:
+    name: Trivy G3 Vercel build collector container scan
+    needs: changes
+    if: needs.changes.outputs.g3_vercel_build_collector == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Build G3 Vercel build collector image
+        run: >-
+          docker build
+          --platform linux/amd64
+          --file scripts/release/g3-vercel-build/Dockerfile
+          --tag updog-g3-vercel-build:latest
+          .
+
+      - name: Run Trivy G3 Vercel build collector container scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: updog-g3-vercel-build:latest
+          format: sarif
+          output: trivy-g3-vercel-build-container-results.sarif
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          exit-code: '1'
+          version: v0.72.0
+
+      - name: Upload Trivy G3 Vercel build collector results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4.39.1
+        if: ${{ always() && hashFiles('trivy-g3-vercel-build-container-results.sarif') != '' }}
+        with:
+          sarif_file: trivy-g3-vercel-build-container-results.sarif
+          category: trivy-g3-vercel-build-container
 
   license-check:
     name: License allowlist
@@ -168,6 +204,7 @@ jobs:
       - changes
       - filesystem-scan
       - container-scan
+      - collector-container-scan
       - license-check
       - dependency-check
       - sbom
@@ -181,7 +218,22 @@ jobs:
             exit 1
           fi
 
-          if [[ "${{ needs.changes.outputs.security_relevant }}" != "true" ]]; then
+          security_relevant="${{ needs.changes.outputs.security_relevant }}"
+          collector_relevant="${{ needs.changes.outputs.g3_vercel_build_collector }}"
+          if [[ "$security_relevant" != "true" && "$security_relevant" != "false" ]]; then
+            echo "security_relevant output is missing or malformed: $security_relevant"
+            exit 1
+          fi
+          if [[ "$collector_relevant" != "true" && "$collector_relevant" != "false" ]]; then
+            echo "g3_vercel_build_collector output is missing or malformed: $collector_relevant"
+            exit 1
+          fi
+          if [[ "$collector_relevant" == "true" && "$security_relevant" != "true" ]]; then
+            echo "g3_vercel_build_collector=true requires security_relevant=true"
+            exit 1
+          fi
+
+          if [[ "$security_relevant" != "true" ]]; then
             echo "security_relevant=false; security deep scan skipped." >> "$GITHUB_STEP_SUMMARY"
             echo "security-scan required context passed through relevance fast path." >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -199,6 +251,12 @@ jobs:
 
           require_success "filesystem-scan" "${{ needs.filesystem-scan.result }}"
           require_success "container-scan" "${{ needs.container-scan.result }}"
+          if [[ "$collector_relevant" == "true" ]]; then
+            require_success "collector-container-scan" "${{ needs.collector-container-scan.result }}"
+          elif [[ "${{ needs.collector-container-scan.result }}" != "skipped" ]]; then
+            echo "collector-container-scan had unexpected result: ${{ needs.collector-container-scan.result }}"
+            fail=1
+          fi
           require_success "license-check" "${{ needs.license-check.result }}"
           require_success "dependency-check" "${{ needs.dependency-check.result }}"
           require_success "sbom" "${{ needs.sbom.result }}"

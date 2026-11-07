@@ -13,12 +13,12 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 58,
+        "line": 60,
         "text": "CMD [\"node\", \"-e\", \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\"]"
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 67,
+        "line": 69,
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Independent native Codex scoped review by /root/matrix_reviewer on 2026-11-01 at source 8ac781b7a6849cd98c1bb43b47dfc3d80a6d925e, protected base 1c63f06a66280b510543fe8e8778812d75b9b9e5, snapshot snapshot:698b0a4411ec3af36aac488b971feffb447bfd75a3ddf210bcbe14f84cfe91f6. Reviewed only unresolved listeners:legacy-dockerfile-railway; zero matrix rows are demoted. Dockerfile.railway sha256 76812404e468324e9993b820ea30f73ccf6c65a867560b25d99c02f65190ba8b and listener fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 are unchanged from protected base; direct source scan independently reproduces health-check and application entrypoint sites at Dockerfile.railway:43 and :47. railway.toml is absent. Both worker TOMLs bind Dockerfile.worker; QUEUE_CATALOG productionDisposition names only the fund-scenario-calc and capital-call-status Railway workers. ADR-080 records retirement of the legacy Railway API config. seed-matrix.mjs mergeListenerDispositions deliberately proposes this legacy listener on every reseed, so status loss does not establish topology drift. Existing non-product-tooling source classification is supported. Matrix rows, coverage_review, and historical g1_closure are byte-identical to source HEAD; g1_closure also matches protected base. This is native review evidence, not human-equivalent approval, current provider inventory proof, or merge, release, deployment, or production authorization; owner approval remains separate."
+    "decision_evidence": "Independent automated source review by /root/musl_independent_review at exact source 3fe0edb2abb7952308e3b841d94af3541256fbce after governed retry1. Dockerfile.railway and its two entrypoint patterns are unchanged. No railway.toml is tracked; both current Railway worker TOMLs select Dockerfile.worker. ADR-080 records prior inventory-gated legacy API-config retirement. Retain non-product-tooling for this single re-proposed listener in repository inventory only. No rows or exposure assertions are newly reviewed. Fresh ML proof passed without ML source changes; original failed proof remains retained with cause unknown. G1 closure preserved; G3 OPEN. Full application AMD64 build and ARM64 HTTP smoke remain unproven/failed. Automated review is not human owner approval, source admission, release approval, live provider inventory verification, or authority for provider mutation."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -189,6 +189,30 @@
     ],
     "decision_status": "approved",
     "decision_evidence": "UNAPPROVED proposal for listeners:tooling-scripts-orchestrate-ts; semantics rebound to source 511e292f34c10003aff9cfabaac0e79f91ce8ab6 and candidate 46a8d25268ab43b83aea5fa49f028d6eaed396168d6fcd028debaa7ae63e9420. Requires explicit human owner approval."
+  },
+  {
+    "candidate_path": "scripts/release/g3-vercel-build/Dockerfile",
+    "listener_id": "tooling-scripts-release-g3-vercel-build-Dockerfile",
+    "fingerprint": "5c3efeeef1bbace89052a267fa762883896aab1a18ee720d1b192e9c1bc40548",
+    "evidence": [
+      {
+        "file": "scripts/release/g3-vercel-build/Dockerfile",
+        "line": 47,
+        "pattern": "container-http-entrypoint",
+        "text": "ENTRYPOINT [\"timeout\", \"-s\", \"KILL\", \"660\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar -xof /input/candidate.tar -C /candidate; cmp /opt/app/package.json /candidate/package.json; cmp /opt/app/package-lock.json /candidate/package-lock.json; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+      }
+    ],
+    "disposition": "non-product-tooling",
+    "rationale": "Local development or orchestration listener; not a product deployment surface.",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 47,
+        "text": "ENTRYPOINT [\"timeout\", \"-s\", \"KILL\", \"660\", \"sh\", \"-eu\", \"-c\", \"test -z \\\"$(ls -A /candidate)\\\"; test -z \\\"$(ls -A /proof)\\\"; tar -xof /input/candidate.tar -C /candidate; cmp /opt/app/package.json /candidate/package.json; cmp /opt/app/package-lock.json /candidate/package-lock.json; cp -a /opt/app/node_modules /candidate/node_modules; exec node /candidate/scripts/release/collect-g3-vercel-function-proof.mjs --expected-sha \\\"$1\\\" --output /proof/g3-vercel-function.json\", \"g3-vercel-proof\"]"
+      }
+    ],
+    "decision_status": "approved",
+    "decision_evidence": "Independent automated review by /root/collector_independent_review at exact source e4c7ec8115d678f493a2b87a39ca55869de22f68. Current Dockerfile line 47 defines a bounded one-shot offline proof collector: empty candidate/proof directories, archive extraction, exact root manifest comparison, prepared dependency copy, collector invocation, and a 660-second kill timeout. It declares no exposed port and creates no persistent product listener or product route. Refreshed evidence matches the exact S3 entrypoint. Exact image sha256:373047a2c01fe00c5dd3a53f4c4cfd322bf3e8779345b9343f06a2396ba4e1e9 completed the normal restricted offline collector and both generated handler probes; strict HIGH/CRITICAL scan with ignore-unfixed=false reports zero across OS, Node, and both Go binaries. Retain non-product-tooling. This supports local governed reconciliation only; G3 remains OPEN and no provider, merge, release, or protected-execution authority is transferred."
   },
   {
     "candidate_path": "scripts/run-f115-capital-planning-e2e.mjs",

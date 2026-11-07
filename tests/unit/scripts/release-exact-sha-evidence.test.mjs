@@ -349,6 +349,11 @@ describe('exact SHA release evidence', () => {
     const duplicate = successfulBootProof();
     duplicate.proofs.push({ ...duplicate.proofs[0], boot_status: 'failed' });
     expect(() => verifyG3BootProof(duplicate, SHA)).toThrow(/duplicate proof/i);
+    const unavailableVercelFunction = successfulBootProof();
+    unavailableVercelFunction.proofs[1].boot_status = 'unproven';
+    expect(() => verifyG3BootProof(unavailableVercelFunction, SHA)).toThrow(
+      /vercel-api\|vercel_function is not uniquely proven/i
+    );
     const unrelatedDuplicate = successfulBootProof();
     unrelatedDuplicate.proofs.push(
       { deployment: 'vercel-web', runtime: 'client_router', boot_status: 'proven', boot_evidence: { command_or_artifact: 'fixture', probe: 'fixture', result: 'fixture', observed_at: 'fixture' } },

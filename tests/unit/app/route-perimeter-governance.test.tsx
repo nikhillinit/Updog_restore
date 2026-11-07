@@ -106,8 +106,23 @@ vi.mock('@/pages/help', () => ({ default: () => <div>Help Page</div> }));
 vi.mock('@/pages/fund-model-results', () => ({
   default: () => <div>Fund Model Results Page</div>,
 }));
+vi.mock('@/pages/fund-scenario-workspace', () => ({
+  default: () => <div>Fund Scenario Workspace Page</div>,
+}));
+vi.mock('@/pages/fund-model-results-moic-analysis', () => ({
+  default: () => <div>Fund Model Results MOIC Analysis Page</div>,
+}));
 vi.mock('@/pages/fund-model-results-reports', () => ({
   default: () => <div>Fund Model Results Reports Page</div>,
+}));
+vi.mock('@/pages/fund-model-results-internal-analysis', () => ({
+  default: () => <div>Fund Model Results Internal Analysis Page</div>,
+}));
+vi.mock('@/pages/fund-model-results-analysis', () => ({
+  default: () => <div>Fund Model Results Analysis Page</div>,
+}));
+vi.mock('@/pages/fund-model-results-operations', () => ({
+  default: () => <div>Fund Model Results Operations Page</div>,
 }));
 vi.mock('@/pages/model-results', () => ({
   default: () => <div>Model Results Compatibility Page</div>,
@@ -115,6 +130,13 @@ vi.mock('@/pages/model-results', () => ({
 vi.mock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
 vi.mock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
 vi.mock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));
+vi.mock('@/pages/lp/fund-detail', () => ({ default: () => <div>LP Fund Detail Page</div> }));
+vi.mock('@/pages/lp/capital-account', () => ({
+  default: () => <div>LP Capital Account Page</div>,
+}));
+vi.mock('@/pages/lp/performance', () => ({ default: () => <div>LP Performance Page</div> }));
+vi.mock('@/pages/lp/reports', () => ({ default: () => <div>LP Reports Page</div> }));
+vi.mock('@/pages/lp/settings', () => ({ default: () => <div>LP Settings Page</div> }));
 vi.mock('@/pages/admin/ui-catalog', () => ({ default: () => <div>UI Catalog Page</div> }));
 vi.mock('@/pages/shared-dashboard', () => ({
   default: () => <div>Shared Dashboard Page</div>,
@@ -153,6 +175,7 @@ describe('route perimeter governance', () => {
 
   it.each([
     ['/dashboard', 'Dashboard Page'],
+    ['/fund-setup', 'Fund Setup Page'],
     ['/portfolio', 'Portfolio Page'],
     ['/portfolio/company/1', 'Portfolio Company Summary Page'],
     ['/performance', 'Performance Page'],
@@ -166,6 +189,11 @@ describe('route perimeter governance', () => {
     ['/settings', 'Settings Page'],
     ['/help', 'Help Page'],
     ['/fund-model-results/42', 'Fund Model Results Page'],
+    ['/fund-model-results/42/scenarios', 'Fund Scenario Workspace Page'],
+    ['/fund-model-results/42/moic-analysis', 'Fund Model Results MOIC Analysis Page'],
+    ['/fund-model-results/42/internal-analysis', 'Fund Model Results Internal Analysis Page'],
+    ['/fund-model-results/42/analysis', 'Fund Model Results Analysis Page'],
+    ['/fund-model-results/42/operations', 'Fund Model Results Operations Page'],
     // Plan 9 Wave 9B1 (D-F.3): fund-scoped reports destination is a governed,
     // deliberately mounted route.
     ['/fund-model-results/42/reports', 'Fund Model Results Reports Page'],
@@ -177,11 +205,26 @@ describe('route perimeter governance', () => {
 
   it.each([
     ['/planning', '/portfolio', '?tab=reserve-planning', 'Portfolio Page'],
+    ['/moic-analysis', '/model-results', '', 'Model Results Compatibility Page'],
     ['/kpi-manager', '/dashboard', '', 'Dashboard Page'],
     ['/kpi-submission', '/dashboard', '', 'Dashboard Page'],
     ['/investments', '/portfolio', '', 'Portfolio Page'],
   ])(
     'redirects archived placeholder route %s to %s%s',
+    async (path, expectedPathname, expectedSearch, expectedText) => {
+      await renderAt(path);
+
+      expect(await screen.findByText(expectedText)).toBeInTheDocument();
+      expect(window.location.pathname).toBe(expectedPathname);
+      expect(window.location.search).toBe(expectedSearch);
+    }
+  );
+
+  it.each([
+    ['/analytics-legacy', '/dashboard', '?tab=performance', 'Dashboard Page'],
+    ['/planning-legacy', '/portfolio', '?tab=reserve-planning', 'Portfolio Page'],
+  ])(
+    'redirects legacy route %s to %s%s',
     async (path, expectedPathname, expectedSearch, expectedText) => {
       await renderAt(path);
 
@@ -223,6 +266,26 @@ describe('route perimeter governance', () => {
 
   it('keeps the LP dashboard reachable when LP reporting is enabled', async () => {
     await renderAt('/lp/dashboard', { enable_lp_reporting: true });
+
+    expect(await screen.findByText('LP Dashboard Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/lp/dashboard');
+  });
+
+  it.each([
+    ['/lp/fund-detail/42', 'LP Fund Detail Page'],
+    ['/lp/capital-account', 'LP Capital Account Page'],
+    ['/lp/performance', 'LP Performance Page'],
+    ['/lp/reports', 'LP Reports Page'],
+    ['/lp/settings', 'LP Settings Page'],
+  ])('keeps LP route %s reachable when LP reporting is enabled', async (path, expectedText) => {
+    await renderAt(path, { enable_lp_reporting: true });
+
+    expect(await screen.findByText(expectedText)).toBeInTheDocument();
+    expect(window.location.pathname).toBe(path);
+  });
+
+  it('redirects the LP index to the LP dashboard when LP reporting is enabled', async () => {
+    await renderAt('/lp', { enable_lp_reporting: true });
 
     expect(await screen.findByText('LP Dashboard Page')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/lp/dashboard');

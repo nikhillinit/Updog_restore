@@ -34,6 +34,9 @@
 #                   scans regardless of changed paths; push and pull_request
 #                   events run the heavy scans only when changed paths match
 #                   this filter.
+# g3_vercel_build_collector:
+#                   Inputs that can change the isolated G3 Vercel build
+#                   collector image. Used to scope its additional image scan.
 # codeql_relevant:  Files that warrant full CodeQL analysis instead of the
 #                   required-check-safe pass-through path.
 # claude_review_relevant:
@@ -152,6 +155,9 @@ code_with_validation:
 dependency:
   - 'package.json'
   - 'package-lock.json'
+  - 'scripts/release/g3-vercel-build/package.json'
+  - 'scripts/release/g3-vercel-build/package-lock.json'
+  - 'scripts/release/g3-vercel-build/Dockerfile'
   - '.npmrc'
   - '.nvmrc'
   - 'scripts/check-package-manager.mjs'
@@ -161,6 +167,17 @@ dependency:
   - '.github/path-filters.yml'
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/dependency-validation.yml'
+
+g3_vercel_build_collector:
+  - 'package.json'
+  - 'package-lock.json'
+  - '.dockerignore'
+  - 'scripts/release/g3-vercel-build/package.json'
+  - 'scripts/release/g3-vercel-build/package-lock.json'
+  - 'scripts/release/g3-vercel-build/Dockerfile'
+  - '.github/path-filters.yml'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/workflows/security-scan.yml'
 
 # Keep the shared/* entries in sync with the `schema` array in
 # drizzle.config.ts: every Drizzle schema input must be listed here, or
@@ -234,11 +251,16 @@ pr_security:
   - '.gitleaks.toml'
   - 'package.json'
   - 'package-lock.json'
+  - 'scripts/release/g3-vercel-build/package.json'
+  - 'scripts/release/g3-vercel-build/package-lock.json'
+  - 'scripts/release/g3-vercel-build/Dockerfile'
+  - '.dockerignore'
   - 'server/**'
   - 'shared/**'
   - 'Dockerfile*'
   - 'suppression.xml'
   - '.github/codeql-config.yml'
+  - '.github/path-filters.yml'
   - '.github/workflows/ci-unified.yml'
   - '.github/workflows/codeql.yml'
   - '.github/workflows/security-scan.yml'
@@ -259,6 +281,10 @@ security_relevant:
   - '.gitleaks.toml'
   - 'package.json'
   - 'package-lock.json'
+  - 'scripts/release/g3-vercel-build/package.json'
+  - 'scripts/release/g3-vercel-build/package-lock.json'
+  - 'scripts/release/g3-vercel-build/Dockerfile'
+  - '.dockerignore'
   - 'server/**'
   - 'shared/**'
   - 'Dockerfile*'
@@ -266,6 +292,7 @@ security_relevant:
   - '.github/actions/setup-node-env/**'
   - '.github/codeql-config.yml'
   - '.github/path-filters.yml'
+  - '.github/workflows/ci-unified.yml'
   - '.github/workflows/codeql.yml'
   - '.github/workflows/security-scan.yml'
   - '.github/workflows/security-tests.yml'
