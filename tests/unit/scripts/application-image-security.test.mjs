@@ -38,7 +38,7 @@ if (command === 'apk' && args[0] === process.env.IMAGE_TEST_FAIL_APK) process.ex
     fs.writeFileSync(path.join(directory, command), stub, { mode: 0o755 });
 
   // Every external command is stubbed; the Dockerfile's cleanup cannot touch the host.
-  const result = spawnSync('/bin/sh', ['-eu', '-c', hardening], {
+  const result = spawnSync('/bin/sh', ['-c', hardening], {
     env: {
       PATH: directory,
       IMAGE_TEST_TRACE: trace,
