@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "source_sha": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+  "source_sha": "3fe0edb2abb7952308e3b841d94af3541256fbce",
   "proofs": [
     {
       "deployment": "local-process",
@@ -34,7 +34,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+        "commit": "3fe0edb2abb7952308e3b841d94af3541256fbce",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -50,7 +50,7 @@
       },
       "worker_identity": {
         "workerType": "capital-call-status",
-        "commit": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+        "commit": "3fe0edb2abb7952308e3b841d94af3541256fbce",
         "deploymentId": "surface-matrix-capital-call-status"
       }
     },
@@ -66,7 +66,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+        "commit": "3fe0edb2abb7952308e3b841d94af3541256fbce",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -82,7 +82,7 @@
       },
       "worker_identity": {
         "workerType": "fund-scenario-calc",
-        "commit": "e4c7ec8115d678f493a2b87a39ca55869de22f68",
+        "commit": "3fe0edb2abb7952308e3b841d94af3541256fbce",
         "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
@@ -105,7 +105,7 @@
         "command_or_artifact": "exact package.json/package-lock.json bytes matched prepared dependencies; vercel@55.0.0 build --prod with npm ls --all --offline; fresh .vercel/output/functions",
         "probe": "invoke every generated callable handler; api/[...slug]: GET /api/version exact 200; api/telemetry/wizard: POST valid step_loaded payload exact 204",
         "result": "invoked 2 generated functions; catch-all GET /api/version=200; telemetry POST /api/telemetry/wizard=204",
-        "observed_at": "proof:8014501c15bd3a7cfcb5e2491eb8d11641715e80c290f3039c7e7d69efd294ce"
+        "observed_at": "proof:0d1cf8aed29b925fbf1048f1754f18eb2ed328f0072fca5cb62e8f0d5e433a4e"
       }
     },
     {
