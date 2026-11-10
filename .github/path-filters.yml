@@ -392,6 +392,7 @@ schema_tests:
   - 'vitest.config.testcontainers.ts'
   - 'tests/config/testcontainers-test-paths.mjs'
   - 'tests/setup/global-setup.testcontainers.ts'
+  - 'scripts/prepare-testcontainers.mjs'
   - '.github/workflows/testcontainers-ci.yml'
   - '.github/path-filters.yml'
   - 'tests/integration/migration-runner.test.ts'

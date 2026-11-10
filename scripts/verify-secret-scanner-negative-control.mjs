@@ -9,6 +9,10 @@ import path from 'node:path';
 const root = process.cwd();
 const gitleaks =
   process.env.GITLEAKS_BIN || (process.platform === 'win32' ? 'gitleaks.exe' : 'gitleaks');
+// Verified SHA-256 source fingerprint. It is inert, but Gitleaks 8.30.1 detects
+// this exact value in credential-key context; random hexadecimal controls do not.
+const SCANNER_SHA256_FINGERPRINT =
+  '256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464';
 const templatePath = path.join(
   root,
   'tests',
@@ -42,7 +46,7 @@ try {
   for (const relativePath of genericControlPaths) {
     const controlPath = path.join(temporaryDirectory, relativePath);
     await mkdir(path.dirname(controlPath), { recursive: true });
-    await writeFile(controlPath, JSON.stringify({ api_key: randomBytes(32).toString('hex') }), {
+    await writeFile(controlPath, JSON.stringify({ api_key: SCANNER_SHA256_FINGERPRINT }), {
       encoding: 'utf8',
       flag: 'wx',
     });

@@ -343,6 +343,8 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      RYUK_CONTAINER_IMAGE: testcontainers/ryuk:0.14.0
     strategy:
       fail-fast: false
       matrix:
@@ -376,6 +378,11 @@ jobs:
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
+
+      - name: Prepare Testcontainers images
+        if: matrix.group == 'integration'
+        timeout-minutes: 8
+        run: node scripts/prepare-testcontainers.mjs
 
       - name: Validate active schema drift
         if: matrix.group == 'validate-core' && needs.changes.outputs.schema == 'true'
