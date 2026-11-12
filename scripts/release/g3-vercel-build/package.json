@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "vercel": "55.0.0"
+    "vercel": "65.12.1"
   },
   "overrides": {
     "@mapbox/node-pre-gyp": {
