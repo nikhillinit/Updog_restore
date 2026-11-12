@@ -434,10 +434,13 @@ describe('isolated Vercel function collector', () => {
     const output = path.join(temporary(), 'proof.json');
     const runBuild = async () => {
       emit(input.candidateRoot);
+      emit(input.candidateRoot, 'api/telemetry/wizard');
       fs.writeFileSync(output, 'concurrent proof');
       return { status: 0 };
     };
-    await expect(writeG3VercelFunctionProof({ ...input, output, runBuild })).rejects.toThrow();
+    await expect(writeG3VercelFunctionProof({ ...input, output, runBuild })).rejects.toMatchObject({
+      code: 'EEXIST',
+    });
     expect(fs.readFileSync(output, 'utf8')).toBe('concurrent proof');
     expect(fs.readdirSync(path.dirname(output))).toEqual(['proof.json']);
   });

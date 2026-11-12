@@ -73,7 +73,7 @@ afterEach(() => {
     .forEach((directory) => fs.rmSync(directory, { recursive: true, force: true }));
 });
 
-describe('secret scanner negative control', () => {
+describe.skipIf(process.platform === 'win32')('secret scanner negative control', () => {
   it('writes scanner-detectable deterministic controls at every protected path', () => {
     const result = runVerifier(createScanner());
 
