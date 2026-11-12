@@ -406,7 +406,7 @@ describe.skipIf(skipIfNoDocker)('reserve delivery exposure PostgreSQL report', {
   afterAll(async () => {
     try {
       if (adminPool && /^reserve_exposure_[a-z0-9_]+$/.test(databaseName)) {
-        await adminPool.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
+        await adminPool.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
       }
     } finally {
       await adminPool?.end();

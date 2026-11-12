@@ -2,6 +2,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -10,24 +12,23 @@ import {
   invokeVercelFunctionInIsolatedChild,
   ML_SERVICE_PROBE_PATHS,
   mlColdStartReadinessProofIsValid,
+  npmScriptInvocation,
   vercelFunctionProbeRequest,
   vercelFunctionResponseIsAcceptable,
   vercelBuildOutputFunctions,
   commandFailureEvidence,
+  assertCompatibleCandidateWrapper,
   assertRequiredG3Proofs,
   dockerProofEnvironment,
   proofEnv,
   resolveBootProofOutput,
   runBootProofCleanRoom,
   runBootProofInner,
-  vercelBuildInvocation,
-  vercelBuildEnvironment,
   vercelFunctionProofEnvironment,
   workerProofEnvironment,
   workerPostgresProofHostname,
   workerProofPlan,
   executeWorkerProofPlan,
-  vercelFunctionBuildFailureEvidence,
   vercelWebBuildFailureEvidence,
   workerConsumerIsHealthy,
   workerRuntimeProofs,
@@ -280,23 +281,16 @@ describe('surface contract matrix boot proof completion gates', () => {
           : {}),
       }))
     );
-    await expect(
-      runBootProofInner({
-        output,
-        requireG3: true,
-        collectProofs,
-        sourceSha: source_sha,
-        environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
-        readSourceSha: () => source_sha,
-      })
-    ).rejects.toThrow('VERCEL_PROJECT_ID');
-    expect(collectProofs).not.toHaveBeenCalled();
     await runBootProofInner({
       output,
       requireG3: true,
       collectProofs,
       sourceSha: source_sha,
-      environment: strictVercelEnvironment,
+      environment: {
+        ...strictVercelEnvironment,
+        VERCEL_PROJECT_ID: '',
+        SURFACE_BOOT_PROOF_VERCEL_BUILD_RESULT: JSON.stringify({ status: 0 }),
+      },
       readSourceSha: () => source_sha,
     });
     expect(
@@ -317,7 +311,7 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(collectProofs).toHaveBeenCalledTimes(1);
   });
 
-  it('forwards Vercel credentials only to Vercel build and redacts every value from failure evidence', () => {
+  it('keeps Vercel credentials outside every local proof environment and redacts failure evidence', () => {
     const genericEnvironment = proofEnv({}, strictVercelEnvironment);
     expect(genericEnvironment).not.toHaveProperty('VERCEL_TOKEN');
     expect(genericEnvironment).not.toHaveProperty('VERCEL_ORG_ID');
@@ -336,12 +330,6 @@ describe('surface contract matrix boot proof completion gates', () => {
         expect(nonVercelEnvironment).not.toHaveProperty(key);
       }
     }
-    expect(vercelBuildEnvironment(strictVercelEnvironment)).toMatchObject(strictVercelEnvironment);
-    expect(vercelBuildInvocation()).toEqual({
-      command: 'npx',
-      args: ['--yes', 'vercel@55.0.0', 'build', '--prod', '--yes'],
-    });
-
     const outcome = commandFailureEvidence({
       deployment: 'vercel-api',
       command_or_artifact: 'vercel build',
@@ -378,15 +366,24 @@ describe('surface contract matrix boot proof completion gates', () => {
 
   it('uses the canonical version route only for the Vercel catch-all function', () => {
     expect(vercelFunctionProbeRequest('api/[...slug]')).toEqual({
+      method: 'GET',
       path: '/api/version',
       expected_status: 200,
+      body: {},
     });
     expect(vercelFunctionProbeRequest('api/telemetry/wizard')).toEqual({
+      method: 'POST',
       path: '/api/telemetry/wizard',
+      expected_status: 204,
+      body: { type: 'step_loaded', step: 'g3-proof' },
     });
     expect(vercelFunctionResponseIsAcceptable('api/[...slug]', 200)).toBe(true);
     for (const status of [404, 405, 500, 503]) {
       expect(vercelFunctionResponseIsAcceptable('api/[...slug]', status)).toBe(false);
+    }
+    expect(vercelFunctionResponseIsAcceptable('api/telemetry/wizard', 204)).toBe(true);
+    for (const status of [200, 400, 405, 500]) {
+      expect(vercelFunctionResponseIsAcceptable('api/telemetry/wizard', status)).toBe(false);
     }
   });
 
@@ -756,60 +753,173 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(execute).not.toHaveBeenCalledWith('worker-launch');
   });
 
-  it('records missing Vercel tooling as unproven without calling it a timeout', () => {
-    const outcome = vercelFunctionBuildFailureEvidence({
-      ok: false,
-      status: null,
-      signal: null,
-      error: { code: 'ENOENT' },
-    });
-    expect(outcome).toMatchObject({
-      deployment: 'vercel-api',
-      runtime: 'vercel_function',
-      boot_status: 'unproven',
-      boot_evidence: {
-        command_or_artifact: expect.stringContaining('npx --yes vercel@55.0.0 build --prod --yes'),
-        probe: expect.stringContaining('every real Vercel build-output function'),
-        result: expect.stringContaining('ENOENT'),
-        observed_at: expect.stringMatching(/^proof:/),
-      },
-    });
-    expect(outcome.boot_evidence.result).not.toContain('timeout');
+  it('records Vercel function evidence as unavailable despite real stale output and hostile ambient state', async () => {
+    const syntheticRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-isolated-module-'));
+    const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-isolated-home-'));
+    const fakeXdgData = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-isolated-xdg-'));
+    const scriptDirectory = path.join(syntheticRepo, 'audit/surface-contract-matrix/scripts');
+    const copiedScript = path.join(scriptDirectory, 'boot-proof.mjs');
+    const copiedSchema = path.join(
+      syntheticRepo,
+      'audit/surface-contract-matrix/matrix-schema.mjs'
+    );
+    const functionDirectory = path.join(syntheticRepo, '.vercel/output/functions/api.func');
+    const staleHandlerMarker = path.join(syntheticRepo, 'stale-handler-ran');
+    const homeAuth = path.join(fakeHome, 'Library/Application Support/com.vercel.cli/auth.json');
+    const xdgAuth = path.join(fakeXdgData, 'com.vercel.cli/auth.json');
+    const homeSentinel = Buffer.from('cached-home-vercel-auth-sentinel\n');
+    const xdgSentinel = Buffer.from('cached-xdg-vercel-auth-sentinel\n');
+    const ambientSecrets = [
+      'ambient-vercel-token-sentinel',
+      'ambient-vercel-org-sentinel',
+      'ambient-vercel-project-sentinel',
+      homeSentinel.toString('utf8').trim(),
+      xdgSentinel.toString('utf8').trim(),
+    ];
+    const environmentKeys = [
+      'HOME',
+      'XDG_DATA_HOME',
+      'XDG_CONFIG_HOME',
+      'VERCEL_TOKEN',
+      'VERCEL_ORG_ID',
+      'VERCEL_PROJECT_ID',
+      'SURFACE_BOOT_PROOF_VERCEL_BUILD_RESULT',
+    ] as const;
+    const priorEnvironment = Object.fromEntries(
+      environmentKeys.map((key) => [key, process.env[key]])
+    );
+    const require = createRequire(import.meta.url);
+    const mutableChildProcess = require('node:child_process') as {
+      spawnSync: typeof import('node:child_process').spawnSync;
+      spawn: typeof import('node:child_process').spawn;
+      execFileSync: typeof import('node:child_process').execFileSync;
+    };
+    const originalChildProcess = {
+      spawnSync: mutableChildProcess.spawnSync,
+      spawn: mutableChildProcess.spawn,
+      execFileSync: mutableChildProcess.execFileSync,
+    };
+    const deniedCalls: Array<{ api: string; command: string; args: string[] }> = [];
+    try {
+      fs.mkdirSync(scriptDirectory, { recursive: true });
+      fs.copyFileSync(
+        path.join(process.cwd(), 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
+        copiedScript
+      );
+      fs.copyFileSync(
+        path.join(process.cwd(), 'audit/surface-contract-matrix/matrix-schema.mjs'),
+        copiedSchema
+      );
+      fs.symlinkSync(
+        path.join(process.cwd(), 'node_modules'),
+        path.join(syntheticRepo, 'node_modules')
+      );
+      fs.mkdirSync(functionDirectory, { recursive: true });
+      fs.writeFileSync(
+        path.join(functionDirectory, '.vc-config.json'),
+        JSON.stringify({ runtime: 'nodejs22.x', handler: 'handler.js' })
+      );
+      fs.writeFileSync(
+        path.join(functionDirectory, 'handler.js'),
+        `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(staleHandlerMarker)}, 'ran\\n'); export default () => {};\n`
+      );
+      fs.mkdirSync(path.dirname(homeAuth), { recursive: true });
+      fs.mkdirSync(path.dirname(xdgAuth), { recursive: true });
+      fs.writeFileSync(homeAuth, homeSentinel);
+      fs.writeFileSync(xdgAuth, xdgSentinel);
+
+      Object.assign(process.env, {
+        HOME: fakeHome,
+        XDG_DATA_HOME: fakeXdgData,
+        XDG_CONFIG_HOME: fakeXdgData,
+        VERCEL_TOKEN: ambientSecrets[0],
+        VERCEL_ORG_ID: ambientSecrets[1],
+        VERCEL_PROJECT_ID: ambientSecrets[2],
+        SURFACE_BOOT_PROOF_VERCEL_BUILD_RESULT: JSON.stringify({
+          status: 0,
+          signal: null,
+          errorCode: null,
+        }),
+      });
+
+      mutableChildProcess.spawnSync = ((command: string, args: string[] = []) => {
+        deniedCalls.push({ api: 'spawnSync', command: String(command), args: args.map(String) });
+        return {
+          pid: 0,
+          output: [null, '', 'child process denied by test'],
+          stdout: '',
+          stderr: 'child process denied by test',
+          status: 126,
+          signal: null,
+          error: Object.assign(new Error('child process denied by test'), { code: 'EACCES' }),
+        };
+      }) as typeof import('node:child_process').spawnSync;
+      mutableChildProcess.spawn = ((command: string, args: string[] = []) => {
+        deniedCalls.push({ api: 'spawn', command: String(command), args: args.map(String) });
+        throw new Error('child process denied by test');
+      }) as typeof import('node:child_process').spawn;
+      mutableChildProcess.execFileSync = ((command: string, args: string[] = []) => {
+        deniedCalls.push({ api: 'execFileSync', command: String(command), args: args.map(String) });
+        throw new Error('child process denied by test');
+      }) as typeof import('node:child_process').execFileSync;
+      syncBuiltinESMExports();
+
+      const isolatedModule = await import(
+        `${pathToFileURL(copiedScript).href}?provider-isolation=${Date.now()}`
+      );
+      const outcome = await isolatedModule.vercelFunctionProof();
+      expect(outcome).toMatchObject({
+        deployment: 'vercel-api',
+        runtime: 'vercel_function',
+        boot_status: 'unproven',
+        boot_evidence: {
+          command_or_artifact: expect.stringContaining('provider-isolated local verification'),
+          probe: expect.stringContaining('separately authorized provider proof'),
+          result: expect.stringContaining('not executed'),
+          observed_at: expect.stringMatching(/^proof:/),
+        },
+      });
+      expect(deniedCalls).toEqual([]);
+      expect(fs.existsSync(staleHandlerMarker)).toBe(false);
+      expect(() =>
+        isolatedModule.assertRequiredG3Proofs({
+          proofs: [
+            outcome,
+            ...[
+              ['vercel-api', 'make_app'],
+              ['railway-worker-fund-scenario-calc', 'worker_process'],
+              ['railway-worker-capital-call-status', 'worker_process'],
+            ].map(([deployment, runtime]) => ({
+              deployment,
+              runtime,
+              boot_status: 'proven',
+            })),
+          ],
+        })
+      ).toThrow('vercel-api|vercel_function');
+      expect(fs.readFileSync(homeAuth)).toEqual(homeSentinel);
+      expect(fs.readFileSync(xdgAuth)).toEqual(xdgSentinel);
+      const serialized = JSON.stringify({ outcome, deniedCalls });
+      for (const sentinel of ambientSecrets) expect(serialized).not.toContain(sentinel);
+    } finally {
+      mutableChildProcess.spawnSync = originalChildProcess.spawnSync;
+      mutableChildProcess.spawn = originalChildProcess.spawn;
+      mutableChildProcess.execFileSync = originalChildProcess.execFileSync;
+      syncBuiltinESMExports();
+      for (const key of environmentKeys) {
+        const value = priorEnvironment[key];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      fs.rmSync(syntheticRepo, { recursive: true, force: true });
+      fs.rmSync(fakeHome, { recursive: true, force: true });
+      fs.rmSync(fakeXdgData, { recursive: true, force: true });
+    }
   });
 
-  it('records permission-denied Vercel tooling as unproven without calling it a timeout', () => {
-    const outcome = vercelFunctionBuildFailureEvidence({
-      ok: false,
-      status: null,
-      signal: null,
-      error: { code: 'EACCES' },
-    });
-    expect(outcome.boot_status).toBe('unproven');
-    expect(outcome.boot_evidence.result).toContain('EACCES');
-    expect(outcome.boot_evidence.result).not.toContain('timeout');
-  });
-
-  it('keeps an executed Vercel build timeout failed', () => {
-    const outcome = vercelFunctionBuildFailureEvidence({
-      ok: false,
-      status: null,
-      signal: 'SIGTERM',
-      error: { code: 'ETIMEDOUT' },
-    });
-    expect(outcome.boot_status).toBe('failed');
-    expect(outcome.boot_evidence.result).toContain('ETIMEDOUT');
-  });
-
-  it('keeps an executed Vercel build failure failed', () => {
-    const outcome = vercelFunctionBuildFailureEvidence({
-      ok: false,
-      status: 1,
-      signal: null,
-      stderr: 'Vercel build failed',
-      stdout: '',
-    });
-    expect(outcome.boot_status).toBe('failed');
-    expect(outcome.boot_evidence.result).toContain('status 1');
+  it('disables automatic npm lifecycle hooks for reviewed local proof scripts', () => {
+    expect(npmScriptInvocation('db:push')).toEqual(['run', '--ignore-scripts', 'db:push']);
+    expect(npmScriptInvocation('build:web')).toEqual(['run', '--ignore-scripts', 'build:web']);
   });
 
   it('classifies permission-denied Vercel web build tooling as unproven', () => {
@@ -871,6 +981,7 @@ describe('surface contract matrix boot proof completion gates', () => {
           GIT_WORK_TREE: '/parent-work-tree',
         },
         stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        verifyCandidateWrapper: vi.fn(),
         runCommand: (command, args, options) => {
           calls.push({ command, args, cwd: options.cwd, env: options.env });
           if (command === process.execPath) {
@@ -892,7 +1003,7 @@ describe('surface contract matrix boot proof completion gates', () => {
         cwd: repositoryRoot,
       });
       const installCall = calls.find((call) => call.command === 'npm');
-      expect(installCall?.args).toEqual(['ci']);
+      expect(installCall?.args).toEqual(['ci', '--ignore-scripts']);
       expect(installCall?.cwd).not.toBe(repositoryRoot);
       expect(installCall?.env).toMatchObject({
         PATH: '/clean-room-bin',
@@ -951,6 +1062,7 @@ describe('surface contract matrix boot proof completion gates', () => {
         output,
         candidateSha,
         stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        verifyCandidateWrapper: vi.fn(),
         runCommand: (command, args) => {
           calls.push({ command, args });
           if (command === process.execPath) {
@@ -972,6 +1084,7 @@ describe('surface contract matrix boot proof completion gates', () => {
           output,
           candidateSha,
           stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          verifyCandidateWrapper: vi.fn(),
           runCommand: (command, args) => {
             calls.push({ command, args });
             if (command === process.execPath) innerAttempts += 1;
@@ -1014,6 +1127,7 @@ describe('surface contract matrix boot proof completion gates', () => {
           npm_config_cache: externalCache,
         },
         stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        verifyCandidateWrapper: vi.fn(),
         runCommand: (command, args, options) => {
           if (command === 'npm') {
             const disposableCache = path.join(path.dirname(options.cwd), 'npm-cache');
@@ -1039,12 +1153,23 @@ describe('surface contract matrix boot proof completion gates', () => {
     }
   });
 
-  it('keeps install credentials and arbitrary parent environment outside the clean room', async () => {
+  it('keeps hostile provider credentials, cache paths, and arbitrary parent environment outside the clean room', async () => {
     const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-env-repo-'));
     const output = path.join(repositoryRoot, 'proof.json');
     const candidateSha = 'f'.repeat(40);
     const calls: Array<{ command: string; args: string[]; cwd?: string; env?: NodeJS.ProcessEnv }> =
       [];
+    const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-fake-home-'));
+    const fakeXdg = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-fake-xdg-'));
+    const homeAuth = path.join(fakeHome, 'Library/Application Support/com.vercel.cli/auth.json');
+    const xdgAuth = path.join(fakeXdg, 'com.vercel.cli/auth.json');
+    const homeSentinel = Buffer.from('cached-provider-auth-secret\n');
+    const xdgSentinel = Buffer.from('cached-provider-xdg-secret\n');
+    const stdoutWrite = vi.fn();
+    fs.mkdirSync(path.dirname(homeAuth), { recursive: true });
+    fs.mkdirSync(path.dirname(xdgAuth), { recursive: true });
+    fs.writeFileSync(homeAuth, homeSentinel);
+    fs.writeFileSync(xdgAuth, xdgSentinel);
     try {
       fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
       fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
@@ -1058,28 +1183,52 @@ describe('surface contract matrix boot proof completion gates', () => {
           VERCEL_TOKEN: 'vercel-token-secret',
           VERCEL_ORG_ID: 'vercel-org-secret',
           VERCEL_PROJECT_ID: 'vercel-project-secret',
+          HOME: fakeHome,
+          XDG_DATA_HOME: fakeXdg,
+          XDG_CONFIG_HOME: fakeXdg,
           NPM_CONFIG_CACHE: path.join(repositoryRoot, '.npm-cache'),
           npm_config_cache: path.join(os.tmpdir(), 'external-npm-cache'),
         },
-        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        stdout: { write: stdoutWrite } as unknown as NodeJS.WriteStream,
+        verifyCandidateWrapper: vi.fn(),
         runCommand: (command, args, options) => {
           calls.push({ command, args, cwd: options?.cwd, env: options?.env });
-          if (command === process.execPath) {
+          if (command === 'git' && args[0] === 'worktree' && args[1] === 'add') {
+            return { status: 0 };
+          }
+          if (
+            command === 'npm' &&
+            args.length === 2 &&
+            args[0] === 'ci' &&
+            args[1] === '--ignore-scripts'
+          ) {
+            return { status: 0 };
+          }
+          if (
+            command === process.execPath &&
+            args[0]?.endsWith('audit/surface-contract-matrix/scripts/boot-proof.mjs') &&
+            args.includes('--internal-clean-room') &&
+            args.includes('--source-sha') &&
+            args.includes(candidateSha) &&
+            args.includes('--output')
+          ) {
             fs.writeFileSync(
               args[args.indexOf('--output') + 1],
               `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`
             );
+            return { status: 0 };
           }
-          return { status: 0 };
+          if (command === 'git' && args[0] === 'worktree' && args[1] === 'remove') {
+            return { status: 0 };
+          }
+          throw new Error(`unexpected child command: ${command} ${args.join(' ')}`);
         },
       });
 
       const install = calls.find((call) => call.command === 'npm' && call.args[0] === 'ci');
       const inner = calls.find((call) => call.command === process.execPath);
-      const guardedVercelBuild = calls.find(
-        (call) => call.command === 'npx' && call.args.includes('vercel@55.0.0')
-      );
       const disposableCache = path.join(path.dirname(install!.cwd!), 'npm-cache');
+      expect(install?.args).toEqual(['ci', '--ignore-scripts']);
       expect(install?.env).toMatchObject({
         PATH: '/clean-room-bin',
         TZ: 'UTC',
@@ -1093,24 +1242,128 @@ describe('surface contract matrix boot proof completion gates', () => {
         'VERCEL_TOKEN',
         'VERCEL_ORG_ID',
         'VERCEL_PROJECT_ID',
+        'HOME',
+        'XDG_DATA_HOME',
+        'XDG_CONFIG_HOME',
       ]) {
         expect(install?.env).not.toHaveProperty(key);
       }
-      expect(guardedVercelBuild?.env).toMatchObject({
-        VERCEL_TOKEN: 'vercel-token-secret',
-        VERCEL_ORG_ID: 'vercel-org-secret',
-        VERCEL_PROJECT_ID: 'vercel-project-secret',
-        NPM_CONFIG_CACHE: disposableCache,
-        npm_config_cache: disposableCache,
-      });
+      expect(calls.map(({ command, args }) => ({ command, args }))).toEqual([
+        {
+          command: 'git',
+          args: ['worktree', 'add', '--detach', expect.any(String), candidateSha],
+        },
+        { command: 'npm', args: ['ci', '--ignore-scripts'] },
+        {
+          command: process.execPath,
+          args: [
+            expect.stringMatching(
+              /audit[\\/]surface-contract-matrix[\\/]scripts[\\/]boot-proof\.mjs$/
+            ),
+            '--internal-clean-room',
+            '--source-sha',
+            candidateSha,
+            '--output',
+            expect.any(String),
+          ],
+        },
+        {
+          command: 'git',
+          args: ['worktree', 'remove', '--force', expect.any(String)],
+        },
+      ]);
       expect(inner?.env).not.toHaveProperty('ARBITRARY_SECRET');
-      for (const call of calls.filter((call) => call !== guardedVercelBuild)) {
+      for (const call of calls) {
         for (const key of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
           expect(call.env).not.toHaveProperty(key);
         }
+        if (call.command === 'npm' || call.command === process.execPath) {
+          expect(call.env).not.toHaveProperty('HOME');
+          expect(call.env).not.toHaveProperty('XDG_DATA_HOME');
+          expect(call.env).not.toHaveProperty('XDG_CONFIG_HOME');
+        }
+      }
+      expect(fs.readFileSync(homeAuth)).toEqual(homeSentinel);
+      expect(fs.readFileSync(xdgAuth)).toEqual(xdgSentinel);
+      const serialized = JSON.stringify({ calls, stdout: stdoutWrite.mock.calls });
+      for (const sentinel of [
+        'must-not-cross-boundary',
+        'vercel-token-secret',
+        'vercel-org-secret',
+        'vercel-project-secret',
+        homeSentinel.toString('utf8').trim(),
+        xdgSentinel.toString('utf8').trim(),
+      ]) {
+        expect(serialized).not.toContain(sentinel);
       }
     } finally {
       fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(fakeHome, { recursive: true, force: true });
+      fs.rmSync(fakeXdg, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an incompatible candidate wrapper before dependency install or inner execution', async () => {
+    const repositoryRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'surface-proof-old-wrapper-repo-')
+    );
+    const cleanRoomParent = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'surface-proof-old-wrapper-parent-')
+    );
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = '9'.repeat(40);
+    const calls: Array<{ command: string; args: string[] }> = [];
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    try {
+      await expect(
+        runBootProofCleanRoom({
+          repositoryRoot,
+          output,
+          candidateSha,
+          makeTempDir: () => cleanRoomParent,
+          stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          runCommand: (command, args) => {
+            calls.push({ command, args });
+            if (command === 'git' && args[1] === 'add') {
+              const candidate = path.join(
+                cleanRoomParent,
+                'candidate',
+                'audit/surface-contract-matrix/scripts'
+              );
+              fs.mkdirSync(candidate, { recursive: true });
+              fs.writeFileSync(
+                path.join(candidate, 'boot-proof.mjs'),
+                'old provider-capable wrapper\n'
+              );
+            }
+            return { status: 0 };
+          },
+        })
+      ).rejects.toThrow(/candidate wrapper is incompatible/i);
+      expect(calls.some((call) => call.command === 'npm')).toBe(false);
+      expect(calls.some((call) => call.command === process.execPath)).toBe(false);
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(cleanRoomParent, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts candidate wrapper bytes that exactly match the executing wrapper', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-compatible-wrapper-'));
+    const cleanRoom = path.join(root, 'candidate');
+    const candidateWrapper = path.join(
+      cleanRoom,
+      'audit/surface-contract-matrix/scripts/boot-proof.mjs'
+    );
+    const currentWrapper = path.join(root, 'current-boot-proof.mjs');
+    try {
+      fs.mkdirSync(path.dirname(candidateWrapper), { recursive: true });
+      fs.writeFileSync(currentWrapper, 'provider-isolated-wrapper-bytes\n');
+      fs.copyFileSync(currentWrapper, candidateWrapper);
+      expect(() => assertCompatibleCandidateWrapper(cleanRoom, { currentWrapper })).not.toThrow();
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
@@ -1130,6 +1383,7 @@ describe('surface contract matrix boot proof completion gates', () => {
           output,
           candidateSha,
           stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          verifyCandidateWrapper: vi.fn(),
           runCommand: (command, args) => {
             if (command === process.execPath) {
               fs.writeFileSync(
@@ -1166,6 +1420,7 @@ describe('surface contract matrix boot proof completion gates', () => {
           output,
           candidateSha,
           stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          verifyCandidateWrapper: vi.fn(),
           runCommand: (command, args) => {
             calls.push({ command, args });
             if (command === process.execPath) {

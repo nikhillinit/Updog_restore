@@ -39,8 +39,10 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 && \
     # CVE-2026-14456: pinned base digest ships libcrypto3/libssl3 3.5.7-r0
-    apk upgrade --no-cache libcrypto3 libssl3 && \
-    apk add --no-cache dumb-init && \
+    # CVE-2026-85091: the same digest ships zlib 1.3.2-r0
+    apk upgrade --no-cache libcrypto3 libssl3 zlib && \
+    # CVE-2026-107891: require patched musl packages even if repositories lag
+    apk add --no-cache dumb-init 'musl>=1.2.6-r3' 'musl-utils>=1.2.6-r3' && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Environment

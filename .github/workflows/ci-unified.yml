@@ -52,6 +52,7 @@ jobs:
       schema: ${{ steps.filter.outputs.schema }}
       batch_b: ${{ steps.filter.outputs.batch_b }}
       pr_security: ${{ steps.filter.outputs.pr_security }}
+      g3_vercel_build_collector: ${{ steps.filter.outputs.g3_vercel_build_collector }}
       security_tests: ${{ steps.filter.outputs.security_tests }}
       test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
       neon_lane: ${{ steps.filter.outputs.neon_lane }}
@@ -342,6 +343,8 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      RYUK_CONTAINER_IMAGE: testcontainers/ryuk:0.14.0
     strategy:
       fail-fast: false
       matrix:
@@ -375,6 +378,11 @@ jobs:
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
+
+      - name: Prepare Testcontainers images
+        if: matrix.group == 'integration'
+        timeout-minutes: 8
+        run: node scripts/prepare-testcontainers.mjs
 
       - name: Validate active schema drift
         if: matrix.group == 'validate-core' && needs.changes.outputs.schema == 'true'
@@ -521,14 +529,32 @@ jobs:
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=critical
 
+      - name: Install G3 Vercel build dependencies
+        working-directory: scripts/release/g3-vercel-build
+        run: npm ci --ignore-scripts
+
+      - name: Validate G3 Vercel build dependency tree
+        working-directory: scripts/release/g3-vercel-build
+        run: npm ls --all
+
+      - name: Audit G3 Vercel build production dependencies
+        working-directory: scripts/release/g3-vercel-build
+        run: npm audit --omit=dev --audit-level=critical
+
   pr-light-security:
     name: PR Light Security
     needs: changes
     if: |
       github.event.inputs.enable_security == 'true' ||
-      (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true')
+      (
+        needs.changes.outputs.auto_docs_only != 'true' &&
+        (
+          needs.changes.outputs.pr_security == 'true' ||
+          needs.changes.outputs.g3_vercel_build_collector == 'true'
+        )
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -559,6 +585,26 @@ jobs:
         with:
           scan-type: image
           image-ref: updog-pr:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Build G3 Vercel build collector image
+        if: github.event.inputs.enable_security == 'true' || needs.changes.outputs.g3_vercel_build_collector == 'true'
+        run: >-
+          docker build
+          --platform linux/amd64
+          --file scripts/release/g3-vercel-build/Dockerfile
+          --tag updog-g3-vercel-build-pr:${{ github.sha }}
+          .
+
+      - name: Trivy G3 Vercel build collector container scan
+        if: github.event.inputs.enable_security == 'true' || needs.changes.outputs.g3_vercel_build_collector == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: updog-g3-vercel-build-pr:${{ github.sha }}
           format: table
           severity: CRITICAL,HIGH
           exit-code: '1'
@@ -1005,6 +1051,7 @@ jobs:
           guards_result="${{ needs.guards.result }}"
           dependency_result="${{ needs.dependency-validation.result }}"
           pr_security_result="${{ needs.pr-light-security.result }}"
+          g3_vercel_build_collector="${{ needs.changes.outputs.g3_vercel_build_collector }}"
           security_tests_result="${{ needs.security-tests.result }}"
           memory_result="${{ needs.memory-mode.result }}"
           neon_lane_result="${{ needs.neon-lane.result }}"
@@ -1026,6 +1073,7 @@ jobs:
           validate_boolean "auto-docs-only" "$auto_docs_only"
           validate_boolean "heavy-ci-relevant" "$heavy_ci_relevant"
           validate_boolean "financial-calc-relevant" "$financial_calc_relevant"
+          validate_boolean "g3-vercel-build-collector" "$g3_vercel_build_collector"
           validate_boolean "release-baseline-plan-touched" "$release_baseline_plan_touched"
 
           if [[ "$change_classification_valid" != "true" ]]; then
@@ -1075,7 +1123,7 @@ jobs:
           guards_expected="$is_pr"
           docs_link_expected="${{ needs.changes.outputs.docs_links == 'true' }}"
           dependency_expected="${{ github.event.inputs.run_full_suite == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.dependency == 'true') }}"
-          pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
+          pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.pr_security == 'true' || needs.changes.outputs.g3_vercel_build_collector == 'true')) }}"
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
           memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
           neon_expected="${{ needs.changes.outputs.neon_lane == 'true' || github.event.inputs.run_full_suite == 'true' }}"

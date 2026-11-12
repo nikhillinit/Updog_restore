@@ -278,6 +278,103 @@ describe('investment-round-service', () => {
     });
   });
 
+  it('returns already_superseded when Drizzle wraps the supersedes unique violation', async () => {
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
+    captured.insertError = Object.assign(new Error('Failed query: insert into investment_rounds'), {
+      cause: Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+        constraint: 'investment_rounds_supersedes_uq',
+      }),
+    });
+
+    await expect(
+      createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())
+    ).resolves.toEqual({
+      kind: 'already_superseded',
+    });
+  });
+
+  it.each([
+    {
+      name: 'different unique constraint',
+      cause: { code: '23505', constraint: 'investment_rounds_fund_id_idempotency_key_uq' },
+    },
+    {
+      name: 'different SQLSTATE',
+      cause: { code: '23503', constraint: 'investment_rounds_supersedes_uq' },
+    },
+    {
+      name: 'constraint name only in message',
+      cause: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "investment_rounds_supersedes_uq"',
+      },
+    },
+    { name: 'malformed primitive cause', cause: '23505' },
+  ])('rethrows a wrapped $name error', async ({ cause }) => {
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
+    const wrapped = Object.assign(new Error('Failed query: insert into investment_rounds'), {
+      cause,
+    });
+    captured.insertError = wrapped;
+
+    await expect(createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())).rejects.toBe(
+      wrapped
+    );
+  });
+
+  it('rethrows a cyclic cause chain without looping', async () => {
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
+    const first = new Error('Failed query: insert into investment_rounds') as Error & {
+      cause?: unknown;
+    };
+    const second = new Error('driver wrapper') as Error & { cause?: unknown };
+    first.cause = second;
+    second.cause = first;
+    captured.insertError = first;
+
+    await expect(createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())).rejects.toBe(
+      first
+    );
+  });
+
+  it('rethrows the original error after a bounded fresh-object cause chain', async () => {
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
+    let causeReads = 0;
+    const freshCause = (): object =>
+      Object.defineProperty({}, 'cause', {
+        get: () => {
+          causeReads += 1;
+          return causeReads < 64 ? freshCause() : undefined;
+        },
+      });
+    const wrapped = Object.assign(new Error('Failed query: insert into investment_rounds'), {
+      cause: freshCause(),
+    });
+    captured.insertError = wrapped;
+
+    await expect(createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())).rejects.toBe(
+      wrapped
+    );
+    expect(causeReads).toBeGreaterThan(0);
+    expect(causeReads).toBeLessThanOrEqual(16);
+  });
+
+  it('rethrows the original error when reading a malformed cause throws', async () => {
+    captured.limitQueue = [[], [roundRecord({ id: 20 })], []];
+    const wrapped = new Error('Failed query: insert into investment_rounds');
+    Object.defineProperty(wrapped, 'cause', {
+      get: () => {
+        throw new Error('malformed cause getter');
+      },
+    });
+    captured.insertError = wrapped;
+
+    await expect(createRound(baseInput({ supersedesRoundId: 20 }), serviceOptions())).rejects.toBe(
+      wrapped
+    );
+  });
+
   it('returns supersede_target_missing when the target row is absent', async () => {
     captured.limitQueue = [[], []];
 

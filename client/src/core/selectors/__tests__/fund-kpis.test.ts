@@ -10,7 +10,7 @@
  * - Error handling
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import type {
   FundData,
   Fund,
@@ -1002,41 +1002,113 @@ describe('selectIRR', () => {
     expect(irr).toBeGreaterThan(0);
   });
 
-  it('should handle negative IRR for losing investments', () => {
-    const data = createFundData({
-      capitalCalls: [
-        {
-          id: 1,
-          fundId: 1,
-          callNumber: 1,
-          amount: 10_000_000,
-          callDate: '2020-01-01',
-          dueDate: '2020-02-01',
-          status: 'received',
-          purpose: 'Initial',
-          createdAt: '2020-01-01T00:00:00Z',
-          updatedAt: '2020-02-01T00:00:00Z',
-        },
-      ],
-      distributions: [
-        {
-          id: 1,
-          fundId: 1,
-          distributionDate: '2024-01-01',
-          amount: 5_000_000, // 0.5x return (50% loss)
-          type: 'non_recallable',
-          status: 'executed',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
-        },
-      ],
-      investments: [],
-      valuations: [],
-      feeExpenses: [],
+  describe('realized returns and retained cash', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     });
 
-    const irr = selectIRR(data);
-    expect(irr).toBeLessThan(0); // Negative IRR for loss
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      {
+        name: 'should handle negative IRR for losing investments',
+        invested: 10_000_000,
+        exitProceeds: 5_000_000,
+        expectedNAV: 0,
+        totalValueMultiple: 0.5,
+      },
+      {
+        name: 'should break even when undistributed capital remains in cash',
+        invested: 0,
+        exitProceeds: 0,
+        expectedNAV: 5_000_000,
+        totalValueMultiple: 1,
+      },
+      {
+        name: 'should include retained exit proceeds in positive IRR',
+        invested: 10_000_000,
+        exitProceeds: 15_000_000,
+        expectedNAV: 10_000_000,
+        totalValueMultiple: 1.5,
+      },
+    ])('$name', ({ invested, exitProceeds, expectedNAV, totalValueMultiple }) => {
+      const data = createFundData({
+        capitalCalls: [
+          {
+            id: 1,
+            fundId: 1,
+            callNumber: 1,
+            amount: 10_000_000,
+            callDate: '2020-01-01',
+            dueDate: '2020-02-01',
+            status: 'received',
+            purpose: 'Initial',
+            createdAt: '2020-01-01T00:00:00Z',
+            updatedAt: '2020-02-01T00:00:00Z',
+          },
+        ],
+        distributions: [
+          {
+            id: 1,
+            fundId: 1,
+            distributionDate: '2024-01-01',
+            amount: 5_000_000, // Distributed proceeds; retained cash also contributes to return
+            type: 'non_recallable',
+            status: 'executed',
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        investments: invested
+          ? [
+              {
+                id: 1,
+                fundId: 1,
+                companyName: 'ExitedCo',
+                investmentDate: '2020-02-01',
+                initialAmount: invested,
+                totalInvested: invested,
+                stage: 'series_a',
+                sector: 'Tech',
+                ownership: 0.15,
+                isActive: false,
+                exitDate: '2024-01-01',
+                exitAmount: exitProceeds,
+                createdAt: '2020-02-01T00:00:00Z',
+                updatedAt: '2024-01-01T00:00:00Z',
+              },
+            ]
+          : [],
+        valuations: [],
+        feeExpenses: [],
+      });
+
+      // Exactly 1,461 days / 365.25 = four years under the XIRR date convention.
+      // Both distributed proceeds and terminal cash arrive on the same date.
+      const expectedIRR = totalValueMultiple ** (1 / 4) - 1;
+      for (const asOf of [undefined, '2024-01-01']) {
+        expect(selectCalled(data, asOf)).toBe(10_000_000);
+        expect(selectInvested(data, asOf)).toBe(invested);
+        expect(selectDistributions(data, asOf)).toBe(5_000_000);
+        expect(selectNAV(data, asOf)).toBe(expectedNAV);
+        expect(selectDistributions(data, asOf) + selectNAV(data, asOf)).toBe(
+          10_000_000 * totalValueMultiple
+        );
+        expect(selectTVPI(data, asOf)).toBe(totalValueMultiple);
+
+        const irr = selectIRR(data, asOf);
+        // Match the rate-error tolerance used by xirr-golden-set.test.ts.
+        expect(Math.abs(irr - expectedIRR)).toBeLessThan(1e-7);
+        if (totalValueMultiple < 1) {
+          expect(irr).toBeLessThan(0); // Negative IRR for loss
+        } else if (totalValueMultiple > 1) {
+          expect(irr).toBeGreaterThan(0);
+        }
+      }
+    });
   });
 });
 

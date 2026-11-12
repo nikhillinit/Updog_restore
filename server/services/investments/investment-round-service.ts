@@ -72,6 +72,7 @@ const columnsWithXmin = {
 } as const;
 
 const supersedingRounds = aliasedTable(investmentRounds, 'superseding_rounds');
+const MAX_ERROR_CAUSE_DEPTH = 16;
 
 function splitXmin(record: InvestmentRound & { rowXmin: string }): InvestmentRoundRow {
   const { rowXmin, ...row } = record;
@@ -79,12 +80,34 @@ function splitXmin(record: InvestmentRound & { rowXmin: string }): InvestmentRou
 }
 
 function isUniqueConstraintViolation(error: unknown, constraintName: string): boolean {
-  const candidate = error as { code?: unknown; constraint?: unknown; message?: unknown };
-  return (
-    candidate.code === '23505' &&
-    (candidate.constraint === constraintName ||
-      (typeof candidate.message === 'string' && candidate.message.includes(constraintName)))
-  );
+  const visited = new Set<object>();
+  let candidate = error;
+
+  for (let depth = 0; depth < MAX_ERROR_CAUSE_DEPTH; depth += 1) {
+    if (
+      candidate === null ||
+      (typeof candidate !== 'object' && typeof candidate !== 'function') ||
+      visited.has(candidate)
+    ) {
+      return false;
+    }
+    visited.add(candidate);
+    try {
+      const databaseError = candidate as {
+        code?: unknown;
+        constraint?: unknown;
+        cause?: unknown;
+      };
+      if (databaseError.code === '23505' && databaseError.constraint === constraintName) {
+        return true;
+      }
+      candidate = databaseError.cause;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function requestHashFor(input: CreateRoundArgs): string {

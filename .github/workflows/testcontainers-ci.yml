@@ -42,6 +42,7 @@ jobs:
     # No services section: testcontainers manages Docker services itself.
     env:
       ENABLE_PHASE4_TESTS: 'true'
+      RYUK_CONTAINER_IMAGE: testcontainers/ryuk:0.14.0
       TZ: UTC
 
     steps:
@@ -80,27 +81,15 @@ jobs:
           if [ -f /tmp/docker-cache/postgres-16-alpine.tar ]; then docker load -i /tmp/docker-cache/postgres-16-alpine.tar; fi
           if [ -f /tmp/docker-cache/redis-7-alpine.tar ]; then docker load -i /tmp/docker-cache/redis-7-alpine.tar; fi
 
-      - name: Pull Docker images (cache miss)
+      - name: Prepare Testcontainers images
+        timeout-minutes: 8
+        run: node scripts/prepare-testcontainers.mjs
+
+      - name: Save Docker images (cache miss)
         if: steps.docker-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull postgres:16-alpine
-          docker pull redis:7-alpine
           docker save postgres:16-alpine -o /tmp/docker-cache/postgres-16-alpine.tar
           docker save redis:7-alpine -o /tmp/docker-cache/redis-7-alpine.tar
-
-      # Retry until Docker is ready to accept container commands.
-      - name: Verify Docker daemon
-        run: |
-          for attempt in {1..10}; do
-            if docker info > /dev/null 2>&1; then
-              echo "Docker daemon ready."
-              exit 0
-            fi
-            echo "Docker not ready yet, retrying..."
-            sleep 3
-          done
-          echo "Docker daemon not ready after retries."
-          exit 1
 
       # Full integration suite; testcontainers handles health checks via Wait strategies.
       - name: Run full integration test suite

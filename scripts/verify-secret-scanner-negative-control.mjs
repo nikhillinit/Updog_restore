@@ -2,13 +2,17 @@
 
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 const root = process.cwd();
 const gitleaks =
   process.env.GITLEAKS_BIN || (process.platform === 'win32' ? 'gitleaks.exe' : 'gitleaks');
+// Verified SHA-256 source fingerprint. It is inert, but Gitleaks 8.30.1 detects
+// this exact value in credential-key context; random hexadecimal controls do not.
+const SCANNER_SHA256_FINGERPRINT =
+  '256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464';
 const templatePath = path.join(
   root,
   'tests',
@@ -31,6 +35,23 @@ try {
   const generatedFixture = template.replace('{{HEX_32}}', randomBytes(16).toString('hex'));
   await writeFile(fixturePath, generatedFixture, { encoding: 'utf8', flag: 'wx' });
 
+  // A scoped evidence exception must not suppress credentials in that file or elsewhere.
+  const genericControlPaths = [
+    'audit/surface-contract-matrix/g3-c53634-scoped-review.json',
+    'audit/surface-contract-matrix/g3-durable-ci-scoped-review.json',
+    'audit/surface-contract-matrix/g3-collector-security-scoped-review.json',
+    'audit/surface-contract-matrix/g3-musl-security-scoped-review.json',
+    'unrelated-secret.json',
+  ];
+  for (const relativePath of genericControlPaths) {
+    const controlPath = path.join(temporaryDirectory, relativePath);
+    await mkdir(path.dirname(controlPath), { recursive: true });
+    await writeFile(controlPath, JSON.stringify({ api_key: SCANNER_SHA256_FINGERPRINT }), {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+  }
+
   const result = spawnSync(
     gitleaks,
     [
@@ -43,10 +64,10 @@ try {
       'json',
       '--report-path',
       reportPath,
-      temporaryDirectory,
+      '.',
     ],
     {
-      cwd: root,
+      cwd: temporaryDirectory,
       encoding: 'utf8',
       windowsHide: true,
     }
@@ -69,7 +90,19 @@ try {
     throw new Error('Gitleaks did not report the Updog negative-control rule.');
   }
 
-  console.log('[PASS] Gitleaks detected the generated negative control.');
+  for (const relativePath of genericControlPaths) {
+    if (
+      !findings.some(
+        (finding) =>
+          finding.RuleID === 'generic-api-key' &&
+          finding.File.replaceAll('\\', '/').endsWith(relativePath)
+      )
+    ) {
+      throw new Error(`Gitleaks did not report the generic credential in ${relativePath}.`);
+    }
+  }
+
+  console.log('[PASS] Gitleaks detected the custom and all generic negative controls.');
 } catch (error) {
   console.error(`[FAIL] Secret-scanner negative control failed: ${error.message}`);
   process.exitCode = 1;

@@ -142,6 +142,15 @@ describe('production auth session gate', () => {
     expect(mocks.fundProviderMounts).toBe(0);
   });
 
+  it('shows login after an unauthenticated login session resolves', () => {
+    mocks.session.data = null;
+    renderAt('/login');
+
+    expect(screen.getByText('Login Page')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(mocks.fundProviderMounts).toBe(0);
+  });
+
   it('redirects authenticated login visits to the dashboard', async () => {
     mocks.session.data = {
       user: { id: '7', email: 'admin@example.com', role: 'admin', fundIds: [] },
