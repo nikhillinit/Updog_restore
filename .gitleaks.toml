@@ -102,7 +102,8 @@ paths = [
   '''^audit/surface-contract-matrix/f1170-pr2b-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/cors-same-origin-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/pr1636-scoped-review\.json$''',
-  '''^audit/surface-contract-matrix/security-dependency-20261027-scoped-review\.json$'''
+  '''^audit/surface-contract-matrix/security-dependency-20261027-scoped-review\.json$''',
+  '''^audit/surface-contract-matrix/f1240-published-investment-truth-20261112-scoped-review\.json$'''
 ]
 
 [[allowlists]]
