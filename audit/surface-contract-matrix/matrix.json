@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "b203de87bb73244486a818d9ec116c644a40a1ef",
-    "snapshot_id": "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995"
+    "git_head": "dd05c45b45acfa688ac7ed1209048263f3295dab",
+    "snapshot_id": "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d"
   },
   "rows": [
     {
@@ -10825,7 +10825,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds",
@@ -10915,7 +10915,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds",
@@ -29519,7 +29519,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -29609,7 +29609,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -30262,7 +30262,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:391 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:393 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/draft",
@@ -30273,12 +30273,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:391",
+              "site": "server/routes/fund-config.ts:393",
               "role": "handler",
               "effective_mount_order": 547
             },
             {
-              "site": "server/routes/fund-config.ts:391",
+              "site": "server/routes/fund-config.ts:393",
               "role": "handler",
               "effective_mount_order": 558
             }
@@ -30288,8 +30288,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 397,
-              "evidence": "server/routes/fund-config.ts:397 enforces provided fund scope"
+              "line": 399,
+              "evidence": "server/routes/fund-config.ts:399 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -30312,7 +30312,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:391 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:393 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/draft",
@@ -30323,12 +30323,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:391",
+              "site": "server/routes/fund-config.ts:393",
               "role": "handler",
               "effective_mount_order": 390
             },
             {
-              "site": "server/routes/fund-config.ts:391",
+              "site": "server/routes/fund-config.ts:393",
               "role": "handler",
               "effective_mount_order": 401
             }
@@ -30338,8 +30338,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 397,
-              "evidence": "server/routes/fund-config.ts:397 enforces provided fund scope"
+              "line": 399,
+              "evidence": "server/routes/fund-config.ts:399 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -30365,7 +30365,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:391"
+        "server/routes/fund-config.ts:393"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/draft",
@@ -30398,8 +30398,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 397,
-          "evidence": "server/routes/fund-config.ts:397 enforces provided fund scope"
+          "line": 399,
+          "evidence": "server/routes/fund-config.ts:399 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -30416,7 +30416,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:397, server/routes/fund-config.ts:397 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:399, server/routes/fund-config.ts:399 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -30424,7 +30424,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:397, server/routes/fund-config.ts:397 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:399, server/routes/fund-config.ts:399 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -30432,7 +30432,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:397, server/routes/fund-config.ts:397 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:399, server/routes/fund-config.ts:399 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -30481,7 +30481,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30580,7 +30580,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30643,14 +30643,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:391-424 validates fund ID and enforces provided fund scope, then selects latest draft and emits revision headers; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "411be724652969f83cabffe82e90a8872082447b09a25bb85746b886f3071d77",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "0747375bfd058fe0df9a523f42d6ba341733439d461636afb80e85beeae4aeaa",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -30694,7 +30694,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:660 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:662 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/lifecycle-history",
@@ -30705,12 +30705,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:660",
+              "site": "server/routes/fund-config.ts:662",
               "role": "handler",
               "effective_mount_order": 553
             },
             {
-              "site": "server/routes/fund-config.ts:660",
+              "site": "server/routes/fund-config.ts:662",
               "role": "handler",
               "effective_mount_order": 564
             }
@@ -30720,8 +30720,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 666,
-              "evidence": "server/routes/fund-config.ts:666 enforces provided fund scope"
+              "line": 668,
+              "evidence": "server/routes/fund-config.ts:668 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -30744,7 +30744,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:660 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:662 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/lifecycle-history",
@@ -30755,12 +30755,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:660",
+              "site": "server/routes/fund-config.ts:662",
               "role": "handler",
               "effective_mount_order": 396
             },
             {
-              "site": "server/routes/fund-config.ts:660",
+              "site": "server/routes/fund-config.ts:662",
               "role": "handler",
               "effective_mount_order": 407
             }
@@ -30770,8 +30770,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 666,
-              "evidence": "server/routes/fund-config.ts:666 enforces provided fund scope"
+              "line": 668,
+              "evidence": "server/routes/fund-config.ts:668 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -30797,7 +30797,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:660"
+        "server/routes/fund-config.ts:662"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/lifecycle-history",
@@ -30830,8 +30830,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 666,
-          "evidence": "server/routes/fund-config.ts:666 enforces provided fund scope"
+          "line": 668,
+          "evidence": "server/routes/fund-config.ts:668 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -30848,7 +30848,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:666, server/routes/fund-config.ts:666 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:668, server/routes/fund-config.ts:668 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -30856,7 +30856,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:666, server/routes/fund-config.ts:666 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:668, server/routes/fund-config.ts:668 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -30864,7 +30864,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:666, server/routes/fund-config.ts:666 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:668, server/routes/fund-config.ts:668 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -30913,7 +30913,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -31012,7 +31012,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -31075,14 +31075,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:660-689 validates fund ID and enforces provided fund scope, then calls fundLifecycleHistoryService.getHistory for existing configs, runs and events; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "1cf0938cc4e2f284bad4f4c3a89ee34eba39f1351c8579658442a483451b2c7b",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "8e5c351d8d9c6b2a6e421fbcf5b9ae0904e4edb0eb6c93fd4e4ea986c4bdfe59",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -31126,7 +31126,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:549 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:551 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/reserves",
@@ -31137,12 +31137,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:549",
+              "site": "server/routes/fund-config.ts:551",
               "role": "handler",
               "effective_mount_order": 550
             },
             {
-              "site": "server/routes/fund-config.ts:549",
+              "site": "server/routes/fund-config.ts:551",
               "role": "handler",
               "effective_mount_order": 561
             }
@@ -31152,8 +31152,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 555,
-              "evidence": "server/routes/fund-config.ts:555 enforces provided fund scope"
+              "line": 557,
+              "evidence": "server/routes/fund-config.ts:557 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -31176,7 +31176,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:549 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:551 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/reserves",
@@ -31187,12 +31187,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:549",
+              "site": "server/routes/fund-config.ts:551",
               "role": "handler",
               "effective_mount_order": 393
             },
             {
-              "site": "server/routes/fund-config.ts:549",
+              "site": "server/routes/fund-config.ts:551",
               "role": "handler",
               "effective_mount_order": 404
             }
@@ -31202,8 +31202,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 555,
-              "evidence": "server/routes/fund-config.ts:555 enforces provided fund scope"
+              "line": 557,
+              "evidence": "server/routes/fund-config.ts:557 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -31229,7 +31229,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:549"
+        "server/routes/fund-config.ts:551"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/reserves",
@@ -31262,8 +31262,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 555,
-          "evidence": "server/routes/fund-config.ts:555 enforces provided fund scope"
+          "line": 557,
+          "evidence": "server/routes/fund-config.ts:557 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -31280,7 +31280,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:555, server/routes/fund-config.ts:555 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:557, server/routes/fund-config.ts:557 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -31288,7 +31288,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:555, server/routes/fund-config.ts:555 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:557, server/routes/fund-config.ts:557 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -31296,7 +31296,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:555, server/routes/fund-config.ts:555 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:557, server/routes/fund-config.ts:557 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -31345,7 +31345,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31444,7 +31444,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31507,14 +31507,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:549-597 validates fund ID and enforces provided fund scope, then selects latest base RESERVE snapshot and computes staleness; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "eedf368c200f52374941695e4f3ece6ce885dfa9c52dab4e266270c76b2aaa4e",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "6dbb5befe4544e9880fa3341464b3627be38f4dd7f764da642fdffc06f229be9",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -31558,7 +31558,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:631 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:633 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/results",
@@ -31569,12 +31569,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:631",
+              "site": "server/routes/fund-config.ts:633",
               "role": "handler",
               "effective_mount_order": 552
             },
             {
-              "site": "server/routes/fund-config.ts:631",
+              "site": "server/routes/fund-config.ts:633",
               "role": "handler",
               "effective_mount_order": 563
             }
@@ -31584,8 +31584,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 637,
-              "evidence": "server/routes/fund-config.ts:637 enforces provided fund scope"
+              "line": 639,
+              "evidence": "server/routes/fund-config.ts:639 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -31608,7 +31608,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:631 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:633 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/results",
@@ -31619,12 +31619,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:631",
+              "site": "server/routes/fund-config.ts:633",
               "role": "handler",
               "effective_mount_order": 395
             },
             {
-              "site": "server/routes/fund-config.ts:631",
+              "site": "server/routes/fund-config.ts:633",
               "role": "handler",
               "effective_mount_order": 406
             }
@@ -31634,8 +31634,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 637,
-              "evidence": "server/routes/fund-config.ts:637 enforces provided fund scope"
+              "line": 639,
+              "evidence": "server/routes/fund-config.ts:639 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -31661,7 +31661,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:631"
+        "server/routes/fund-config.ts:633"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/results",
@@ -31694,8 +31694,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 637,
-          "evidence": "server/routes/fund-config.ts:637 enforces provided fund scope"
+          "line": 639,
+          "evidence": "server/routes/fund-config.ts:639 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -31712,7 +31712,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:637, server/routes/fund-config.ts:637 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:639, server/routes/fund-config.ts:639 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -31720,7 +31720,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:637, server/routes/fund-config.ts:637 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:639, server/routes/fund-config.ts:639 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -31728,7 +31728,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:637, server/routes/fund-config.ts:637 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:639, server/routes/fund-config.ts:639 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -31777,7 +31777,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -31876,7 +31876,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -31939,14 +31939,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:631-657 validates fund ID and enforces provided fund scope, then calls fundResultsReadService.getResults; rejects incompatible scenario representation; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "ba74f0ba81ae1ce7820eefbbe0eeea6812762aa302dbdb4c744001b2937b53b4",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "ce2bb2f48f33c56fb80cbab4c98c0a55b91d9dab506f2a645f4909042f2a8895",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -31990,7 +31990,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:695 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:697 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/results-comparison",
@@ -32001,12 +32001,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:695",
+              "site": "server/routes/fund-config.ts:697",
               "role": "handler",
               "effective_mount_order": 554
             },
             {
-              "site": "server/routes/fund-config.ts:695",
+              "site": "server/routes/fund-config.ts:697",
               "role": "handler",
               "effective_mount_order": 565
             }
@@ -32016,8 +32016,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 701,
-              "evidence": "server/routes/fund-config.ts:701 enforces provided fund scope"
+              "line": 703,
+              "evidence": "server/routes/fund-config.ts:703 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -32040,7 +32040,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:695 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:697 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/results-comparison",
@@ -32051,12 +32051,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:695",
+              "site": "server/routes/fund-config.ts:697",
               "role": "handler",
               "effective_mount_order": 397
             },
             {
-              "site": "server/routes/fund-config.ts:695",
+              "site": "server/routes/fund-config.ts:697",
               "role": "handler",
               "effective_mount_order": 408
             }
@@ -32066,8 +32066,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 701,
-              "evidence": "server/routes/fund-config.ts:701 enforces provided fund scope"
+              "line": 703,
+              "evidence": "server/routes/fund-config.ts:703 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -32093,7 +32093,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:695"
+        "server/routes/fund-config.ts:697"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/results-comparison",
@@ -32126,8 +32126,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 701,
-          "evidence": "server/routes/fund-config.ts:701 enforces provided fund scope"
+          "line": 703,
+          "evidence": "server/routes/fund-config.ts:703 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -32144,7 +32144,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:701, server/routes/fund-config.ts:701 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:703, server/routes/fund-config.ts:703 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -32152,7 +32152,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:701, server/routes/fund-config.ts:701 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:703, server/routes/fund-config.ts:703 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -32160,7 +32160,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:701, server/routes/fund-config.ts:701 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:703, server/routes/fund-config.ts:703 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -32209,7 +32209,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -32308,7 +32308,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -32371,14 +32371,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:695-724 validates fund ID and enforces provided fund scope, then calls fundResultsComparisonService.getComparison for a narrow saved-results comparison; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "c0ccbfbbd7f37a5b9a88ccae7ead66e6b7ec9c7b2226a438a445c8c097921c69",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "fdddcda5bb2be01510f03c650d1cf5010491ac6432286c4409e5c0a7b6f0b1c7",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -32641,7 +32641,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/revision-source",
@@ -32740,7 +32740,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/revision-source",
@@ -32803,14 +32803,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:254-281 validates fund ID and enforces provided fund scope, then selects latest published config and emits revision ETag; no draft creation or other durable write. New row source-classified. Classified gp-team, prod-safe, reads-only/none.",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
       "contract_fingerprint": "147db09ba35fb9bc069bb558d5b8b3772ebbb58dd543a33c26e25a7775e26971",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -32828,19 +32828,14 @@
         ],
         "unresolved_auth": false,
         "undecided_auth_roles": [],
-        "persistence": "unknown",
+        "persistence": "reads-only",
         "persistence_evidence": {
-          "writes": [],
-          "side_effecting_calls": [],
-          "pure_calculation": [],
-          "hard_delete": [],
-          "soft_archive": [],
-          "ambiguous_calls": [],
-          "handlers": [
-            "server/routes/fund-config.ts"
-          ]
+          "method": "GET",
+          "policy_lifecycle": "unavailable",
+          "policy_workflow_requirement": null,
+          "basis": "safe HTTP method"
         },
-        "destructive": "unknown",
+        "destructive": "none",
         "environment": "unknown"
       }
     },
@@ -33495,7 +33490,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:600 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:602 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/state",
@@ -33506,12 +33501,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:600",
+              "site": "server/routes/fund-config.ts:602",
               "role": "handler",
               "effective_mount_order": 551
             },
             {
-              "site": "server/routes/fund-config.ts:600",
+              "site": "server/routes/fund-config.ts:602",
               "role": "handler",
               "effective_mount_order": 562
             }
@@ -33521,8 +33516,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 606,
-              "evidence": "server/routes/fund-config.ts:606 enforces provided fund scope"
+              "line": 608,
+              "evidence": "server/routes/fund-config.ts:608 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -33545,7 +33540,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:600 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:602 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/state",
@@ -33556,12 +33551,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:600",
+              "site": "server/routes/fund-config.ts:602",
               "role": "handler",
               "effective_mount_order": 394
             },
             {
-              "site": "server/routes/fund-config.ts:600",
+              "site": "server/routes/fund-config.ts:602",
               "role": "handler",
               "effective_mount_order": 405
             }
@@ -33571,8 +33566,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 606,
-              "evidence": "server/routes/fund-config.ts:606 enforces provided fund scope"
+              "line": 608,
+              "evidence": "server/routes/fund-config.ts:608 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -33598,7 +33593,7 @@
       "environment": "prod-safe",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:600"
+        "server/routes/fund-config.ts:602"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:id/state",
@@ -33631,8 +33626,8 @@
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 606,
-          "evidence": "server/routes/fund-config.ts:606 enforces provided fund scope"
+          "line": 608,
+          "evidence": "server/routes/fund-config.ts:608 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -33649,7 +33644,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:606, server/routes/fund-config.ts:606 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes admin; server/routes/fund-config.ts:608, server/routes/fund-config.ts:608 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -33657,7 +33652,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:606, server/routes/fund-config.ts:606 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes analyst; server/routes/fund-config.ts:608, server/routes/fund-config.ts:608 proves route fund_scope scope"
         },
         {
           "kind": "identity",
@@ -33665,7 +33660,7 @@
           "boundary": "fund_scope",
           "file": "shared/auth/effective-roles.ts",
           "line": 58,
-          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:606, server/routes/fund-config.ts:606 proves route fund_scope scope"
+          "evidence": "shared/auth/effective-roles.ts:58 isTeamRole includes partner; server/routes/fund-config.ts:608, server/routes/fund-config.ts:608 proves route fund_scope scope"
         }
       ],
       "behavior_flags": [],
@@ -33714,7 +33709,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -33813,7 +33808,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -33876,14 +33871,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts in both assemblies behind API auth (server/app.ts:231-250; server/server.ts:224-237). server/routes/fund-config.ts:600-628 validates fund ID and enforces provided fund scope, then calls fundStateReadService.getState to read config/calculation state; no durable write. Changed fund-config handler re-read. Classified gp-team, prod-safe, reads-only/none.",
-      "contract_fingerprint": "b1eef1cb886e488017cd1c01bb7f110f57ca536ab3b2504aa872785110a0f621",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "0b51366db0cc2e477007c16b60d7edf58aa4f1ccc4a6d92a4b9d5879949c022f",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -68345,7 +68340,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds",
@@ -68435,7 +68430,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds",
@@ -91896,7 +91891,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:283 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:285 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/draft",
@@ -91907,22 +91902,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "guard",
               "effective_mount_order": 546
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "handler",
               "effective_mount_order": 546
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "guard",
               "effective_mount_order": 557
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "handler",
               "effective_mount_order": 557
             }
@@ -91932,8 +91927,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 298,
-              "evidence": "server/routes/fund-config.ts:298 enforces provided fund scope"
+              "line": 300,
+              "evidence": "server/routes/fund-config.ts:300 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -91948,21 +91943,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 285,
+              "line": 287,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "handler",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 318,
+              "line": 320,
               "evidence": "unrestricted: req.user?.role === 'admin',"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 285,
+              "line": 287,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -91977,7 +91972,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:283 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:285 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/draft",
@@ -91988,22 +91983,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "guard",
               "effective_mount_order": 389
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "handler",
               "effective_mount_order": 389
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "guard",
               "effective_mount_order": 400
             },
             {
-              "site": "server/routes/fund-config.ts:283",
+              "site": "server/routes/fund-config.ts:285",
               "role": "handler",
               "effective_mount_order": 400
             }
@@ -92013,8 +92008,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 298,
-              "evidence": "server/routes/fund-config.ts:298 enforces provided fund scope"
+              "line": 300,
+              "evidence": "server/routes/fund-config.ts:300 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -92029,21 +92024,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 285,
+              "line": 287,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "handler",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 318,
+              "line": 320,
               "evidence": "unrestricted: req.user?.role === 'admin',"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 285,
+              "line": 287,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -92061,7 +92056,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:283"
+        "server/routes/fund-config.ts:285"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:id/draft",
@@ -92093,28 +92088,28 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/fund-config.ts",
-          "line": 285,
+          "line": 287,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/fund-config.ts",
-          "line": 285,
+          "line": 287,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 298,
-          "evidence": "server/routes/fund-config.ts:298 enforces provided fund scope"
+          "line": 300,
+          "evidence": "server/routes/fund-config.ts:300 enforces provided fund scope"
         },
         {
           "kind": "handler",
           "role": "admin",
           "file": "server/routes/fund-config.ts",
-          "line": 318,
+          "line": 320,
           "evidence": "unrestricted: req.user?.role === 'admin',"
         },
         {
@@ -92173,7 +92168,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/draft",
@@ -92272,7 +92267,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/draft",
@@ -92335,14 +92330,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts behind API auth; server/routes/fund-config.ts:283-378 requires PARTNER_WRITE_ROLES (admin/gp), pause gate; published-source command checks source ID/version and If-Match before inserting a new draft and DRAFT_REVISION_STARTED event. server/services/fund-workflow-service.ts:54-67,119-144 requires idempotency and revision when applicable and a verified transaction. Soft workflow writes; staged-only is an audit restriction, not an environment gate. Handler re-read. Classified gp-team, staged-only, writes/soft.",
-      "contract_fingerprint": "c9df56eecbafdd04509b957c72ef6631fc2c064270e39bcf15c0bfd07cb1d7f3",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "2729dd19da71cd35f078b42393d915e2e37867723c4d95ae79458af6b93872c2",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -92358,17 +92353,12 @@
         ],
         "unresolved_auth": false,
         "undecided_auth_roles": [],
-        "persistence": "unknown",
+        "persistence": "writes",
         "persistence_evidence": {
-          "writes": [],
-          "side_effecting_calls": [],
-          "pure_calculation": [],
-          "hard_delete": [],
-          "soft_archive": [],
-          "ambiguous_calls": [],
-          "handlers": [
-            "server/routes/fund-config.ts"
-          ]
+          "method": "POST",
+          "policy_lifecycle": "unavailable",
+          "policy_workflow_requirement": null,
+          "basis": "mutation HTTP method"
         },
         "destructive": "unknown",
         "environment": "unknown"
@@ -92388,7 +92378,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:427 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:429 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/publish",
@@ -92399,22 +92389,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "guard",
               "effective_mount_order": 548
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "handler",
               "effective_mount_order": 548
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "guard",
               "effective_mount_order": 559
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "handler",
               "effective_mount_order": 559
             }
@@ -92424,8 +92414,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 441,
-              "evidence": "server/routes/fund-config.ts:441 enforces provided fund scope"
+              "line": 443,
+              "evidence": "server/routes/fund-config.ts:443 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -92440,21 +92430,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 429,
+              "line": 431,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "handler",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 450,
+              "line": 452,
               "evidence": "unrestricted: req.user?.role === 'admin',"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 429,
+              "line": 431,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -92469,7 +92459,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:427 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:429 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/publish",
@@ -92480,22 +92470,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "guard",
               "effective_mount_order": 391
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "handler",
               "effective_mount_order": 391
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "guard",
               "effective_mount_order": 402
             },
             {
-              "site": "server/routes/fund-config.ts:427",
+              "site": "server/routes/fund-config.ts:429",
               "role": "handler",
               "effective_mount_order": 402
             }
@@ -92505,8 +92495,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 441,
-              "evidence": "server/routes/fund-config.ts:441 enforces provided fund scope"
+              "line": 443,
+              "evidence": "server/routes/fund-config.ts:443 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -92521,21 +92511,21 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 429,
+              "line": 431,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "handler",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 450,
+              "line": 452,
               "evidence": "unrestricted: req.user?.role === 'admin',"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 429,
+              "line": 431,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -92553,7 +92543,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:427"
+        "server/routes/fund-config.ts:429"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:id/publish",
@@ -92585,28 +92575,28 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/fund-config.ts",
-          "line": 429,
+          "line": 431,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/fund-config.ts",
-          "line": 429,
+          "line": 431,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 441,
-          "evidence": "server/routes/fund-config.ts:441 enforces provided fund scope"
+          "line": 443,
+          "evidence": "server/routes/fund-config.ts:443 enforces provided fund scope"
         },
         {
           "kind": "handler",
           "role": "admin",
           "file": "server/routes/fund-config.ts",
-          "line": 450,
+          "line": 452,
           "evidence": "unrestricted: req.user?.role === 'admin',"
         },
         {
@@ -92665,7 +92655,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -92764,7 +92754,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -92827,14 +92817,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts behind API auth; server/routes/fund-config.ts:427-477 requires PARTNER_WRITE_ROLES (admin/gp), pause gate; publishDraft changes config publication state and persists calculation run/event. server/services/fund-workflow-service.ts:54-67,119-144 requires idempotency and revision when applicable and a verified transaction. Soft workflow writes; staged-only is an audit restriction, not an environment gate. Handler re-read. Classified gp-team, staged-only, writes/soft.",
-      "contract_fingerprint": "d4a36ef633c84dcd76779dfdf6dce0711f80db41ba74232aca0ba2a48a34d7bd",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "f4b2c478c5b91ba2523619c92d96546b18e6fcdadd292140d9da32abc0dc080f",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -92875,7 +92865,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/fund-config.ts:496 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:498 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/recalculate",
@@ -92886,22 +92876,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "guard",
               "effective_mount_order": 549
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "handler",
               "effective_mount_order": 549
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "guard",
               "effective_mount_order": 560
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "handler",
               "effective_mount_order": 560
             }
@@ -92911,8 +92901,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 505,
-              "evidence": "server/routes/fund-config.ts:505 enforces provided fund scope"
+              "line": 507,
+              "evidence": "server/routes/fund-config.ts:507 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -92927,14 +92917,14 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 498,
+              "line": 500,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 498,
+              "line": 500,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -92949,7 +92939,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/fund-config.ts:496 runtime registration",
+          "mount_evidence": "server/routes/fund-config.ts:498 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:id/recalculate",
@@ -92960,22 +92950,22 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "guard",
               "effective_mount_order": 392
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "handler",
               "effective_mount_order": 392
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "guard",
               "effective_mount_order": 403
             },
             {
-              "site": "server/routes/fund-config.ts:496",
+              "site": "server/routes/fund-config.ts:498",
               "role": "handler",
               "effective_mount_order": 403
             }
@@ -92985,8 +92975,8 @@
               "kind": "policy-boundary",
               "boundary": "fund_scope",
               "file": "server/routes/fund-config.ts",
-              "line": 505,
-              "evidence": "server/routes/fund-config.ts:505 enforces provided fund scope"
+              "line": 507,
+              "evidence": "server/routes/fund-config.ts:507 enforces provided fund scope"
             },
             {
               "kind": "policy-boundary",
@@ -93001,14 +92991,14 @@
               "kind": "guard",
               "role": "admin",
               "file": "server/routes/fund-config.ts",
-              "line": 498,
+              "line": 500,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             },
             {
               "kind": "guard",
               "role": "partner",
               "file": "server/routes/fund-config.ts",
-              "line": 498,
+              "line": 500,
               "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
             }
           ],
@@ -93026,7 +93016,7 @@
       "environment": "staged-only",
       "owner": "gp-team",
       "evidence": [
-        "server/routes/fund-config.ts:496"
+        "server/routes/fund-config.ts:498"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:id/recalculate",
@@ -93058,22 +93048,22 @@
           "kind": "guard",
           "role": "admin",
           "file": "server/routes/fund-config.ts",
-          "line": 498,
+          "line": 500,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "guard",
           "role": "partner",
           "file": "server/routes/fund-config.ts",
-          "line": 498,
+          "line": 500,
           "evidence": "requireWriteRole(PARTNER_WRITE_ROLES),"
         },
         {
           "kind": "policy-boundary",
           "boundary": "fund_scope",
           "file": "server/routes/fund-config.ts",
-          "line": 505,
-          "evidence": "server/routes/fund-config.ts:505 enforces provided fund scope"
+          "line": 507,
+          "evidence": "server/routes/fund-config.ts:507 enforces provided fund scope"
         },
         {
           "kind": "policy-boundary",
@@ -93131,7 +93121,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -93230,7 +93220,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -93293,14 +93283,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts behind API auth; server/routes/fund-config.ts:496-522 requires partner/admin and provided fund scope, then recalculatePublished. server/services/fund-persistence-service.ts:663-753 creates calculation run/event and dispatches work, not a read. Retain soft writes and staged-only restriction; do not infer the sibling draft pause/revision gate here. Changed handler re-read. Classified gp-team, staged-only, writes/soft.",
-      "contract_fingerprint": "d9094d825dba5afef365f933c1a09ef09340e78cb39495e52dbd5f9a16478a4a",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
+      "contract_fingerprint": "a5a046d0a03d3c30b512801cbd37465bf5dab571bd79d12417db0803753d182e",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -95273,7 +95263,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -95363,7 +95353,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:71",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -95738,7 +95728,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -95837,7 +95827,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -95900,14 +95890,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts behind API auth; server/routes/fund-config.ts:80-160 requires PARTNER_WRITE_ROLES (admin/gp), pause gate; verified creator and optional existing-fund scope precede durable finalize, which creates/publishes config and calculation state. server/services/fund-workflow-service.ts:54-67,119-144 requires idempotency and revision when applicable and a verified transaction. Soft workflow writes; staged-only is an audit restriction, not an environment gate. Handler re-read. Classified gp-team, staged-only, writes/soft.",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
       "contract_fingerprint": "2b4e16db10c93db0cd2762b7e6e19d3ac228797a77d5e2d61441725984d6fc32",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -104722,7 +104712,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
@@ -104821,7 +104811,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/contract/fund-draft-round-trip.test.ts:75",
             "assertion_confirmed": false,
-            "test_file_sha256": "9f27ab165240263f79d71c2c47e4c57f2dd0d21d7771234dcb22914eb893eb48"
+            "test_file_sha256": "0de35a71581e0ef569b45efbea4e287abf37481f1d75a2c094aa72d53115c91f"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
@@ -104884,14 +104874,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=server/routes/mount-common-routes.ts:85 mounts behind API auth; server/routes/fund-config.ts:181-241 requires PARTNER_WRITE_ROLES (admin/gp), pause gate; replaces active draft, increments draftRevision and inserts DRAFT_SAVED event. server/services/fund-workflow-service.ts:54-67,119-144 requires idempotency and revision when applicable and a verified transaction. Soft workflow writes; staged-only is an audit restriction, not an environment gate. Handler re-read. Classified gp-team, staged-only, writes/soft.",
+      "decision_evidence": "Independent Codex agent source review of dd05c45b45acfa688ac7ed1209048263f3295dab against bc91f80a96961924a8e1902036fbf0d8f78a0cbf. The shared fund-config source change sanitizes revision-source HTTP 500 text and logs the underlying exception server-side. Existing route classifications remain applicable. The targeted mocked-storage regression verifies generic response content. Reviewer identity is codex-private-pr-review.",
       "contract_fingerprint": "35ce18fe6629449ddc702e08f791718b7194bc7e02e96affc06fc36d0f7fbc18",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/fund-config.ts=698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+        "server/routes/fund-config.ts=b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -117692,75 +117682,15 @@
       "contract_fingerprint": "4a64c331dfc85defcaa8ce32654b2ab86e810a86c76da1cbfee916ecd29a1c9e",
       "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
     },
-    "api:GET:/api/funds/:id/draft|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "411be724652969f83cabffe82e90a8872082447b09a25bb85746b886f3071d77",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/draft|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "411be724652969f83cabffe82e90a8872082447b09a25bb85746b886f3071d77",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:GET:/api/funds/:id/lifecycle-history|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "1cf0938cc4e2f284bad4f4c3a89ee34eba39f1351c8579658442a483451b2c7b",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/lifecycle-history|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "1cf0938cc4e2f284bad4f4c3a89ee34eba39f1351c8579658442a483451b2c7b",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:GET:/api/funds/:id/reserves|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "eedf368c200f52374941695e4f3ece6ce885dfa9c52dab4e266270c76b2aaa4e",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/reserves|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "eedf368c200f52374941695e4f3ece6ce885dfa9c52dab4e266270c76b2aaa4e",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:GET:/api/funds/:id/results|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ba74f0ba81ae1ce7820eefbbe0eeea6812762aa302dbdb4c744001b2937b53b4",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/results|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "ba74f0ba81ae1ce7820eefbbe0eeea6812762aa302dbdb4c744001b2937b53b4",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:GET:/api/funds/:id/results-comparison|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c0ccbfbbd7f37a5b9a88ccae7ead66e6b7ec9c7b2226a438a445c8c097921c69",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/results-comparison|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c0ccbfbbd7f37a5b9a88ccae7ead66e6b7ec9c7b2226a438a445c8c097921c69",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
     "api:GET:/api/funds/:id/revision-source|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "147db09ba35fb9bc069bb558d5b8b3772ebbb58dd543a33c26e25a7775e26971",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:GET:/api/funds/:id/revision-source|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "147db09ba35fb9bc069bb558d5b8b3772ebbb58dd543a33c26e25a7775e26971",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:GET:/api/funds/:id/state|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "b1eef1cb886e488017cd1c01bb7f110f57ca536ab3b2504aa872785110a0f621",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:GET:/api/funds/:id/state|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "b1eef1cb886e488017cd1c01bb7f110f57ca536ab3b2504aa872785110a0f621",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:GET:/api/lp/health|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -117907,45 +117837,15 @@
       "contract_fingerprint": "a809ae5cb55849e1967e0234557bc6dfb906df3a0d030560b30b27be9000a6b8",
       "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
     },
-    "api:POST:/api/funds/:id/draft|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c9df56eecbafdd04509b957c72ef6631fc2c064270e39bcf15c0bfd07cb1d7f3",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:POST:/api/funds/:id/draft|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c9df56eecbafdd04509b957c72ef6631fc2c064270e39bcf15c0bfd07cb1d7f3",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:POST:/api/funds/:id/publish|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "d4a36ef633c84dcd76779dfdf6dce0711f80db41ba74232aca0ba2a48a34d7bd",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:POST:/api/funds/:id/publish|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "d4a36ef633c84dcd76779dfdf6dce0711f80db41ba74232aca0ba2a48a34d7bd",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
-    "api:POST:/api/funds/:id/recalculate|local-process|create_server": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "d9094d825dba5afef365f933c1a09ef09340e78cb39495e52dbd5f9a16478a4a",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
-    },
-    "api:POST:/api/funds/:id/recalculate|vercel-api|make_app": {
-      "test_coverage": "none-reviewed",
-      "contract_fingerprint": "d9094d825dba5afef365f933c1a09ef09340e78cb39495e52dbd5f9a16478a4a",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
-    },
     "api:POST:/api/funds/finalize|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "2b4e16db10c93db0cd2762b7e6e19d3ac228797a77d5e2d61441725984d6fc32",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:POST:/api/funds/finalize|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "2b4e16db10c93db0cd2762b7e6e19d3ac228797a77d5e2d61441725984d6fc32",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:POST:/api/metrics/rum|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -118040,17 +117940,107 @@
     "api:PUT:/api/funds/:id/draft|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "35ce18fe6629449ddc702e08f791718b7194bc7e02e96affc06fc36d0f7fbc18",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:PUT:/api/funds/:id/draft|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "35ce18fe6629449ddc702e08f791718b7194bc7e02e96affc06fc36d0f7fbc18",
-      "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;vercel-api|make_app: HEAD assembly source was inspected, but no makeApp execution, generated-function coverage or provider deployment proof was established; local vercel-api|vercel_function boot remains unproven and only protected G3 restores it."
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     },
     "api:PUT:/api/portfolio/strategies/:id|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "80d29c621c64a3588969b4c70612e9bbfaecd9b87b76b30cf6a01a5d720d508d",
       "evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;local-process|create_server: HEAD mount and auth source were inspected, but no local server boot, handler execution or runtime test coverage was established by this review."
+    },
+    "api:GET:/api/funds/:id/draft|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "0747375bfd058fe0df9a523f42d6ba341733439d461636afb80e85beeae4aeaa",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/draft|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "0747375bfd058fe0df9a523f42d6ba341733439d461636afb80e85beeae4aeaa",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/lifecycle-history|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8e5c351d8d9c6b2a6e421fbcf5b9ae0904e4edb0eb6c93fd4e4ea986c4bdfe59",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/lifecycle-history|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8e5c351d8d9c6b2a6e421fbcf5b9ae0904e4edb0eb6c93fd4e4ea986c4bdfe59",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/reserves|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "6dbb5befe4544e9880fa3341464b3627be38f4dd7f764da642fdffc06f229be9",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/reserves|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "6dbb5befe4544e9880fa3341464b3627be38f4dd7f764da642fdffc06f229be9",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/results|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "ce2bb2f48f33c56fb80cbab4c98c0a55b91d9dab506f2a645f4909042f2a8895",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/results|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "ce2bb2f48f33c56fb80cbab4c98c0a55b91d9dab506f2a645f4909042f2a8895",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/results-comparison|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "fdddcda5bb2be01510f03c650d1cf5010491ac6432286c4409e5c0a7b6f0b1c7",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/results-comparison|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "fdddcda5bb2be01510f03c650d1cf5010491ac6432286c4409e5c0a7b6f0b1c7",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/state|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "0b51366db0cc2e477007c16b60d7edf58aa4f1ccc4a6d92a4b9d5879949c022f",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:GET:/api/funds/:id/state|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "0b51366db0cc2e477007c16b60d7edf58aa4f1ccc4a6d92a4b9d5879949c022f",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/draft|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "2729dd19da71cd35f078b42393d915e2e37867723c4d95ae79458af6b93872c2",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/draft|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "2729dd19da71cd35f078b42393d915e2e37867723c4d95ae79458af6b93872c2",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/publish|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f4b2c478c5b91ba2523619c92d96546b18e6fcdadd292140d9da32abc0dc080f",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/publish|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "f4b2c478c5b91ba2523619c92d96546b18e6fcdadd292140d9da32abc0dc080f",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/recalculate|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "a5a046d0a03d3c30b512801cbd37465bf5dab571bd79d12417db0803753d182e",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
+    },
+    "api:POST:/api/funds/:id/recalculate|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "a5a046d0a03d3c30b512801cbd37465bf5dab571bd79d12417db0803753d182e",
+      "evidence": "Scoped source review retains existing exposure coverage classification. The revision-source regression uses an isolated Express app with mocked storage. Complete deployment-assembly contract coverage remains unverified."
     }
   },
   "g1_closure": {
@@ -118341,7 +118331,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995",
+      "snapshot_id": "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d",
       "counts": {
         "APIEndpoint": 415,
         "ClientRoute": 44,

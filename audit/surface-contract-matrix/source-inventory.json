@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995",
+  "snapshot_id": "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -506,7 +506,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "ced6fe662e3cfb1dd958f5ccbfe37501dbce4e36fe194e591d2ad6a888b0ace1",
+    "audit/surface-contract-matrix/boot-proofs.json": "78df86ca6875ebb33f606fba953821910234472be8c4e71bfd84ff3b86aea22a",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
@@ -581,7 +581,7 @@
     "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
     "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
     "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
-    "server/routes/fund-config.ts": "698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
+    "server/routes/fund-config.ts": "b5f16dd245e648998824e7cd524163c160e9fa6840f97c25fe7977e128492f36",
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "429a213a5c986627b0ceeb9ad89722f8466c86f6f437b8a5defc7ba5ea752d42",
@@ -11600,7 +11600,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995"
+      "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d"
     ]
   },
   "kg_counts": {

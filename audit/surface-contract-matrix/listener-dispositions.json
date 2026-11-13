@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "independent-scoped-review:f1240-published-investment-truth-20261112;source=b203de87bb73244486a818d9ec116c644a40a1ef;reviewer=codex-semantic-review;approver=nikhillinit;scope=76-rows-90-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Dockerfile.railway:38-47 declares a health-checked HTTP container running dist/index.js. audit/surface-contract-matrix/scripts/seed-matrix.mjs:1522-1534 classifies it non-product-tooling and :1575-1598 forces proposed on every reseed regardless of prior approval. :1604-1616 excludes legacy Railway API topology; railway.worker.toml:21-23 and railway.capital-call-status.worker.toml:20-22 use Dockerfile.worker. Approve source-level legacy disposition only; no build, listener boot or provider deployment verified."
+    "decision_evidence": "Independent Codex agent source review at dd05c45b45acfa688ac7ed1209048263f3295dab. Dockerfile.railway:43,47 defines a health-checked HTTP dist/index.js container. DECISIONS.md:10371-10377 assigns public web/API hosting to Vercel and Railway consumption to two private workers. railway.worker.toml:21-23 and railway.capital-call-status.worker.toml:20-22 select Dockerfile.worker. The listener source and topology evidence are unchanged from bc91f80a96961924a8e1902036fbf0d8f78a0cbf. Retain non-product-tooling classification for this legacy API container. Provider deployment state remains unverified. Reviewer identity is codex-private-pr-review."
   },
   {
     "candidate_path": "Dockerfile.simple",
