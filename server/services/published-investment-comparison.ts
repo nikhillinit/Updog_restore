@@ -13,6 +13,7 @@ import {
   type PublishedInvestmentTotals,
 } from '@shared/contracts/dual-forecast/investment-comparison.contract';
 import { db } from '../db';
+import { withReadSavepoint } from '../db/request-context';
 import { logger } from '../lib/logger';
 import { getTerminalFinancialFactsHead } from './financial-facts-snapshot-service';
 import { parsePersistedFactsRow } from './financial-facts/parse-persisted-facts-row';
@@ -260,13 +261,11 @@ export async function readPublishedInvestmentComparison(
       'Select a saved forecast and its calendar start month to compare planned investment activity.',
     disclosures: [...DISCLOSURES],
   };
-  if (options.baselineSnapshotId && options.baselineStartMonth) {
+  const { baselineSnapshotId, baselineStartMonth } = options;
+  if (baselineSnapshotId && baselineStartMonth) {
     try {
-      result.baseline = await readForecastInvestmentBaseline(
-        fundId,
-        options.baselineSnapshotId,
-        options.baselineStartMonth,
-        asOfDate
+      result.baseline = await withReadSavepoint(db, () =>
+        readForecastInvestmentBaseline(fundId, baselineSnapshotId, baselineStartMonth, asOfDate)
       );
       result.baselineReason = result.baseline
         ? null

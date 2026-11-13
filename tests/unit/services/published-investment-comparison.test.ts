@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import type { RequestDatabaseScope } from '../../../server/db/request-context';
+import { requestDatabaseStorage } from '../../../server/db/request-context';
 
-const { head, parse, select, baseline, rows, vehicleRows, warn } = vi.hoisted(() => ({
+const { head, parse, select, baseline, rows, vehicleRows, warn, transaction } = vi.hoisted(() => ({
   head: vi.fn(),
   parse: vi.fn(),
   select: vi.fn(),
@@ -8,6 +12,7 @@ const { head, parse, select, baseline, rows, vehicleRows, warn } = vi.hoisted(()
   rows: { value: [] as unknown[] },
   vehicleRows: { value: [] as unknown[] },
   warn: vi.fn(),
+  transaction: vi.fn(),
 }));
 vi.mock('../../../server/services/financial-facts-snapshot-service', () => ({
   getTerminalFinancialFactsHead: head,
@@ -18,7 +23,7 @@ vi.mock('../../../server/services/financial-facts/parse-persisted-facts-row', ()
 vi.mock('../../../server/services/forecast-investment-baseline', () => ({
   readForecastInvestmentBaseline: baseline,
 }));
-vi.mock('../../../server/db', () => ({ db: { select } }));
+vi.mock('../../../server/db', () => ({ db: { select, transaction } }));
 vi.mock('../../../server/lib/logger', () => ({ logger: { warn } }));
 
 import {
@@ -182,6 +187,47 @@ describe('published investment read seam', () => {
     }));
     baseline.mockResolvedValue(null);
   });
+
+  it('isolates a failed baseline read while retaining actuals and the request transaction', async () => {
+    const query = vi.fn(async (_statement: string | { text: string }) => ({ rows: [] }));
+    const client = { query } as unknown as RequestDatabaseScope['client'];
+    baseline.mockRejectedValueOnce(new Error('Saved snapshot query failed'));
+    const runOwnedTransaction = vi.fn();
+
+    await drizzle(client).transaction(async (tx) => {
+      transaction.mockImplementationOnce((callback) => tx.transaction(callback));
+      const scope: RequestDatabaseScope = {
+        context: { userId: 'user-a', email: 'a@example.test', orgId: 'org-a', role: 'admin' },
+        db: tx as RequestDatabaseScope['db'],
+        client,
+        completed: false,
+        runOwnedTransaction,
+      };
+      const result = await requestDatabaseStorage.run(scope, () =>
+        readPublishedInvestmentComparison(1, {
+          baselineSnapshotId: 42,
+          baselineStartMonth: '2024-01',
+          asOfDate: '2025-03-31',
+        })
+      );
+
+      expect(result).toMatchObject({
+        status: 'available',
+        actual: { deployedCapital: '100.350000' },
+        baseline: null,
+        baselineReason: 'The selected saved forecast could not be validated for this fund.',
+      });
+      await tx.execute(sql`select 1`);
+    });
+
+    expect(
+      query.mock.calls.map(([statement]) =>
+        typeof statement === 'string' ? statement : statement.text
+      )
+    ).toEqual(['begin', 'savepoint sp1', 'rollback to savepoint sp1', 'select 1', 'commit']);
+    expect(runOwnedTransaction).not.toHaveBeenCalled();
+  });
+
   it('reads only pinned event IDs and discloses effective-date versus publication knowledge', async () => {
     const result = await readPublishedInvestmentComparison(1, { asOfDate: '2026-11-03' });
     expect(result?.status).toBe('available');

@@ -1073,12 +1073,41 @@ describe('FundSetup draft sync', () => {
     render(<FundSetup />);
     await userEvent.click(await screen.findByTestId('start-fund-revision'));
     await waitFor(() => expect(fundStore.getState().pendingCommand?.source).toBe('published'));
+    expect(screen.getByTestId('draft-missing')).toHaveTextContent(
+      'Could not confirm the revision; it may have completed'
+    );
     const first = mockStartFundRevision.mock.calls[0];
 
     await userEvent.click(screen.getByTestId('start-fund-revision'));
     await waitFor(() => expect(mockStartFundRevision).toHaveBeenCalledTimes(2));
     expect(mockStartFundRevision.mock.calls[1]).toEqual(first);
     expect(mockFetchFundRevisionSource).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState().pendingCommand).toBeNull();
+  });
+
+  it('shows a rejected revision message while keeping revision recovery available', async () => {
+    mockFetchFundDraft.mockRejectedValueOnce(new ApiError(404, 'No draft found'));
+    mockFetchFundRevisionSource.mockResolvedValueOnce({
+      sourceConfigId: 701,
+      sourceConfigVersion: 4,
+      config: { fundName: 'Published baseline' },
+      etag: SERVER_ETAG,
+    });
+    mockStartFundRevision.mockRejectedValueOnce(
+      new ApiError(403, 'You do not have permission to start this revision')
+    );
+    act(() => fundStore.setState({ draftFundId: 91, draftServerReady: true }));
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('draft-missing')).toHaveTextContent(
+        'You do not have permission to start this revision'
+      )
+    );
+    expect(screen.getByTestId('start-fund-revision')).toHaveTextContent('Start revision');
     expect(fundStore.getState().pendingCommand).toBeNull();
   });
 

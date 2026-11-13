@@ -194,6 +194,23 @@ describe('same-fund published revision', () => {
     expect(response.headers['fund-draft-revision']).toMatch(/^"[0-9a-f]{16}"$/);
   });
 
+  it('does not expose revision-source database errors', async () => {
+    const { databaseMock } = await import('../../helpers/database-mock');
+    databaseMock.select.mockImplementationOnce(() => {
+      throw new Error('SELECT secret_column FROM private_schema.internal_table');
+    });
+
+    const response = await request(app).get('/api/funds/1/revision-source');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Failed to load revision source',
+      message: 'Revision source could not be loaded; retry the request',
+    });
+    expect(JSON.stringify(response.body)).not.toContain('secret_column');
+    expect(JSON.stringify(response.body)).not.toContain('private_schema');
+  });
+
   it('starts a revision through the durable save_draft command with a published marker', async () => {
     const response = await request(app)
       .post('/api/funds/1/draft')

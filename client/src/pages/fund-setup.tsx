@@ -361,8 +361,9 @@ export default function FundSetup() {
                     <AlertTitle>No active draft</AlertTitle>
                     <AlertDescription className="flex flex-wrap items-center gap-3">
                       <span>
-                        This fund has no active draft to edit. Start a revision from its latest
-                        published configuration, open its model, or start a new fund.
+                        {status === 'error' || status === 'uncertain'
+                          ? (error ?? 'Could not start revision')
+                          : 'This fund has no active draft to edit. Start a revision from its latest published configuration, open its model, or start a new fund.'}
                       </span>
                       <Button
                         type="button"

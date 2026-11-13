@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Decimal } from '@shared/lib/decimal-config';
-import { transaction } from '../db/pg-circuit.js';
+import { readTransaction } from '../db/pg-circuit.js';
 import {
   createHttpError,
   fetchCapitalScenarioSetDetailFromRaw,
@@ -55,7 +55,7 @@ export async function readForecastInvestmentBaseline(
     });
   }
 
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     const selected = await client.query<CapitalSnapshotRow>(
       `SELECT id, fund_id, scenario_set_id, config_id, config_version,
               calc_version, state_hash, correlation_id, payload

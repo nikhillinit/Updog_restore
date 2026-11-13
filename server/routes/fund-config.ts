@@ -272,10 +272,12 @@ export function registerFundConfigRoutes(app: Express) {
       res.setHeader('Cache-Control', 'no-store');
       res.json(draftResponse(published));
     } catch (error) {
-      routeLog.error('Revision source load failed', { code: 'REVISION_SOURCE_LOAD_FAILED' });
+      routeLog.error('Revision source load failed', error, {
+        code: 'REVISION_SOURCE_LOAD_FAILED',
+      });
       res.status(500).json({
         error: 'Failed to load revision source',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Revision source could not be loaded; retry the request',
       });
     }
   });

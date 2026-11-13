@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestDatabaseScope } from '../../../server/db/request-context';
+import { requestDatabaseStorage } from '../../../server/db/request-context';
 import historicalFixture from '../../fixtures/capital-planning/completed-interpretation-1.0.0.json';
 
-const { query, transaction, rawSet, detail } = vi.hoisted(() => ({
+const { query, readTransaction, transaction, rawSet, detail } = vi.hoisted(() => ({
   query: vi.fn(),
+  readTransaction: vi.fn(),
   transaction: vi.fn(),
   rawSet: vi.fn(),
   detail: vi.fn(),
 }));
-vi.mock('../../../server/db/pg-circuit.js', () => ({ readTransaction: transaction, transaction }));
+vi.mock('../../../server/db/pg-circuit.js', () => ({ readTransaction, transaction }));
 vi.mock('../../../server/services/fund-scenario-set-service.js', () => ({
   fetchRawScenarioSet: rawSet,
   fetchCapitalScenarioSetDetailFromRaw: detail,
@@ -50,6 +53,7 @@ describe('readForecastInvestmentBaseline', () => {
       { ...month(0, 'initial', '999.000000'), countBasis: 'entered' },
     ];
     query.mockImplementation(async () => ({ rows: [saved.snapshot] }));
+    readTransaction.mockImplementation(async (callback) => callback({ query }));
     transaction.mockImplementation(async (callback) => callback({ query }));
     rawSet.mockResolvedValue(saved);
     detail.mockImplementation(async () => ({
@@ -68,6 +72,30 @@ describe('readForecastInvestmentBaseline', () => {
         override: { overrideType: 'capital_plan', payload: variant['override_payload'] },
       })),
     }));
+  });
+
+  it('reads on the held request connection when another connection cannot be acquired', async () => {
+    const actual = await vi.importActual<typeof import('../../../server/db/pg-circuit')>(
+      '../../../server/db/pg-circuit'
+    );
+    readTransaction.mockImplementation(actual.readTransaction);
+    transaction.mockImplementation(actual.transaction);
+    const runOwnedTransaction = vi.fn().mockRejectedValue(new Error('Connection pool exhausted'));
+    const scope: RequestDatabaseScope = {
+      context: { userId: 'user-a', email: 'a@example.test', orgId: 'org-a', role: 'admin' },
+      db: {} as RequestDatabaseScope['db'],
+      client: { query } as unknown as RequestDatabaseScope['client'],
+      completed: false,
+      runOwnedTransaction,
+    };
+
+    const result = await requestDatabaseStorage.run(scope, () =>
+      readForecastInvestmentBaseline(101, saved.snapshot.id, '2024-03', '2024-04-30')
+    );
+
+    expect(result?.totals.deployedCapital).toBe('125.000000');
+    expect(runOwnedTransaction).not.toHaveBeenCalled();
+    expect(detail).toHaveBeenCalledWith(scope.client, saved, { readCurrentSource: false });
   });
 
   it('reads the exact fund-scoped saved snapshot without current-source recomputation', async () => {
@@ -222,6 +250,7 @@ describe('readForecastInvestmentBaseline', () => {
         String(asOfDate)
       )
     ).rejects.toThrow('Invalid forecast investment baseline selection');
+    expect(readTransaction).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
   });
 
