@@ -20,7 +20,7 @@ import { migrateLegacyPipelineProfiles } from '@/lib/migrate-legacy-pipeline';
 interface InvestmentStage {
   id: string;
   name: string;
-  roundSize: number; // $M
+  roundSize: number | undefined; // $M; blank means whole-round financing was not supplied
   valuation: number; // $M
   valuationType: 'pre' | 'post';
   esopPct: number; // %
@@ -362,7 +362,7 @@ export default function InvestmentStrategyStep() {
                                 {stage.name}
                               </div>
                               <div className="font-poppins font-semibold text-pov-charcoal px-3 text-center tabular-nums">
-                                ${stage.roundSize}M
+                                {stage.roundSize == null ? 'Not supplied' : `$${stage.roundSize}M`}
                               </div>
                               <div className="font-poppins text-pov-charcoal/70 px-3 text-center">
                                 {stage.valuationType}
@@ -434,13 +434,13 @@ export default function InvestmentStrategyStep() {
 
                       {/* Stages with Fixed Column Grid Matching Headers - Scrollable */}
                       <div className="overflow-x-auto -mx-4 px-4">
-                        <div className="space-y-4 min-w-[1220px]">
+                        <div className="space-y-4 min-w-[1340px]">
                           {/* Column Headers with Fixed Column Grid */}
                           <div
                             className="grid text-base font-poppins font-bold text-pov-white py-4 px-2 bg-pov-charcoal rounded-xl border border-pov-charcoal"
                             style={{
                               gridTemplateColumns:
-                                '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px',
+                                '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px 120px',
                             }}
                           >
                             <div className="text-pov-white px-3">Round</div>
@@ -452,6 +452,7 @@ export default function InvestmentStrategyStep() {
                             <div className="text-beige px-3 text-center">Mo to Grad</div>
                             <div className="text-beige px-3 text-center">Exit (%)</div>
                             <div className="text-beige px-3 text-center">Exit Val ($M)</div>
+                            <div className="text-beige px-3 text-center">Mo to Exit</div>
                             <div className="text-pov-gray px-3 text-center">Actions</div>
                           </div>
                           {profile.stages.map((stage, stageIndex) => (
@@ -460,7 +461,7 @@ export default function InvestmentStrategyStep() {
                               className="grid items-center py-4 px-2 bg-white rounded-xl border border-beige-200 shadow-sm hover:shadow-lg hover:border-pov-charcoal transition-all duration-200"
                               style={{
                                 gridTemplateColumns:
-                                  '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px',
+                                  '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px 120px',
                               }}
                             >
                               {/* Round Dropdown */}
@@ -491,10 +492,13 @@ export default function InvestmentStrategyStep() {
                                   type="number"
                                   min="0"
                                   step="0.1"
-                                  value={stage.roundSize}
+                                  value={stage.roundSize ?? ''}
                                   onChange={(e) =>
                                     handleUpdateStage(profile.id, stage.id, {
-                                      roundSize: parseFloat(e.target.value) || 0,
+                                      roundSize:
+                                        e.target.value === ''
+                                          ? undefined
+                                          : parseFloat(e.target.value),
                                     })
                                   }
                                   className="h-12 text-sm text-center font-medium w-full"
@@ -629,6 +633,26 @@ export default function InvestmentStrategyStep() {
                                   }
                                   className="h-12 text-sm text-center font-medium w-full"
                                   placeholder="50"
+                                />
+                              </div>
+
+                              {/* Months to Exit */}
+                              <div className="px-3">
+                                <Input
+                                  aria-label={`Months to Exit for ${stage.name || 'stage'}`}
+                                  data-testid={`pipeline-months-to-exit-${stage.id}`}
+                                  type="number"
+                                  min="1"
+                                  max="240"
+                                  step="1"
+                                  value={stage.monthsToExit}
+                                  onChange={(event) =>
+                                    handleUpdateStage(profile.id, stage.id, {
+                                      monthsToExit: parseInt(event.target.value) || 12,
+                                    })
+                                  }
+                                  className="h-12 text-sm text-center font-medium w-full"
+                                  placeholder="36"
                                 />
                               </div>
 

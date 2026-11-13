@@ -45,6 +45,8 @@ export default function FundBasicsStep() {
   const managementFeeRate = useFundSelector((s) => s.managementFeeRate);
   const carriedInterest = useFundSelector((s) => s.carriedInterest);
   const fundedFromFeesPct = useFundSelector((s) => s.fundedFromFeesPct);
+  const gpCommitment = useFundSelector((s) => s.gpCommitment);
+  const managementFeeExemptsGp = useFundSelector((s) => s.managementFeeExemptsGp);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
   const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const vintageYear = useFundSelector((s) => s.vintageYear);
@@ -339,6 +341,30 @@ export default function FundBasicsStep() {
 
           <div className="space-y-3">
             <Label
+              htmlFor="establishment-date"
+              className="text-sm font-poppins font-medium text-pov-charcoal"
+            >
+              Establishment Date
+            </Label>
+            <Input
+              id="establishment-date"
+              type="date"
+              value={establishmentDate ?? ''}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                const value = event.target.value || undefined;
+                handleInputChange('establishmentDate', value);
+                handleInputChange('vintageYear', value ? Number(value.slice(0, 4)) : undefined);
+              }}
+              data-testid="establishment-date"
+              className="h-12 max-w-sm font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
+            />
+            <p className="text-sm text-presson-textMuted">
+              Calendar anchor for fund timing and modeled monthly schedules.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Label
               htmlFor="model-inputs-as-of-date"
               className="text-sm font-poppins font-medium text-pov-charcoal"
             >
@@ -458,6 +484,43 @@ export default function FundBasicsStep() {
               step={1}
               help="GP performance fee (typically 20%)"
             />
+
+            <div data-testid="gp-commitment-amount">
+              <NumericInput
+                label="GP Commitment Amount ($)"
+                value={gpCommitment}
+                onChange={(value: number | undefined) =>
+                  updateCapitalStructure({ gpCommitment: value })
+                }
+                mode="number"
+                min={0}
+                step={10000}
+                help="Fixed GP capital commitment. It remains investment capital when fee-exempt."
+              />
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border border-beige-200 p-4">
+              <Switch
+                id="management-fee-exempts-gp"
+                checked={managementFeeExemptsGp ?? false}
+                onCheckedChange={(checked) =>
+                  updateCapitalStructure({ managementFeeExemptsGp: checked })
+                }
+                data-testid="management-fee-exempts-gp"
+              />
+              <div className="space-y-1">
+                <Label
+                  htmlFor="management-fee-exempts-gp"
+                  className="cursor-pointer text-sm font-poppins font-medium text-pov-charcoal"
+                >
+                  Exclude GP commitment from management fee basis
+                </Label>
+                <p className="text-sm text-presson-textMuted">
+                  Fee-paying commitments exclude fixed GP capital. GP capital still funds
+                  investments.
+                </p>
+              </div>
+            </div>
 
             <NumericInput
               label="Cashless GP Contribution"

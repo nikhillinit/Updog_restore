@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { getRequestDatabaseScope } from '../db/request-context';
 import { fundConfigs, funds, fundWorkflowCommands, userFundGrants } from '@shared/schema';
@@ -100,6 +100,22 @@ interface WorkflowResult {
   runId?: number | null;
 }
 
+export function fundWorkflowRequestHash(command: {
+  operation: FundWorkflowOperation;
+  targetFundId: number | null;
+  expectedRevision: string | null;
+  body: unknown;
+  source?: 'published';
+}): string {
+  return canonicalSha256({
+    operation: command.operation,
+    target: command.targetFundId,
+    expectedRevision: command.expectedRevision,
+    body: command.body,
+    ...(command.source === undefined ? {} : { source: command.source }),
+  });
+}
+
 /** Participates only in the authenticated request's physical transaction. */
 export async function executeFundWorkflowCommand(
   command: {
@@ -110,17 +126,13 @@ export async function executeFundWorkflowCommand(
     expectedRevision: string | null;
     body: unknown;
     unrestricted: boolean;
+    source?: 'published';
   },
   execute: (draft: FundConfig | undefined) => Promise<WorkflowResult>
 ): Promise<WorkflowResult & { replayed: boolean }> {
   if (!getRequestDatabaseScope())
     throw new Error('Fund workflow requires a verified database context');
-  const hash = canonicalSha256({
-    operation: command.operation,
-    target: command.targetFundId,
-    expectedRevision: command.expectedRevision,
-    body: command.body,
-  });
+  const hash = fundWorkflowRequestHash(command);
   const lockHash = canonicalSha256([
     FUND_WORKFLOW_CONTRACT_VERSION,
     command.actorId,
@@ -190,13 +202,39 @@ export async function executeFundWorkflowCommand(
       .where(eq(funds.id, command.targetFundId))
       .for('update');
     if (!fund) throw new FundWorkflowError(404, 'FUND_NOT_FOUND', 'Fund not found');
-    [draft] = await db
+    const [activeDraft] = await db
       .select()
       .from(fundConfigs)
       .where(and(eq(fundConfigs.fundId, command.targetFundId), eq(fundConfigs.isDraft, true)))
       .for('update');
-    if (!draft)
-      throw new FundWorkflowError(409, 'NO_ACTIVE_DRAFT', 'No active draft exists for this fund');
+    if (command.source === 'published') {
+      if (activeDraft) {
+        throw new FundWorkflowError(
+          409,
+          'ACTIVE_DRAFT_EXISTS',
+          'An active draft already exists for this fund'
+        );
+      }
+      [draft] = await db
+        .select()
+        .from(fundConfigs)
+        .where(and(eq(fundConfigs.fundId, command.targetFundId), eq(fundConfigs.isPublished, true)))
+        .orderBy(desc(fundConfigs.version))
+        .limit(1)
+        .for('update');
+      if (!draft) {
+        throw new FundWorkflowError(
+          409,
+          'NO_PUBLISHED_CONFIG',
+          'No published configuration exists for this fund'
+        );
+      }
+    } else {
+      draft = activeDraft;
+      if (!draft) {
+        throw new FundWorkflowError(409, 'NO_ACTIVE_DRAFT', 'No active draft exists for this fund');
+      }
+    }
     const current = draftETag(draft);
     if (command.expectedRevision !== current) {
       throw new FundWorkflowError(

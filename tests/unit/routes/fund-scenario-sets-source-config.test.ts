@@ -16,7 +16,10 @@ const {
   familyTransactionMock: vi.fn(),
 }));
 
-vi.mock('../../../server/db/pg-circuit.js', () => ({ transaction: familyTransactionMock }));
+vi.mock('../../../server/db/pg-circuit.js', () => ({
+  readTransaction: familyTransactionMock,
+  transaction: familyTransactionMock,
+}));
 
 vi.mock('../../../server/services/fund-scenario-set-service.js', async (importActual) => {
   const actual =

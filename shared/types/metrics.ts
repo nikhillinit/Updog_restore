@@ -12,6 +12,8 @@
  * @module shared/types/metrics
  */
 
+import type { PublishedFundActuals } from '@shared/contracts/dual-forecast/investment-comparison.contract';
+
 /**
  * ActualMetrics - Real portfolio performance data
  *
@@ -320,6 +322,9 @@ export interface UnifiedFundMetrics {
 
   /** Actual metrics from database */
   actual: ActualMetrics;
+
+  /** Fresh actuals admitted to the terminal financial-facts publication */
+  publishedActuals?: PublishedFundActuals | null;
 
   /** Projected metrics from calculation engines */
   projected: ProjectedMetrics;

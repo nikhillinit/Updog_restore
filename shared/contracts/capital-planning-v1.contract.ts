@@ -6,6 +6,12 @@ export const CAPITAL_PLANNING_VERSION = 'capital-planning/1.0.0' as const;
 export const CAPITAL_SOURCE_INTERPRETATION_VERSION = 'capital-source-interpretation/1.0.1' as const;
 export const CAPITAL_GP_METHOD_VERSION = 'capital-gp-deemed/1.0.0' as const;
 export const CAPITAL_FEE_METHOD_VERSION = 'capital-fee-expense/1.0.0' as const;
+export const CAPITAL_GP_EXEMPT_FEE_METHOD_VERSION = 'capital-fee-expense/1.1.0' as const;
+export const CAPITAL_EXPENSE_HORIZON_METHOD_VERSION = 'capital-fee-expense/1.2.0' as const;
+export const CapitalFeePopulationSchema = z.enum([
+  'full_fund_committed_capital',
+  'committed_capital_excluding_gp',
+]);
 export const CAPITAL_PREIMAGE_VERSION = 'capital-preimage/1.0.0' as const;
 export const AGGREGATE_PREFERENCE_FORECAST_VERSION = 'aggregate-preference-forecast/1.0.0' as const;
 
@@ -300,7 +306,7 @@ const RawSourcePathSchema = CapitalPathV1Schema.refine(
     /^(?:fundSize|vintageYear|modelInputsAsOfDate|isEvergreen|fundLife|investmentPeriod|gpCommitment|fundedFromFeesPct|managementFeeRate)$/.test(
       path
     ) ||
-    /^economicsAssumptions\.(?:timeline(?:\.(?:fundLifeYears|period|vintageYear))?|gpCommitmentModel(?:\.(?:commitmentAmount|commitmentPct))?|feeModel(?:\.(?:source|defaultRate|defaultBasis|tiers(?:\[\d+\](?:\.(?:id|name|rate|basis|startYear|endYear|recyclingEligiblePct))?)?))?|expenseModel(?:\.(?:source|orgExpenseCap|orgExpenseCapType|annualExpenses(?:\[\d+\](?:\.(?:id|category|amount|startYear|endYear|growthRate))?)?))?)$/.test(
+    /^economicsAssumptions\.(?:timeline(?:\.(?:fundLifeYears|period|vintageYear))?|gpCommitmentModel(?:\.(?:commitmentAmount|commitmentPct))?|feeModel(?:\.(?:source|defaultRate|defaultBasis|gpCommitmentExempt|tiers(?:\[\d+\](?:\.(?:id|name|rate|basis|startYear|endYear|recyclingEligiblePct))?)?))?|expenseModel(?:\.(?:source|horizonMonths|orgExpenseCap|orgExpenseCapType|annualExpenses(?:\[\d+\](?:\.(?:id|category|amount|startYear|endYear|growthRate))?)?))?)$/.test(
       path
     ) ||
     /^(?:allocations(?:\[\d+\](?:\.(?:id|category|percentage|description))?)?|capitalPlanAllocations(?:\[\d+\](?:\.(?:id|name|sectorProfileId|entryRound|capitalAllocationPct|initialCheckStrategy|initialCheckAmount|initialOwnershipPct|followOnStrategy|followOnAmount|followOnParticipationPct|investmentHorizonMonths))?)?|sectorProfiles(?:\[\d+\](?:\.(?:id|name|targetPercentage|description))?)?|pipelineProfiles(?:\[\d+\](?:\.(?:id|name|stages(?:\[\d+\](?:\.(?:id|name|roundSize|valuation|valuationType|esopPct|graduationRate|exitRate|exitValuation|monthsToGraduate|monthsToExit))?)?))?)?|feeProfiles(?:\[\d+\](?:\.(?:id|name|feeTiers(?:\[\d+\](?:\.(?:id|name|percentage|feeBasis|startMonth|endMonth|recyclingPercentage))?)?))?)?|fundExpenses(?:\[\d+\](?:\.(?:id|category|monthlyAmount|startMonth|endMonth))?)?)$/.test(
@@ -440,7 +446,7 @@ const AbsentPeriodEndSchema = z
     state: z.literal('absent'),
     path: CapitalPathV1Schema,
     effectiveValue: MonthSchema,
-    defaultReason: z.literal('FINITE_FUND_HORIZON_END'),
+    defaultReason: z.enum(['FINITE_FUND_HORIZON_END', 'EXPLICIT_EXPENSE_HORIZON_END']),
   })
   .strict();
 export const CapitalSourcePeriodV1Schema = z
@@ -452,7 +458,9 @@ export const CapitalSourcePeriodV1Schema = z
         end: AnnualBoundarySchema.nullable(),
         normalizedStartMonth: MonthSchema,
         normalizedEndMonth: MonthSchema,
-        endDefaultReason: z.literal('FINITE_FUND_HORIZON_END').nullable(),
+        endDefaultReason: z
+          .enum(['FINITE_FUND_HORIZON_END', 'EXPLICIT_EXPENSE_HORIZON_END'])
+          .nullable(),
       })
       .strict(),
     z
@@ -628,7 +636,7 @@ const FeeTierFactSchema = z
     path: CapitalPathV1Schema,
     rate: CapitalRateSourceFactV1Schema,
     basis: z.literal('committed_capital'),
-    population: z.literal('full_fund_committed_capital'),
+    population: CapitalFeePopulationSchema,
     period: CapitalSourcePeriodV1Schema,
     recyclingAnnotation: CapitalRawSourceFactV1Schema.nullable(),
   })
@@ -668,7 +676,29 @@ const ExpenseFactSchema = z
   .strict();
 export const CapitalFeeExpenseSourceFactsV1Schema = z
   .object({
-    methodVersion: z.literal(CAPITAL_FEE_METHOD_VERSION),
+    methodVersion: z.enum([
+      CAPITAL_FEE_METHOD_VERSION,
+      CAPITAL_GP_EXEMPT_FEE_METHOD_VERSION,
+      CAPITAL_EXPENSE_HORIZON_METHOD_VERSION,
+    ]),
+    expenseHorizon: z
+      .object({
+        path: z.literal('economicsAssumptions.expenseModel.horizonMonths'),
+        rawValue: z
+          .number()
+          .int()
+          .positive()
+          .max(limits.maxScheduleMonth + 1),
+      })
+      .strict()
+      .optional(),
+    gpExemption: z
+      .object({
+        path: z.literal('economicsAssumptions.feeModel.gpCommitmentExempt'),
+        rawValue: z.boolean(),
+      })
+      .strict()
+      .optional(),
     feeSelection: z.enum(['explicit_tiers', 'legacy_profile']),
     expenseSelection: z.enum(['explicit_annual', 'legacy_monthly']),
     rawPresence: z
@@ -705,6 +735,25 @@ export const CapitalFeeExpenseSourceFactsV1Schema = z
   .strict()
   .superRefine((value, ctx) => {
     const explicit = value.rawPresence.explicitFeeTiers === 'nonempty';
+    const exempt = value.gpExemption?.rawValue === true;
+    if (
+      value.methodVersion !==
+        (value.expenseHorizon
+          ? CAPITAL_EXPENSE_HORIZON_METHOD_VERSION
+          : exempt
+            ? CAPITAL_GP_EXEMPT_FEE_METHOD_VERSION
+            : CAPITAL_FEE_METHOD_VERSION) ||
+      value.feeTiers.some(
+        (tier) =>
+          tier.population !==
+          (exempt ? 'committed_capital_excluding_gp' : 'full_fund_committed_capital')
+      )
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['gpExemption'],
+        message: 'Fee population and method must match the explicit GP exemption policy',
+      });
     if (
       (value.feeSelection === 'explicit_tiers') !== explicit ||
       (!explicit && value.rawPresence.legacyFeeProfiles !== 'nonempty') ||
@@ -924,6 +973,15 @@ export const CapitalSourceBundleV1Schema = z
         code: z.ZodIssueCode.custom,
         path: ['fundSize'],
         message: 'Expected locked USD fund-row commitment facts',
+      });
+    if (
+      value.feeExpense.gpExemption?.rawValue === true &&
+      value.gp.resolved.source === 'zero_fallback'
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['gp'],
+        message: 'GP_COMMITMENT_UNRESOLVED',
       });
     if (
       value.configFundSize.state === 'matched' &&
@@ -1535,7 +1593,7 @@ export const CapitalBudgetBridgeV1Schema = z
     planningBudgetUsd: CapitalOptionalMoneyV1Schema,
     planningBudgetOrigin: z.enum(['derived_available_capital', 'explicit_override']),
     overrideDifferenceUsd: CapitalOptionalMoneyV1Schema,
-    feePopulation: z.literal('full_fund_committed_capital'),
+    feePopulation: CapitalFeePopulationSchema,
     fundingAssumption: z.literal('callable_as_needed'),
   })
   .strict();

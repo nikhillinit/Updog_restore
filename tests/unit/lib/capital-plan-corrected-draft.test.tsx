@@ -18,6 +18,7 @@ describe('corrected capital scenario draft', () => {
     expect(round.eligibility.type).toBe('');
     expect(round.graduationRatio).toBe('');
     expect(round.poolBasis).toBe('');
+    expect(round.proRataOwnershipBasis).toBeUndefined();
     expect(round.timingBasis).toBe('');
     expect(round.financing.primaryCapital.primary_only_excludes_secondary).toBe(false);
   });

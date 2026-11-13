@@ -557,6 +557,7 @@ describe('DualForecastDashboard', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/funds/42/dual-forecast', {
       credentials: 'include',
+      cache: 'no-store',
     });
   });
 
@@ -634,6 +635,54 @@ describe('DualForecastDashboard', () => {
     expect(screen.getByText('Fund Value Forecast')).toBeInTheDocument();
     // No attribution card without a navAnchoring universe
     expect(screen.queryByText('NAV Attribution')).toBeNull();
+  });
+
+  it('renders published investment actuals without fabricating NAV, calls, or legacy allocation', async () => {
+    setActiveFundContext();
+    const payload = {
+      ...makeDualForecast(),
+      series: [],
+      sources: {
+        construction: 'unavailable',
+        current: 'unavailable',
+        actual: 'published_investment_facts',
+      },
+      actualsFacts: null,
+      navAnchoring: null,
+      investmentComparison: {
+        status: 'available',
+        asOfDate: '2026-11-03',
+        basis: {
+          snapshotId: 31,
+          snapshotInputHash: 'a'.repeat(64),
+          snapshotAsOfDate: '2026-11-03',
+          knowledgeCutoff: '2026-11-03T12:00:00.000Z',
+        },
+        actual: {
+          deployedCapital: '3075360',
+          initialCapital: '2837330',
+          followOnCapital: '238030',
+          transactionCount: 9,
+          companyCount: 8,
+        },
+        periods: [],
+        baseline: null,
+        reason: null,
+        baselineReason: 'Select a saved investment plan to compare cadence.',
+        disclosures: [],
+      },
+    };
+    expect(DualForecastResponseSchema.parse(payload)).toEqual(payload);
+    stubFetch({ forecast: { body: payload } });
+
+    renderWithQueryClient();
+
+    expect(await screen.findByText('Investment plan vs published actuals')).toBeInTheDocument();
+    expect(screen.getAllByText('$3,075,360').length).toBeGreaterThan(0);
+    expect(screen.getByText('Financial return forecast unavailable')).toBeInTheDocument();
+    expect(screen.getAllByText('Cash-invested companies').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Portfolio Allocation')).toBeNull();
+    expect(screen.queryByText('Capital Call Forecast')).toBeNull();
   });
 
   it('renders the blended NAV figure and trust-count chips from navAnchoring', async () => {

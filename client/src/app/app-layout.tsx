@@ -190,6 +190,7 @@ export function AppLayout({
   const activeModule = getActiveNavigationId(location);
   const isFundSetupRoute = location.startsWith('/fund-setup');
   const isWorkspaceView = resolveDashboardView(location, search)?.view === 'workspace';
+  const isForecastView = activeModule === 'financial-modeling';
   // The authenticated shell binds the tab's fund-workspace envelope to this actor.
   useEffect(() => {
     let cancelled = false;
@@ -243,12 +244,12 @@ export function AppLayout({
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-pov-gray font-poppins text-charcoal">
       <header>
-        {/* The account-wide Workspace owns its title and polls no fund KPIs. */}
+        {/* Workspace and forecasting own their context; forecasting also owns its published basis. */}
         {isFundSetupRoute ? (
           <Suspense fallback={null}>
             <FundConstructionKpiHeader />
           </Suspense>
-        ) : isWorkspaceView ? null : (
+        ) : isWorkspaceView || isForecastView ? null : (
           <DynamicFundHeader />
         )}
         <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">

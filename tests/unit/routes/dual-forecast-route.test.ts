@@ -73,6 +73,34 @@ function expectHostileTextAbsent(body: unknown, hostileText: string) {
 }
 
 describe('dual forecast route', () => {
+  it('passes a calendar cutoff and pinned baseline selection through the serving seam', async () => {
+    await request(makeApp())
+      .get(
+        '/api/funds/12/dual-forecast?asOfDate=2025-03-31&baselineSnapshotId=51&baselineStartMonth=2024-03'
+      )
+      .expect(200);
+    expect(getDualForecastMock).toHaveBeenCalledWith(12, {
+      asOfDate: '2025-03-31',
+      baselineSnapshotId: 51,
+      baselineStartMonth: '2024-03',
+    });
+  });
+
+  it.each([
+    'asOfDate=2025-02-29',
+    'asOfDate=2026-04-31',
+    'asOfDate=tomorrow',
+    'asOfDate=2025-01-01&asOfDate=2026-01-01',
+    'baselineSnapshotId=1',
+    'baselineStartMonth=2024-03',
+    'baselineSnapshotId=-1&baselineStartMonth=2024-03',
+    'baselineSnapshotId=1&baselineStartMonth=2024-13',
+    'baselineSnapshotId=9007199254740992&baselineStartMonth=2024-03',
+  ])('rejects invalid comparison query %s', async (query) => {
+    await request(makeApp()).get(`/api/funds/12/dual-forecast?${query}`).expect(400);
+    expect(getDualForecastMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     authCalls.length = 0;

@@ -17,6 +17,7 @@ import request from 'supertest';
 import { validDraftPayload, minimalDraftPayload } from '../../fixtures/fund-contract-v1-fixtures';
 
 let app: express.Express;
+let lastWorkflowCommand: Record<string, unknown> | null = null;
 
 beforeEach(async () => {
   const { databaseMock } = await import('../../helpers/database-mock');
@@ -32,14 +33,21 @@ beforeEach(async () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  databaseMock.setMockData('fundconfigs', [draft]);
+  const published = {
+    ...draft,
+    id: 102,
+    version: 2,
+    isDraft: false,
+    isPublished: true,
+    publishedAt: new Date(),
+  };
+  databaseMock.setMockData('fundconfigs', [draft, published]);
   const workflow = await import('../../../server/services/fund-workflow-service');
-  vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(
-    async (_command, execute) => ({
-      ...(await execute(draft)),
-      replayed: false,
-    })
-  );
+  vi.spyOn(workflow, 'executeFundWorkflowCommand').mockImplementation(async (command, execute) => ({
+    ...(lastWorkflowCommand = command as unknown as Record<string, unknown>),
+    ...(await execute(command.source === 'published' ? published : draft)),
+    replayed: false,
+  }));
 });
 
 beforeAll(async () => {
@@ -173,5 +181,126 @@ describe('PUT /api/funds/:id/draft validation', () => {
 
     expect(putRes.status).toBe(400);
     expect(putRes.body).toHaveProperty('error', 'Invalid fund ID');
+  });
+});
+
+describe('same-fund published revision', () => {
+  it('returns the latest published source as a raw draft response with a strong revision', async () => {
+    const response = await request(app).get('/api/funds/1/revision-source');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id: 102, fundId: 1, version: 2 });
+    expect(response.body.config).toEqual({ fundName: 'Initial draft' });
+    expect(response.headers['fund-draft-revision']).toMatch(/^"[0-9a-f]{16}"$/);
+  });
+
+  it('does not expose revision-source database errors', async () => {
+    const { databaseMock } = await import('../../helpers/database-mock');
+    databaseMock.select.mockImplementationOnce(() => {
+      throw new Error('SELECT secret_column FROM private_schema.internal_table');
+    });
+
+    const response = await request(app).get('/api/funds/1/revision-source');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Failed to load revision source',
+      message: 'Revision source could not be loaded; retry the request',
+    });
+    expect(JSON.stringify(response.body)).not.toContain('secret_column');
+    expect(JSON.stringify(response.body)).not.toContain('private_schema');
+  });
+
+  it('starts a revision through the durable save_draft command with a published marker', async () => {
+    const response = await request(app)
+      .post('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({ sourceConfigId: 102, sourceConfigVersion: 2 });
+
+    expect(response.status).toBe(201);
+    expect(lastWorkflowCommand).toMatchObject({
+      operation: 'save_draft',
+      source: 'published',
+      targetFundId: 1,
+      body: { sourceConfigId: 102, sourceConfigVersion: 2 },
+    });
+    expect(response.body.data.config).toEqual({ fundName: 'Initial draft' });
+  });
+
+  it('rejects malformed revision source bodies before dispatch', async () => {
+    const response = await request(app)
+      .post('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({ sourceConfigId: 102, sourceConfigVersion: 2, config: {} });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('REVISION_SOURCE_VALIDATION_ERROR');
+  });
+
+  it.each([
+    [412, 'PRECONDITION_FAILED', 'A newer published configuration is available'],
+    [409, 'ACTIVE_DRAFT_EXISTS', 'An active draft already exists for this fund'],
+    [409, 'IDEMPOTENCY_KEY_REUSE', 'This key belongs to a different command'],
+  ] as const)(
+    'returns %s workflow conflicts without creating another draft',
+    async (status, code, message) => {
+      const workflow = await import('../../../server/services/fund-workflow-service');
+      vi.mocked(workflow.executeFundWorkflowCommand).mockRejectedValueOnce(
+        new workflow.FundWorkflowError(
+          status,
+          code,
+          message,
+          status === 412 ? '"fedcba9876543210"' : undefined
+        )
+      );
+
+      const response = await request(app)
+        .post('/api/funds/1/draft')
+        .set('Idempotency-Key', randomUUID())
+        .set('If-Match', '"0123456789abcdef"')
+        .send({ sourceConfigId: 102, sourceConfigVersion: 2 });
+
+      expect(response.status).toBe(status);
+      expect(response.body.code).toBe(code);
+    }
+  );
+
+  it('marks same-key retry responses as idempotent replays', async () => {
+    const workflow = await import('../../../server/services/fund-workflow-service');
+    vi.mocked(workflow.executeFundWorkflowCommand).mockResolvedValueOnce({
+      status: 201,
+      body: { success: true, data: { id: 102, fundId: 1, version: 2, config: validDraftPayload } },
+      etag: '"fedcba9876543210"',
+      fundId: 1,
+      configId: 102,
+      replayed: true,
+    });
+
+    const response = await request(app)
+      .post('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({ sourceConfigId: 102, sourceConfigVersion: 2 });
+
+    expect(response.status).toBe(201);
+    expect(response.headers['idempotency-replay']).toBe('true');
+  });
+
+  it('requires an authenticated write principal', async () => {
+    const unauthenticated = express();
+    unauthenticated.use(express.json());
+    const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
+    registerFundConfigRoutes(unauthenticated);
+
+    const response = await request(unauthenticated)
+      .post('/api/funds/1/draft')
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', '"0123456789abcdef"')
+      .send({ sourceConfigId: 102, sourceConfigVersion: 2 });
+
+    expect(response.status).toBeGreaterThanOrEqual(401);
+    expect(response.status).toBeLessThanOrEqual(403);
   });
 });

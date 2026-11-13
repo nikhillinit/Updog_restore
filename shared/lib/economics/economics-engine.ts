@@ -60,6 +60,7 @@ interface NormalizedEconomicsConfig {
   recycling: NonNullable<EconomicsAssumptionsV1['recyclingModel']>;
   waterfall: NonNullable<EconomicsAssumptionsV1['waterfallModel']>;
   gpCommitmentAmount: Decimal;
+  gpFeeExempt: boolean;
   gpCashCommitmentAmount: Decimal;
   fundedFromFeesPct: Decimal;
   gpCommitmentPct: Decimal;
@@ -354,6 +355,16 @@ export function normalizeEconomicsConfig(input: FundDraftWriteV1): NormalizedEco
 
   const fundLifeYears =
     assumptions.timeline?.fundLifeYears ?? input.fundLife ?? DEFAULT_FUND_LIFE_YEARS;
+  if (
+    assumptions.expenseModel?.horizonMonths !== undefined &&
+    assumptions.expenseModel.horizonMonths !== fundLifeYears * 12
+  )
+    throw new EconomicsInputValidationError([
+      issue(
+        ['expenseModel', 'horizonMonths'],
+        'Annual economics requires expense coverage equal to the fund term'
+      ),
+    ]);
   const investmentPeriodYears = Math.min(
     fundLifeYears,
     input.investmentPeriod ?? DEFAULT_INVESTMENT_PERIOD_YEARS
@@ -395,18 +406,38 @@ export function normalizeEconomicsConfig(input: FundDraftWriteV1): NormalizedEco
   const gpCommitmentPct = fundSize.gt(0) ? gpCommitmentAmount.div(fundSize) : new Decimal(0);
   const fundedFromFeesPct = asDecimal(input.fundedFromFeesPct ?? 0);
   const gpCashCommitmentAmount = gpCommitmentAmount.times(new Decimal(1).minus(fundedFromFeesPct));
+  const feeTiers = normalizeFeeTiers(input, assumptions);
+  const gpFeeExempt = assumptions.feeModel?.gpCommitmentExempt === true;
+  if (
+    gpFeeExempt &&
+    (commitmentAmount.gt(fundSize) ||
+      (gpModel?.commitmentAmount == null &&
+        gpModel?.commitmentPct == null &&
+        input.gpCommitment == null))
+  )
+    throw new EconomicsInputValidationError([
+      issue(['gpCommitmentModel'], 'GP fee exemption requires a known commitment within fund size'),
+    ]);
+  if (gpFeeExempt && feeTiers.some((tier) => tier.basis !== 'committed_capital'))
+    throw new EconomicsInputValidationError([
+      issue(
+        ['feeModel', 'gpCommitmentExempt'],
+        'GP fee exemption supports committed-capital fees only'
+      ),
+    ]);
 
   return {
     fundSize,
     fundLifeYears,
     investmentPeriodYears,
     vintageYear,
-    feeTiers: normalizeFeeTiers(input, assumptions),
+    feeTiers,
     expenses: normalizeExpenses(input, assumptions),
     exitModel,
     recycling: assumptions.recyclingModel ?? defaultRecycling(input),
     waterfall: assumptions.waterfallModel ?? defaultWaterfall(input),
     gpCommitmentAmount,
+    gpFeeExempt,
     gpCashCommitmentAmount,
     fundedFromFeesPct,
     gpCommitmentPct,
@@ -882,7 +913,7 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
     unreturnedCapital = unreturnedCapital.plus(totalCapitalCall);
 
     const feeBasisContext: FeeBasisContext = {
-      committedCapital: config.fundSize,
+      committedCapital: config.gpFeeExempt ? lpCommitmentAmount : config.fundSize,
       calledCapitalPeriod: calledCapitalPeriodFromCumulative(
         previousCalledCapitalCumulative,
         calledCapitalCumulative
