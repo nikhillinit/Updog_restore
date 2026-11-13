@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:5292ac35b78d812ec2493954a27ba1fd44157ab02abcd283f7f493688e720266",
+  "snapshot_id": "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -133,6 +133,7 @@
     "api:GET:/api/funds/:id/reserves",
     "api:GET:/api/funds/:id/results",
     "api:GET:/api/funds/:id/results-comparison",
+    "api:GET:/api/funds/:id/revision-source",
     "api:GET:/api/funds/:id/sensitivity/runs",
     "api:GET:/api/funds/:id/sensitivity/runs/:runId",
     "api:GET:/api/funds/:id/state",
@@ -366,6 +367,7 @@
     "api:POST:/api/funds/:id/alerts/cleanup-superseded",
     "api:POST:/api/funds/:id/baselines",
     "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+    "api:POST:/api/funds/:id/draft",
     "api:POST:/api/funds/:id/publish",
     "api:POST:/api/funds/:id/recalculate",
     "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -504,7 +506,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "271be8ec63ad47fecdc5d58b5096567c53bacfd0e648a64f5ff382edb9d18889",
+    "audit/surface-contract-matrix/boot-proofs.json": "ced6fe662e3cfb1dd958f5ccbfe37501dbce4e36fe194e591d2ad6a888b0ace1",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
@@ -573,13 +575,13 @@
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "441e10c70d8afdfaf9866afbf3a8aeef232b10823a9987c6b8d1644684ac62b9",
     "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
-    "server/routes/dual-forecast.ts": "a43eb18ead508d1498ae1eff9ca9f9b03bf374f9c1f67d0e4a59cf9939e21aa3",
+    "server/routes/dual-forecast.ts": "dd1d5175b4492db8d01debd575f0b1ce434832f60822bf38f33fad32802d4f7d",
     "server/routes/engine-summaries.ts": "b17db5ceada8e2ad8b7ecfe3768b193d9badcbce398cc2c857f1aa48780221cb",
     "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
     "server/routes/financial-facts.ts": "ba0ae00637e968b48ab85ef0dba7595d13d0e714b7ad4237be66ede5660b7661",
     "server/routes/flags.ts": "5b8f12355dc95086576cf133592e1bbe5dc7fc259039b75167a8da09e721a32d",
     "server/routes/fund-actuals.ts": "f829600d9f6b7453ebb114773ef5ccfc953ee9c38c707b8c0b99abb36c6af9cf",
-    "server/routes/fund-config.ts": "fa7238de1289bcbbb5bf9c5744ee05973386f9acd4c72e4ee9b8b68053fed68f",
+    "server/routes/fund-config.ts": "698bd01d5f6434d6bac518fb82de12257733a5dc9b25349de80849162b61469a",
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "429a213a5c986627b0ceeb9ad89722f8466c86f6f437b8a5defc7ba5ea752d42",
@@ -802,6 +804,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -985,6 +988,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -1145,6 +1149,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -1364,6 +1369,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -1539,6 +1545,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -1758,6 +1765,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -1933,6 +1941,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -2152,6 +2161,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -2332,6 +2342,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -2559,6 +2570,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -2757,6 +2769,7 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/sensitivity/runs",
       "api:GET:/api/funds/:id/sensitivity/runs/:runId",
       "api:GET:/api/funds/:id/state",
@@ -2957,6 +2970,7 @@
       "api:POST:/api/funds/:id/alerts/cleanup-superseded",
       "api:POST:/api/funds/:id/baselines",
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/:id/sensitivity/one-way",
@@ -3723,7 +3737,9 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/state",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/finalize",
@@ -3743,6 +3759,9 @@
     ],
     "api:GET:/api/funds/:id/results-comparison": [
       "api:GET:/api/funds/:id/results-comparison"
+    ],
+    "api:GET:/api/funds/:id/revision-source": [
+      "api:GET:/api/funds/:id/revision-source"
     ],
     "server/routes/sensitivity.ts": [
       "api:GET:/api/funds/:id/sensitivity/runs",
@@ -4608,6 +4627,9 @@
     "api:POST:/api/funds/:id/baselines/:baselineId/set-default": [
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default"
     ],
+    "api:POST:/api/funds/:id/draft": [
+      "api:POST:/api/funds/:id/draft"
+    ],
     "api:POST:/api/funds/:id/publish": [
       "api:POST:/api/funds/:id/publish"
     ],
@@ -5207,7 +5229,9 @@
       "api:GET:/api/funds/:id/reserves",
       "api:GET:/api/funds/:id/results",
       "api:GET:/api/funds/:id/results-comparison",
+      "api:GET:/api/funds/:id/revision-source",
       "api:GET:/api/funds/:id/state",
+      "api:POST:/api/funds/:id/draft",
       "api:POST:/api/funds/:id/publish",
       "api:POST:/api/funds/:id/recalculate",
       "api:POST:/api/funds/finalize",
@@ -7862,6 +7886,17 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
+    "api:GET:/api/funds/:id/revision-source": [
+      "api:GET:/api/funds/:id/revision-source",
+      "manifest:fund-config",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/fund-config.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
     "api:GET:/api/funds/:id/sensitivity/runs": [
       "api:GET:/api/funds/:id/sensitivity/runs",
       "manifest-source:server/routes/sensitivity.ts",
@@ -10347,6 +10382,17 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
+    "api:POST:/api/funds/:id/draft": [
+      "api:POST:/api/funds/:id/draft",
+      "manifest:fund-config",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/fund-config.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
     "api:POST:/api/funds/:id/publish": [
       "api:POST:/api/funds/:id/publish",
       "manifest:fund-config",
@@ -11554,11 +11600,11 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:5292ac35b78d812ec2493954a27ba1fd44157ab02abcd283f7f493688e720266"
+      "snapshot:ff837d0f4c11871edbb05c91cec576f19f64c4421579508684b8ff8f50e3f995"
     ]
   },
   "kg_counts": {
-    "APIEndpoint": 413,
+    "APIEndpoint": 415,
     "ClientRoute": 44,
     "WorkerJob": 7
   },
