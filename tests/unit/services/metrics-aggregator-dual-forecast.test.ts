@@ -254,6 +254,108 @@ describe('MetricsAggregator dual forecast', () => {
     expect(DualForecastResponseSchema.parse(response)).toEqual(response);
   });
 
+  it('aligns published comparison actuals to the active main_fund vehicle population', async () => {
+    readPublishedInvestmentComparisonMock.mockResolvedValue({
+      status: 'available',
+      asOfDate: '2025-03-31',
+      basis: {
+        snapshotId: 31,
+        snapshotInputHash: 'a'.repeat(64),
+        snapshotAsOfDate: '2026-11-03',
+        knowledgeCutoff: '2026-11-03T00:00:00.000Z',
+      },
+      actual: {
+        deployedCapital: '300.000000',
+        initialCapital: '300.000000',
+        followOnCapital: '0.000000',
+        transactionCount: 2,
+        companyCount: 2,
+      },
+      periods: [
+        {
+          period: '2025-Q1',
+          deployedCapital: '300.000000',
+          initialCapital: '300.000000',
+          followOnCapital: '0.000000',
+          transactionCount: 2,
+          companyCount: 2,
+          newCompanies: 2,
+          cumulativeCapital: '300.000000',
+          cumulativeCompanies: 2,
+        },
+      ],
+      baseline: {
+        snapshotId: 41,
+        scenarioName: 'Saved plan',
+        configVersion: 4,
+        inputHash: 'b'.repeat(64),
+        startMonth: '2025-01',
+        committedCapital: '1000.000000',
+        totals: {
+          deployedCapital: '250.000000',
+          initialCapital: '250.000000',
+          followOnCapital: '0.000000',
+          companyCount: '2.000000',
+        },
+        periods: [],
+      },
+      reason: null,
+      baselineReason: null,
+      disclosures: [],
+    });
+    readPublishedFundActualsMock.mockResolvedValue({
+      contractVersion: 'published-fund-actuals/1.0.0',
+      status: 'available',
+      asOfDate: '2025-03-31',
+      basis: {
+        snapshotId: 31,
+        snapshotInputHash: 'a'.repeat(64),
+        snapshotAsOfDate: '2026-11-03',
+        knowledgeCutoff: '2026-11-03T00:00:00.000Z',
+      },
+      vehicleScope: 'main_fund',
+      investments: {
+        deployedCapital: '100.000000',
+        initialCapital: '100.000000',
+        followOnCapital: '0.000000',
+        transactionCount: 1,
+        companyCount: 1,
+      },
+      reason: null,
+      unsupportedReason: 'Investment-only publication.',
+      disclosures: [
+        'Excluded 1 published investment transaction(s) from vehicles outside the active main_fund.',
+      ],
+    });
+
+    const response = await new MetricsAggregator().getDualForecast(1, {
+      asOfDate: '2025-03-31',
+      baselineSnapshotId: 41,
+      baselineStartMonth: '2025-01',
+    });
+
+    expect(response.investmentComparison).toMatchObject({
+      status: 'available',
+      actual: {
+        deployedCapital: '100.000000',
+        transactionCount: 1,
+        companyCount: 1,
+      },
+      periods: [],
+      baseline: { committedCapital: '1000.000000' },
+    });
+    expect(response.investmentComparison?.disclosures).toContain(
+      'Excluded 1 published investment transaction(s) from vehicles outside the active main_fund.'
+    );
+    expect(response.investmentComparison?.disclosures).toContain(
+      'Investment period slices were omitted because comparison totals did not match active main_fund actuals.'
+    );
+    expect(readPublishedFundActualsMock).toHaveBeenCalledWith(
+      1,
+      new Date('2025-03-31T00:00:00.000Z')
+    );
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     readPublishedInvestmentComparisonMock.mockResolvedValue(null);
@@ -1167,9 +1269,9 @@ describe('MetricsAggregator dual forecast', () => {
         });
         const original = await new MetricsAggregator(undefined, deps).getDualForecast(1);
         vi.clearAllMocks();
-        readPublishedInvestmentComparisonMock.mockResolvedValue({
+        readPublishedInvestmentComparisonMock.mockImplementation(async (_fundId, options = {}) => ({
           status: 'available',
-          asOfDate: '2026-11-03',
+          asOfDate: options.asOfDate ?? '2026-11-03',
           basis: null,
           actual: {
             deployedCapital: '100',
@@ -1183,7 +1285,7 @@ describe('MetricsAggregator dual forecast', () => {
           reason: null,
           baselineReason: null,
           disclosures: [],
-        });
+        }));
         const result = await new MetricsAggregator(undefined, deps).getDualForecast(1);
         expect(result.series).toEqual(
           original.series.filter((point) => point.currentMode === 'forecast')
@@ -1196,6 +1298,12 @@ describe('MetricsAggregator dual forecast', () => {
           expect(deps.runV2).not.toHaveBeenCalled();
           expect(deps.loadHeld).toHaveBeenCalledWith(1, 41);
         }
+        const current = await new MetricsAggregator(undefined, deps).getDualForecast(1, {
+          asOfDate: '2026-07-22',
+        });
+        expect(current.series).toEqual(
+          original.series.filter((point) => point.currentMode === 'forecast')
+        );
         const historical = await new MetricsAggregator(undefined, deps).getDualForecast(1, {
           asOfDate: '2025-03-31',
         });

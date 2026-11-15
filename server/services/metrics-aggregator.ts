@@ -21,6 +21,7 @@ import {
 import type {
   InvestmentComparison,
   InvestmentComparisonOptions,
+  PublishedInvestmentTotals,
 } from '@shared/contracts/dual-forecast/investment-comparison.contract';
 import type {
   ActualMetrics,
@@ -145,6 +146,22 @@ const MetricsTargetExtractionSchema = z
 
 const IN_MEMORY_CACHE_DEFAULT_MAX_KEYS = 5000;
 const IN_MEMORY_CACHE_SWEEP_INTERVAL_MS = 60_000;
+
+function publishedInvestmentTotalsEqual(
+  left: PublishedInvestmentTotals | null,
+  right: PublishedInvestmentTotals
+): boolean {
+  return (
+    left !== null &&
+    left.deployedCapital === right.deployedCapital &&
+    left.initialCapital === right.initialCapital &&
+    left.followOnCapital === right.followOnCapital &&
+    (left.secondaryCapital ?? '0') === (right.secondaryCapital ?? '0') &&
+    (left.otherCapital ?? '0') === (right.otherCapital ?? '0') &&
+    left.transactionCount === right.transactionCount &&
+    left.companyCount === right.companyCount
+  );
+}
 
 function readInMemoryCacheMaxKeys(): number {
   const parsed = Number(process.env['CACHE_MAX_KEYS']);
@@ -518,7 +535,8 @@ export class MetricsAggregator {
     options: InvestmentComparisonOptions = {}
   ): Promise<DualForecastResponse> {
     try {
-      const comparison = await readPublishedInvestmentComparison(fundId, options);
+      const currentUtcDate = this.currentForecastServing.now().toISOString().slice(0, 10);
+      const comparison = await this.readMainFundInvestmentComparison(fundId, options);
       const resolution = await this.currentForecastServing.resolveMode(fundId);
       const response = await dispatchCurrentForecastServing<DualForecastResponse>(resolution, {
         runLegacy: () =>
@@ -543,7 +561,7 @@ export class MetricsAggregator {
         ...response,
         asOfDate: comparison.asOfDate,
         series:
-          response.currentForecastV2 && !options.asOfDate
+          response.currentForecastV2 && (!options.asOfDate || options.asOfDate === currentUtcDate)
             ? response.series.filter((point) => point.currentMode === 'forecast')
             : [],
         sources: { ...response.sources, actual: 'published_investment_facts' },
@@ -569,6 +587,49 @@ export class MetricsAggregator {
         error
       );
     }
+  }
+
+  private async readMainFundInvestmentComparison(
+    fundId: number,
+    options: InvestmentComparisonOptions
+  ): Promise<InvestmentComparison | null> {
+    const comparison = await readPublishedInvestmentComparison(fundId, options);
+    if (!comparison) return null;
+
+    const publishedActuals = await readPublishedFundActuals(
+      fundId,
+      new Date(`${comparison.asOfDate}T00:00:00.000Z`)
+    );
+    if (!publishedActuals) return comparison;
+
+    const disclosures = [...new Set([...comparison.disclosures, ...publishedActuals.disclosures])];
+    if (publishedActuals.status !== 'available' || !publishedActuals.investments) {
+      return {
+        ...comparison,
+        status: 'unavailable',
+        actual: null,
+        periods: [],
+        reason: publishedActuals.reason,
+        disclosures,
+      };
+    }
+
+    const periodsMatch = publishedInvestmentTotalsEqual(
+      comparison.actual,
+      publishedActuals.investments
+    );
+    return {
+      ...comparison,
+      actual: publishedActuals.investments,
+      periods: periodsMatch ? comparison.periods : [],
+      reason: null,
+      disclosures: periodsMatch
+        ? disclosures
+        : [
+            ...disclosures,
+            'Investment period slices were omitted because comparison totals did not match active main_fund actuals.',
+          ],
+    };
   }
 
   private async buildPublishedInvestmentForecast(
