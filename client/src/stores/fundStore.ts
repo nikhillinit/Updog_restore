@@ -1493,7 +1493,11 @@ export function prepareFundCommand<T>(
   ) {
     throw new Error('Check the pending command status before starting another command.');
   }
-  if (state.needsServerHydration && !pending) {
+  if (
+    state.needsServerHydration &&
+    !pending &&
+    !(operation === 'save_draft' && source === 'published')
+  ) {
     throw new Error(FUND_DRAFT_HYDRATION_MESSAGE);
   }
   const bodySignature = pending?.bodySignature ?? JSON.stringify(payload);

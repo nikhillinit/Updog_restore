@@ -330,6 +330,13 @@ export function useFundDraftSync({
           markVerified(fundId);
           setStatus('synced');
           return;
+        case 'active_draft_exists':
+          setMissingDraftFundId(null);
+          markVerified(null);
+          fundStore.setState({ needsServerHydration: true });
+          setStatus('hydrating');
+          setRetryNonce((value) => value + 1);
+          return;
         case 'uncertain':
           setError('Could not confirm the revision; it may have completed');
           setStatus('uncertain');

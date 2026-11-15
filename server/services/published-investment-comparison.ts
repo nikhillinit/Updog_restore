@@ -236,6 +236,36 @@ async function readPublishedInvestmentFacts(fundId: number): Promise<PublishedIn
   }
 }
 
+async function readMainFundInvestments(fundId: number, facts: readonly PublishedInvestmentFact[]) {
+  const [mainFundVehicle] = await withReadSavepoint(db, () =>
+    db
+      .select({ id: vehicles.id })
+      .from(vehicles)
+      .where(
+        and(
+          eq(vehicles.fundId, fundId),
+          eq(vehicles.vehicleType, 'main_fund'),
+          eq(vehicles.status, 'active')
+        )
+      )
+  );
+  const investments = facts.filter(
+    (investment) => mainFundVehicle && investment.vehicleId === mainFundVehicle.id
+  );
+  const disclosures: string[] = [];
+  const excludedCount = facts.length - investments.length;
+  if (excludedCount > 0)
+    disclosures.push(
+      `Excluded ${excludedCount} published investment transaction(s) from vehicles outside the active main_fund.`
+    );
+
+  let reason: string | null = null;
+  if (!mainFundVehicle) reason = 'No active main_fund vehicle is available for this fund.';
+  else if (investments.length === 0)
+    reason = 'No investment records were admitted to the active main_fund vehicle.';
+  return { investments, disclosures, reason };
+}
+
 export async function readPublishedInvestmentComparison(
   fundId: number,
   options: InvestmentComparisonOptions = {},
@@ -297,12 +327,18 @@ export async function readPublishedInvestmentComparison(
     result.reason = 'No investment records were admitted to this publication.';
   } else {
     try {
-      Object.assign(result, aggregatePublishedInvestments(facts.investments, asOfDate));
-      result.status = 'available';
-      if (asOfDate > facts.basis.snapshotAsOfDate)
-        result.disclosures.push(
-          `Published coverage ends on ${facts.basis.snapshotAsOfDate}; later activity is unknown.`
-        );
+      const scope = await readMainFundInvestments(fundId, facts.investments);
+      result.disclosures.push(...scope.disclosures);
+      if (scope.reason) {
+        result.reason = scope.reason;
+      } else {
+        Object.assign(result, aggregatePublishedInvestments(scope.investments, asOfDate));
+        result.status = 'available';
+        if (asOfDate > facts.basis.snapshotAsOfDate)
+          result.disclosures.push(
+            `Published coverage ends on ${facts.basis.snapshotAsOfDate}; later activity is unknown.`
+          );
+      }
     } catch {
       result.reason = RECONCILIATION_FAILURE_REASON;
     }
@@ -365,43 +401,12 @@ export async function readPublishedFundActuals(
         `Published coverage ends on ${facts.basis.snapshotAsOfDate}; later activity is unknown.`
       );
 
-    const [mainFundVehicle] = await db
-      .select({ id: vehicles.id })
-      .from(vehicles)
-      .where(
-        and(
-          eq(vehicles.fundId, fundId),
-          eq(vehicles.vehicleType, 'main_fund'),
-          eq(vehicles.status, 'active')
-        )
-      );
-    const investments = facts.investments.filter(
-      (investment) => mainFundVehicle && investment.vehicleId === mainFundVehicle.id
-    );
-    const excludedCount = facts.investments.length - investments.length;
-    if (excludedCount > 0)
-      disclosures.push(
-        `Excluded ${excludedCount} published investment transaction(s) from vehicles outside the active main_fund.`
-      );
+    const scope = await readMainFundInvestments(fundId, facts.investments);
+    disclosures.push(...scope.disclosures);
+    if (scope.reason)
+      return buildUnavailableFundActuals(asOfDate, basis, scope.reason, eventTypes, disclosures);
 
-    if (!mainFundVehicle)
-      return buildUnavailableFundActuals(
-        asOfDate,
-        basis,
-        'No active main_fund vehicle is available for this fund.',
-        eventTypes,
-        disclosures
-      );
-    if (investments.length === 0)
-      return buildUnavailableFundActuals(
-        asOfDate,
-        basis,
-        'No investment records were admitted to the active main_fund vehicle.',
-        eventTypes,
-        disclosures
-      );
-
-    const { actual } = aggregatePublishedInvestments(investments, asOfDate);
+    const { actual } = aggregatePublishedInvestments(scope.investments, asOfDate);
     return PublishedFundActualsSchema.parse({
       contractVersion: 'published-fund-actuals/1.0.0',
       status: 'available',

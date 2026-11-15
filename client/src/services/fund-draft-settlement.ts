@@ -95,6 +95,7 @@ export type RevisionStartOutcome =
   | { kind: 'not_dispatched'; message: string }
   | { kind: 'superseded' }
   | { kind: 'started' }
+  | { kind: 'active_draft_exists' }
   | { kind: 'stale'; message: string }
   | { kind: 'uncertain'; message: string }
   | { kind: 'retry_same_key'; message: string }
@@ -151,6 +152,11 @@ export async function startRevisionAndSettle(
       );
     }
   } catch (error) {
+    const current = fundStore.getState();
+    if (current.sessionId !== capturedSession || current.draftFundId !== fundId) {
+      await onOutcome({ kind: 'superseded' });
+      return;
+    }
     await onOutcome({
       kind: 'not_dispatched',
       message: error instanceof Error ? error.message : 'Could not prepare the revision',
@@ -188,6 +194,13 @@ export async function startRevisionAndSettle(
   } else if ('snapshot' in result) {
     applyDraftSnapshot(fundId, result.snapshot);
     outcome = { kind: 'started' };
+  } else if (
+    result.error instanceof ApiError &&
+    result.error.status === 409 &&
+    result.error.errorCode === 'ACTIVE_DRAFT_EXISTS'
+  ) {
+    current.resolveCommand();
+    outcome = { kind: 'active_draft_exists' };
   } else if (isStaleRevisionError(result.error)) {
     current.resolveCommand();
     outcome = {

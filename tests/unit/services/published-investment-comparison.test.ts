@@ -195,7 +195,7 @@ describe('published investment read seam', () => {
     const runOwnedTransaction = vi.fn();
 
     await drizzle(client).transaction(async (tx) => {
-      transaction.mockImplementationOnce((callback) => tx.transaction(callback));
+      transaction.mockImplementation((callback) => tx.transaction(callback));
       const scope: RequestDatabaseScope = {
         context: { userId: 'user-a', email: 'a@example.test', orgId: 'org-a', role: 'admin' },
         db: tx as RequestDatabaseScope['db'],
@@ -224,9 +224,55 @@ describe('published investment read seam', () => {
       query.mock.calls.map(([statement]) =>
         typeof statement === 'string' ? statement : statement.text
       )
-    ).toEqual(['begin', 'savepoint sp1', 'rollback to savepoint sp1', 'select 1', 'commit']);
+    ).toEqual([
+      'begin',
+      'savepoint sp1',
+      'rollback to savepoint sp1',
+      'savepoint sp1',
+      'release savepoint sp1',
+      'select 1',
+      'commit',
+    ]);
     expect(runOwnedTransaction).not.toHaveBeenCalled();
   });
+
+  it.each(['comparison', 'dashboard'])(
+    'isolates a failed %s vehicle lookup in the request transaction',
+    async (reader) => {
+      const query = vi.fn(async (_statement: string | { text: string }) => ({ rows: [] }));
+      const client = { query } as unknown as RequestDatabaseScope['client'];
+      select.mockImplementation(() => ({
+        from: (table: unknown) => ({
+          where: async () => {
+            if (table === vehicles) throw new Error('Vehicle query failed');
+            return rows.value;
+          },
+        }),
+      }));
+      await drizzle(client).transaction(async (tx) => {
+        transaction.mockImplementation((callback) => tx.transaction(callback));
+        const scope: RequestDatabaseScope = {
+          context: { userId: 'user-a', email: 'a@example.test', orgId: 'org-a', role: 'admin' },
+          db: tx as RequestDatabaseScope['db'],
+          client,
+          completed: false,
+          runOwnedTransaction: vi.fn(),
+        };
+        const result = await requestDatabaseStorage.run(scope, () =>
+          reader === 'comparison'
+            ? readPublishedInvestmentComparison(1)
+            : readPublishedFundActuals(1)
+        );
+        expect(result).toMatchObject({ status: 'unavailable', basis: { snapshotId: 31 } });
+        await tx.execute(sql`select 1`);
+      });
+      expect(
+        query.mock.calls.map(([statement]) =>
+          typeof statement === 'string' ? statement : statement.text
+        )
+      ).toEqual(['begin', 'savepoint sp1', 'rollback to savepoint sp1', 'select 1', 'commit']);
+    }
+  );
 
   it('reads only pinned event IDs and discloses effective-date versus publication knowledge', async () => {
     const result = await readPublishedInvestmentComparison(1, { asOfDate: '2026-11-03' });
@@ -353,7 +399,7 @@ describe('published investment read seam', () => {
                 vehicleId: 3,
                 perspective: 'fund_gross',
                 points: [
-                  { eventId: 2, effectiveAt: '2024-08-01T00:00:00.000Z', amount: '200.250000' },
+                  { eventId: 2, effectiveAt: '2024-04-01T00:00:00.000Z', amount: '200.250000' },
                 ],
               },
             ],
@@ -367,8 +413,8 @@ describe('published investment read seam', () => {
         ...(rows.value[0] as object),
         id: 2,
         vehicleId: 3,
-        companyId: 11,
-        eventDate: new Date('2024-08-01T00:00:00.000Z'),
+        companyId: 10,
+        eventDate: new Date('2024-04-01T00:00:00.000Z'),
         amount: '200.25',
       },
     ];
@@ -396,6 +442,70 @@ describe('published investment read seam', () => {
     expect(result?.disclosures).toContain(
       'Excluded 1 published investment transaction(s) from vehicles outside the active main_fund.'
     );
+
+    head.mockClear();
+    const comparison = await readPublishedInvestmentComparison(1, { asOfDate: '2025-06-30' });
+    expect(head).toHaveBeenCalledOnce();
+    expect(comparison).toMatchObject({
+      status: 'available',
+      actual: result?.investments,
+      periods: [
+        {
+          period: '2024-Q3',
+          newCompanies: 1,
+          deployedCapital: '100.350000',
+          transactionCount: 1,
+          companyCount: 1,
+          cumulativeCapital: '100.350000',
+          cumulativeCompanies: 1,
+        },
+      ],
+    });
+    expect(comparison?.disclosures).toContain(
+      'Excluded 1 published investment transaction(s) from vehicles outside the active main_fund.'
+    );
+    const historical = await readPublishedInvestmentComparison(1, { asOfDate: '2024-06-30' });
+    expect(historical).toMatchObject({
+      status: 'available',
+      actual: { deployedCapital: '0', transactionCount: 0, companyCount: 0 },
+      periods: [],
+    });
+  });
+
+  it.each([
+    [[], 'No active main_fund vehicle is available for this fund.'],
+    [[{ id: 3 }], 'No investment records were admitted to the active main_fund vehicle.'],
+  ])('keeps comparison unavailable when main-fund scope is missing (%j)', async (scope, reason) => {
+    vehicleRows.value = scope;
+    const savedPlan = {
+      snapshotId: 42,
+      scenarioName: 'Saved main-fund plan',
+      configVersion: 1,
+      inputHash: 'b'.repeat(64),
+      startMonth: '2024-01',
+      committedCapital: '1000',
+      totals: {
+        deployedCapital: '100',
+        initialCapital: '100',
+        followOnCapital: '0',
+        companyCount: '1',
+      },
+      periods: [],
+    };
+    baseline.mockResolvedValue(savedPlan);
+    expect(
+      await readPublishedInvestmentComparison(1, {
+        baselineSnapshotId: 42,
+        baselineStartMonth: '2024-01',
+      })
+    ).toMatchObject({
+      baseline: savedPlan,
+      basis: { snapshotId: 31 },
+      status: 'unavailable',
+      actual: null,
+      periods: [],
+      reason,
+    });
   });
 
   it('returns unavailable when fund has no active main-fund vehicle', async () => {
