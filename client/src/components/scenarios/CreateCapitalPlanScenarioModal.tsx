@@ -1285,18 +1285,20 @@ function CapitalPlanScenarioEditor({ fundId, open, onOpenChange, onSuccess }: Pr
                                 ['pro_rata', 'Pro-rata'],
                               ],
                               onChange: (value) => {
-                                const next = structuredClone(draft);
-                                writePath(
-                                  next,
-                                  [...path, 'checkPolicy'],
-                                  value === 'pro_rata'
-                                    ? { type: 'pro_rata', proRataExerciseRatio: '' }
-                                    : { type: value, checkUsd: '' }
-                                );
-                                if (value !== 'pro_rata') {
-                                  writePath(next, [...path, 'proRataOwnershipBasis'], undefined);
-                                }
-                                replace(next);
+                                update((current) => {
+                                  const next = structuredClone(current);
+                                  writePath(
+                                    next,
+                                    [...path, 'checkPolicy'],
+                                    value === 'pro_rata'
+                                      ? { type: 'pro_rata', proRataExerciseRatio: '' }
+                                      : { type: value, checkUsd: '' }
+                                  );
+                                  if (value !== 'pro_rata') {
+                                    writePath(next, [...path, 'proRataOwnershipBasis'], undefined);
+                                  }
+                                  return next;
+                                });
                               },
                             })}
                             {round.checkPolicy.type === 'pro_rata'

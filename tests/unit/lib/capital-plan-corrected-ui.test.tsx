@@ -7,9 +7,12 @@ import { CapitalPlanResultView } from '@/components/fund-results/CapitalPlanComp
 import { capitalPlanMemoSections } from '@/components/fund-results/capital-plan-memo-presentation';
 import {
   capitalDraftRequest,
+  correctedCapitalInput,
+  emptyCorrectedCapitalRound,
   newCapitalDraft,
   type RawCapitalInputV2,
 } from '@/components/scenarios/capital-plan-draft';
+import * as capitalDraftModule from '@/components/scenarios/capital-plan-draft';
 import { reviewCapitalPlanDraft } from '@/lib/capital-plan-review';
 import * as api from '@/lib/fund-scenario-workspace-api';
 import { calculateCapitalPlanningV2 } from '@shared/lib/capital-planning/capital-planning-v2';
@@ -121,6 +124,65 @@ describe('corrected capital UI', () => {
     expect(screen.getByLabelText('Pro-rata ownership basis')).toHaveValue('');
     await waitFor(() => expect(api.fetchCapitalScenarioSource).toHaveBeenCalled());
   });
+
+  it('retains a same-batch round edit when check policy changes before rerender', async () => {
+    const fundId = '55124';
+    const initial = newCapitalDraft();
+    const input = correctedCapitalInput();
+    input.allocations[0]!.followOnRounds = [emptyCorrectedCapitalRound()];
+    initial.variants[0]!.input = input;
+    let retained = initial;
+    vi.spyOn(capitalDraftModule, 'useCapitalPlanDraft').mockReturnValue({
+      draft: initial,
+      reviewed: null,
+      busy: null,
+      saveIntent: null,
+      replace: (next) => {
+        retained = next;
+        return true;
+      },
+      update: (updater) => {
+        retained = updater(retained);
+        return true;
+      },
+      currentDraft: () => retained,
+      attachSource: vi.fn(),
+      sourceChanged: () => false,
+      invalidateChangedSource: vi.fn(),
+      beginReview: vi.fn(),
+      isCurrent: vi.fn(),
+      completeReview: vi.fn(),
+      clearReview: vi.fn(),
+      finishReview: vi.fn(),
+      beginSave: vi.fn(),
+      ownsSave: vi.fn(),
+      resolveSave: vi.fn(),
+      finishSave: vi.fn(),
+      beginSourceRefresh: vi.fn(),
+      completeSourceRefresh: vi.fn(),
+    } as ReturnType<typeof capitalDraftModule.useCapitalPlanDraft>);
+    vi.spyOn(api, 'fetchCapitalScenarioSource').mockImplementation(() => new Promise(() => {}));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CreateCapitalPlanScenarioModal
+          fundId={fundId}
+          open
+          onOpenChange={() => {}}
+          onSuccess={() => {}}
+        />
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '3. Follow-ons', exact: true }));
+    fireEvent.change(screen.getByLabelText('Round label'), { target: { value: 'Series A' } });
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+
+    const round = retained.variants[0]!.input.allocations[0]!.followOnRounds[0]!;
+    expect(round.roundLabel).toBe('Series A');
+    expect(round.checkPolicy.type).toBe('pro_rata');
+  });
+
   it('normalizes 43/43/14 as initial dollars and refuses missing corrected declarations', () => {
     const { input, source } = fixture();
     input.allocations = ['0.430000000000', '0.430000000000', '0.140000000000'].map(
