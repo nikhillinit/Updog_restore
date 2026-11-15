@@ -445,6 +445,37 @@ describe('fund workspace envelope', () => {
     );
   });
 
+  it('allows a published revision during recovery while keeping local writes fenced', () => {
+    fundStore.setState({
+      draftFundId: 42,
+      draftServerReady: true,
+      needsServerHydration: true,
+    });
+
+    for (const operation of ['create', 'save_draft', 'finalize', 'publish_draft'] as const) {
+      expect(() => prepareFundCommand(operation, 42, {}, null)).toThrow(/Recover the saved draft/);
+    }
+    expect(() => prepareFundCommand('finalize', 42, {}, null, 'published')).toThrow(
+      /Recover the saved draft/
+    );
+
+    const command = prepareFundCommand(
+      'save_draft',
+      42,
+      { sourceConfigId: 9, sourceConfigVersion: 3 },
+      '"0000000000000003"',
+      'published'
+    );
+
+    expect(command.payload).toEqual({ sourceConfigId: 9, sourceConfigVersion: 3 });
+    expect(fundStore.getState().pendingCommand?.source).toBe('published');
+    expect(fundStore.getState().needsServerHydration).toBe(true);
+    fundStore.getState().resolveCommand();
+    expect(() => prepareFundCommand('save_draft', 42, { fundName: 'Placeholder' }, null)).toThrow(
+      /Recover the saved draft/
+    );
+  });
+
   it('blocks fresh writes during identity-only recovery but permits the exact pending replay', () => {
     fundStore.setState({
       draftFundId: 42,
