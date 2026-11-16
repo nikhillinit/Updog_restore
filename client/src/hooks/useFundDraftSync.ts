@@ -398,6 +398,14 @@ export function useFundDraftSync({
   // Server-ready identity not yet verified this mount: load it (resume, reload, explicit ID).
   React.useEffect(() => {
     if (!hydrated || draftFundId == null) return;
+    // A command can settle or ownership can change after render, before this effect.
+    const current = fundStore.getState();
+    if (
+      current.sessionId !== sessionId ||
+      current.draftFundId !== draftFundId ||
+      current.pendingCommand !== pendingCommand
+    )
+      return;
     if (hydratedServerDraftIdRef.current === draftFundId && !needsServerHydration) return;
 
     if (pendingCommand) {
