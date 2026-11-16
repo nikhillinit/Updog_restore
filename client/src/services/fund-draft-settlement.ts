@@ -199,7 +199,7 @@ export async function startRevisionAndSettle(
     result.error.status === 409 &&
     result.error.errorCode === 'ACTIVE_DRAFT_EXISTS'
   ) {
-    current.resolveCommand();
+    fundStore.setState({ pendingCommand: null, needsServerHydration: true });
     outcome = { kind: 'active_draft_exists' };
   } else if (isStaleRevisionError(result.error)) {
     current.resolveCommand();

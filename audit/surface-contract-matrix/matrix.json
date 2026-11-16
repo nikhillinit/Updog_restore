@@ -2264,9 +2264,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1182",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1234",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api-docs",
@@ -2851,9 +2851,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "integration",
-            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1182",
+            "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:1234",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api-docs.json",
@@ -10807,7 +10807,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds",
@@ -10897,7 +10897,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds",
@@ -29501,7 +29501,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -29591,7 +29591,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id",
@@ -30454,7 +30454,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30553,7 +30553,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/draft",
@@ -30886,7 +30886,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -30985,7 +30985,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/lifecycle-history",
@@ -31318,7 +31318,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31417,7 +31417,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/reserves",
@@ -31750,7 +31750,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -31849,7 +31849,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/results",
@@ -32182,7 +32182,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -32281,7 +32281,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/results-comparison",
@@ -32614,7 +32614,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/revision-source",
@@ -32713,7 +32713,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/revision-source",
@@ -33682,7 +33682,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -33781,7 +33781,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:GET:/api/funds/:id/state",
@@ -68322,7 +68322,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds",
@@ -68412,7 +68412,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds",
@@ -92141,7 +92141,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/draft",
@@ -92240,7 +92240,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/draft",
@@ -92628,7 +92628,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -92727,7 +92727,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/publish",
@@ -93094,7 +93094,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -93193,7 +93193,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/:id/recalculate",
@@ -95245,7 +95245,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -95335,7 +95335,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:160",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/calculate",
@@ -95701,7 +95701,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -95800,7 +95800,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:POST:/api/funds/finalize",
@@ -104685,7 +104685,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",
@@ -104784,7 +104784,7 @@
             "layer": "integration",
             "assertion_evidence": "tests/integration/fund-lifecycle-db.test.ts:156",
             "assertion_confirmed": false,
-            "test_file_sha256": "cffdeb27c7763b9d6314610e71d4d58720d3e80e3bee5df5c3a750a220cde61f"
+            "test_file_sha256": "2551a12c0d5d9ed71ad64d578334db4e556dd7f30146a7e0c26d9f2b451fdd65"
           },
           {
             "row": "api:PUT:/api/funds/:id/draft",

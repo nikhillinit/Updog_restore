@@ -110,8 +110,48 @@ function renderPanel(props: Partial<React.ComponentProps<typeof InvestmentCompar
   return { onRequestChange };
 }
 
+function StatefulPanel({
+  comparisonOverride = comparison,
+  delayRequestFeedback = false,
+  onRequest,
+}: {
+  comparisonOverride?: InvestmentComparison;
+  delayRequestFeedback?: boolean;
+  onRequest?(request: React.ComponentProps<typeof InvestmentComparisonPanel>['request']): void;
+}) {
+  const [request, setRequest] = React.useState({});
+  const pendingRequests = React.useRef<
+    Parameters<React.ComponentProps<typeof InvestmentComparisonPanel>['onRequestChange']>[0][]
+  >([]);
+  return (
+    <>
+      <InvestmentComparisonPanel
+        fundId={42}
+        comparison={comparisonOverride}
+        request={request}
+        onRequestChange={(nextRequest) => {
+          onRequest?.(nextRequest);
+          pendingRequests.current.push(nextRequest);
+          if (!delayRequestFeedback) setRequest(nextRequest);
+        }}
+      />
+      {delayRequestFeedback ? (
+        <button
+          type="button"
+          onClick={() => {
+            const pendingRequest = pendingRequests.current.shift();
+            if (pendingRequest) setRequest(pendingRequest);
+          }}
+        >
+          Apply oldest parent feedback
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 describe('InvestmentComparisonPanel', () => {
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => vi.resetAllMocks());
 
   it('renders published deployment, follow-ons, distinct companies, and missing-period language', async () => {
     fetchCapitalScenarioList.mockResolvedValue({ scenarioSets: [] });
@@ -154,7 +194,6 @@ describe('InvestmentComparisonPanel', () => {
 
     await waitFor(() =>
       expect(onRequestChange).toHaveBeenCalledWith({
-        asOfDate: '2026-11-03',
         baselineSnapshotId: 88,
         baselineStartMonth: '2024-03',
       })
@@ -230,6 +269,210 @@ describe('InvestmentComparisonPanel', () => {
     });
   });
 
+  it('omits an untouched rendered cutoff from apply and clear requests', async () => {
+    const user = userEvent.setup();
+    fetchCapitalScenarioList.mockResolvedValue({ scenarioSets: [] });
+    const first = renderPanel({ comparison: { ...comparison, baseline: null } });
+
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    expect(first.onRequestChange).toHaveBeenCalledWith({});
+
+    first.onRequestChange.mockReset();
+    const active = renderPanel({
+      request: { baselineSnapshotId: 88, baselineStartMonth: '2024-03' },
+    });
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear baseline' });
+    await user.click(clearButtons[clearButtons.length - 1]!);
+    expect(active.onRequestChange).toHaveBeenCalledWith({});
+  });
+
+  it('does not overwrite an unsent cutoff when comparison data refreshes', async () => {
+    fetchCapitalScenarioList.mockResolvedValue({ scenarioSets: [] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onRequestChange = vi.fn();
+    const view = render(
+      <QueryClientProvider client={client}>
+        <InvestmentComparisonPanel
+          fundId={42}
+          comparison={comparison}
+          request={{}}
+          onRequestChange={onRequestChange}
+        />
+      </QueryClientProvider>
+    );
+
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <InvestmentComparisonPanel
+          fundId={42}
+          comparison={{ ...comparison, asOfDate: '2026-11-14' }}
+          request={{}}
+          onRequestChange={onRequestChange}
+        />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByLabelText('Actuals through')).toHaveValue('2026-10-31');
+    expect(onRequestChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the same mounted applied snapshot when only the cutoff changes', async () => {
+    const user = userEvent.setup();
+    fetchCapitalScenarioList.mockResolvedValue({
+      scenarioSets: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Original construction plan',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    });
+    fetchCapitalScenarioResults
+      .mockResolvedValueOnce({ savedResult: { snapshotId: 88 } })
+      .mockResolvedValueOnce({ savedResult: { snapshotId: 99 } });
+    const onRequest = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <StatefulPanel
+          comparisonOverride={{ ...comparison, baseline: null }}
+          onRequest={onRequest}
+        />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('option', { name: 'Original construction plan' });
+    await user.selectOptions(
+      screen.getByLabelText('Saved investment plan'),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    fireEvent.change(screen.getByLabelText('Baseline starts'), { target: { value: '2024-03' } });
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    expect(fetchCapitalScenarioResults).toHaveBeenCalledTimes(1);
+    expect(onRequest).toHaveBeenNthCalledWith(1, {
+      baselineSnapshotId: 88,
+      baselineStartMonth: '2024-03',
+    });
+    expect(onRequest).toHaveBeenNthCalledWith(2, {
+      asOfDate: '2026-10-31',
+      baselineSnapshotId: 88,
+      baselineStartMonth: '2024-03',
+    });
+    expect(screen.getByLabelText('Saved investment plan')).toHaveValue('');
+    expect(screen.getByLabelText('Baseline starts')).toBeDisabled();
+    expect(screen.getByLabelText('Baseline starts')).toHaveValue('2024-03');
+    expect(screen.getByRole('button', { name: 'Clear baseline' })).toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByLabelText('Saved investment plan'),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    await waitFor(() => expect(fetchCapitalScenarioResults).toHaveBeenCalledTimes(2));
+    expect(onRequest).toHaveBeenLastCalledWith({
+      asOfDate: '2026-10-31',
+      baselineSnapshotId: 99,
+      baselineStartMonth: '2024-03',
+    });
+  });
+
+  it('does not restore a cleared baseline when stale parent feedback arrives', async () => {
+    const user = userEvent.setup();
+    fetchCapitalScenarioList.mockResolvedValue({
+      scenarioSets: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Original construction plan',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    });
+    fetchCapitalScenarioResults.mockResolvedValueOnce({ savedResult: { snapshotId: 88 } });
+    const onRequest = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <StatefulPanel
+          comparisonOverride={{ ...comparison, baseline: null }}
+          delayRequestFeedback
+          onRequest={onRequest}
+        />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('option', { name: 'Original construction plan' });
+    await user.selectOptions(
+      screen.getByLabelText('Saved investment plan'),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    fireEvent.change(screen.getByLabelText('Baseline starts'), { target: { value: '2024-03' } });
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    expect(screen.getByLabelText('Baseline starts')).toBeDisabled();
+    expect(screen.getByLabelText('Baseline starts')).toHaveValue('2024-03');
+    await user.click(screen.getByRole('button', { name: 'Clear baseline' }));
+    await user.click(screen.getByRole('button', { name: 'Apply oldest parent feedback' }));
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    expect(fetchCapitalScenarioResults).toHaveBeenCalledTimes(1);
+    expect(onRequest).toHaveBeenNthCalledWith(1, {
+      baselineSnapshotId: 88,
+      baselineStartMonth: '2024-03',
+    });
+    expect(onRequest).toHaveBeenNthCalledWith(2, {});
+    expect(onRequest).toHaveBeenNthCalledWith(3, {});
+    expect(screen.queryByRole('button', { name: 'Clear baseline' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the applied baseline when selected results are unavailable and permits retry', async () => {
+    const user = userEvent.setup();
+    fetchCapitalScenarioList.mockResolvedValue({
+      scenarioSets: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Alternative plan',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    });
+    fetchCapitalScenarioResults
+      .mockResolvedValueOnce({ savedResult: null })
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce({ savedResult: { snapshotId: 99 } });
+    const { onRequestChange } = renderPanel({
+      request: { baselineSnapshotId: 88, baselineStartMonth: '2024-03' },
+    });
+
+    await screen.findByRole('option', { name: 'Alternative plan' });
+    await user.selectOptions(
+      screen.getByLabelText('Saved investment plan'),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    expect(await screen.findByText('Selected plan has no saved calculation.')).toBeInTheDocument();
+    expect(onRequestChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Clear baseline' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    expect(await screen.findByText('Selected plan could not be loaded.')).toBeInTheDocument();
+    expect(onRequestChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    await waitFor(() =>
+      expect(onRequestChange).toHaveBeenCalledWith({
+        baselineSnapshotId: 99,
+        baselineStartMonth: '2024-03',
+      })
+    );
+  });
+
   it('ignores a saved-result response after the baseline selection changes', async () => {
     const user = userEvent.setup();
     let resolveResult: ((value: { savedResult: { snapshotId: number } }) => void) | undefined;
@@ -276,10 +519,48 @@ describe('InvestmentComparisonPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
     await waitFor(() => expect(fetchCapitalScenarioResults).toHaveBeenCalledTimes(2));
     expect(onRequestChange).toHaveBeenCalledWith({
-      asOfDate: '2026-11-03',
       baselineSnapshotId: 99,
       baselineStartMonth: '2024-03',
     });
+  });
+
+  it('ignores a saved-result response after the cutoff changes', async () => {
+    const user = userEvent.setup();
+    let resolveResult: ((value: { savedResult: { snapshotId: number } }) => void) | undefined;
+    fetchCapitalScenarioList.mockResolvedValue({
+      scenarioSets: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'Plan A',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    });
+    fetchCapitalScenarioResults.mockReturnValue(
+      new Promise((resolve) => {
+        resolveResult = resolve;
+      })
+    );
+    const { onRequestChange } = renderPanel({ comparison: { ...comparison, baseline: null } });
+
+    await screen.findByRole('option', { name: 'Plan A' });
+    await user.selectOptions(
+      screen.getByLabelText('Saved investment plan'),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    fireEvent.change(screen.getByLabelText('Baseline starts'), { target: { value: '2024-03' } });
+    await user.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    resolveResult?.({ savedResult: { snapshotId: 88 } });
+
+    await waitFor(() => expect(fetchCapitalScenarioResults).toHaveBeenCalledTimes(1));
+    expect(onRequestChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Saved investment plan')).toHaveValue(
+      '11111111-1111-4111-8111-111111111111'
+    );
+    expect(screen.getByLabelText('Actuals through')).toHaveValue('2026-10-31');
   });
 
   it('does not restore a pending baseline after Clear baseline', async () => {

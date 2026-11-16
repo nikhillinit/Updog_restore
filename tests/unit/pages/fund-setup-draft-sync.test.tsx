@@ -1096,6 +1096,78 @@ describe('FundSetup draft sync', () => {
     }
   );
 
+  it('replays an uncertain revision into conflict recovery with the same request', async () => {
+    let rejectRecoveryRead!: (error: unknown) => void;
+    let resolveRecoveryRead!: (value: { config: Record<string, unknown>; etag: string }) => void;
+    mockFetchFundDraft
+      .mockRejectedValueOnce(new ApiError(404, 'No draft found'))
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectRecoveryRead = reject;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRecoveryRead = resolve;
+          })
+      );
+    mockFetchFundRevisionSource.mockResolvedValueOnce({
+      sourceConfigId: 701,
+      sourceConfigVersion: 4,
+      config: { fundName: 'Published baseline' },
+      etag: SERVER_ETAG,
+    });
+    mockStartFundRevision
+      .mockRejectedValueOnce(new FundWorkflowUncertainError('Lost acknowledgement', false))
+      .mockRejectedValueOnce(new ApiError(409, 'A draft already exists', 'ACTIVE_DRAFT_EXISTS'));
+    act(() => fundStore.setState({ draftFundId: 91, draftServerReady: true }));
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    const view = render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+    await waitFor(() => expect(fundStore.getState().pendingCommand?.source).toBe('published'));
+    expect(screen.getByTestId('draft-missing')).toHaveTextContent(
+      'Could not confirm the revision; it may have completed'
+    );
+    const firstRequest = mockStartFundRevision.mock.calls[0];
+
+    view.unmount();
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+    expect(await screen.findByTestId('draft-hydrating')).toBeInTheDocument();
+    await act(async () => rejectRecoveryRead(new Error('Temporary read failure')));
+    expect(await screen.findByTestId('draft-sync-error')).toHaveTextContent(
+      'Temporary read failure'
+    );
+    expect(mockStartFundRevision.mock.calls[1]).toEqual(firstRequest);
+    expect(mockFetchFundRevisionSource).toHaveBeenCalledTimes(1);
+    expect(fundStore.getState()).toMatchObject({
+      pendingCommand: null,
+      needsServerHydration: true,
+    });
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retry Sync' }));
+    expect(await screen.findByTestId('draft-hydrating')).toBeInTheDocument();
+    await act(async () =>
+      resolveRecoveryRead({
+        config: { fundName: 'Revision from another tab' },
+        etag: NEXT_ETAG,
+      })
+    );
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('synced'));
+    expect(fundStore.getState()).toMatchObject({
+      fundName: 'Revision from another tab',
+      pendingCommand: null,
+      needsServerHydration: false,
+      draftETag: NEXT_ETAG,
+    });
+    expect(mockStartFundRevision).toHaveBeenCalledTimes(2);
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])(
     'loads a concurrently created draft with read retry %s',
     async (retryRead) => {
@@ -1141,6 +1213,74 @@ describe('FundSetup draft sync', () => {
       expect(mockSaveFundDraft).not.toHaveBeenCalled();
     }
   );
+
+  it('arms hydration atomically before clearing a conflicting revision command', async () => {
+    let resolveDraft!: (value: { config: Record<string, unknown>; etag: string }) => void;
+    mockFetchFundDraft
+      .mockRejectedValueOnce(new ApiError(404, 'No draft found'))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveDraft = resolve;
+          })
+      );
+    mockFetchFundRevisionSource.mockResolvedValueOnce({
+      sourceConfigId: 701,
+      sourceConfigVersion: 4,
+      config: { fundName: 'Published baseline' },
+      etag: SERVER_ETAG,
+    });
+    mockStartFundRevision.mockRejectedValueOnce(
+      new ApiError(409, 'A draft already exists', 'ACTIVE_DRAFT_EXISTS')
+    );
+    act(() =>
+      fundStore.setState({
+        draftFundId: 91,
+        draftServerReady: true,
+        needsServerHydration: false,
+      })
+    );
+    const observed: Array<{ pending: boolean; hydration: boolean }> = [];
+    const unsubscribe = fundStore.subscribe((state) => {
+      observed.push({
+        pending: state.pendingCommand !== null,
+        hydration: state.needsServerHydration,
+      });
+    });
+
+    const { default: FundSetup } = await import('@/pages/fund-setup');
+    render(<FundSetup />);
+    await userEvent.click(await screen.findByTestId('start-fund-revision'));
+
+    await waitFor(() =>
+      expect(fundStore.getState()).toMatchObject({
+        pendingCommand: null,
+        needsServerHydration: true,
+      })
+    );
+    expect(screen.getByTestId('draft-hydrating')).toBeInTheDocument();
+    const commandStarted = observed.findIndex((state) => state.pending);
+    expect(commandStarted).toBeGreaterThanOrEqual(0);
+    expect(observed.slice(commandStarted).some((state) => !state.pending && !state.hydration)).toBe(
+      false
+    );
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveDraft({
+        config: { fundName: 'Revision from another tab' },
+        etag: NEXT_ETAG,
+      });
+    });
+    await waitFor(() => expect(fundStore.getState().draftSyncStatus).toBe('synced'));
+    expect(fundStore.getState()).toMatchObject({
+      pendingCommand: null,
+      needsServerHydration: false,
+      draftETag: NEXT_ETAG,
+    });
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    unsubscribe();
+  });
 
   it.each(['fund', 'session'] as const)(
     'ignores a failed revision source after the %s changes',

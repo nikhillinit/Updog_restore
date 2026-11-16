@@ -545,7 +545,7 @@ export class MetricsAggregator {
         ...response,
         asOfDate: comparison.asOfDate,
         series:
-          response.currentForecastV2 && (!options.asOfDate || options.asOfDate === currentUtcDate)
+          response.currentForecastV2 && (!options.asOfDate || options.asOfDate >= currentUtcDate)
             ? response.series.filter((point) => point.currentMode === 'forecast')
             : [],
         sources: { ...response.sources, actual: 'published_investment_facts' },

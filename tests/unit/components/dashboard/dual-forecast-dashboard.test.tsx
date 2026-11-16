@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
+import * as fundScenarioApi from '@/lib/fund-scenario-workspace-api';
 import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 type MockFundContext = {
@@ -559,6 +560,99 @@ describe('DualForecastDashboard', () => {
       credentials: 'include',
       cache: 'no-store',
     });
+  });
+
+  it('resets comparison intent on fund switch and ignores the old result callback', async () => {
+    setActiveFundContext();
+    const resultId = '11111111-1111-4111-8111-111111111111';
+    let resolveResult!: (value: unknown) => void;
+    vi.spyOn(fundScenarioApi, 'fetchCapitalScenarioList').mockResolvedValue({
+      scenarioSets: [
+        {
+          id: resultId,
+          name: 'Fund 42 plan',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    } as never);
+    vi.spyOn(fundScenarioApi, 'fetchCapitalScenarioResults').mockReturnValue(
+      new Promise((resolve) => {
+        resolveResult = resolve;
+      }) as never
+    );
+    const dualForecastUrls: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/dashboard-summary/')) {
+        return new Response(JSON.stringify(makeDashboardSummary()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/dual-forecast')) {
+        dualForecastUrls.push(url);
+        return new Response(JSON.stringify(makeDualForecast()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('not found', { status: 404, statusText: 'Not Found' });
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          queryFn: async ({ queryKey }) => {
+            const response = await fetch(queryKey.join('/') as string, {
+              credentials: 'include',
+            });
+            if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
+            return response.json();
+          },
+        },
+      },
+    });
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <DualForecastDashboard />
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('option', { name: 'Fund 42 plan' });
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply comparison' }));
+    await waitFor(() =>
+      expect(dualForecastUrls).toContain('/api/funds/42/dual-forecast?asOfDate=2026-10-31')
+    );
+    await screen.findByRole('option', { name: 'Fund 42 plan' });
+    fireEvent.change(screen.getByLabelText('Saved investment plan'), {
+      target: { value: resultId },
+    });
+    fireEvent.change(screen.getByLabelText('Baseline starts'), { target: { value: '2024-03' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    mockFundContext = {
+      currentFund: { id: 43, name: 'Fund Forty Three' },
+      isLoading: false,
+      needsSetup: false,
+      isDemoMode: false,
+    };
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <DualForecastDashboard />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(dualForecastUrls).toContain('/api/funds/43/dual-forecast'));
+    resolveResult({ savedResult: { snapshotId: 88 } });
+    await waitFor(() => expect(screen.getByLabelText('Actuals through')).toHaveValue(''));
+
+    const switchedFundUrls = dualForecastUrls.filter((url) =>
+      url.startsWith('/api/funds/43/dual-forecast')
+    );
+    expect(switchedFundUrls.length).toBeGreaterThan(0);
+    expect(switchedFundUrls.every((url) => url === '/api/funds/43/dual-forecast')).toBe(true);
   });
 
   it('does not fetch deterministic forecasting data when fund context is demo mode', () => {

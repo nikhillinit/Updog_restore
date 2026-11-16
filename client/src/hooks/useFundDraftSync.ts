@@ -333,7 +333,6 @@ export function useFundDraftSync({
         case 'active_draft_exists':
           setMissingDraftFundId(null);
           markVerified(null);
-          fundStore.setState({ needsServerHydration: true });
           setStatus('hydrating');
           setRetryNonce((value) => value + 1);
           return;

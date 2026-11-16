@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,22 +71,27 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 export function InvestmentComparisonPanel({ fundId, comparison, request, onRequestChange }: Props) {
-  const [asOfDate, setAsOfDate] = useState(request.asOfDate ?? comparison?.asOfDate ?? '');
+  const [explicitAsOfDate, setExplicitAsOfDate] = useState(request.asOfDate);
   const [scenarioSetId, setScenarioSetId] = useState('');
   const [baselineStartMonth, setBaselineStartMonth] = useState(request.baselineStartMonth ?? '');
+  const [appliedBaseline, setAppliedBaseline] = useState(() =>
+    request.baselineSnapshotId && request.baselineStartMonth
+      ? {
+          baselineSnapshotId: request.baselineSnapshotId,
+          baselineStartMonth: request.baselineStartMonth,
+        }
+      : null
+  );
   const [isApplying, setIsApplying] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const selectionVersion = useRef(0);
+  const asOfDate = explicitAsOfDate ?? comparison?.asOfDate ?? '';
 
   function invalidatePendingSelection() {
     selectionVersion.current += 1;
     setIsApplying(false);
     setSelectionError(null);
   }
-
-  useEffect(() => {
-    if (!request.asOfDate && comparison?.asOfDate) setAsOfDate(comparison.asOfDate);
-  }, [comparison?.asOfDate, request.asOfDate]);
 
   const scenarioList = useQuery({
     queryKey: ['capital-scenario-list', fundId, 'capital-plan-v2'],
@@ -108,13 +113,8 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
     setSelectionError(null);
     if (!scenarioSetId) {
       onRequestChange({
-        asOfDate,
-        ...(request.baselineSnapshotId && request.baselineStartMonth
-          ? {
-              baselineSnapshotId: request.baselineSnapshotId,
-              baselineStartMonth: request.baselineStartMonth,
-            }
-          : {}),
+        ...(explicitAsOfDate ? { asOfDate: explicitAsOfDate } : {}),
+        ...(appliedBaseline ?? {}),
       });
       return;
     }
@@ -131,10 +131,15 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
         setSelectionError('Selected plan has no saved calculation.');
         return;
       }
-      onRequestChange({
-        asOfDate,
+      const nextBaseline = {
         baselineSnapshotId: result.savedResult.snapshotId,
         baselineStartMonth,
+      };
+      setAppliedBaseline(nextBaseline);
+      setScenarioSetId('');
+      onRequestChange({
+        ...(explicitAsOfDate ? { asOfDate: explicitAsOfDate } : {}),
+        ...nextBaseline,
       });
     } catch {
       if (selectionVersion.current === applyVersion) {
@@ -174,7 +179,7 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
               value={asOfDate}
               onChange={(event) => {
                 invalidatePendingSelection();
-                setAsOfDate(event.target.value);
+                setExplicitAsOfDate(event.target.value || undefined);
               }}
             />
           </div>
@@ -190,9 +195,7 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
               className="flex h-10 w-full rounded-md border border-lightGray bg-white px-3 py-2 text-sm"
             >
               <option value="">
-                {request.baselineSnapshotId
-                  ? 'Keep current saved baseline'
-                  : 'No saved baseline selected'}
+                {appliedBaseline ? 'Keep current saved baseline' : 'No saved baseline selected'}
               </option>
               {(scenarioList.data?.scenarioSets ?? []).map((scenario) => (
                 <option key={scenario.id} value={scenario.id}>
@@ -219,7 +222,7 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
           <Button type="button" disabled={!canApply || isApplying} onClick={applyComparison}>
             Apply comparison
           </Button>
-          {request.baselineSnapshotId ? (
+          {appliedBaseline ? (
             <Button
               type="button"
               variant="outline"
@@ -227,7 +230,10 @@ export function InvestmentComparisonPanel({ fundId, comparison, request, onReque
                 invalidatePendingSelection();
                 setScenarioSetId('');
                 setBaselineStartMonth('');
-                onRequestChange({ asOfDate });
+                setAppliedBaseline(null);
+                onRequestChange({
+                  ...(explicitAsOfDate ? { asOfDate: explicitAsOfDate } : {}),
+                });
               }}
             >
               Clear baseline

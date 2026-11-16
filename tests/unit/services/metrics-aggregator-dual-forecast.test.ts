@@ -1206,11 +1206,54 @@ describe('MetricsAggregator dual forecast', () => {
         expect(current.series).toEqual(
           original.series.filter((point) => point.currentMode === 'forecast')
         );
+        const future = await new MetricsAggregator(undefined, deps).getDualForecast(1, {
+          asOfDate: '2026-07-23',
+        });
+        expect(future.series).toEqual(
+          original.series.filter((point) => point.currentMode === 'forecast')
+        );
         const historical = await new MetricsAggregator(undefined, deps).getDualForecast(1, {
           asOfDate: '2025-03-31',
         });
         expect(historical.series).toEqual([]);
         expect(historical.currentForecastV2).toEqual(original.currentForecastV2);
+      }
+    );
+
+    it.each([
+      ['2026-11-15T23:59:59.000Z', undefined, true],
+      ['2026-11-16T00:00:01.000Z', undefined, true],
+      ['2026-11-15T23:59:59.000Z', '2026-11-15', true],
+      ['2026-11-16T00:00:01.000Z', '2026-11-15', false],
+    ] as const)(
+      'uses UTC date boundaries at %s with cutoff %s',
+      async (now, asOfDate, retainsForecast) => {
+        readPublishedInvestmentComparisonMock.mockResolvedValue({
+          status: 'available',
+          asOfDate: asOfDate ?? '2026-11-15',
+          basis: null,
+          actual: {
+            deployedCapital: '100',
+            initialCapital: '100',
+            followOnCapital: '0',
+            transactionCount: 1,
+            companyCount: 1,
+          },
+          periods: [],
+          baseline: null,
+          reason: null,
+          baselineReason: null,
+          disclosures: [],
+        });
+        const deps = servingDeps({
+          resolveMode: vi.fn(async () => ({ mode: 'on', cutoverReferenceId: 41 })),
+          now: () => new Date(now),
+        });
+        const result = await new MetricsAggregator(undefined, deps).getDualForecast(
+          1,
+          asOfDate ? { asOfDate } : {}
+        );
+        expect(result.series.length > 0).toBe(retainsForecast);
       }
     );
 

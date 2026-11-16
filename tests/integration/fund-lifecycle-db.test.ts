@@ -810,6 +810,58 @@ describe('fund lifecycle DB proof', () => {
     expect(await durableState(active, created.fundId)).toEqual(before);
   });
 
+  it('replays a published revision start and rejects a distinct command without another draft', async () => {
+    const active = runtime!;
+    const created = await createDraft(active);
+    const finalized = await request(active.app)
+      .post('/api/funds/finalize')
+      .set('Authorization', authHeader(active))
+      .set('Idempotency-Key', randomUUID())
+      .set('If-Match', created.etag)
+      .send({ ...finalizeFixture(), draftFundId: created.fundId, name: 'Published source' });
+    expect(finalized.status, JSON.stringify(finalized.body)).toBe(201);
+
+    const source = await request(active.app)
+      .get(`/api/funds/${created.fundId}/revision-source`)
+      .set('Authorization', authHeader(active));
+    expect(source.status, JSON.stringify(source.body)).toBe(200);
+    const key = randomUUID();
+    const body = {
+      sourceConfigId: source.body.id as number,
+      sourceConfigVersion: source.body.version as number,
+    };
+    const dispatch = (commandKey: string) =>
+      request(active.app)
+        .post(`/api/funds/${created.fundId}/draft`)
+        .set('Authorization', authHeader(active))
+        .set('Idempotency-Key', commandKey)
+        .set('If-Match', source.headers['etag'])
+        .send(body);
+
+    const started = await dispatch(key);
+    expect(started.status, JSON.stringify(started.body)).toBe(201);
+    const before = await durableState(active, created.fundId);
+    expect(before.configs.filter((config: { is_draft: boolean }) => config.is_draft)).toHaveLength(
+      1
+    );
+
+    const replay = await dispatch(key);
+    expect(replay.status).toBe(201);
+    expect(replay.headers['idempotency-replay']).toBe('true');
+    expect(replay.body).toEqual(started.body);
+
+    const conflict = await dispatch(randomUUID());
+    expect(conflict.status).toBe(409);
+    expect(conflict.body).toMatchObject({
+      code: 'ACTIVE_DRAFT_EXISTS',
+      error: 'An active draft already exists for this fund',
+    });
+    expect(JSON.stringify(conflict.body)).not.toMatch(/sql|exception|stack/i);
+    const after = await durableState(active, created.fundId);
+    expect(after.configs).toEqual(before.configs);
+    expect(after.events).toBe(before.events);
+  });
+
   it('publishes directly with the same guard, durable replay and no latest-publication substitution', async () => {
     const active = runtime!;
     const created = await createDraft(active);

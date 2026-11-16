@@ -238,10 +238,19 @@ function ForecastTooltip({
 export default function DualForecastDashboard() {
   const { currentFund, isLoading: isFundLoading, needsSetup, isDemoMode } = useFundContext();
   const fundId = currentFund?.id ?? null;
-  const [investmentRequest, setInvestmentRequest] = useState<InvestmentComparisonRequest>({});
+  const [investmentRequestState, setInvestmentRequestState] = useState<{
+    fundId: number | null;
+    request: InvestmentComparisonRequest;
+  }>(() => ({ fundId, request: {} }));
+  const investmentRequest =
+    investmentRequestState.fundId === fundId ? investmentRequestState.request : {};
   const activeFundId = useRef(fundId);
   activeFundId.current = fundId;
-  useEffect(() => setInvestmentRequest({}), [fundId]);
+  useEffect(() => {
+    setInvestmentRequestState((current) =>
+      current.fundId === fundId ? current : { fundId, request: {} }
+    );
+  }, [fundId]);
 
   const {
     data: dashboardData,
@@ -471,7 +480,9 @@ export default function DualForecastDashboard() {
           comparison={dualForecast.investmentComparison}
           request={investmentRequest}
           onRequestChange={(nextRequest) => {
-            if (activeFundId.current === fundId) setInvestmentRequest(nextRequest);
+            if (activeFundId.current === fundId) {
+              setInvestmentRequestState({ fundId, request: nextRequest });
+            }
           }}
         />
       ) : null}
