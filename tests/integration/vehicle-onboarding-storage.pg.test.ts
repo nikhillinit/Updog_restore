@@ -517,24 +517,49 @@ describe.skipIf(!runDocker)('vehicle declaration storage PostgreSQL', { retry: 0
     await inRequestScope('admin', expectFact);
   });
 
-  it('refuses ownership answers when the table exists without its ownership function', async () => {
+  it('reads the table directly without the ownership function only when row security cannot filter it', async () => {
     const first = await declareVehicle();
+    const sourceId = first.body.sourceArtifactId;
+    const ordinarySource = await cloneArtifact(sourceId);
+    await admin.query("UPDATE source_artifacts SET purge_after = '2027-01-01' WHERE id = $1", [
+      sourceId,
+    ]);
     const { assertArtifactNotVehicleOnboardingOwned } =
       await import('../../server/services/financial-observations/vehicle-onboarding-artifact-ownership');
     const { createClientDatabase } = await import('../../server/db');
+    const refusal = { code: 'ARTIFACT_RESERVED_FOR_VEHICLE_ONBOARDING' };
     const client = await admin.connect();
+    const clientDb = createClientDatabase(client) as unknown as typeof applicationDb;
+    const expectTableRead = async () => {
+      await expect(
+        assertArtifactNotVehicleOnboardingOwned(clientDb, fundId, ordinarySource)
+      ).resolves.toBeUndefined();
+      await expect(
+        assertArtifactNotVehicleOnboardingOwned(clientDb, fundId, sourceId)
+      ).rejects.toMatchObject(refusal);
+    };
     try {
       await client.query('BEGIN');
+      // An earlier 0062 draft: table, policies and no function.
       await client.query(
         'DROP FUNCTION public.vehicle_onboarding_artifact_digest(integer, integer)'
       );
+      // The table owner is not filtered, so the direct read is exact.
+      await expectTableRead();
+      // A non-owner role would be filtered: refuse instead of switching the guard off.
+      await client.query('SET LOCAL ROLE onboarding_storage_reader');
       await expect(
-        assertArtifactNotVehicleOnboardingOwned(
-          createClientDatabase(client),
-          fundId,
-          first.body.sourceArtifactId
-        )
+        assertArtifactNotVehicleOnboardingOwned(clientDb, fundId, sourceId)
       ).rejects.toMatchObject({ status: 503, code: 'VEHICLE_ONBOARDING_SCHEMA_INCOMPLETE' });
+      await expect(retention.purgeVehicleOnboardingArtifacts(now, clientDb)).rejects.toMatchObject({
+        code: 'VEHICLE_ONBOARDING_SCHEMA_INCOMPLETE',
+      });
+      // Schema pushed from Drizzle definitions: table without row security or the function.
+      await client.query('RESET ROLE');
+      await client.query('ALTER TABLE vehicle_onboarding_commands DISABLE ROW LEVEL SECURITY');
+      await client.query('SET LOCAL ROLE onboarding_storage_reader');
+      await expectTableRead();
+      expect(await retention.purgeVehicleOnboardingArtifacts(now, clientDb)).toBe(1);
     } finally {
       await client.query('ROLLBACK');
       client.release();

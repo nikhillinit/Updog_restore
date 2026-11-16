@@ -25,8 +25,10 @@ import { logger } from '../../lib/logger';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import type { ReconciliationCaseHistoryEntryV1 } from '../../../shared/contracts/financial-observations/reconciliation.contract';
 import {
-  hasVehicleOnboardingCommands,
   isVehicleOnboardingArtifact,
+  resolveVehicleOnboardingOwnership,
+  vehicleOnboardingDigestSql,
+  type VehicleOnboardingOwnership,
 } from './vehicle-onboarding-artifact-ownership';
 
 const log = logger.child({ module: 'artifact-retention' });
@@ -201,7 +203,7 @@ function toNullableDate(value: unknown): Date | null {
 
 export function createRetentionSweepPorts(
   database: RetentionDatabase,
-  options?: { vehicleOnboardingAvailable?: boolean }
+  options?: { vehicleOnboardingOwnership?: VehicleOnboardingOwnership }
 ): RetentionSweepPorts {
   return {
     async selectDueBatches(now) {
@@ -271,7 +273,7 @@ export function createRetentionSweepPorts(
             tx,
             batch.fundId,
             batch.sourceArtifactId,
-            options?.vehicleOnboardingAvailable
+            options?.vehicleOnboardingOwnership
           ))
         ) {
           await tx.execute(sql`
@@ -355,17 +357,18 @@ export function createRetentionSweepPorts(
 export async function purgeVehicleOnboardingArtifacts(
   now: Date,
   database: RetentionDatabase = db,
-  available?: boolean
+  ownership?: VehicleOnboardingOwnership
 ): Promise<number> {
-  if (!(available ?? (await hasVehicleOnboardingCommands(database)))) return 0;
+  const resolved = ownership ?? (await resolveVehicleOnboardingOwnership(database));
+  if (resolved === 'absent') return 0;
+  const digest = vehicleOnboardingDigestSql(resolved, sql`artifact.fund_id`, sql`artifact.id`);
   const result = await database.execute(sql`
     UPDATE source_artifacts AS artifact
     SET payload = NULL, purged_at = ${now}
     WHERE artifact.payload IS NOT NULL AND artifact.purged_at IS NULL
       AND artifact.purge_after <= ${now}
       AND (artifact.retention_extended_until IS NULL OR artifact.retention_extended_until <= ${now})
-      AND public.vehicle_onboarding_artifact_digest(artifact.fund_id, artifact.id)
-        = artifact.payload_sha256
+      AND ${digest} = artifact.payload_sha256
       AND NOT EXISTS (
         SELECT 1 FROM import_batches AS batch
         WHERE batch.fund_id = artifact.fund_id AND batch.source_artifact_id = artifact.id
@@ -403,9 +406,9 @@ export async function runRetentionSweep(
   now: Date,
   database: RetentionDatabase = db
 ): Promise<RetentionSweepSummary> {
-  const hasOnboarding = await hasVehicleOnboardingCommands(database);
+  const ownership = await resolveVehicleOnboardingOwnership(database);
   const summary = await sweepDueBatches(
-    createRetentionSweepPorts(database, { vehicleOnboardingAvailable: hasOnboarding }),
+    createRetentionSweepPorts(database, { vehicleOnboardingOwnership: ownership }),
     now
   );
   // Keep the existing sweep usable before the additive draft migration lands.
@@ -426,13 +429,13 @@ export async function runRetentionSweep(
               OR revision.valuation_source_artifact_id = artifact.id)
         )
         ${
-          hasOnboarding
-            ? sql`AND public.vehicle_onboarding_artifact_digest(artifact.fund_id, artifact.id) IS NULL`
-            : sql``
+          ownership === 'absent'
+            ? sql``
+            : sql`AND ${vehicleOnboardingDigestSql(ownership, sql`artifact.fund_id`, sql`artifact.id`)} IS NULL`
         }
     `);
   }
-  if (hasOnboarding) await purgeVehicleOnboardingArtifacts(now, database, hasOnboarding);
+  if (ownership !== 'absent') await purgeVehicleOnboardingArtifacts(now, database, ownership);
   return summary;
 }
 
