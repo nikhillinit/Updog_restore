@@ -320,6 +320,7 @@ describe('scenario retention concurrency integration', () => {
     isStoppingPostgres = true;
     const active = runtime;
     let closePgCircuitPool: (() => Promise<void>) | null = null;
+    let closePrimaryDatabasePool: (() => Promise<void>) | null = null;
 
     try {
       const db = await import('../../../server/db/pg-circuit');
@@ -327,7 +328,17 @@ describe('scenario retention concurrency integration', () => {
     } catch {
       // The pg-circuit module may never load if startup failed before route import.
     }
-    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
+    try {
+      const db = await import('../../../server/db');
+      closePrimaryDatabasePool = db.closeDatabasePool;
+    } catch {
+      // The primary db module may never load if startup failed before route import.
+    }
+    await tolerateExpectedPostgresStop([
+      closePgCircuitPool?.(),
+      closePrimaryDatabasePool?.(),
+      active?.pool.end(),
+    ]);
     await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();
