@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d",
+  "snapshot_id": "snapshot:d669d71735f322ea5cdd03479c824b19b148525bdd5c9f8c89639d18d6c8bda9",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -304,6 +304,7 @@
     "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
     "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+    "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
     "api:POST:/api/funds/:fundId/imports/actuals/publish",
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -506,7 +507,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "78df86ca6875ebb33f606fba953821910234472be8c4e71bfd84ff3b86aea22a",
+    "audit/surface-contract-matrix/boot-proofs.json": "640ede78c84f83992c6c6539f088c2e8648e2e39037ea452c873bc744e90fd09",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
@@ -553,7 +554,7 @@
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
     "server/queues/report-generation-queue.ts": "9c3792bb56f3849227c9f4cd33c7e5196abfdddd371b95833d48602d06a3947e",
     "server/queues/simulation-queue.ts": "96e698444491fa4ab7118dccb17477a0c01ad4eeace6497789136d9b8ca8b980",
-    "server/route-policy/api-route-policy-registry.ts": "c66584f968ad08652fb0a9a9de02547d0aebe43e9f5162bcfff7b3fcb2bb80dd",
+    "server/route-policy/api-route-policy-registry.ts": "2030534237e506f87305857e4fff29c7eaa1ef12c694e87a66da0d1413e8ad3a",
     "server/routes.ts": "a0d63d861318a77af77c14dc97183d7960a1ee41afb4358f5a13d3f69a2ac407",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
@@ -602,7 +603,7 @@
     "server/routes/lp-documents.ts": "67b0275d24e869fe3fdaefd5c29a25b9de0a23863b6cb5345ea29583cda9f9d5",
     "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
     "server/routes/lp-notifications.ts": "1ccd1408da04315f94d19959b6a81255157be2c38bae922f88ecba0058fcb70f",
-    "server/routes/lp-reporting/imports.ts": "472f5b8946e1842c90a6bcd5894ea1c1fcf299eef22b7268e5c35be393606c5e",
+    "server/routes/lp-reporting/imports.ts": "3c45b50ccc8687018cfb432225b4d4265ed633853dc260bdf2f6a9f94986b1e1",
     "server/routes/lp-reporting/metric-runs.ts": "c63c104b5aa4e214965455fe06a4b4d234f01444728698abdc780cd08be8da00",
     "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
     "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
@@ -668,7 +669,7 @@
     "package.json#scripts": "a4f74a8c32965f0533e8de7523a997747bf80ff7a2dc6f37ced1dad06451f96b",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "862dc89343ae59f9c80b20e4fb51bc091cc5054d7288c8e0f52881e156202c89",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
-    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "10ccc8c77be6c7a5cf28f4b632ee8d204f44437c20433356fb17275fded1c165",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "03b014a8862ac27d71e9970ba42f8518229bec545892c57a0b2230c72f0eb157",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "d6e82d5bb28b74d2667d80107ccd479406a28a4b76e9f0c57b0f75e97540538f",
     "client/src/app/app-routes.tsx": "c074b27e602b21908e63ecf41df5aadb6615beb65df529d3c8ee79d4cc94612c",
     "server/queues/registry.ts": "d0ad3377b7ddeb9656e4e8d78a5e58e176ae4f906613b539caa0a86ad84060de"
@@ -925,6 +926,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -1306,6 +1308,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -1702,6 +1705,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -2098,6 +2102,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -2507,6 +2512,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -2908,6 +2914,7 @@
       "api:POST:/api/funds/:fundId/decisions/:decisionId/supersede",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -3325,6 +3332,7 @@
       "api:GET:/api/funds/:fundId/reconciliation/cases",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -4434,6 +4442,9 @@
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run": [
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run"
     ],
+    "api:POST:/api/funds/:fundId/imports/actuals/main-fund": [
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund"
+    ],
     "api:POST:/api/funds/:fundId/imports/actuals/publish": [
       "api:POST:/api/funds/:fundId/imports/actuals/publish"
     ],
@@ -5517,6 +5528,7 @@
       "api:GET:/api/funds/:fundId/reconciliation/cases",
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
       "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
       "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -6055,6 +6067,9 @@
     ],
     "policy:api:post:/api/funds/:fundId/imports/batches/:batchId/commit": [
       "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit"
+    ],
+    "policy:api:post:/api/funds/:fundId/imports/actuals/main-fund": [
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund"
     ],
     "policy:api:post:/api/funds/:fundId/imports/actuals/draft-revisions": [
       "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions"
@@ -9641,6 +9656,18 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
+    "api:POST:/api/funds/:fundId/imports/actuals/main-fund": [
+      "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
+      "manifest:lp-reporting-imports",
+      "policy:api:post:/api/funds/:fundId/imports/actuals/main-fund",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/lp-reporting/imports.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
     "api:POST:/api/funds/:fundId/imports/actuals/publish": [
       "api:POST:/api/funds/:fundId/imports/actuals/publish",
       "manifest:lp-reporting-imports",
@@ -11600,11 +11627,11 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:f0d1a13c4b16fb925f5099e340b08eb0eabf0bec542881e735b1ca6b41fefd4d"
+      "snapshot:d669d71735f322ea5cdd03479c824b19b148525bdd5c9f8c89639d18d6c8bda9"
     ]
   },
   "kg_counts": {
-    "APIEndpoint": 415,
+    "APIEndpoint": 416,
     "ClientRoute": 44,
     "WorkerJob": 7
   },
