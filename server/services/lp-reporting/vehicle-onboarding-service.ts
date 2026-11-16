@@ -207,6 +207,136 @@ function resultFromStored(row: StoredCommand): VehicleOnboardingResult {
   };
 }
 
+async function matchOrInsertMainFund(
+  client: PoolClient,
+  fundId: number,
+  request: VehicleOnboardingRequest
+): Promise<{ vehicleId: number; existing: boolean }> {
+  const vehicles = await client.query<{
+    id: number;
+    vehicleSlug: string;
+    name: string;
+    vehicleType: string;
+    currency: string;
+    status: string;
+    committedCapital: string | null;
+  }>(
+    `SELECT id, vehicle_slug AS "vehicleSlug", name, vehicle_type AS "vehicleType",
+                  currency, status, committed_capital::text AS "committedCapital"
+             FROM vehicles WHERE fund_id = $1 ORDER BY id FOR UPDATE`,
+    [fundId]
+  );
+  const main = vehicles.rows.filter((row) => row.vehicleType === 'main_fund');
+  const occupied = vehicles.rows.find((row) => row.vehicleSlug === request.vehicleSlug);
+  if (main.length > 1 || (occupied && occupied.vehicleType !== 'main_fund')) {
+    fail(409, 'VEHICLE_IDENTITY_CONFLICT', 'The requested main-fund identity is unavailable.');
+  }
+  const existing = main[0];
+  if (
+    existing &&
+    (existing.vehicleSlug !== request.vehicleSlug ||
+      existing.name !== request.name ||
+      existing.currency !== 'USD' ||
+      existing.status !== 'active' ||
+      existing.committedCapital === null ||
+      !VehicleOnboardingRequestSchema.shape.committedCapital.safeParse(existing.committedCapital)
+        .success ||
+      VehicleOnboardingRequestSchema.shape.committedCapital.parse(existing.committedCapital) !==
+        request.committedCapital)
+  ) {
+    fail(
+      409,
+      'VEHICLE_DECLARATION_CONFLICT',
+      'Existing main-fund fields do not match the declaration.'
+    );
+  }
+  const vehicleId =
+    existing?.id ??
+    (
+      await client.query<{ id: number }>(
+        `INSERT INTO vehicles
+                (fund_id, vehicle_slug, vehicle_type, name, committed_capital, currency, status)
+               VALUES ($1, $2, 'main_fund', $3, $4, 'USD', 'active') RETURNING id`,
+        [fundId, request.vehicleSlug, request.name, request.committedCapital]
+      )
+    ).rows[0]?.id;
+  if (!vehicleId) fail(500, 'ONBOARDING_FAILED', 'Vehicle creation returned no identity.');
+  return { vehicleId, existing: Boolean(existing) };
+}
+
+async function insertReceipt(
+  client: PoolClient,
+  input: {
+    fundId: number;
+    actorId: number;
+    idempotencyKey: string;
+    requestHash: string;
+    request: VehicleOnboardingRequest;
+    artifact: Awaited<ReturnType<typeof createSourceArtifact>>;
+    now: Date;
+    vehicleId: number;
+    existing: boolean;
+  }
+): Promise<StoredCommand> {
+  const commandId = (
+    await client.query<{ id: number }>(
+      `SELECT nextval(pg_get_serial_sequence('vehicle_onboarding_commands', 'id'))::int AS id`
+    )
+  ).rows[0]?.id;
+  if (!commandId) fail(500, 'ONBOARDING_FAILED', 'Command allocation returned no identity.');
+  const status = input.existing ? 200 : 201;
+  const body = VehicleOnboardingReceiptSchema.parse({
+    contractVersion: VEHICLE_ONBOARDING_VERSION,
+    commandId,
+    fundId: input.fundId,
+    vehicleId: input.vehicleId,
+    vehicleSlug: input.request.vehicleSlug,
+    name: input.request.name,
+    vehicleType: 'main_fund',
+    currency: 'USD',
+    status: 'active',
+    committedCapital: input.request.committedCapital,
+    sourceArtifactId: input.artifact.id,
+    sourceArtifactSha256: input.artifact.payloadSha256,
+    sourceLocator: input.request.sourceLocator,
+    sourcePurgeAfter: input.artifact.purgeAfter,
+    attestation: input.request.attestation,
+    outcome: input.existing ? 'existing' : 'created',
+    actorId: input.actorId,
+    declaredAt: input.now.toISOString(),
+  });
+  await client.query(
+    `INSERT INTO vehicle_onboarding_commands
+            (id, fund_id, actor_id, vehicle_id, operation, contract_version, idempotency_key,
+             request_hash, vehicle_slug, name, vehicle_type, currency, status, committed_capital,
+             source_artifact_id, source_artifact_sha256, source_locator, attestation_version,
+             outcome, created_at, response_status, response_body)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'main_fund','USD','active',$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb)`,
+    [
+      commandId,
+      input.fundId,
+      input.actorId,
+      input.vehicleId,
+      OPERATION,
+      VEHICLE_ONBOARDING_VERSION,
+      input.idempotencyKey,
+      input.requestHash,
+      input.request.vehicleSlug,
+      input.request.name,
+      input.request.committedCapital,
+      input.artifact.id,
+      input.artifact.payloadSha256,
+      input.request.sourceLocator,
+      input.request.attestation,
+      body.outcome,
+      input.now,
+      status,
+      serializeVehicleOnboardingReceipt(body),
+    ]
+  );
+  return { requestHash: input.requestHash, responseStatus: status, responseBody: body };
+}
+
 export async function onboardMainFundVehicle(
   input: OnboardingInput,
   options: VehicleOnboardingOptions = {}
@@ -293,118 +423,18 @@ export async function onboardMainFundVehicle(
           );
         }
 
-        const vehicles = await client.query<{
-          id: number;
-          vehicleSlug: string;
-          name: string;
-          vehicleType: string;
-          currency: string;
-          status: string;
-          committedCapital: string | null;
-        }>(
-          `SELECT id, vehicle_slug AS "vehicleSlug", name, vehicle_type AS "vehicleType",
-                  currency, status, committed_capital::text AS "committedCapital"
-             FROM vehicles WHERE fund_id = $1 ORDER BY id FOR UPDATE`,
-          [input.fundId]
-        );
-        const main = vehicles.rows.filter((row) => row.vehicleType === 'main_fund');
-        const occupied = vehicles.rows.find((row) => row.vehicleSlug === request.vehicleSlug);
-        if (main.length > 1 || (occupied && occupied.vehicleType !== 'main_fund')) {
-          fail(
-            409,
-            'VEHICLE_IDENTITY_CONFLICT',
-            'The requested main-fund identity is unavailable.'
-          );
-        }
-        const existing = main[0];
-        if (
-          existing &&
-          (existing.vehicleSlug !== request.vehicleSlug ||
-            existing.name !== request.name ||
-            existing.currency !== 'USD' ||
-            existing.status !== 'active' ||
-            existing.committedCapital === null ||
-            !VehicleOnboardingRequestSchema.shape.committedCapital.safeParse(
-              existing.committedCapital
-            ).success ||
-            VehicleOnboardingRequestSchema.shape.committedCapital.parse(
-              existing.committedCapital
-            ) !== request.committedCapital)
-        ) {
-          fail(
-            409,
-            'VEHICLE_DECLARATION_CONFLICT',
-            'Existing main-fund fields do not match the declaration.'
-          );
-        }
-        const vehicleId =
-          existing?.id ??
-          (
-            await client.query<{ id: number }>(
-              `INSERT INTO vehicles
-                (fund_id, vehicle_slug, vehicle_type, name, committed_capital, currency, status)
-               VALUES ($1, $2, 'main_fund', $3, $4, 'USD', 'active') RETURNING id`,
-              [input.fundId, request.vehicleSlug, request.name, request.committedCapital]
-            )
-          ).rows[0]?.id;
-        if (!vehicleId) fail(500, 'ONBOARDING_FAILED', 'Vehicle creation returned no identity.');
-        const commandId = (
-          await client.query<{ id: number }>(
-            `SELECT nextval(pg_get_serial_sequence('vehicle_onboarding_commands', 'id'))::int AS id`
-          )
-        ).rows[0]?.id;
-        if (!commandId) fail(500, 'ONBOARDING_FAILED', 'Command allocation returned no identity.');
-        const status = existing ? 200 : 201;
-        const body = VehicleOnboardingReceiptSchema.parse({
-          contractVersion: VEHICLE_ONBOARDING_VERSION,
-          commandId,
+        const { vehicleId, existing } = await matchOrInsertMainFund(client, input.fundId, request);
+        return insertReceipt(client, {
           fundId: input.fundId,
-          vehicleId,
-          vehicleSlug: request.vehicleSlug,
-          name: request.name,
-          vehicleType: 'main_fund',
-          currency: 'USD',
-          status: 'active',
-          committedCapital: request.committedCapital,
-          sourceArtifactId: artifact.id,
-          sourceArtifactSha256: artifact.payloadSha256,
-          sourceLocator: request.sourceLocator,
-          sourcePurgeAfter: artifact.purgeAfter,
-          attestation: request.attestation,
-          outcome: existing ? 'existing' : 'created',
           actorId: input.actorId,
-          declaredAt: now.toISOString(),
+          idempotencyKey: parsedKey.data,
+          requestHash,
+          request,
+          artifact,
+          now,
+          vehicleId,
+          existing,
         });
-        await client.query(
-          `INSERT INTO vehicle_onboarding_commands
-            (id, fund_id, actor_id, vehicle_id, operation, contract_version, idempotency_key,
-             request_hash, vehicle_slug, name, vehicle_type, currency, status, committed_capital,
-             source_artifact_id, source_artifact_sha256, source_locator, attestation_version,
-             outcome, created_at, response_status, response_body)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'main_fund','USD','active',$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb)`,
-          [
-            commandId,
-            input.fundId,
-            input.actorId,
-            vehicleId,
-            OPERATION,
-            VEHICLE_ONBOARDING_VERSION,
-            parsedKey.data,
-            requestHash,
-            request.vehicleSlug,
-            request.name,
-            request.committedCapital,
-            artifact.id,
-            artifact.payloadSha256,
-            request.sourceLocator,
-            request.attestation,
-            body.outcome,
-            now,
-            status,
-            serializeVehicleOnboardingReceipt(body),
-          ]
-        );
-        return { requestHash, responseStatus: status, responseBody: body };
       },
     });
     return resultFromStored(saved.row);
