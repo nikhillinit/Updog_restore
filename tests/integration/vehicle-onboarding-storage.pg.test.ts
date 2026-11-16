@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { sql } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -137,6 +138,19 @@ async function asOrdinaryRole<T>(
     await client.query('ROLLBACK');
     throw error;
   } finally {
+    client.release();
+  }
+}
+
+/** A background-worker connection: non-owner role, no request scope, no fund context. */
+async function asOrdinaryWorker<T>(action: (workerDb: typeof applicationDb) => Promise<T>) {
+  const { createClientDatabase } = await import('../../server/db');
+  const client = await admin.connect();
+  try {
+    await client.query('SET ROLE onboarding_storage_reader');
+    return await action(createClientDatabase(client) as unknown as typeof applicationDb);
+  } finally {
+    await client.query('RESET ROLE');
     client.release();
   }
 }
@@ -457,37 +471,74 @@ describe.skipIf(!runDocker)('vehicle declaration storage PostgreSQL', { retry: 0
     });
   });
 
-  it('fails closed for missing request context, revoked grants, actor mismatch and prebound fund mismatch', async () => {
+  it('answers ownership as a fact for every route-admitted caller without touching the caller transaction', async () => {
+    const first = await declareVehicle();
+    const ordinarySource = await cloneArtifact(first.body.sourceArtifactId);
+    const { assertArtifactNotVehicleOnboardingOwned } =
+      await import('../../server/services/financial-observations/vehicle-onboarding-artifact-ownership');
+    const { createClientDatabase } = await import('../../server/db');
+    const refusal = { code: 'ARTIFACT_RESERVED_FOR_VEHICLE_ONBOARDING' };
+    const expectFact = async (scopedDb: typeof applicationDb) => {
+      await expect(
+        assertArtifactNotVehicleOnboardingOwned(scopedDb, fundId, ordinarySource)
+      ).resolves.toBeUndefined();
+      await expect(
+        assertArtifactNotVehicleOnboardingOwned(scopedDb, fundId, first.body.sourceArtifactId)
+      ).rejects.toMatchObject(refusal);
+      // The predicate binds no fund and holds no actor or grant row locks.
+      const state = (
+        await scopedDb.execute(sql`
+          SELECT current_setting('app.current_fund', true) AS fund,
+            (SELECT count(*)::int FROM pg_locks
+              WHERE pid = pg_backend_pid() AND locktype = 'tuple') AS tuple_locks,
+            (SELECT count(*)::int FROM pg_locks
+              WHERE pid = pg_backend_pid() AND relation IN
+                ('users'::regclass, 'user_fund_grants'::regclass)) AS row_locks
+        `)
+      ).rows[0];
+      expect(state).toMatchObject({ fund: '', tuple_locks: 0, row_locks: 0 });
+    };
+
+    // Maintenance: ordinary role, no request scope, no fund context.
+    await asOrdinaryRole(null, (client) => expectFact(createClientDatabase(client)));
+    // Request context no longer matters to the fact lookup.
+    for (const override of [{ userId: String(actorId + 1) }, { fundId: String(fundId + 1) }]) {
+      await inRequestScope('admin', expectFact, override);
+    }
+    // Unrestricted non-admin admitted by requireFundAccess without a grant row.
+    await admin.query("UPDATE users SET role = 'partner' WHERE id = $1", [actorId]);
+    await admin.query('DELETE FROM user_fund_grants WHERE user_id = $1', [actorId]);
+    await inRequestScope('partner', expectFact);
+    // Release canary principal.
+    await admin.query(
+      "UPDATE users SET role = 'admin', is_release_canary_principal = true WHERE id = $1",
+      [actorId]
+    );
+    await inRequestScope('admin', expectFact);
+  });
+
+  it('refuses ownership answers when the table exists without its ownership function', async () => {
     const first = await declareVehicle();
     const { assertArtifactNotVehicleOnboardingOwned } =
       await import('../../server/services/financial-observations/vehicle-onboarding-artifact-ownership');
     const { createClientDatabase } = await import('../../server/db');
-    await expect(
-      asOrdinaryRole(null, (client) =>
+    const client = await admin.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'DROP FUNCTION public.vehicle_onboarding_artifact_digest(integer, integer)'
+      );
+      await expect(
         assertArtifactNotVehicleOnboardingOwned(
           createClientDatabase(client),
           fundId,
           first.body.sourceArtifactId
         )
-      )
-    ).rejects.toMatchObject({ code: 'ARTIFACT_OWNERSHIP_SCOPE_REQUIRED' });
-    for (const override of [{ userId: String(actorId + 1) }, { fundId: String(fundId + 1) }]) {
-      await expect(
-        inRequestScope(
-          'admin',
-          (scopedDb) =>
-            assertArtifactNotVehicleOnboardingOwned(scopedDb, fundId, first.body.sourceArtifactId),
-          override
-        )
-      ).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
+      ).rejects.toMatchObject({ status: 503, code: 'VEHICLE_ONBOARDING_SCHEMA_INCOMPLETE' });
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
     }
-    await admin.query("UPDATE users SET role = 'partner' WHERE id = $1", [actorId]);
-    await admin.query('DELETE FROM user_fund_grants WHERE user_id = $1', [actorId]);
-    await expect(
-      inRequestScope('partner', (scopedDb) =>
-        assertArtifactNotVehicleOnboardingOwned(scopedDb, fundId, first.body.sourceArtifactId)
-      )
-    ).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
   });
 
   it('purges only due receipt-owned bytes, preserves replay metadata, and repeats safely', async () => {
@@ -561,6 +612,57 @@ describe.skipIf(!runDocker)('vehicle declaration storage PostgreSQL', { retry: 0
       { id: first.body.sourceArtifactId, retained: true },
       { id: ordinarySource, retained: false },
     ]);
+  });
+
+  it('completes batch retention and keeps shared declaration bytes under a non-owner worker role', async () => {
+    const first = await declareVehicle();
+    const ordinarySource = await cloneArtifact(first.body.sourceArtifactId);
+    await admin.query("UPDATE source_artifacts SET purge_after = '2027-01-01'");
+    for (const sourceId of [first.body.sourceArtifactId, ordinarySource]) {
+      await admin.query(
+        `INSERT INTO import_batches
+          (fund_id,source_artifact_id,status,purge_after,idempotency_key,request_hash)
+         VALUES ($1,$2,'committed','2027-01-01',$3,$4)`,
+        [fundId, sourceId, randomUUID(), 'a'.repeat(64)]
+      );
+    }
+    await asOrdinaryWorker((workerDb) => retention.runRetentionSweep(now, workerDb));
+    expect(
+      (
+        await admin.query<{ id: number; retained: boolean }>(
+          'SELECT id, payload IS NOT NULL AS retained FROM source_artifacts ORDER BY id'
+        )
+      ).rows
+    ).toEqual([
+      { id: first.body.sourceArtifactId, retained: true },
+      { id: ordinarySource, retained: false },
+    ]);
+    // Both batch purges committed; the reserved one did not abort on ownership scope.
+    expect(
+      (
+        await admin.query<{ purged: boolean }>(
+          'SELECT purged_at IS NOT NULL AS purged FROM import_batches ORDER BY id'
+        )
+      ).rows
+    ).toEqual([{ purged: true }, { purged: true }]);
+  });
+
+  it('purges due declaration bytes under a non-owner worker role without fund context', async () => {
+    const first = await declareVehicle();
+    await admin.query("UPDATE source_artifacts SET purge_after = '2027-01-01' WHERE id = $1", [
+      first.body.sourceArtifactId,
+    ]);
+    expect(
+      await asOrdinaryWorker((workerDb) => retention.purgeVehicleOnboardingArtifacts(now, workerDb))
+    ).toBe(1);
+    expect(
+      (
+        await admin.query(
+          'SELECT payload IS NULL AS purged, purged_at FROM source_artifacts WHERE id = $1',
+          [first.body.sourceArtifactId]
+        )
+      ).rows[0]
+    ).toEqual({ purged: true, purged_at: now });
   });
 
   it('protects unexpected direct observation ownership without an import batch', async () => {

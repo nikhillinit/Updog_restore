@@ -30,6 +30,7 @@ import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
 import { requireActualsPilotGrant } from '../../lib/auth/actuals-pilot-grant';
+import { logger } from '../../lib/logger';
 import { firstString } from '../../lib/request-values';
 import {
   ImportCommitRequestSchema,
@@ -156,6 +157,10 @@ import {
   unavailableActualMetricsV2,
 } from '../../services/actual-metrics-v2-projector';
 
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'routes:lp-reporting:imports' })
+    : logger;
 const router = Router();
 const actualsPilotFundId = readActualsPilotFundId();
 const actualsIdempotencyKeySchema = z
@@ -1408,6 +1413,17 @@ if (actualsPilotFundId !== null) {
         if (error instanceof IdempotentCommandError) {
           return res.status(error.status).json({ error: error.message, code: error.code });
         }
+        const details: { code: string; errorName: string; sqlState?: string; constraint?: string } =
+          {
+            code: 'VEHICLE_ONBOARDING_FAILED',
+            errorName: error instanceof Error ? error.name : typeof error,
+          };
+        const candidate = error as { code?: unknown; constraint?: unknown } | null;
+        if (typeof candidate?.code === 'string' && /^[0-9A-Z]{5}$/.test(candidate.code)) {
+          details.sqlState = candidate.code;
+        }
+        if (typeof candidate?.constraint === 'string') details.constraint = candidate.constraint;
+        log.error(details, 'Main-fund declaration failed');
         return res.status(500).json({
           error: 'Main-fund declaration failed. Retry the same request and key.',
           code: 'VEHICLE_ONBOARDING_FAILED',

@@ -199,7 +199,10 @@ function toNullableDate(value: unknown): Date | null {
   return value === null || value === undefined ? null : toDate(value);
 }
 
-export function createRetentionSweepPorts(database: RetentionDatabase): RetentionSweepPorts {
+export function createRetentionSweepPorts(
+  database: RetentionDatabase,
+  options?: { vehicleOnboardingAvailable?: boolean }
+): RetentionSweepPorts {
   return {
     async selectDueBatches(now) {
       const result = await database.execute(sql`
@@ -264,7 +267,12 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
       return database.transaction(async (tx) => {
         if (
           batch.sourceArtifactId !== null &&
-          !(await isVehicleOnboardingArtifact(tx, batch.fundId, batch.sourceArtifactId))
+          !(await isVehicleOnboardingArtifact(
+            tx,
+            batch.fundId,
+            batch.sourceArtifactId,
+            options?.vehicleOnboardingAvailable
+          ))
         ) {
           await tx.execute(sql`
             UPDATE source_artifacts
@@ -346,20 +354,18 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
 /** Purge only bytes whose exclusive declaration ownership and expiry still match. */
 export async function purgeVehicleOnboardingArtifacts(
   now: Date,
-  database: RetentionDatabase = db
+  database: RetentionDatabase = db,
+  available?: boolean
 ): Promise<number> {
-  if (!(await hasVehicleOnboardingCommands(database))) return 0;
+  if (!(available ?? (await hasVehicleOnboardingCommands(database)))) return 0;
   const result = await database.execute(sql`
     UPDATE source_artifacts AS artifact
     SET payload = NULL, purged_at = ${now}
     WHERE artifact.payload IS NOT NULL AND artifact.purged_at IS NULL
       AND artifact.purge_after <= ${now}
       AND (artifact.retention_extended_until IS NULL OR artifact.retention_extended_until <= ${now})
-      AND EXISTS (
-        SELECT 1 FROM vehicle_onboarding_commands AS command
-        WHERE command.fund_id = artifact.fund_id AND command.source_artifact_id = artifact.id
-          AND command.source_artifact_sha256 = artifact.payload_sha256
-      )
+      AND public.vehicle_onboarding_artifact_digest(artifact.fund_id, artifact.id)
+        = artifact.payload_sha256
       AND NOT EXISTS (
         SELECT 1 FROM import_batches AS batch
         WHERE batch.fund_id = artifact.fund_id AND batch.source_artifact_id = artifact.id
@@ -397,8 +403,11 @@ export async function runRetentionSweep(
   now: Date,
   database: RetentionDatabase = db
 ): Promise<RetentionSweepSummary> {
-  const summary = await sweepDueBatches(createRetentionSweepPorts(database), now);
   const hasOnboarding = await hasVehicleOnboardingCommands(database);
+  const summary = await sweepDueBatches(
+    createRetentionSweepPorts(database, { vehicleOnboardingAvailable: hasOnboarding }),
+    now
+  );
   // Keep the existing sweep usable before the additive draft migration lands.
   const draftTable = toRows(
     await database.execute(sql`SELECT to_regclass('public.actuals_draft_revisions') AS relation`)
@@ -418,15 +427,12 @@ export async function runRetentionSweep(
         )
         ${
           hasOnboarding
-            ? sql`AND NOT EXISTS (
-          SELECT 1 FROM vehicle_onboarding_commands AS command
-          WHERE command.fund_id = artifact.fund_id AND command.source_artifact_id = artifact.id
-        )`
+            ? sql`AND public.vehicle_onboarding_artifact_digest(artifact.fund_id, artifact.id) IS NULL`
             : sql``
         }
     `);
   }
-  if (hasOnboarding) await purgeVehicleOnboardingArtifacts(now, database);
+  if (hasOnboarding) await purgeVehicleOnboardingArtifacts(now, database, hasOnboarding);
   return summary;
 }
 

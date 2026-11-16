@@ -58,12 +58,21 @@ function outcomeUnknown(error: unknown): boolean {
   );
 }
 
+// These codes are emitted only after a replay miss under the fund lock.
+export const DEFINITIVE_REFUSAL_CODES = new Set([
+  'IDEMPOTENCY_KEY_REUSE',
+  'SOURCE_IDENTITY_CONFLICT',
+  'VEHICLE_IDENTITY_CONFLICT',
+  'VEHICLE_DECLARATION_CONFLICT',
+]);
+
 export function MainFundOnboardingPanel({ fundId }: { fundId: number }) {
   const session = useAuthSession();
   const user = session.data?.user;
   const eligible = !session.isError && user?.role === 'admin' && user.fundIds.includes(fundId);
   const availability = useFinancialFactsLatestReference(eligible ? fundId : null);
   if (!eligible) return null;
+  if (availability.isError && availability.error?.status === 404) return null;
   if (!availability.data || availability.isError) {
     return (
       <p className="text-sm text-charcoal/70" role="status">
@@ -104,6 +113,7 @@ function DeclarationForm({ fundId, actorId }: { fundId: number; actorId: string 
   const scope: IdempotencyKeyScope = { fundId, actorId, operation: 'vehicle_onboarding' };
   const keys = useIdempotencyKey(scope);
   const locked = frozen !== null || busy || receipt !== null;
+  const canDiscard = (unknown || keys.restored) && !receipt;
 
   useEffect(() => {
     alive.current = true;
@@ -191,9 +201,10 @@ function DeclarationForm({ fundId, actorId }: { fundId: number; actorId: string 
     running.current = true;
     setBusy(true);
     setError(null);
+    let command: (VehicleOnboardingCommand & { fingerprint: string }) | null = null;
     try {
       // An unsent review is disposable. Persist recovery metadata only at dispatch.
-      const command = {
+      command = {
         ...frozen,
         idempotencyKey: frozen.idempotencyKey ?? keys.keyFor(frozen.fingerprint, scope, false),
       };
@@ -210,16 +221,32 @@ function DeclarationForm({ fundId, actorId }: { fundId: number; actorId: string 
       setUnknown(false);
     } catch (failure) {
       if (!alive.current) return;
-      const uncertain = unknown || outcomeUnknown(failure);
-      setUnknown(uncertain);
-      setRefused(!uncertain);
-      setError(
-        uncertain
-          ? 'The outcome is uncertain. Retry this unchanged declaration; do not submit another one.'
-          : failure instanceof Error
-            ? failure.message
-            : 'The declaration was refused.'
-      );
+      const code =
+        typeof failure === 'object' &&
+        failure !== null &&
+        'code' in failure &&
+        typeof failure.code === 'string'
+          ? failure.code
+          : '';
+      const definitive =
+        !outcomeUnknown(failure) && (!unknown || DEFINITIVE_REFUSAL_CODES.has(code));
+      if (definitive) {
+        const resetScope = command ?? frozen;
+        keys.reset({
+          fundId: resetScope.fundId,
+          actorId: resetScope.actorId,
+          operation: 'vehicle_onboarding',
+        });
+        setUnknown(false);
+        setRefused(true);
+        setError(failure instanceof Error ? failure.message : 'The declaration was refused.');
+      } else {
+        setUnknown(true);
+        setRefused(false);
+        setError(
+          'The outcome is uncertain. Retry this unchanged declaration; do not submit another one.'
+        );
+      }
     } finally {
       finishAction();
     }
@@ -232,6 +259,15 @@ function DeclarationForm({ fundId, actorId }: { fundId: number; actorId: string 
     setReceipt(null);
     setError(null);
     setRefused(false);
+  }
+
+  function discard() {
+    if (busy) return;
+    keys.reset(scope);
+    setFrozen(null);
+    setUnknown(false);
+    setRefused(false);
+    setError(null);
   }
 
   return (
@@ -428,7 +464,24 @@ function DeclarationForm({ fundId, actorId }: { fundId: number; actorId: string 
             {receipt ? 'Review another declaration' : 'Edit declaration'}
           </Button>
         )}
+        {canDiscard && (
+          <Button
+            className="min-h-11"
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={discard}
+          >
+            Discard pending attempt
+          </Button>
+        )}
       </div>
+      {canDiscard && (
+        <p className="text-xs text-charcoal/70">
+          If the discarded attempt was saved, declaring the same details confirms the existing main
+          fund; different details are refused.
+        </p>
+      )}
       {!attested && !locked && (
         <p className="text-xs text-charcoal/70">
           Attest to the commitment source before reviewing the declaration.

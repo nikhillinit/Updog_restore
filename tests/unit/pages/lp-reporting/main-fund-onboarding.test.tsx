@@ -373,6 +373,110 @@ describe('main-fund onboarding', () => {
     expect(commands[1]!.key).not.toBe(commands[0]!.key);
   });
 
+  it('forgets the key after a first-attempt refusal so a reload does not restore it', async () => {
+    mockRequests(() =>
+      response(
+        { code: 'VEHICLE_DECLARATION_CONFLICT', message: 'Existing main-fund fields differ.' },
+        409
+      )
+    );
+    const user = userEvent.setup();
+    const first = renderPanel();
+    await fillDeclaration();
+    await user.click(await reviewDeclaration(user));
+    await screen.findByText('Existing main-fund fields differ.');
+    expect(sessionStorage.getItem(ENTRY)).toBeNull();
+    first.unmount();
+    renderPanel();
+    await screen.findByRole('heading', { name: 'Declare the main fund' });
+    expect(screen.queryByText('Pending declaration')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    'VEHICLE_DECLARATION_CONFLICT',
+    'VEHICLE_IDENTITY_CONFLICT',
+    'SOURCE_IDENTITY_CONFLICT',
+    'IDEMPOTENCY_KEY_REUSE',
+  ])(
+    'clears uncertainty after a post-replay %s refusal and restores Edit across reload',
+    async (code) => {
+      mockRequests((_command, count) =>
+        count === 1
+          ? response({ code: 'TEMPORARY_FAILURE' }, 503)
+          : response({ code, message: 'Refused after replay check.' }, 409)
+      );
+      const user = userEvent.setup();
+      const first = renderPanel();
+      await fillDeclaration();
+      await user.click(await reviewDeclaration(user));
+      await screen.findByText(/The outcome is uncertain/);
+      await user.click(screen.getByRole('button', { name: 'Retry unchanged declaration' }));
+      await screen.findByText('Refused after replay check.');
+      expect(screen.queryByText(/The outcome is uncertain/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Declare main fund' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Edit declaration' })).toBeEnabled();
+      expect(sessionStorage.getItem(ENTRY)).toBeNull();
+      first.unmount();
+      renderPanel();
+      await screen.findByRole('heading', { name: 'Declare the main fund' });
+      expect(screen.queryByText('Pending declaration')).not.toBeInTheDocument();
+    }
+  );
+
+  it('keeps uncertainty for a pre-replay refusal and lets the admin discard the attempt', async () => {
+    const { commands } = mockRequests((command, count) =>
+      count === 1
+        ? response({ code: 'TEMPORARY_FAILURE' }, 503)
+        : count === 2
+          ? response({ code: 'INSUFFICIENT_ROLE', message: 'Administrator access required.' }, 403)
+          : response(receipt(command))
+    );
+    const user = userEvent.setup();
+    renderPanel();
+    await fillDeclaration();
+    await user.click(await reviewDeclaration(user));
+    await screen.findByText(/The outcome is uncertain/);
+    const pending = sessionStorage.getItem(ENTRY);
+    await user.click(screen.getByRole('button', { name: 'Retry unchanged declaration' }));
+    await waitFor(() => expect(commands).toHaveLength(2));
+    await screen.findByText(/The outcome is uncertain/);
+    expect(screen.queryByRole('button', { name: 'Edit declaration' })).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(ENTRY)).toBe(pending);
+    await user.click(screen.getByRole('button', { name: 'Discard pending attempt' }));
+    expect(sessionStorage.getItem(ENTRY)).toBeNull();
+    expect(screen.queryByText(/The outcome is uncertain/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Main fund slug')).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Main fund slug'), {
+      target: { value: 'fund-seven-main' },
+    });
+    await user.click(await reviewDeclaration(user));
+    await screen.findByText('Main fund declared');
+    expect(commands[2]!.key).not.toBe(commands[0]!.key);
+  });
+
+  it('discards a restored pending attempt so a different declaration can start', async () => {
+    const { commands } = mockRequests((command, count) =>
+      count === 1 ? response({}, 503) : response(receipt(command))
+    );
+    const user = userEvent.setup();
+    const first = renderPanel();
+    await fillDeclaration();
+    await user.click(await reviewDeclaration(user));
+    await screen.findByText(/The outcome is uncertain/);
+    first.unmount();
+    renderPanel();
+    await screen.findByText('Pending declaration');
+    await user.click(screen.getByRole('button', { name: 'Discard pending attempt' }));
+    expect(screen.queryByText('Pending declaration')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(ENTRY)).toBeNull();
+    await fillDeclaration('Different source');
+    await user.click(await reviewDeclaration(user));
+    await screen.findByText('Main fund declared');
+    expect(commands).toHaveLength(2);
+    expect(commands[1]!.key).not.toBe(commands[0]!.key);
+    expect(JSON.parse(commands[1]!.body).source.content).toBe('Different source');
+  });
+
   it('does not carry a frozen command into another fund or show an old in-flight receipt there', async () => {
     let finish: (value: Response) => void = () => {};
     const { commands } = mockRequests(
@@ -417,7 +521,7 @@ describe('main-fund onboarding', () => {
     expect(screen.getByLabelText('Commitment source text')).toHaveValue('');
   });
 
-  it.each([403, 404, 503])(
+  it.each([403, 503])(
     'does not expose onboarding when pilot availability returns %s',
     async (status) => {
       mockRequests(undefined, () => response({}, status));
@@ -426,6 +530,18 @@ describe('main-fund onboarding', () => {
       expect(screen.queryByLabelText('Main fund slug')).not.toBeInTheDocument();
     }
   );
+
+  it('renders nothing for a fund outside the pilot (404 availability)', async () => {
+    const { fetchMock } = mockRequests(undefined, () =>
+      response({ code: 'RESOURCE_NOT_FOUND' }, 404)
+    );
+    const view = renderPanel();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.queryByText(/Checking main-fund onboarding access/)).not.toBeInTheDocument()
+    );
+    expect(view.container).toBeEmptyDOMElement();
+  });
 
   it.each(['viewer', 'ungranted'] as const)(
     'does not check pilot access or expose the form for %s users',

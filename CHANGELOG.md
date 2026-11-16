@@ -29,8 +29,12 @@ and this project adheres to
   evidence, location and attestation. Vehicle, evidence and immutable receipt
   commit atomically; retries recover the same receipt. Existing mismatches are
   refused. Declaration evidence has exclusive ownership and conditional payload
-  retention. The declaration does not change fund-model commitments or publish
-  actuals. Migration 0062 and the configured actuals pilot are required.
+  retention. Ownership is a database fact read through one function, so import
+  staging and retention behave the same for every caller and worker role. A
+  definitive refusal releases the retry key, and an uncertain attempt can be
+  discarded explicitly. The declaration does not change fund-model commitments
+  or publish actuals. Migration 0062 and the configured actuals pilot are
+  required.
 
 ### Changed (2026-11-02)
 

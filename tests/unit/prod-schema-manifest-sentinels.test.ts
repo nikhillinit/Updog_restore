@@ -211,6 +211,16 @@ describe('prod-schema manifest sentinels', () => {
       'vehicle_onboarding_commands',
       'internal_capital_envelope_versions',
     ]);
+    expect(manifest.functionDefinitions?.map((pin) => pin.name)).toEqual([
+      'internal_economics_forbid_update',
+      'vehicle_onboarding_refuse_envelope_source',
+      'vehicle_onboarding_artifact_digest',
+    ]);
+    const digestPin = manifest.functionDefinitions?.find(
+      (pin) => pin.name === 'vehicle_onboarding_artifact_digest'
+    )?.expectedDefinition.exactDefinition;
+    expect(digestPin).toContain(' STABLE SECURITY DEFINER\n');
+    expect(digestPin).toContain(" SET search_path TO 'pg_catalog'\n SET row_security TO 'off'\n");
     const files = await readManifestSql(manifest);
     expect(() => validateManifestSql(manifest, files)).not.toThrow();
   });

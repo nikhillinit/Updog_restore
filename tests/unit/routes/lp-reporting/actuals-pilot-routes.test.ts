@@ -16,6 +16,21 @@ const publisher = vi.hoisted(() => ({ run: vi.fn() }));
 const codec = vi.hoisted(() => ({ parse: vi.fn() }));
 const metricsProjector = vi.hoisted(() => ({ project: vi.fn() }));
 const onboarding = vi.hoisted(() => ({ run: vi.fn() }));
+const logs = vi.hoisted(() => {
+  const error = vi.fn();
+  const stub: Record<string, unknown> = {
+    error,
+    warn: () => undefined,
+    info: () => undefined,
+    debug: () => undefined,
+    trace: () => undefined,
+    fatal: () => undefined,
+  };
+  stub['child'] = () => stub;
+  return { error, stub };
+});
+
+vi.mock('../../../../server/lib/logger', () => ({ logger: logs.stub }));
 
 vi.mock('../../../../server/services/lp-reporting/vehicle-onboarding-service', () => {
   class VehicleOnboardingError extends Error {
@@ -244,6 +259,35 @@ describe('main-fund onboarding HTTP boundary', () => {
     expect(response.status).toBe(409);
     expect(response.body.code).toBe('REQUEST_IN_PROGRESS');
     expect(response.headers['retry-after']).toBe('2');
+  });
+
+  it.each([
+    [
+      Object.assign(new Error('duplicate key DETAIL: Key (vehicle_slug)=(secret-slug)'), {
+        code: '23505',
+        constraint: 'vehicles_fund_slug_unique',
+      }),
+      { errorName: 'Error', sqlState: '23505', constraint: 'vehicles_fund_slug_unique' },
+    ],
+    [
+      Object.assign(new TypeError('Cannot read secret-slug of undefined'), {
+        code: 'ERR_SECRET_SLUG',
+      }),
+      { errorName: 'TypeError' },
+    ],
+  ])('logs a redacted record before an unclassified 500', async (failure, expected) => {
+    logs.error.mockClear();
+    onboarding.run.mockRejectedValue(failure);
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe('VEHICLE_ONBOARDING_FAILED');
+    expect(logs.error).toHaveBeenCalledTimes(1);
+    const [record] = logs.error.mock.calls[0]!;
+    expect(record).toEqual({ code: 'VEHICLE_ONBOARDING_FAILED', ...expected });
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain('secret-slug');
   });
 });
 

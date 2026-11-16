@@ -1,7 +1,7 @@
 {
   "name": "vehicle-onboarding-commands",
   "order": 39,
-  "description": "Migration 0062: immutable main-fund declaration receipts and exclusive envelope-source ownership. Catalog measured from journaled PostgreSQL. Audit metadata only; no production apply capability or route admission.",
+  "description": "Migration 0062: immutable main-fund declaration receipts, exclusive envelope-source ownership, and the SECURITY DEFINER ownership digest function. Catalog measured from journaled PostgreSQL. Audit metadata only; no production apply capability or route admission.",
   "missingTablePolicy": "existing_table_required",
   "sqlFiles": ["migrations/0062_vehicle_onboarding_commands.sql"],
   "allowedCreateTables": [],
@@ -352,6 +352,18 @@
           "23514",
           "vehicle_onboarding_envelope_source_exclusive"
         ]
+      }
+    },
+    {
+      "name": "vehicle_onboarding_artifact_digest",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.vehicle_onboarding_artifact_digest(p_fund_id integer, p_artifact_id integer)\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog'\n SET row_security TO 'off'\nAS $function$\n  SELECT source_artifact_sha256\n  FROM public.vehicle_onboarding_commands\n  WHERE fund_id = p_fund_id AND source_artifact_id = p_artifact_id\n$function$\n",
+        "orderedFragments": [
+          "CREATE",
+          "STABLE SECURITY DEFINER",
+          "public.vehicle_onboarding_commands"
+        ],
+        "stringLiterals": ["pg_catalog", "off"]
       }
     }
   ]

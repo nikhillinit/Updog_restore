@@ -139,3 +139,17 @@ BEGIN
       );
   END IF;
 END $$;
+--> statement-breakpoint
+-- SECURITY DEFINER bypasses command-table RLS for ownership facts; PUBLIC EXECUTE lets service and maintenance roles read the digest.
+CREATE OR REPLACE FUNCTION public.vehicle_onboarding_artifact_digest(p_fund_id integer, p_artifact_id integer)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog
+SET row_security = off
+AS $$
+  SELECT source_artifact_sha256
+  FROM public.vehicle_onboarding_commands
+  WHERE fund_id = p_fund_id AND source_artifact_id = p_artifact_id
+$$;
