@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { transaction } from '../db/pg-circuit.js';
+import { readTransaction } from '../db/pg-circuit.js';
 import {
   EconomicsResultV1Schema,
   type EconomicsResultV1,
@@ -397,11 +397,11 @@ export async function getFundScenarioComparison(
   representation?: ScenarioRepresentation
 ): Promise<FundScenarioComparisonV1 | FundScenarioCapitalComparison> {
   if (representation) {
-    return transaction(async (client) => {
+    return readTransaction(async (client) => {
       const comparison = await buildFundScenarioCapitalComparison(client, fundId, scenarioSetId);
       requireCapitalScenarioRepresentation(comparison.representation, representation);
       return comparison;
     });
   }
-  return transaction((client) => buildFundScenarioComparison(client, fundId, scenarioSetId));
+  return readTransaction((client) => buildFundScenarioComparison(client, fundId, scenarioSetId));
 }

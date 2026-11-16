@@ -73,7 +73,7 @@ export function useFundMetrics(
       }
 
       const url = `/api/funds/${fundId}/metrics${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { cache: 'no-store' });
 
       if (!response.ok) {
         const errorData: unknown = await response.json().catch(() => null);

@@ -18,6 +18,7 @@ import {
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { FundFinalizeV1Schema } from '@shared/contracts/fund-finalize-v1.contract';
+import { canonicalJson } from '@shared/lib/canonical-json-serialization';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -193,6 +194,260 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(FundFinalizeV1Schema.safeParse(finalized).success).toBe(true);
   });
 
+  it('preserves fixed GP capital and explicit fee exemption through save and load', () => {
+    const state = {
+      ...baseState,
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+    };
+
+    const draft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: true });
+    expect(draft.gpCommitment).toBe(400_000);
+    expect(draft.economicsAssumptions?.gpCommitmentModel?.commitmentAmount).toBe(400_000);
+    expect(draft.economicsAssumptions?.feeModel?.gpCommitmentExempt).toBe(true);
+
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated.gpCommitment).toBe(400_000);
+    expect(hydrated.managementFeeExemptsGp).toBe(true);
+  });
+
+  it('persists capital source policies while annual economics are disabled', () => {
+    const state = {
+      ...baseState,
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    };
+
+    const draft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: false });
+    const finalized = fundStoreToFinalizeV1(state, { includeEconomicsAssumptions: false });
+
+    for (const payload of [draft, finalized]) {
+      expect(payload.economicsAssumptions).toEqual({
+        version: 'v1',
+        feeModel: {
+          source: 'legacy_fee_profiles',
+          gpCommitmentExempt: true,
+        },
+        expenseModel: {
+          source: 'legacy_fund_expenses',
+          horizonMonths: 150,
+        },
+        gpCommitmentModel: {
+          commitmentAmount: 400_000,
+          participatesInInvestmentReturns: true,
+        },
+      });
+      expect(payload.economicsAssumptions).not.toHaveProperty('timeline');
+      expect(payload.economicsAssumptions).not.toHaveProperty('exitModel');
+      expect(payload.economicsAssumptions).not.toHaveProperty('recyclingModel');
+      expect(payload.economicsAssumptions).not.toHaveProperty('waterfallModel');
+    }
+
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated).toMatchObject({
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    });
+  });
+
+  it('preserves existing explicit capital source semantics while annual economics are disabled', () => {
+    const economicsAssumptions = {
+      version: 'v1' as const,
+      timeline: { fundLifeYears: 10, period: 'annual' as const, vintageYear: 2026 },
+      feeModel: {
+        source: 'economics_override' as const,
+        tiers: [
+          {
+            id: 'fee-1',
+            name: 'Committed fee',
+            rate: 0.02,
+            basis: 'committed_capital' as const,
+            startYear: 1,
+            endYear: 10,
+          },
+        ],
+      },
+      expenseModel: {
+        source: 'economics_override' as const,
+        annualExpenses: [
+          {
+            id: 'admin',
+            category: 'administration',
+            amount: 75_000,
+            startYear: 1,
+            endYear: 10,
+          },
+        ],
+      },
+      gpCommitmentModel: {
+        commitmentAmount: 400_000,
+        participatesInInvestmentReturns: true,
+      },
+    };
+
+    const state = {
+      ...baseState,
+      gpCommitment: 400_000,
+      gpCommitmentSource: 'nested_amount' as const,
+      economicsAssumptions,
+      managementFeeExemptsGp: true,
+      expenseHorizonMonths: 150,
+    };
+    const draft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: false });
+    const enabledDraft = fundStoreToDraftWriteV1(state, { includeEconomicsAssumptions: true });
+
+    expect(draft.economicsAssumptions).toEqual({
+      ...economicsAssumptions,
+      feeModel: { ...economicsAssumptions.feeModel, gpCommitmentExempt: true },
+      expenseModel: { ...economicsAssumptions.expenseModel, horizonMonths: 150 },
+    });
+    expect(draft.economicsAssumptions).toEqual(enabledDraft.economicsAssumptions);
+  });
+
+  it('keeps omitted GP fee exemption backward-compatible with full-fund fee basis', () => {
+    const draft = fundStoreToDraftWriteV1(
+      { ...baseState, managementFeeExemptsGp: undefined },
+      { includeEconomicsAssumptions: true }
+    );
+    expect(draft.economicsAssumptions?.feeModel).not.toHaveProperty('gpCommitmentExempt');
+
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
+      { fundName: 'Legacy fee population' },
+      hydrationDefaults
+    );
+    expect(hydrated).toHaveProperty('managementFeeExemptsGp', undefined);
+    expect(hydrated).toHaveProperty('gpCommitment', undefined);
+  });
+
+  it('hydrates nested GP fixed amount ahead of a shadowed legacy top-level amount', () => {
+    const draft = {
+      fundName: 'Nested GP source',
+      gpCommitment: 2_500_000,
+      economicsAssumptions: {
+        version: 'v1' as const,
+        gpCommitmentModel: {
+          commitmentAmount: 400_000,
+          participatesInInvestmentReturns: true,
+        },
+      },
+    };
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+
+    expect(hydrated.gpCommitment).toBe(400_000);
+    const saved = fundStoreToDraftWriteV1(
+      { ...baseState, ...hydrated },
+      { includeEconomicsAssumptions: true }
+    );
+    expect(saved.gpCommitment).toBe(2_500_000);
+    expect(saved.economicsAssumptions?.gpCommitmentModel?.commitmentAmount).toBe(400_000);
+  });
+
+  it('falls back to top-level GP when the nested model does not select amount or percent', () => {
+    const draft = {
+      fundName: 'Top-level GP source',
+      gpCommitment: 400_000,
+      economicsAssumptions: {
+        version: 'v1' as const,
+        gpCommitmentModel: { participatesInInvestmentReturns: true },
+      },
+    };
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated.gpCommitment).toBe(400_000);
+    expect(hydrated.gpCommitmentSource).toBe('top_level');
+
+    const saved = fundStoreToDraftWriteV1(
+      { ...baseState, ...hydrated },
+      { includeEconomicsAssumptions: true }
+    );
+    expect(saved.gpCommitment).toBe(400_000);
+    expect(saved.economicsAssumptions?.gpCommitmentModel).toEqual({
+      participatesInInvestmentReturns: true,
+    });
+  });
+
+  it('keeps a percent-only nested GP model without converting the legacy top-level shadow', () => {
+    const draft = {
+      fundName: 'Percent-only GP source',
+      gpCommitment: 2_500_000,
+      economicsAssumptions: {
+        version: 'v1' as const,
+        gpCommitmentModel: {
+          commitmentPct: 0.02,
+          participatesInInvestmentReturns: true,
+        },
+      },
+    };
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated.gpCommitment).toBeUndefined();
+
+    const saved = fundStoreToDraftWriteV1(
+      { ...baseState, ...hydrated },
+      { includeEconomicsAssumptions: true }
+    );
+    expect(saved.economicsAssumptions?.gpCommitmentModel).toMatchObject({ commitmentPct: 0.02 });
+    expect(saved.economicsAssumptions?.gpCommitmentModel).not.toHaveProperty('commitmentAmount');
+    expect(saved.gpCommitment).toBe(2_500_000);
+  });
+
+  it('preserves absent whole-round financing without injecting zero', () => {
+    const draft = fundStoreToDraftWriteV1({
+      ...baseState,
+      pipelineProfiles: [
+        {
+          id: 'default',
+          name: 'Default',
+          stages: [
+            {
+              id: 'pre-seed',
+              name: 'Pre-Seed',
+              roundSize: undefined,
+              valuation: 8.5,
+              valuationType: 'post',
+              esopPct: 0,
+              graduationRate: 30,
+              exitRate: 0,
+              exitValuation: 15,
+              monthsToGraduate: 18,
+              monthsToExit: 18,
+            },
+          ],
+        },
+      ],
+    });
+    expect(draft.pipelineProfiles?.[0]?.stages[0]).not.toHaveProperty('roundSize');
+    expect(FundDraftWriteV1Schema.safeParse(draft).success).toBe(true);
+    expect(() => canonicalJson(draft)).not.toThrow();
+
+    const finalized = fundStoreToFinalizeV1({
+      ...baseState,
+      pipelineProfiles: [
+        {
+          id: 'default',
+          name: 'Default',
+          stages: [
+            {
+              id: 'pre-seed',
+              name: 'Pre-Seed',
+              roundSize: undefined,
+              valuation: 8.5,
+              valuationType: 'post',
+              esopPct: 0,
+              graduationRate: 30,
+              exitRate: 0,
+              exitValuation: 15,
+              monthsToGraduate: 18,
+              monthsToExit: 18,
+            },
+          ],
+        },
+      ],
+    });
+    expect(finalized.pipelineProfiles?.[0]?.stages[0]).not.toHaveProperty('roundSize');
+    expect(() => canonicalJson(finalized)).not.toThrow();
+  });
+
   it('carries server target metrics through load, save and finalize without an editor', () => {
     const targetMetrics = { targetIRR: 0.25, targetTVPI: 3, targetCompanyCount: 30 };
     const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
@@ -270,7 +525,7 @@ describe('fundStoreToDraftWriteV1', () => {
     });
   });
 
-  it('passes explicit economics assumptions through unchanged', () => {
+  it('preserves explicit economics assumptions while applying mounted GP controls', () => {
     const economicsAssumptions = {
       version: 'v1' as const,
       feeModel: {
@@ -288,7 +543,13 @@ describe('fundStoreToDraftWriteV1', () => {
       { includeEconomicsAssumptions: true }
     );
 
-    expect(result.economicsAssumptions).toBe(economicsAssumptions);
+    expect(result.economicsAssumptions).toMatchObject({
+      ...economicsAssumptions,
+      gpCommitmentModel: {
+        commitmentAmount: 2_500_000,
+        participatesInInvestmentReturns: true,
+      },
+    });
   });
 
   it('does not synthesize economics assumptions for unsupported hybrid waterfalls', () => {

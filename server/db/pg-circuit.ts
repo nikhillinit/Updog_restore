@@ -212,6 +212,17 @@ export async function transaction<T>(callback: (client: PoolClient) => Promise<T
 }
 
 /**
+ * Reuse the current RLS transaction for request-scoped read compositions.
+ * Read failures propagate to the outer request transaction. Background reads
+ * retain independently owned transaction behavior used by workers and scripts.
+ */
+export async function readTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+  const requestScope = getRequestDatabaseScope();
+  if (!requestScope) return transaction(callback);
+  return callback(requestScope.client);
+}
+
+/**
  * Execute a transaction with circuit breaker protection
  */
 export async function transactionWithBreaker<T>(

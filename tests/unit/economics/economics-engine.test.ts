@@ -54,6 +54,49 @@ const GP_AGGREGATE_ROUNDING_CASE = {
 } as const;
 
 describe('GP economics engine', () => {
+  it('refuses separate expense coverage outside its annual fund-term model', () => {
+    const assumptions = baseAssumptions();
+    assumptions.expenseModel = { source: 'legacy_fund_expenses', horizonMonths: 150 };
+    expect(() => runEconomicsModel(baseDraft({ economicsAssumptions: assumptions }))).toThrow(
+      'Annual economics requires expense coverage equal to the fund term'
+    );
+    assumptions.expenseModel.horizonMonths = 120;
+    expect(runEconomicsModel(baseDraft({ economicsAssumptions: assumptions })).checks.passed).toBe(
+      true
+    );
+  });
+  it('exempts the fixed GP commitment without reducing investment participation or nominal fees', () => {
+    const assumptions = baseAssumptions();
+    assumptions.gpCommitmentModel!.commitmentAmount = 400000;
+    assumptions.feeModel!.gpCommitmentExempt = true;
+    const input = baseDraft({
+      fundSize: 15320000,
+      gpCommitment: 400000,
+      economicsAssumptions: assumptions,
+    });
+    const result = runEconomicsModel(input);
+    expect(result.summary.totalManagementFees).toBe(2984000);
+    expect(result.summary.totalGpCommitmentCalled).toBe(400000);
+    expect(result.summary.totalGpInvestmentDistributions).toBeGreaterThan(0);
+    expect(result.checks.passed).toBe(true);
+    input.fundedFromFeesPct = 0.25;
+    expect(runEconomicsModel(input).summary.totalManagementFees).toBe(2984000);
+  });
+
+  it('refuses GP exemption on an unsupported fee basis or unknown GP amount', () => {
+    const assumptions = baseAssumptions();
+    assumptions.feeModel!.gpCommitmentExempt = true;
+    assumptions.feeModel!.defaultBasis = 'invested_capital';
+    expect(() => runEconomicsModel(baseDraft({ economicsAssumptions: assumptions }))).toThrow(
+      'GP fee exemption supports committed-capital fees only'
+    );
+    assumptions.feeModel!.defaultBasis = 'committed_capital';
+    delete assumptions.gpCommitmentModel;
+    const input = baseDraft({ economicsAssumptions: assumptions });
+    delete input.gpCommitment;
+    expect(() => runEconomicsModel(input)).toThrow('GP fee exemption requires a known commitment');
+  });
+
   it('calculates flat committed-capital management fees', () => {
     const result = runEconomicsModel(baseDraft());
 

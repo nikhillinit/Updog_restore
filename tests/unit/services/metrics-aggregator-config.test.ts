@@ -1,20 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUnifiedFundMetrics } from '@shared/types/metrics';
 
-const { storageMock, actualCalculateMock, projectedCalculateMock, varianceCalculateMock } =
-  vi.hoisted(() => ({
-    storageMock: {
-      getFund: vi.fn(),
-      getPortfolioCompanies: vi.fn(),
-      getFundConfig: vi.fn(),
-    },
-    actualCalculateMock: vi.fn(),
-    projectedCalculateMock: vi.fn(),
-    varianceCalculateMock: vi.fn(),
-  }));
+const {
+  storageMock,
+  actualCalculateMock,
+  projectedCalculateMock,
+  varianceCalculateMock,
+  publishedActualsMock,
+} = vi.hoisted(() => ({
+  storageMock: {
+    getFund: vi.fn(),
+    getPortfolioCompanies: vi.fn(),
+    getFundConfig: vi.fn(),
+  },
+  actualCalculateMock: vi.fn(),
+  projectedCalculateMock: vi.fn(),
+  varianceCalculateMock: vi.fn(),
+  publishedActualsMock: vi.fn(),
+}));
 
 vi.mock('../../../server/storage', () => ({
   storage: storageMock,
+}));
+vi.mock('../../../server/services/published-investment-comparison', () => ({
+  readPublishedFundActuals: publishedActualsMock,
+  readPublishedInvestmentComparison: vi.fn(),
 }));
 
 // Spread importOriginal so new module exports (e.g. isLivePortfolioCompany)
@@ -47,6 +57,7 @@ import { MetricsAggregator } from '../../../server/services/metrics-aggregator';
 describe('MetricsAggregator config-backed target metrics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishedActualsMock.mockResolvedValue(null);
 
     storageMock.getFund.mockResolvedValue({
       id: 1,

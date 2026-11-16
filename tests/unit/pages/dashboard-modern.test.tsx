@@ -179,6 +179,194 @@ describe('ModernDashboard', () => {
     expect(screen.queryByText(/Portfolio Value Trend/i)).not.toBeInTheDocument();
   });
 
+  it('uses published investment facts and marks unsupported metrics unavailable', async () => {
+    const user = userEvent.setup();
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: {
+          asOfDate: '2026-04-24T00:00:00.000Z',
+          totalCommitted: 50_000_000,
+          totalCalled: 20_000_000,
+          totalDeployed: 12_500_000,
+          totalUncalled: 30_000_000,
+          currentNAV: 18_000_000,
+          totalDistributions: 2_000_000,
+          totalValue: 20_000_000,
+          irr: 0.18,
+          tvpi: 1.25,
+          dpi: 0.1,
+          rvpi: 0.9,
+          activeCompanies: 12,
+          exitedCompanies: 2,
+          writtenOffCompanies: 1,
+          totalCompanies: 15,
+          deploymentRate: 25,
+          averageCheckSize: 833_333,
+        },
+        publishedActuals: {
+          contractVersion: 'published-fund-actuals/1.0.0',
+          status: 'available',
+          asOfDate: '2026-11-03',
+          basis: {
+            snapshotId: 734,
+            snapshotInputHash: 'synthetic-hash',
+            snapshotAsOfDate: '2026-10-31',
+            knowledgeCutoff: '2026-11-01T12:00:00.000Z',
+          },
+          vehicleScope: 'main_fund',
+          investments: {
+            deployedCapital: '6600000',
+            initialCapital: '5000000',
+            followOnCapital: '1600000',
+            transactionCount: 4,
+            companyCount: 3,
+          },
+          reason: null,
+          unsupportedReason: 'Published transactions do not support this metric.',
+          disclosures: ['Synthetic publication disclosure.'],
+        },
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<ModernDashboard />);
+
+    expect(screen.getByText('Capital deployed')).toBeInTheDocument();
+    expect(screen.getAllByText('$6.6M').length).toBeGreaterThan(0);
+    expect(screen.getByText('Initial deployed')).toBeInTheDocument();
+    expect(screen.getByText('$5.0M')).toBeInTheDocument();
+    expect(screen.getByText('Follow-on deployed')).toBeInTheDocument();
+    expect(screen.getByText('$1.6M')).toBeInTheDocument();
+    expect(screen.getAllByText('Cash-invested companies').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Published transactions').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Registry companies').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('3').length).toBeGreaterThan(0);
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getAllByText('4').length).toBeGreaterThan(0);
+    expect(screen.getByText('Average check')).toBeInTheDocument();
+    expect(screen.getByText('Per cash-invested company')).toBeInTheDocument();
+    expect(screen.getByText('$2.2M')).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        /Published facts snapshot #734, data through 2026-10-31, knowledge cutoff 2026-11-01/
+      ).length
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText('Synthetic publication disclosure.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Called')).toBeInTheDocument();
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Published transactions do not support this metric.').length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText('Dry powder')).toBeInTheDocument();
+    expect(screen.getByText('Distributions')).toBeInTheDocument();
+    expect(screen.getByText('Current NAV')).toBeInTheDocument();
+    expect(screen.getByText('Total value')).toBeInTheDocument();
+    expect(screen.getByText('Unrealized gain')).toBeInTheDocument();
+    expect(screen.queryByText('$12.5M')).not.toBeInTheDocument();
+    expect(screen.queryByText('$20.0M')).not.toBeInTheDocument();
+    expect(screen.queryByText('$18.0M')).not.toBeInTheDocument();
+    expect(screen.queryByText('$2.0M')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /performance/i }));
+    expect(screen.getByText('IRR estimate')).toBeInTheDocument();
+    expect(screen.getByText('TVPI estimate')).toBeInTheDocument();
+    expect(screen.getByText('DPI estimate')).toBeInTheDocument();
+    expect(screen.getByText('RVPI estimate')).toBeInTheDocument();
+    expect(screen.queryByText('18.0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('1.25x')).not.toBeInTheDocument();
+  });
+
+  it('shows the publication reason when unavailable without falling back to legacy deployment', () => {
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: {
+          totalCommitted: 50_000_000,
+          totalCalled: 20_000_000,
+          totalDeployed: 12_500_000,
+          totalUncalled: 30_000_000,
+          currentNAV: 18_000_000,
+          totalDistributions: 2_000_000,
+          totalValue: 20_000_000,
+          irr: 0.18,
+          tvpi: 1.25,
+          dpi: 0.1,
+          rvpi: 0.9,
+          activeCompanies: 12,
+          exitedCompanies: 2,
+          writtenOffCompanies: 1,
+          totalCompanies: 15,
+          deploymentRate: 25,
+          averageCheckSize: 833_333,
+        },
+        publishedActuals: {
+          contractVersion: 'published-fund-actuals/1.0.0',
+          status: 'unavailable',
+          asOfDate: '2026-11-03',
+          basis: null,
+          vehicleScope: 'main_fund',
+          investments: null,
+          reason: 'Synthetic published investments are unavailable.',
+          unsupportedReason: 'Synthetic non-investment metrics are unavailable.',
+          disclosures: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<ModernDashboard />);
+
+    expect(
+      screen.getAllByText('Synthetic published investments are unavailable.').length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText('Capital deployed')).toBeInTheDocument();
+    expect(screen.queryByText('$12.5M')).not.toBeInTheDocument();
+    expect(screen.queryByText('Published facts snapshot')).not.toBeInTheDocument();
+  });
+
+  it('shows the publication failure reason beside its basis on the performance tab', () => {
+    window.history.pushState({}, '', '/dashboard?tab=performance&fundId=42');
+    mockUseFundMetrics.mockReturnValue({
+      data: {
+        actual: { totalCommitted: 50_000_000, totalDeployed: 12_500_000, irr: 0.18, tvpi: 1.25 },
+        publishedActuals: {
+          contractVersion: 'published-fund-actuals/1.0.0',
+          status: 'unavailable',
+          asOfDate: '2026-11-03',
+          basis: {
+            snapshotId: 735,
+            snapshotInputHash: 'synthetic-hash',
+            snapshotAsOfDate: '2026-10-31',
+            knowledgeCutoff: '2026-11-01T12:00:00.000Z',
+          },
+          vehicleScope: 'main_fund',
+          investments: null,
+          reason: 'Synthetic reader failure.',
+          unsupportedReason: 'Synthetic non-investment metrics unavailable.',
+          disclosures: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<ModernDashboard />);
+
+    expect(screen.getByText(/Published facts snapshot #735/)).toBeInTheDocument();
+    expect(screen.getByText('Synthetic reader failure.')).toBeInTheDocument();
+    expect(screen.queryByText('18.0%')).not.toBeInTheDocument();
+  });
+
+  it('keeps the legacy overview values when no publication is present', () => {
+    render(<ModernDashboard />);
+
+    expect(screen.getAllByText('$12.5M').length).toBeGreaterThan(0);
+    expect(screen.getByText('$18.0M')).toBeInTheDocument();
+    expect(screen.getByText('Active companies')).toBeInTheDocument();
+    expect(screen.queryByText('Cash-invested companies')).not.toBeInTheDocument();
+  });
+
   it('keeps only the real global action in the top bar (no dead placeholder controls)', () => {
     render(<ModernDashboard />);
 

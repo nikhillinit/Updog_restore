@@ -1203,6 +1203,72 @@ describe('B9 public guided review and raw drafts', () => {
     expect(screen.getByLabelText('Initial check (USD)')).toHaveValue('1.');
   });
 
+  it('retains rapid source declaration edits made before React renders again', async () => {
+    dispatch();
+    renderModal();
+    const fundSize = await screen.findByLabelText('Source unit: fundSize', { exact: true });
+    const gpCommitment = screen.getByLabelText(
+      'Source unit: economicsAssumptions.gpCommitmentModel.commitmentAmount',
+      { exact: true }
+    );
+
+    act(() => {
+      fireEvent.change(fundSize, { target: { value: 'usd_millions' } });
+      fireEvent.change(gpCommitment, { target: { value: 'usd' } });
+    });
+
+    expect(getCapitalDraft(FUND).declarations).toMatchObject({
+      fundSize: 'usd_millions',
+      'economicsAssumptions.gpCommitmentModel.commitmentAmount': 'usd',
+    });
+  });
+
+  it('reviews the latest declaration when edit and Review occur before rerender', async () => {
+    dispatch();
+    renderModal();
+    await fillDraft();
+    step('Source and budget');
+    const declarationPath = 'economicsAssumptions.gpCommitmentModel.commitmentAmount';
+    const reviewSpy = vi
+      .spyOn(review, 'reviewCapitalPlanDraft')
+      .mockImplementation(() => new Promise(() => {}));
+
+    act(() => {
+      fireEvent.change(screen.getByLabelText(`Source unit: ${declarationPath}`), {
+        target: { value: 'usd_millions' },
+      });
+      fireEvent.click(screen.getByTestId('review-capital-plan'));
+    });
+
+    expect(reviewSpy).toHaveBeenCalledOnce();
+    expect(reviewSpy.mock.calls[0]![0].request.unitDeclarations[declarationPath]).toBe(
+      'usd_millions'
+    );
+  });
+
+  it('refuses same-batch Save after an edit invalidates the reviewed request', async () => {
+    dispatch();
+    renderModal();
+    await fillDraft();
+    step('Review capital plan');
+    const save = screen.getByTestId('save-capital-scenario');
+    await waitFor(() => expect(save).toBeEnabled());
+    step('Source and budget');
+
+    act(() => {
+      fireEvent.change(
+        screen.getByLabelText(
+          'Source unit: economicsAssumptions.gpCommitmentModel.commitmentAmount'
+        ),
+        { target: { value: 'usd_millions' } }
+      );
+      fireEvent.click(save);
+    });
+
+    expect(calls.filter(({ method }) => method === 'POST')).toHaveLength(0);
+    expect(getCapitalSaveIntent(FUND)).toBeNull();
+  });
+
   it('B10 newly selected source units offer a keyboard link without a second live announcement', async () => {
     dispatch();
     renderModal();

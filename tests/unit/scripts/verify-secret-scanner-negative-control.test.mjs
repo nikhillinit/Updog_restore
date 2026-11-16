@@ -18,6 +18,9 @@ const genericControlPaths = [
   'audit/surface-contract-matrix/g3-musl-security-scoped-review.json',
   'unrelated-secret.json',
 ];
+const pr1700ReviewPath =
+  'audit/surface-contract-matrix/pr1700-review-fixes-20261113-scoped-review.json';
+const pr1700WrongPath = 'audit/surface-contract-matrix/pr1700-review-fixes-20261113-unrelated.json';
 
 function temporary() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gitleaks-negative-control-test-'));
@@ -44,6 +47,25 @@ for (const file of paths) {
   if (omitted !== file && value === expected) {
     findings.push({ RuleID: 'generic-api-key', File: file });
   }
+}
+const reviewLines = fs.readFileSync('${pr1700ReviewPath}', 'utf8').split('\\n');
+if (process.env.FAKE_GITLEAKS_INCLUDE_APPROVED === '1') {
+  findings.push({ RuleID: 'generic-api-key', File: '${pr1700ReviewPath}', StartLine: 2 });
+}
+if (omitted !== 'changed-pr1700-digest') {
+  findings.push({ RuleID: 'generic-api-key', File: '${pr1700ReviewPath}', StartLine: 3 });
+}
+if (omitted !== 'pr1700-unrelated-key') {
+  findings.push({ RuleID: 'generic-api-key', File: '${pr1700ReviewPath}', StartLine: 4 });
+}
+if (
+  omitted !== 'pr1700-unrelated-path' &&
+  fs.readFileSync('${pr1700WrongPath}', 'utf8').includes(expected)
+) {
+  findings.push({ RuleID: 'generic-api-key', File: '${pr1700WrongPath}', StartLine: 2 });
+}
+if (!reviewLines[1].includes(expected)) {
+  throw new Error('PR 1700 approved control fixture changed unexpectedly.');
 }
 fs.writeFileSync(report, JSON.stringify(findings));
 process.exit(findings.length === 0 ? 0 : 1);
@@ -81,6 +103,15 @@ describe.skipIf(process.platform === 'win32')('secret scanner negative control',
     expect(result.stdout).toContain('all generic negative controls');
   });
 
+  it('fails closed if scanner reports the exact approved PR 1700 fingerprint', () => {
+    const result = runVerifier(createScanner(), { FAKE_GITLEAKS_INCLUDE_APPROVED: '1' });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Gitleaks reported the exact approved PR 1700 source fingerprint.'
+    );
+  });
+
   it.each([
     [
       'custom negative-control rule',
@@ -92,6 +123,21 @@ describe.skipIf(process.platform === 'win32')('secret scanner negative control',
       relativePath,
       `Gitleaks did not report the generic credential in ${relativePath}.`,
     ]),
+    [
+      'changed PR 1700 digest',
+      'changed-pr1700-digest',
+      'Gitleaks did not report the changed PR 1700 source fingerprint.',
+    ],
+    [
+      'unrelated key in PR 1700 review',
+      'pr1700-unrelated-key',
+      'Gitleaks did not report the unrelated credential key in the PR 1700 review.',
+    ],
+    [
+      'approved digest at unrelated path',
+      'pr1700-unrelated-path',
+      'Gitleaks did not report the approved fingerprint at an unrelated path.',
+    ],
   ])('fails closed when scanner omits %s', (_label, omitted, expectedError) => {
     const result = runVerifier(createScanner(), { FAKE_GITLEAKS_OMIT: omitted });
 

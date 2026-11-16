@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { useFundDraftSync } from '@/hooks/useFundDraftSync';
@@ -41,8 +41,14 @@ function reverseObjectKeys(value: unknown): unknown {
 }
 
 function Harness() {
-  retryDraftSync = useFundDraftSync({ stepKey: '1', debounceMs: 25 }).retry;
-  return null;
+  const { status, error, retry } = useFundDraftSync({ stepKey: '1', debounceMs: 25 });
+  retryDraftSync = retry;
+  return (
+    <>
+      <output aria-label="Draft sync status">{status}</output>
+      <output aria-label="Draft sync error">{error}</output>
+    </>
+  );
 }
 
 describe('useFundDraftSync canonical snapshot equality', () => {
@@ -81,6 +87,93 @@ describe('useFundDraftSync canonical snapshot equality', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('keeps a confirmed save synced when it settles before the pending render effect', async () => {
+    fundStore.getState().beginCommand({
+      operation: 'save_draft',
+      key: crypto.randomUUID(),
+      targetFundId: 42,
+      expectedETag: SERVER_ETAG,
+      bodySignature: JSON.stringify(fundStoreToDraftWriteV1(fundStore.getState())),
+    });
+
+    function ConfirmSave() {
+      React.useLayoutEffect(() => {
+        fundStore.getState().resolveCommand();
+        fundStore.getState().setDraftSyncStatus('synced');
+      }, []);
+      return null;
+    }
+
+    render(
+      <>
+        <Harness />
+        <ConfirmSave />
+      </>
+    );
+
+    await act(async () => Promise.resolve());
+
+    expect(screen.getByLabelText('Draft sync status')).toHaveTextContent('synced');
+    expect(screen.getByLabelText('Draft sync error')).toBeEmptyDOMElement();
+  });
+
+  it.each(['session', 'draft'] as const)(
+    'ignores a captured pending save after its %s changes before effects',
+    (ownership) => {
+      fundStore.getState().beginCommand({
+        operation: 'save_draft',
+        key: crypto.randomUUID(),
+        targetFundId: 42,
+        expectedETag: SERVER_ETAG,
+        bodySignature: JSON.stringify(fundStoreToDraftWriteV1(fundStore.getState())),
+      });
+
+      function ReplaceOwnership() {
+        React.useLayoutEffect(() => {
+          fundStore.setState({
+            sessionId:
+              ownership === 'session' ? crypto.randomUUID() : fundStore.getState().sessionId,
+            draftFundId: ownership === 'draft' ? 43 : 42,
+            draftServerReady: false,
+            pendingCommand: null,
+            draftSyncStatus: 'synced',
+          });
+        }, []);
+        return null;
+      }
+
+      render(
+        <>
+          <Harness />
+          <ReplaceOwnership />
+        </>
+      );
+
+      expect(screen.getByLabelText('Draft sync status')).toHaveTextContent('synced');
+      expect(screen.getByLabelText('Draft sync error')).toBeEmptyDOMElement();
+      expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still reports an unresolved restored save as uncertain', () => {
+    fundStore.getState().beginCommand({
+      operation: 'save_draft',
+      key: crypto.randomUUID(),
+      targetFundId: 42,
+      expectedETag: SERVER_ETAG,
+      bodySignature: JSON.stringify(fundStoreToDraftWriteV1(fundStore.getState())),
+    });
+
+    render(<Harness />);
+
+    expect(screen.getByLabelText('Draft sync status')).toHaveTextContent('uncertain');
+    expect(screen.getByLabelText('Draft sync error')).toHaveTextContent(
+      'Could not confirm the save; it may have completed'
+    );
+    expect(mockFetchFundDraft).not.toHaveBeenCalled();
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
   });
 
   it('does not PUT when server JSONB only reordered nested object keys', async () => {

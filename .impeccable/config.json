@@ -1,0 +1,22 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": ["client/src/pages/ReviewStep.tsx"],
+        "createdAt": "2026-11-04T03:02:08.263Z",
+        "reason": "Agent triage: pre-existing semantic economics-error, validation-status and publication-uncertainty alerts, with titles/icons and live-region semantics. DESIGN.md permits semantic status colors and visible warnings; canonical doctrine docs/design/updog-design-philosophy-v3.1.1.html:41 uses left-bordered callouts. Classes are unchanged from pre-task base 5d2a042. Preserve intentional status treatment."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": ["client/src/pages/InvestmentStrategyStep.tsx"],
+        "createdAt": "2026-11-04T03:02:14.389Z",
+        "reason": "Agent triage: pre-existing informational capital-allocation validation callout, explicitly disclosing omitted fees, recycling and reserve timing. DESIGN.md sanctions semantic info and visible provenance/warnings; canonical doctrine docs/design/updog-design-philosophy-v3.1.1.html:41 uses left-bordered callouts. Exact class is unchanged from pre-task base 5d2a042. Preserve intentional disclosure treatment."
+      }
+    ]
+  }
+}

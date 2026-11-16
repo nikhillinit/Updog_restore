@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { transaction } from '../db/pg-circuit.js';
+import { readTransaction, transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
   FundScenarioCapitalResultsResponseSchema,
@@ -40,6 +40,7 @@ import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import { fetchCapitalSavedSnapshot } from './fund-scenario-capital-read-service.js';
 import type { ScenarioRepresentation } from '../lib/scenario-representation.js';
+import { isFlagEnabled } from '@shared/flags/getFlag';
 import {
   acquireScenarioCalculationRun,
   findCompletedScenarioRun,
@@ -583,6 +584,12 @@ export async function calculateFundScenarioSet(
       forUpdate: true,
     });
 
+    if (!isFlagEnabled('enable_gp_economics_engine')) {
+      throw createHttpError(409, 'GP economics engine is disabled', {
+        code: 'ECONOMICS_DISABLED',
+      });
+    }
+
     if (scenarioSet.archivedAt !== null) {
       throw createHttpError(409, `Scenario set ${scenarioSetId} is archived`, {
         code: 'scenario_set_archived',
@@ -784,7 +791,7 @@ export async function getScenarioResults(
   scenarioSetId: string,
   representation?: ScenarioRepresentation
 ): Promise<FundScenarioCalculationResponseV1 | FundScenarioCapitalResultsResponse | null> {
-  return transaction(async (client) => {
+  return readTransaction(async (client) => {
     await verifyFundExists(client, fundId);
     if (representation) {
       const raw = await fetchRawScenarioSet(client, fundId, scenarioSetId);

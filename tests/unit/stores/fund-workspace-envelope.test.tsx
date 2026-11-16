@@ -412,6 +412,70 @@ describe('fund workspace envelope', () => {
     expect(next.etag).toBe('"0000000000000002"');
   });
 
+  it('persists a published revision command separately from an ordinary draft save', async () => {
+    fundStore.setState({
+      draftFundId: 42,
+      draftETag: null,
+      draftServerReady: true,
+    });
+    const original = prepareFundCommand(
+      'save_draft',
+      42,
+      { sourceConfigId: 9, sourceConfigVersion: 3 },
+      '"0000000000000003"',
+      'published'
+    );
+    const envelope = sessionStorage.getItem(FUND_WORKSPACE_STORAGE_KEY)!;
+    fundStore.setState({ pendingCommand: null });
+    sessionStorage.setItem(FUND_WORKSPACE_STORAGE_KEY, envelope);
+    await bindFundWorkspaceActor(ACTOR);
+
+    expect(
+      prepareFundCommand(
+        'save_draft',
+        42,
+        { sourceConfigId: 99, sourceConfigVersion: 8 },
+        '"0000000000000008"',
+        'published'
+      )
+    ).toEqual(original);
+    expect(fundStore.getState().pendingCommand?.source).toBe('published');
+    expect(() => prepareFundCommand('save_draft', 42, { fundName: 'Ordinary save' }, null)).toThrow(
+      /pending/i
+    );
+  });
+
+  it('allows a published revision during recovery while keeping local writes fenced', () => {
+    fundStore.setState({
+      draftFundId: 42,
+      draftServerReady: true,
+      needsServerHydration: true,
+    });
+
+    for (const operation of ['create', 'save_draft', 'finalize', 'publish_draft'] as const) {
+      expect(() => prepareFundCommand(operation, 42, {}, null)).toThrow(/Recover the saved draft/);
+    }
+    expect(() => prepareFundCommand('finalize', 42, {}, null, 'published')).toThrow(
+      /Recover the saved draft/
+    );
+
+    const command = prepareFundCommand(
+      'save_draft',
+      42,
+      { sourceConfigId: 9, sourceConfigVersion: 3 },
+      '"0000000000000003"',
+      'published'
+    );
+
+    expect(command.payload).toEqual({ sourceConfigId: 9, sourceConfigVersion: 3 });
+    expect(fundStore.getState().pendingCommand?.source).toBe('published');
+    expect(fundStore.getState().needsServerHydration).toBe(true);
+    fundStore.getState().resolveCommand();
+    expect(() => prepareFundCommand('save_draft', 42, { fundName: 'Placeholder' }, null)).toThrow(
+      /Recover the saved draft/
+    );
+  });
+
   it('blocks fresh writes during identity-only recovery but permits the exact pending replay', () => {
     fundStore.setState({
       draftFundId: 42,

@@ -47,6 +47,7 @@ vi.mock('node:crypto', async () => {
 });
 
 vi.mock('../../../server/db/pg-circuit.js', () => ({
+  readTransaction: transactionMock,
   transaction: transactionMock,
 }));
 

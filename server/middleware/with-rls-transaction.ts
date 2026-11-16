@@ -51,7 +51,7 @@ export function withRLSTransaction() {
     const onClose = () => {
       // Captured tx objects bypass the ALS proxy. Destroy the connection before
       // rollback can release it while delayed command handlers are still alive.
-      if (workflow) disconnectController.abort(disconnected);
+      disconnectController.abort(disconnected);
       rejectResponse(disconnected);
     };
     const restoreResponse = () => {
@@ -94,7 +94,9 @@ export function withRLSTransaction() {
           });
           scope.completed = true;
         },
-        workflow ? { timeoutMs: 60_000, signal: disconnectController.signal } : {}
+        workflow
+          ? { timeoutMs: 60_000, signal: disconnectController.signal }
+          : { signal: disconnectController.signal }
       );
       restoreResponse();
       if (!res.destroyed && pendingEnd) originalEnd.apply(res, pendingEnd);

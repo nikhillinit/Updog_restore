@@ -17,6 +17,7 @@ import {
   draftETag,
   draftResponse,
   executeFundWorkflowCommand,
+  FundWorkflowError,
   fundWorkflowHeaders,
   fundWorkflowWritesAllowed,
   sendFundWorkflowError,
@@ -25,6 +26,7 @@ import {
 } from '../services/fund-workflow-service';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
 import { parseScenarioRepresentation } from '../lib/scenario-representation.js';
+import { z } from 'zod';
 
 const routeLog = createRouteLogger('fund-config');
 
@@ -36,6 +38,13 @@ const inlineCalculationQueues: PublishQueues = {
   pacing: null,
   cohort: null,
 };
+
+const StartFundRevisionV1Schema = z
+  .object({
+    sourceConfigId: z.number().int().positive().safe(),
+    sourceConfigVersion: z.number().int().positive().safe(),
+  })
+  .strict();
 
 function numericIdentity(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
@@ -236,6 +245,145 @@ export function registerFundConfigRoutes(app: Express) {
         res.status(500).json({
           error: 'Failed to save draft',
           message: 'Save could not be confirmed; retry the same command',
+        });
+      }
+    }
+  );
+
+  // Latest immutable published source for starting a same-fund revision.
+  app.get('/api/funds/:id/revision-source', async (req: Request, res: Response) => {
+    try {
+      const fundId = parseFundIdOrNull(req, res);
+      if (fundId === null) return;
+      if (!(await enforceProvidedFundScope(req, res, fundId))) return;
+      const [published] = await db
+        .select()
+        .from(fundConfigs)
+        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isPublished, true)))
+        .orderBy(desc(fundConfigs.version))
+        .limit(1);
+      if (!published) {
+        return sendApiError(res, 404, {
+          error: 'No published configuration exists for this fund',
+          code: 'NO_PUBLISHED_CONFIG',
+        });
+      }
+      setFundDraftRevisionHeaders(res, draftETag(published));
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(draftResponse(published));
+    } catch (error) {
+      routeLog.error('Revision source load failed', error, {
+        code: 'REVISION_SOURCE_LOAD_FAILED',
+      });
+      res.status(500).json({
+        error: 'Failed to load revision source',
+        message: 'Revision source could not be loaded; retry the request',
+      });
+    }
+  });
+
+  app.post(
+    '/api/funds/:id/draft',
+    requireWriteRole(PARTNER_WRITE_ROLES),
+    fundWorkflowWritesAllowed,
+    async (req: Request, res: Response) => {
+      try {
+        const actorId = creatorUserIdFromRequest(req);
+        if (actorId === undefined) {
+          return sendApiError(res, 401, {
+            error: 'Authentication identity is invalid',
+            code: 'INVALID_AUTHENTICATION_IDENTITY',
+          });
+        }
+        const fundId = parseFundIdOrNull(req, res);
+        if (fundId === null) return;
+        if (!(await enforceProvidedFundScope(req, res, fundId))) return;
+        const validation = StartFundRevisionV1Schema.safeParse(req.body);
+        if (!validation.success) {
+          return sendApiError(res, 400, {
+            error: 'Revision source is invalid',
+            code: 'REVISION_SOURCE_VALIDATION_ERROR',
+            issues: validation.error.issues.map((issue) => ({
+              path: issue.path,
+              message: issue.message,
+            })),
+          });
+        }
+        const result = await executeFundWorkflowCommand(
+          {
+            actorId,
+            operation: 'save_draft',
+            source: 'published',
+            ...fundWorkflowHeaders(req, true),
+            targetFundId: fundId,
+            body: validation.data,
+            unrestricted: req.user?.role === 'admin',
+          },
+          async (published) => {
+            if (!published) throw new Error('Published revision source missing');
+            const current = draftETag(published);
+            if (
+              published.id !== validation.data.sourceConfigId ||
+              published.version !== validation.data.sourceConfigVersion
+            ) {
+              throw new FundWorkflowError(
+                412,
+                'PRECONDITION_FAILED',
+                'A newer published configuration is available',
+                current
+              );
+            }
+            const [versionRow] = await db
+              .select({
+                nextVersion: sql<number>`coalesce(max(${fundConfigs.version}), 0)::int + 1`,
+              })
+              .from(fundConfigs)
+              .where(eq(fundConfigs.fundId, fundId));
+            const [created] = await db
+              .insert(fundConfigs)
+              .values({
+                fundId,
+                version: versionRow?.nextVersion ?? published.version + 1,
+                draftRevision: 1n,
+                config: published.config,
+                isDraft: true,
+                isPublished: false,
+                publishedAt: null,
+                updatedAt: new Date(),
+              })
+              .returning();
+            if (!created) throw new Error('Revision draft creation failed');
+            await db.insert(fundEvents).values({
+              fundId,
+              userId: actorId,
+              eventType: 'DRAFT_REVISION_STARTED',
+              eventTime: new Date(),
+              payload: {
+                sourceConfigId: published.id,
+                sourceConfigVersion: published.version,
+              },
+            });
+            return {
+              status: 201,
+              fundId,
+              configId: created.id,
+              etag: draftETag(created),
+              body: {
+                success: true,
+                data: draftResponse(created),
+                message: 'Revision draft started',
+              },
+            };
+          }
+        );
+        setFundWorkflowResponseHeaders(res, result);
+        res.status(result.status).json(result.body);
+      } catch (error) {
+        if (sendFundWorkflowError(res, error)) return;
+        routeLog.error('Revision draft start failed', { code: 'REVISION_DRAFT_START_FAILED' });
+        res.status(500).json({
+          error: 'Failed to start revision draft',
+          message: 'Revision creation could not be confirmed; retry the same command',
         });
       }
     }

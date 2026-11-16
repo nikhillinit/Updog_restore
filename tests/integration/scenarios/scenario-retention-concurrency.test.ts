@@ -265,6 +265,7 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_JWT_AUDIENCE = AUTH_AUDIENCE;
   process.env.JWT_ALG = 'HS256';
   process.env._EXPLICIT_JWT_ALG = 'HS256';
+  process.env.ENABLE_GP_ECONOMICS_ENGINE = '1';
 
   const { default: scenarioRoutes } = await import('../../../server/routes/fund-scenario-sets');
   const { signToken } = await import('../../../server/lib/auth/jwt');
@@ -293,7 +294,10 @@ async function calculateFeeProfileScenario(active: Runtime, scenarioSetId: strin
 }
 
 describe('scenario retention concurrency integration', () => {
-  const originalEnv = { ...process.env };
+  const originalEnv = {
+    ...process.env,
+    ENABLE_GP_ECONOMICS_ENGINE: process.env.ENABLE_GP_ECONOMICS_ENGINE,
+  };
 
   beforeAll(async () => {
     try {
@@ -316,6 +320,7 @@ describe('scenario retention concurrency integration', () => {
     isStoppingPostgres = true;
     const active = runtime;
     let closePgCircuitPool: (() => Promise<void>) | null = null;
+    let closePrimaryDatabasePool: (() => Promise<void>) | null = null;
 
     try {
       const db = await import('../../../server/db/pg-circuit');
@@ -323,7 +328,17 @@ describe('scenario retention concurrency integration', () => {
     } catch {
       // The pg-circuit module may never load if startup failed before route import.
     }
-    await tolerateExpectedPostgresStop([closePgCircuitPool?.(), active?.pool.end()]);
+    try {
+      const db = await import('../../../server/db');
+      closePrimaryDatabasePool = db.closeDatabasePool;
+    } catch {
+      // The primary db module may never load if startup failed before route import.
+    }
+    await tolerateExpectedPostgresStop([
+      closePgCircuitPool?.(),
+      closePrimaryDatabasePool?.(),
+      active?.pool.end(),
+    ]);
     await stopPostgresContainer(active?.postgres);
     restoreEnv(originalEnv);
     vi.resetModules();

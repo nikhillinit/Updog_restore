@@ -4,12 +4,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CreateCapitalPlanScenarioModal } from '@/components/scenarios/CreateCapitalPlanScenarioModal';
 import { CapitalPlanResultView } from '@/components/fund-results/CapitalPlanComparisonTable';
-import { capitalPlanMemoSections } from '@/components/fund-results/capital-plan-memo-presentation';
+import {
+  capitalPlanMemoSections,
+  formatCapitalPlanMemo,
+} from '@/components/fund-results/capital-plan-memo-presentation';
 import {
   capitalDraftRequest,
+  correctedCapitalInput,
+  emptyCorrectedCapitalRound,
   newCapitalDraft,
   type RawCapitalInputV2,
 } from '@/components/scenarios/capital-plan-draft';
+import * as capitalDraftModule from '@/components/scenarios/capital-plan-draft';
 import { reviewCapitalPlanDraft } from '@/lib/capital-plan-review';
 import * as api from '@/lib/fund-scenario-workspace-api';
 import { calculateCapitalPlanningV2 } from '@shared/lib/capital-planning/capital-planning-v2';
@@ -90,6 +96,11 @@ describe('corrected capital UI', () => {
       })
     ).toBeInTheDocument();
     expect(
+      screen.getByRole('option', {
+        name: 'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership',
+      })
+    ).toBeInTheDocument();
+    expect(
       screen.getByLabelText('Primary capital only; excludes all secondary sales')
     ).not.toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: '3. Follow-ons', exact: true }));
@@ -98,8 +109,83 @@ describe('corrected capital UI', () => {
     expect(screen.getByLabelText('Follow-on eligibility')).toHaveValue('');
     expect(screen.getByLabelText('Timing basis')).toHaveValue('');
     expect(screen.getByLabelText('Pool basis')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+    expect(screen.getByLabelText('Pro-rata ownership basis')).toHaveValue('');
+    expect(
+      screen.getByRole('option', {
+        name: 'Before incremental option-pool dilution (workbook convention)',
+      })
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Pro-rata ownership basis'), {
+      target: { value: 'before_pool_dilution' },
+    });
+    fireEvent.change(screen.getByLabelText('Check policy'), {
+      target: { value: 'fixed_check' },
+    });
+    expect(screen.queryByLabelText('Pro-rata ownership basis')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+    expect(screen.getByLabelText('Pro-rata ownership basis')).toHaveValue('');
     await waitFor(() => expect(api.fetchCapitalScenarioSource).toHaveBeenCalled());
   });
+
+  it('retains a same-batch round edit when check policy changes before rerender', async () => {
+    const fundId = '55124';
+    const initial = newCapitalDraft();
+    const input = correctedCapitalInput();
+    input.allocations[0]!.followOnRounds = [emptyCorrectedCapitalRound()];
+    initial.variants[0]!.input = input;
+    let retained = initial;
+    vi.spyOn(capitalDraftModule, 'useCapitalPlanDraft').mockReturnValue({
+      draft: initial,
+      reviewed: null,
+      busy: null,
+      saveIntent: null,
+      replace: (next) => {
+        retained = next;
+        return true;
+      },
+      update: (updater) => {
+        retained = updater(retained);
+        return true;
+      },
+      currentDraft: () => retained,
+      attachSource: vi.fn(),
+      sourceChanged: () => false,
+      invalidateChangedSource: vi.fn(),
+      beginReview: vi.fn(),
+      isCurrent: vi.fn(),
+      completeReview: vi.fn(),
+      clearReview: vi.fn(),
+      finishReview: vi.fn(),
+      beginSave: vi.fn(),
+      ownsSave: vi.fn(),
+      resolveSave: vi.fn(),
+      finishSave: vi.fn(),
+      beginSourceRefresh: vi.fn(),
+      completeSourceRefresh: vi.fn(),
+    } as ReturnType<typeof capitalDraftModule.useCapitalPlanDraft>);
+    vi.spyOn(api, 'fetchCapitalScenarioSource').mockImplementation(() => new Promise(() => {}));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CreateCapitalPlanScenarioModal
+          fundId={fundId}
+          open
+          onOpenChange={() => {}}
+          onSuccess={() => {}}
+        />
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '3. Follow-ons', exact: true }));
+    fireEvent.change(screen.getByLabelText('Round label'), { target: { value: 'Series A' } });
+    fireEvent.change(screen.getByLabelText('Check policy'), { target: { value: 'pro_rata' } });
+
+    const round = retained.variants[0]!.input.allocations[0]!.followOnRounds[0]!;
+    expect(round.roundLabel).toBe('Series A');
+    expect(round.checkPolicy.type).toBe('pro_rata');
+  });
+
   it('normalizes 43/43/14 as initial dollars and refuses missing corrected declarations', () => {
     const { input, source } = fixture();
     input.allocations = ['0.430000000000', '0.430000000000', '0.140000000000'].map(
@@ -149,9 +235,35 @@ describe('corrected capital UI', () => {
     expect(result.results[0]!.contractVersion).toBe('capital-planning/2.0.0');
     expect(result.results[0]!.sourceBundle.sourceBundleHash).toBe(bundle.sourceBundleHash);
   });
-  it('renders computed corrected results and signed residuals without applying V1 labels', () => {
+  it.each([
+    [
+      'total_primary_including_fund_check',
+      'Fixed total primary capital whether fund participates or skips; other investors supply remainder',
+    ],
+    [
+      'external_primary_excluding_fund_check',
+      'Fixed external primary capital; fund check adds to total',
+    ],
+    [
+      'not_supplied',
+      'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership',
+    ],
+  ] as const)('renders %s entry financing and corrected results', (basis, label) => {
     const { input, bundle } = fixture();
     input.allocations[0]!.plannedCompanyCount = 11;
+    if (basis === 'not_supplied') {
+      input.allocations[0]!.entryFinancing = {
+        valuationUsd: '10000000.000000',
+        valuationBasis: 'post_money',
+        primaryCapital: { basis },
+      };
+    } else if (basis === 'external_primary_excluding_fund_check') {
+      input.allocations[0]!.entryFinancing.primaryCapital = {
+        basis,
+        externalPrimaryAmountUsd: '1000000.000000',
+        primary_only_excludes_secondary: true,
+      };
+    }
     const result = calculateCapitalPlanningV2({ input, sourceBundle: bundle });
     const memo = CapitalPlanningMemoV2Schema.parse({
       contractVersion: 'capital-planning-memo/2.0.0',
@@ -190,8 +302,16 @@ describe('corrected capital UI', () => {
     expect(text).toContain('User-supplied integer counts; expected solve unchanged');
     expect(text).toContain(result.construction.allocations[0]!.entered!.signedBudgetResidualUsd);
     expect(text).not.toContain('Graduation and participation independent of ownership history');
+    const entryDenominatorLabel = 'Seed / Seed / Primary capital denominator';
+    expect(
+      capitalPlanMemoSections(memo)
+        .flatMap((section) => section.rows)
+        .find((row) => row.label === entryDenominatorLabel)
+    ).toEqual({ label: entryDenominatorLabel, value: label });
+    expect(formatCapitalPlanMemo(memo)).toContain(`${entryDenominatorLabel}: ${label}`);
     render(<CapitalPlanResultView memo={memo} />);
     expect(screen.getByText('Initial investment pool and reconciliation')).toBeInTheDocument();
     expect(screen.getByText('Ownership and participation histories')).toBeInTheDocument();
+    expect(screen.getByText(entryDenominatorLabel).nextElementSibling).toHaveTextContent(label);
   });
 });

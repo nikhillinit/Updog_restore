@@ -1,18 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUnifiedFundMetrics } from '@shared/types/metrics';
 
-const { storageMock, actualCalculateMock, projectedCalculateMock } = vi.hoisted(() => ({
-  storageMock: {
-    getFund: vi.fn(),
-    getPortfolioCompanies: vi.fn(),
-    getFundConfig: vi.fn(),
-  },
-  actualCalculateMock: vi.fn(),
-  projectedCalculateMock: vi.fn(),
-}));
+const { storageMock, actualCalculateMock, projectedCalculateMock, publishedActualsMock } =
+  vi.hoisted(() => ({
+    storageMock: {
+      getFund: vi.fn(),
+      getPortfolioCompanies: vi.fn(),
+      getFundConfig: vi.fn(),
+    },
+    actualCalculateMock: vi.fn(),
+    projectedCalculateMock: vi.fn(),
+    publishedActualsMock: vi.fn(),
+  }));
 
 vi.mock('../../../server/storage', () => ({
   storage: storageMock,
+}));
+vi.mock('../../../server/services/published-investment-comparison', () => ({
+  readPublishedFundActuals: publishedActualsMock,
+  readPublishedInvestmentComparison: vi.fn(),
 }));
 
 vi.mock('../../../server/services/actual-metrics-calculator', async (importOriginal) => {
@@ -57,6 +63,7 @@ const unavailableProjected = {
 describe('MetricsAggregator projected lane when cohort projections are unavailable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishedActualsMock.mockResolvedValue(null);
 
     storageMock.getFund.mockResolvedValue({
       id: 1,

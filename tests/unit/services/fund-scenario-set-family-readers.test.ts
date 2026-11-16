@@ -12,7 +12,10 @@ const { queryMock, transactionMock } = vi.hoisted(() => ({
   queryMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
-vi.mock('../../../server/db/pg-circuit.js', () => ({ transaction: transactionMock }));
+vi.mock('../../../server/db/pg-circuit.js', () => ({
+  readTransaction: transactionMock,
+  transaction: transactionMock,
+}));
 
 import * as source from '../../../server/services/fund-scenario-set-service';
 import * as materializer from '../../../shared/lib/capital-planning/materialize-from-fund-draft';

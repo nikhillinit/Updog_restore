@@ -1,15 +1,6 @@
-import { isFlagEnabled } from '@shared/flags/getFlag';
-
 export function omitEconomicsAssumptionsWhenDisabled<T extends object>(config: T): T {
-  if (isFlagEnabled('enable_gp_economics_engine')) {
-    return config;
-  }
-  if (!('economicsAssumptions' in config)) {
-    return config;
-  }
-
-  const configWithEconomics = config as T & { economicsAssumptions?: unknown };
-  const { economicsAssumptions, ...rest } = configWithEconomics;
-  void economicsAssumptions;
-  return rest as T;
+  // This flag controls annual economics execution, not persisted capital-source
+  // semantics. Dropping any part of a validated assumptions object can silently
+  // change fee, expense, GP, timeline, or recycling interpretation.
+  return config;
 }

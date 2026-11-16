@@ -1,5 +1,5 @@
 import { HeaderMetricCard } from '@/components/layout/HeaderMetricCard';
-import { PORTFOLIO_METRICS_BASIS } from '@/lib/fund-header-metric-calculations';
+import { headerMetricsBasis } from '@/lib/fund-header-metric-calculations';
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { buildCompactHeaderViewModel, shouldFetchCompactMetrics } from './fund-header-metrics';
@@ -43,7 +43,8 @@ export default function HeaderKpis() {
     metrics?.actual,
     'dpi',
     isLoading,
-    error != null
+    error != null,
+    metrics?.publishedActuals
   );
 
   return (
@@ -66,7 +67,7 @@ export default function HeaderKpis() {
 
       <div className="min-w-0 text-xs text-charcoal-600 sm:ml-auto">
         <p className="font-medium">{viewModel.fundName}</p>
-        <p className="mt-1 max-w-sm">{PORTFOLIO_METRICS_BASIS}</p>
+        <p className="mt-1 max-w-sm">{headerMetricsBasis(metrics?.publishedActuals)}</p>
       </div>
     </div>
   );

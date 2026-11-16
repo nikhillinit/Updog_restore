@@ -82,6 +82,7 @@ export default function ReviewStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const fundLife = useFundSelector((s) => s.fundLife);
   const fundedFromFeesPct = useFundSelector((s) => s.fundedFromFeesPct);
+  const managementFeeExemptsGp = useFundSelector((s) => s.managementFeeExemptsGp);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
   const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const stages = useFundSelector((s) => s.stages);
@@ -190,6 +191,14 @@ export default function ReviewStep() {
             stepNumber: 1,
           },
           {
+            label: 'Management Fee Population',
+            value: managementFeeExemptsGp
+              ? 'LP commitments only; fixed GP commitment excluded'
+              : 'Full committed capital',
+            status: 'ok',
+            stepNumber: 1,
+          },
+          {
             label: 'Cashless GP Contribution',
             value: `${(fundedFromFeesPct * 100).toFixed(0)}%`,
             status: 'ok',
@@ -235,6 +244,7 @@ export default function ReviewStep() {
     managementFeeRate,
     carriedInterest,
     fundedFromFeesPct,
+    managementFeeExemptsGp,
     stages,
     waterfallType,
     recyclingEnabled,

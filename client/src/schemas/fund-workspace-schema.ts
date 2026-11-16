@@ -36,7 +36,13 @@ const pendingCommand = z
         expectedETag: z.null(),
       })
       .strict(),
-    z.object({ ...draftCommand, operation: z.literal('save_draft') }).strict(),
+    z
+      .object({
+        ...draftCommand,
+        operation: z.literal('save_draft'),
+        source: z.literal('published').optional(),
+      })
+      .strict(),
     z.object({ ...draftCommand, operation: z.literal('publish_draft') }).strict(),
     z
       .object({
@@ -99,6 +105,9 @@ export const FundWorkspaceEnvelopeSchema = z
     managementFeeRate: number.optional(),
     carriedInterest: number.optional(),
     gpCommitment: number.optional(),
+    gpCommitmentSource: z.enum(['top_level', 'nested_amount', 'nested_pct']).optional(),
+    gpCommitmentTopLevelSource: number.optional(),
+    managementFeeExemptsGp: z.boolean().optional(),
     fundedFromFeesPct: number,
     lpClasses: z.array(
       z
@@ -166,7 +175,7 @@ export const FundWorkspaceEnvelopeSchema = z
             z
               .object({
                 ...idName,
-                roundSize: number,
+                roundSize: number.optional(),
                 valuation: number,
                 valuationType: z.enum(['pre', 'post']),
                 esopPct: number,
@@ -241,6 +250,7 @@ export const FundWorkspaceEnvelopeSchema = z
         .strict()
     ),
     economicsAssumptions: EconomicsAssumptionsV1Schema.optional(),
+    expenseHorizonMonths: z.number().int().positive().optional(),
     targetMetrics: FundDraftWriteV1Schema.shape.targetMetrics,
   })
   .strict()

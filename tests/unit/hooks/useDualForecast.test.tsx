@@ -167,6 +167,7 @@ describe('useDualForecast', () => {
 
     expect(fetch).toHaveBeenCalledWith('/api/funds/7/dual-forecast', {
       credentials: 'include',
+      cache: 'no-store',
     });
     expect(result.current.data).toEqual(dualForecast);
   });
@@ -180,6 +181,26 @@ describe('useDualForecast', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(queryClient.getQueryData(['dual-forecast', 7])).toEqual(dualForecast);
+  });
+
+  it('includes cutoff and pinned baseline inputs in the request and cache identity', async () => {
+    const queryClient = createQueryClient();
+    const request = {
+      asOfDate: '2025-03-31',
+      baselineSnapshotId: 88,
+      baselineStartMonth: '2024-03',
+    };
+    const { result } = renderHook(() => useDualForecast(7, request), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/funds/7/dual-forecast?asOfDate=2025-03-31&baselineSnapshotId=88&baselineStartMonth=2024-03',
+      { credentials: 'include', cache: 'no-store' }
+    );
+    expect(queryClient.getQueryData(['dual-forecast', 7, request])).toEqual(dualForecast);
   });
 
   it('uses a fixture that satisfies the response contract (fixture guard)', () => {

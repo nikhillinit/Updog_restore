@@ -105,9 +105,11 @@ function funding(input: CapitalPlanningInputV1, source: CapitalSourceBundleV1) {
       'GP commitment exceeds fund commitments'
     );
   const deemed = commitment.times(fraction);
+  const gpExempt = source.feeExpense.gpExemption?.rawValue === true;
+  const feeBasis = gpExempt ? commitments.minus(commitment) : commitments;
   source.feeExpense.feeTiers.forEach((tier) => sourceValue(tier.rate));
   const fees = computeCapitalLifetimeFees(
-    commitments,
+    feeBasis,
     source.fundLife.effectiveValue,
     source.feeExpense.feeTiers
   );
@@ -115,7 +117,10 @@ function funding(input: CapitalPlanningInputV1, source: CapitalSourceBundleV1) {
     source.feeExpense.expenses.map((expense) => {
       const months = Math.max(
         0,
-        Math.min(expense.period.normalizedEndMonth, source.fundLife.effectiveValue * 12 - 1) -
+        Math.min(
+          expense.period.normalizedEndMonth,
+          (source.feeExpense.expenseHorizon?.rawValue ?? source.fundLife.effectiveValue * 12) - 1
+        ) -
           expense.period.normalizedStartMonth +
           1
       );
@@ -130,7 +135,7 @@ function funding(input: CapitalPlanningInputV1, source: CapitalSourceBundleV1) {
     money(deemed) !== source.gp.deemedContributionUsd ||
     money(fees) !== source.feeExpense.lifetimeFeesUsd ||
     money(expenses) !== source.feeExpense.lifetimeExpensesUsd ||
-    money(commitments) !== source.feeExpense.feeBasisUsd
+    money(feeBasis) !== source.feeExpense.feeBasisUsd
   )
     refuseCalculation(
       'SOURCE_BUNDLE_INCONSISTENT',
@@ -167,7 +172,7 @@ function funding(input: CapitalPlanningInputV1, source: CapitalSourceBundleV1) {
       budget === null
         ? noCapital()
         : available(input.netInvestableCapitalUsd === undefined ? zero() : budget.minus(capacity)),
-    feePopulation: 'full_fund_committed_capital',
+    feePopulation: gpExempt ? 'committed_capital_excluding_gp' : 'full_fund_committed_capital',
     fundingAssumption: 'callable_as_needed',
   };
   return { capacity, budget, bridge };

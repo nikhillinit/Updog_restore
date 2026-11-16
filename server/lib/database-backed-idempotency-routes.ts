@@ -35,7 +35,7 @@ export function isFundWorkflowCommandRoute(method: string, path: string): boolea
   const pathname = path.split(/[?#]/, 1)[0] ?? '';
   return (
     (method === 'POST' && /^\/api\/funds(?:\/finalize|\/[^/?#]+\/publish)?\/?$/i.test(pathname)) ||
-    (method === 'PUT' && /^\/api\/funds\/[^/?#]+\/draft\/?$/i.test(pathname))
+    ((method === 'PUT' || method === 'POST') && /^\/api\/funds\/[^/?#]+\/draft\/?$/i.test(pathname))
   );
 }
 

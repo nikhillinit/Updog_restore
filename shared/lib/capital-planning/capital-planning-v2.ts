@@ -81,6 +81,8 @@ function funding(input: CapitalPlanningInputV2, source: CapitalSourceBundleV1) {
   const gpPct = gp.source === 'nested_percent' ? gpValue : d(0);
   const gpFixed = gp.source === 'nested_percent' ? d(0) : gpValue;
   const commitment = commitments.times(gpPct).plus(gpFixed);
+  const gpExempt = source.feeExpense.gpExemption?.rawValue === true;
+  const feeBasis = gpExempt ? commitments.minus(commitment) : commitments;
   if (commitment.gt(commitments))
     refuseCalculation(
       'GP_COMMITMENT_EXCEEDS_COMMITMENTS',
@@ -115,7 +117,11 @@ function funding(input: CapitalPlanningInputV2, source: CapitalSourceBundleV1) {
         .times(
           Math.max(
             0,
-            Math.min(e.period.normalizedEndMonth, source.fundLife.effectiveValue * 12 - 1) -
+            Math.min(
+              e.period.normalizedEndMonth,
+              (source.feeExpense.expenseHorizon?.rawValue ?? source.fundLife.effectiveValue * 12) -
+                1
+            ) -
               e.period.normalizedStartMonth +
               1
           )
@@ -124,14 +130,14 @@ function funding(input: CapitalPlanningInputV2, source: CapitalSourceBundleV1) {
     )
   );
   const deemed = commitment.times(fraction),
-    fees = commitments.times(coefficient),
+    fees = feeBasis.times(coefficient),
     capacity = commitments.minus(deemed).minus(fees).minus(expenses);
   if (
     money(commitment) !== gp.commitmentUsd ||
     money(deemed) !== source.gp.deemedContributionUsd ||
     money(fees) !== source.feeExpense.lifetimeFeesUsd ||
     money(expenses) !== source.feeExpense.lifetimeExpensesUsd ||
-    money(commitments) !== source.feeExpense.feeBasisUsd
+    money(feeBasis) !== source.feeExpense.feeBasisUsd
   )
     refuseCalculation(
       'SOURCE_BUNDLE_INCONSISTENT',
@@ -169,15 +175,17 @@ function funding(input: CapitalPlanningInputV2, source: CapitalSourceBundleV1) {
       input.netInvestableCapitalUsd === undefined
         ? available(d(0))
         : available(budget.minus(capacity)),
-    feePopulation: 'full_fund_committed_capital',
+    feePopulation: gpExempt ? 'committed_capital_excluding_gp' : 'full_fund_committed_capital',
     fundingAssumption: 'callable_as_needed',
   };
   return {
     capacity,
     budget,
     bridge,
-    a: d(1).minus(coefficient).minus(gpPct.times(fraction)),
-    b: expenses.plus(gpFixed.times(fraction)),
+    a: d(1)
+      .minus(coefficient.times(gpExempt ? d(1).minus(gpPct) : 1))
+      .minus(gpPct.times(fraction)),
+    b: expenses.plus(gpFixed.times(fraction.minus(gpExempt ? coefficient : 0))),
     gpFixed,
   };
 }
@@ -225,7 +233,10 @@ type Round = {
   splits: { history: string; mass: Decimal; children: Decimal[] }[];
 };
 function historyModel(a: CapitalAllocationInputV2) {
-  const entry = financing(a.entryFinancing, d(a.initialCheckUsd));
+  const entryPost =
+    a.entryFinancing.primaryCapital.basis === 'not_supplied'
+      ? d(a.entryFinancing.valuationUsd)
+      : financing(a.entryFinancing as CapitalFinancingV2, d(a.initialCheckUsd)).post;
   let live: Path[] = [
     {
       history: '',
@@ -234,7 +245,7 @@ function historyModel(a: CapitalAllocationInputV2) {
       state: 'live',
       outcome: 'participated',
       mass: d(1),
-      ownership: d(a.initialCheckUsd).div(entry.post),
+      ownership: d(a.initialCheckUsd).div(entryPost),
       check: d(0),
       demand: d(0),
     },
@@ -299,7 +310,9 @@ function historyModel(a: CapitalAllocationInputV2) {
         if (r.checkPolicy.type === 'fixed_check') check = d(r.checkPolicy.checkUsd);
         else {
           const primary = r.financing.primaryCapital;
-          if (primary.basis === 'external_primary_excluding_fund_check' && poolOwnership.gte(1))
+          const rightsOwnership =
+            r.proRataOwnershipBasis === 'before_pool_dilution' ? p.ownership : poolOwnership;
+          if (primary.basis === 'external_primary_excluding_fund_check' && rightsOwnership.gte(1))
             refuseCalculation(
               'OWNERSHIP_INPUT_UNRESOLVED',
               'financing',
@@ -308,8 +321,10 @@ function historyModel(a: CapitalAllocationInputV2) {
             );
           check = (
             primary.basis === 'total_primary_including_fund_check'
-              ? poolOwnership.times(primary.totalPrimaryAmountUsd)
-              : poolOwnership.times(primary.externalPrimaryAmountUsd).div(d(1).minus(poolOwnership))
+              ? rightsOwnership.times(primary.totalPrimaryAmountUsd)
+              : rightsOwnership
+                  .times(primary.externalPrimaryAmountUsd)
+                  .div(d(1).minus(rightsOwnership))
           ).times(r.checkPolicy.proRataExerciseRatio);
         }
       }

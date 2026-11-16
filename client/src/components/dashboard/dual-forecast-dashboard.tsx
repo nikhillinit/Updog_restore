@@ -8,7 +8,7 @@ import { Legend } from 'recharts/es6/component/Legend';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, PieChart } from 'lucide-react';
@@ -17,6 +17,10 @@ import type { NameType, ValueType } from 'recharts/types/component/DefaultToolti
 import type { DashboardKpiEvidence, DashboardSummary } from '@/types/fund';
 import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
+import {
+  InvestmentComparisonPanel,
+  type InvestmentComparisonRequest,
+} from '@/components/forecasting/investment-comparison';
 import { presson } from '@/theme/presson.tokens';
 import {
   buildAttributionRows,
@@ -234,6 +238,20 @@ function ForecastTooltip({
 export default function DualForecastDashboard() {
   const { currentFund, isLoading: isFundLoading, needsSetup, isDemoMode } = useFundContext();
   const fundId = currentFund?.id ?? null;
+  const [investmentRequestState, setInvestmentRequestState] = useState<{
+    fundId: number | null;
+    request: InvestmentComparisonRequest;
+  }>(() => ({ fundId, request: {} }));
+  const investmentRequest =
+    investmentRequestState.fundId === fundId ? investmentRequestState.request : {};
+  const hasInvestmentRequest = Object.keys(investmentRequest).length > 0;
+  const activeFundId = useRef(fundId);
+  activeFundId.current = fundId;
+  useEffect(() => {
+    setInvestmentRequestState((current) =>
+      current.fundId === fundId ? current : { fundId, request: {} }
+    );
+  }, [fundId]);
 
   const {
     data: dashboardData,
@@ -252,6 +270,7 @@ export default function DualForecastDashboard() {
   } = useDualForecast(fundId, {
     enabled: fundId != null && !isDemoMode,
     refetchInterval: 60000,
+    ...investmentRequest,
   });
 
   const [trustFilter, setTrustFilter] = useState<TrustFilterKey | null>(null);
@@ -331,7 +350,7 @@ export default function DualForecastDashboard() {
     );
   }
 
-  if (isLoading || isForecastLoading) {
+  if (isLoading || (isForecastLoading && !hasInvestmentRequest)) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="animate-pulse">
@@ -360,19 +379,6 @@ export default function DualForecastDashboard() {
   const summaryFailed = Boolean(error) || !dashboardData;
   const forecastFailed = Boolean(forecastError) || !dualForecast;
 
-  if (summaryFailed && forecastFailed) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-error-dark font-medium">Unable to load forecast data</p>
-            <p className="text-muted-foreground mt-2">Please check API connectivity</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   // Transform real data for forecasting charts
   const currentMetrics = dashboardData?.metrics;
   const baseValue =
@@ -380,6 +386,7 @@ export default function DualForecastDashboard() {
   const forecastUnavailableReason = dualForecast
     ? getForecastUnavailableReason(dualForecast)
     : null;
+  const hasForecastSeries = (dualForecast?.series.length ?? 0) > 0;
   const latestDrift = getLatestForecastDrift(forecastData);
   const navAnchoring = dualForecast?.navAnchoring ?? null;
   const noFactsCount = countNoFactsRows(attributionRows);
@@ -429,9 +436,23 @@ export default function DualForecastDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Portfolio Cos</p>
-                  <p className="text-2xl font-bold">{dashboardData.portfolioCompanies.length}</p>
-                  <KpiEvidenceLine evidence={dashboardData.evidence.kpis.portfolioCompanies} />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {dualForecast?.investmentComparison?.actual
+                      ? 'Cash-invested companies'
+                      : 'Portfolio records'}
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {dualForecast?.investmentComparison?.actual?.companyCount ??
+                      dashboardData.portfolioCompanies.length}
+                  </p>
+                  {dualForecast?.investmentComparison?.actual ? (
+                    <p className="mt-2 text-[11px] text-charcoal-600">
+                      Published cash investments through{' '}
+                      {dualForecast.investmentComparison.asOfDate}
+                    </p>
+                  ) : (
+                    <KpiEvidenceLine evidence={dashboardData.evidence.kpis.portfolioCompanies} />
+                  )}
                 </div>
                 <PieChart className="h-8 w-8 text-charcoal-600" />
               </div>
@@ -440,16 +461,53 @@ export default function DualForecastDashboard() {
         </div>
       )}
 
+      {fundId ? (
+        <InvestmentComparisonPanel
+          key={fundId}
+          fundId={fundId}
+          comparison={forecastFailed ? undefined : dualForecast?.investmentComparison}
+          request={investmentRequest}
+          onRequestChange={(nextRequest) => {
+            if (activeFundId.current === fundId) {
+              setInvestmentRequestState({ fundId, request: nextRequest });
+            }
+          }}
+        />
+      ) : null}
+
       {/* Dual Forecast Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Value Projection Chart (forecast failure blocks only this region) */}
-        {forecastFailed || !dualForecast ? (
+        {isForecastLoading ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="font-medium">Loading forecast data…</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : forecastFailed || !dualForecast ? (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8">
                 <p className="text-error-dark font-medium">Unable to load forecast data</p>
                 <p className="text-muted-foreground mt-2">Please check API connectivity</p>
               </div>
+            </CardContent>
+          </Card>
+        ) : !hasForecastSeries ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial return forecast unavailable</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <CurrentForecastHeldNotice block={dualForecast.currentForecastV2} />
+              <CurrentProjectionNotice projection={dualForecast.currentProjection} />
+              <p role="status">
+                {dualForecast.investmentComparison?.status === 'available'
+                  ? 'Published investments are available, but NAV and return metrics need valuation and LP cash evidence.'
+                  : 'Investment, NAV, and return metrics are unavailable from the current published evidence.'}
+              </p>
             </CardContent>
           </Card>
         ) : forecastUnavailableReason ? (
@@ -525,7 +583,7 @@ export default function DualForecastDashboard() {
         )}
 
         {/* Portfolio Allocation (CP2: un-provenanced legacy valuations, ADR-029) */}
-        {!summaryFailed && dashboardData ? (
+        {!summaryFailed && dashboardData && !dualForecast?.investmentComparison ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -584,10 +642,10 @@ export default function DualForecastDashboard() {
       ) : null}
 
       {/* Deployment Timeline */}
-      {!forecastFailed && dualForecast && !forecastUnavailableReason ? (
+      {!forecastFailed && dualForecast && hasForecastSeries && !forecastUnavailableReason ? (
         <Card>
           <CardHeader>
-            <CardTitle>Capital Deployment Forecast</CardTitle>
+            <CardTitle>Capital Call Forecast</CardTitle>
             <CardDescription>Cumulative called capital by quarter.</CardDescription>
           </CardHeader>
           <CardContent>

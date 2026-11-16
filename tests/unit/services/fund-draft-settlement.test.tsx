@@ -111,6 +111,84 @@ describe('fund draft command settlement', () => {
     ).toBe(true);
   });
 
+  it('clears GP policy and amount when a later authoritative legacy snapshot omits them', () => {
+    applyDraftSnapshot(9, {
+      config: {
+        fundName: 'Explicit GP policy',
+        gpCommitment: 400_000,
+        economicsAssumptions: {
+          version: 'v1',
+          feeModel: {
+            source: 'legacy_fee_profiles',
+            gpCommitmentExempt: true,
+          },
+          gpCommitmentModel: {
+            commitmentAmount: 400_000,
+            participatesInInvestmentReturns: true,
+          },
+        },
+      },
+      etag: '"0000000000000002"',
+    });
+    expect(fundStore.getState()).toMatchObject({
+      gpCommitment: 400_000,
+      managementFeeExemptsGp: true,
+    });
+
+    applyDraftSnapshot(9, {
+      config: { fundName: 'Legacy policy' },
+      etag: '"0000000000000003"',
+    });
+    expect(fundStore.getState().gpCommitment).toBeUndefined();
+    expect(fundStore.getState().managementFeeExemptsGp).toBeUndefined();
+  });
+
+  it('removes a hydrated expense horizon when the visible control is cleared', () => {
+    applyDraftSnapshot(9, {
+      config: {
+        fundName: 'Explicit expense horizon',
+        economicsAssumptions: {
+          version: 'v1',
+          expenseModel: { source: 'legacy_fund_expenses', horizonMonths: 150 },
+        },
+      },
+      etag: '"0000000000000002"',
+    });
+    expect(fundStore.getState().expenseHorizonMonths).toBe(150);
+
+    fundStore.getState().updateFundBasics({ expenseHorizonMonths: undefined });
+    const saved = fundStoreToDraftWriteV1(fundStore.getState(), {
+      includeEconomicsAssumptions: true,
+    });
+    expect(saved.economicsAssumptions?.expenseModel).not.toHaveProperty('horizonMonths');
+  });
+
+  it('removes hydrated nested GP amount and percent when the visible amount is cleared', () => {
+    applyDraftSnapshot(9, {
+      config: {
+        fundName: 'Nested GP policy',
+        gpCommitment: 100_000,
+        economicsAssumptions: {
+          version: 'v1',
+          gpCommitmentModel: {
+            commitmentAmount: 400_000,
+            commitmentPct: 0.02,
+            participatesInInvestmentReturns: true,
+          },
+        },
+      },
+      etag: '"0000000000000002"',
+    });
+    fundStore.getState().updateCapitalStructure({ gpCommitment: undefined });
+
+    const saved = fundStoreToDraftWriteV1(fundStore.getState(), {
+      includeEconomicsAssumptions: true,
+    });
+    expect(saved).not.toHaveProperty('gpCommitment');
+    expect(saved.economicsAssumptions?.gpCommitmentModel).not.toHaveProperty('commitmentAmount');
+    expect(saved.economicsAssumptions?.gpCommitmentModel).not.toHaveProperty('commitmentPct');
+  });
+
   it('records the dispatched signature and resulting ETag when newer edits arrived in flight', async () => {
     const transport = holdTransport();
     const signature = canonicalJson(fundStoreToDraftWriteV1(fundStore.getState(), options));

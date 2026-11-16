@@ -21,6 +21,8 @@ import type { PublicShareSnapshotPayload } from '@shared/contracts/public-share-
 import { useFundMetrics } from '@/hooks/useFundMetrics';
 import { dollarsToCents, formatCents } from '@/lib/units';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
+import type { PublishedFundActuals } from '@shared/contracts/dual-forecast/investment-comparison.contract';
+import Decimal from '@shared/lib/decimal-config';
 import { getErrorMessage } from '@/lib/http-response';
 import { useFlag } from '@/shared/useFlags';
 import { ContextRail } from '@/components/context-rail/ContextRail';
@@ -43,10 +45,53 @@ function MetricTile({ label, value, detail }: { label: string; value: string; de
   return (
     <div className="rounded-md border border-pov-beige bg-white p-4">
       <p className="text-sm text-charcoal-600">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-pov-charcoal">{value}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-pov-charcoal">{value}</p>
       <p className="mt-1 text-xs text-presson-textMuted">{detail}</p>
     </div>
   );
+}
+
+function PublishedFactsSource({ actuals }: { actuals: PublishedFundActuals }) {
+  return (
+    <div className="text-xs text-presson-textMuted">
+      {actuals.basis ? (
+        <p>
+          Published facts snapshot #{actuals.basis.snapshotId}, data through{' '}
+          {actuals.basis.snapshotAsOfDate}, knowledge cutoff{' '}
+          {actuals.basis.knowledgeCutoff.slice(0, 10)}
+        </p>
+      ) : (
+        <p>{actuals.reason ?? actuals.unsupportedReason}</p>
+      )}
+      {actuals.basis && actuals.reason && <p>{actuals.reason}</p>}
+      {actuals.basis && actuals.disclosures.length > 0 && (
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          {actuals.disclosures.map((disclosure) => (
+            <li key={disclosure}>{disclosure}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function publishedInvestmentReason(actuals: PublishedFundActuals): string {
+  return actuals.reason ?? actuals.unsupportedReason;
+}
+
+/** Published main-fund deployment as a percent of the fund-record commitment. */
+function publishedDeploymentPct(metrics: UnifiedFundMetrics): Decimal | null {
+  const actuals = metrics.publishedActuals;
+  const investments = actuals?.status === 'available' ? actuals.investments : null;
+  if (!investments || metrics.actual.totalCommitted <= 0) return null;
+  return new Decimal(investments.deployedCapital).div(metrics.actual.totalCommitted).times(100);
+}
+
+function publishedDeploymentDetail(metrics: UnifiedFundMetrics, actuals: PublishedFundActuals) {
+  if (actuals.status !== 'available' || !actuals.investments)
+    return publishedInvestmentReason(actuals);
+  const pct = publishedDeploymentPct(metrics);
+  return pct ? `${pct.toFixed(1)}% of fund record commitment` : 'No fund record commitment';
 }
 
 function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
@@ -61,6 +106,28 @@ function MetricsUnavailable({ error }: { error: Error | null | undefined }) {
 }
 
 function CapitalProgressBar({ metrics }: { metrics: UnifiedFundMetrics }) {
+  if (metrics.publishedActuals) {
+    const deployedPct = publishedDeploymentPct(metrics);
+    if (!deployedPct) return null;
+
+    return (
+      <div className="space-y-3">
+        <div className="relative h-4 w-full overflow-hidden rounded-full bg-pov-gray">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-pov-charcoal transition-all"
+            style={{ width: `${Decimal.min(deployedPct, 100).toString()}%` }}
+          />
+        </div>
+        <div className="flex items-center gap-6 text-xs text-presson-textMuted">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-pov-charcoal" />
+            Deployed {deployedPct.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const { totalCommitted, totalCalled, totalDeployed } = metrics.actual;
   const calledPct = totalCommitted > 0 ? (totalCalled / totalCommitted) * 100 : 0;
   const deployedPct = totalCommitted > 0 ? (totalDeployed / totalCommitted) * 100 : 0;
@@ -108,6 +175,60 @@ function CapitalStructurePanel({
 
   const { totalCommitted, totalCalled, totalDeployed, totalUncalled, totalDistributions } =
     metrics.actual;
+
+  const publishedActuals = metrics.publishedActuals;
+  if (publishedActuals) {
+    const investments =
+      publishedActuals.status === 'available' ? publishedActuals.investments : null;
+    const investmentReason = publishedInvestmentReason(publishedActuals);
+    const unsupported = publishedActuals.unsupportedReason;
+
+    return (
+      <div className="space-y-6">
+        <CapitalProgressBar metrics={metrics} />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            label="Committed"
+            value={formatDollars(totalCommitted)}
+            detail="Fund record commitment"
+          />
+          <MetricTile label="Called" value="Unavailable" detail={unsupported} />
+          <MetricTile
+            label="Deployed"
+            value={investments ? formatDollars(Number(investments.deployedCapital)) : 'Unavailable'}
+            detail={publishedDeploymentDetail(metrics, publishedActuals)}
+          />
+          <MetricTile label="Dry powder" value="Unavailable" detail={unsupported} />
+          <MetricTile label="Distributions" value="Unavailable" detail={unsupported} />
+          <MetricTile
+            label="Initial deployed"
+            value={investments ? formatDollars(Number(investments.initialCapital)) : 'Unavailable'}
+            detail={investments ? 'Published initial investment transactions' : investmentReason}
+          />
+          <MetricTile
+            label="Follow-on deployed"
+            value={investments ? formatDollars(Number(investments.followOnCapital)) : 'Unavailable'}
+            detail={investments ? 'Published follow-on investment transactions' : investmentReason}
+          />
+          {investments && !new Decimal(investments.secondaryCapital ?? '0').isZero() && (
+            <MetricTile
+              label="Secondary deployed"
+              value={formatDollars(Number(investments.secondaryCapital ?? '0'))}
+              detail="Published secondary investment transactions"
+            />
+          )}
+          {investments && !new Decimal(investments.otherCapital ?? '0').isZero() && (
+            <MetricTile
+              label="Other deployed"
+              value={formatDollars(Number(investments.otherCapital ?? '0'))}
+              detail="Published other investment transactions"
+            />
+          )}
+        </div>
+        <PublishedFactsSource actuals={publishedActuals} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -168,6 +289,65 @@ function PortfolioCompositionPanel({
     { label: 'Written off', count: writtenOffCompanies, color: 'bg-presson-textMuted' },
   ].filter((s) => s.count > 0);
 
+  const publishedActuals = metrics.publishedActuals;
+  if (publishedActuals) {
+    const investments =
+      publishedActuals.status === 'available' ? publishedActuals.investments : null;
+    const investmentReason = publishedInvestmentReason(publishedActuals);
+    return (
+      <div className="space-y-6">
+        {totalCompanies > 0 && (
+          <div className="relative flex h-4 w-full overflow-hidden rounded-full">
+            {segments.map((seg) => (
+              <div
+                key={seg.label}
+                className={`${seg.color} transition-all`}
+                style={{ width: `${(seg.count / totalCompanies) * 100}%` }}
+              />
+            ))}
+          </div>
+        )}
+        <p className="text-sm font-medium text-charcoal-600">Registry companies</p>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {segments.map((seg) => (
+            <MetricTile
+              key={seg.label}
+              label={`${seg.label} registry companies`}
+              value={String(seg.count)}
+              detail={`${((seg.count / totalCompanies) * 100).toFixed(0)}% of registry companies`}
+            />
+          ))}
+          <MetricTile
+            label="Cash-invested companies"
+            value={investments ? String(investments.companyCount) : 'Unavailable'}
+            detail={investments ? 'Companies with published cash investment' : investmentReason}
+          />
+          <MetricTile
+            label="Published transactions"
+            value={investments ? String(investments.transactionCount) : 'Unavailable'}
+            detail={investments ? 'Main-fund published investment transactions' : investmentReason}
+          />
+          {investments?.companyCount !== 0 && (
+            <MetricTile
+              label="Average check"
+              value={
+                investments
+                  ? formatDollars(
+                      new Decimal(investments.deployedCapital)
+                        .div(investments.companyCount)
+                        .toNumber()
+                    )
+                  : 'Unavailable'
+              }
+              detail={investments ? 'Per cash-invested company' : investmentReason}
+            />
+          )}
+        </div>
+        <PublishedFactsSource actuals={publishedActuals} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {totalCompanies > 0 && (
@@ -212,6 +392,37 @@ function PerformanceSnapshotPanel({
   if (isLoading || error || !metrics) return null;
 
   const { totalValue, currentNAV, totalDeployed } = metrics.actual;
+
+  const publishedActuals = metrics.publishedActuals;
+  if (publishedActuals) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            label="Total value"
+            value="Unavailable"
+            detail={publishedActuals.unsupportedReason}
+          />
+          <MetricTile
+            label="TVPI"
+            value="Unavailable"
+            detail={publishedActuals.unsupportedReason}
+          />
+          <MetricTile
+            label="Net IRR"
+            value="Unavailable"
+            detail={publishedActuals.unsupportedReason}
+          />
+          <MetricTile
+            label="Unrealized gain"
+            value="Unavailable"
+            detail={publishedActuals.unsupportedReason}
+          />
+        </div>
+        <PublishedFactsSource actuals={publishedActuals} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -262,6 +473,50 @@ function OverviewMetricsPanel({
     return <MetricsUnavailable error={error} />;
   }
 
+  const publishedActuals = metrics.publishedActuals;
+  if (publishedActuals) {
+    const investments =
+      publishedActuals.status === 'available' ? publishedActuals.investments : null;
+    const investmentReason = publishedInvestmentReason(publishedActuals);
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            label="Total committed"
+            value={formatDollars(metrics.actual.totalCommitted)}
+            detail="Fund record commitment"
+          />
+          <MetricTile
+            label="Capital deployed"
+            value={investments ? formatDollars(Number(investments.deployedCapital)) : 'Unavailable'}
+            detail={publishedDeploymentDetail(metrics, publishedActuals)}
+          />
+          <MetricTile
+            label="Current NAV"
+            value="Unavailable"
+            detail={publishedActuals.unsupportedReason}
+          />
+          <MetricTile
+            label="Cash-invested companies"
+            value={investments ? String(investments.companyCount) : 'Unavailable'}
+            detail={investments ? 'Companies with published cash investment' : investmentReason}
+          />
+          <MetricTile
+            label="Registry companies"
+            value={String(metrics.actual.totalCompanies)}
+            detail={`${metrics.actual.activeCompanies} active · ${metrics.actual.exitedCompanies} exited · ${metrics.actual.writtenOffCompanies} written off`}
+          />
+          <MetricTile
+            label="Published transactions"
+            value={investments ? String(investments.transactionCount) : 'Unavailable'}
+            detail={investments ? 'Main-fund published investment transactions' : investmentReason}
+          />
+        </div>
+        <PublishedFactsSource actuals={publishedActuals} />
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <MetricTile
@@ -303,6 +558,25 @@ function PerformanceMetricsPanel({
 
   if (error || !metrics) {
     return <MetricsUnavailable error={error} />;
+  }
+
+  const publishedActuals = metrics.publishedActuals;
+  if (publishedActuals) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {['IRR estimate', 'TVPI estimate', 'DPI estimate', 'RVPI estimate'].map((label) => (
+            <MetricTile
+              key={label}
+              label={label}
+              value="Unavailable"
+              detail={publishedActuals.unsupportedReason}
+            />
+          ))}
+        </div>
+        <PublishedFactsSource actuals={publishedActuals} />
+      </div>
+    );
   }
 
   return (

@@ -6,6 +6,7 @@ const { transactionMock, identityQueryMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../server/db/pg-circuit.js', () => ({
+  readTransaction: transactionMock,
   transaction: transactionMock,
 }));
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { InvestmentComparisonSchema } from './investment-comparison.contract';
 
 import { DecimalStringSchema } from '../lp-reporting/cash-flow-event.contract';
 import { DatasetTrustStateSchema, StructuredWarningSchema } from '../provenance-envelope.contract';
@@ -18,8 +19,10 @@ import {
  * Version 2 (PLAN_61 Task 13.2): optional `currentForecastV2` block plus the
  * `current_forecast_v2` source. Absent block == legacy serving (off/shadow),
  * keeping the version-1 payload byte-identical.
+ * Version 3 adds an optional pinned-publication investment comparison and
+ * explicit unavailable/saved-baseline sources. Existing responses are unchanged.
  */
-export const DUAL_FORECAST_CONTRACT_VERSION = 2;
+export const DUAL_FORECAST_CONTRACT_VERSION = 3;
 
 const PositiveIdSchema = z.number().int().positive();
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -44,11 +47,11 @@ export const DualForecastConfigMetadataSchema = z
 
 export const DualForecastSourceMetadataSchema = z
   .object({
-    construction: z.literal('construction_forecast_jcurve'),
+    construction: z.enum(['construction_forecast_jcurve', 'saved_capital_scenario', 'unavailable']),
     // Task 13.2: `current_forecast_v2` when the resolved mode serves V2 live
     // or held; the legacy literal remains the off/shadow (dormant) value.
-    current: z.enum(['projected_metrics_calculator', 'current_forecast_v2']),
-    actual: z.literal('actual_metrics_calculator'),
+    current: z.enum(['projected_metrics_calculator', 'current_forecast_v2', 'unavailable']),
+    actual: z.enum(['actual_metrics_calculator', 'published_investment_facts']),
   })
   .strict();
 
@@ -268,6 +271,7 @@ export const DualForecastResponseSchema = z
     navAnchoring: DualForecastNavAnchoringSchema.nullable(),
     currentProjection: DualForecastCurrentProjectionSchema,
     currentForecastV2: DualForecastCurrentForecastV2Schema.optional(),
+    investmentComparison: InvestmentComparisonSchema.optional(),
     warnings: z.array(z.string()),
   })
   .strict();

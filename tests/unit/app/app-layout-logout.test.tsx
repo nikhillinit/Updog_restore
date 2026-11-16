@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   bindFundWorkspaceActor: vi.fn(),
   unbindFundWorkspaceActor: vi.fn(),
   fundConstructionHeader: vi.fn(),
+  dynamicFundHeader: vi.fn(),
 }));
 
 vi.mock('@/lib/queryClient', async (importOriginal) => {
@@ -18,17 +19,22 @@ vi.mock('@/contexts/FundContext', () => ({
   useFundContext: () => ({ currentFund: null, needsSetup: false, isLoading: false }),
 }));
 vi.mock('@/components/layout/sidebar', () => ({ default: () => null }));
-vi.mock('@/components/layout/dynamic-fund-header', () => ({ default: () => null }));
+vi.mock('@/components/layout/dynamic-fund-header', () => ({
+  default: () => mocks.dynamicFundHeader(),
+}));
 vi.mock('@/components/wizard/FundConstructionKpiHeader', () => ({
   FundConstructionKpiHeader: () => mocks.fundConstructionHeader(),
 }));
-vi.mock('@/components/layout/navigation-config', () => ({
-  getActiveNavigationId: () => 'dashboard',
-  getFooterNavigationItems: () => [],
-  getNavigationItems: () => [],
-  isNavigationItemEnabled: () => true,
-  resolveNavigationHref: () => '/dashboard',
-}));
+vi.mock('@/components/layout/navigation-config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/layout/navigation-config')>();
+  return {
+    ...actual,
+    getFooterNavigationItems: () => [],
+    getNavigationItems: () => [],
+    isNavigationItemEnabled: () => true,
+    resolveNavigationHref: () => '/dashboard',
+  };
+});
 vi.mock('@/stores/fundStore', () => ({
   bindFundWorkspaceActor: mocks.bindFundWorkspaceActor,
   unbindFundWorkspaceActor: mocks.unbindFundWorkspaceActor,
@@ -61,6 +67,7 @@ describe('AppLayout logout', () => {
     mocks.bindFundWorkspaceActor.mockReset().mockResolvedValue(undefined);
     mocks.unbindFundWorkspaceActor.mockReset();
     mocks.fundConstructionHeader.mockReset().mockReturnValue(null);
+    mocks.dynamicFundHeader.mockReset().mockReturnValue(<div>Legacy fund metrics</div>);
     window.history.pushState({}, '', '/dashboard');
   });
 
@@ -69,40 +76,76 @@ describe('AppLayout logout', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('keeps content and logout available while the fund construction header is suspended', async () => {
-    window.history.pushState({}, '', '/fund-setup');
-    let resolveHeader!: () => void;
-    let headerReady = false;
-    const headerLoading = new Promise<void>((resolve) => {
-      resolveHeader = resolve;
-    });
-    mocks.fundConstructionHeader.mockImplementation(() => {
-      if (!headerReady) throw headerLoading;
-      return <div>Fund construction KPIs</div>;
-    });
-    const client = renderLayout();
+  it.each(['/forecasting', '/financial-modeling'])(
+    'leaves investment metrics to the evidence-backed forecast view at %s',
+    async (path) => {
+      window.history.pushState({}, '', `${path}?fundId=101`);
+      renderLayout();
 
-    try {
       expect(await screen.findByText('Protected Content')).toBeVisible();
       expect(screen.getByRole('button', { name: 'Log out' })).toBeEnabled();
-      expect(screen.queryByText('Fund construction KPIs')).not.toBeInTheDocument();
-      expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(session);
-    } finally {
-      await act(async () => {
-        headerReady = true;
-        resolveHeader();
-      });
+      expect(screen.queryByText('Legacy fund metrics')).not.toBeInTheDocument();
+      expect(mocks.dynamicFundHeader).not.toHaveBeenCalled();
     }
+  );
 
-    expect(await screen.findByText('Fund construction KPIs')).toBeVisible();
-    const unbindsBeforeLogout = mocks.unbindFundWorkspaceActor.mock.calls.length;
-    mocks.apiRequest.mockResolvedValueOnce(undefined);
-    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+  it('retains the shared fund metrics header outside forecast routes', async () => {
+    window.history.pushState({}, '', '/portfolio?fundId=101');
+    renderLayout();
 
-    await waitFor(() => expect(window.location.pathname).toBe('/login'));
-    expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toBeNull();
-    expect(mocks.unbindFundWorkspaceActor).toHaveBeenCalledTimes(unbindsBeforeLogout + 1);
+    expect(await screen.findByText('Legacy fund metrics')).toBeVisible();
   });
+
+  it.each([
+    {
+      name: 'fund construction',
+      path: '/fund-setup',
+      header: mocks.fundConstructionHeader,
+      label: 'Fund construction KPIs',
+    },
+    {
+      name: 'dynamic fund',
+      path: '/portfolio?fundId=101',
+      header: mocks.dynamicFundHeader,
+      label: 'Legacy fund metrics',
+    },
+  ])(
+    'keeps content and logout available while the $name header is suspended',
+    async ({ path, header, label }) => {
+      window.history.pushState({}, '', path);
+      let resolveHeader!: () => void;
+      let headerReady = false;
+      const headerLoading = new Promise<void>((resolve) => {
+        resolveHeader = resolve;
+      });
+      header.mockImplementation(() => {
+        if (!headerReady) throw headerLoading;
+        return <div>{label}</div>;
+      });
+      const client = renderLayout();
+
+      try {
+        expect(await screen.findByText('Protected Content')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Log out' })).toBeEnabled();
+        expect(screen.queryByText(label)).not.toBeInTheDocument();
+        expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toEqual(session);
+      } finally {
+        await act(async () => {
+          headerReady = true;
+          resolveHeader();
+        });
+      }
+
+      expect(await screen.findByText(label)).toBeVisible();
+      const unbindsBeforeLogout = mocks.unbindFundWorkspaceActor.mock.calls.length;
+      mocks.apiRequest.mockResolvedValueOnce(undefined);
+      fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+
+      await waitFor(() => expect(window.location.pathname).toBe('/login'));
+      expect(client.getQueryData(AUTH_SESSION_QUERY_KEY)).toBeNull();
+      expect(mocks.unbindFundWorkspaceActor).toHaveBeenCalledTimes(unbindsBeforeLogout + 1);
+    }
+  );
 
   it('keeps the active session visible and retryable when logout never reaches the server', async () => {
     mocks.apiRequest.mockRejectedValueOnce(new TypeError('Network request failed'));

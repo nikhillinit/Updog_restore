@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
 import { getDualForecast } from '../services/current-forecast-serving-seam';
 import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
@@ -11,6 +12,24 @@ import { createRouteLogger } from '../lib/route-logger.js';
 const routeLog = createRouteLogger('dual-forecast');
 
 const router = Router();
+
+const comparisonQuery = z
+  .object({
+    asOfDate: z.string().date().optional(),
+    baselineSnapshotId: z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .transform(Number)
+      .pipe(z.number().int().positive().safe())
+      .optional(),
+    baselineStartMonth: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+      .optional(),
+  })
+  .refine((query) => Boolean(query.baselineSnapshotId) === Boolean(query.baselineStartMonth), {
+    message: 'Baseline snapshot and calendar start month must be supplied together.',
+  });
 
 function validateFundIdParam(req: Request, res: Response, next: NextFunction) {
   try {
@@ -35,7 +54,17 @@ router['get'](
       const fundIdParam = req.params['fundId'];
       const fundId = toNumber(fundIdParam, 'fundId', { integer: true, min: 1 });
 
-      const dualForecast = await getDualForecast(fundId);
+      const query = comparisonQuery.safeParse(req.query);
+      if (!query.success) {
+        return res.status(400).json({
+          error: 'INVALID_QUERY',
+          message: 'Use a valid asOfDate and paired baselineSnapshotId/baselineStartMonth.',
+        });
+      }
+      const dualForecast =
+        Object.keys(query.data).length === 0
+          ? await getDualForecast(fundId)
+          : await getDualForecast(fundId, query.data);
 
       // Egress contract parse (ADR-031): a contract-invalid payload is a
       // defect, not staleness, so it fails loudly instead of shipping.
