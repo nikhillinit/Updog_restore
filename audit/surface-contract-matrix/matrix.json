@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "1268b257047dcfa6dfafc66c3326b68cffccecae",
-    "snapshot_id": "snapshot:d669d71735f322ea5cdd03479c824b19b148525bdd5c9f8c89639d18d6c8bda9"
+    "git_head": "875811596b15e27cf4a157cb03ef41f5c26ab757",
+    "snapshot_id": "snapshot:5d63b2dd95963dfd96f75fc7b90c57b901e0795934bf123bcb0c629400d73e64"
   },
   "rows": [
     {
@@ -11146,7 +11146,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1305 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1310 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/actuals/metrics",
@@ -11162,12 +11162,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1305",
+              "site": "server/routes/lp-reporting/imports.ts:1310",
               "role": "guard",
               "effective_mount_order": 277
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1305",
+              "site": "server/routes/lp-reporting/imports.ts:1310",
               "role": "handler",
               "effective_mount_order": 277
             }
@@ -11177,8 +11177,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 1305,
-              "evidence": "server/routes/lp-reporting/imports.ts:1305 route-local authentication middleware"
+              "line": 1310,
+              "evidence": "server/routes/lp-reporting/imports.ts:1310 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -11203,7 +11203,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1305 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1310 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/actuals/metrics",
@@ -11219,12 +11219,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1305",
+              "site": "server/routes/lp-reporting/imports.ts:1310",
               "role": "guard",
               "effective_mount_order": 277
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1305",
+              "site": "server/routes/lp-reporting/imports.ts:1310",
               "role": "handler",
               "effective_mount_order": 277
             }
@@ -11234,8 +11234,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 1305,
-              "evidence": "server/routes/lp-reporting/imports.ts:1305 route-local authentication middleware"
+              "line": 1310,
+              "evidence": "server/routes/lp-reporting/imports.ts:1310 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -11263,7 +11263,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1305"
+        "server/routes/lp-reporting/imports.ts:1310"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/actuals/metrics",
@@ -11292,8 +11292,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 1305,
-          "evidence": "server/routes/lp-reporting/imports.ts:1305 route-local authentication middleware"
+          "line": 1310,
+          "evidence": "server/routes/lp-reporting/imports.ts:1310 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -11349,9 +11349,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/actuals/metrics",
@@ -11412,9 +11412,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/actuals/metrics",
@@ -11442,7 +11442,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "964449fa8a30a4cbddf55ec3cc8352727df69e1c72eb8a9328e090dcd7e37a3d",
+      "contract_fingerprint": "15c398b40637e53662cf596885c09499a7dea96858217cf97445f73b224532f3",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -14920,7 +14920,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1254 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1259 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/financial-facts/latest-reference",
@@ -14936,12 +14936,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1254",
+              "site": "server/routes/lp-reporting/imports.ts:1259",
               "role": "guard",
               "effective_mount_order": 276
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1254",
+              "site": "server/routes/lp-reporting/imports.ts:1259",
               "role": "handler",
               "effective_mount_order": 276
             }
@@ -14970,7 +14970,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1254 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1259 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/financial-facts/latest-reference",
@@ -14986,12 +14986,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1254",
+              "site": "server/routes/lp-reporting/imports.ts:1259",
               "role": "guard",
               "effective_mount_order": 276
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1254",
+              "site": "server/routes/lp-reporting/imports.ts:1259",
               "role": "handler",
               "effective_mount_order": 276
             }
@@ -15023,7 +15023,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1254"
+        "server/routes/lp-reporting/imports.ts:1259"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
@@ -15102,9 +15102,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
@@ -15165,9 +15165,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
@@ -15229,7 +15229,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:991 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:996 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15245,12 +15245,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:991",
+              "site": "server/routes/lp-reporting/imports.ts:996",
               "role": "guard",
               "effective_mount_order": 268
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:991",
+              "site": "server/routes/lp-reporting/imports.ts:996",
               "role": "handler",
               "effective_mount_order": 268
             }
@@ -15279,7 +15279,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:991 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:996 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15295,12 +15295,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:991",
+              "site": "server/routes/lp-reporting/imports.ts:996",
               "role": "guard",
               "effective_mount_order": 268
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:991",
+              "site": "server/routes/lp-reporting/imports.ts:996",
               "role": "handler",
               "effective_mount_order": 268
             }
@@ -15332,7 +15332,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:991"
+        "server/routes/lp-reporting/imports.ts:996"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15411,9 +15411,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15474,9 +15474,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15539,7 +15539,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1016 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1021 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15555,12 +15555,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1016",
+              "site": "server/routes/lp-reporting/imports.ts:1021",
               "role": "guard",
               "effective_mount_order": 269
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1016",
+              "site": "server/routes/lp-reporting/imports.ts:1021",
               "role": "handler",
               "effective_mount_order": 269
             }
@@ -15589,7 +15589,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1016 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1021 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15605,12 +15605,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1016",
+              "site": "server/routes/lp-reporting/imports.ts:1021",
               "role": "guard",
               "effective_mount_order": 269
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1016",
+              "site": "server/routes/lp-reporting/imports.ts:1021",
               "role": "handler",
               "effective_mount_order": 269
             }
@@ -15642,7 +15642,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1016"
+        "server/routes/lp-reporting/imports.ts:1021"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15721,9 +15721,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15784,9 +15784,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15849,7 +15849,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1145 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1150 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/history",
@@ -15865,12 +15865,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1145",
+              "site": "server/routes/lp-reporting/imports.ts:1150",
               "role": "guard",
               "effective_mount_order": 273
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1145",
+              "site": "server/routes/lp-reporting/imports.ts:1150",
               "role": "handler",
               "effective_mount_order": 273
             }
@@ -15899,7 +15899,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1145 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1150 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/history",
@@ -15915,12 +15915,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1145",
+              "site": "server/routes/lp-reporting/imports.ts:1150",
               "role": "guard",
               "effective_mount_order": 273
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1145",
+              "site": "server/routes/lp-reporting/imports.ts:1150",
               "role": "handler",
               "effective_mount_order": 273
             }
@@ -15952,7 +15952,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1145"
+        "server/routes/lp-reporting/imports.ts:1150"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
@@ -16031,9 +16031,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
@@ -16094,9 +16094,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
@@ -16182,7 +16182,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1120 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1125 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16198,12 +16198,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1120",
+              "site": "server/routes/lp-reporting/imports.ts:1125",
               "role": "guard",
               "effective_mount_order": 272
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1120",
+              "site": "server/routes/lp-reporting/imports.ts:1125",
               "role": "handler",
               "effective_mount_order": 272
             }
@@ -16232,7 +16232,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1120 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1125 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16248,12 +16248,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1120",
+              "site": "server/routes/lp-reporting/imports.ts:1125",
               "role": "guard",
               "effective_mount_order": 272
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1120",
+              "site": "server/routes/lp-reporting/imports.ts:1125",
               "role": "handler",
               "effective_mount_order": 272
             }
@@ -16285,7 +16285,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1120"
+        "server/routes/lp-reporting/imports.ts:1125"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16364,9 +16364,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16427,9 +16427,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16516,7 +16516,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:785 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:790 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches/:batchId",
@@ -16527,12 +16527,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:785",
+              "site": "server/routes/lp-reporting/imports.ts:790",
               "role": "guard",
               "effective_mount_order": 262
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:785",
+              "site": "server/routes/lp-reporting/imports.ts:790",
               "role": "handler",
               "effective_mount_order": 262
             }
@@ -16542,8 +16542,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 785,
-              "evidence": "server/routes/lp-reporting/imports.ts:785 route-local authentication middleware"
+              "line": 790,
+              "evidence": "server/routes/lp-reporting/imports.ts:790 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -16568,7 +16568,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:785 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:790 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches/:batchId",
@@ -16579,12 +16579,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:785",
+              "site": "server/routes/lp-reporting/imports.ts:790",
               "role": "guard",
               "effective_mount_order": 262
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:785",
+              "site": "server/routes/lp-reporting/imports.ts:790",
               "role": "handler",
               "effective_mount_order": 262
             }
@@ -16594,8 +16594,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 785,
-              "evidence": "server/routes/lp-reporting/imports.ts:785 route-local authentication middleware"
+              "line": 790,
+              "evidence": "server/routes/lp-reporting/imports.ts:790 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -16623,7 +16623,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:785"
+        "server/routes/lp-reporting/imports.ts:790"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/imports/batches/:batchId",
@@ -16652,8 +16652,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 785,
-          "evidence": "server/routes/lp-reporting/imports.ts:785 route-local authentication middleware"
+          "line": 790,
+          "evidence": "server/routes/lp-reporting/imports.ts:790 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -16709,9 +16709,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/batches/:batchId",
@@ -16772,9 +16772,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/batches/:batchId",
@@ -16802,7 +16802,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "98a909801a78a5fe2abbcad14c3243d203cc9bc2321d692b97983fab3ef44ef3",
+      "contract_fingerprint": "0370901049f4cceb96eb5cf63ed04bb3382afa717f4c08d614a981c86fb55e07",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -26208,7 +26208,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:809 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:814 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases",
@@ -26219,12 +26219,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:809",
+              "site": "server/routes/lp-reporting/imports.ts:814",
               "role": "guard",
               "effective_mount_order": 263
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:809",
+              "site": "server/routes/lp-reporting/imports.ts:814",
               "role": "handler",
               "effective_mount_order": 263
             }
@@ -26234,8 +26234,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 809,
-              "evidence": "server/routes/lp-reporting/imports.ts:809 route-local authentication middleware"
+              "line": 814,
+              "evidence": "server/routes/lp-reporting/imports.ts:814 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -26260,7 +26260,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:809 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:814 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases",
@@ -26271,12 +26271,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:809",
+              "site": "server/routes/lp-reporting/imports.ts:814",
               "role": "guard",
               "effective_mount_order": 263
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:809",
+              "site": "server/routes/lp-reporting/imports.ts:814",
               "role": "handler",
               "effective_mount_order": 263
             }
@@ -26286,8 +26286,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 809,
-              "evidence": "server/routes/lp-reporting/imports.ts:809 route-local authentication middleware"
+              "line": 814,
+              "evidence": "server/routes/lp-reporting/imports.ts:814 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -26315,7 +26315,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:809"
+        "server/routes/lp-reporting/imports.ts:814"
       ],
       "source_mapping": {
         "kg_node": "api:GET:/api/funds/:fundId/reconciliation/cases",
@@ -26344,8 +26344,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 809,
-          "evidence": "server/routes/lp-reporting/imports.ts:809 route-local authentication middleware"
+          "line": 814,
+          "evidence": "server/routes/lp-reporting/imports.ts:814 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -26401,9 +26401,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/reconciliation/cases",
@@ -26464,9 +26464,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:GET:/api/funds/:fundId/reconciliation/cases",
@@ -26494,7 +26494,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "442c6101c9c449d2ab9950f6b1c5c35f9795b7ce68b2cf389243b15e82018a1f",
+      "contract_fingerprint": "214c2f2603aaa9b63b711d10a0ee5e8854b8e0ff9042d3b42000d66d3b71a9d7",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -72485,7 +72485,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:950 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:955 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -72501,12 +72501,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:950",
+              "site": "server/routes/lp-reporting/imports.ts:955",
               "role": "guard",
               "effective_mount_order": 267
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:950",
+              "site": "server/routes/lp-reporting/imports.ts:955",
               "role": "handler",
               "effective_mount_order": 267
             }
@@ -72535,7 +72535,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:950 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:955 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -72551,12 +72551,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:950",
+              "site": "server/routes/lp-reporting/imports.ts:955",
               "role": "guard",
               "effective_mount_order": 267
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:950",
+              "site": "server/routes/lp-reporting/imports.ts:955",
               "role": "handler",
               "effective_mount_order": 267
             }
@@ -72588,7 +72588,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:950"
+        "server/routes/lp-reporting/imports.ts:955"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -72667,9 +72667,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -72730,9 +72730,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -72818,7 +72818,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1038 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1043 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/dry-run",
@@ -72834,12 +72834,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1038",
+              "site": "server/routes/lp-reporting/imports.ts:1043",
               "role": "guard",
               "effective_mount_order": 270
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1038",
+              "site": "server/routes/lp-reporting/imports.ts:1043",
               "role": "handler",
               "effective_mount_order": 270
             }
@@ -72868,7 +72868,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1038 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1043 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/dry-run",
@@ -72884,12 +72884,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1038",
+              "site": "server/routes/lp-reporting/imports.ts:1043",
               "role": "guard",
               "effective_mount_order": 270
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1038",
+              "site": "server/routes/lp-reporting/imports.ts:1043",
               "role": "handler",
               "effective_mount_order": 270
             }
@@ -72921,7 +72921,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1038"
+        "server/routes/lp-reporting/imports.ts:1043"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
@@ -73000,9 +73000,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
@@ -73063,9 +73063,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
@@ -73128,7 +73128,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1370 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1375 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/main-fund",
@@ -73144,12 +73144,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1370",
+              "site": "server/routes/lp-reporting/imports.ts:1375",
               "role": "guard",
               "effective_mount_order": 278
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1370",
+              "site": "server/routes/lp-reporting/imports.ts:1375",
               "role": "handler",
               "effective_mount_order": 278
             }
@@ -73159,8 +73159,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 1370,
-              "evidence": "server/routes/lp-reporting/imports.ts:1370 route-local authentication middleware"
+              "line": 1375,
+              "evidence": "server/routes/lp-reporting/imports.ts:1375 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -73185,7 +73185,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1370 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1375 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/main-fund",
@@ -73201,12 +73201,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1370",
+              "site": "server/routes/lp-reporting/imports.ts:1375",
               "role": "guard",
               "effective_mount_order": 278
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1370",
+              "site": "server/routes/lp-reporting/imports.ts:1375",
               "role": "handler",
               "effective_mount_order": 278
             }
@@ -73216,8 +73216,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 1370,
-              "evidence": "server/routes/lp-reporting/imports.ts:1370 route-local authentication middleware"
+              "line": 1375,
+              "evidence": "server/routes/lp-reporting/imports.ts:1375 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -73245,7 +73245,7 @@
       "environment": "unknown",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1370"
+        "server/routes/lp-reporting/imports.ts:1375"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
@@ -73274,8 +73274,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 1370,
-          "evidence": "server/routes/lp-reporting/imports.ts:1370 route-local authentication middleware"
+          "line": 1375,
+          "evidence": "server/routes/lp-reporting/imports.ts:1375 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -73331,9 +73331,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
@@ -73394,9 +73394,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
@@ -73423,7 +73423,7 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
-      "contract_fingerprint": "f49911016fb7943712818e54e09e4addd6c3038e8a16a37835136c84cbb88d27",
+      "contract_fingerprint": "3a0657afb432373f7e09b745190d03f3e7ebf20598cea558f2bc887ef716d35f",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -73462,7 +73462,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1064 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1069 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/publish",
@@ -73478,12 +73478,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1064",
+              "site": "server/routes/lp-reporting/imports.ts:1069",
               "role": "guard",
               "effective_mount_order": 271
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1064",
+              "site": "server/routes/lp-reporting/imports.ts:1069",
               "role": "handler",
               "effective_mount_order": 271
             }
@@ -73512,7 +73512,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1064 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1069 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/publish",
@@ -73528,12 +73528,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1064",
+              "site": "server/routes/lp-reporting/imports.ts:1069",
               "role": "guard",
               "effective_mount_order": 271
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1064",
+              "site": "server/routes/lp-reporting/imports.ts:1069",
               "role": "handler",
               "effective_mount_order": 271
             }
@@ -73565,7 +73565,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1064"
+        "server/routes/lp-reporting/imports.ts:1069"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/publish",
@@ -73644,9 +73644,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/publish",
@@ -73707,9 +73707,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/publish",
@@ -73771,7 +73771,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1170 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1175 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -73787,12 +73787,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1170",
+              "site": "server/routes/lp-reporting/imports.ts:1175",
               "role": "guard",
               "effective_mount_order": 274
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1170",
+              "site": "server/routes/lp-reporting/imports.ts:1175",
               "role": "handler",
               "effective_mount_order": 274
             }
@@ -73821,7 +73821,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1170 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1175 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -73837,12 +73837,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1170",
+              "site": "server/routes/lp-reporting/imports.ts:1175",
               "role": "guard",
               "effective_mount_order": 274
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1170",
+              "site": "server/routes/lp-reporting/imports.ts:1175",
               "role": "handler",
               "effective_mount_order": 274
             }
@@ -73874,7 +73874,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1170"
+        "server/routes/lp-reporting/imports.ts:1175"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -73953,9 +73953,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -74016,9 +74016,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -74104,7 +74104,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1198 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1203 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -74120,12 +74120,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1198",
+              "site": "server/routes/lp-reporting/imports.ts:1203",
               "role": "guard",
               "effective_mount_order": 275
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1198",
+              "site": "server/routes/lp-reporting/imports.ts:1203",
               "role": "handler",
               "effective_mount_order": 275
             }
@@ -74154,7 +74154,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:1198 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:1203 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -74170,12 +74170,12 @@
           ],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:1198",
+              "site": "server/routes/lp-reporting/imports.ts:1203",
               "role": "guard",
               "effective_mount_order": 275
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:1198",
+              "site": "server/routes/lp-reporting/imports.ts:1203",
               "role": "handler",
               "effective_mount_order": 275
             }
@@ -74207,7 +74207,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:1198"
+        "server/routes/lp-reporting/imports.ts:1203"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -74286,9 +74286,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -74349,9 +74349,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -74438,7 +74438,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:604 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:609 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/artifacts",
@@ -74449,12 +74449,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:604",
+              "site": "server/routes/lp-reporting/imports.ts:609",
               "role": "guard",
               "effective_mount_order": 259
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:604",
+              "site": "server/routes/lp-reporting/imports.ts:609",
               "role": "handler",
               "effective_mount_order": 259
             }
@@ -74464,8 +74464,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 604,
-              "evidence": "server/routes/lp-reporting/imports.ts:604 route-local authentication middleware"
+              "line": 609,
+              "evidence": "server/routes/lp-reporting/imports.ts:609 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -74490,7 +74490,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:604 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:609 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/artifacts",
@@ -74501,12 +74501,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:604",
+              "site": "server/routes/lp-reporting/imports.ts:609",
               "role": "guard",
               "effective_mount_order": 259
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:604",
+              "site": "server/routes/lp-reporting/imports.ts:609",
               "role": "handler",
               "effective_mount_order": 259
             }
@@ -74516,8 +74516,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 604,
-              "evidence": "server/routes/lp-reporting/imports.ts:604 route-local authentication middleware"
+              "line": 609,
+              "evidence": "server/routes/lp-reporting/imports.ts:609 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -74545,7 +74545,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:604"
+        "server/routes/lp-reporting/imports.ts:609"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -74574,8 +74574,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 604,
-          "evidence": "server/routes/lp-reporting/imports.ts:604 route-local authentication middleware"
+          "line": 609,
+          "evidence": "server/routes/lp-reporting/imports.ts:609 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -74631,9 +74631,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -74694,9 +74694,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -74724,7 +74724,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "e34e60d86e87de8b4223ce762311652716945712cbebfd28f4eff59857ff9004",
+      "contract_fingerprint": "b37a30a4bddc54cfde9745484f50f66f3fcd84efb0232df36bdd514a177276bd",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -74759,7 +74759,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:745 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:750 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches",
@@ -74770,12 +74770,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:745",
+              "site": "server/routes/lp-reporting/imports.ts:750",
               "role": "guard",
               "effective_mount_order": 261
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:745",
+              "site": "server/routes/lp-reporting/imports.ts:750",
               "role": "handler",
               "effective_mount_order": 261
             }
@@ -74785,8 +74785,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 745,
-              "evidence": "server/routes/lp-reporting/imports.ts:745 route-local authentication middleware"
+              "line": 750,
+              "evidence": "server/routes/lp-reporting/imports.ts:750 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -74811,7 +74811,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:745 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:750 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches",
@@ -74822,12 +74822,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:745",
+              "site": "server/routes/lp-reporting/imports.ts:750",
               "role": "guard",
               "effective_mount_order": 261
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:745",
+              "site": "server/routes/lp-reporting/imports.ts:750",
               "role": "handler",
               "effective_mount_order": 261
             }
@@ -74837,8 +74837,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 745,
-              "evidence": "server/routes/lp-reporting/imports.ts:745 route-local authentication middleware"
+              "line": 750,
+              "evidence": "server/routes/lp-reporting/imports.ts:750 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -74866,7 +74866,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:745"
+        "server/routes/lp-reporting/imports.ts:750"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/batches",
@@ -74895,8 +74895,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 745,
-          "evidence": "server/routes/lp-reporting/imports.ts:745 route-local authentication middleware"
+          "line": 750,
+          "evidence": "server/routes/lp-reporting/imports.ts:750 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -74952,9 +74952,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches",
@@ -75015,9 +75015,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches",
@@ -75045,7 +75045,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "37acd177027feda89fa7b4cf424dd03513a9559f89e2a1f2d3543f3f7795b902",
+      "contract_fingerprint": "8fb59061e2433a34b76141abbe79b68a2a7858a420639aefd5eb82a56eb7f6ae",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -75080,7 +75080,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:901 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:906 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -75091,12 +75091,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:901",
+              "site": "server/routes/lp-reporting/imports.ts:906",
               "role": "guard",
               "effective_mount_order": 266
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:901",
+              "site": "server/routes/lp-reporting/imports.ts:906",
               "role": "handler",
               "effective_mount_order": 266
             }
@@ -75106,8 +75106,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 901,
-              "evidence": "server/routes/lp-reporting/imports.ts:901 route-local authentication middleware"
+              "line": 906,
+              "evidence": "server/routes/lp-reporting/imports.ts:906 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75132,7 +75132,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:901 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:906 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -75143,12 +75143,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:901",
+              "site": "server/routes/lp-reporting/imports.ts:906",
               "role": "guard",
               "effective_mount_order": 266
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:901",
+              "site": "server/routes/lp-reporting/imports.ts:906",
               "role": "handler",
               "effective_mount_order": 266
             }
@@ -75158,8 +75158,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 901,
-              "evidence": "server/routes/lp-reporting/imports.ts:901 route-local authentication middleware"
+              "line": 906,
+              "evidence": "server/routes/lp-reporting/imports.ts:906 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75187,7 +75187,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:901"
+        "server/routes/lp-reporting/imports.ts:906"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -75216,8 +75216,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 901,
-          "evidence": "server/routes/lp-reporting/imports.ts:901 route-local authentication middleware"
+          "line": 906,
+          "evidence": "server/routes/lp-reporting/imports.ts:906 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -75273,9 +75273,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -75336,9 +75336,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -75366,7 +75366,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "be5454cdeacf236f1629c5926c2ee52ed881d6e6b06702dc1accd312fce7b87c",
+      "contract_fingerprint": "236f33bf9e01a479005b5bd116fa9a7200f47b4309e5640059890f7d0588b981",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -75401,7 +75401,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:530 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:535 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/ledger/commit",
@@ -75412,12 +75412,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:530",
+              "site": "server/routes/lp-reporting/imports.ts:535",
               "role": "guard",
               "effective_mount_order": 257
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:530",
+              "site": "server/routes/lp-reporting/imports.ts:535",
               "role": "handler",
               "effective_mount_order": 257
             }
@@ -75427,8 +75427,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 530,
-              "evidence": "server/routes/lp-reporting/imports.ts:530 route-local authentication middleware"
+              "line": 535,
+              "evidence": "server/routes/lp-reporting/imports.ts:535 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75453,7 +75453,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:530 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:535 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/ledger/commit",
@@ -75464,12 +75464,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:530",
+              "site": "server/routes/lp-reporting/imports.ts:535",
               "role": "guard",
               "effective_mount_order": 257
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:530",
+              "site": "server/routes/lp-reporting/imports.ts:535",
               "role": "handler",
               "effective_mount_order": 257
             }
@@ -75479,8 +75479,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 530,
-              "evidence": "server/routes/lp-reporting/imports.ts:530 route-local authentication middleware"
+              "line": 535,
+              "evidence": "server/routes/lp-reporting/imports.ts:535 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75508,7 +75508,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:530"
+        "server/routes/lp-reporting/imports.ts:535"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/ledger/commit",
@@ -75537,8 +75537,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 530,
-          "evidence": "server/routes/lp-reporting/imports.ts:530 route-local authentication middleware"
+          "line": 535,
+          "evidence": "server/routes/lp-reporting/imports.ts:535 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -75594,9 +75594,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/commit",
@@ -75657,9 +75657,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/commit",
@@ -75687,7 +75687,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "f6b2d629c5a38240f4bce7e00e91954d3ec0379d5c88bbf8ede8f2ab5f9c45a5",
+      "contract_fingerprint": "84219ef01423a74a019cdf76665ea500bf3232e89c5f9b8271453ead1f978909",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -75722,7 +75722,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:456 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:461 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/ledger/dry-run",
@@ -75733,12 +75733,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:456",
+              "site": "server/routes/lp-reporting/imports.ts:461",
               "role": "guard",
               "effective_mount_order": 255
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:456",
+              "site": "server/routes/lp-reporting/imports.ts:461",
               "role": "handler",
               "effective_mount_order": 255
             }
@@ -75748,8 +75748,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 456,
-              "evidence": "server/routes/lp-reporting/imports.ts:456 route-local authentication middleware"
+              "line": 461,
+              "evidence": "server/routes/lp-reporting/imports.ts:461 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75774,7 +75774,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:456 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:461 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/ledger/dry-run",
@@ -75785,12 +75785,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:456",
+              "site": "server/routes/lp-reporting/imports.ts:461",
               "role": "guard",
               "effective_mount_order": 255
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:456",
+              "site": "server/routes/lp-reporting/imports.ts:461",
               "role": "handler",
               "effective_mount_order": 255
             }
@@ -75800,8 +75800,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 456,
-              "evidence": "server/routes/lp-reporting/imports.ts:456 route-local authentication middleware"
+              "line": 461,
+              "evidence": "server/routes/lp-reporting/imports.ts:461 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -75829,7 +75829,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:456"
+        "server/routes/lp-reporting/imports.ts:461"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
@@ -75858,8 +75858,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 456,
-          "evidence": "server/routes/lp-reporting/imports.ts:456 route-local authentication middleware"
+          "line": 461,
+          "evidence": "server/routes/lp-reporting/imports.ts:461 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -75915,9 +75915,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
@@ -75978,9 +75978,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
@@ -76008,7 +76008,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "fa84a3ca05b3043c7784b6daf63186cf8714fb1bdcc68cdf2968578dd51c8745",
+      "contract_fingerprint": "3f40d3653ee009a00a7c815576278cd382f9bc04f9106a17f6af971f6da8ede9",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -76043,7 +76043,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:679 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:684 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/mapping-profiles",
@@ -76054,12 +76054,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:679",
+              "site": "server/routes/lp-reporting/imports.ts:684",
               "role": "guard",
               "effective_mount_order": 260
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:679",
+              "site": "server/routes/lp-reporting/imports.ts:684",
               "role": "handler",
               "effective_mount_order": 260
             }
@@ -76069,8 +76069,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 679,
-              "evidence": "server/routes/lp-reporting/imports.ts:679 route-local authentication middleware"
+              "line": 684,
+              "evidence": "server/routes/lp-reporting/imports.ts:684 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76095,7 +76095,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:679 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:684 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/mapping-profiles",
@@ -76106,12 +76106,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:679",
+              "site": "server/routes/lp-reporting/imports.ts:684",
               "role": "guard",
               "effective_mount_order": 260
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:679",
+              "site": "server/routes/lp-reporting/imports.ts:684",
               "role": "handler",
               "effective_mount_order": 260
             }
@@ -76121,8 +76121,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 679,
-              "evidence": "server/routes/lp-reporting/imports.ts:679 route-local authentication middleware"
+              "line": 684,
+              "evidence": "server/routes/lp-reporting/imports.ts:684 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76150,7 +76150,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:679"
+        "server/routes/lp-reporting/imports.ts:684"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
@@ -76179,8 +76179,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 679,
-          "evidence": "server/routes/lp-reporting/imports.ts:679 route-local authentication middleware"
+          "line": 684,
+          "evidence": "server/routes/lp-reporting/imports.ts:684 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -76236,9 +76236,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
@@ -76299,9 +76299,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
@@ -76329,7 +76329,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "234cf518838f1338597539e01be4b426559bfd4037b34ec0e30f0d4f8812575f",
+      "contract_fingerprint": "aa4a4adca517465cd1b02b573e7ad4bec73f9a0c7e738bf833de4884a3de8d21",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -76364,7 +76364,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:567 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:572 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/valuation-marks/commit",
@@ -76375,12 +76375,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:567",
+              "site": "server/routes/lp-reporting/imports.ts:572",
               "role": "guard",
               "effective_mount_order": 258
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:567",
+              "site": "server/routes/lp-reporting/imports.ts:572",
               "role": "handler",
               "effective_mount_order": 258
             }
@@ -76390,8 +76390,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 567,
-              "evidence": "server/routes/lp-reporting/imports.ts:567 route-local authentication middleware"
+              "line": 572,
+              "evidence": "server/routes/lp-reporting/imports.ts:572 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76416,7 +76416,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:567 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:572 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/valuation-marks/commit",
@@ -76427,12 +76427,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:567",
+              "site": "server/routes/lp-reporting/imports.ts:572",
               "role": "guard",
               "effective_mount_order": 258
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:567",
+              "site": "server/routes/lp-reporting/imports.ts:572",
               "role": "handler",
               "effective_mount_order": 258
             }
@@ -76442,8 +76442,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 567,
-              "evidence": "server/routes/lp-reporting/imports.ts:567 route-local authentication middleware"
+              "line": 572,
+              "evidence": "server/routes/lp-reporting/imports.ts:572 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76471,7 +76471,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:567"
+        "server/routes/lp-reporting/imports.ts:572"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
@@ -76500,8 +76500,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 567,
-          "evidence": "server/routes/lp-reporting/imports.ts:567 route-local authentication middleware"
+          "line": 572,
+          "evidence": "server/routes/lp-reporting/imports.ts:572 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -76557,9 +76557,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
@@ -76620,9 +76620,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
@@ -76650,7 +76650,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "e2ddc577ae66824794aa642bddc05be0f2bf78b5c36252823a9e912ea45670ed",
+      "contract_fingerprint": "29b3a73990db29b5219554e7185ac5018fa668ce4219e33e0ed51c6f9752de1d",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -76685,7 +76685,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:493 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:498 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -76696,12 +76696,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:493",
+              "site": "server/routes/lp-reporting/imports.ts:498",
               "role": "guard",
               "effective_mount_order": 256
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:493",
+              "site": "server/routes/lp-reporting/imports.ts:498",
               "role": "handler",
               "effective_mount_order": 256
             }
@@ -76711,8 +76711,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 493,
-              "evidence": "server/routes/lp-reporting/imports.ts:493 route-local authentication middleware"
+              "line": 498,
+              "evidence": "server/routes/lp-reporting/imports.ts:498 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76737,7 +76737,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:493 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:498 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -76748,12 +76748,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:493",
+              "site": "server/routes/lp-reporting/imports.ts:498",
               "role": "guard",
               "effective_mount_order": 256
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:493",
+              "site": "server/routes/lp-reporting/imports.ts:498",
               "role": "handler",
               "effective_mount_order": 256
             }
@@ -76763,8 +76763,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 493,
-              "evidence": "server/routes/lp-reporting/imports.ts:493 route-local authentication middleware"
+              "line": 498,
+              "evidence": "server/routes/lp-reporting/imports.ts:498 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -76792,7 +76792,7 @@
       "environment": "prod-safe",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:493"
+        "server/routes/lp-reporting/imports.ts:498"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -76821,8 +76821,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 493,
-          "evidence": "server/routes/lp-reporting/imports.ts:493 route-local authentication middleware"
+          "line": 498,
+          "evidence": "server/routes/lp-reporting/imports.ts:498 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -76878,9 +76878,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -76941,9 +76941,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -76971,7 +76971,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "66e81bdd5d0f7d44a0af18c7e08c3898d60415d2740ec25bd8083ab0af4d23c7",
+      "contract_fingerprint": "cbe18374dba50f757b258d4d808fbc470c77e229673d79020d88a5ce8534da24",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -86638,7 +86638,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:833 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:838 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -86649,12 +86649,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:833",
+              "site": "server/routes/lp-reporting/imports.ts:838",
               "role": "guard",
               "effective_mount_order": 264
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:833",
+              "site": "server/routes/lp-reporting/imports.ts:838",
               "role": "handler",
               "effective_mount_order": 264
             }
@@ -86664,8 +86664,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 833,
-              "evidence": "server/routes/lp-reporting/imports.ts:833 route-local authentication middleware"
+              "line": 838,
+              "evidence": "server/routes/lp-reporting/imports.ts:838 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -86690,7 +86690,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:833 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:838 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -86701,12 +86701,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:833",
+              "site": "server/routes/lp-reporting/imports.ts:838",
               "role": "guard",
               "effective_mount_order": 264
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:833",
+              "site": "server/routes/lp-reporting/imports.ts:838",
               "role": "handler",
               "effective_mount_order": 264
             }
@@ -86716,8 +86716,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 833,
-              "evidence": "server/routes/lp-reporting/imports.ts:833 route-local authentication middleware"
+              "line": 838,
+              "evidence": "server/routes/lp-reporting/imports.ts:838 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -86745,7 +86745,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:833"
+        "server/routes/lp-reporting/imports.ts:838"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -86774,8 +86774,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 833,
-          "evidence": "server/routes/lp-reporting/imports.ts:833 route-local authentication middleware"
+          "line": 838,
+          "evidence": "server/routes/lp-reporting/imports.ts:838 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -86831,9 +86831,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -86894,9 +86894,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -86924,7 +86924,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "2e89465ae7c371eab968c6c24414fb0cba55c6629f3236b1ec4651f41f4292d5",
+      "contract_fingerprint": "9460b2ba5359d19764463eeaa43442452b82b5c1818c1ad8ed08e934eb810f02",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
@@ -86959,7 +86959,7 @@
         {
           "deployment": "local-process",
           "runtime": "create_server",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:872 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:877 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -86970,12 +86970,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:872",
+              "site": "server/routes/lp-reporting/imports.ts:877",
               "role": "guard",
               "effective_mount_order": 265
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:872",
+              "site": "server/routes/lp-reporting/imports.ts:877",
               "role": "handler",
               "effective_mount_order": 265
             }
@@ -86985,8 +86985,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 872,
-              "evidence": "server/routes/lp-reporting/imports.ts:872 route-local authentication middleware"
+              "line": 877,
+              "evidence": "server/routes/lp-reporting/imports.ts:877 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -87011,7 +87011,7 @@
         {
           "deployment": "vercel-api",
           "runtime": "make_app",
-          "mount_evidence": "server/routes/lp-reporting/imports.ts:872 runtime registration",
+          "mount_evidence": "server/routes/lp-reporting/imports.ts:877 runtime registration",
           "ingresses": [
             {
               "external_path": "/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -87022,12 +87022,12 @@
           "conditions": [],
           "definitions": [
             {
-              "site": "server/routes/lp-reporting/imports.ts:872",
+              "site": "server/routes/lp-reporting/imports.ts:877",
               "role": "guard",
               "effective_mount_order": 265
             },
             {
-              "site": "server/routes/lp-reporting/imports.ts:872",
+              "site": "server/routes/lp-reporting/imports.ts:877",
               "role": "handler",
               "effective_mount_order": 265
             }
@@ -87037,8 +87037,8 @@
               "kind": "guard",
               "boundary": "authenticated",
               "file": "server/routes/lp-reporting/imports.ts",
-              "line": 872,
-              "evidence": "server/routes/lp-reporting/imports.ts:872 route-local authentication middleware"
+              "line": 877,
+              "evidence": "server/routes/lp-reporting/imports.ts:877 route-local authentication middleware"
             },
             {
               "kind": "policy-boundary",
@@ -87066,7 +87066,7 @@
       "environment": "staged-only",
       "owner": "lp-reporting",
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:872"
+        "server/routes/lp-reporting/imports.ts:877"
       ],
       "source_mapping": {
         "kg_node": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -87095,8 +87095,8 @@
           "kind": "guard",
           "boundary": "authenticated",
           "file": "server/routes/lp-reporting/imports.ts",
-          "line": 872,
-          "evidence": "server/routes/lp-reporting/imports.ts:872 route-local authentication middleware"
+          "line": 877,
+          "evidence": "server/routes/lp-reporting/imports.ts:877 route-local authentication middleware"
         },
         {
           "kind": "policy-boundary",
@@ -87152,9 +87152,9 @@
             "deployment": "local-process",
             "runtime": "create_server",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -87215,9 +87215,9 @@
             "deployment": "vercel-api",
             "runtime": "make_app",
             "layer": "unit",
-            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:157",
+            "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "df4d9883911e43c7bc826abdacd1ae476e5ed3f0eea0e9afb91e74e77df26dd2"
+            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -87245,7 +87245,7 @@
       "decision_suggestion": "in-contract",
       "decision_status": "proposed",
       "decision_evidence": "docs/1-plans/F_1.23.0_security-dependency-remediation.plan.md#surface-source-review",
-      "contract_fingerprint": "8b7cf65b927c72af316de3146389d3fa09971bc4156b003fcd145cd8e2e930f4",
+      "contract_fingerprint": "906532bf92016c53930723fef27976c80cedece0d9f8f137fa4fa1016b83be4f",
       "approved_source_hashes": [],
       "machine_suggestions": {
         "owner": "lp-reporting",
