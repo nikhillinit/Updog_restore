@@ -385,9 +385,11 @@ export function capitalPlanMemoSections(
           {
             label: `${allocation.name} / ${label} / Primary capital denominator`,
             value:
-              financing.primaryCapital.basis === 'total_primary_including_fund_check'
-                ? 'Fixed total primary capital whether fund participates or skips; other investors supply remainder'
-                : 'Fixed external primary capital; fund check adds to total',
+              financing.primaryCapital.basis === 'not_supplied'
+                ? 'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership'
+                : financing.primaryCapital.basis === 'total_primary_including_fund_check'
+                  ? 'Fixed total primary capital whether fund participates or skips; other investors supply remainder'
+                  : 'Fixed external primary capital; fund check adds to total',
           },
           ...rowsOf(financing, `${allocation.name} / ${label}`),
         ]),

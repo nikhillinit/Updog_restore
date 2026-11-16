@@ -15,12 +15,12 @@ import {
   resolveNavigationHref,
   type NavigationContext,
 } from '@/components/layout/navigation-config';
-import DynamicFundHeader from '@/components/layout/dynamic-fund-header';
 import { useFundContext } from '@/contexts/FundContext';
 import { resolveDashboardView } from '@/lib/fund-routes';
 import { bindFundWorkspaceActor, unbindFundWorkspaceActor } from '@/stores/fundStore';
 import { clearPendingCreateCommands } from '@/hooks/useIdempotencyKey';
 
+const DynamicFundHeader = lazy(() => import('@/components/layout/dynamic-fund-header'));
 const FundConstructionKpiHeader = lazy(() =>
   import('@/components/wizard/FundConstructionKpiHeader').then((module) => ({
     default: module.FundConstructionKpiHeader,
@@ -250,7 +250,9 @@ export function AppLayout({
             <FundConstructionKpiHeader />
           </Suspense>
         ) : isWorkspaceView || isForecastView ? null : (
-          <DynamicFundHeader />
+          <Suspense fallback={null}>
+            <DynamicFundHeader />
+          </Suspense>
         )}
         <div className="flex justify-end border-b border-beige-200 bg-pov-white px-4 py-1">
           {logoutError && (

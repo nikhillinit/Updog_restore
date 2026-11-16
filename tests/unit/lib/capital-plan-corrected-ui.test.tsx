@@ -4,7 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CreateCapitalPlanScenarioModal } from '@/components/scenarios/CreateCapitalPlanScenarioModal';
 import { CapitalPlanResultView } from '@/components/fund-results/CapitalPlanComparisonTable';
-import { capitalPlanMemoSections } from '@/components/fund-results/capital-plan-memo-presentation';
+import {
+  capitalPlanMemoSections,
+  formatCapitalPlanMemo,
+} from '@/components/fund-results/capital-plan-memo-presentation';
 import {
   capitalDraftRequest,
   correctedCapitalInput,
@@ -232,9 +235,35 @@ describe('corrected capital UI', () => {
     expect(result.results[0]!.contractVersion).toBe('capital-planning/2.0.0');
     expect(result.results[0]!.sourceBundle.sourceBundleHash).toBe(bundle.sourceBundleHash);
   });
-  it('renders computed corrected results and signed residuals without applying V1 labels', () => {
+  it.each([
+    [
+      'total_primary_including_fund_check',
+      'Fixed total primary capital whether fund participates or skips; other investors supply remainder',
+    ],
+    [
+      'external_primary_excluding_fund_check',
+      'Fixed external primary capital; fund check adds to total',
+    ],
+    [
+      'not_supplied',
+      'Whole-round primary capital not supplied; use known check and post-money valuation for entry ownership',
+    ],
+  ] as const)('renders %s entry financing and corrected results', (basis, label) => {
     const { input, bundle } = fixture();
     input.allocations[0]!.plannedCompanyCount = 11;
+    if (basis === 'not_supplied') {
+      input.allocations[0]!.entryFinancing = {
+        valuationUsd: '10000000.000000',
+        valuationBasis: 'post_money',
+        primaryCapital: { basis },
+      };
+    } else if (basis === 'external_primary_excluding_fund_check') {
+      input.allocations[0]!.entryFinancing.primaryCapital = {
+        basis,
+        externalPrimaryAmountUsd: '1000000.000000',
+        primary_only_excludes_secondary: true,
+      };
+    }
     const result = calculateCapitalPlanningV2({ input, sourceBundle: bundle });
     const memo = CapitalPlanningMemoV2Schema.parse({
       contractVersion: 'capital-planning-memo/2.0.0',
@@ -273,8 +302,16 @@ describe('corrected capital UI', () => {
     expect(text).toContain('User-supplied integer counts; expected solve unchanged');
     expect(text).toContain(result.construction.allocations[0]!.entered!.signedBudgetResidualUsd);
     expect(text).not.toContain('Graduation and participation independent of ownership history');
+    const entryDenominatorLabel = 'Seed / Seed / Primary capital denominator';
+    expect(
+      capitalPlanMemoSections(memo)
+        .flatMap((section) => section.rows)
+        .find((row) => row.label === entryDenominatorLabel)
+    ).toEqual({ label: entryDenominatorLabel, value: label });
+    expect(formatCapitalPlanMemo(memo)).toContain(`${entryDenominatorLabel}: ${label}`);
     render(<CapitalPlanResultView memo={memo} />);
     expect(screen.getByText('Initial investment pool and reconciliation')).toBeInTheDocument();
     expect(screen.getByText('Ownership and participation histories')).toBeInTheDocument();
+    expect(screen.getByText(entryDenominatorLabel).nextElementSibling).toHaveTextContent(label);
   });
 });
