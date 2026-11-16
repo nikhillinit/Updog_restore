@@ -578,16 +578,17 @@ export async function calculateFundScenarioSet(
   scenarioSetId: string,
   actorInput: FundScenarioMutationActor = {}
 ): Promise<FundScenarioCalculationResponseV1> {
-  if (!isFlagEnabled('enable_gp_economics_engine')) {
-    throw createHttpError(409, 'GP economics engine is disabled', {
-      code: 'ECONOMICS_DISABLED',
-    });
-  }
   return transaction(async (client) => {
     await verifyFundExists(client, fundId);
     const scenarioSet = await fetchScenarioSetDetail(client, fundId, scenarioSetId, {
       forUpdate: true,
     });
+
+    if (!isFlagEnabled('enable_gp_economics_engine')) {
+      throw createHttpError(409, 'GP economics engine is disabled', {
+        code: 'ECONOMICS_DISABLED',
+      });
+    }
 
     if (scenarioSet.archivedAt !== null) {
       throw createHttpError(409, `Scenario set ${scenarioSetId} is archived`, {

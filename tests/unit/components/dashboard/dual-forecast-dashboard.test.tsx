@@ -998,6 +998,147 @@ describe('DualForecastDashboard', () => {
     expect(screen.queryByText('Unable to load forecast data')).toBeNull();
   });
 
+  it('keeps comparison controls available when an applied baseline request fails', async () => {
+    setActiveFundContext();
+    const resultId = '22222222-2222-4222-8222-222222222222';
+    vi.spyOn(fundScenarioApi, 'fetchCapitalScenarioList').mockResolvedValue({
+      scenarioSets: [
+        {
+          id: resultId,
+          name: 'Recovery plan',
+          representation: 'capital-plan-v2',
+        },
+      ],
+    } as never);
+    vi.spyOn(fundScenarioApi, 'fetchCapitalScenarioResults').mockResolvedValue({
+      savedResult: { snapshotId: 88 },
+    } as never);
+    const dualForecastUrls: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/dashboard-summary/42')) {
+        return new Response(JSON.stringify(makeDashboardSummary()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/api/funds/42/dual-forecast')) {
+        dualForecastUrls.push(url);
+        if (url.includes('baselineSnapshotId=88')) {
+          return new Response(JSON.stringify({ message: 'comparison failed' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(makeDualForecast()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('not found', { status: 404, statusText: 'Not Found' });
+    });
+
+    renderWithQueryClient();
+
+    await screen.findByRole('option', { name: 'Recovery plan' });
+    fireEvent.change(screen.getByLabelText('Saved investment plan'), {
+      target: { value: resultId },
+    });
+    fireEvent.change(screen.getByLabelText('Baseline starts'), {
+      target: { value: '2024-03' },
+    });
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    await waitFor(() => {
+      expect(fundScenarioApi.fetchCapitalScenarioResults).toHaveBeenCalledTimes(1);
+      expect(dualForecastUrls.some((url) => url.includes('baselineSnapshotId=88'))).toBe(true);
+    });
+    expect(
+      await screen.findByText('Unable to load forecast data', {}, { timeout: 15_000 })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Actuals through')).toHaveValue('2026-10-31');
+    expect(screen.getByRole('button', { name: 'Clear baseline' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear baseline' }));
+
+    await waitFor(() => {
+      expect(dualForecastUrls.filter((url) => !url.includes('?'))).toHaveLength(1);
+    });
+    expect(await screen.findByText('Fund Value Forecast')).toBeInTheDocument();
+  }, 20_000);
+
+  it('keeps an edited cutoff available so a failed request can be corrected', async () => {
+    setActiveFundContext();
+    vi.spyOn(fundScenarioApi, 'fetchCapitalScenarioList').mockResolvedValue({
+      scenarioSets: [],
+    } as never);
+    const dualForecastUrls: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/dashboard-summary/42')) {
+        return new Response(JSON.stringify(makeDashboardSummary()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/api/funds/42/dual-forecast')) {
+        dualForecastUrls.push(url);
+        if (url.includes('asOfDate=2026-10-31')) {
+          return new Response(JSON.stringify({ message: 'comparison failed' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(makeDualForecast()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('not found', { status: 404, statusText: 'Not Found' });
+    });
+
+    renderWithQueryClient();
+
+    await screen.findByLabelText('Actuals through');
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-10-31' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    expect(
+      await screen.findByText('Unable to load forecast data', {}, { timeout: 15_000 })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Actuals through')).toHaveValue('2026-10-31');
+
+    fireEvent.change(screen.getByLabelText('Actuals through'), {
+      target: { value: '2026-11-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply comparison' }));
+
+    await waitFor(() => {
+      expect(dualForecastUrls).toContain('/api/funds/42/dual-forecast?asOfDate=2026-11-01');
+    });
+    expect(await screen.findByText('Fund Value Forecast')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actuals through')).toHaveValue('2026-11-01');
+  }, 20_000);
+
+  it('keeps comparison recovery controls when summary and forecast requests both fail', async () => {
+    setActiveFundContext();
+    stubFetch({ summary: { status: 500 }, forecast: { status: 500 } });
+
+    renderWithQueryClient();
+
+    expect(
+      await screen.findByText('Unable to load forecast data', {}, { timeout: 12_000 })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Fund summary unavailable')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actuals through')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply comparison' })).toBeInTheDocument();
+  }, 20_000);
+
   it('forecast failure blocks only the forecast region; allocation stays live (CP1)', async () => {
     setActiveFundContext();
     stubFetch({ forecast: { status: 500 } });

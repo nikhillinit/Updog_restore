@@ -265,6 +265,7 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_JWT_AUDIENCE = AUTH_AUDIENCE;
   process.env.JWT_ALG = 'HS256';
   process.env._EXPLICIT_JWT_ALG = 'HS256';
+  process.env.ENABLE_GP_ECONOMICS_ENGINE = '1';
 
   const { default: scenarioRoutes } = await import('../../../server/routes/fund-scenario-sets');
   const { signToken } = await import('../../../server/lib/auth/jwt');
@@ -293,7 +294,10 @@ async function calculateFeeProfileScenario(active: Runtime, scenarioSetId: strin
 }
 
 describe('scenario retention concurrency integration', () => {
-  const originalEnv = { ...process.env };
+  const originalEnv = {
+    ...process.env,
+    ENABLE_GP_ECONOMICS_ENGINE: process.env.ENABLE_GP_ECONOMICS_ENGINE,
+  };
 
   beforeAll(async () => {
     try {

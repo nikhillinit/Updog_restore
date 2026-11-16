@@ -244,6 +244,7 @@ export default function DualForecastDashboard() {
   }>(() => ({ fundId, request: {} }));
   const investmentRequest =
     investmentRequestState.fundId === fundId ? investmentRequestState.request : {};
+  const hasInvestmentRequest = Object.keys(investmentRequest).length > 0;
   const activeFundId = useRef(fundId);
   activeFundId.current = fundId;
   useEffect(() => {
@@ -349,7 +350,7 @@ export default function DualForecastDashboard() {
     );
   }
 
-  if (isLoading || isForecastLoading) {
+  if (isLoading || (isForecastLoading && !hasInvestmentRequest)) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="animate-pulse">
@@ -377,19 +378,6 @@ export default function DualForecastDashboard() {
   // notice; forecast failure blocks only the forecast region.
   const summaryFailed = Boolean(error) || !dashboardData;
   const forecastFailed = Boolean(forecastError) || !dualForecast;
-
-  if (summaryFailed && forecastFailed) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-error-dark font-medium">Unable to load forecast data</p>
-            <p className="text-muted-foreground mt-2">Please check API connectivity</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   // Transform real data for forecasting charts
   const currentMetrics = dashboardData?.metrics;
@@ -473,11 +461,11 @@ export default function DualForecastDashboard() {
         </div>
       )}
 
-      {!forecastFailed && dualForecast && fundId ? (
+      {fundId ? (
         <InvestmentComparisonPanel
           key={fundId}
           fundId={fundId}
-          comparison={dualForecast.investmentComparison}
+          comparison={forecastFailed ? undefined : dualForecast?.investmentComparison}
           request={investmentRequest}
           onRequestChange={(nextRequest) => {
             if (activeFundId.current === fundId) {
@@ -490,7 +478,15 @@ export default function DualForecastDashboard() {
       {/* Dual Forecast Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Value Projection Chart (forecast failure blocks only this region) */}
-        {forecastFailed || !dualForecast ? (
+        {isForecastLoading ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="font-medium">Loading forecast data…</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : forecastFailed || !dualForecast ? (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8">

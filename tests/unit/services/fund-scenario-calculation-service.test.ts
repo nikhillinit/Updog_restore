@@ -399,13 +399,48 @@ describe('fund scenario calculation service', () => {
 
   it('refuses legacy annual scenario calculation while economics execution is disabled', async () => {
     delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({ rows: [variantRow()] });
 
     await expect(calculateFundScenarioSet(1, scenarioSetId)).rejects.toMatchObject({
       statusCode: 409,
       code: 'ECONOMICS_DISABLED',
     });
-    expect(transactionMock).not.toHaveBeenCalled();
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(queryMock).toHaveBeenCalledTimes(3);
     expect(runEconomicsModelMock).not.toHaveBeenCalled();
+    expect(queryMock.mock.calls.map(([sql]) => String(sql).trim())).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(INSERT|UPDATE|DELETE)\b/i)])
+    );
+  });
+
+  it('returns the representation error before the economics gate for capital scenarios', async () => {
+    delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            ...variantRow(),
+            override_type: 'capital_plan',
+            override_payload: {},
+          },
+        ],
+      });
+
+    await expect(calculateFundScenarioSet(1, scenarioSetId)).rejects.toMatchObject({
+      statusCode: 406,
+      code: 'scenario_representation_required',
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(runEconomicsModelMock).not.toHaveBeenCalled();
+    expect(queryMock.mock.calls.map(([sql]) => String(sql).trim())).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(INSERT|UPDATE|DELETE)\b/i)])
+    );
   });
 
   it.each([
