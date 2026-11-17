@@ -172,6 +172,7 @@ g3_vercel_build_collector:
   - 'package.json'
   - 'package-lock.json'
   - '.dockerignore'
+  - '.trivyignore'
   - 'scripts/release/g3-vercel-build/package.json'
   - 'scripts/release/g3-vercel-build/package-lock.json'
   - 'scripts/release/g3-vercel-build/Dockerfile'
@@ -249,6 +250,7 @@ batch_b:
 
 pr_security:
   - '.gitleaks.toml'
+  - '.trivyignore'
   - 'package.json'
   - 'package-lock.json'
   - 'scripts/release/g3-vercel-build/package.json'
@@ -279,6 +281,7 @@ security_tests:
 
 security_relevant:
   - '.gitleaks.toml'
+  - '.trivyignore'
   - 'package.json'
   - 'package-lock.json'
   - 'scripts/release/g3-vercel-build/package.json'

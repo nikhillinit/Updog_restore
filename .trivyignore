@@ -3,3 +3,10 @@
 # Verify locally: `npm audit` → 0 vulns; Transitive deps reviewed.
 CVE-2023-30533
 CVE-2024-22363
+
+# picomatch <= 4.0.7 ReDoS via single-branch repeated extglobs (GHSA-fc5q-39xc-vjpf), HIGH, no fixed release.
+# Rationale: npm latest is 4.0.7 (2026-08-24); advisory fix link micromatch/picomatch#194 unmerged. Flagged only in
+# build tooling: G3 collector (vercel -> @vercel/nft, fast-glob/micromatch) and npm's bundled tinyglobby.
+# Root picomatch entries are dev-only; no server/shared/api runtime path passes untrusted globs to picomatch.
+# Review: docs/security/cve-exceptions.md. Expires 2027-02-15; remove once a patched picomatch ships.
+CVE-2026-112366 exp:2027-02-15
