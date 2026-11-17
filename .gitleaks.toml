@@ -56,6 +56,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow deterministic F_1.24.0 PR-B main-fund onboarding HTTP-boundary idempotency fixture (synthetic UUID v4)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*const key = 'c9ce5d2a-a51f-4146-8458-9b8f01d60368';$'''
+]
+paths = [
+  '''^tests/unit/routes/lp-reporting/actuals-pilot-routes\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Allow deterministic database-health identity test fixture"
 targetRules = ["generic-api-key"]
 condition = "AND"
@@ -103,7 +115,8 @@ paths = [
   '''^audit/surface-contract-matrix/cors-same-origin-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/pr1636-scoped-review\.json$''',
   '''^audit/surface-contract-matrix/security-dependency-20261027-scoped-review\.json$''',
-  '''^audit/surface-contract-matrix/f1240-published-investment-truth-20261112-scoped-review\.json$'''
+  '''^audit/surface-contract-matrix/f1240-published-investment-truth-20261112-scoped-review\.json$''',
+  '''^audit/surface-contract-matrix/f1240-pilot-main-fund-onboarding-20261116-scoped-review\.json$'''
 ]
 
 [[allowlists]]
