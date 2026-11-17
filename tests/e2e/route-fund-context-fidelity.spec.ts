@@ -617,7 +617,9 @@ async function installRouteFidelityApi(
     if (
       request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/scenario-sets` &&
-      url.search === ''
+      (url.search === '' ||
+        (url.searchParams.get('representation') === 'capital-plan-v2' &&
+          url.searchParams.get('includeArchived') === 'false'))
     ) {
       await fulfillJson(route, { scenarioSets: [] });
       return;
