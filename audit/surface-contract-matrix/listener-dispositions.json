@@ -47,7 +47,8 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "proposed"
+    "decision_status": "approved",
+    "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Dockerfile.railway and the Railway worker manifests are unchanged by this branch; seed-matrix forces this legacy listener to proposed on every reseed. Retain the non-product-tooling disposition approved on origin/main (fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 unchanged). No build, listener boot or provider deployment verified."
   },
   {
     "candidate_path": "Dockerfile.simple",
