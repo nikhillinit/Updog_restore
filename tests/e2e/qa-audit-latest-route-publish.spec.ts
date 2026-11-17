@@ -424,7 +424,9 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
     if (
       request.method() === 'GET' &&
       url.pathname === '/api/funds/1/scenario-sets' &&
-      url.search === ''
+      (url.search === '' ||
+        (url.searchParams.get('representation') === 'capital-plan-v2' &&
+          url.searchParams.get('includeArchived') === 'false'))
     ) {
       await route.fulfill({
         status: 200,
