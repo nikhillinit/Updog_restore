@@ -783,16 +783,36 @@ test.describe('route fund context fidelity', () => {
         timeout: 30_000,
       });
 
-      await expect(async () => {
-        expectHeaderFacts(await readHeaderText(page));
-      }).toPass({ timeout: ROUTE_READY_TIMEOUT_MS });
+      const isForecastRoute = routePath.startsWith('/forecasting');
+      if (isForecastRoute) {
+        const rail = page.getByTestId('workspace-context-rail');
+        await expect(rail).toBeVisible({ timeout: ROUTE_READY_TIMEOUT_MS });
+        await expect(
+          rail.getByRole('heading', { name: FIDELITY_FUND.name, exact: true })
+        ).toBeVisible();
+        const basis = rail.getByTestId('workspace-context-basis');
+        await expect(basis.getByText('Live', { exact: true })).toBeVisible();
+        await expect(basis.getByText('Plan v1')).toBeVisible();
+        await expect(
+          basis.getByText(CURRENT_FORECAST_V2_FIXTURE.inputHash.slice(0, 8))
+        ).toBeVisible();
+        await expect(page.getByTestId('dynamic-fund-header')).toHaveCount(0);
+      } else {
+        await expect(async () => {
+          expectHeaderFacts(await readHeaderText(page));
+        }).toPass({ timeout: ROUTE_READY_TIMEOUT_MS });
+      }
 
       expect(apiTracker.observedFundRequests).not.toEqual(
         expect.arrayContaining([expect.stringMatching(/\/api\/funds?\/1(?:\/|\b)/)])
       );
       expect(apiTracker.observedFundRequests).toEqual(
         expect.arrayContaining([
-          expect.stringMatching(new RegExp(`/api/funds/${FIDELITY_FUND.id}/metrics\\b`)),
+          expect.stringMatching(
+            new RegExp(
+              `/api/funds/${FIDELITY_FUND.id}/${isForecastRoute ? 'dual-forecast' : 'metrics'}\\b`
+            )
+          ),
         ])
       );
       expect(apiTracker.unexpectedRequests).toEqual([]);
