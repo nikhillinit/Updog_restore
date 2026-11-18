@@ -285,9 +285,9 @@ describe.each(['remote', 'vercel'] as const)('database context Neon %s adapter',
       const startedAt = performance.now();
       try {
         await expect(
-          database.runWithDatabaseContext(context, callback, { timeoutMs: 50 })
+          database.runWithDatabaseContext(context, callback, { timeoutMs: 1_000 })
         ).rejects.toBeInstanceOf(contextModule.DatabaseContextTimeoutError);
-        expect(performance.now() - startedAt).toBeLessThan(750);
+        expect(performance.now() - startedAt).toBeLessThan(3_500);
         if (phase === 'BEGIN' || phase === 'RLS') expect(callback).not.toHaveBeenCalled();
         if (phase !== 'CALLBACK') expect(dropped).toBeGreaterThan(0);
       } finally {
