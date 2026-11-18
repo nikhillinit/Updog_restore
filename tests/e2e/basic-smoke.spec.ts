@@ -659,10 +659,22 @@ const actualsPreviews = {
   valuation: ActualsPreviewResponseV1Schema.parse(actualsFixture.previews.valuation),
 };
 
+async function waitForActualsForm(page: Page) {
+  // The inputs can appear before the initial route render settles.
+  await expect(
+    page.getByRole('region', { name: 'Publish fixed-template actuals' })
+  ).toHaveAttribute('aria-busy', 'false', { timeout: ROUTE_READY_TIMEOUT_MS });
+}
+
+async function fillActualsCutoff(page: Page) {
+  await waitForActualsForm(page);
+  await page
+    .getByLabel('Reporting cutoff', { exact: true })
+    .fill(actualsFixture.publishRequest.asOfDate);
+}
+
 async function selectActualsFiles(page: Page, ledgerCsv = actualsFixture.ledgerCsv) {
-  await expect(page.getByLabel('Reporting cutoff', { exact: true })).toBeVisible({
-    timeout: ROUTE_READY_TIMEOUT_MS,
-  });
+  await waitForActualsForm(page);
   await page.getByLabel('Ledger CSV', { exact: true }).setInputFiles({
     name: actualsFixture.publishRequest.ledger.fileName,
     mimeType: 'text/csv',
@@ -682,12 +694,7 @@ async function selectActualsFiles(page: Page, ledgerCsv = actualsFixture.ledgerC
 
 async function previewActuals(page: Page, navigate = true) {
   if (navigate) await page.goto('/lp-reporting/imports', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByLabel('Reporting cutoff', { exact: true })).toBeVisible({
-    timeout: ROUTE_READY_TIMEOUT_MS,
-  });
-  await page
-    .getByLabel('Reporting cutoff', { exact: true })
-    .fill(actualsFixture.publishRequest.asOfDate);
+  await fillActualsCutoff(page);
   await selectActualsFiles(page);
   await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
 }
@@ -878,9 +885,7 @@ test.describe('Actuals publication smoke', () => {
       await route.fulfill({ json: actualsMetrics });
     });
     await page.goto('/lp-reporting/imports', { waitUntil: 'domcontentloaded' });
-    await page
-      .getByLabel('Reporting cutoff', { exact: true })
-      .fill(actualsFixture.publishRequest.asOfDate);
+    await fillActualsCutoff(page);
     await selectActualsFiles(page, enteredCsv);
     await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
     await expect(page.getByTestId('actuals-preview-ledger-row-1')).toContainText('90,000.00');
@@ -1046,9 +1051,7 @@ test.describe('Actuals publication smoke', () => {
       mimeType: 'text/csv',
       buffer: Buffer.from(actualsFixture.ledgerCsv),
     });
-    await page
-      .getByLabel('Reporting cutoff', { exact: true })
-      .fill(actualsFixture.publishRequest.asOfDate);
+    await fillActualsCutoff(page);
     await page.getByLabel('Reason for this version').fill('Correct contribution date and amount.');
     await page.getByRole('button', { name: 'Save draft revision', exact: true }).click();
     await expect(page.getByText('Saved draft version 2.', { exact: true })).toBeVisible();
@@ -1060,9 +1063,7 @@ test.describe('Actuals publication smoke', () => {
     await expect(page.getByRole('button', { name: 'Preview actuals', exact: true })).toBeDisabled();
     expect(drafts).toHaveLength(2);
     await selectActualsFiles(page);
-    await page
-      .getByLabel('Reporting cutoff', { exact: true })
-      .fill(actualsFixture.publishRequest.asOfDate);
+    await fillActualsCutoff(page);
     await page.getByRole('button', { name: 'Preview actuals', exact: true }).click();
     await page
       .getByLabel('Coverage evidence note')
