@@ -262,6 +262,25 @@ describe('main-fund onboarding HTTP boundary', () => {
   });
 
   it.each([
+    ['VEHICLE_IDENTITY_CONFLICT', 'The requested main-fund identity is unavailable.'],
+    ['IDEMPOTENCY_KEY_REUSE', 'Idempotency-Key was already used for a different request.'],
+  ])('returns an actionable message for %s', async (code, message) => {
+    const app = await makeApp(7);
+    const { VehicleOnboardingError } =
+      await import('../../../../server/services/lp-reporting/vehicle-onboarding-service');
+    const { IdempotentCommandError } = await import('../../../../server/lib/idempotent-command');
+    onboarding.run.mockRejectedValue(
+      code === 'IDEMPOTENCY_KEY_REUSE'
+        ? new IdempotentCommandError(409, code, message)
+        : new VehicleOnboardingError(409, code, message)
+    );
+    await request(app).post(path).set('Idempotency-Key', key).send(body).expect(409, {
+      code,
+      message,
+    });
+  });
+
+  it.each([
     [
       Object.assign(new Error('duplicate key DETAIL: Key (vehicle_slug)=(secret-slug)'), {
         code: '23505',

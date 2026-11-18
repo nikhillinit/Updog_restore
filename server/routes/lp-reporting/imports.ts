@@ -1408,10 +1408,10 @@ if (actualsPilotFundId !== null) {
       } catch (error) {
         if (sendIdempotentCommandLockError(res, error)) return res;
         if (error instanceof VehicleOnboardingError) {
-          return res.status(error.statusCode).json({ error: error.message, code: error.code });
+          return res.status(error.statusCode).json({ message: error.message, code: error.code });
         }
         if (error instanceof IdempotentCommandError) {
-          return res.status(error.status).json({ error: error.message, code: error.code });
+          return res.status(error.status).json({ message: error.message, code: error.code });
         }
         const details: { code: string; errorName: string; sqlState?: string; constraint?: string } =
           {

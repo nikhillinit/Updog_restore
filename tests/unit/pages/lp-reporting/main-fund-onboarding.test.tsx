@@ -122,7 +122,7 @@ async function reviewDeclaration(user: ReturnType<typeof userEvent.setup>) {
 describe('main-fund onboarding', () => {
   beforeEach(() => {
     auth.session = {
-      user: { id: '9', email: 'admin@example.com', role: 'admin', fundIds: [7, 8] },
+      user: { id: '9', email: 'admin@example.com', role: 'admin', fundIds: [] },
     };
     sessionStorage.clear();
     let id = 0;
@@ -355,14 +355,20 @@ describe('main-fund onboarding', () => {
   it('requires editing after a definitive refusal before starting a new key', async () => {
     const { commands } = mockRequests((command, count) =>
       count === 1
-        ? response({ code: 'VEHICLE_MISMATCH', message: 'Existing vehicle differs.' }, 409)
+        ? response(
+            {
+              code: 'VEHICLE_IDENTITY_CONFLICT',
+              message: 'The requested main-fund identity is unavailable.',
+            },
+            409
+          )
         : response(receipt(command))
     );
     const user = userEvent.setup();
     renderPanel();
     await fillDeclaration();
     await user.click(await reviewDeclaration(user));
-    await screen.findByText('Existing vehicle differs.');
+    await screen.findByText('The requested main-fund identity is unavailable.');
     expect(screen.getByRole('button', { name: 'Declare main fund' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Edit declaration' }));
     fireEvent.change(screen.getByLabelText('Main fund slug'), {
@@ -376,7 +382,10 @@ describe('main-fund onboarding', () => {
   it('forgets the key after a first-attempt refusal so a reload does not restore it', async () => {
     mockRequests(() =>
       response(
-        { code: 'VEHICLE_DECLARATION_CONFLICT', message: 'Existing main-fund fields differ.' },
+        {
+          code: 'VEHICLE_DECLARATION_CONFLICT',
+          message: 'Existing main-fund fields do not match the declaration.',
+        },
         409
       )
     );
@@ -384,7 +393,7 @@ describe('main-fund onboarding', () => {
     const first = renderPanel();
     await fillDeclaration();
     await user.click(await reviewDeclaration(user));
-    await screen.findByText('Existing main-fund fields differ.');
+    await screen.findByText('Existing main-fund fields do not match the declaration.');
     expect(sessionStorage.getItem(ENTRY)).toBeNull();
     first.unmount();
     renderPanel();
@@ -393,17 +402,17 @@ describe('main-fund onboarding', () => {
   });
 
   it.each([
-    'VEHICLE_DECLARATION_CONFLICT',
-    'VEHICLE_IDENTITY_CONFLICT',
-    'SOURCE_IDENTITY_CONFLICT',
-    'IDEMPOTENCY_KEY_REUSE',
+    ['VEHICLE_DECLARATION_CONFLICT', 'Existing main-fund fields do not match the declaration.'],
+    ['VEHICLE_IDENTITY_CONFLICT', 'The requested main-fund identity is unavailable.'],
+    ['SOURCE_IDENTITY_CONFLICT', 'The declaration source identity is already occupied.'],
+    ['IDEMPOTENCY_KEY_REUSE', 'Idempotency-Key was already used for a different request.'],
   ])(
     'clears uncertainty after a post-replay %s refusal and restores Edit across reload',
-    async (code) => {
+    async (code, message) => {
       mockRequests((_command, count) =>
         count === 1
           ? response({ code: 'TEMPORARY_FAILURE' }, 503)
-          : response({ code, message: 'Refused after replay check.' }, 409)
+          : response({ code, message }, 409)
       );
       const user = userEvent.setup();
       const first = renderPanel();
@@ -411,7 +420,7 @@ describe('main-fund onboarding', () => {
       await user.click(await reviewDeclaration(user));
       await screen.findByText(/The outcome is uncertain/);
       await user.click(screen.getByRole('button', { name: 'Retry unchanged declaration' }));
-      await screen.findByText('Refused after replay check.');
+      await screen.findByText(message);
       expect(screen.queryByText(/The outcome is uncertain/)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Declare main fund' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Edit declaration' })).toBeEnabled();
@@ -515,7 +524,7 @@ describe('main-fund onboarding', () => {
     view.switchFund(7);
     expect(screen.queryByTestId('main-fund-onboarding')).not.toBeInTheDocument();
     expect(sessionStorage.getItem(ENTRY)).toBeNull();
-    auth.session = { user: { id: '10', email: 'other@example.com', role: 'admin', fundIds: [7] } };
+    auth.session = { user: { id: '10', email: 'other@example.com', role: 'admin', fundIds: [] } };
     view.switchFund(7);
     await screen.findByRole('heading', { name: 'Declare the main fund' });
     expect(screen.getByLabelText('Commitment source text')).toHaveValue('');
@@ -531,7 +540,7 @@ describe('main-fund onboarding', () => {
     }
   );
 
-  it('renders nothing for a fund outside the pilot (404 availability)', async () => {
+  it('checks the pilot grant and hides the form when the server returns 404', async () => {
     const { fetchMock } = mockRequests(undefined, () =>
       response({ code: 'RESOURCE_NOT_FOUND' }, 404)
     );
@@ -543,18 +552,14 @@ describe('main-fund onboarding', () => {
     expect(view.container).toBeEmptyDOMElement();
   });
 
-  it.each(['viewer', 'ungranted'] as const)(
+  it.each(['viewer', 'signed-out'] as const)(
     'does not check pilot access or expose the form for %s users',
     (kind) => {
       const { fetchMock } = mockRequests();
-      auth.session = {
-        user: {
-          id: '9',
-          email: 'user@example.com',
-          role: kind === 'viewer' ? 'viewer' : 'admin',
-          fundIds: kind === 'ungranted' ? [] : [7],
-        },
-      };
+      auth.session =
+        kind === 'viewer'
+          ? { user: { id: '9', email: 'user@example.com', role: 'viewer', fundIds: [7] } }
+          : null;
       renderPanel();
       expect(screen.queryByLabelText('Main fund slug')).not.toBeInTheDocument();
       expect(fetchMock).not.toHaveBeenCalled();

@@ -69,7 +69,7 @@ export const DEFINITIVE_REFUSAL_CODES = new Set([
 export function MainFundOnboardingPanel({ fundId }: { fundId: number }) {
   const session = useAuthSession();
   const user = session.data?.user;
-  const eligible = !session.isError && user?.role === 'admin' && user.fundIds.includes(fundId);
+  const eligible = !session.isError && user?.role === 'admin';
   const availability = useFinancialFactsLatestReference(eligible ? fundId : null);
   if (!eligible) return null;
   if (availability.isError && availability.error?.status === 404) return null;
