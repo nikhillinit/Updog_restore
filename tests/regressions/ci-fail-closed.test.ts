@@ -8666,7 +8666,18 @@ describe('required CI fails closed', () => {
       expect(job?.if).toContain('github.run_attempt == 1');
       expect(job?.environment).toMatch(/^production-/);
     }
-    expect(JSON.stringify(rehearsal)).not.toContain('upload-artifact');
+    const uploads = Object.values(rehearsal.jobs ?? {}).flatMap((job) =>
+      (job.steps ?? []).filter((step) => step.uses?.startsWith('actions/upload-artifact@'))
+    );
+    expect(uploads).toEqual([
+      expect.objectContaining({
+        if: "inputs.migration_mode == 'journaled-0062'",
+        with: expect.objectContaining({
+          path: '${{ runner.temp }}/journaled-0062-rehearsal.json',
+          'if-no-files-found': 'error',
+        }),
+      }),
+    ]);
     expect(JSON.stringify(action)).toContain('PRODUCTION_DATABASE_DIRECT_HOST_SHA256');
   });
 });
