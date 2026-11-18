@@ -660,6 +660,9 @@ const actualsPreviews = {
 };
 
 async function selectActualsFiles(page: Page, ledgerCsv = actualsFixture.ledgerCsv) {
+  await expect(page.getByLabel('Reporting cutoff', { exact: true })).toBeVisible({
+    timeout: ROUTE_READY_TIMEOUT_MS,
+  });
   await page.getByLabel('Ledger CSV', { exact: true }).setInputFiles({
     name: actualsFixture.publishRequest.ledger.fileName,
     mimeType: 'text/csv',
