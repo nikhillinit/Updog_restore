@@ -408,15 +408,17 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
   const ledgerPreviewMutation = useActualsPreview(fundId);
   const valuationPreviewMutation = useActualsPreview(fundId);
   const publishMutation = useActualsPublish(fundId);
-  const [asOfDate, setAsOfDate] = useState('');
+  const [asOfDate, setAsOfDate] = useState(initialRecovery.command?.asOfDate ?? '');
   const [ledgerFile, setLedgerFile] = useState<File | null>(null);
   const [valuationFile, setValuationFile] = useState<File | null>(null);
   const [ledgerPreviewPage, setLedgerPreviewPage] = useState(0);
   const [valuationPreviewPage, setValuationPreviewPage] = useState(0);
   const [coverageKind, setCoverageKind] = useState<
     'inception_to_date' | 'incremental_since_prior_head'
-  >('inception_to_date');
-  const [evidenceNote, setEvidenceNote] = useState('');
+  >(initialRecovery.command?.coverage.ledger ?? 'inception_to_date');
+  const [evidenceNote, setEvidenceNote] = useState(
+    initialRecovery.command?.coverage.evidenceNote ?? ''
+  );
   const [preview, setPreview] = useState<FreshPreviewState | null>(null);
   const [storedCommand, setStoredCommand] = useState<StoredCommand | null>(initialRecovery.command);
   const [storedStorageKey, setStoredStorageKey] = useState<string | null>(
@@ -440,23 +442,6 @@ export function ActualsPublicationPanel({ fundId }: ActualsPublicationPanelProps
     receipt?.facts.snapshotId ?? null,
     receipt !== undefined
   );
-
-  useEffect(() => {
-    const recovered = readStoredCommand(fundId);
-    setStoredCommand(recovered.command);
-    setStoredStorageKey(recovered.storageKey);
-    setCorruptStorageKeys(recovered.corruptKeys);
-    setFrozenBody(null);
-    setFrozenSerializedBody(null);
-    setPreview(null);
-    setLedgerFile(null);
-    setValuationFile(null);
-    if (recovered.command) {
-      setAsOfDate(recovered.command.asOfDate);
-      setCoverageKind(recovered.command.coverage.ledger);
-      setEvidenceNote(recovered.command.coverage.evidenceNote);
-    }
-  }, [fundId]);
 
   const publishNavigationFrozen =
     draftPending ||
